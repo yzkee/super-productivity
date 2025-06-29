@@ -8,6 +8,7 @@ import { DataInitStateService } from '../../../core/data-init/data-init-state.se
 import { SyncWrapperService } from '../../../imex/sync/sync-wrapper.service';
 import { AddTasksForTomorrowService } from '../../add-tasks-for-tomorrow/add-tasks-for-tomorrow.service';
 import { Action } from '@ngrx/store';
+import { DEFAULT_TASK } from '../task.model';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
 import { selectOverdueTasksOnToday } from './task.selectors';
 import { selectTodayTaskIds } from '../../work-context/store/work-context.selectors';
@@ -25,11 +26,13 @@ describe('TaskDueEffects', () => {
   let addTasksForTomorrowService: jasmine.SpyObj<AddTasksForTomorrowService>;
 
   const mockTask: Task = {
+    ...DEFAULT_TASK,
     id: 'task1',
     title: 'Test Task',
+    projectId: 'test-project',
     isDone: false,
     dueDay: '2023-06-13',
-  } as Task;
+  };
 
   beforeEach(() => {
     const globalTrackingIntervalServiceSpy = jasmine.createSpyObj(
@@ -128,12 +131,12 @@ describe('TaskDueEffects', () => {
       // Simulate sync completing
       syncSubject.next(undefined);
 
-      // Wait a bit to ensure effect doesn't fire
+      // Reduce timeout for faster tests
       setTimeout(() => {
         expect(effectFired).toBe(false);
         expect(addTasksForTomorrowService.addAllDueToday).not.toHaveBeenCalled();
         done();
-      }, 100);
+      }, 50);
     });
 
     it('should add tasks after debounce period when sync completes', (done) => {

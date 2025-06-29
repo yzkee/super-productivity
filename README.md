@@ -1,5 +1,5 @@
 <a href="https://super-productivity.com/">
-  <img align="center" alt="Banner" src="screens/banner.png" />
+  <img align="center" alt="Banner" src="docs/screens/banner.png" />
 </a>
 
 <br>
@@ -89,13 +89,13 @@
        height="50" />
 </a>
 <a href='//apps.apple.com/de/app/super-productivity/id1482572463?l=en&mt=12' target="_blank">
-  <img src='./screens/app-store-badge.svg'
+  <img src='docs/screens/app-store-badge.svg'
        align="center"
        alt='App Store Badge'
        height="50" />
 </a>
 <a href='//play.google.com/store/apps/details?id=com.superproductivity.superproductivity' target="_blank">
-  <img src='./screens/google-play-badge.png'
+  <img src='docs/screens/google-play-badge.png'
        align="center"
        alt='Play Store Badge'
        height="50" />
@@ -264,7 +264,7 @@ brew install --cask superproductivity
 ```
 
 <a href='//apps.apple.com/de/app/super-productivity/id1482572463?l=en&mt=12' target="_blank">
-  <img src='./screens/app-store-badge.svg'
+  <img src='docs/screens/app-store-badge.svg'
        alt='App Store Badge'
        height="50" />
 </a>
@@ -280,7 +280,7 @@ Stay tuned for even more exciting updates!
 You can find the Android app here:
 
 <a href='//play.google.com/store/apps/details?id=com.superproductivity.superproductivity' target="_blank">
-  <img src='./screens/google-play-badge.png'
+  <img src='docs/screens/google-play-badge.png'
        align="center"
        alt='App Store Badge'
        height="50" />
@@ -322,6 +322,8 @@ There are several ways to help.
 [//]: # 'You can use the Fink Localization Editor to edit, lint, and add translations for different languages. [Contribute via fink Guide](https://inlang.com/g/6ddyhpoi).'
 
 9. **[Sponsor the project](https://github.com/sponsors/johannesjo)**
+
+10. **[Create custom plugins](docs/plugin-development.md)**: Extend Super Productivity with your own features and integrations by developing custom plugins.
 
 ### Running the development server
 
