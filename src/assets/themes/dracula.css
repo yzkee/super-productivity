@@ -1,0 +1,178 @@
+/**
+ * Dracula Theme for Super Productivity
+ * Dark theme based on Dracula color scheme
+ */
+
+/* Remove all shadows */
+* {
+  box-shadow: none !important;
+}
+
+/* Override CSS variables for Dracula theme */
+body.isDarkTheme {
+  /* ===============================
+   * BACKGROUND COLORS
+   * ===============================*/
+
+  /* Main backgrounds */
+  --bg: #282a36;
+  --bg-darker: #282a36;
+  --bg-slightly-lighter: #262935;
+  --bg-lighter: #22242e;
+  --bg-lightest: #313342;
+  --bg-super-light: #44475a;
+
+  /* Component backgrounds */
+  --card-bg: #22242e;
+  --sidebar-bg: #232830;
+  --selected-task-bg-color: #313342;
+  --banner-bg: #313342;
+
+  /* Task backgrounds */
+  --task-c-bg: #262935;
+  --task-c-selected-bg: #313342;
+  --sub-task-c-bg: #262935;
+  --sub-task-c-bg-done: #22242e;
+  --task-c-bg-done: #22242e;
+  --task-c-current-bg: #44475a;
+  --task-c-drag-drop-bg: #44475a;
+  --sub-task-c-bg-in-selected: #2c2e3a;
+
+  /* Note backgrounds */
+  --standard-note-bg: #22242e;
+  --standard-note-bg-hovered: #313342;
+
+  /* ===============================
+   * TEXT COLORS
+   * ===============================*/
+
+  --text-color: #f8f8f2;
+  --text-color-less-intense: rgba(248, 248, 242, 0.9);
+  --text-color-muted: rgba(248, 248, 242, 0.6);
+  --text-color-more-intense: #ffffff;
+  --text-color-most-intense: #ffffff;
+
+  /* Note text */
+  --standard-note-fg: #f8f8f2;
+
+  /* Task detail */
+  --task-detail-value-color: rgba(248, 248, 242, 0.7);
+
+  /* ===============================
+   * BORDERS & SEPARATORS
+   * ===============================*/
+
+  --extra-border-color: #232830;
+  --separator-color: rgba(35, 40, 48, 0.5);
+  --divider-color: #232830;
+
+  /* Chip borders */
+  --chip-outline-color: rgba(248, 248, 242, 0.3);
+
+  /* ===============================
+   * ACCENT & THEME COLORS
+   * ===============================*/
+
+  /* Dracula purple accent */
+  --palette-accent-500: #bd93f9;
+  --c-accent: #bd93f9;
+
+  /* ===============================
+   * UI ELEMENTS
+   * ===============================*/
+
+  /* Scrollbar */
+  --scrollbar-thumb: #44475a;
+  --scrollbar-thumb-hover: #555862;
+  --scrollbar-track: #282a36;
+
+  /* Close button */
+  --close-btn-bg: #313342;
+  --close-btn-border: #232830;
+
+  /* Select/Options */
+  --select-hover-bg: rgba(189, 147, 249, 0.15);
+  --options-border-color: rgba(189, 147, 249, 0.2);
+
+  /* Attachments */
+  --attachment-bg: #22242e;
+  --attachment-border: transparent;
+  --attachment-control-bg: rgba(0, 0, 0, 0.3);
+  --attachment-control-border: rgba(0, 0, 0, 0.4);
+  --attachment-control-hover-bg: rgba(0, 0, 0, 0.7);
+
+  /* Grid */
+  --grid-color: rgba(248, 248, 242, 0.1);
+
+  /* Progress */
+  --progress-bg: rgba(248, 248, 242, 0.2);
+
+  /* Improvement banner */
+  --improvement-text: #ffffff;
+  --improvement-border: rgba(189, 147, 249, 0.3);
+  --improvement-button-text: #ffffff;
+
+  /* ===============================
+   * DRACULA SPECIFIC COLORS
+   * ===============================*/
+
+  /* Additional Dracula colors for potential future use */
+  --dracula-red: #ff5555;
+  --dracula-orange: #ffb86c;
+  --dracula-yellow: #f1fa8c;
+  --dracula-green: #50fa7b;
+  --dracula-cyan: #8be9fd;
+  --dracula-pink: #ff79c6;
+  --dracula-purple: #bd93f9;
+  --dracula-comment: #6272a4;
+  --dracula-current: #44475a;
+  --dracula-foreground: #f8f8f2;
+  --dracula-background: #282a36;
+
+  /* ===============================
+   * SHADOWS - DISABLED
+   * ===============================*/
+
+  /* Remove all shadows for minimal look */
+  --shadow-key-umbra-opacity: 0;
+  --shadow-key-penumbra-opacity: 0;
+  --shadow-ambient-shadow-opacity: 0;
+
+  /* Task shadows - disabled */
+  --task-current-shadow: none;
+  --task-selected-shadow: none;
+
+  /* ===============================
+   * HOVER CONTROLS
+   * ===============================*/
+
+  --hover-controls-border: none;
+  --hover-controls-border-opacity: 0;
+}
+
+/* Apply background color to all body variants */
+body,
+body.isDarkTheme,
+body.isDarkTheme.isDisableBackgroundGradient,
+body.isDisableBackgroundGradient,
+body.isEnabledBackgroundGradient,
+body.isLightTheme,
+body.isLightTheme.isDisableBackgroundGradient,
+body.isMac.isEnabledBackgroundGradient,
+body.isWeb.isEnabledBackgroundGradient {
+  background-color: var(--bg);
+}
+
+/* Version footer links */
+body .version-footer a[href],
+body.isDarkTheme .version-footer a[href],
+body.isDarkTheme.isDisableBackgroundGradient .version-footer a[href],
+body.isDisableBackgroundGradient .version-footer a[href],
+body.isEnabledBackgroundGradient .version-footer a[href],
+body.isLightTheme .version-footer a[href],
+body.isLightTheme.isDisableBackgroundGradient .version-footer a[href],
+body.isMac.isEnabledBackgroundGradient .version-footer a[href],
+body.isWeb.isEnabledBackgroundGradient .version-footer a[href] {
+  color: var(--c-accent);
+  text-decoration: none;
+}

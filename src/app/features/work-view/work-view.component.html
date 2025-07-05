@@ -247,7 +247,7 @@
               </button>
             </div>
           }
-          @if (customizedUndoneTasks$ | async; as customized) {
+          @if (customizedUndoneTasks(); as customized) {
             @if (customized.grouped) {
               @for (group of customized.grouped | keyvalue; track group.key) {
                 <h3>{{ group.key }}</h3>
@@ -265,6 +265,32 @@
                 listModelId="UNDONE"
               ></task-list>
             }
+          }
+
+          @if (laterTodayTasks().length > 0 && isOnTodayList()) {
+            <div
+              @expand
+              style="margin-top: 16px"
+            >
+              <collapsible
+                [title]="
+                  (T.WW.LATER_TODAY | translate) +
+                  ' (' +
+                  (laterTodayTasks()?.length || 0) +
+                  ')'
+                "
+                [isExpanded]="!isLaterTodayHidden()"
+                (isExpandedChange)="isLaterTodayHidden.set(!$event)"
+                [isIconBefore]="true"
+              >
+                <task-list
+                  [tasks]="laterTodayTasks()"
+                  [isSortingDisabled]="true"
+                  listId="PARENT"
+                  listModelId="LATER_TODAY"
+                ></task-list>
+              </collapsible>
+            </div>
           }
 
           @if (!isPlanningMode() || hasDoneTasks()) {

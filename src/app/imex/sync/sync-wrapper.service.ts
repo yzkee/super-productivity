@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
+import { Observable, of, Subject } from 'rxjs';
 import { GlobalConfigService } from '../../features/config/global-config.service';
-import { filter, first, map, switchMap, take } from 'rxjs/operators';
+import { catchError, first, map, switchMap, take, timeout } from 'rxjs/operators';
 import { SyncConfig } from '../../features/config/global-config.model';
 import { TranslateService } from '@ngx-translate/core';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
@@ -31,6 +31,7 @@ import { DialogSyncInitialCfgComponent } from './dialog-sync-initial-cfg/dialog-
 import { DialogIncompleteSyncComponent } from './dialog-incomplete-sync/dialog-incomplete-sync.component';
 import { DialogHandleDecryptErrorComponent } from './dialog-handle-decrypt-error/dialog-handle-decrypt-error.component';
 import { DialogIncoherentTimestampsErrorComponent } from './dialog-incoherent-timestamps-error/dialog-incoherent-timestamps-error.component';
+import { devError } from '../../util/dev-error';
 
 @Injectable({
   providedIn: 'root',
@@ -43,6 +44,9 @@ export class SyncWrapperService {
   private _matDialog = inject(MatDialog);
   private _dataInitService = inject(DataInitService);
   private _reminderService = inject(ReminderService);
+
+  // NEW: Subject to track when data reload is complete after sync
+  private _dataReloadComplete$ = new Subject<void>();
 
   syncState$ = this._pfapiService.syncState$;
 
@@ -61,7 +65,18 @@ export class SyncWrapperService {
   isSyncInProgress$: Observable<boolean> = this._pfapiService.isSyncInProgress$.pipe();
 
   _afterCurrentSyncDoneIfAny$: Observable<unknown> = this.isSyncInProgress$.pipe(
-    filter((isSyncing) => !isSyncing),
+    switchMap((isSyncing) =>
+      isSyncing
+        ? this._dataReloadComplete$.pipe(
+            // this step shouldn't take too long normally, so we use a timeout in case we have a race condition
+            timeout(30000),
+            catchError((e) => {
+              devError(e);
+              return of(undefined);
+            }),
+          )
+        : of(undefined),
+    ),
   );
 
   afterCurrentSyncDoneOrSyncDisabled$: Observable<unknown> = this.isEnabledAndReady$.pipe(
@@ -112,6 +127,17 @@ export class SyncWrapperService {
             local: r.conflictData?.local.lastUpdate,
             lastSync: r.conflictData?.local.lastSyncedUpdate,
             conflictData: r.conflictData,
+          });
+
+          // Enhanced debugging for vector clock issues
+          console.log('CONFLICT DEBUG - Vector Clock Analysis:', {
+            localVectorClock: r.conflictData?.local.vectorClock,
+            remoteVectorClock: r.conflictData?.remote.vectorClock,
+            localLastSyncedVectorClock: r.conflictData?.local.lastSyncedVectorClock,
+            localLamport: r.conflictData?.local.localLamport,
+            remoteLamport: r.conflictData?.remote.localLamport,
+            conflictReason: r.conflictData?.reason,
+            additional: r.conflictData?.additional,
           });
           const res = await this._openConflictDialog$(
             r.conflictData as ConflictData,
@@ -302,11 +328,21 @@ export class SyncWrapperService {
   }
 
   private async _reInitAppAfterDataModelChange(): Promise<void> {
-    await Promise.all([
-      // reload view model from ls
-      this._dataInitService.reInit(true),
-      this._reminderService.reloadFromDatabase(),
-    ]);
+    console.log('Starting data re-initialization after sync...');
+
+    try {
+      await Promise.all([
+        this._dataInitService.reInit(true),
+        this._reminderService.reloadFromDatabase(),
+      ]);
+
+      console.log('Data re-initialization complete');
+      // Signal that data reload is complete
+      this._dataReloadComplete$.next();
+    } catch (error) {
+      console.error('Error during data re-initialization:', error);
+      throw error;
+    }
   }
 
   private _c(str: string): boolean {

@@ -14,14 +14,14 @@
   }
 
   .config-section {
-    border: 1px solid var(--theme-divider-color);
+    border: 1px solid var(--divider-color);
     break-inside: avoid;
     margin-bottom: 10px;
     border-radius: var(--card-border-radius);
-    background: var(--theme-card-bg);
+    background: var(--card-bg);
 
-    background-color: var(--theme-card-bg);
-    //background-color: var(--theme-bg-slightly-lighter);
+    background-color: var(--card-bg);
+    //background-color: var(--bg-slightly-lighter);
 
     .md-title {
       margin-top: 0;
@@ -34,7 +34,7 @@
     ::ng-deep .isExpanded .collapsible-header {
       font-weight: bold;
 
-      border-color: var(--theme-extra-border-color);
+      border-color: var(--extra-border-color);
     }
   }
 
@@ -60,14 +60,26 @@
   padding: var(--s3);
 }
 
-.dark-mode-select {
-  margin: 20px 0;
+:host .config-section ::ng-deep {
+  $this-panel-padding-left-right: 12px;
 
-  display: flex;
-  justify-content: stretch;
-  align-items: center;
+  .collapsible-header {
+    font-size: 16px;
+    margin-top: 0;
+    padding: 10px $this-panel-padding-left-right;
+  }
 
-  h3 {
-    margin-right: var(--s2);
+  .collapsible-panel {
+    //border-top: 1px solid black;
+    overflow: visible;
+
+    > * {
+      // for help icon positioning
+      // does not work because of translate on the slide down ani element
+      // position: static;
+
+      // add a padding
+      padding: 0 $this-panel-padding-left-right;
+    }
   }
 }

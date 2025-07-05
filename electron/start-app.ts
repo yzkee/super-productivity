@@ -5,6 +5,7 @@ import {
   app,
   BrowserWindow,
   globalShortcut,
+  ipcMain,
   powerMonitor,
   protocol,
 } from 'electron';
@@ -21,6 +22,7 @@ import { initIndicator } from './indicator';
 import { quitApp, showOrFocus } from './various-shared';
 import { createWindow } from './main-window';
 import { IdleTimeHandler } from './idle-time-handler';
+import { destroyOverlayWindow } from './overlay-indicator/overlay-indicator';
 
 const ICONS_FOLDER = __dirname + '/assets/icons/';
 const IS_MAC = process.platform === 'darwin';
@@ -71,7 +73,6 @@ export const startApp = (): void => {
 
     if (isWayland || forceX11) {
       log('Applying X11/Wayland compatibility fixes');
-
       // Force Ozone platform to X11
       app.commandLine.appendSwitch('ozone-platform', 'x11');
 
@@ -82,7 +83,7 @@ export const startApp = (): void => {
       app.commandLine.appendSwitch('disable-features', 'UseOzonePlatform');
       app.commandLine.appendSwitch('enable-features', 'UseSkiaRenderer');
 
-      // Set GDK backend to X11
+      // Set GDK backend to X11 which is needed for idle handling to work it seems
       process.env.GDK_BACKEND = 'x11';
     }
   }
@@ -253,11 +254,31 @@ export const startApp = (): void => {
     globalShortcut.unregisterAll();
   });
 
+  appIN.on('before-quit', () => {
+    log('App before-quit: cleaning up resources');
+
+    // Clean up overlay window before quitting
+    destroyOverlayWindow();
+
+    // Remove all IPC listeners to prevent memory leaks
+    ipcMain.removeAllListeners();
+
+    // Clear any pending timeouts/intervals
+    if (global.gc) {
+      global.gc();
+    }
+  });
+
   appIN.on('window-all-closed', () => {
     log('Quit after all windows being closed');
-    // if (!IS_MAC) {
+    // Force quit the app
     app.quit();
-    // }
+
+    // If app doesn't quit within 2 seconds, force exit
+    setTimeout(() => {
+      log('Force exiting app as it did not quit properly');
+      app.exit(0);
+    }, 2000);
   });
   process.on('uncaughtException', (err) => {
     console.log(err);

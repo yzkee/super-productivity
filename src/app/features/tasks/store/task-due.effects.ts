@@ -1,12 +1,12 @@
 import { inject, Injectable } from '@angular/core';
 import { createEffect } from '@ngrx/effects';
 import {
+  concatMap,
   debounceTime,
   filter,
   first,
   map,
   switchMap,
-  tap,
   withLatestFrom,
 } from 'rxjs/operators';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
@@ -17,6 +17,7 @@ import { DataInitStateService } from '../../../core/data-init/data-init-state.se
 import { SyncWrapperService } from '../../../imex/sync/sync-wrapper.service';
 import { selectTodayTaskIds } from '../../work-context/store/work-context.selectors';
 import { AddTasksForTomorrowService } from '../../add-tasks-for-tomorrow/add-tasks-for-tomorrow.service';
+import { SnackService } from '../../../core/snack/snack.service';
 
 @Injectable()
 export class TaskDueEffects {
@@ -25,6 +26,7 @@ export class TaskDueEffects {
   private _dataInitStateService = inject(DataInitStateService);
   private _syncWrapperService = inject(SyncWrapperService);
   private _addTasksForTomorrowService = inject(AddTasksForTomorrowService);
+  private _snackService = inject(SnackService);
 
   // NOTE: this gets a lot of interference from tagEffect.preventParentAndSubTaskInTodayList$:
   createRepeatableTasksAndAddDueToday$ = createEffect(
@@ -44,7 +46,8 @@ export class TaskDueEffects {
                 first(),
               ),
             ),
-            tap(() => this._addTasksForTomorrowService.addAllDueToday()),
+            // NOTE we use concatMap since tap errors only show in console, but are not handled by global handler
+            concatMap(() => this._addTasksForTomorrowService.addAllDueToday()),
           ),
         ),
       );

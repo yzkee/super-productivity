@@ -26,13 +26,7 @@ import { versions } from '../../../environments/versions';
 import { IS_ELECTRON } from '../../app.constants';
 import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
 import { getAutomaticBackUpFormCfg } from '../../features/config/form-cfgs/automatic-backups-form.const';
-import {
-  MatButtonToggle,
-  MatButtonToggleChange,
-  MatButtonToggleGroup,
-} from '@angular/material/button-toggle';
 import { getAppVersionStr } from '../../util/get-app-version-str';
-import { MatIcon } from '@angular/material/icon';
 import { ConfigSectionComponent } from '../../features/config/config-section/config-section.component';
 import { ConfigSoundFormComponent } from '../../features/config/config-sound-form/config-sound-form.component';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -42,6 +36,13 @@ import { map, tap } from 'rxjs/operators';
 import { SyncConfigService } from '../../imex/sync/sync-config.service';
 import { GlobalThemeService } from '../../core/theme/global-theme.service';
 import { AsyncPipe } from '@angular/common';
+import { PluginManagementComponent } from '../../plugins/ui/plugin-management/plugin-management.component';
+import { CollapsibleComponent } from '../../ui/collapsible/collapsible.component';
+import { PluginBridgeService } from '../../plugins/plugin-bridge.service';
+import { createPluginShortcutFormItems } from '../../features/config/form-cfgs/plugin-keyboard-shortcuts';
+import { PluginService } from '../../plugins/plugin.service';
+import { PluginShortcutCfg } from '../../plugins/plugin-api.model';
+import { ThemeSelectorComponent } from '../../core/theme/theme-selector/theme-selector.component';
 
 @Component({
   selector: 'config-page',
@@ -49,13 +50,13 @@ import { AsyncPipe } from '@angular/common';
   styleUrls: ['./config-page.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    MatButtonToggleGroup,
-    MatButtonToggle,
-    MatIcon,
+    ThemeSelectorComponent,
     ConfigSectionComponent,
     ConfigSoundFormComponent,
     TranslatePipe,
     AsyncPipe,
+    PluginManagementComponent,
+    CollapsibleComponent,
   ],
 })
 export class ConfigPageComponent implements OnInit, OnDestroy {
@@ -64,6 +65,8 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
   readonly configService = inject(GlobalConfigService);
   readonly syncSettingsService = inject(SyncConfigService);
   readonly globalThemeService = inject(GlobalThemeService);
+  private readonly _pluginBridgeService = inject(PluginBridgeService);
+  private readonly _pluginService = inject(PluginService);
 
   T: typeof T = T;
   globalConfigFormCfg: ConfigFormConfig;
@@ -124,6 +127,71 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
         // this._cd.detectChanges();
       }),
     );
+
+    // Subscribe to plugin shortcuts changes for live updates
+    this._subs.add(
+      this._pluginBridgeService.shortcuts$.subscribe((shortcuts) => {
+        console.log('Plugin shortcuts changed:', { shortcuts });
+        this._updateKeyboardFormWithPluginShortcuts(shortcuts);
+      }),
+    );
+  }
+
+  private _updateKeyboardFormWithPluginShortcuts(shortcuts: PluginShortcutCfg[]): void {
+    // Find keyboard form section
+    const keyboardFormIndex = this.globalConfigFormCfg.findIndex(
+      (section) => section.key === 'keyboard',
+    );
+
+    if (keyboardFormIndex === -1) {
+      console.warn('Keyboard form section not found');
+      return;
+    }
+
+    const keyboardSection = this.globalConfigFormCfg[keyboardFormIndex];
+
+    // Remove existing plugin shortcuts and header from the form
+    const filteredItems = (keyboardSection.items || []).filter((item) => {
+      // Remove plugin shortcut items
+      if (item.key?.toString().startsWith('plugin_')) {
+        return false;
+      }
+      // Remove plugin shortcuts header
+      if (
+        item.type === 'tpl' &&
+        item.templateOptions?.text ===
+          (T.GCF.KEYBOARD.PLUGIN_SHORTCUTS || 'Plugin Shortcuts')
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    // Add current plugin shortcuts to the form
+    let newItems = [...filteredItems];
+    if (shortcuts.length > 0) {
+      const pluginShortcutItems = createPluginShortcutFormItems(shortcuts);
+      newItems = [...filteredItems, ...pluginShortcutItems];
+      console.log(`Updated keyboard form with ${shortcuts.length} plugin shortcuts`);
+    } else {
+      console.log('No plugin shortcuts to add to keyboard form');
+    }
+
+    // Create a new keyboard section object to trigger change detection
+    const newKeyboardSection = {
+      ...keyboardSection,
+      items: newItems,
+    };
+
+    // Create a new config array to ensure Angular detects the change
+    this.globalConfigFormCfg = [
+      ...this.globalConfigFormCfg.slice(0, keyboardFormIndex),
+      newKeyboardSection,
+      ...this.globalConfigFormCfg.slice(keyboardFormIndex + 1),
+    ];
+
+    // Trigger change detection
+    this._cd.detectChanges();
   }
 
   ngOnDestroy(): void {
@@ -153,12 +221,6 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
 
   // TODO
   saveSyncFormCfg($event: { config: any }): void {}
-
-  updateDarkMode(ev: MatButtonToggleChange): void {
-    if (ev.value) {
-      this.globalThemeService.darkMode$.next(ev.value);
-    }
-  }
 
   getGlobalCfgSection(
     sectionKey: GlobalConfigSectionKey | ProjectCfgFormKey,

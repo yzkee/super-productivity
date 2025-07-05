@@ -22,6 +22,8 @@ export type MiscConfig = Readonly<{
   // optional because it was added later
   isShowTipLonger?: boolean;
   isTrayShowCurrentCountdown?: boolean;
+  isOverlayIndicatorEnabled?: boolean;
+  customTheme?: string;
 }>;
 
 export type ShortSyntaxConfig = Readonly<{

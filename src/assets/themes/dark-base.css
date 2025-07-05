@@ -1,0 +1,198 @@
+/**
+ * Dark Base Theme for Super Productivity
+ * Minimal dark theme with no shadows
+ */
+
+/* Remove all shadows */
+* {
+  box-shadow: none !important;
+}
+
+/* Hide gradient backgrounds */
+body .first-line:hover .hover-controls::before,
+body.isDarkTheme .first-line:hover .hover-controls::before,
+body.isDarkTheme.isDisableBackgroundGradient .first-line:hover .hover-controls::before,
+body.isDarkTheme.isDisableBackgroundGradient::before,
+body.isDarkTheme::before,
+body.isDisableBackgroundGradient .first-line:hover .hover-controls::before,
+body.isDisableBackgroundGradient::before,
+body.isEnabledBackgroundGradient .first-line:hover .hover-controls::before,
+body.isEnabledBackgroundGradient::before,
+body.isLightTheme .first-line:hover .hover-controls::before,
+body.isLightTheme.isDisableBackgroundGradient .first-line:hover .hover-controls::before,
+body.isLightTheme.isDisableBackgroundGradient::before,
+body.isLightTheme::before,
+body.isMac.isEnabledBackgroundGradient .first-line:hover .hover-controls::before,
+body.isMac.isEnabledBackgroundGradient::before,
+body.isWeb.isEnabledBackgroundGradient .first-line:hover .hover-controls::before,
+body.isWeb.isEnabledBackgroundGradient::before,
+body::before {
+  display: none;
+}
+
+/* Override CSS variables for dark base theme */
+body.isDarkTheme {
+  /* ===============================
+   * BACKGROUND COLORS
+   * ===============================*/
+
+  /* Main backgrounds */
+  --bg: #121212;
+  --bg-darker: #121212;
+  --bg-slightly-lighter: #1e1e1e;
+  --bg-lighter: #222222;
+  --bg-lightest: #2c2c2c;
+  --bg-super-light: #383838;
+
+  /* Component backgrounds */
+  --card-bg: #222222;
+  --sidebar-bg: #2e2e2e;
+  --selected-task-bg-color: #2c2c2c;
+  --banner-bg: #383838;
+
+  /* Task backgrounds */
+  --task-c-bg: #1e1e1e;
+  --task-c-selected-bg: #2c2c2c;
+  --sub-task-c-bg: #1e1e1e;
+  --sub-task-c-bg-done: #1a1a1a;
+  --task-c-bg-done: #1a1a1a;
+  --task-c-current-bg: #2c2c2c;
+  --task-c-drag-drop-bg: #2c2c2c;
+  --sub-task-c-bg-in-selected: #242424;
+
+  /* Note backgrounds */
+  --standard-note-bg: #222222;
+  --standard-note-bg-hovered: #2c2c2c;
+
+  /* ===============================
+   * TEXT COLORS
+   * ===============================*/
+
+  --text-color: #ebebeb;
+  --text-color-less-intense: rgba(235, 235, 235, 0.9);
+  --text-color-muted: rgba(235, 235, 235, 0.6);
+  --text-color-more-intense: #f5f5f5;
+  --text-color-most-intense: #ffffff;
+
+  /* Note text */
+  --standard-note-fg: #ebebeb;
+
+  /* Task detail */
+  --task-detail-value-color: rgba(235, 235, 235, 0.7);
+
+  /* ===============================
+   * BORDERS & SEPARATORS
+   * ===============================*/
+
+  --extra-border-color: #3d3d3d;
+  --separator-color: rgba(61, 61, 61, 0.5);
+  --divider-color: #2e2e2e;
+
+  /* Chip borders */
+  --chip-outline-color: rgba(235, 235, 235, 0.3);
+
+  /* ===============================
+   * ACCENT & THEME COLORS
+   * ===============================*/
+
+  /* Pink/purple accent */
+  --palette-accent-500: #ff4081;
+  --c-accent: #ff4081;
+
+  /* ===============================
+   * UI ELEMENTS
+   * ===============================*/
+
+  /* Scrollbar */
+  --scrollbar-thumb: #424242;
+  --scrollbar-thumb-hover: #555555;
+  --scrollbar-track: #121212;
+
+  /* Close button */
+  --close-btn-bg: #383838;
+  --close-btn-border: #3d3d3d;
+
+  /* Select/Options */
+  --select-hover-bg: rgba(255, 64, 129, 0.15);
+  --options-border-color: rgba(255, 64, 129, 0.2);
+
+  /* Attachments */
+  --attachment-bg: #222222;
+  --attachment-border: transparent;
+  --attachment-control-bg: rgba(0, 0, 0, 0.3);
+  --attachment-control-border: rgba(0, 0, 0, 0.4);
+  --attachment-control-hover-bg: rgba(0, 0, 0, 0.7);
+
+  /* Grid */
+  --grid-color: rgba(235, 235, 235, 0.1);
+
+  /* Progress */
+  --progress-bg: rgba(235, 235, 235, 0.2);
+
+  /* Improvement banner */
+  --improvement-text: #f5f5f5;
+  --improvement-border: rgba(255, 64, 129, 0.3);
+  --improvement-button-text: #ffffff;
+
+  /* ===============================
+   * SHADOWS - DISABLED
+   * ===============================*/
+
+  /* Remove all shadows for minimal look */
+  --shadow-key-umbra-opacity: 0;
+  --shadow-key-penumbra-opacity: 0;
+  --shadow-ambient-shadow-opacity: 0;
+
+  /* Task shadows - disabled */
+  --task-current-shadow: none;
+  --task-selected-shadow: none;
+
+  /* ===============================
+   * HOVER CONTROLS
+   * ===============================*/
+
+  --hover-controls-border: none;
+  --hover-controls-border-opacity: 0;
+}
+
+/* Apply background color to all body variants */
+body,
+body.isDarkTheme,
+body.isDarkTheme.isDisableBackgroundGradient,
+body.isDisableBackgroundGradient,
+body.isEnabledBackgroundGradient,
+body.isLightTheme,
+body.isLightTheme.isDisableBackgroundGradient,
+body.isMac.isEnabledBackgroundGradient,
+body.isWeb.isEnabledBackgroundGradient {
+  background-color: var(--bg);
+}
+
+/* Apply text color to all body variants */
+body,
+body .page-wrapper,
+body.isDarkTheme,
+body.isDarkTheme .page-wrapper,
+body.isDarkTheme.isDisableBackgroundGradient .page-wrapper,
+body.isDisableBackgroundGradient .page-wrapper,
+body.isEnabledBackgroundGradient .page-wrapper,
+body.isLightTheme .page-wrapper,
+body.isLightTheme.isDisableBackgroundGradient .page-wrapper,
+body.isMac.isEnabledBackgroundGradient .page-wrapper,
+body.isWeb.isEnabledBackgroundGradient .page-wrapper {
+  color: var(--text-color);
+}
+
+/* Version footer links */
+body .version-footer a[href],
+body.isDarkTheme .version-footer a[href],
+body.isDarkTheme.isDisableBackgroundGradient .version-footer a[href],
+body.isDisableBackgroundGradient .version-footer a[href],
+body.isEnabledBackgroundGradient .version-footer a[href],
+body.isLightTheme .version-footer a[href],
+body.isLightTheme.isDisableBackgroundGradient .version-footer a[href],
+body.isMac.isEnabledBackgroundGradient .version-footer a[href],
+body.isWeb.isEnabledBackgroundGradient .version-footer a[href] {
+  color: var(--c-accent);
+  text-decoration: none;
+}

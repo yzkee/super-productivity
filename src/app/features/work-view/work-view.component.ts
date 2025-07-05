@@ -44,7 +44,6 @@ import { CdkScrollable } from '@angular/cdk/scrolling';
 import { MatTooltip } from '@angular/material/tooltip';
 import { MatIcon } from '@angular/material/icon';
 import { MatButton, MatFabButton, MatMiniFabButton } from '@angular/material/button';
-import { ImprovementBannerComponent } from '../metric/improvement-banner/improvement-banner.component';
 import { AddTaskBarComponent } from '../tasks/add-task-bar/add-task-bar.component';
 import { AddScheduledTodayOrTomorrowBtnComponent } from '../add-tasks-for-tomorrow/add-scheduled-for-tomorrow/add-scheduled-today-or-tomorrow-btn.component';
 import { TaskListComponent } from '../tasks/task-list/task-list.component';
@@ -55,6 +54,7 @@ import { MsToStringPipe } from '../../ui/duration/ms-to-string.pipe';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   flattenTasks,
+  selectLaterTodayTasksWithSubTasks,
   selectOverdueTasksWithSubTasks,
 } from '../tasks/store/task.selectors';
 import { CollapsibleComponent } from '../../ui/collapsible/collapsible.component';
@@ -83,7 +83,6 @@ import { FinishDayBtnComponent } from './finish-day-btn/finish-day-btn.component
     MatTooltip,
     MatIcon,
     MatMiniFabButton,
-    ImprovementBannerComponent,
     MatButton,
     AddTaskBarComponent,
     AddScheduledTodayOrTomorrowBtnComponent,
@@ -117,9 +116,13 @@ export class WorkViewComponent implements OnInit, OnDestroy, AfterContentInit {
   overdueTasks = toSignal(this._store.select(selectOverdueTasksWithSubTasks), {
     initialValue: [],
   });
+  laterTodayTasks = toSignal(this._store.select(selectLaterTodayTasksWithSubTasks), {
+    initialValue: [],
+  });
   undoneTasks = input<TaskWithSubTasks[]>([]);
-  customizedUndoneTasks$ = this.customizerService.customizeUndoneTasks(
-    this.workContextService.undoneTasks$,
+  customizedUndoneTasks = toSignal(
+    this.customizerService.customizeUndoneTasks(this.workContextService.undoneTasks$),
+    { initialValue: { list: [] } },
   );
   doneTasks = input<TaskWithSubTasks[]>([]);
   backlogTasks = input<TaskWithSubTasks[]>([]);
@@ -134,6 +137,7 @@ export class WorkViewComponent implements OnInit, OnDestroy, AfterContentInit {
   selectedTaskId = toSignal(this.taskService.selectedTaskId$);
   isOnTodayList = toSignal(this.workContextService.isToday$);
   isDoneHidden = signal(!!localStorage.getItem(LS.DONE_TASKS_HIDDEN));
+  isLaterTodayHidden = signal(!!localStorage.getItem(LS.LATER_TODAY_TASKS_HIDDEN));
 
   isShowOverduePanel = computed(
     () => this.isOnTodayList() && this.overdueTasks().length > 0,
@@ -183,6 +187,8 @@ export class WorkViewComponent implements OnInit, OnDestroy, AfterContentInit {
       const doneArr = flattenTasks(this.doneTasks());
       if (doneArr.some((t) => t.id === currentSelectedId)) return;
 
+      if (this.laterTodayTasks().some((t) => t.id === currentSelectedId)) return;
+
       if (
         this.workContextService.activeWorkContextId === TODAY_TAG.id &&
         this.overdueTasks().length > 0 &&
@@ -200,6 +206,15 @@ export class WorkViewComponent implements OnInit, OnDestroy, AfterContentInit {
         localStorage.setItem(LS.DONE_TASKS_HIDDEN, 'true');
       } else {
         localStorage.removeItem(LS.DONE_TASKS_HIDDEN);
+      }
+    });
+
+    effect(() => {
+      const isExpanded = this.isLaterTodayHidden();
+      if (isExpanded) {
+        localStorage.setItem(LS.LATER_TODAY_TASKS_HIDDEN, 'true');
+      } else {
+        localStorage.removeItem(LS.LATER_TODAY_TASKS_HIDDEN);
       }
     });
   }

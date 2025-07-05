@@ -1,0 +1,23 @@
+name: Auto Publish to Google Play on Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  auto-publish-google-play:
+    runs-on: ubuntu-latest
+
+    # Only run for actual releases, not pre-releases
+    if: '!github.event.release.prerelease'
+
+    steps:
+      - name: Promote Internal Release to Production
+        uses: r0adkll/upload-google-play@v1.1.3
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.superproductivity.superproductivity
+          track: internal
+          promoteTrack: production
+          status: completed
+          inAppUpdatePriority: 3

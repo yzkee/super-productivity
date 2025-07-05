@@ -8,15 +8,20 @@ FROM --platform=$BUILDPLATFORM node:20 AS build
 # set working directory
 WORKDIR /app
 
-# install dependencies
-COPY package*.json /app
-RUN (npm ci || npm i) && npm i -g @angular/cli
+# install git for git dependencies
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
+# configure git to use https instead of ssh
+RUN git config --global url."https://github.com/".insteadOf ssh://git@github.com/
+
+# add app
+COPY . /app
 
 # add `/app/node_modules/.bin` to $PATH
 ENV PATH=/app/node_modules/.bin:$PATH
 
-# add app
-COPY . /app
+# install dependencies (with prepare script running naturally)
+RUN (npm ci || npm i) && npm i -g @angular/cli
 
 # run linter
 RUN npm run lint
@@ -37,7 +42,7 @@ ENV PORT=80
 
 # install dependencies
 RUN apk update \
-  && apk add --no-cache jq=1.7.1-r0
+  && apk add --no-cache jq
 
 # copy artifact build from the 'build environment'
 COPY --from=build /app/dist/browser /usr/share/nginx/html
