@@ -101,7 +101,10 @@ describe('ModelSyncService', () => {
 
     // Mock console and alert
     spyOn(console, 'log').and.stub();
-    spyOn(window, 'alert').and.stub();
+    // Alert is already mocked globally, just reset the spy
+    if ((window.alert as jasmine.Spy).calls) {
+      (window.alert as jasmine.Spy).calls.reset();
+    }
   });
 
   describe('upload operations', () => {
@@ -252,8 +255,6 @@ describe('ModelSyncService', () => {
 
       await service.updateLocalMainModelsFromRemoteMetaFile({
         ...remoteMeta,
-        localLamport: 0,
-        lastSyncedLamport: null,
       } as RemoteMeta);
 
       expect(mockModelControllers.mainModel.save).toHaveBeenCalledWith(
@@ -278,8 +279,6 @@ describe('ModelSyncService', () => {
 
       await service.updateLocalMainModelsFromRemoteMetaFile({
         ...remoteMeta,
-        localLamport: 0,
-        lastSyncedLamport: null,
       } as RemoteMeta);
 
       expect(mockModelControllers.mainModel.save).not.toHaveBeenCalled();

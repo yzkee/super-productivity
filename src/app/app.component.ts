@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  effect,
   HostBinding,
   HostListener,
   inject,
@@ -64,9 +65,12 @@ import { TranslateService } from '@ngx-translate/core';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogPleaseRateComponent } from './features/dialog-please-rate/dialog-please-rate.component';
 import { getWorklogStr } from './util/get-work-log-str';
+import { PluginService } from './plugins/plugin.service';
 import { MarkdownPasteService } from './features/tasks/markdown-paste.service';
 import { TaskService } from './features/tasks/task.service';
-// Note: WaylandIdleHelperService is deprecated - idle detection now handled in Electron main process
+import { IpcRendererEvent } from 'electron';
+import { SyncSafetyBackupService } from './imex/sync/sync-safety-backup.service';
+import { Log } from './core/log';
 
 const w = window as any;
 const productivityTip: string[] = w.productivityTips && w.productivityTips[w.randomIndex];
@@ -101,6 +105,7 @@ const productivityTip: string[] = w.productivityTips && w.productivityTips[w.ran
 })
 export class AppComponent implements OnDestroy {
   private _translateService = inject(TranslateService);
+
   private _globalConfigService = inject(GlobalConfigService);
   private _shortcutService = inject(ShortcutService);
   private _bannerService = inject(BannerService);
@@ -118,6 +123,10 @@ export class AppComponent implements OnDestroy {
   private _matDialog = inject(MatDialog);
   private _markdownPasteService = inject(MarkdownPasteService);
   private _taskService = inject(TaskService);
+  private _pluginService = inject(PluginService);
+
+  // needs to be imported for initialization
+  private _syncSafetyBackupService = inject(SyncSafetyBackupService);
 
   readonly syncTriggerService = inject(SyncTriggerService);
   readonly imexMetaService = inject(ImexViewService);
@@ -181,7 +190,7 @@ export class AppComponent implements OnDestroy {
     this._requestPersistence();
 
     // deferred init
-    window.setTimeout(() => {
+    window.setTimeout(async () => {
       this._startTrackingReminderService.init();
       this._checkAvailableStorage();
       // init offline banner in lack of a better place for it
@@ -212,11 +221,38 @@ export class AppComponent implements OnDestroy {
         localStorage.setItem(LS.APP_START_COUNT, (appStarts + 1).toString());
         localStorage.setItem(LS.APP_START_COUNT_LAST_START_DAY, todayStr);
       }
+
+      // Initialize plugin system
+      try {
+        await this._pluginService.initializePlugins();
+        Log.log('Plugin system initialized');
+      } catch (error) {
+        Log.err('Failed to initialize plugin system:', error);
+      }
     }, 1000);
 
     if (IS_ELECTRON) {
       window.ea.informAboutAppReady();
-      this._initElectronErrorHandler();
+
+      // Initialize electron error handler in an effect
+      effect(() => {
+        window.ea.on(IPC.ERROR, (ev: IpcRendererEvent, ...args: unknown[]) => {
+          const data = args[0] as {
+            error: any;
+            stack: any;
+            errorStr: string | unknown;
+          };
+          const errMsg =
+            typeof data.errorStr === 'string' ? data.errorStr : ' INVALID ERROR MSG :( ';
+
+          this._snackService.open({
+            msg: errMsg,
+            type: 'ERROR',
+          });
+          Log.err(data);
+        });
+      });
+
       this._uiHelperService.initElectron();
 
       window.ea.on(IPC.TRANSFER_SETTINGS_REQUESTED, () => {
@@ -379,7 +415,7 @@ export class AppComponent implements OnDestroy {
       this.imexMetaService.setDataImportInProgress(true);
 
       const legacyData = await this._persistenceLegacyService.loadComplete();
-      console.log({ legacyData: legacyData });
+      Log.log({ legacyData: legacyData });
 
       alert(this._translateService.instant(T.MIGRATE.DETECTED_LEGACY));
 
@@ -414,7 +450,7 @@ export class AppComponent implements OnDestroy {
       } catch (error) {
         // prevent any interaction with the app on after failure
         this.imexMetaService.setDataImportInProgress(true);
-        console.error(error);
+        Log.err(error);
 
         try {
           alert(
@@ -480,29 +516,6 @@ export class AppComponent implements OnDestroy {
     });
   }
 
-  private _initElectronErrorHandler(): void {
-    window.ea.on(
-      IPC.ERROR,
-      (
-        ev,
-        data: {
-          error: any;
-          stack: any;
-          errorStr: string | unknown;
-        },
-      ) => {
-        const errMsg =
-          typeof data.errorStr === 'string' ? data.errorStr : ' INVALID ERROR MSG :( ';
-
-        this._snackService.open({
-          msg: errMsg,
-          type: 'ERROR',
-        });
-        console.error(data);
-      },
-    );
-  }
-
   private _initOfflineBanner(): void {
     isOnline$.subscribe((isOnlineIn) => {
       if (!isOnlineIn) {
@@ -525,21 +538,21 @@ export class AppComponent implements OnDestroy {
           if (!persisted) {
             return navigator.storage.persist().then((granted) => {
               if (granted) {
-                console.log('Persistent store granted');
+                Log.log('Persistent store granted');
               }
               // NOTE: we never execute for android web view, because it is always true
               else if (!IS_ANDROID_WEB_VIEW) {
                 const msg = T.GLOBAL_SNACK.PERSISTENCE_DISALLOWED;
-                console.warn('Persistence not allowed');
+                Log.err('Persistence not allowed');
                 this._snackService.open({ msg });
               }
             });
           } else {
-            console.log('Persistence already allowed');
+            Log.log('Persistence already allowed');
           }
         })
         .catch((e) => {
-          console.log(e);
+          Log.log(e);
           const err = e && e.toString ? e.toString() : 'UNKNOWN';
           const msg = T.GLOBAL_SNACK.PERSISTENCE_ERROR;
           this._snackService.open({
@@ -564,7 +577,7 @@ export class AppComponent implements OnDestroy {
           const usageInMib = Math.round(u / (1024 * 1024));
           const quotaInMib = Math.round(q / (1024 * 1024));
           const details = `${usageInMib} out of ${quotaInMib} MiB used (${percentUsed}%)`;
-          console.log(details);
+          Log.log(details);
           if (quotaInMib - usageInMib <= 333) {
             alert(
               `There is only very little disk space available (${

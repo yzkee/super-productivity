@@ -55,6 +55,13 @@ import { CROSS_MODEL_MIGRATIONS } from './migrate/cross-model-migrations';
 import { appDataValidators, validateAllData } from './validate/validation-fn';
 import { fixEntityStateConsistency } from '../util/check-fix-entity-state-consistency';
 import { IValidation } from 'typia';
+import { PFLog } from '../core/log';
+import {
+  initialPluginMetaDataState,
+  initialPluginUserDataState,
+  PluginMetaDataState,
+  PluginUserDataState,
+} from '../plugins/plugin-persistence.model';
 
 export const CROSS_MODEL_VERSION = 4.1 as const;
 
@@ -79,6 +86,9 @@ export type PfapiAllModelCfg = {
   reminders: ModelCfg<Reminder[]>;
 
   timeTracking: ModelCfg<TimeTrackingState>;
+
+  pluginUserData: ModelCfg<PluginUserDataState | undefined>;
+  pluginMetadata: ModelCfg<PluginMetaDataState | undefined>;
 
   archiveYoung: ModelCfg<ArchiveModel>;
   archiveOld: ModelCfg<ArchiveModel>;
@@ -145,6 +155,16 @@ export const PFAPI_MODEL_CFGS: PfapiAllModelCfg = {
     defaultData: initialBoardsState,
     isMainFileModel: true,
     validate: appDataValidators.boards,
+  },
+
+  //-------------------------------
+  pluginUserData: {
+    defaultData: initialPluginUserDataState,
+    validate: appDataValidators.pluginUserData,
+  },
+  pluginMetadata: {
+    defaultData: initialPluginMetaDataState,
+    validate: appDataValidators.pluginMetadata,
   },
 
   //-------------------------------
@@ -226,7 +246,7 @@ export const PFAPI_CFG: PfapiBaseCfg<PfapiAllModelCfg> = {
     const r = validateAllData(data);
 
     if (!environment.production && !r.success) {
-      console.log(r);
+      PFLog.log(r);
       alert('VALIDATION ERROR ');
     }
 
@@ -249,7 +269,7 @@ export const PFAPI_CFG: PfapiBaseCfg<PfapiAllModelCfg> = {
     return r;
   },
   onDbError: (err) => {
-    console.error(err);
+    PFLog.err(err);
     alert('DB ERROR: ' + err);
   },
   repair: (data: any, errors: IValidation.IError[]) => {

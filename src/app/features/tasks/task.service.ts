@@ -78,7 +78,7 @@ import {
   moveProjectTaskUpInBacklogList,
 } from '../project/store/project.actions';
 import { Update } from '@ngrx/entity';
-import { DateService } from 'src/app/core/date/date.service';
+import { DateService } from '../../core/date/date.service';
 import { TimeTrackingActions } from '../time-tracking/store/time-tracking.actions';
 import { ArchiveService } from '../time-tracking/archive.service';
 import { TaskArchiveService } from '../time-tracking/task-archive.service';
@@ -87,6 +87,7 @@ import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { getWorklogStr } from '../../util/get-work-log-str';
 import { INBOX_PROJECT } from '../project/project.const';
 import { GlobalConfigService } from '../config/global-config.service';
+import { TaskLog } from '../../core/log';
 
 @Injectable({
   providedIn: 'root',
@@ -124,7 +125,7 @@ export class TaskService {
     // NOTE: we can't use share here, as we need the last emitted value
   );
 
-  selectedTask$: Observable<TaskWithSubTasks> = this._store.pipe(
+  selectedTask$: Observable<TaskWithSubTasks | null> = this._store.pipe(
     select(selectSelectedTask),
     // NOTE: we can't use share here, as we need the last emitted value
   );
@@ -284,7 +285,7 @@ export class TaskService {
       workContextId,
     });
 
-    console.log(task, additional);
+    TaskLog.log(task, additional);
 
     this._store.dispatch(
       TaskSharedActions.addTask({
@@ -894,7 +895,11 @@ export class TaskService {
 
   async getByIdFromEverywhere(id: string, isArchive?: boolean): Promise<Task> {
     if (isArchive === undefined) {
-      return this.getByIdOnce$(id).toPromise() || this._taskArchiveService.getById(id);
+      const task = await this.getByIdOnce$(id).toPromise();
+      if (task) {
+        return task;
+      }
+      return await this._taskArchiveService.getById(id);
     }
 
     if (isArchive) {

@@ -3,8 +3,8 @@ import {
   ErrorHandler,
   importProvidersFrom,
   LOCALE_ID,
-  SecurityContext,
   provideExperimentalZonelessChangeDetection,
+  SecurityContext,
 } from '@angular/core';
 
 import { environment } from './environments/environment';
@@ -49,12 +49,13 @@ import { reducers } from './app/root-store';
 import { undoTaskDeleteMetaReducer } from './app/root-store/meta/undo-task-delete.meta-reducer';
 import { actionLoggerReducer } from './app/root-store/meta/action-logger.reducer';
 import {
-  taskSharedCrudMetaReducer,
-  taskSharedLifecycleMetaReducer,
-  taskSharedSchedulingMetaReducer,
+  plannerSharedMetaReducer,
   projectSharedMetaReducer,
   tagSharedMetaReducer,
-  plannerSharedMetaReducer,
+  taskSharedCrudMetaReducer,
+  taskBatchUpdateMetaReducer,
+  taskSharedLifecycleMetaReducer,
+  taskSharedSchedulingMetaReducer,
 } from './app/root-store/meta/task-shared-meta-reducers';
 import { EffectsModule } from '@ngrx/effects';
 import { StoreDevtoolsModule } from '@ngrx/store-devtools';
@@ -68,7 +69,9 @@ import { ShortTime2Pipe } from './app/ui/pipes/short-time2.pipe';
 import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { BackgroundTask } from '@capawesome/capacitor-background-task';
 import { promiseTimeout } from './app/util/promise-timeout';
+import { PLUGIN_INITIALIZER_PROVIDER } from './app/plugins/plugin-initializer';
 import { initializeMatMenuTouchFix } from './app/features/tasks/task-context-menu/mat-menu-touch-monkey-patch';
+import { Log } from './app/core/log';
 
 if (environment.production || environment.stage) {
   enableProdMode();
@@ -108,6 +111,7 @@ bootstrapApplication(AppComponent, {
         metaReducers: [
           undoTaskDeleteMetaReducer,
           taskSharedCrudMetaReducer,
+          taskBatchUpdateMetaReducer,
           taskSharedLifecycleMetaReducer,
           taskSharedSchedulingMetaReducer,
           projectSharedMetaReducer,
@@ -180,6 +184,7 @@ bootstrapApplication(AppComponent, {
     },
     provideAnimations(),
     provideRouter(APP_ROUTES, withHashLocation(), withPreloading(PreloadAllModules)),
+    PLUGIN_INITIALIZER_PROVIDER,
     provideExperimentalZonelessChangeDetection(),
   ],
 }).then(() => {
@@ -187,16 +192,17 @@ bootstrapApplication(AppComponent, {
   initializeMatMenuTouchFix();
 
   // TODO make asset caching work for electron
+
   if (
     'serviceWorker' in navigator &&
     (environment.production || environment.stage) &&
     !IS_ELECTRON &&
     !IS_ANDROID_WEB_VIEW
   ) {
-    console.log('Registering Service worker');
+    Log.log('Registering Service worker');
     return navigator.serviceWorker.register('ngsw-worker.js').catch((err: any) => {
-      console.log('Service Worker Registration Error');
-      console.error(err);
+      Log.log('Service Worker Registration Error');
+      Log.err(err);
     });
   } else if ('serviceWorker' in navigator && (IS_ELECTRON || IS_ANDROID_WEB_VIEW)) {
     navigator.serviceWorker
@@ -207,8 +213,8 @@ bootstrapApplication(AppComponent, {
         }
       })
       .catch((e) => {
-        console.error('ERROR when unregistering service worker');
-        console.error(e);
+        Log.err('ERROR when unregistering service worker');
+        Log.err(e);
       });
   }
   return undefined;
@@ -220,7 +226,7 @@ window.addEventListener('touchmove', () => {});
 if (!(environment.production || environment.stage) && IS_ANDROID_WEB_VIEW) {
   setTimeout(() => {
     androidInterface.showToast('Android DEV works');
-    console.log(androidInterface);
+    Log.log(androidInterface);
   }, 1000);
 }
 
@@ -244,9 +250,9 @@ if (IS_ANDROID_WEB_VIEW) {
     const taskId = await BackgroundTask.beforeExit(async () => {
       // Run your code...
       // Finish the background task as soon as everything is done.
-      console.log('Time window for completing sync started');
+      Log.log('Time window for completing sync started');
       await promiseTimeout(20000);
-      console.log('Time window for completing sync ended. Closing app!');
+      Log.log('Time window for completing sync ended. Closing app!');
       BackgroundTask.finish({ taskId });
     });
   });

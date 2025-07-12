@@ -125,8 +125,12 @@ const handleAddTask = (
     [TASK_FEATURE_NAME]: taskAdapter.addOne(newTask, updatedState[TASK_FEATURE_NAME]),
   };
 
-  // Update project if task has projectId
-  if (task.projectId && state[PROJECT_FEATURE_NAME].entities[task.projectId]) {
+  // Update project if task has projectId - but only for main tasks (not subtasks)
+  if (
+    task.projectId &&
+    state[PROJECT_FEATURE_NAME].entities[task.projectId] &&
+    !task.parentId
+  ) {
     const project = getProject(state, task.projectId);
     const targetList: ProjectTaskList =
       isAddToBacklog && project.isEnableBacklog ? 'backlogTaskIds' : 'taskIds';
@@ -137,9 +141,11 @@ const handleAddTask = (
   }
 
   // Update tags - only update tags that exist
+  const shouldAddToToday = task.dueDay === getWorklogStr();
+
   const tagIdsToUpdate = [
     ...task.tagIds,
-    ...(task.dueDay === getWorklogStr() ? [TODAY_TAG.id] : []),
+    ...(shouldAddToToday ? [TODAY_TAG.id] : []),
   ].filter((tagId) => state[TAG_FEATURE_NAME].entities[tagId]);
 
   // First, handle conflicts for all tags
@@ -188,6 +194,7 @@ const handleConvertToMainTask = (
       changes: {
         parentId: undefined,
         tagIds: [...parentTask.tagIds],
+        modified: Date.now(),
         ...(isPlanForToday ? { dueDay: getWorklogStr() } : {}),
       },
     },
@@ -402,7 +409,16 @@ const handleUpdateTask = (
     : taskState;
   taskState = updateTimeEstimateForTask(taskUpdate, timeEstimate, taskState);
   taskState = updateDoneOnForTask(taskUpdate, taskState);
-  taskState = taskAdapter.updateOne(taskUpdate, taskState);
+  taskState = taskAdapter.updateOne(
+    {
+      ...taskUpdate,
+      changes: {
+        ...taskUpdate.changes,
+        modified: Date.now(),
+      },
+    },
+    taskState,
+  );
 
   return {
     ...updatedState,

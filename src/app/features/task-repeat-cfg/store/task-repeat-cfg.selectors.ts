@@ -53,7 +53,7 @@ export const selectTaskRepeatCfgsWithAndWithoutStartTime = createSelector(
 export const selectTaskRepeatCfgsSortedByTitleAndProject = createSelector(
   selectAllTaskRepeatCfgs,
   (taskRepeatCfgs: TaskRepeatCfg[]): TaskRepeatCfg[] => {
-    return taskRepeatCfgs.sort((a, b) => {
+    return [...taskRepeatCfgs].sort((a, b) => {
       if (a.projectId !== b.projectId) {
         if (a.projectId === null) {
           return -1;
@@ -131,3 +131,23 @@ export const selectTaskRepeatCfgByIdAllowUndefined = createSelector(
   (state: TaskRepeatCfgState, props: { id: string }): TaskRepeatCfg | undefined =>
     state.entities[props.id],
 );
+
+// FOR DEBUG
+// export const selectTaskRepeatCfgsDueOnDayOnly = createSelector(
+//   selectAllTaskRepeatCfgs,
+//   (
+//     taskRepeatCfgs: TaskRepeatCfg[],
+//     { dayDate }: { dayDate: number },
+//   ): TaskRepeatCfg[] => {
+//     return taskRepeatCfgs;
+//   },
+// );
+// export const selectTaskRepeatCfgsDueOnDayIncludingOverdue = createSelector(
+//   selectAllTaskRepeatCfgs,
+//   (
+//     taskRepeatCfgs: TaskRepeatCfg[],
+//     { dayDate }: { dayDate: number },
+//   ): TaskRepeatCfg[] => {
+//     return taskRepeatCfgs;
+//   },
+// );

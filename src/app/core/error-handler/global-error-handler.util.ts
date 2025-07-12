@@ -1,14 +1,38 @@
 import { HANDLED_ERROR_PROP_STR, IS_ELECTRON } from '../../app.constants';
 import StackTrace from 'stacktrace-js';
-import pThrottle from 'p-throttle';
 import newGithubIssueUrl from 'new-github-issue-url';
 import { getBeforeLastErrorActionLog } from '../../util/action-logger';
-import { download } from '../../util/download';
+import { download, downloadLogs } from '../../util/download';
 import { privacyExport } from '../../imex/file-imex/privacy-export';
 import { getAppVersionStr } from '../../util/get-app-version-str';
 import { CompleteBackup } from '../../pfapi/api';
+import { Log } from '../log';
 
 let isWasErrorAlertCreated = false;
+
+// Simple throttle implementation to avoid FinalizationRegistry dependency
+const createSimpleThrottle = (limit: number, interval: number) => {
+  const timestamps: number[] = [];
+
+  return <T extends (...args: any[]) => any>(fn: T) => {
+    return ((...args: Parameters<T>) => {
+      const now = Date.now();
+
+      // Remove old timestamps outside the interval
+      while (timestamps.length > 0 && timestamps[0] <= now - interval) {
+        timestamps.shift();
+      }
+
+      // Check if we've exceeded the limit
+      if (timestamps.length >= limit) {
+        return Promise.resolve(''); // Return empty string for throttled calls
+      }
+
+      timestamps.push(now);
+      return fn(...args);
+    }) as T;
+  };
+};
 
 const _getStacktrace = async (err: Error | any): Promise<string> => {
   const isHttpError = err && (err.url || err.headers);
@@ -16,7 +40,9 @@ const _getStacktrace = async (err: Error | any): Promise<string> => {
 
   // Don't try to send stacktraces of HTTP errors as they are already logged on the server
   if (!isHttpError && isErrorWithStack && !isHandledError(err)) {
-    return StackTrace.fromError(err).then((stackframes) => {
+    return StackTrace.fromError(err, {
+      filter: (f) => f?.fileName !== 'log.ts',
+    }).then((stackframes) => {
       return stackframes
         .splice(0, 20)
         .map((sf) => {
@@ -25,15 +51,12 @@ const _getStacktrace = async (err: Error | any): Promise<string> => {
         .join('\n');
     });
   } else if (!isHandledError(err)) {
-    console.warn('Error without stack', err);
+    Log.err('Error without stack', err);
   }
   return Promise.resolve('');
 };
 
-const throttle = pThrottle({
-  limit: 2,
-  interval: 5000,
-});
+const throttle = createSimpleThrottle(2, 5000);
 const _getStacktraceThrottled = throttle(_getStacktrace);
 
 export const logAdvancedStacktrace = (
@@ -54,7 +77,7 @@ export const logAdvancedStacktrace = (
       }
 
       const githubIssueLinks = document.getElementsByClassName('github-issue-urlX');
-      console.log(githubIssueLinks);
+      Log.log(githubIssueLinks);
 
       if (githubIssueLinks) {
         const errEscaped = _cleanHtml(origErr as string);
@@ -124,7 +147,7 @@ export const createErrorAlert = (
   });
   innerWrapper.append(btnReload);
 
-  console.log(userData);
+  Log.log(userData);
 
   if (userData) {
     const btnExport = document.createElement('BUTTON');
@@ -149,6 +172,11 @@ export const createErrorAlert = (
     });
     innerWrapper.append(btnPrivacyExport);
   }
+
+  const btnLogs = document.createElement('BUTTON');
+  btnLogs.innerText = 'Logs';
+  btnLogs.addEventListener('click', () => downloadLogs());
+  innerWrapper.append(btnLogs);
 
   const tagReport = document.createElement('A');
   const btnReport = document.createElement('BUTTON');

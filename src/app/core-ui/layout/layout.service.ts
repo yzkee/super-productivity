@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import {
   hideAddTaskBar,
   hideIssuePanel,
-  hideNotesAndAddTaskPanel,
+  hideNonTaskSidePanelContent,
   hideSideNav,
   hideTaskViewCustomizerPanel,
   showAddTaskBar,
@@ -41,6 +41,9 @@ export class LayoutService {
   private _router = inject(Router);
   private _workContextService = inject(WorkContextService);
   private _breakPointObserver = inject(BreakpointObserver);
+
+  private _selectedTimeView$ = new BehaviorSubject<'week' | 'month'>('week');
+  readonly selectedTimeView$ = this._selectedTimeView$.asObservable();
 
   isScreenXs$: Observable<boolean> = this._breakPointObserver
     .observe([`(max-width: ${XS_MAX}px)`])
@@ -94,6 +97,8 @@ export class LayoutService {
   isShowIssuePanel$: Observable<boolean> = this._isShowIssuePanel$.pipe();
 
   constructor() {
+    this.setTimeView('week');
+
     this.isNavOver$
       .pipe(
         switchMap((isNavOver) =>
@@ -138,7 +143,7 @@ export class LayoutService {
   }
 
   hideNotes(): void {
-    this._store$.dispatch(hideNotesAndAddTaskPanel());
+    this._store$.dispatch(hideNonTaskSidePanelContent());
   }
 
   toggleAddTaskPanel(): void {
@@ -147,6 +152,14 @@ export class LayoutService {
 
   hideAddTaskPanel(): void {
     this._store$.dispatch(hideIssuePanel());
+  }
+
+  getSelectedTimeView(): 'week' | 'month' {
+    return this._selectedTimeView$.value;
+  }
+
+  setTimeView(view: 'week' | 'month'): void {
+    this._selectedTimeView$.next(view);
   }
 
   toggleTaskViewCustomizerPanel(): void {

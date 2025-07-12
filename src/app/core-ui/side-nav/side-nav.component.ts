@@ -56,6 +56,7 @@ import { ContextMenuComponent } from '../../ui/context-menu/context-menu.compone
 import { TranslatePipe } from '@ngx-translate/core';
 import { AsyncPipe } from '@angular/common';
 import { toggleHideFromMenu } from '../../features/project/store/project.actions';
+import { PluginMenuComponent } from '../../plugins/ui/plugin-menu.component';
 
 @Component({
   selector: 'side-nav',
@@ -79,6 +80,7 @@ import { toggleHideFromMenu } from '../../features/project/store/project.actions
     MatMenuContent,
     TranslatePipe,
     AsyncPipe,
+    PluginMenuComponent,
   ],
 })
 export class SideNavComponent implements OnDestroy {
@@ -164,7 +166,7 @@ export class SideNavComponent implements OnDestroy {
           this.keyboardFocusTimeout = window.setTimeout(() => {
             this.keyManager?.setFirstItemActive();
           }, 100);
-          // this.keyManager.change.subscribe((v) => console.log('this.keyManager.change', v));
+          // this.keyManager.change.subscribe((v) => Log.log('this.keyManager.change', v));
         } else if (!isShow) {
           this._taskService.focusFirstTaskIfVisible();
         }

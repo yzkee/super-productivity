@@ -22,6 +22,8 @@ export type MiscConfig = Readonly<{
   // optional because it was added later
   isShowTipLonger?: boolean;
   isTrayShowCurrentCountdown?: boolean;
+  isOverlayIndicatorEnabled?: boolean;
+  customTheme?: string;
 }>;
 
 export type ShortSyntaxConfig = Readonly<{
@@ -214,6 +216,7 @@ export interface LimitedFormlyFieldConfig<FormModel>
 
 export type CustomCfgSection =
   | 'FILE_IMPORT_EXPORT'
+  | 'SYNC_SAFETY_BACKUPS'
   | 'JIRA_CFG'
   | 'SIMPLE_COUNTER_CFG'
   | 'OPENPROJECT_CFG';

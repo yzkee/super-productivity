@@ -24,8 +24,22 @@ export const toggleSideNav = createAction('[Layout] Toggle SideBar');
 
 export const toggleShowNotes = createAction('[Layout] ToggleShow Notes');
 
-export const hideNotesAndAddTaskPanel = createAction('[Layout] Hide Notes');
+export const hideNonTaskSidePanelContent = createAction(
+  '[Layout] Hide Non-Task Side Panel',
+);
 
 export const toggleIssuePanel = createAction('[Layout] Toggle IssuePanel');
 
 export const hideIssuePanel = createAction('[Layout] Hide IssuePanel');
+
+export const showPluginPanel = createAction(
+  '[Layout] Show PluginPanel',
+  (pluginId: string) => ({ pluginId }),
+);
+
+export const hidePluginPanel = createAction('[Layout] Hide PluginPanel');
+
+export const togglePluginPanel = createAction(
+  '[Layout] Toggle PluginPanel',
+  (pluginId: string) => ({ pluginId }),
+);

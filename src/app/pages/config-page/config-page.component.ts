@@ -14,7 +14,6 @@ import {
 } from '../../features/config/global-config-form-config.const';
 import {
   ConfigFormConfig,
-  ConfigFormSection,
   GlobalConfigSectionKey,
   GlobalConfigState,
   GlobalSectionConfig,
@@ -26,13 +25,7 @@ import { versions } from '../../../environments/versions';
 import { IS_ELECTRON } from '../../app.constants';
 import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
 import { getAutomaticBackUpFormCfg } from '../../features/config/form-cfgs/automatic-backups-form.const';
-import {
-  MatButtonToggle,
-  MatButtonToggleChange,
-  MatButtonToggleGroup,
-} from '@angular/material/button-toggle';
 import { getAppVersionStr } from '../../util/get-app-version-str';
-import { MatIcon } from '@angular/material/icon';
 import { ConfigSectionComponent } from '../../features/config/config-section/config-section.component';
 import { ConfigSoundFormComponent } from '../../features/config/config-sound-form/config-sound-form.component';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -40,8 +33,16 @@ import { SYNC_FORM } from '../../features/config/form-cfgs/sync-form.const';
 import { PfapiService } from '../../pfapi/pfapi.service';
 import { map, tap } from 'rxjs/operators';
 import { SyncConfigService } from '../../imex/sync/sync-config.service';
-import { GlobalThemeService } from '../../core/theme/global-theme.service';
 import { AsyncPipe } from '@angular/common';
+import { PluginManagementComponent } from '../../plugins/ui/plugin-management/plugin-management.component';
+import { CollapsibleComponent } from '../../ui/collapsible/collapsible.component';
+import { PluginBridgeService } from '../../plugins/plugin-bridge.service';
+import { createPluginShortcutFormItems } from '../../features/config/form-cfgs/plugin-keyboard-shortcuts';
+import { PluginShortcutCfg } from '../../plugins/plugin-api.model';
+import { ThemeSelectorComponent } from '../../core/theme/theme-selector/theme-selector.component';
+import { Log } from '../../core/log';
+import { downloadLogs } from '../../util/download';
+import { SnackService } from '../../core/snack/snack.service';
 
 @Component({
   selector: 'config-page',
@@ -49,13 +50,13 @@ import { AsyncPipe } from '@angular/common';
   styleUrls: ['./config-page.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    MatButtonToggleGroup,
-    MatButtonToggle,
-    MatIcon,
+    ThemeSelectorComponent,
     ConfigSectionComponent,
     ConfigSoundFormComponent,
     TranslatePipe,
     AsyncPipe,
+    PluginManagementComponent,
+    CollapsibleComponent,
   ],
 })
 export class ConfigPageComponent implements OnInit, OnDestroy {
@@ -63,7 +64,8 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
   private readonly _pfapiService = inject(PfapiService);
   readonly configService = inject(GlobalConfigService);
   readonly syncSettingsService = inject(SyncConfigService);
-  readonly globalThemeService = inject(GlobalThemeService);
+  private readonly _pluginBridgeService = inject(PluginBridgeService);
+  private readonly _snackService = inject(SnackService);
 
   T: typeof T = T;
   globalConfigFormCfg: ConfigFormConfig;
@@ -93,7 +95,7 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
         };
       }),
     )
-    .pipe(tap((v) => console.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXA', v)));
+    .pipe(tap((v) => Log.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXA', v)));
 
   private _subs: Subscription = new Subscription();
 
@@ -124,17 +126,75 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
         // this._cd.detectChanges();
       }),
     );
+
+    // Subscribe to plugin shortcuts changes for live updates
+    this._subs.add(
+      this._pluginBridgeService.shortcuts$.subscribe((shortcuts) => {
+        Log.log('Plugin shortcuts changed:', { shortcuts });
+        this._updateKeyboardFormWithPluginShortcuts(shortcuts);
+      }),
+    );
+  }
+
+  private _updateKeyboardFormWithPluginShortcuts(shortcuts: PluginShortcutCfg[]): void {
+    // Find keyboard form section
+    const keyboardFormIndex = this.globalConfigFormCfg.findIndex(
+      (section) => section.key === 'keyboard',
+    );
+
+    if (keyboardFormIndex === -1) {
+      Log.err('Keyboard form section not found');
+      return;
+    }
+
+    const keyboardSection = this.globalConfigFormCfg[keyboardFormIndex];
+
+    // Remove existing plugin shortcuts and header from the form
+    const filteredItems = (keyboardSection.items || []).filter((item) => {
+      // Remove plugin shortcut items
+      if (item.key?.toString().startsWith('plugin_')) {
+        return false;
+      }
+      // Remove plugin shortcuts header
+      if (
+        item.type === 'tpl' &&
+        item.templateOptions?.text ===
+          (T.GCF.KEYBOARD.PLUGIN_SHORTCUTS || 'Plugin Shortcuts')
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    // Add current plugin shortcuts to the form
+    let newItems = [...filteredItems];
+    if (shortcuts.length > 0) {
+      const pluginShortcutItems = createPluginShortcutFormItems(shortcuts);
+      newItems = [...filteredItems, ...pluginShortcutItems];
+      Log.log(`Updated keyboard form with ${shortcuts.length} plugin shortcuts`);
+    } else {
+      Log.log('No plugin shortcuts to add to keyboard form');
+    }
+
+    // Create a new keyboard section object to trigger change detection
+    const newKeyboardSection = {
+      ...keyboardSection,
+      items: newItems,
+    };
+
+    // Create a new config array to ensure Angular detects the change
+    this.globalConfigFormCfg = [
+      ...this.globalConfigFormCfg.slice(0, keyboardFormIndex),
+      newKeyboardSection,
+      ...this.globalConfigFormCfg.slice(keyboardFormIndex + 1),
+    ];
+
+    // Trigger change detection
+    this._cd.detectChanges();
   }
 
   ngOnDestroy(): void {
     this._subs.unsubscribe();
-  }
-
-  trackBySectionKey(
-    i: number,
-    section: ConfigFormSection<{ [key: string]: any }>,
-  ): string {
-    return section.key;
   }
 
   saveGlobalCfg($event: {
@@ -151,18 +211,18 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  // TODO
-  saveSyncFormCfg($event: { config: any }): void {}
-
-  updateDarkMode(ev: MatButtonToggleChange): void {
-    if (ev.value) {
-      this.globalThemeService.darkMode$.next(ev.value);
-    }
-  }
-
   getGlobalCfgSection(
     sectionKey: GlobalConfigSectionKey | ProjectCfgFormKey,
   ): GlobalSectionConfig {
     return (this.globalCfg as any)[sectionKey];
+  }
+
+  async downloadLogs(): Promise<void> {
+    try {
+      await downloadLogs();
+      this._snackService.open('Logs downloaded to android documents folder');
+    } catch (error) {
+      this._snackService.open('Failed to download logs');
+    }
   }
 }

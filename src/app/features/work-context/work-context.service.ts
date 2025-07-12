@@ -65,6 +65,7 @@ import { TaskArchiveService } from '../time-tracking/task-archive.service';
 import { INBOX_PROJECT } from '../project/project.const';
 import { selectProjectById } from '../project/store/project.selectors';
 import { getWorklogStr } from '../../util/get-work-log-str';
+import { Log } from '../../core/log';
 
 @Injectable({
   providedIn: 'root',
@@ -257,10 +258,12 @@ export class WorkContextService {
   );
 
   todaysTasks$: Observable<TaskWithSubTasks[]> = this.todaysTaskIds$.pipe(
-    // tap(() => console.log('TRIGGER TODAY TASKS')),
-    switchMap((taskIds) => this._getTasksByIds$(taskIds)),
+    // tap((taskIds: string[]) => Log.log('[WorkContext] Today task IDs:', taskIds)),
+    switchMap((taskIds: string[]) => this._getTasksByIds$(taskIds)),
     // TODO find out why this is triggered so often
-    // tap(() => console.log('AFTER SWITCHMAP  TODAYSTASKS')),
+    // tap((tasks: TaskWithSubTasks[]) =>
+    //   Log.log('[WorkContext] Today tasks loaded:', tasks.length, 'tasks'),
+    // ),
     // map(to => to.filter(t => !!t)),
     shareReplay(1),
   );
@@ -365,7 +368,27 @@ export class WorkContextService {
   );
 
   undoneTasks$: Observable<TaskWithSubTasks[]> = this.todaysTasks$.pipe(
-    map((tasks) => tasks.filter((task) => task && !task.isDone)),
+    map((tasks) =>
+      tasks.filter((task) => {
+        if (!task || task.isDone) {
+          return false;
+        }
+
+        // Filter out tasks scheduled for later today
+        if (this.activeWorkContextId === TODAY_TAG.id && task.dueWithTime) {
+          const now = Date.now();
+          const todayEnd = new Date();
+          todayEnd.setHours(23, 59, 59, 999);
+
+          // If the task is scheduled for later today, exclude it
+          if (task.dueWithTime >= now && task.dueWithTime <= todayEnd.getTime()) {
+            return false;
+          }
+        }
+
+        return true;
+      }),
+    ),
   );
 
   doneTasks$: Observable<TaskWithSubTasks[]> = this.isToday$.pipe(
@@ -623,7 +646,7 @@ export class WorkContextService {
   // we don't want a circular dependency that's why we do it here...
   private _getTasksByIds$(ids: string[]): Observable<TaskWithSubTasks[]> {
     if (!Array.isArray(ids)) {
-      console.log({ ids });
+      Log.log({ ids });
       throw new Error('Invalid param provided for getByIds$ :(');
     }
     return this._store$.select(selectTasksWithSubTasksByIds, { ids });
@@ -632,7 +655,7 @@ export class WorkContextService {
   // we don't want a circular dependency that's why we do it here...
   private _getNotesByIds$(ids: string[]): Observable<Note[]> {
     if (!Array.isArray(ids)) {
-      console.log({ ids });
+      Log.log({ ids });
       throw new Error('Invalid param provided for getByIds$ :(');
     }
     return this._store$.select(selectNotesById, { ids });

@@ -395,7 +395,7 @@ describe('TaskRepeatCfgService', () => {
       const existingTask = { ...mockTaskWithSubTasks, created: targetDayDate };
       taskService.getTasksWithSubTasksByRepeatCfgId$.and.returnValue(of([existingTask]));
 
-      const actions = await service.getActionsForTaskRepeatCfg(
+      const actions = await service._getActionsForTaskRepeatCfg(
         mockTaskRepeatCfg,
         targetDayDate,
       );
@@ -414,7 +414,7 @@ describe('TaskRepeatCfgService', () => {
       taskService.getTasksWithSubTasksByRepeatCfgId$.and.returnValue(of([]));
       taskService.createNewTaskWithDefaults.and.returnValue(mockTask);
 
-      const actions = await service.getActionsForTaskRepeatCfg(
+      const actions = await service._getActionsForTaskRepeatCfg(
         cfgWithSchedule as any,
         targetDayDate,
       );
@@ -428,7 +428,7 @@ describe('TaskRepeatCfgService', () => {
       taskService.getTasksWithSubTasksByRepeatCfgId$.and.returnValue(of([]));
 
       await expectAsync(
-        service.getActionsForTaskRepeatCfg(cfgWithoutId as any),
+        service._getActionsForTaskRepeatCfg(cfgWithoutId as any),
       ).toBeRejectedWithError('No taskRepeatCfg.id');
     });
 
@@ -437,19 +437,34 @@ describe('TaskRepeatCfgService', () => {
       taskService.getTasksWithSubTasksByRepeatCfgId$.and.returnValue(of([]));
 
       await expectAsync(
-        service.getActionsForTaskRepeatCfg(cfgInvalid as any),
+        service._getActionsForTaskRepeatCfg(cfgInvalid as any),
       ).toBeRejectedWithError('Repeat startDate needs to be defined');
     });
 
-    it('should throw error if unable to get due date (future start date)', async () => {
+    it('should return empty array when due date is in the future', async () => {
       const futureDate = new Date('2025-01-01').toISOString();
       const cfgFutureStart = { ...mockTaskRepeatCfg, startDate: futureDate };
       const pastTargetDate = new Date('2022-01-01').getTime();
       taskService.getTasksWithSubTasksByRepeatCfgId$.and.returnValue(of([]));
 
-      await expectAsync(
-        service.getActionsForTaskRepeatCfg(cfgFutureStart as any, pastTargetDate),
-      ).toBeRejectedWithError('Unable to getNewestPossibleDueDate()');
+      // Mock confirm to return false to prevent throwing
+      const confirmSpy = window.confirm as jasmine.Spy;
+      confirmSpy.and.returnValue(false);
+
+      const result = await service._getActionsForTaskRepeatCfg(
+        cfgFutureStart as any,
+        pastTargetDate,
+      );
+
+      expect(result).toEqual([]);
+
+      // Verify that confirm was called (devError will always call confirm)
+      expect(confirmSpy).toHaveBeenCalledWith(
+        'Throw an error for error? ––– No target creation date found for repeatable task',
+      );
+
+      // Restore default behavior
+      confirmSpy.and.returnValue(true);
     });
   });
 

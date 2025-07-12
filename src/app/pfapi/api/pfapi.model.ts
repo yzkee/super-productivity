@@ -88,15 +88,27 @@ export interface RevMap {
 
 export interface MetaFileBase {
   lastUpdate: number;
+  lastUpdateAction?: string;
   revMap: RevMap;
   crossModelVersion: number;
-  localLamport: number;
-  lastSyncedLamport: number | null;
+  lastSyncedAction?: string;
+  // Vector clock fields for improved conflict detection
+  vectorClock?: VectorClock;
+  lastSyncedVectorClock?: VectorClock | null;
+}
+
+export interface VectorClock {
+  [clientId: string]: number;
 }
 
 export interface RemoteMeta extends MetaFileBase {
   mainModelData: MainModelData;
   isFullData?: boolean;
+}
+
+export interface UploadMeta extends Omit<RemoteMeta, 'lastSyncedVectorClock'> {
+  // Vector clock should not be synced, only used locally
+  lastSyncedVectorClock?: null;
 }
 
 export interface LocalMeta extends MetaFileBase {
@@ -183,7 +195,8 @@ export type PfapiEvents =
   | 'metaModelChange'
   | 'providerChange'
   | 'providerPrivateCfgChange'
-  | 'providerReady';
+  | 'providerReady'
+  | 'onBeforeUpdateLocal';
 
 export type SyncStatusChangePayload =
   | 'UNKNOWN_OR_CHANGED'
@@ -204,6 +217,10 @@ export interface PfapiEventPayloadMap {
   providerPrivateCfgChange: {
     providerId: string;
     privateCfg: SyncProviderPrivateCfg;
+  };
+  onBeforeUpdateLocal: {
+    backup: CompleteBackup<any>;
+    modelsToUpdate?: string[];
   };
 }
 

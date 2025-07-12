@@ -37,6 +37,7 @@ import { MatIcon } from '@angular/material/icon';
 import { TaskComponent } from '../task/task.component';
 import { AsyncPipe } from '@angular/common';
 import { TaskViewCustomizerService } from '../../task-view-customizer/task-view-customizer.service';
+import { TaskLog } from '../../../core/log';
 
 export type TaskListId = 'PARENT' | 'SUB';
 export type ListModelId = DropListModelSource | string;
@@ -131,9 +132,9 @@ export class TaskListComponent implements OnDestroy, AfterViewInit {
     // const targetModelId = drag.dropContainer.data.listModelId;
     const targetModelId = drop.data.listModelId;
     const isSubtask = !!task.parentId;
-    // console.log(drag.data.id, { isSubtask, targetModelId, drag, drop });
+    // TaskLog.log(drag.data.id, { isSubtask, targetModelId, drag, drop });
     // return true;
-    if (targetModelId === 'OVERDUE') {
+    if (targetModelId === 'OVERDUE' || targetModelId === 'LATER_TODAY') {
       return false;
     } else if (isSubtask) {
       if (!PARENT_ALLOWED_LISTS.includes(targetModelId)) {
@@ -158,7 +159,7 @@ export class TaskListComponent implements OnDestroy, AfterViewInit {
     const srcListData = ev.previousContainer.data;
     const targetListData = ev.container.data;
     const draggedTask = ev.item.data;
-    console.log({
+    TaskLog.log({
       ev,
       srcListData,
       targetListData,
@@ -220,7 +221,7 @@ export class TaskListComponent implements OnDestroy, AfterViewInit {
             ...targetListData.filteredTasks.filter((t) => t.id !== draggedTask.id),
             draggedTask,
           ];
-    console.log(srcListData.listModelId, '=>', targetListData.listModelId, {
+    TaskLog.log(srcListData.listModelId, '=>', targetListData.listModelId, {
       targetTask,
       draggedTask,
       newIds,
@@ -261,6 +262,11 @@ export class TaskListComponent implements OnDestroy, AfterViewInit {
     const isSrcRegularList = src === 'DONE' || src === 'UNDONE';
     const isTargetRegularList = target === 'DONE' || target === 'UNDONE';
     const workContextId = this._workContextService.activeWorkContextId as string;
+
+    // Handle LATER_TODAY - prevent any moves to or from this list
+    if (src === 'LATER_TODAY' || target === 'LATER_TODAY') {
+      return;
+    }
 
     if (isSrcRegularList && isTargetRegularList) {
       // move inside today

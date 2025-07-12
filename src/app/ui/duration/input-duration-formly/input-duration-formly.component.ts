@@ -36,14 +36,20 @@ export class InputDurationFormlyComponent
   // @ViewChild(MatInput, {static: true}) formFieldControl?: MatInput;
   onInputValueChange(ev: Event): void {
     const val = (ev.target as HTMLInputElement).value;
-    // console.log('formly onInputValueChange', val);
+    // Log.log('formly onInputValueChange', val);
     // this.formControl.setValue(val);
     this._updateValue(val);
   }
 
+  override ngOnDestroy(): void {
+    if (this._timeout) {
+      window.clearTimeout(this._timeout);
+    }
+  }
+
   private _updateValue(val: string): void {
     this._timeout = window.setTimeout(() => {
-      this.formControl.setValue(val ? stringToMs(val) : null);
+      this.formControl.setValue(val ? stringToMs(val) : undefined);
     });
   }
 }

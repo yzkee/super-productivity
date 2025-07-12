@@ -4,11 +4,6 @@
 
 .wrapper {
   position: relative;
-  margin-left: var(--s-half);
-
-  @include mq(xs) {
-    margin-left: var(--s);
-  }
 }
 
 .main-btn {
@@ -65,8 +60,8 @@
   pointer-events: none;
   bottom: calc(-1 * var(--s-quarter));
 
-  background: var(--theme-bg-lighter);
-  color: var(--theme-text-color-most-intense);
+  background: var(--bg-lighter);
+  color: var(--text-color-most-intense);
 
   .wrapper:hover .stopwatch & {
     opacity: 0;
