@@ -66,13 +66,13 @@
         "LABELS": {
           "FILE": "Ścieżka do pliku",
           "IMG": "Zdjęcie",
-          "LINK": "URL"
+          "LINK": "Adres URL"
         },
         "SELECT_TYPE": "Wybierz typ",
         "TYPES": {
-          "FILE": "Plik (otwiera domyślną aplikację)",
-          "IMG": "Zdjęcie (otwiera się jako thumbnail)",
-          "LINK": "Link (otwiera się w nowej karcie)"
+          "FILE": "Plik (otwiera domyślną aplikację systemu)",
+          "IMG": "Zdjęcie (pokazuje się jako miniaturka)",
+          "LINK": "Link (otwiera się w nowej karcie przeglądarki)"
         }
       }
     },
@@ -81,21 +81,21 @@
         "DONE": "Gotowe",
         "EISENHAUER_MATRIX": "Macierz Eisenhowera",
         "IMPORTANT": "Ważne",
-        "IN_PROGRESS": "W trakcie realizacji",
+        "IN_PROGRESS": "W trakcie",
         "KANBAN": "Kanban",
-        "NOT_URGENT_IMPORTANT": "Niepilne i Ważne",
+        "NOT_URGENT_IMPORTANT": "Niepilne ale Ważne",
         "NOT_URGENT_NOT_IMPORTANT": "Niepilne i Nieważne",
         "TO_DO": "Do zrobienia",
         "URGENT": "Pilne",
         "URGENT_IMPORTANT": "Pilne i Ważne",
-        "URGENT_NOT_IMPORTANT": "Pilne i Nieważne"
+        "URGENT_NOT_IMPORTANT": "Pilne ale Nieważne"
       },
       "FORM": {
         "ADD_NEW_PANEL": "Dodaj nowy panel",
         "BACKLOG_TASK_FILTER_ALL": "Wszystkie",
-        "BACKLOG_TASK_FILTER_NO_BACKLOG": "Wykluczać",
-        "BACKLOG_TASK_FILTER_ONLY_BACKLOG": "Tylko zaległości",
-        "BACKLOG_TASK_FILTER_TYPE": "Zadania listy prac",
+        "BACKLOG_TASK_FILTER_NO_BACKLOG": "Wyklucz",
+        "BACKLOG_TASK_FILTER_ONLY_BACKLOG": "Tylko rejestrze zadań",
+        "BACKLOG_TASK_FILTER_TYPE": "Zadania z rejestru zadań",
         "COLUMNS": "Kolumny",
         "TAGS_EXCLUDED": "Wykluczone tagi",
         "TAGS_REQUIRED": "Wymagane tagi",
@@ -108,12 +108,12 @@
         "ADD_NEW_BOARD": "Dodaj nową tablicę",
         "CONFIRM_DELETE": "Czy na pewno chcesz usunąć tę tablicę?",
         "CREATE_NEW_TAG_BTN": "Utwórz tag",
-        "CREATE_NEW_TAG_MSG": "1 nowy tag musi zostać utworzony, aby ta tablica działała",
+        "CREATE_NEW_TAG_MSG": "Musisz stworzyć przynajmniej jeden nowy tag, aby ta tablica działała",
         "CREATE_NEW_TAGS_BTN": "Utwórz tagi",
         "CREATE_NEW_TAGS_MSG": "{{nr}} nowe tagi muszą zostać utworzone, aby ta tablica działała",
         "EDIT_BOARD": "Edytuj tablicę",
         "NO_PANELS_BTN": "Skonfiguruj tablicę",
-        "NO_PANELS_MSG": "Ta tablica nie ma skonfigurowanych paneli. Dodaj do niej kilka paneli."
+        "NO_PANELS_MSG": "Ta tablica nie ma skonfigurowanych paneli. Dodaj kilka paneli."
       }
     },
     "CALDAV": {
@@ -121,12 +121,12 @@
         "TITLE": "Ustawienia synchronizacji kalendarza (CalDav) dla projektu"
       },
       "FORM": {
-        "CALDAV_CATEGORY_FILTER": "Kategoria do filtrowania zadań CalDav dla (zostaw puste dla żadnego)",
+        "CALDAV_CATEGORY_FILTER": "Kategoria do filtrowania zadań dla (zostaw puste jeżeli brak)",
         "CALDAV_PASSWORD": "Twoje hasło CalDav",
         "CALDAV_RESOURCE": "Nazwa zasobu CalDav do synchronizacji (kalendarz)",
         "CALDAV_URL": "CalDav URL (podstawowy URL)",
         "CALDAV_USER": "Twój użytkownik CalDav",
-        "IS_TRANSITION_ISSUES_ENABLED": "Automatycznie wypełniaj zadania CalDav po zakończeniu zadania"
+        "IS_TRANSITION_ISSUES_ENABLED": "Automatycznie zakończ zadania CalDav po wykonaniu zadania"
       },
       "FORM_SECTION": {
         "HELP": "<p>Tutaj możesz skonfigurować Super Productivity tak, aby w panelu tworzenia zadań w widoku planowania dziennego wyświetlał listę niewykonanych zadań CalDav dla wybranego projektu. Będą one pokazywane jako sugestie i będą zawierały link do zadania oraz dodatkowe informacje.</p><p>Możesz też automatycznie dodać i synchronizować wszystkie niewykonane zadania do zaległości.</p>",
