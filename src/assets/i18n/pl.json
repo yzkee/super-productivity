@@ -2,30 +2,30 @@
   "ANDROID": {
     "NOTIFICATIONS": {
       "SYNC_CONFLICT_MSG": "Sprawdź i zdecyduj, co zrobić.",
-      "SYNC_CONFLICT_TITLE": "Wystąpił konflikt synchronizacji"
+      "SYNC_CONFLICT_TITLE": "Wystąpił konflikt z synchronizacją"
     },
     "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "Aplikacja działająca w tle, aby umożliwić synchronizację, jeśli jest włączona",
+      "INITIAL": "Aplikacja działa w tle, aby umożliwić synchronizację o ile jest włączona",
       "NO_ACTIVE_TASKS": "Brak aktywnych zadań",
-      "SYNCING": "Synchronizacja"
+      "SYNCING": "Synchronizuję"
     }
   },
   "APP": {
     "B_INSTALL": {
-      "IGNORE": "Zignoruj",
-      "INSTALL": "Instaluj",
-      "MSG": "Czy chcesz zinstalować Super Productivity jako PWA?"
+      "IGNORE": "Ignoruj",
+      "INSTALL": "Zainstaluj",
+      "MSG": "Czy chcesz zinstalować Super Productivity jako aplikację PWA?"
     },
     "B_OFFLINE": "Zostałeś odłączony od internetu. Synchronizacja nie będzie działać.",
     "CONTEXT_MENU": {
       "CHANGE_BACKGROUND": "Zmień tło"
     },
-    "UPDATE_MAIN_MODEL": "Super Productivity posiada ważną aktualizację! Wymagana jest migracja danych, która spowoduje że starsze wersje aplikacji nie będą mogły ich używać.",
-    "UPDATE_MAIN_MODEL_NO_UPDATE": "Nie wybrano aktualizacji modelu. Pamiętaj, że jeśli nie chcesz przeprowadzać aktualizacji modelu, musisz wrócić do poprzedniej wersji aplikacji.",
-    "UPDATE_WEB_APP": "Nowa wersja dostępna. Załadować ją?"
+    "UPDATE_MAIN_MODEL": "Super Productivity posiada ważną aktualizację! Wymagana jest migracja danych do nowej wersji, aktualizacja spowoduje że starsze wersje aplikacji nie będą mogły ich używać.",    "UPDATE_MAIN_MODEL_NO_UPDATE": "Nie wybrano aktualizacji modelu. Pamiętaj, że jeśli nie chcesz przeprowadzać aktualizacji modelu, musisz wrócić do poprzedniej wersji aplikacji.",
+    "UPDATE_MAIN_MODEL_NO_UPDATE": "Nie wybrano aktualizacji modelu. Pamiętaj, że jeśli nie chcesz przeprowadzać aktualizacji modelu, musisz powrócić do poprzedniej wersji.",
+    "UPDATE_WEB_APP": "Dostępna jest nowa wersja. Czy chcesz są załadować?"
   },
   "BL": {
-    "NO_TASKS": "Backlog nie zawiera zadań"
+    "NO_TASKS": "Obecnie nie ma żadnych zadań w Twoim rejestrze zadań"
   },
   "BN": {
     "SHOW_ISSUE_PANEL": "Pokaż panel problemów",
@@ -33,14 +33,14 @@
     "SHOW_TASK_VIEW_CUSTOMIZER_PANEL": "Pokaż panel filtrów/grupowania/sortowania"
   },
   "CONFIRM": {
-    "AUTO_FIX": "Twoje dane są popsute. Czy chcesz je automatycznie naprawić? Może wystąpić utrata danych.",
-    "RELOAD_AFTER_IDB_ERROR": "Nie można uzyskać dostępu do bazy danych :( Możliwe przyczyny to aktualizacja aplikacji w tle lub mało miejsca na dysku. Jeśli zainstalowałeś aplikację na Linuksie jako snap, chcesz również włączyć świadomość odświeżania \"snap set core experimental.refresh-app-awareness=true\", dopóki nie naprawią tego problemu po swojej stronie. Naciśnij OK, aby ponownie załadować aplikację (może wymagać ręcznego ponownego uruchomienia aplikacji na niektórych platformach).",
-    "RESTORE_FILE_BACKUP": "Wygląda na to, że aplikacja nie posiada danych, ale istnieje kopia zapasowa w \"{{dir}}\". Czy chcesz ją odzyskać z {{from}}?",
-    "RESTORE_FILE_BACKUP_ANDROID": "Wygląda na to, że NIE MA DANYCH, ale dostępna jest kopia zapasowa. Czy chcesz ją załadować?",
-    "RESTORE_STRAY_BACKUP": "Ostatnia synchronizacja zawiera błąd. Czy chcesz odtworzyć ostatnią kopię zapasową?"
+    "AUTO_FIX": "Twoje dane są uszkodzone (\"{{validityError}}\"). Czy chcesz dokonać automatycznek naprawy? To działanie może spowodować utratę danych.",
+    "RELOAD_AFTER_IDB_ERROR": "Nie można uzyskać dostępu do bazy danych :( Możliwe przyczyny to aktualizacja aplikacji w tle lub mało miejsca na dysku. Jeśli zainstalowałeś aplikację na systemie Linux za pomocą 'snap', musisz włączyć odświeżania poświadczeń 'snap set core experimental.refresh-app-awareness=true', dopóki ten problem nie zostanie naprawiony po stronie developera. Naciśnij OK, aby ponownie załadować aplikację (może wymagać ręcznego ponownego uruchomienia aplikacji na niektórych platformach).",
+    "RESTORE_FILE_BACKUP": "Wygląda na to, że aplikacja nie posiada żadnych danych, ale istnieje kopia zapasowa w \"{{dir}}\". Czy chcesz przywrócić kopię z {{from}}?",
+    "RESTORE_FILE_BACKUP_ANDROID": "Wygląda na to, że w aplikacji NIE MA ŻADNYCH DANYCH, ale dostępna jest kopia zapasowa. Czy chcesz ją przywrócić?",
+    "RESTORE_STRAY_BACKUP": "Podczas ostatniej synchronizacja wystąpił błąd. Czy chcesz odtworzyć ostatnią kopię zapasową?"
   },
   "DATETIME_SCHEDULE": {
-    "LATER_TODAY": "Później dzisiaj",
+    "LATER_TODAY": "Dzisiaj - Później",
     "NEXT_WEEK": "Następny tydzień",
     "PLACEHOLDER": "Proszę wybrać datę",
     "PRESS_ENTER_AGAIN": "Naciśnij enter aby zapisać",
@@ -48,16 +48,21 @@
   },
   "DIALOG_UNSPLASH_PICKER": {
     "BY": "Przez",
-    "NO_RESULTS": "Nie znaleziono obrazów. Spróbuj innego hasła.",
+    "NO_RESULTS": "Nie znaleziono obrazów. Spróbuj ponownie.",
     "SEARCH_LABEL": "Szukaj obrazów",
     "SEARCH_PLACEHOLDER": "np. natura, góry, abstrakcja",
-    "TITLE": "Wybierz obraz tła z Unsplash"
+    "TITLE": "Wybierz obraz tła z serwisu Unsplash"
+  },
+    "DONATE_PAGE": {
+    "BUTTON_TEXT": "Przekaż darowiznę za pośrednictwem funkcji sponsorów na GitHub",
+    "INTRO_1": "Super Produktywność jest w całości finansowana przez społeczność. Nie ma śledzenia, nie ma reklam ani nie gromadzi danych — Twoje dane pozostają na Twoim urządzeniu.",
+    "INTRO_2": "Jeśli doceniach i popierasz takie podejście i chcesz, aby projekt był dalej rozwijany oraz żeby ewoluował, bardzo doceniamy twoje wsparcie."
   },
   "F": {
     "ATTACHMENT": {
       "DIALOG_EDIT": {
-        "ADD_ATTACHMENT": "Dodaj Załącznik",
-        "EDIT_ATTACHMENT": "Edytuj Załącznik",
+        "ADD_ATTACHMENT": "Dodaj załącznik",
+        "EDIT_ATTACHMENT": "Edytuj załącznik",
         "LABELS": {
           "FILE": "Ścieżka do pliku",
           "IMG": "Zdjęcie",
