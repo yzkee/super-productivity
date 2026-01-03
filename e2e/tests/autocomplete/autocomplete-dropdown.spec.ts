@@ -12,9 +12,6 @@ test.describe('Autocomplete Dropdown', () => {
     // Use sd:today to set dueDay so task appears in TODAY view
     await workViewPage.addTask('some task <3 #basicTag sd:today', true);
 
-    // Small delay to let the tag creation dialog appear
-    await page.waitForTimeout(500);
-
     // Wait for and click the confirm create tag button with increased timeout
     await page.waitForSelector(CONFIRM_CREATE_TAG_BTN, {
       state: 'visible',

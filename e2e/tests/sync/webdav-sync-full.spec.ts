@@ -2,112 +2,35 @@ import { test, expect } from '../../fixtures/test.fixture';
 import { SyncPage } from '../../pages/sync.page';
 import { WorkViewPage } from '../../pages/work-view.page';
 import { waitForAppReady, waitForStatePersistence } from '../../utils/waits';
-import { type Browser, type Page } from '@playwright/test';
 import { isWebDavServerUp } from '../../utils/check-webdav';
+import {
+  WEBDAV_CONFIG_TEMPLATE,
+  setupSyncClient,
+  createSyncFolder,
+  waitForSyncComplete,
+  generateSyncFolderName,
+  dismissTourIfVisible,
+} from '../../utils/sync-test-helpers';
 
 test.describe('WebDAV Sync Full Flow', () => {
   // Run sync tests serially to avoid WebDAV server contention
   test.describe.configure({ mode: 'serial' });
 
   // Use a unique folder for each test run to avoid collisions
-  const SYNC_FOLDER_NAME = `e2e-test-${Date.now()}`;
+  const SYNC_FOLDER_NAME = generateSyncFolderName('e2e-full');
 
   const WEBDAV_CONFIG = {
-    baseUrl: 'http://127.0.0.1:2345/',
-    username: 'admin',
-    password: 'admin',
+    ...WEBDAV_CONFIG_TEMPLATE,
     syncFolderPath: `/${SYNC_FOLDER_NAME}`,
   };
 
   test.beforeAll(async () => {
-    const isUp = await isWebDavServerUp(WEBDAV_CONFIG.baseUrl);
+    const isUp = await isWebDavServerUp(WEBDAV_CONFIG_TEMPLATE.baseUrl);
     if (!isUp) {
       console.warn('WebDAV server not reachable. Skipping WebDAV tests.');
       test.skip(true, 'WebDAV server not reachable');
     }
   });
-
-  const setupClient = async (
-    browser: Browser,
-    baseURL: string | undefined,
-  ): Promise<{ context: any; page: Page }> => {
-    const context = await browser.newContext({ baseURL });
-
-    const page = await context.newPage();
-
-    await page.goto('/');
-
-    await waitForAppReady(page);
-
-    // Dismiss Shepherd Tour if present
-
-    try {
-      const tourElement = page.locator('.shepherd-element').first();
-
-      // Short wait to see if it appears
-
-      await tourElement.waitFor({ state: 'visible', timeout: 4000 });
-
-      const cancelIcon = page.locator('.shepherd-cancel-icon').first();
-
-      if (await cancelIcon.isVisible()) {
-        await cancelIcon.click();
-      } else {
-        await page.keyboard.press('Escape');
-      }
-
-      await tourElement.waitFor({ state: 'hidden', timeout: 3000 });
-    } catch (e) {
-      // Tour didn't appear or wasn't dismissable, ignore
-    }
-
-    return { context, page };
-  };
-
-  const waitForSync = async (
-    page: Page,
-    syncPage: SyncPage,
-  ): Promise<'success' | 'conflict' | void> => {
-    // Poll for success icon, error snackbar, or conflict dialog
-    const startTime = Date.now();
-    let stableCount = 0;
-
-    while (Date.now() - startTime < 30000) {
-      // 30s timeout
-      const conflictDialog = page.locator('dialog-sync-conflict');
-      if (await conflictDialog.isVisible()) return 'conflict';
-
-      const snackBars = page.locator('.mat-mdc-snack-bar-container');
-      const count = await snackBars.count();
-      for (let i = 0; i < count; ++i) {
-        const text = await snackBars.nth(i).innerText();
-        // Check for keywords indicating failure
-        if (text.toLowerCase().includes('error') || text.toLowerCase().includes('fail')) {
-          throw new Error(`Sync failed with error: ${text}`);
-        }
-      }
-
-      // Check if sync is in progress (spinner visible)
-      const isSpinning = await syncPage.syncSpinner.isVisible();
-      if (!isSpinning) {
-        // Check for success icon
-        const successVisible = await syncPage.syncCheckIcon.isVisible();
-        if (successVisible) return 'success';
-
-        // No spinner, no error, no check icon - use stable count fallback
-        stableCount++;
-        if (stableCount >= 3) {
-          return 'success'; // Consider sync complete after 3 stable checks
-        }
-      } else {
-        stableCount = 0; // Reset if still spinning
-      }
-
-      await page.waitForTimeout(500);
-    }
-
-    throw new Error('Sync timeout: Sync did not complete');
-  };
 
   test('should sync data between two clients', async ({ browser, baseURL, request }) => {
     test.slow(); // Sync tests might take longer
@@ -115,27 +38,10 @@ test.describe('WebDAV Sync Full Flow', () => {
     const url = baseURL || 'http://localhost:4242';
 
     // Create the sync folder on WebDAV server to avoid 409 Conflict (parent missing)
-    // The app adds /DEV suffix in dev mode, so we need to ensure the base folder exists.
-    const mkcolUrl = `${WEBDAV_CONFIG.baseUrl}${SYNC_FOLDER_NAME}`;
-    console.log(`Creating WebDAV folder: ${mkcolUrl}`);
-    try {
-      const response = await request.fetch(mkcolUrl, {
-        method: 'MKCOL',
-        headers: {
-          Authorization: 'Basic ' + Buffer.from('admin:admin').toString('base64'),
-        },
-      });
-      if (!response.ok() && response.status() !== 405) {
-        console.warn(
-          `Failed to create WebDAV folder: ${response.status()} ${response.statusText()}`,
-        );
-      }
-    } catch (e) {
-      console.warn('Error creating WebDAV folder:', e);
-    }
+    await createSyncFolder(request, SYNC_FOLDER_NAME);
 
     // --- Client A ---
-    const { context: contextA, page: pageA } = await setupClient(browser, url);
+    const { context: contextA, page: pageA } = await setupSyncClient(browser, url);
     const syncPageA = new SyncPage(pageA);
     const workViewPageA = new WorkViewPage(pageA);
     await workViewPageA.waitForTaskList();
@@ -151,10 +57,10 @@ test.describe('WebDAV Sync Full Flow', () => {
 
     // Sync Client A (Upload)
     await syncPageA.triggerSync();
-    await waitForSync(pageA, syncPageA);
+    await waitForSyncComplete(pageA, syncPageA);
 
     // --- Client B ---
-    const { context: contextB, page: pageB } = await setupClient(browser, url);
+    const { context: contextB, page: pageB } = await setupSyncClient(browser, url);
     const syncPageB = new SyncPage(pageB);
     const workViewPageB = new WorkViewPage(pageB);
     await workViewPageB.waitForTaskList();
@@ -165,7 +71,7 @@ test.describe('WebDAV Sync Full Flow', () => {
 
     // Sync Client B (Download)
     await syncPageB.triggerSync();
-    await waitForSync(pageB, syncPageB);
+    await waitForSyncComplete(pageB, syncPageB);
 
     // Verify Task appears on Client B
     await expect(pageB.locator('task')).toHaveCount(1);
@@ -177,11 +83,11 @@ test.describe('WebDAV Sync Full Flow', () => {
     await workViewPageA.addTask(taskName2);
 
     await syncPageA.triggerSync();
-    await waitForSync(pageA, syncPageA);
+    await waitForSyncComplete(pageA, syncPageA);
 
     // Sync Client B
     await syncPageB.triggerSync();
-    await waitForSync(pageB, syncPageB);
+    await waitForSyncComplete(pageB, syncPageB);
 
     await expect(pageB.locator('task')).toHaveCount(2);
     await expect(pageB.locator('task').first()).toContainText(taskName2);
@@ -201,7 +107,7 @@ test.describe('WebDAV Sync Full Flow', () => {
     await pageA.waitForTimeout(1000);
 
     await syncPageA.triggerSync();
-    await waitForSync(pageA, syncPageA);
+    await waitForSyncComplete(pageA, syncPageA);
 
     // Retry sync on B up to 3 times to handle eventual consistency
     let taskCountOnB = 2;
@@ -212,7 +118,7 @@ test.describe('WebDAV Sync Full Flow', () => {
       await pageB.waitForTimeout(500);
 
       await syncPageB.triggerSync();
-      await waitForSync(pageB, syncPageB);
+      await waitForSyncComplete(pageB, syncPageB);
 
       // Wait for sync state to persist
       await waitForStatePersistence(pageB);
@@ -221,18 +127,7 @@ test.describe('WebDAV Sync Full Flow', () => {
       // Reload to ensure UI reflects synced state
       await pageB.reload();
       await waitForAppReady(pageB);
-
-      // Dismiss tour if it appears
-      try {
-        const tourElement = pageB.locator('.shepherd-element').first();
-        await tourElement.waitFor({ state: 'visible', timeout: 2000 });
-        const cancelIcon = pageB.locator('.shepherd-cancel-icon').first();
-        if (await cancelIcon.isVisible()) {
-          await cancelIcon.click();
-        }
-      } catch {
-        // Tour didn't appear
-      }
+      await dismissTourIfVisible(pageB);
       await workViewPageB.waitForTaskList();
 
       taskCountOnB = await pageB.locator('task').count();
@@ -254,31 +149,14 @@ test.describe('WebDAV Sync Full Flow', () => {
     await waitForStatePersistence(pageA);
 
     await syncPageA.triggerSync();
-    await waitForSync(pageA, syncPageA);
+    await waitForSyncComplete(pageA, syncPageA);
 
     // Wait for WebDAV server to process A's upload
     await pageA.waitForTimeout(2000);
 
     // Create a fresh Client B for conflict test
     console.log('Creating fresh Client B for conflict test...');
-    const contextB2 = await browser.newContext({ baseURL: url });
-    const pageB2 = await contextB2.newPage();
-    await pageB2.goto('/');
-    await waitForAppReady(pageB2);
-    // Dismiss tour
-    try {
-      const tourElement = pageB2.locator('.shepherd-element').first();
-      await tourElement.waitFor({ state: 'visible', timeout: 4000 });
-      const cancelIcon = pageB2.locator('.shepherd-cancel-icon').first();
-      if (await cancelIcon.isVisible()) {
-        await cancelIcon.click();
-      } else {
-        await pageB2.keyboard.press('Escape');
-      }
-    } catch {
-      // Tour didn't appear
-    }
-
+    const { context: contextB2, page: pageB2 } = await setupSyncClient(browser, url);
     const syncPageB2 = new SyncPage(pageB2);
     const workViewPageB2 = new WorkViewPage(pageB2);
     await workViewPageB2.waitForTaskList();
@@ -286,7 +164,7 @@ test.describe('WebDAV Sync Full Flow', () => {
     // Setup sync on fresh Client B
     await syncPageB2.setupWebdavSync(WEBDAV_CONFIG);
     await syncPageB2.triggerSync();
-    await waitForSync(pageB2, syncPageB2);
+    await waitForSyncComplete(pageB2, syncPageB2);
 
     // Wait for state persistence
     await waitForStatePersistence(pageB2);
@@ -294,16 +172,7 @@ test.describe('WebDAV Sync Full Flow', () => {
     // Reload to ensure UI reflects synced state
     await pageB2.reload();
     await waitForAppReady(pageB2);
-    try {
-      const tourElement = pageB2.locator('.shepherd-element').first();
-      await tourElement.waitFor({ state: 'visible', timeout: 2000 });
-      const cancelIcon = pageB2.locator('.shepherd-cancel-icon').first();
-      if (await cancelIcon.isVisible()) {
-        await cancelIcon.click();
-      }
-    } catch {
-      // Tour didn't appear
-    }
+    await dismissTourIfVisible(pageB2);
     await workViewPageB2.waitForTaskList();
 
     // Final assertion - should have 2 tasks now
@@ -337,11 +206,11 @@ test.describe('WebDAV Sync Full Flow', () => {
 
     // Sync A (Uploads "A")
     await syncPageA.triggerSync();
-    await waitForSync(pageA, syncPageA);
+    await waitForSyncComplete(pageA, syncPageA);
 
     // Sync B2 (Downloads "A" but has "B") -> Conflict
     await syncPageB2.triggerSync();
-    const result = await waitForSync(pageB2, syncPageB2);
+    const result = await waitForSyncComplete(pageB2, syncPageB2);
 
     if (result === 'success') {
       console.log(
@@ -371,7 +240,7 @@ test.describe('WebDAV Sync Full Flow', () => {
         // Confirmation might not appear
       }
 
-      await waitForSync(pageB2, syncPageB2);
+      await waitForSyncComplete(pageB2, syncPageB2);
 
       await expect(pageB2.locator('task', { hasText: 'Conflict Task A' })).toBeVisible();
       await expect(

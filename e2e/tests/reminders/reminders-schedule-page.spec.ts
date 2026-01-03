@@ -1,11 +1,7 @@
-import type { Locator, Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/test.fixture';
+import { scheduleTaskViaDetailPanel } from '../../utils/schedule-task-helper';
 
 const TASK = 'task';
-const SCHEDULE_DIALOG = 'dialog-schedule-task';
-const SCHEDULE_DIALOG_TIME_INPUT = 'dialog-schedule-task input[type="time"]';
-const SCHEDULE_DIALOG_CONFIRM = 'mat-dialog-actions button:last-child';
-
 const SCHEDULE_ROUTE_BTN = 'magic-side-nav a[href="#/scheduled-list"]';
 const SCHEDULE_PAGE_CMP = 'scheduled-list-page';
 // Target only the first .tasks container (scheduled with time, not planned for days)
@@ -13,66 +9,6 @@ const SCHEDULE_PAGE_FIRST_TASKS_CONTAINER = `${SCHEDULE_PAGE_CMP} .component-wra
 const SCHEDULE_PAGE_TASKS = `${SCHEDULE_PAGE_FIRST_TASKS_CONTAINER} planner-task`;
 const SCHEDULE_PAGE_TASK_1 = `${SCHEDULE_PAGE_TASKS}:first-of-type`;
 const SCHEDULE_PAGE_TASK_1_TITLE_EL = `${SCHEDULE_PAGE_TASK_1} .title`;
-const DETAIL_PANEL_BTN = '.show-additional-info-btn';
-const DETAIL_PANEL_SELECTOR = 'dialog-task-detail-panel, task-detail-panel';
-const DETAIL_PANEL_SCHEDULE_ITEM =
-  'task-detail-item:has(mat-icon:text("alarm")), ' +
-  'task-detail-item:has(mat-icon:text("today")), ' +
-  'task-detail-item:has(mat-icon:text("schedule"))';
-
-const fillScheduleDialogTime = async (
-  page: Page,
-  scheduleTime: number,
-): Promise<void> => {
-  const dialog = page.locator(SCHEDULE_DIALOG);
-  await dialog.waitFor({ state: 'visible', timeout: 10000 });
-
-  const timeInput = page.locator(SCHEDULE_DIALOG_TIME_INPUT);
-  await timeInput.waitFor({ state: 'visible', timeout: 10000 });
-
-  const date = new Date(scheduleTime);
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-
-  await timeInput.fill('');
-  await timeInput.fill(`${hours}:${minutes}`);
-
-  const confirmBtn = page.locator(SCHEDULE_DIALOG_CONFIRM);
-  await confirmBtn.waitFor({ state: 'visible', timeout: 5000 });
-  await confirmBtn.click();
-
-  await dialog.waitFor({ state: 'hidden', timeout: 10000 });
-};
-
-const closeDetailPanelIfOpen = async (page: Page): Promise<void> => {
-  const detailPanel = page.locator(DETAIL_PANEL_SELECTOR).first();
-  if (await detailPanel.isVisible()) {
-    await page.keyboard.press('Escape');
-    await detailPanel.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
-  }
-};
-
-const scheduleTaskViaDetailPanel = async (
-  page: Page,
-  task: Locator,
-  scheduleTime: number,
-): Promise<void> => {
-  await task.waitFor({ state: 'visible' });
-  await task.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(200);
-  await task.hover({ force: true });
-
-  const detailBtn = task.locator(DETAIL_PANEL_BTN).first();
-  await detailBtn.waitFor({ state: 'visible', timeout: 5000 });
-  await detailBtn.click();
-
-  const scheduleItem = page.locator(DETAIL_PANEL_SCHEDULE_ITEM).first();
-  await scheduleItem.waitFor({ state: 'visible', timeout: 5000 });
-  await scheduleItem.click();
-
-  await fillScheduleDialogTime(page, scheduleTime);
-  await closeDetailPanelIfOpen(page);
-};
 
 test.describe('Reminders Schedule Page', () => {
   test('should add a scheduled tasks', async ({ page, workViewPage, testPrefix }) => {
@@ -88,9 +24,6 @@ test.describe('Reminders Schedule Page', () => {
     // Wait for task to be fully rendered
     const targetTask = page.locator(TASK).filter({ hasText: title }).first();
     await targetTask.waitFor({ state: 'visible' });
-
-    // Hover to reveal schedule button
-    await targetTask.hover();
 
     // Open detail panel to access schedule action
     await scheduleTaskViaDetailPanel(page, targetTask, scheduleTime);
@@ -125,9 +58,6 @@ test.describe('Reminders Schedule Page', () => {
     test.setTimeout(90000); // Increase timeout for multiple operations
     await workViewPage.waitForTaskList();
 
-    // Wait a bit for the page to stabilize
-    await page.waitForTimeout(1000);
-
     // Helper function to schedule a task
     const scheduleTask = async (
       taskTitle: string,
@@ -150,13 +80,12 @@ test.describe('Reminders Schedule Page', () => {
 
     await workViewPage.addTask(title1);
 
-    // Wait for first task to be visible and stable
+    // Wait for first task to be visible
     await page
       .locator(TASK)
       .filter({ hasText: title1 })
       .first()
       .waitFor({ state: 'visible' });
-    await page.waitForTimeout(500); // Let the task fully render
 
     await scheduleTask(title1, scheduleTime1);
 
@@ -166,13 +95,12 @@ test.describe('Reminders Schedule Page', () => {
 
     await workViewPage.addTask(title2);
 
-    // Wait for second task to be visible and stable
+    // Wait for second task to be visible
     await page
       .locator(TASK)
       .filter({ hasText: title2 })
       .first()
       .waitFor({ state: 'visible' });
-    await page.waitForTimeout(500); // Let the task fully render
 
     await scheduleTask(title2, scheduleTime2);
 
@@ -192,9 +120,6 @@ test.describe('Reminders Schedule Page', () => {
 
     // Wait for scheduled page to load
     await page.waitForSelector(SCHEDULE_PAGE_CMP, { state: 'visible', timeout: 10000 });
-
-    // Wait for the scheduled tasks to render
-    await page.waitForTimeout(1000);
 
     // Verify both tasks appear in scheduled list with retry
     await expect(async () => {

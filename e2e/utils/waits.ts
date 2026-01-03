@@ -18,57 +18,30 @@ type WaitForAppReadyOptions = {
 };
 
 /**
- * Wait until Angular reports stability or fall back to a DOM based heuristic.
- * Works for both dev and prod builds (where window.ng may be stripped).
+ * Simplified wait that relies on Playwright's auto-waiting.
+ * Previously used Angular testability API to check Zone.js stability.
+ * Now just checks DOM readiness - Playwright handles element actionability.
+ *
+ * Experiment showed: Angular stability checks not needed for most UI tests.
+ * Playwright's auto-waiting (before click, fill, assertions) is sufficient.
  */
 export const waitForAngularStability = async (
   page: Page,
-  timeout = 5000,
+  timeout = 3000,
 ): Promise<void> => {
-  await page
-    .waitForFunction(
-      () => {
-        const win = window as unknown as {
-          getAllAngularTestabilities?: () => Array<{ isStable: () => boolean }>;
-          ng?: any;
-        };
-
-        const testabilities = win.getAllAngularTestabilities?.();
-        if (testabilities && testabilities.length) {
-          return testabilities.every((testability) => {
-            try {
-              return testability.isStable();
-            } catch {
-              return false;
-            }
-          });
-        }
-
-        const ng = win.ng;
-        const appRef = ng
-          ?.getComponent?.(document.body)
-          ?.injector?.get?.(ng.core?.ApplicationRef);
-        const manualStableFlag = appRef?.isStable;
-        if (typeof manualStableFlag === 'boolean') {
-          return manualStableFlag;
-        }
-
-        // As a final fallback, ensure the main shell exists & DOM settled.
-        return (
-          document.readyState === 'complete' &&
-          !!document.querySelector('magic-side-nav') &&
-          !!document.querySelector('.route-wrapper')
-        );
-      },
-      { timeout },
-    )
-    .catch(() => {
-      // Non-fatal: fall back to next waits
-    });
+  await page.waitForFunction(
+    () =>
+      document.readyState === 'complete' && !!document.querySelector('.route-wrapper'),
+    { timeout },
+  );
 };
 
 /**
  * Shared helper to wait until the application shell and Angular are ready.
+ * Optimized for speed - removed networkidle wait and redundant checks.
+ *
+ * Note: The app shows a loading screen while initial sync and data load completes.
+ * This screen hides the .route-wrapper, so we must wait for loading to complete first.
  */
 export const waitForAppReady = async (
   page: Page,
@@ -76,10 +49,8 @@ export const waitForAppReady = async (
 ): Promise<void> => {
   const { selector, ensureRoute = true, routeRegex = DEFAULT_ROUTE_REGEX } = options;
 
+  // Wait for initial page load
   await page.waitForLoadState('domcontentloaded');
-  await page
-    .waitForSelector('body', { state: 'visible', timeout: 10000 })
-    .catch(() => {});
 
   // Handle any blocking dialogs (pre-migration, confirmation, etc.)
   // These dialogs block app until dismissed
@@ -95,55 +66,32 @@ export const waitForAppReady = async (
     }
   }
 
-  // Wait for the main navigation to appear - this is critical for the app to be usable
-  // Use retry loop with longer total timeout to handle slow loads
-  let sideNavVisible = false;
-  const sideNavTimeout = 30000; // 30s total timeout
-  const sideNavStartTime = Date.now();
-
-  while (Date.now() - sideNavStartTime < sideNavTimeout) {
-    try {
-      await page.waitForSelector('magic-side-nav', { state: 'visible', timeout: 5000 });
-      sideNavVisible = true;
-      break;
-    } catch {
-      // Check for any blocking dialogs that might have appeared
-      try {
-        const dialogConfirmBtn = page.locator('dialog-confirm button[e2e="confirmBtn"]');
-        if (await dialogConfirmBtn.isVisible()) {
-          await dialogConfirmBtn.click();
-          await page.waitForTimeout(500);
-        }
-      } catch {
-        // No dialog
-      }
-      // Continue waiting
+  // Wait for the loading screen to disappear (if visible).
+  // The app shows `.loading-full-page-wrapper` while syncing/importing data.
+  const loadingWrapper = page.locator('.loading-full-page-wrapper');
+  try {
+    const isLoadingVisible = await loadingWrapper.isVisible().catch(() => false);
+    if (isLoadingVisible) {
+      await loadingWrapper.waitFor({ state: 'hidden', timeout: 30000 });
     }
+  } catch {
+    // Loading screen might not appear at all - that's fine
   }
 
-  if (!sideNavVisible) {
-    throw new Error(
-      'App failed to load: magic-side-nav not visible after 30s. ' +
-        'The app may be stuck on the splash screen or failed to initialize.',
-    );
-  }
-
+  // Wait for route to match (if required)
   if (ensureRoute) {
-    await page.waitForURL(routeRegex, { timeout: 15000 }).catch(() => {});
+    await page.waitForURL(routeRegex, { timeout: 15000 });
   }
 
-  await page.waitForLoadState('networkidle', { timeout: 20000 }).catch(() => {});
-
+  // Wait for main route wrapper to be visible (indicates app shell loaded)
   await page
     .locator('.route-wrapper')
     .first()
-    .waitFor({ state: 'visible', timeout: 10000 })
-    .catch(() => {});
+    .waitFor({ state: 'visible', timeout: 15000 });
 
+  // Wait for optional selector
   if (selector) {
-    await page
-      .waitForSelector(selector, { state: 'visible', timeout: 10000 })
-      .catch(() => {});
+    await page.locator(selector).first().waitFor({ state: 'visible', timeout: 8000 });
   }
 
   await waitForAngularStability(page).catch(() => {});
