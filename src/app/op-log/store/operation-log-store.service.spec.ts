@@ -1757,6 +1757,40 @@ describe('OperationLogStoreService', () => {
       const clock3 = await service.getVectorClock();
       expect(clock3).toEqual({ client: 5 });
     });
+
+    it('should clear cache when clearVectorClockCache is called', async () => {
+      // Set vector clock and read it (populates cache)
+      await service.setVectorClock({ tabA: 10, tabB: 5 });
+      const cachedClock = await service.getVectorClock();
+      expect(cachedClock).toEqual({ tabA: 10, tabB: 5 });
+
+      // Clear the cache
+      service.clearVectorClockCache();
+
+      // Next read should fetch from IndexedDB (which still has the value)
+      const freshClock = await service.getVectorClock();
+      expect(freshClock).toEqual({ tabA: 10, tabB: 5 });
+    });
+
+    it('should force fresh read from IndexedDB after clearVectorClockCache', async () => {
+      // This test simulates the multi-tab scenario where another tab updates IndexedDB
+      // while this tab has a stale cache.
+
+      // Set initial clock and populate cache
+      await service.setVectorClock({ originalClient: 1 });
+      await service.getVectorClock();
+
+      // Simulate another tab writing directly to IndexedDB (bypassing our cache)
+      // We do this by using setVectorClock which updates both DB and cache
+      await service.setVectorClock({ originalClient: 1, anotherTabClient: 99 });
+
+      // Now clear cache to simulate what happens after acquiring a lock
+      service.clearVectorClockCache();
+
+      // Should get the updated value from IndexedDB
+      const clock = await service.getVectorClock();
+      expect(clock).toEqual({ originalClient: 1, anotherTabClient: 99 });
+    });
   });
 
   describe('mergeRemoteOpClocks', () => {

@@ -899,6 +899,27 @@ export class OperationLogStoreService {
   }
 
   /**
+   * Clears the in-memory vector clock cache, forcing next read to fetch from IndexedDB.
+   *
+   * MULTI-TAB SAFETY: Each browser tab maintains its own in-memory cache. When Tab A
+   * writes a new operation and updates its cache, Tab B's cache remains stale.
+   * Call this before reading the vector clock inside a Web Lock to ensure freshness
+   * after other tabs may have written.
+   *
+   * The typical pattern is:
+   * ```
+   * await lockService.request(OPERATION_LOG, async () => {
+   *   opLogStore.clearVectorClockCache(); // Force fresh read
+   *   const clock = await vectorClockService.getCurrentVectorClock();
+   *   // ... create operation with correct clock
+   * });
+   * ```
+   */
+  clearVectorClockCache(): void {
+    this._vectorClockCache = null;
+  }
+
+  /**
    * Merges remote operations' vector clocks into the local vector clock.
    *
    * CRITICAL: This must be called after applying remote operations to ensure

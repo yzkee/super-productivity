@@ -1,6 +1,7 @@
 import { VectorClock } from '../../core/util/vector-clock';
 import { ActionType } from './action-types.enum';
-export { VectorClock, ActionType };
+import { EntityType as SharedEntityType, ENTITY_TYPES } from '@sp/shared-schema';
+export { VectorClock, ActionType, ENTITY_TYPES };
 
 export enum OpType {
   Create = 'CRT',
@@ -13,27 +14,11 @@ export enum OpType {
   Repair = 'REPAIR', // Auto-repair operation with full repaired state
 }
 
-export type EntityType =
-  | 'TASK'
-  | 'PROJECT'
-  | 'TAG'
-  | 'NOTE'
-  | 'GLOBAL_CONFIG'
-  | 'SIMPLE_COUNTER'
-  | 'WORK_CONTEXT'
-  | 'TIME_TRACKING'
-  | 'TASK_REPEAT_CFG'
-  | 'ISSUE_PROVIDER'
-  | 'PLANNER'
-  | 'MENU_TREE'
-  | 'METRIC'
-  | 'BOARD'
-  | 'REMINDER'
-  | 'PLUGIN_USER_DATA'
-  | 'PLUGIN_METADATA'
-  | 'MIGRATION'
-  | 'RECOVERY' // For disaster recovery imports
-  | 'ALL'; // For full state imports (sync, backup)
+/**
+ * Entity type - identifies the kind of data entity being operated on.
+ * Re-exported from @sp/shared-schema to ensure client/server consistency.
+ */
+export type EntityType = SharedEntityType;
 
 export interface Operation {
   /**

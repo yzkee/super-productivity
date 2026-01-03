@@ -152,6 +152,11 @@ export class OperationLogEffects {
       //
       // By acquiring the lock first, flushPendingWrites() must wait for us to finish writing.
       await this.lockService.request(LOCK_NAMES.OPERATION_LOG, async () => {
+        // MULTI-TAB SAFETY: Clear vector clock cache to ensure fresh read after other tabs
+        // may have written while we were waiting for the lock. Each tab has its own in-memory
+        // cache, so Tab B's cache could be stale if Tab A wrote while Tab B was waiting.
+        this.opLogStore.clearVectorClockCache();
+
         // Get entity changes from the FIFO queue (for TIME_TRACKING and TASK time sync)
         // For most actions, this returns empty array since action payloads are sufficient.
         // IMPORTANT: This MUST happen inside the lock to prevent race with flushPendingWrites.

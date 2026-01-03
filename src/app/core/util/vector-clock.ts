@@ -1,4 +1,9 @@
 import { PFLog } from '../log';
+import {
+  VectorClock as SharedVectorClock,
+  compareVectorClocks as sharedCompareVectorClocks,
+  mergeVectorClocks as sharedMergeVectorClocks,
+} from '@sp/shared-schema';
 
 /**
  * Vector Clock implementation for distributed synchronization
@@ -12,18 +17,20 @@ import { PFLog } from '../log';
  * - LESS_THAN: A happened before B
  * - GREATER_THAN: B happened before A
  * - CONCURRENT: Neither happened before the other (true conflict)
+ *
+ * IMPORTANT: Core comparison logic is shared with the server via @sp/shared-schema.
+ * This file wraps the shared logic with null handling for client-side use.
  */
 
 /**
  * Vector clock data structure
  * Maps client IDs to their respective clock values
  */
-export interface VectorClock {
-  [clientId: string]: number;
-}
+export type VectorClock = SharedVectorClock;
 
 /**
- * Result of comparing two vector clocks
+ * Result of comparing two vector clocks.
+ * Uses enum for client-side ergonomics, values match shared string literals.
  */
 export enum VectorClockComparison {
   EQUAL = 'EQUAL',
@@ -112,10 +119,11 @@ export const sanitizeVectorClock = (clock: any): VectorClock => {
 };
 
 /**
- * Compare two vector clocks to determine their relationship
+ * Compare two vector clocks to determine their relationship.
  *
- * SYNC NOTE: This algorithm must match the server implementation at:
- * packages/super-sync-server/src/sync/sync.types.ts - compareVectorClocks()
+ * Uses the shared implementation from @sp/shared-schema to ensure
+ * client and server produce identical results. This wrapper adds
+ * null/undefined handling for client-side convenience.
  *
  * @param a First vector clock
  * @param b Second vector clock
@@ -125,56 +133,20 @@ export const compareVectorClocks = (
   a: VectorClock | null | undefined,
   b: VectorClock | null | undefined,
 ): VectorClockComparison => {
-  // Handle null/undefined cases
+  // Handle null/undefined cases (shared implementation requires non-null)
   if (isVectorClockEmpty(a) && isVectorClockEmpty(b)) {
-    // Both empty = equal (both have no history)
     return VectorClockComparison.EQUAL;
   }
   if (isVectorClockEmpty(a)) {
-    // a is empty, b has history = a happened before b (a < b)
     return VectorClockComparison.LESS_THAN;
   }
   if (isVectorClockEmpty(b)) {
-    // b is empty, a has history = a happened after b (a > b)
     return VectorClockComparison.GREATER_THAN;
   }
 
-  // Safe type assertion after null checks
-  const clockA = a!;
-  const clockB = b!;
-
-  // Get all client IDs from both clocks
-  const allClientIds = new Set([...Object.keys(clockA), ...Object.keys(clockB)]);
-
-  let aHasGreater = false;
-  let bHasGreater = false;
-
-  // Compare each component
-  for (const clientId of allClientIds) {
-    const aVal = clockA[clientId] || 0;
-    const bVal = clockB[clientId] || 0;
-
-    if (aVal > bVal) {
-      aHasGreater = true;
-    }
-    if (bVal > aVal) {
-      bHasGreater = true;
-    }
-  }
-
-  // Determine relationship
-  if (!aHasGreater && !bHasGreater) {
-    return VectorClockComparison.EQUAL;
-  } else if (!aHasGreater) {
-    // B has some greater components, A has none -> A < B
-    return VectorClockComparison.LESS_THAN;
-  } else if (!bHasGreater) {
-    // A has some greater components, B has none -> A > B
-    return VectorClockComparison.GREATER_THAN;
-  } else {
-    // Both have some greater components -> concurrent
-    return VectorClockComparison.CONCURRENT;
-  }
+  // Delegate to shared implementation and convert string result to enum
+  const result = sharedCompareVectorClocks(a!, b!);
+  return VectorClockComparison[result];
 };
 
 /**
@@ -229,8 +201,11 @@ export const incrementVectorClock = (
 };
 
 /**
- * Merge two vector clocks by taking the maximum value for each component
- * This is used when receiving updates to ensure we have the most recent view
+ * Merge two vector clocks by taking the maximum value for each component.
+ *
+ * Uses the shared implementation from @sp/shared-schema to ensure
+ * client and server produce identical results. This wrapper adds
+ * null/undefined handling for client-side convenience.
  *
  * @param a First vector clock
  * @param b Second vector clock
@@ -240,19 +215,12 @@ export const mergeVectorClocks = (
   a: VectorClock | null | undefined,
   b: VectorClock | null | undefined,
 ): VectorClock => {
+  // Handle null/undefined cases (shared implementation requires non-null)
   if (isVectorClockEmpty(a)) return { ...(b || {}) };
   if (isVectorClockEmpty(b)) return { ...(a || {}) };
 
-  const merged: VectorClock = {};
-  const allClientIds = new Set([...Object.keys(a!), ...Object.keys(b!)]);
-
-  for (const clientId of allClientIds) {
-    const aVal = a![clientId] || 0;
-    const bVal = b![clientId] || 0;
-    merged[clientId] = Math.max(aVal, bVal);
-  }
-
-  return merged;
+  // Delegate to shared implementation
+  return sharedMergeVectorClocks(a!, b!);
 };
 
 /**
