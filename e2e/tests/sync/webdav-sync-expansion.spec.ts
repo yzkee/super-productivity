@@ -1,25 +1,19 @@
-import { test, expect } from '../../fixtures/test.fixture';
+import { expect, test } from '../../fixtures/test.fixture';
 import { SyncPage } from '../../pages/sync.page';
 import { WorkViewPage } from '../../pages/work-view.page';
 import { ProjectPage } from '../../pages/project.page';
-import { waitForAppReady, waitForStatePersistence } from '../../utils/waits';
+import { waitForStatePersistence } from '../../utils/waits';
 import { isWebDavServerUp } from '../../utils/check-webdav';
 import {
-  WEBDAV_CONFIG_TEMPLATE,
-  setupSyncClient,
   createSyncFolder,
-  waitForSyncComplete,
   generateSyncFolderName,
-  dismissTourIfVisible,
+  setupSyncClient,
+  waitForSyncComplete,
+  WEBDAV_CONFIG_TEMPLATE,
 } from '../../utils/sync-test-helpers';
 
 // Timing constants for sync detection
-const SYNC_TIMEOUT_MS = 60000;
-const SPINNER_START_WAIT_MS = 3000;
-const SPINNER_POLL_INTERVAL_MS = 100;
-const SYNC_POLL_INTERVAL_MS = 500;
-const STABLE_COUNT_WITH_SPINNER = 3;
-const STABLE_COUNT_WITHOUT_SPINNER = 6;
+
 const WEBDAV_TIMESTAMP_DELAY_MS = 2000;
 
 test.describe('WebDAV Sync Expansion', () => {
