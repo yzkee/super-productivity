@@ -22,7 +22,7 @@ import { SnackService } from './core/snack/snack.service';
 import { IS_ELECTRON } from './app.constants';
 import { expandAnimation } from './ui/animations/expand.ani';
 import { warpRouteAnimation } from './ui/animations/warp-route';
-import { combineLatest, Observable, Subscription, timer } from 'rxjs';
+import { combineLatest, merge, Observable, Subscription, timer } from 'rxjs';
 import { fadeAnimation } from './ui/animations/fade.ani';
 import { BannerService } from './core/banner/banner.service';
 import { LS } from './core/persistence/storage-keys.const';
@@ -34,7 +34,8 @@ import { WorkContextService } from './features/work-context/work-context.service
 import { ImexViewService } from './imex/imex-meta/imex-view.service';
 import { SyncTriggerService } from './imex/sync/sync-trigger.service';
 import { ActivatedRoute, RouterOutlet } from '@angular/router';
-import { map, take } from 'rxjs/operators';
+import { filter, map, take } from 'rxjs/operators';
+import { isOnline$ } from './util/is-online';
 import { IS_MOBILE } from './util/is-mobile';
 import { warpAnimation, warpInAnimation } from './ui/animations/warp.ani';
 import { AddTaskBarComponent } from './features/tasks/add-task-bar/add-task-bar.component';
@@ -210,9 +211,17 @@ export class AppComponent implements OnDestroy, AfterViewInit {
         void this._noteStartupBannerService.showLastNoteIfNeeded();
       });
 
-    // Show skip sync button after 3 seconds if still waiting for sync
-    timer(3000)
-      .pipe(takeUntilDestroyed())
+    // Show skip sync button immediately if offline, otherwise after 3 seconds
+    merge(
+      // Immediate trigger if offline
+      isOnline$.pipe(
+        filter((isOnline) => !isOnline),
+        take(1),
+      ),
+      // Fallback after 3 seconds regardless
+      timer(3000),
+    )
+      .pipe(take(1), takeUntilDestroyed())
       .subscribe(() => {
         this.showSkipSyncButton.set(true);
       });
