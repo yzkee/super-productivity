@@ -67,7 +67,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:4242',
+    baseURL: process.env.E2E_BASE_URL || 'http://localhost:4242',
 
     /* Collect trace on failure for better debugging. See https://playwright.dev/docs/trace-viewer */
     trace: 'retain-on-failure',
@@ -127,15 +127,18 @@ export default defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'npm run startFrontend:e2e',
-    url: 'http://localhost:4242',
-    reuseExistingServer: !process.env.CI, // Don't reuse in CI to ensure clean state
-    // unfortunately for CI we need to wait long for this to go up :(
-    timeout: 3 * 60 * 1000, // Allow up to 3 minutes for slower CI starts
-    stdout: 'ignore', // Reduce log noise
-    stderr: 'pipe',
-  },
+  /* When E2E_BASE_URL is set (e.g., when using Docker), skip starting the server */
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
+    : {
+        command: 'npm run startFrontend:e2e',
+        url: 'http://localhost:4242',
+        reuseExistingServer: !process.env.CI, // Don't reuse in CI to ensure clean state
+        // unfortunately for CI we need to wait long for this to go up :(
+        timeout: 3 * 60 * 1000, // Allow up to 3 minutes for slower CI starts
+        stdout: 'ignore', // Reduce log noise
+        stderr: 'pipe',
+      },
 
   /* Folder for test artifacts such as screenshots, videos, traces, etc. */
   outputDir: path.join(__dirname, '..', '.tmp', 'e2e-test-results', 'test-results'),
