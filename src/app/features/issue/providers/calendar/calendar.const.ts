@@ -6,6 +6,16 @@ import { ISSUE_PROVIDER_FF_DEFAULT_PROJECT } from '../../common-issue-form-stuff
 import { IS_ELECTRON } from '../../../../app.constants';
 import { IssueLog } from '../../../../core/log';
 
+// 5 minutes for local file:// URLs (faster polling for local calendars)
+export const LOCAL_FILE_CHECK_INTERVAL = 5 * 60 * 1000;
+
+export const getEffectiveCheckInterval = (calProvider: IssueProviderCalendar): number => {
+  if (calProvider.icalUrl?.startsWith('file://')) {
+    return LOCAL_FILE_CHECK_INTERVAL;
+  }
+  return calProvider.checkUpdatesEvery;
+};
+
 export const DEFAULT_CALENDAR_CFG: CalendarProviderCfg = {
   isEnabled: false,
   icalUrl: '',
