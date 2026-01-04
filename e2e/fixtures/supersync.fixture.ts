@@ -13,6 +13,11 @@ import {
  * - Unique testRunId per test for data isolation
  * - Client tracking for automatic cleanup
  *
+ * IMPORTANT: SuperSync tests create multiple browser contexts per test (2-3 clients).
+ * Running with too many workers (e.g., 12) can overwhelm the Angular dev server,
+ * causing ERR_CONNECTION_REFUSED errors. Recommended: --workers=3 or use the
+ * npm run e2e:supersync script which limits workers appropriately.
+ *
  * Usage:
  * ```typescript
  * import { test, expect } from '../../fixtures/supersync.fixture';
