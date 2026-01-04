@@ -272,7 +272,7 @@ export class TaskReminderEffects {
       concatMap(({ taskIds }) => this._taskService.getByIdsLive$(taskIds).pipe(first())),
       mergeMap((tasks) =>
         tasks
-          .filter((task) => !!task.reminderId)
+          .filter((task) => !!task?.reminderId)
           .map((task) =>
             removeReminderFromTask({
               id: task.id,
