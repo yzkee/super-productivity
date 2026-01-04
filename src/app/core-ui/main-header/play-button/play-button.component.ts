@@ -74,7 +74,7 @@ import { distinctUntilChanged, observeOn } from 'rxjs/operators';
       <button
         (click)="taskService.toggleStartTask()"
         [color]="currentTaskId() ? 'accent' : 'primary'"
-        [matTooltip]="tooltipText()"
+        [matTooltip]="tooltipText() | translate"
         matTooltipPosition="below"
         class="play-btn tour-playBtn mat-elevation-z3"
         mat-mini-fab
