@@ -48,7 +48,10 @@ test.describe('Task detail', () => {
       /^\d+/,
       String(newHour).padStart(match![1].length, '0'),
     );
-    await timeInput.fill(newTime);
+    await timeInput.clear();
+    await timeInput.pressSequentially(newTime);
+    // Press Tab to commit the change before clicking Save
+    await timeInput.press('Tab');
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(createdInfo).not.toHaveText(createdInfoText!);
@@ -88,7 +91,10 @@ test.describe('Task detail', () => {
       /^\d+/,
       String(newHour).padStart(match![1].length, '0'),
     );
-    await timeInput.fill(newTime);
+    await timeInput.clear();
+    await timeInput.pressSequentially(newTime);
+    // Press Tab to commit the change before clicking Save
+    await timeInput.press('Tab');
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(completedInfo).not.toHaveText(completedInfoText!);
