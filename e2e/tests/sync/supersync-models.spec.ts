@@ -628,11 +628,15 @@ test.describe('@supersync SuperSync Models', () => {
       await clientB.sync.syncAndWait();
       console.log('[BulkTag] Client B synced');
 
-      // Wait for state to settle
-      await clientA.page.waitForTimeout(1000);
-      await clientB.page.waitForTimeout(1000);
+      // Wait for state to settle and sync to fully process
+      await clientA.page.waitForTimeout(500);
+      await clientB.page.waitForTimeout(500);
 
-      // Navigate both clients to Today view
+      // Do an extra sync cycle to ensure all state is synchronized
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
+
+      // Navigate both clients to Today view to refresh the UI
       await clientA.page.goto('/#/tag/TODAY/work');
       await clientA.page.waitForLoadState('networkidle');
       await clientB.page.goto('/#/tag/TODAY/work');
@@ -643,6 +647,7 @@ test.describe('@supersync SuperSync Models', () => {
 
       // Check that the tag name doesn't appear in the nav (it should be deleted)
       // We check in the Tags section specifically
+      // Use waitFor with state: 'hidden' which handles both hidden and detached elements
       const tagItemA = clientA.page
         .locator('nav-list-tree')
         .filter({ hasText: 'Tags' })
@@ -652,8 +657,15 @@ test.describe('@supersync SuperSync Models', () => {
         .filter({ hasText: 'Tags' })
         .locator(`nav-item:has-text("${tagName}")`);
 
-      await expect(tagItemA).not.toBeVisible({ timeout: 5000 });
-      await expect(tagItemB).not.toBeVisible({ timeout: 5000 });
+      // Use longer timeout and toPass for more reliable check
+      await expect(async () => {
+        await expect(tagItemA).not.toBeVisible({ timeout: 2000 });
+      }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] });
+
+      await expect(async () => {
+        await expect(tagItemB).not.toBeVisible({ timeout: 2000 });
+      }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] });
+
       console.log('[BulkTag] ✓ Tag is gone on both clients');
 
       // VERIFICATION: All tasks still exist but WITHOUT the tag

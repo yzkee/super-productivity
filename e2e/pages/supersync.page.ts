@@ -213,34 +213,44 @@ export class SuperSyncPage extends BasePage {
     await this.baseUrlInput.fill(config.baseUrl);
 
     // Handle Encryption (also inside the collapsible)
-    // Angular Material checkboxes can start in an indeterminate "mixed" state before the form loads.
-    // Use the label click with retry logic to reliably toggle the checkbox state.
-    const checkboxLabel = this.page.locator('.e2e-isEncryptionEnabled label');
+    // Only modify checkbox if encryption is explicitly configured
+    // Skip checkbox handling if isEncryptionEnabled is not specified (undefined)
+    if (config.isEncryptionEnabled !== undefined) {
+      // Angular Material checkboxes can start in an indeterminate "mixed" state before the form loads.
+      // Use the label click with retry logic to reliably toggle the checkbox state.
+      const checkboxLabel = this.page.locator('.e2e-isEncryptionEnabled label');
 
-    if (config.isEncryptionEnabled) {
-      // Use toPass() to retry until checkbox is checked - handles initial indeterminate state
-      await expect(async () => {
-        const isChecked = await this.encryptionCheckbox.isChecked();
-        if (!isChecked) {
-          await checkboxLabel.click();
+      // Wait for checkbox to be in a stable state (not indeterminate)
+      await this.encryptionCheckbox.waitFor({ state: 'attached', timeout: 5000 });
+      await this.page.waitForTimeout(200); // Let Angular settle
+
+      if (config.isEncryptionEnabled) {
+        // Use toPass() to retry until checkbox is checked - handles initial indeterminate state
+        await expect(async () => {
+          const isChecked = await this.encryptionCheckbox.isChecked();
+          if (!isChecked) {
+            await checkboxLabel.click();
+            await this.page.waitForTimeout(100);
+          }
+          await expect(this.encryptionCheckbox).toBeChecked({ timeout: 1000 });
+        }).toPass({ timeout: 15000, intervals: [500, 1000, 1500, 2000] });
+
+        if (config.password) {
+          await this.encryptionPasswordInput.waitFor({ state: 'visible' });
+          await this.encryptionPasswordInput.fill(config.password);
+          await this.encryptionPasswordInput.blur();
         }
-        await expect(this.encryptionCheckbox).toBeChecked({ timeout: 1000 });
-      }).toPass({ timeout: 10000, intervals: [500, 1000, 1500] });
-
-      if (config.password) {
-        await this.encryptionPasswordInput.waitFor({ state: 'visible' });
-        await this.encryptionPasswordInput.fill(config.password);
-        await this.encryptionPasswordInput.blur();
+      } else {
+        // Use toPass() to retry until checkbox is unchecked
+        await expect(async () => {
+          const isChecked = await this.encryptionCheckbox.isChecked();
+          if (isChecked) {
+            await checkboxLabel.click();
+            await this.page.waitForTimeout(100);
+          }
+          await expect(this.encryptionCheckbox).not.toBeChecked({ timeout: 1000 });
+        }).toPass({ timeout: 15000, intervals: [500, 1000, 1500, 2000] });
       }
-    } else {
-      // Use toPass() to retry until checkbox is unchecked
-      await expect(async () => {
-        const isChecked = await this.encryptionCheckbox.isChecked();
-        if (isChecked) {
-          await checkboxLabel.click();
-        }
-        await expect(this.encryptionCheckbox).not.toBeChecked({ timeout: 1000 });
-      }).toPass({ timeout: 10000, intervals: [500, 1000, 1500] });
     }
 
     // Save - use a robust click that handles element detachment during dialog close

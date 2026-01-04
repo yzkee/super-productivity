@@ -353,9 +353,11 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       const taskLocatorB = clientB.page
         .locator(`task:not(.ng-animating):has-text("${taskName}")`)
         .first();
+      await taskLocatorB.waitFor({ state: 'visible', timeout: 10000 });
       await taskLocatorB.hover();
+      await clientB.page.waitForTimeout(100); // Let hover state settle
       await taskLocatorB.locator('.task-done-btn').click();
-      await expect(taskLocatorB).toHaveClass(/isDone/);
+      await expect(taskLocatorB).toHaveClass(/isDone/, { timeout: 5000 });
 
       // 4. Wait for time to advance significantly
       await clientB.page.waitForTimeout(1000);
@@ -364,9 +366,11 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       const taskLocatorA = clientA.page
         .locator(`task:not(.ng-animating):has-text("${taskName}")`)
         .first();
+      await taskLocatorA.waitFor({ state: 'visible', timeout: 10000 });
       await taskLocatorA.hover();
+      await clientA.page.waitForTimeout(100); // Let hover state settle
       await taskLocatorA.locator('.task-done-btn').click();
-      await expect(taskLocatorA).toHaveClass(/isDone/);
+      await expect(taskLocatorA).toHaveClass(/isDone/, { timeout: 5000 });
 
       // 6. Client B syncs (uploads B's earlier change to server)
       await clientB.sync.syncAndWait();
