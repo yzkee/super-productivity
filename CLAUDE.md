@@ -46,19 +46,18 @@ npm run test:file <filepath>
 ### Testing
 
 - Unit tests: `npm test` - Uses Jasmine/Karma, tests are co-located with source files (`.spec.ts`)
-- E2E tests: `npm run e2e` - Uses Nightwatch, located in `/e2e/src/`
-- Playwright E2E tests: Located in `/e2e/`
+- E2E tests: `npm run e2e` - Uses Playwright, located in `/e2e/tests/`
 
-  - `npm run e2e:playwright` - Run all tests with minimal output (shows failures clearly)
-  - `npm run e2e:playwright:file <path>` - Run a single test file with detailed output
-    - Example: `npm run e2e:playwright:file tests/work-view/work-view.spec.ts`
+  - `npm run e2e` - Run all tests with minimal output (shows failures clearly)
+  - `npm run e2e:file <path>` - Run a single test file with detailed output
+    - Example: `npm run e2e:file tests/work-view/work-view.spec.ts`
   - `npm run e2e:supersync:file <path>` - Run SuperSync E2E tests (auto-starts the server)
     - Example: `npm run e2e:supersync:file e2e/tests/sync/supersync.spec.ts`
+  - Running tests is slow. When fixing tests always prefer running only the affected test files first. Only when everything seems to work run the full suite to confirm.
   - **IMPORTANT for Claude**: When running E2E tests:
     - Use `--retries=0` to avoid long waits: `npm run e2e:file <path> -- --retries=0`
     - Use `--grep "test name"` to run a single test: `npm run e2e:file <path> -- --grep "test name" --retries=0`
     - Tests take ~20s each, don't use excessive timeouts
-    - Each test run includes a fresh server start (~5s overhead)
   - **IMPORTANT for Claude**: When running the full supersync suite, use playwright directly with a line reporter for real-time output (the `npm run e2e:supersync` script buffers output):
 
     ```bash
@@ -129,12 +128,16 @@ The app uses NgRx (Redux pattern) for state management. Key state slices:
 11. **Event Loop Yield After Bulk Dispatches**: When applying many operations to NgRx in rapid succession (e.g., during sync replay), add `await new Promise(resolve => setTimeout(resolve, 0))` after the dispatch loop. `store.dispatch()` is non-blocking and returns immediately. Without yielding, 50+ rapid dispatches can overwhelm the store and cause state updates to be lost. See `OperationApplierService.applyOperations()` for the reference implementation.
 12. **SYNC_IMPORT Semantics**: `SYNC_IMPORT` (and `BACKUP_IMPORT`) operations represent a **complete fresh start** - they replace the entire application state. All operations without knowledge of the import (CONCURRENT or LESS_THAN by vector clock) are dropped for all clients. See `SyncImportFilterService.filterOpsInvalidatedBySyncImport()`. This is correct behavior: the import is an explicit user action to restore to a specific state, and concurrent work is intentionally discarded.
 
-## 🚫 Known Anti-Patterns to Avoid
+## 🚫 Anti-Patterns → Do This Instead
 
-- `any` or untyped public APIs
-- Direct DOM access (use Angular bindings)
-- Adding side effects in constructors
-- Re-declaring styles that exist in Angular Material theme
-- Using deprecated Angular APIs (e.g., `NgModules` when not needed)
-- **Using `inject(Actions)` or `ALL_ACTIONS` in effects** - Effects should NEVER run for remote operations. Side effects happen exactly once on the originating client. Always use `inject(LOCAL_ACTIONS)` instead.
-- **Selector-based effects that dispatch actions** - Effects starting with `this._store$.select(...)` bypass `LOCAL_ACTIONS` filtering and fire during hydration/sync. Either convert to action-based effects or guard with `HydrationStateService.isApplyingRemoteOps()`.
+| Avoid                                | Do Instead                                                                          |
+| ------------------------------------ | ----------------------------------------------------------------------------------- |
+| `any` type                           | Use proper types, `unknown` if truly unknown                                        |
+| Direct DOM access                    | Use Angular bindings, `viewChild()` if needed                                       |
+| Side effects in constructors         | Prefer `async` pipe or `toSignal`                                                   |
+| Mutating NgRx state directly         | Return new objects in reducers                                                      |
+| Subscribing without cleanup          | Use `takeUntilDestroyed()` or async pipe                                            |
+| `NgModules` for new code             | Use standalone components                                                           |
+| Re-declaring Material theme styles   | Use existing theme variables                                                        |
+| `inject(Actions)` in effects         | Use `inject(LOCAL_ACTIONS)` - effects must not run for remote sync ops              |
+| Selector-based effects that dispatch | Convert to action-based or guard with `HydrationStateService.isApplyingRemoteOps()` |

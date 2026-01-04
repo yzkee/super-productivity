@@ -16,13 +16,16 @@ describe('playSound', () => {
 
     mockGainNode = {
       connect: jasmine.createSpy('connect'),
+      disconnect: jasmine.createSpy('disconnect'),
       gain: { value: 1 },
     };
 
     mockBufferSource = {
       connect: jasmine.createSpy('connect'),
+      disconnect: jasmine.createSpy('disconnect'),
       start: jasmine.createSpy('start'),
       buffer: null,
+      onended: null as (() => void) | null,
     };
 
     mockAudioBuffer = {} as AudioBuffer;
@@ -165,6 +168,45 @@ describe('playSound', () => {
         expect(mockAudioContext.createBufferSource).toHaveBeenCalled();
         done();
       }, 10);
+    }, 10);
+  });
+
+  it('should set onended handler to clean up audio nodes', (done) => {
+    playSound('test.mp3');
+
+    setTimeout(() => {
+      expect(mockBufferSource.onended).toBeDefined();
+      expect(typeof mockBufferSource.onended).toBe('function');
+      done();
+    }, 10);
+  });
+
+  it('should disconnect source node when onended is called', (done) => {
+    playSound('test.mp3', 100);
+
+    setTimeout(() => {
+      // Trigger the onended handler
+      if (mockBufferSource.onended) {
+        mockBufferSource.onended();
+      }
+
+      expect(mockBufferSource.disconnect).toHaveBeenCalled();
+      done();
+    }, 10);
+  });
+
+  it('should disconnect both source and gain nodes when using volume adjustment', (done) => {
+    playSound('test.mp3', 50);
+
+    setTimeout(() => {
+      // Trigger the onended handler
+      if (mockBufferSource.onended) {
+        mockBufferSource.onended();
+      }
+
+      expect(mockBufferSource.disconnect).toHaveBeenCalled();
+      expect(mockGainNode.disconnect).toHaveBeenCalled();
+      done();
     }, 10);
   });
 });

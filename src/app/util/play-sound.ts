@@ -18,14 +18,23 @@ export const playSound = (filePath: string, vol = 100): void => {
       const source = audioCtx.createBufferSource();
       source.buffer = buffer;
 
+      let gainNode: GainNode | null = null;
       if (vol !== 100) {
-        const gainNode = audioCtx.createGain();
+        gainNode = audioCtx.createGain();
         gainNode.gain.value = vol / 100;
         source.connect(gainNode);
         gainNode.connect(audioCtx.destination);
       } else {
         source.connect(audioCtx.destination);
       }
+
+      // Clean up audio nodes after playback to prevent memory leaks
+      source.onended = (): void => {
+        source.disconnect();
+        if (gainNode) {
+          gainNode.disconnect();
+        }
+      };
 
       source.start(0);
     })

@@ -1,6 +1,6 @@
 {
   "name": "superProductivity",
-  "version": "16.8.1",
+  "version": "16.8.3",
   "description": "ToDo list and Time Tracking",
   "keywords": [
     "ToDo",
@@ -62,6 +62,8 @@
     "e2e:supersync": "docker compose -f docker-compose.yaml -f docker-compose.e2e.yaml up -d --build supersync && echo 'Waiting for SuperSync server...' && until curl -s http://localhost:1901/health > /dev/null 2>&1; do sleep 1; done && echo 'Server ready!' && npm run e2e -- --grep @supersync; docker compose -f docker-compose.yaml -f docker-compose.e2e.yaml down supersync",
     "e2e:supersync:file": "docker compose -f docker-compose.yaml -f docker-compose.e2e.yaml up -d --build supersync && echo 'Waiting for SuperSync server...' && until curl -s http://localhost:1901/health > /dev/null 2>&1; do sleep 1; done && echo 'Server ready!' && E2E_VERBOSE=true npx playwright test --config e2e/playwright.config.ts --reporter=list",
     "e2e:supersync:down": "docker compose -f docker-compose.yaml -f docker-compose.e2e.yaml down supersync",
+    "e2e:docker": "docker compose -f docker-compose.e2e.yaml up -d app && ./scripts/wait-for-app.sh && E2E_BASE_URL=http://localhost:${APP_PORT:-4242} npm run e2e; docker compose -f docker-compose.e2e.yaml down",
+    "e2e:docker:webdav": "docker compose -f docker-compose.e2e.yaml up -d && ./scripts/wait-for-app.sh && ./scripts/wait-for-webdav.sh && E2E_BASE_URL=http://localhost:${APP_PORT:-4242} npm run e2e; docker compose -f docker-compose.e2e.yaml down",
     "electron": "NODE_ENV=PROD electron .",
     "electron:build": "tsc -p electron/tsconfig.electron.json",
     "electron:watch": "tsc -p electron/tsconfig.electron.json --watch",

@@ -1,3 +1,42 @@
+## [16.8.3](https://github.com/johannesjo/super-productivity/compare/v16.8.2...v16.8.3) (2026-01-04)
+
+### Bug Fixes
+
+- **e2e:** use format-agnostic time change in task-detail tests ([098e19f](https://github.com/johannesjo/super-productivity/commit/098e19f9ca7d2ad218d311b9dddfe9709d775b99))
+- **e2e:** use pressSequentially for time input in task-detail tests ([333c3a1](https://github.com/johannesjo/super-productivity/commit/333c3a16bc442d71dfe7c6b6f6953123a6bba928))
+- **schedule:** start tracking selected task when pressing Y in schedule view ([acedc67](https://github.com/johannesjo/super-productivity/commit/acedc67f2af1d5a86df910a12bf5d3efaec7a1e6)), closes [#5884](https://github.com/johannesjo/super-productivity/issues/5884)
+- **sync:** resolve 25-second initial sync timeout race condition ([570a0b5](https://github.com/johannesjo/super-productivity/commit/570a0b590d94a1dab54991808a13e70d99db56d4)), closes [#5868](https://github.com/johannesjo/super-productivity/issues/5868) [#5877](https://github.com/johannesjo/super-productivity/issues/5877)
+- **tasks:** clear reminder when clicking "today" button on already-today tasks ([2af57d2](https://github.com/johannesjo/super-productivity/commit/2af57d2b4aba90ee0ccfc2780e4c3cce26c74b43)), closes [#5872](https://github.com/johannesjo/super-productivity/issues/5872)
+
+### Features
+
+- **e2e:** add Docker-based E2E test isolation ([40d7118](https://github.com/johannesjo/super-productivity/commit/40d7118e179ae46670d0180460a1255d4f63f903))
+
+## [16.8.2](https://github.com/johannesjo/super-productivity/compare/v16.8.1...v16.8.2) (2026-01-04)
+
+### Bug Fixes
+
+- **calendar:** add periodic refresh for planner and scheduler views ([77c4c33](https://github.com/johannesjo/super-productivity/commit/77c4c33988577f2e475ea2dd28f257455f684fa3)), closes [#4474](https://github.com/johannesjo/super-productivity/issues/4474)
+- **db:** add missing \_afterReady guard to loadAll method ([270eca3](https://github.com/johannesjo/super-productivity/commit/270eca3600270bc1d4a741ece9536dc4c1d33b1f)), closes [#5734](https://github.com/johannesjo/super-productivity/issues/5734)
+- **focus-mode:** sync time tracking with Pomodoro breaks and manual end ([55fc855](https://github.com/johannesjo/super-productivity/commit/55fc8551cdf005e754503bd2f8c9ddddcd1fda10)), closes [#5875](https://github.com/johannesjo/super-productivity/issues/5875)
+- **i18n:** add missing translate pipe to play button tooltip ([abfff27](https://github.com/johannesjo/super-productivity/commit/abfff278a4329425abd6aedd6b43bc4730e28c03)), closes [#5874](https://github.com/johannesjo/super-productivity/issues/5874)
+- **pomodoro:** allow manual session end to start break early ([291d3e8](https://github.com/johannesjo/super-productivity/commit/291d3e8caf66fecde24a664ead4fc91547301d5c)), closes [#5876](https://github.com/johannesjo/super-productivity/issues/5876)
+- **sync:** show skip button immediately when offline ([ccd4846](https://github.com/johannesjo/super-productivity/commit/ccd4846b882c24cd399f8c8586904be8dcddb3bd)), closes [#5877](https://github.com/johannesjo/super-productivity/issues/5877)
+- **tasks:** handle undefined tasks in reminder effect ([4497aed](https://github.com/johannesjo/super-productivity/commit/4497aed3172bb4423c2680f092a34f78a8818fc2)), closes [#5873](https://github.com/johannesjo/super-productivity/issues/5873)
+- **test:** reset selector overrides to prevent test pollution ([d4b40e8](https://github.com/johannesjo/super-productivity/commit/d4b40e80d5ea7ecbb4bbe10fc285e195f9a1d043))
+
+### Features
+
+- **android:** add alarm sound and vibration to task reminders ([b7cbef2](https://github.com/johannesjo/super-productivity/commit/b7cbef2f79f014f997d746c358c5253844d8d853)), closes [#5603](https://github.com/johannesjo/super-productivity/issues/5603)
+- **e2e:** streamline e2e test development with improved infrastructure ([402fb69](https://github.com/johannesjo/super-productivity/commit/402fb69a858459c9c1a46f1ea497063d0dc4c04a))
+- **effects:** consolidate task update actions in PluginHooksEffects ([386c636](https://github.com/johannesjo/super-productivity/commit/386c636e5fe163bd68f68f52e347a967761fb1d3))
+- **sync:** add skip button to loading screen when waiting for sync ([12e68cd](https://github.com/johannesjo/super-productivity/commit/12e68cdb0e321a83cd8425d8ae927a5c51999460)), closes [#5868](https://github.com/johannesjo/super-productivity/issues/5868)
+
+### Performance Improvements
+
+- **e2e:** optimize wait utilities and addTask method for faster test execution ([c0fc56f](https://github.com/johannesjo/super-productivity/commit/c0fc56f729aef697d3f7f37febc5aa9af05d3998))
+- **e2e:** remove ineffective waits to speed up test runs ([24c008d](https://github.com/johannesjo/super-productivity/commit/24c008df92959af98498c5ae1a79f1dbc5a16901))
+
 ## [16.8.1](https://github.com/johannesjo/super-productivity/compare/v16.8.0...v16.8.1) (2026-01-02)
 
 ### Bug Fixes

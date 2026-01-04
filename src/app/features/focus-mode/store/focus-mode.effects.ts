@@ -94,11 +94,17 @@ export class FocusModeEffects {
                 this.store.select(selectors.selectTimer),
                 this.store.select(selectors.selectMode),
                 this.store.select(selectors.selectCurrentScreen),
+                this.store.select(selectors.selectPausedTaskId),
               ),
-              switchMap(([_taskId, timer, mode, currentScreen]) => {
+              switchMap(([_taskId, timer, mode, currentScreen, pausedTaskId]) => {
                 // If session is paused (purpose is 'work' but not running), resume it
                 if (timer.purpose === 'work' && !timer.isRunning) {
                   return of(actions.unPauseFocusSession());
+                }
+                // If break is active (running or paused), skip it to sync with tracking
+                // This fixes bug #5875: pressing time tracking button during break
+                if (timer.purpose === 'break') {
+                  return of(actions.skipBreak({ pausedTaskId }));
                 }
                 // If no session active, start a new one (only from Main screen)
                 if (timer.purpose === null && currentScreen === FocusScreen.Main) {
@@ -281,13 +287,18 @@ export class FocusModeEffects {
           actionsToDispatch.push(actions.incrementCycle());
         }
 
-        // Check if we should start a break - only for automatic completions
-        // Manual completions should stay on SessionDone screen
-        // Also skip if manual break start is enabled (user must click "Start Break")
+        // Stop time tracking when session is manually ended and sync is enabled
+        // This fixes bug #5875: "End Session" button should stop tracking
+        const shouldStopTrackingOnManualEnd =
+          action.isManual && focusModeConfig?.isSyncSessionWithTracking && currentTaskId;
+        if (shouldStopTrackingOnManualEnd) {
+          actionsToDispatch.push(unsetCurrentTask());
+        }
+
+        // Check if we should start a break after session completion
+        // Skip if manual break start is enabled (user must click "Start Break")
         const shouldAutoStartBreak =
-          !action.isManual &&
-          strategy.shouldStartBreakAfterSession &&
-          !focusModeConfig?.isManualBreakStart;
+          strategy.shouldStartBreakAfterSession && !focusModeConfig?.isManualBreakStart;
         if (shouldAutoStartBreak) {
           // Pause task tracking during break if enabled
           const shouldPauseTracking =

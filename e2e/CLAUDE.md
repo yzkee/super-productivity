@@ -3,8 +3,8 @@
 ## Run Tests
 
 ```bash
-npm run e2e:playwright:file tests/path/to/test.spec.ts   # Single test
-npm run e2e:playwright                                    # All tests
+npm run e2e:file tests/path/to/test.spec.ts   # Single test
+npm run e2e                                    # All tests
 ```
 
 ## Test Template

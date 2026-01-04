@@ -612,6 +612,17 @@ export class TaskContextMenuInnerComponent implements AfterViewInit {
     const newDayDate = new Date(selectedDate);
     const newDay = getDbDateStr(newDayDate);
 
+    // If task is already scheduled for today with time and we're planning for today,
+    // just add to my day (which clears the reminder) instead of rescheduling
+    if (
+      this.task.dueWithTime &&
+      isToday(this.task.dueWithTime) &&
+      newDay === getDbDateStr()
+    ) {
+      this.addToMyDay();
+      return;
+    }
+
     if (isRemoveFromToday) {
       this.unschedule();
     } else if (this.task.dueDay === newDay) {
