@@ -38,10 +38,17 @@ test.describe('Task detail', () => {
     await createdInfo.click();
 
     const timeInput = await page.getByRole('combobox', { name: 'Time' });
-    let timeInputText = await timeInput.inputValue();
-    // Flipping the meridiem should guarantee a change
-    timeInputText = timeInputText!.replace(/([AP])/, (_, c) => (c === 'A' ? 'P' : 'A'));
-    await timeInput.fill(timeInputText);
+    const timeInputText = await timeInput.inputValue();
+    // Change the hour by adding 1 - works with both 12h and 24h formats
+    const match = timeInputText!.match(/^(\d+):(\d+)/);
+    expect(match).toBeTruthy();
+    const hour = parseInt(match![1], 10);
+    const newHour = (hour + 1) % 24;
+    const newTime = timeInputText!.replace(
+      /^\d+/,
+      String(newHour).padStart(match![1].length, '0'),
+    );
+    await timeInput.fill(newTime);
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(createdInfo).not.toHaveText(createdInfoText!);
@@ -71,10 +78,17 @@ test.describe('Task detail', () => {
     await completedInfo.click();
 
     const timeInput = await page.getByRole('combobox', { name: 'Time' });
-    let timeInputText = await timeInput.inputValue();
-    // Flipping the meridiem should guarantee a change
-    timeInputText = timeInputText!.replace(/([AP])/, (_, c) => (c === 'A' ? 'P' : 'A'));
-    await timeInput.fill(timeInputText);
+    const timeInputText = await timeInput.inputValue();
+    // Change the hour by adding 1 - works with both 12h and 24h formats
+    const match = timeInputText!.match(/^(\d+):(\d+)/);
+    expect(match).toBeTruthy();
+    const hour = parseInt(match![1], 10);
+    const newHour = (hour + 1) % 24;
+    const newTime = timeInputText!.replace(
+      /^\d+/,
+      String(newHour).padStart(match![1].length, '0'),
+    );
+    await timeInput.fill(newTime);
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(completedInfo).not.toHaveText(completedInfoText!);
