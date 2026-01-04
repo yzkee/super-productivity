@@ -1,11 +1,10 @@
-import { test as base, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/supersync.fixture';
 import {
   createTestUser,
   getSuperSyncConfig,
   createSimulatedClient,
   closeClient,
   waitForTask,
-  isServerHealthy,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 
@@ -21,35 +20,14 @@ import {
  * as E2E tests for these scenarios are too fragile due to UI timing issues.
  */
 
-const generateTestRunId = (workerIndex: number): string => {
-  return `${Date.now()}-${workerIndex}`;
-};
-
-base.describe('@supersync SuperSync Advanced Edge Cases', () => {
-  let serverHealthy: boolean | null = null;
-
-  base.beforeEach(async ({}, testInfo) => {
-    if (serverHealthy === null) {
-      serverHealthy = await isServerHealthy();
-      if (!serverHealthy) {
-        console.warn(
-          'SuperSync server not healthy at http://localhost:1901 - skipping tests',
-        );
-      }
-    }
-    testInfo.skip(!serverHealthy, 'SuperSync server not running');
-  });
-
+test.describe('@supersync SuperSync Advanced Edge Cases', () => {
   /**
    * Bulk Operations: Creating many tasks at once
    *
    * Verifies that creating multiple tasks in quick succession
    * syncs correctly without data loss.
    */
-  base('Bulk task creation syncs correctly', async ({ browser, baseURL }, testInfo) => {
-    testInfo.setTimeout(90000);
-    const testRunId = generateTestRunId(testInfo.workerIndex);
-    const appUrl = baseURL || 'http://localhost:4242';
+  test('Bulk task creation syncs correctly', async ({ browser, baseURL, testRunId }) => {
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
 
@@ -57,10 +35,10 @@ base.describe('@supersync SuperSync Advanced Edge Cases', () => {
       const user = await createTestUser(testRunId);
       const syncConfig = getSuperSyncConfig(user);
 
-      clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
       await clientA.sync.setupSuperSync(syncConfig);
 
-      clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
       await clientB.sync.setupSuperSync(syncConfig);
 
       // Create 10 tasks in rapid succession
@@ -99,86 +77,80 @@ base.describe('@supersync SuperSync Advanced Edge Cases', () => {
    * Simulates a client that was offline for a period while
    * other clients made many changes, then reconnects.
    */
-  base(
-    'Stale client reconnection after many changes',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(120000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      const appUrl = baseURL || 'http://localhost:4242';
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('Stale client reconnection after many changes', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // Client A starts syncing
-        clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      // Client A starts syncing
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        // Client B joins initially
-        clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
+      // Client B joins initially
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
 
-        // Initial sync
-        await clientA.sync.syncAndWait();
-        await clientB.sync.syncAndWait();
+      // Initial sync
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
 
-        // Create initial task
-        const initialTask = `Initial-${testRunId}`;
-        await clientA.workView.addTask(initialTask);
-        await clientA.sync.syncAndWait();
-        await clientB.sync.syncAndWait();
+      // Create initial task
+      const initialTask = `Initial-${testRunId}`;
+      await clientA.workView.addTask(initialTask);
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
 
-        // Verify both have it
-        await waitForTask(clientA.page, initialTask);
-        await waitForTask(clientB.page, initialTask);
+      // Verify both have it
+      await waitForTask(clientA.page, initialTask);
+      await waitForTask(clientB.page, initialTask);
 
-        // Now Client B goes "offline" (we just don't sync)
-        // Client A makes many changes
-        const offlineTask1 = `WhileOffline1-${testRunId}`;
-        const offlineTask2 = `WhileOffline2-${testRunId}`;
-        const offlineTask3 = `WhileOffline3-${testRunId}`;
+      // Now Client B goes "offline" (we just don't sync)
+      // Client A makes many changes
+      const offlineTask1 = `WhileOffline1-${testRunId}`;
+      const offlineTask2 = `WhileOffline2-${testRunId}`;
+      const offlineTask3 = `WhileOffline3-${testRunId}`;
 
-        await clientA.workView.addTask(offlineTask1);
-        await clientA.sync.syncAndWait();
+      await clientA.workView.addTask(offlineTask1);
+      await clientA.sync.syncAndWait();
 
-        await clientA.workView.addTask(offlineTask2);
-        await clientA.sync.syncAndWait();
+      await clientA.workView.addTask(offlineTask2);
+      await clientA.sync.syncAndWait();
 
-        await clientA.workView.addTask(offlineTask3);
-        await clientA.sync.syncAndWait();
+      await clientA.workView.addTask(offlineTask3);
+      await clientA.sync.syncAndWait();
 
-        // Mark initial task as done
-        const initialTaskLocator = clientA.page.locator(
-          `task:has-text("${initialTask}")`,
-        );
-        await initialTaskLocator.hover();
-        await initialTaskLocator.locator('.task-done-btn').click();
-        await clientA.sync.syncAndWait();
+      // Mark initial task as done
+      const initialTaskLocator = clientA.page.locator(`task:has-text("${initialTask}")`);
+      await initialTaskLocator.hover();
+      await initialTaskLocator.locator('.task-done-btn').click();
+      await clientA.sync.syncAndWait();
 
-        // Client B "reconnects" (syncs after missing many updates)
-        await clientB.sync.syncAndWait();
+      // Client B "reconnects" (syncs after missing many updates)
+      await clientB.sync.syncAndWait();
 
-        // Verify B has all the changes
-        await waitForTask(clientB.page, offlineTask1);
-        await waitForTask(clientB.page, offlineTask2);
-        await waitForTask(clientB.page, offlineTask3);
+      // Verify B has all the changes
+      await waitForTask(clientB.page, offlineTask1);
+      await waitForTask(clientB.page, offlineTask2);
+      await waitForTask(clientB.page, offlineTask3);
 
-        // Initial task should be marked as done
-        // Use more specific locator to target the done task (avoids matching both backlog and done section)
-        const initialTaskB = clientB.page.locator(
-          `task.isDone:has-text("${initialTask}")`,
-        );
-        await expect(initialTaskB).toBeVisible();
+      // Initial task should be marked as done
+      // Use more specific locator to target the done task (avoids matching both backlog and done section)
+      const initialTaskB = clientB.page.locator(`task.isDone:has-text("${initialTask}")`);
+      await expect(initialTaskB).toBeVisible();
 
-        console.log('[Stale] Stale client reconnected and received all changes');
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
-      }
-    },
-  );
+      console.log('[Stale] Stale client reconnected and received all changes');
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 
   /**
    * Data Integrity: Special characters in task names
@@ -186,52 +158,51 @@ base.describe('@supersync SuperSync Advanced Edge Cases', () => {
    * Verifies that tasks with quotes and special characters
    * sync correctly without data corruption.
    */
-  base(
-    'Special characters in task names sync correctly',
-    async ({ browser, baseURL }, testInfo) => {
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      const appUrl = baseURL || 'http://localhost:4242';
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('Special characters in task names sync correctly', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
 
-        // Create tasks with special characters (avoiding complex unicode that may render differently)
-        const task1 = `Task-quotes-${testRunId}`;
-        const task2 = `Task-ampersand-${testRunId}`;
-        const task3 = `Task-numbers-123-${testRunId}`;
+      // Create tasks with special characters (avoiding complex unicode that may render differently)
+      const task1 = `Task-quotes-${testRunId}`;
+      const task2 = `Task-ampersand-${testRunId}`;
+      const task3 = `Task-numbers-123-${testRunId}`;
 
-        await clientA.workView.addTask(task1);
-        await clientA.workView.addTask(task2);
-        await clientA.workView.addTask(task3);
+      await clientA.workView.addTask(task1);
+      await clientA.workView.addTask(task2);
+      await clientA.workView.addTask(task3);
 
-        // Sync A -> B
-        await clientA.sync.syncAndWait();
-        await clientB.sync.syncAndWait();
+      // Sync A -> B
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
 
-        // Verify all tasks synced correctly
-        await waitForTask(clientB.page, task1);
-        await waitForTask(clientB.page, task2);
-        await waitForTask(clientB.page, task3);
+      // Verify all tasks synced correctly
+      await waitForTask(clientB.page, task1);
+      await waitForTask(clientB.page, task2);
+      await waitForTask(clientB.page, task3);
 
-        // Verify count
-        const taskLocator = clientB.page.locator(`task:has-text("${testRunId}")`);
-        const count = await taskLocator.count();
-        expect(count).toBe(3);
+      // Verify count
+      const taskLocator = clientB.page.locator(`task:has-text("${testRunId}")`);
+      const count = await taskLocator.count();
+      expect(count).toBe(3);
 
-        console.log('[SpecialChars] Special characters synced correctly');
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
-      }
-    },
-  );
+      console.log('[SpecialChars] Special characters synced correctly');
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 });

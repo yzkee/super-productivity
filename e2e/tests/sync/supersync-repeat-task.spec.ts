@@ -1,13 +1,13 @@
-import { test as base, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/supersync.fixture';
 import {
   createTestUser,
   getSuperSyncConfig,
   createSimulatedClient,
   closeClient,
   waitForTask,
-  isServerHealthy,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
+import { expectTaskVisible } from '../../utils/supersync-assertions';
 
 /**
  * SuperSync Repeatable Task E2E Tests
@@ -22,10 +22,6 @@ import {
  * For repeat config sync logic testing, see the integration tests:
  * src/app/core/persistence/operation-log/integration/repeat-task-sync.integration.spec.ts
  */
-
-const generateTestRunId = (workerIndex: number): string => {
-  return `${Date.now()}-${workerIndex}`;
-};
 
 // Helper to create a scheduled task using a SimulatedE2EClient
 // Note: Setting up actual repeat config requires navigating the detail panel
@@ -57,21 +53,7 @@ const createScheduledTask = async (
   await page.waitForTimeout(500);
 };
 
-base.describe('@supersync SuperSync Repeatable Task Sync', () => {
-  let serverHealthy: boolean | null = null;
-
-  base.beforeEach(async ({}, testInfo) => {
-    if (serverHealthy === null) {
-      serverHealthy = await isServerHealthy();
-      if (!serverHealthy) {
-        console.warn(
-          'SuperSync server not healthy at http://localhost:1901 - skipping tests',
-        );
-      }
-    }
-    testInfo.skip(!serverHealthy, 'SuperSync server not running');
-  });
-
+test.describe('@supersync SuperSync Repeatable Task Sync', () => {
   /**
    * Scenario: Scheduled Task Syncs to Second Client
    *
@@ -84,57 +66,55 @@ base.describe('@supersync SuperSync Repeatable Task Sync', () => {
    * 3. Client B syncs
    * 4. Verify Client B has the task
    */
-  base(
-    'Scheduled task syncs to second client',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(90000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      const appUrl = baseURL || 'http://localhost:4242';
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('Scheduled task syncs to second client', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    const appUrl = baseURL || 'http://localhost:4242';
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // Setup Client A
-        clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      // Setup Client A
+      clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        // Setup Client B
-        clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
+      // Setup Client B
+      clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
 
-        // 1. Client A creates a scheduled task
-        const taskName = `ScheduledTask-${testRunId}`;
-        await createScheduledTask(clientA, taskName);
+      // 1. Client A creates a scheduled task
+      const taskName = `ScheduledTask-${testRunId}`;
+      await createScheduledTask(clientA, taskName);
 
-        // Verify task exists on Client A
-        await waitForTask(clientA.page, taskName);
+      // Verify task exists on Client A
+      await waitForTask(clientA.page, taskName);
 
-        // 2. Client A syncs
-        await clientA.sync.syncAndWait();
+      // 2. Client A syncs
+      await clientA.sync.syncAndWait();
 
-        // 3. Client B syncs
-        await clientB.sync.syncAndWait();
+      // 3. Client B syncs
+      await clientB.sync.syncAndWait();
 
-        // 4. Verify Client B has the task
-        // Wait for UI to update
-        await clientB.page.waitForTimeout(1000);
+      // 4. Verify Client B has the task
+      // Wait for UI to update
+      await clientB.page.waitForTimeout(1000);
 
-        // The task should appear on Client B's today list
-        const taskOnB = clientB.page.locator(`task:has-text("${taskName}")`).first();
-        await expect(taskOnB).toBeVisible({ timeout: 10000 });
+      // The task should appear on Client B's today list
+      await expectTaskVisible(clientB, taskName, 10000);
 
-        console.log(
-          '[ScheduledTaskSync] ✓ Scheduled task synced successfully to second client',
-        );
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
-      }
-    },
-  );
+      console.log(
+        '[ScheduledTaskSync] ✓ Scheduled task synced successfully to second client',
+      );
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 
   /**
    * Scenario: Scheduled Task After Full Sync Import
@@ -150,61 +130,57 @@ base.describe('@supersync SuperSync Repeatable Task Sync', () => {
    * 4. Client B (fresh) sets up sync
    * 5. Verify Client B receives the task
    */
-  base(
-    'Scheduled task created after import syncs correctly',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(120000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      const appUrl = baseURL || 'http://localhost:4242';
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('Scheduled task created after import syncs correctly', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    const appUrl = baseURL || 'http://localhost:4242';
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // 1. Client A sets up sync (triggers initial sync)
-        clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      // 1. Client A sets up sync (triggers initial sync)
+      clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        // 2. Immediately create a scheduled task (simulates the edge case)
-        const taskName = `ScheduledAfterImport-${testRunId}`;
-        await createScheduledTask(clientA, taskName);
+      // 2. Immediately create a scheduled task (simulates the edge case)
+      const taskName = `ScheduledAfterImport-${testRunId}`;
+      await createScheduledTask(clientA, taskName);
 
-        // Verify task on Client A
-        await waitForTask(clientA.page, taskName);
+      // Verify task on Client A
+      await waitForTask(clientA.page, taskName);
 
-        // 3. Client A syncs to upload the task
-        await clientA.sync.syncAndWait();
+      // 3. Client A syncs to upload the task
+      await clientA.sync.syncAndWait();
 
-        // 4. Client B (fresh setup) joins
-        clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
+      // 4. Client B (fresh setup) joins
+      clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
 
-        // Wait for sync to complete
-        await clientB.sync.syncAndWait();
+      // Wait for sync to complete
+      await clientB.sync.syncAndWait();
 
-        // 5. Verify Client B has the task instance
-        await clientB.page.waitForTimeout(1000);
+      // 5. Verify Client B has the task instance
+      await clientB.page.waitForTimeout(1000);
 
-        const taskOnB = clientB.page.locator(`task:has-text("${taskName}")`).first();
-        await expect(taskOnB).toBeVisible({ timeout: 15000 });
+      await expectTaskVisible(clientB, taskName, 15000);
 
-        // Verify it's the same task (not a duplicate created by Client B)
-        const taskCount = await clientB.page
-          .locator(`task:has-text("${taskName}")`)
-          .count();
-        expect(taskCount).toBe(1);
+      // Verify it's the same task (not a duplicate created by Client B)
+      const taskCount = await clientB.page
+        .locator(`task:has-text("${taskName}")`)
+        .count();
+      expect(taskCount).toBe(1);
 
-        console.log(
-          '[ScheduledAfterImport] ✓ Task created after import synced correctly',
-        );
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
-      }
-    },
-  );
+      console.log('[ScheduledAfterImport] ✓ Task created after import synced correctly');
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 
   /**
    * Scenario: Task Deletion Syncs to Other Client
@@ -219,9 +195,7 @@ base.describe('@supersync SuperSync Repeatable Task Sync', () => {
    * 4. Client B syncs
    * 5. Verify Client B no longer has the task
    */
-  base('Task deletion syncs to other client', async ({ browser, baseURL }, testInfo) => {
-    testInfo.setTimeout(120000);
-    const testRunId = generateTestRunId(testInfo.workerIndex);
+  test('Task deletion syncs to other client', async ({ browser, baseURL, testRunId }) => {
     const appUrl = baseURL || 'http://localhost:4242';
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
@@ -248,8 +222,7 @@ base.describe('@supersync SuperSync Repeatable Task Sync', () => {
       // 2. Client B syncs and verifies task exists
       await clientB.sync.syncAndWait();
       await clientB.page.waitForTimeout(1000);
-      const taskOnB = clientB.page.locator(`task:has-text("${taskName}")`).first();
-      await expect(taskOnB).toBeVisible({ timeout: 10000 });
+      await expectTaskVisible(clientB, taskName, 10000);
 
       // 3. Client A deletes the task
       const taskOnA = clientA.page.locator(`task:has-text("${taskName}")`).first();

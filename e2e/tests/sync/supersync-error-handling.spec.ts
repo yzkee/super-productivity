@@ -1,11 +1,10 @@
-import { test as base, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/supersync.fixture';
 import {
   createTestUser,
   getSuperSyncConfig,
   createSimulatedClient,
   closeClient,
   waitForTask,
-  isServerHealthy,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 
@@ -18,25 +17,7 @@ import {
  * - Error recovery after sync failures
  */
 
-const generateTestRunId = (workerIndex: number): string => {
-  return `${Date.now()}-${workerIndex}`;
-};
-
-base.describe('@supersync SuperSync Error Handling', () => {
-  let serverHealthy: boolean | null = null;
-
-  base.beforeEach(async ({}, testInfo) => {
-    if (serverHealthy === null) {
-      serverHealthy = await isServerHealthy();
-      if (!serverHealthy) {
-        console.warn(
-          'SuperSync server not healthy at http://localhost:1901 - skipping tests',
-        );
-      }
-    }
-    testInfo.skip(!serverHealthy, 'SuperSync server not running');
-  });
-
+test.describe('@supersync SuperSync Error Handling', () => {
   /**
    * Scenario: Concurrent Modification Creates Conflict
    *
@@ -54,99 +35,98 @@ base.describe('@supersync SuperSync Error Handling', () => {
    * 7. Client B syncs (gets CONFLICT_CONCURRENT, auto-resolves via LWW)
    * 8. Verify both clients converge to same state
    */
-  base(
-    'Concurrent modification triggers LWW conflict resolution',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(120000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      const appUrl = baseURL || 'http://localhost:4242';
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('Concurrent modification triggers LWW conflict resolution', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    const appUrl = baseURL || 'http://localhost:4242';
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // Setup clients
-        clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      // Setup clients
+      clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
+      clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
 
-        // 1. Client A creates task
-        const taskName = `Conflict-Test-${testRunId}`;
-        await clientA.workView.addTask(taskName);
-        await clientA.sync.syncAndWait();
+      // 1. Client A creates task
+      const taskName = `Conflict-Test-${testRunId}`;
+      await clientA.workView.addTask(taskName);
+      await clientA.sync.syncAndWait();
 
-        // 2. Client B downloads the task
-        await clientB.sync.syncAndWait();
-        await waitForTask(clientB.page, taskName);
+      // 2. Client B downloads the task
+      await clientB.sync.syncAndWait();
+      await waitForTask(clientB.page, taskName);
 
-        // 3-5. Both clients modify the task while "offline"
-        // Client A changes title first using inline editing (dblclick)
-        const taskLocatorA = clientA.page
-          .locator(`task:not(.ng-animating):has-text("${taskName}")`)
-          .first();
-        await taskLocatorA.dblclick();
-        const editInputA = clientA.page.locator(
-          'input.mat-mdc-input-element:focus, textarea:focus',
-        );
-        await editInputA.waitFor({ state: 'visible', timeout: 5000 });
-        await editInputA.fill(`${taskName}-ModifiedByA`);
-        await editInputA.press('Enter');
-        await clientA.page.waitForTimeout(300);
+      // 3-5. Both clients modify the task while "offline"
+      // Client A changes title first using inline editing (dblclick)
+      const taskLocatorA = clientA.page
+        .locator(`task:not(.ng-animating):has-text("${taskName}")`)
+        .first();
+      await taskLocatorA.dblclick();
+      const editInputA = clientA.page.locator(
+        'input.mat-mdc-input-element:focus, textarea:focus',
+      );
+      await editInputA.waitFor({ state: 'visible', timeout: 5000 });
+      await editInputA.fill(`${taskName}-ModifiedByA`);
+      await editInputA.press('Enter');
+      await clientA.page.waitForTimeout(300);
 
-        // Client B modifies the same task with a different value using inline editing
-        const taskLocatorB = clientB.page
-          .locator(`task:not(.ng-animating):has-text("${taskName}")`)
-          .first();
-        await taskLocatorB.dblclick();
-        const editInputB = clientB.page.locator(
-          'input.mat-mdc-input-element:focus, textarea:focus',
-        );
-        await editInputB.waitFor({ state: 'visible', timeout: 5000 });
-        await editInputB.fill(`${taskName}-ModifiedByB`);
-        await editInputB.press('Enter');
-        await clientB.page.waitForTimeout(300);
+      // Client B modifies the same task with a different value using inline editing
+      const taskLocatorB = clientB.page
+        .locator(`task:not(.ng-animating):has-text("${taskName}")`)
+        .first();
+      await taskLocatorB.dblclick();
+      const editInputB = clientB.page.locator(
+        'input.mat-mdc-input-element:focus, textarea:focus',
+      );
+      await editInputB.waitFor({ state: 'visible', timeout: 5000 });
+      await editInputB.fill(`${taskName}-ModifiedByB`);
+      await editInputB.press('Enter');
+      await clientB.page.waitForTimeout(300);
 
-        // 6. Client A syncs first (succeeds)
-        await clientA.sync.syncAndWait();
+      // 6. Client A syncs first (succeeds)
+      await clientA.sync.syncAndWait();
 
-        // 7. Client B syncs (gets conflict, should auto-resolve via LWW)
-        // The newer timestamp wins, so B's change might win or A's depending on timing
-        await clientB.sync.syncAndWait();
+      // 7. Client B syncs (gets conflict, should auto-resolve via LWW)
+      // The newer timestamp wins, so B's change might win or A's depending on timing
+      await clientB.sync.syncAndWait();
 
-        // Give time for any conflict resolution UI
-        await clientB.page.waitForTimeout(1000);
+      // Give time for any conflict resolution UI
+      await clientB.page.waitForTimeout(1000);
 
-        // 8. Final sync to ensure convergence
-        await clientA.sync.syncAndWait();
-        await clientB.sync.syncAndWait();
+      // 8. Final sync to ensure convergence
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
 
-        // Verify both clients have converged - they should show the same task title
-        // The exact title depends on LWW resolution (whichever timestamp was later)
-        const finalTaskA = await clientA.page
-          .locator('task:not(.ng-animating)')
-          .first()
-          .textContent();
-        const finalTaskB = await clientB.page
-          .locator('task:not(.ng-animating)')
-          .first()
-          .textContent();
+      // Verify both clients have converged - they should show the same task title
+      // The exact title depends on LWW resolution (whichever timestamp was later)
+      const finalTaskA = await clientA.page
+        .locator('task:not(.ng-animating)')
+        .first()
+        .textContent();
+      const finalTaskB = await clientB.page
+        .locator('task:not(.ng-animating)')
+        .first()
+        .textContent();
 
-        // Both clients should show the same content (convergence)
-        expect(finalTaskA).toBe(finalTaskB);
+      // Both clients should show the same content (convergence)
+      expect(finalTaskA).toBe(finalTaskB);
 
-        console.log(
-          '[Conflict-Resolution] ✓ Concurrent modification handled via LWW - clients converged',
-        );
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
-      }
-    },
-  );
+      console.log(
+        '[Conflict-Resolution] ✓ Concurrent modification handled via LWW - clients converged',
+      );
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 
   /**
    * Scenario: Sync Recovery After Network Failure
@@ -162,46 +142,45 @@ base.describe('@supersync SuperSync Error Handling', () => {
    * 5. Client syncs again (should succeed)
    * 6. Verify all tasks are synced
    */
-  base(
-    'Sync recovers after initial connection',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(60000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      const appUrl = baseURL || 'http://localhost:4242';
-      let client: SimulatedE2EClient | null = null;
+  test('Sync recovers after initial connection', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    const appUrl = baseURL || 'http://localhost:4242';
+    let client: SimulatedE2EClient | null = null;
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // Setup client
-        client = await createSimulatedClient(browser, appUrl, 'Recovery', testRunId);
-        await client.sync.setupSuperSync(syncConfig);
+      // Setup client
+      client = await createSimulatedClient(browser, appUrl, 'Recovery', testRunId);
+      await client.sync.setupSuperSync(syncConfig);
 
-        // 1. Create first task
-        const task1 = `Recovery-Task1-${testRunId}`;
-        await client.workView.addTask(task1);
+      // 1. Create first task
+      const task1 = `Recovery-Task1-${testRunId}`;
+      await client.workView.addTask(task1);
 
-        // 2. Sync successfully
-        await client.sync.syncAndWait();
+      // 2. Sync successfully
+      await client.sync.syncAndWait();
 
-        // 3. Create second task
-        const task2 = `Recovery-Task2-${testRunId}`;
-        await client.workView.addTask(task2);
+      // 3. Create second task
+      const task2 = `Recovery-Task2-${testRunId}`;
+      await client.workView.addTask(task2);
 
-        // 4-5. Sync again
-        await client.sync.syncAndWait();
+      // 4-5. Sync again
+      await client.sync.syncAndWait();
 
-        // 6. Verify both tasks exist
-        await waitForTask(client.page, task1);
-        await waitForTask(client.page, task2);
+      // 6. Verify both tasks exist
+      await waitForTask(client.page, task1);
+      await waitForTask(client.page, task2);
 
-        console.log('[Sync-Recovery] ✓ Multiple syncs completed successfully');
-      } finally {
-        if (client) await closeClient(client);
-      }
-    },
-  );
+      console.log('[Sync-Recovery] ✓ Multiple syncs completed successfully');
+    } finally {
+      if (client) await closeClient(client);
+    }
+  });
 
   /**
    * Scenario: Duplicate Operation Handling (Idempotency)
@@ -216,45 +195,44 @@ base.describe('@supersync SuperSync Error Handling', () => {
    * 3. Client syncs again immediately (same ops might be in queue)
    * 4. Verify no duplicate tasks created
    */
-  base(
-    'Duplicate sync attempts are handled gracefully',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(60000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      const appUrl = baseURL || 'http://localhost:4242';
-      let client: SimulatedE2EClient | null = null;
+  test('Duplicate sync attempts are handled gracefully', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    const appUrl = baseURL || 'http://localhost:4242';
+    let client: SimulatedE2EClient | null = null;
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // Setup client
-        client = await createSimulatedClient(browser, appUrl, 'Idempotent', testRunId);
-        await client.sync.setupSuperSync(syncConfig);
+      // Setup client
+      client = await createSimulatedClient(browser, appUrl, 'Idempotent', testRunId);
+      await client.sync.setupSuperSync(syncConfig);
 
-        // 1. Create task
-        const taskName = `Idempotent-${testRunId}`;
-        await client.workView.addTask(taskName);
+      // 1. Create task
+      const taskName = `Idempotent-${testRunId}`;
+      await client.workView.addTask(taskName);
 
-        // 2-3. Sync multiple times rapidly
-        await client.sync.syncAndWait();
-        await client.sync.syncAndWait();
-        await client.sync.syncAndWait();
+      // 2-3. Sync multiple times rapidly
+      await client.sync.syncAndWait();
+      await client.sync.syncAndWait();
+      await client.sync.syncAndWait();
 
-        // 4. Verify exactly one task with this name exists
-        const matchingTasks = client.page.locator(`task:has-text("${taskName}")`);
-        const count = await matchingTasks.count();
+      // 4. Verify exactly one task with this name exists
+      const matchingTasks = client.page.locator(`task:has-text("${taskName}")`);
+      const count = await matchingTasks.count();
 
-        expect(count).toBe(1);
+      expect(count).toBe(1);
 
-        console.log(
-          '[Idempotency] ✓ Multiple sync attempts handled correctly - no duplicates',
-        );
-      } finally {
-        if (client) await closeClient(client);
-      }
-    },
-  );
+      console.log(
+        '[Idempotency] ✓ Multiple sync attempts handled correctly - no duplicates',
+      );
+    } finally {
+      if (client) await closeClient(client);
+    }
+  });
 
   /**
    * Scenario: Three-Client Convergence
@@ -271,9 +249,11 @@ base.describe('@supersync SuperSync Error Handling', () => {
    * 6. All clients sync
    * 7. Verify all clients have same state
    */
-  base('Three clients converge to same state', async ({ browser, baseURL }, testInfo) => {
-    testInfo.setTimeout(120000);
-    const testRunId = generateTestRunId(testInfo.workerIndex);
+  test('Three clients converge to same state', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
     const appUrl = baseURL || 'http://localhost:4242';
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;

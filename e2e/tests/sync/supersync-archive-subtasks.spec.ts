@@ -1,11 +1,10 @@
-import { test as base, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/supersync.fixture';
 import {
   createTestUser,
   getSuperSyncConfig,
   createSimulatedClient,
   closeClient,
   waitForTask,
-  isServerHealthy,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 
@@ -29,10 +28,6 @@ import {
  * The fix: deleteTaskHelper now also checks state for subtasks with matching
  * parentId, not just the subTaskIds from the operation payload.
  */
-
-const generateTestRunId = (workerIndex: number): string => {
-  return `${Date.now()}-${workerIndex}`;
-};
 
 /**
  * Helper to add a subtask to a task using keyboard shortcut
@@ -130,21 +125,7 @@ const checkForOrphanSubtaskError = (consoleMessages: string[]): boolean => {
   );
 };
 
-base.describe('@supersync Archive Subtasks Sync', () => {
-  let serverHealthy: boolean | null = null;
-
-  base.beforeEach(async ({}, testInfo) => {
-    if (serverHealthy === null) {
-      serverHealthy = await isServerHealthy();
-      if (!serverHealthy) {
-        console.warn(
-          'SuperSync server not healthy at http://localhost:1901 - skipping tests',
-        );
-      }
-    }
-    testInfo.skip(!serverHealthy, 'SuperSync server not running');
-  });
-
+test.describe('@supersync Archive Subtasks Sync', () => {
   /**
    * Scenario: Archive parent with subtasks syncs correctly
    *
@@ -160,91 +141,89 @@ base.describe('@supersync Archive Subtasks Sync', () => {
    * 7. Verify Client B has no tasks in Today view (all archived)
    * 8. Verify no orphan subtask errors in console
    */
-  base(
-    'Archive parent task with subtasks syncs without leaving orphans',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(120000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      const appUrl = baseURL || 'http://localhost:4242';
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
-      const consoleErrors: string[] = [];
+  test('Archive parent task with subtasks syncs without leaving orphans', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
+    const consoleErrors: string[] = [];
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // Setup Client A
-        clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      // Setup Client A
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        // Setup Client B with console monitoring
-        clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
-        clientB.page.on('console', (msg) => {
-          if (msg.type() === 'error') {
-            consoleErrors.push(msg.text());
-          }
-        });
-        await clientB.sync.setupSuperSync(syncConfig);
+      // Setup Client B with console monitoring
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      clientB.page.on('console', (msg) => {
+        if (msg.type() === 'error') {
+          consoleErrors.push(msg.text());
+        }
+      });
+      await clientB.sync.setupSuperSync(syncConfig);
 
-        // 1. Client A creates parent task
-        const parentName = `Parent-${testRunId}`;
-        await clientA.workView.addTask(parentName);
-        await waitForTask(clientA.page, parentName);
-        console.log('[ArchiveSubtasks] Created parent task');
+      // 1. Client A creates parent task
+      const parentName = `Parent-${testRunId}`;
+      await clientA.workView.addTask(parentName);
+      await waitForTask(clientA.page, parentName);
+      console.log('[ArchiveSubtasks] Created parent task');
 
-        // 2. Client A adds subtasks
-        const subtask1Name = `Sub1-${testRunId}`;
-        const subtask2Name = `Sub2-${testRunId}`;
-        await addSubtask(clientA.page, parentName, subtask1Name);
-        console.log('[ArchiveSubtasks] Added subtask 1');
-        await addSubtask(clientA.page, parentName, subtask2Name);
-        console.log('[ArchiveSubtasks] Added subtask 2');
+      // 2. Client A adds subtasks
+      const subtask1Name = `Sub1-${testRunId}`;
+      const subtask2Name = `Sub2-${testRunId}`;
+      await addSubtask(clientA.page, parentName, subtask1Name);
+      console.log('[ArchiveSubtasks] Added subtask 1');
+      await addSubtask(clientA.page, parentName, subtask2Name);
+      console.log('[ArchiveSubtasks] Added subtask 2');
 
-        // 3. Mark subtasks as done first (parent requires all subtasks done)
-        await markTaskDone(clientA.page, subtask1Name, true);
-        console.log('[ArchiveSubtasks] Marked subtask 1 as done');
-        await markTaskDone(clientA.page, subtask2Name, true);
-        console.log('[ArchiveSubtasks] Marked subtask 2 as done');
+      // 3. Mark subtasks as done first (parent requires all subtasks done)
+      await markTaskDone(clientA.page, subtask1Name, true);
+      console.log('[ArchiveSubtasks] Marked subtask 1 as done');
+      await markTaskDone(clientA.page, subtask2Name, true);
+      console.log('[ArchiveSubtasks] Marked subtask 2 as done');
 
-        // 4. Now mark parent as done
-        await markTaskDone(clientA.page, parentName, false);
-        console.log('[ArchiveSubtasks] Marked parent as done');
+      // 4. Now mark parent as done
+      await markTaskDone(clientA.page, parentName, false);
+      console.log('[ArchiveSubtasks] Marked parent as done');
 
-        // 4. Archive via Daily Summary
-        await archiveDoneTasks(clientA.page);
-        console.log('[ArchiveSubtasks] Archived tasks');
+      // 4. Archive via Daily Summary
+      await archiveDoneTasks(clientA.page);
+      console.log('[ArchiveSubtasks] Archived tasks');
 
-        // 5. Client A syncs
-        await clientA.sync.syncAndWait();
-        console.log('[ArchiveSubtasks] Client A synced');
+      // 5. Client A syncs
+      await clientA.sync.syncAndWait();
+      console.log('[ArchiveSubtasks] Client A synced');
 
-        // 6. Client B syncs
-        await clientB.sync.syncAndWait();
-        console.log('[ArchiveSubtasks] Client B synced');
+      // 6. Client B syncs
+      await clientB.sync.syncAndWait();
+      console.log('[ArchiveSubtasks] Client B synced');
 
-        // Wait for UI to settle
-        await clientB.page.waitForTimeout(1000);
+      // Wait for UI to settle
+      await clientB.page.waitForTimeout(1000);
 
-        // 7. Verify Client B has no tasks with testRunId in Today view
-        // (they should all be archived)
-        const tasksOnB = clientB.page.locator(`task:has-text("${testRunId}")`);
-        const taskCount = await tasksOnB.count();
+      // 7. Verify Client B has no tasks with testRunId in Today view
+      // (they should all be archived)
+      const tasksOnB = clientB.page.locator(`task:has-text("${testRunId}")`);
+      const taskCount = await tasksOnB.count();
 
-        expect(taskCount).toBe(0);
-        console.log('[ArchiveSubtasks] Verified no tasks on Client B (all archived)');
+      expect(taskCount).toBe(0);
+      console.log('[ArchiveSubtasks] Verified no tasks on Client B (all archived)');
 
-        // 8. Verify no orphan subtask errors
-        const hasOrphanError = checkForOrphanSubtaskError(consoleErrors);
-        expect(hasOrphanError).toBe(false);
+      // 8. Verify no orphan subtask errors
+      const hasOrphanError = checkForOrphanSubtaskError(consoleErrors);
+      expect(hasOrphanError).toBe(false);
 
-        console.log('[ArchiveSubtasks] ✓ Archive with subtasks synced successfully');
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
-      }
-    },
-  );
+      console.log('[ArchiveSubtasks] ✓ Archive with subtasks synced successfully');
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 
   /**
    * Scenario: Multiple subtask levels archive correctly
@@ -260,91 +239,89 @@ base.describe('@supersync Archive Subtasks Sync', () => {
    * 6. Both clients sync
    * 7. Verify both clients have no orphan tasks
    */
-  base(
-    'Multiple subtasks archive and sync without orphans',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(120000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      const appUrl = baseURL || 'http://localhost:4242';
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
-      const consoleErrorsA: string[] = [];
-      const consoleErrorsB: string[] = [];
+  test('Multiple subtasks archive and sync without orphans', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
+    const consoleErrorsA: string[] = [];
+    const consoleErrorsB: string[] = [];
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // Setup clients with console monitoring
-        clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
-        clientA.page.on('console', (msg) => {
-          if (msg.type() === 'error') {
-            consoleErrorsA.push(msg.text());
-          }
-        });
-        await clientA.sync.setupSuperSync(syncConfig);
-
-        clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
-        clientB.page.on('console', (msg) => {
-          if (msg.type() === 'error') {
-            consoleErrorsB.push(msg.text());
-          }
-        });
-        await clientB.sync.setupSuperSync(syncConfig);
-
-        // 1. Create parent task
-        const parentName = `MultiSub-${testRunId}`;
-        await clientA.workView.addTask(parentName);
-        await waitForTask(clientA.page, parentName);
-
-        // 2. Add multiple subtasks
-        for (let i = 1; i <= 3; i++) {
-          await addSubtask(clientA.page, parentName, `Sub${i}-${testRunId}`);
+      // Setup clients with console monitoring
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      clientA.page.on('console', (msg) => {
+        if (msg.type() === 'error') {
+          consoleErrorsA.push(msg.text());
         }
-        console.log('[MultiSubtask] Created parent with 3 subtasks');
+      });
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        // 3. Sync A
-        await clientA.sync.syncAndWait();
-
-        // 4. Sync B and verify
-        await clientB.sync.syncAndWait();
-        await waitForTask(clientB.page, parentName);
-        console.log('[MultiSubtask] Client B received tasks');
-
-        // 5. Client A marks all subtasks and parent done
-        for (let i = 1; i <= 3; i++) {
-          await markTaskDone(clientA.page, `Sub${i}-${testRunId}`, true);
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      clientB.page.on('console', (msg) => {
+        if (msg.type() === 'error') {
+          consoleErrorsB.push(msg.text());
         }
-        await markTaskDone(clientA.page, parentName, false);
-        await archiveDoneTasks(clientA.page);
-        console.log('[MultiSubtask] Client A archived all');
+      });
+      await clientB.sync.setupSuperSync(syncConfig);
 
-        // 6. Both clients sync
-        await clientA.sync.syncAndWait();
-        await clientB.sync.syncAndWait();
-        await clientB.page.waitForTimeout(1000);
+      // 1. Create parent task
+      const parentName = `MultiSub-${testRunId}`;
+      await clientA.workView.addTask(parentName);
+      await waitForTask(clientA.page, parentName);
 
-        // 7. Verify no orphan tasks
-        const tasksOnA = await clientA.page
-          .locator(`task:has-text("${testRunId}")`)
-          .count();
-        const tasksOnB = await clientB.page
-          .locator(`task:has-text("${testRunId}")`)
-          .count();
-
-        expect(tasksOnA).toBe(0);
-        expect(tasksOnB).toBe(0);
-
-        expect(checkForOrphanSubtaskError(consoleErrorsA)).toBe(false);
-        expect(checkForOrphanSubtaskError(consoleErrorsB)).toBe(false);
-
-        console.log('[MultiSubtask] ✓ Multiple subtasks archived without orphans');
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
+      // 2. Add multiple subtasks
+      for (let i = 1; i <= 3; i++) {
+        await addSubtask(clientA.page, parentName, `Sub${i}-${testRunId}`);
       }
-    },
-  );
+      console.log('[MultiSubtask] Created parent with 3 subtasks');
+
+      // 3. Sync A
+      await clientA.sync.syncAndWait();
+
+      // 4. Sync B and verify
+      await clientB.sync.syncAndWait();
+      await waitForTask(clientB.page, parentName);
+      console.log('[MultiSubtask] Client B received tasks');
+
+      // 5. Client A marks all subtasks and parent done
+      for (let i = 1; i <= 3; i++) {
+        await markTaskDone(clientA.page, `Sub${i}-${testRunId}`, true);
+      }
+      await markTaskDone(clientA.page, parentName, false);
+      await archiveDoneTasks(clientA.page);
+      console.log('[MultiSubtask] Client A archived all');
+
+      // 6. Both clients sync
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
+      await clientB.page.waitForTimeout(1000);
+
+      // 7. Verify no orphan tasks
+      const tasksOnA = await clientA.page
+        .locator(`task:has-text("${testRunId}")`)
+        .count();
+      const tasksOnB = await clientB.page
+        .locator(`task:has-text("${testRunId}")`)
+        .count();
+
+      expect(tasksOnA).toBe(0);
+      expect(tasksOnB).toBe(0);
+
+      expect(checkForOrphanSubtaskError(consoleErrorsA)).toBe(false);
+      expect(checkForOrphanSubtaskError(consoleErrorsB)).toBe(false);
+
+      console.log('[MultiSubtask] ✓ Multiple subtasks archived without orphans');
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 
   /**
    * Scenario: Add subtask then immediately archive syncs correctly
@@ -360,72 +337,70 @@ base.describe('@supersync Archive Subtasks Sync', () => {
    * 5. Client B syncs
    * 6. Verify no orphan subtasks
    */
-  base(
-    'Add subtask then immediately archive syncs correctly',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(120000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      const appUrl = baseURL || 'http://localhost:4242';
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
-      const consoleErrorsB: string[] = [];
+  test('Add subtask then immediately archive syncs correctly', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
+    const consoleErrorsB: string[] = [];
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // Setup clients
-        clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      // Setup clients
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
-        clientB.page.on('console', (msg) => {
-          if (msg.type() === 'error') {
-            consoleErrorsB.push(msg.text());
-          }
-        });
-        await clientB.sync.setupSuperSync(syncConfig);
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      clientB.page.on('console', (msg) => {
+        if (msg.type() === 'error') {
+          consoleErrorsB.push(msg.text());
+        }
+      });
+      await clientB.sync.setupSuperSync(syncConfig);
 
-        // Create parent and sync both clients
-        const parentName = `RaceTest-${testRunId}`;
-        await clientA.workView.addTask(parentName);
-        await clientA.sync.syncAndWait();
-        await clientB.sync.syncAndWait();
-        console.log('[RaceTest] Both clients synced with parent task');
+      // Create parent and sync both clients
+      const parentName = `RaceTest-${testRunId}`;
+      await clientA.workView.addTask(parentName);
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
+      console.log('[RaceTest] Both clients synced with parent task');
 
-        // 2. Client A adds subtask
-        const subtaskName = `NewSub-${testRunId}`;
-        await addSubtask(clientA.page, parentName, subtaskName);
-        console.log('[RaceTest] Added subtask (no sync yet)');
+      // 2. Client A adds subtask
+      const subtaskName = `NewSub-${testRunId}`;
+      await addSubtask(clientA.page, parentName, subtaskName);
+      console.log('[RaceTest] Added subtask (no sync yet)');
 
-        // 3. Immediately mark subtask and parent done, then archive (NO SYNC BETWEEN)
-        await markTaskDone(clientA.page, subtaskName, true);
-        await markTaskDone(clientA.page, parentName, false);
-        await archiveDoneTasks(clientA.page);
-        console.log('[RaceTest] Archived (without intermediate sync)');
+      // 3. Immediately mark subtask and parent done, then archive (NO SYNC BETWEEN)
+      await markTaskDone(clientA.page, subtaskName, true);
+      await markTaskDone(clientA.page, parentName, false);
+      await archiveDoneTasks(clientA.page);
+      console.log('[RaceTest] Archived (without intermediate sync)');
 
-        // 4. Client A syncs (sends both add subtask + archive)
-        await clientA.sync.syncAndWait();
-        console.log('[RaceTest] Client A synced');
+      // 4. Client A syncs (sends both add subtask + archive)
+      await clientA.sync.syncAndWait();
+      console.log('[RaceTest] Client A synced');
 
-        // 5. Client B syncs
-        await clientB.sync.syncAndWait();
-        await clientB.page.waitForTimeout(1000);
-        console.log('[RaceTest] Client B synced');
+      // 5. Client B syncs
+      await clientB.sync.syncAndWait();
+      await clientB.page.waitForTimeout(1000);
+      console.log('[RaceTest] Client B synced');
 
-        // 6. Verify no orphan subtasks
-        const tasksOnB = await clientB.page
-          .locator(`task:has-text("${testRunId}")`)
-          .count();
-        expect(tasksOnB).toBe(0);
+      // 6. Verify no orphan subtasks
+      const tasksOnB = await clientB.page
+        .locator(`task:has-text("${testRunId}")`)
+        .count();
+      expect(tasksOnB).toBe(0);
 
-        expect(checkForOrphanSubtaskError(consoleErrorsB)).toBe(false);
+      expect(checkForOrphanSubtaskError(consoleErrorsB)).toBe(false);
 
-        console.log('[RaceTest] ✓ Add subtask + immediate archive synced correctly');
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
-      }
-    },
-  );
+      console.log('[RaceTest] ✓ Add subtask + immediate archive synced correctly');
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 });

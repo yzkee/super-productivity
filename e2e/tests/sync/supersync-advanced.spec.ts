@@ -1,14 +1,17 @@
-import { test as base, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/supersync.fixture';
 import {
   createTestUser,
   getSuperSyncConfig,
   createSimulatedClient,
   closeClient,
   waitForTask,
-  isServerHealthy,
-  type SimulatedE2EClient,
+  getTaskElement,
+  markTaskDone,
+  deleteTask,
   countTasks,
+  type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
+import { expectTaskNotVisible } from '../../utils/supersync-assertions';
 
 /**
  * SuperSync Advanced E2E Tests
@@ -17,25 +20,7 @@ import {
  * and error conditions.
  */
 
-const generateTestRunId = (workerIndex: number): string => {
-  return `${Date.now()}-${workerIndex}`;
-};
-
-base.describe('@supersync SuperSync Advanced', () => {
-  let serverHealthy: boolean | null = null;
-
-  base.beforeEach(async ({}, testInfo) => {
-    if (serverHealthy === null) {
-      serverHealthy = await isServerHealthy();
-      if (!serverHealthy) {
-        console.warn(
-          'SuperSync server not healthy at http://localhost:1901 - skipping tests',
-        );
-      }
-    }
-    testInfo.skip(!serverHealthy, 'SuperSync server not running');
-  });
-
+test.describe('@supersync SuperSync Advanced', () => {
   /**
    * Scenario: Large Dataset Sync
    *
@@ -47,11 +32,13 @@ base.describe('@supersync SuperSync Advanced', () => {
    * 3. Client B syncs (download)
    * 4. Verify all 50 tasks exist on Client B
    */
-  base('Large dataset sync (50 tasks)', async ({ browser, baseURL }, testInfo) => {
+  test('Large dataset sync (50 tasks)', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }, testInfo) => {
     // Increase timeout for this test as creating/syncing 50 tasks takes time
     testInfo.setTimeout(120000);
-
-    const testRunId = generateTestRunId(testInfo.workerIndex);
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
     const TASK_COUNT = 50;
@@ -129,109 +116,105 @@ base.describe('@supersync SuperSync Advanced', () => {
    * 7. Client A syncs (download)
    * 8. Verify Client A sees "Tag A" removed
    */
-  base(
-    'Tag Management: Add/Remove tags syncs correctly',
-    async ({ browser, baseURL }, testInfo) => {
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
-      const taskName = `Task-Tag-${testRunId}`;
-      const tagName = `TagA-${testRunId}`;
+  test('Tag Management: Add/Remove tags syncs correctly', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
+    const taskName = `Task-Tag-${testRunId}`;
+    const tagName = `TagA-${testRunId}`;
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // Setup Client A
-        clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      // Setup Client A
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        // Client A creates task with tag
-        // We type "#TagName" to trigger tag creation
-        // skipClose=true because we expect a dialog (create tag) which blocks closing
-        await clientA.workView.addTask(`${taskName} #${tagName}`, true);
+      // Client A creates task with tag
+      // We type "#TagName" to trigger tag creation
+      // skipClose=true because we expect a dialog (create tag) which blocks closing
+      await clientA.workView.addTask(`${taskName} #${tagName}`, true);
 
-        // Handle tag creation confirmation dialog if it appears
-        const confirmBtn = clientA.page.locator('button[e2e="confirmBtn"]');
-        if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
-          await confirmBtn.click();
-        }
-
-        // Close the add task bar manually if it's still open
-        if (await clientA.workView.backdrop.isVisible().catch(() => false)) {
-          await clientA.workView.backdrop.click();
-        }
-
-        // Wait for task
-        await waitForTask(clientA.page, taskName);
-
-        // Verify tag is present on Client A
-        await expect(
-          clientA.page.locator(`task tag:has-text("${tagName}")`),
-        ).toBeVisible();
-
-        // Sync A
-        await clientA.sync.syncAndWait();
-
-        // Setup Client B
-        clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
-
-        // Sync B (Download)
-        await clientB.sync.syncAndWait();
-
-        // Verify B has task and tag
-        await waitForTask(clientB.page, taskName);
-        await expect(
-          clientB.page.locator(`task tag:has-text("${tagName}")`),
-        ).toBeVisible();
-
-        // Client B removes tag
-        // Right click task -> Toggle Tags -> Click Tag
-        const taskB = clientB.page.locator(`task:has-text("${taskName}")`);
-        await taskB.click({ button: 'right' });
-
-        // Click "Toggle Tags" in context menu (using text match or class if available)
-        // Based on i18n: T.F.TASK.CMP.TOGGLE_TAGS -> 'Toggle Tags' (en)
-        const toggleTagsItem = clientB.page
-          .locator('.mat-mdc-menu-item')
-          .filter({ hasText: 'Toggle Tags' });
-        await toggleTagsItem.click();
-
-        // Wait for tag list submenu
-        // Exclude nav-link items (which might be "Go to Project" links) to avoid strict mode violation
-        const tagItem = clientB.page.locator(
-          `.mat-mdc-menu-item:not(.nav-link):has-text("${tagName}")`,
-        );
-        await tagItem.waitFor({ state: 'visible' });
-        await tagItem.click();
-
-        // Close menu (press Escape)
-        await clientB.page.keyboard.press('Escape');
-
-        // Verify tag is gone on B
-        await expect(
-          clientB.page.locator(`task tag:has-text("${tagName}")`),
-        ).not.toBeVisible();
-
-        // Sync B (Upload removal)
-        await clientB.sync.syncAndWait();
-
-        // Sync A (Download removal)
-        await clientA.sync.syncAndWait();
-
-        // Verify tag is gone on A
-        await expect(
-          clientA.page.locator(`task tag:has-text("${tagName}")`),
-        ).not.toBeVisible();
-
-        console.log('[TagTest] ✓ Tag added and removed successfully across clients');
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
+      // Handle tag creation confirmation dialog if it appears
+      const confirmBtn = clientA.page.locator('button[e2e="confirmBtn"]');
+      if (await confirmBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await confirmBtn.click();
       }
-    },
-  );
+
+      // Close the add task bar manually if it's still open
+      if (await clientA.workView.backdrop.isVisible().catch(() => false)) {
+        await clientA.workView.backdrop.click();
+      }
+
+      // Wait for task
+      await waitForTask(clientA.page, taskName);
+
+      // Verify tag is present on Client A
+      await expect(clientA.page.locator(`task tag:has-text("${tagName}")`)).toBeVisible();
+
+      // Sync A
+      await clientA.sync.syncAndWait();
+
+      // Setup Client B
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
+
+      // Sync B (Download)
+      await clientB.sync.syncAndWait();
+
+      // Verify B has task and tag
+      await waitForTask(clientB.page, taskName);
+      await expect(clientB.page.locator(`task tag:has-text("${tagName}")`)).toBeVisible();
+
+      // Client B removes tag
+      // Right click task -> Toggle Tags -> Click Tag
+      const taskB = getTaskElement(clientB, taskName);
+      await taskB.click({ button: 'right' });
+
+      // Click "Toggle Tags" in context menu (using text match or class if available)
+      // Based on i18n: T.F.TASK.CMP.TOGGLE_TAGS -> 'Toggle Tags' (en)
+      const toggleTagsItem = clientB.page
+        .locator('.mat-mdc-menu-item')
+        .filter({ hasText: 'Toggle Tags' });
+      await toggleTagsItem.click();
+
+      // Wait for tag list submenu
+      // Exclude nav-link items (which might be "Go to Project" links) to avoid strict mode violation
+      const tagItem = clientB.page.locator(
+        `.mat-mdc-menu-item:not(.nav-link):has-text("${tagName}")`,
+      );
+      await tagItem.waitFor({ state: 'visible' });
+      await tagItem.click();
+
+      // Close menu (press Escape)
+      await clientB.page.keyboard.press('Escape');
+
+      // Verify tag is gone on B
+      await expect(
+        clientB.page.locator(`task tag:has-text("${tagName}")`),
+      ).not.toBeVisible();
+
+      // Sync B (Upload removal)
+      await clientB.sync.syncAndWait();
+
+      // Sync A (Download removal)
+      await clientA.sync.syncAndWait();
+
+      // Verify tag is gone on A
+      await expect(
+        clientA.page.locator(`task tag:has-text("${tagName}")`),
+      ).not.toBeVisible();
+
+      console.log('[TagTest] ✓ Tag added and removed successfully across clients');
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 
   /**
    * Scenario: Concurrent Delete vs. Update
@@ -250,81 +233,68 @@ base.describe('@supersync SuperSync Advanced', () => {
    * 5. Client B syncs (update conflicts with deletion)
    * 6. Verify final state is consistent (both clients agree)
    */
-  base(
-    'Concurrent Delete vs. Update (Conflict Handling)',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(90000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
-      const taskName = `Task-Conflict-${testRunId}`;
+  test('Concurrent Delete vs. Update (Conflict Handling)', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }, testInfo) => {
+    testInfo.setTimeout(90000);
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
+    const taskName = `Task-Conflict-${testRunId}`;
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // Setup clients
-        clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      // Setup clients
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
 
-        // Create initial task on A and sync to B
-        await clientA.workView.addTask(taskName);
-        await clientA.sync.syncAndWait();
+      // Create initial task on A and sync to B
+      await clientA.workView.addTask(taskName);
+      await clientA.sync.syncAndWait();
 
-        await clientB.sync.syncAndWait();
-        await waitForTask(clientB.page, taskName);
+      await clientB.sync.syncAndWait();
+      await waitForTask(clientB.page, taskName);
 
-        // Client A deletes the task
-        const taskLocatorA = clientA.page.locator(`task:has-text("${taskName}")`);
-        await taskLocatorA.click({ button: 'right' });
-        await clientA.page
-          .locator('.mat-mdc-menu-item')
-          .filter({ hasText: 'Delete' })
-          .click();
+      // Client A deletes the task
+      await deleteTask(clientA, taskName);
+      await expectTaskNotVisible(clientA, taskName);
 
-        // Handle confirmation dialog if present
-        const dialogA = clientA.page.locator('dialog-confirm');
-        if (await dialogA.isVisible({ timeout: 2000 }).catch(() => false)) {
-          await dialogA.locator('button[type=submit]').click();
-        }
-        await expect(taskLocatorA).not.toBeVisible();
+      // Client B updates the task (marks as done - reliable operation)
+      await markTaskDone(clientB, taskName);
 
-        // Client B updates the task (marks as done - reliable operation)
-        const taskLocatorB = clientB.page.locator(`task:has-text("${taskName}")`);
-        await taskLocatorB.hover();
-        await taskLocatorB.locator('.task-done-btn').click();
+      // A syncs first (uploads DELETE)
+      await clientA.sync.syncAndWait();
 
-        // A syncs first (uploads DELETE)
-        await clientA.sync.syncAndWait();
+      // B syncs (downloads DELETE, has local UPDATE) -> potential conflict
+      // The conflict resolution may show a dialog or auto-resolve
+      await clientB.sync.syncAndWait();
 
-        // B syncs (downloads DELETE, has local UPDATE) -> potential conflict
-        // The conflict resolution may show a dialog or auto-resolve
-        await clientB.sync.syncAndWait();
+      // Final sync to converge
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
 
-        // Final sync to converge
-        await clientA.sync.syncAndWait();
-        await clientB.sync.syncAndWait();
+      // Verify consistent state
+      // Both clients should have the same view (either both have task or neither)
+      const hasTaskA =
+        (await clientA.page.locator(`task:has-text("${taskName}")`).count()) > 0;
+      const hasTaskB =
+        (await clientB.page.locator(`task:has-text("${taskName}")`).count()) > 0;
 
-        // Verify consistent state
-        // Both clients should have the same view (either both have task or neither)
-        const hasTaskA =
-          (await clientA.page.locator(`task:has-text("${taskName}")`).count()) > 0;
-        const hasTaskB =
-          (await clientB.page.locator(`task:has-text("${taskName}")`).count()) > 0;
+      // State should be consistent (doesn't matter which wins, just that they agree)
+      expect(hasTaskA).toBe(hasTaskB);
 
-        // State should be consistent (doesn't matter which wins, just that they agree)
-        expect(hasTaskA).toBe(hasTaskB);
-
-        console.log(
-          `[ConflictTest] ✓ Concurrent Delete/Update resolved consistently (task ${hasTaskA ? 'restored' : 'deleted'})`,
-        );
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
-      }
-    },
-  );
+      console.log(
+        `[ConflictTest] ✓ Concurrent Delete/Update resolved consistently (task ${hasTaskA ? 'restored' : 'deleted'})`,
+      );
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 });

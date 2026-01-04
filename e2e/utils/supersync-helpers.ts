@@ -1,4 +1,9 @@
-import { type Browser, type BrowserContext, type Page } from '@playwright/test';
+import {
+  type Browser,
+  type BrowserContext,
+  type Locator,
+  type Page,
+} from '@playwright/test';
 import { SuperSyncPage, type SuperSyncConfig } from '../pages/supersync.page';
 import { WorkViewPage } from '../pages/work-view.page';
 import { waitForAppReady } from './waits';
@@ -310,4 +315,327 @@ export const hasTask = async (page: Page, taskName: string): Promise<boolean> =>
   const escapedName = taskName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const count = await page.locator(`task:has-text("${escapedName}")`).count();
   return count > 0;
+};
+
+// ============================================================================
+// Task Element Helpers
+// ============================================================================
+
+/**
+ * Escape special characters in a string for use in CSS :has-text() selector.
+ */
+const escapeForSelector = (text: string): string => {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
+/**
+ * Get a task element locator by task name.
+ * This replaces the common pattern: `client.page.locator(\`task:has-text("${taskName}")\`)`
+ *
+ * @param client - The simulated E2E client
+ * @param taskName - The task name to search for
+ * @returns Locator for the task element
+ */
+export const getTaskElement = (client: SimulatedE2EClient, taskName: string): Locator => {
+  const escapedName = escapeForSelector(taskName);
+  return client.page.locator(`task:has-text("${escapedName}")`);
+};
+
+/**
+ * Get a task element locator from a page by task name.
+ * Use this when you have a page but not a client.
+ *
+ * @param page - The Playwright page
+ * @param taskName - The task name to search for
+ * @returns Locator for the task element
+ */
+export const getTaskElementFromPage = (page: Page, taskName: string): Locator => {
+  const escapedName = escapeForSelector(taskName);
+  return page.locator(`task:has-text("${escapedName}")`);
+};
+
+/**
+ * Get a subtask element (task without subtasks) by name.
+ * Useful for targeting subtasks without matching their parent.
+ *
+ * @param client - The simulated E2E client
+ * @param taskName - The subtask name to search for
+ * @returns Locator for the subtask element
+ */
+export const getSubtaskElement = (
+  client: SimulatedE2EClient,
+  taskName: string,
+): Locator => {
+  const escapedName = escapeForSelector(taskName);
+  return client.page.locator(`task.hasNoSubTasks:has-text("${escapedName}")`);
+};
+
+/**
+ * Get a done task element by name.
+ *
+ * @param client - The simulated E2E client
+ * @param taskName - The task name to search for
+ * @returns Locator for the done task element
+ */
+export const getDoneTaskElement = (
+  client: SimulatedE2EClient,
+  taskName: string,
+): Locator => {
+  const escapedName = escapeForSelector(taskName);
+  return client.page.locator(`task.isDone:has-text("${escapedName}")`);
+};
+
+/**
+ * Get a done subtask element by name.
+ *
+ * @param client - The simulated E2E client
+ * @param taskName - The subtask name to search for
+ * @returns Locator for the done subtask element
+ */
+export const getDoneSubtaskElement = (
+  client: SimulatedE2EClient,
+  taskName: string,
+): Locator => {
+  const escapedName = escapeForSelector(taskName);
+  return client.page.locator(`task.hasNoSubTasks.isDone:has-text("${escapedName}")`);
+};
+
+/**
+ * Get an undone subtask element by name.
+ *
+ * @param client - The simulated E2E client
+ * @param taskName - The subtask name to search for
+ * @returns Locator for the undone subtask element
+ */
+export const getUndoneSubtaskElement = (
+  client: SimulatedE2EClient,
+  taskName: string,
+): Locator => {
+  const escapedName = escapeForSelector(taskName);
+  return client.page.locator(
+    `task.hasNoSubTasks:not(.isDone):has-text("${escapedName}")`,
+  );
+};
+
+/**
+ * Get a parent task element (task with subtasks) by name.
+ *
+ * @param client - The simulated E2E client
+ * @param taskName - The task name to search for
+ * @returns Locator for the parent task element
+ */
+export const getParentTaskElement = (
+  client: SimulatedE2EClient,
+  taskName: string,
+): Locator => {
+  const escapedName = escapeForSelector(taskName);
+  return client.page.locator(`task:not(.hasNoSubTasks):has-text("${escapedName}")`);
+};
+
+// ============================================================================
+// Task Action Helpers
+// ============================================================================
+
+/**
+ * Mark a task as done by hovering and clicking the done button.
+ *
+ * @param client - The simulated E2E client
+ * @param taskName - The task name to mark as done
+ */
+export const markTaskDone = async (
+  client: SimulatedE2EClient,
+  taskName: string,
+): Promise<void> => {
+  const task = getTaskElement(client, taskName);
+  await task.hover();
+  await task.locator('.task-done-btn').click();
+};
+
+/**
+ * Mark a subtask as done by hovering and clicking the done button.
+ * Uses getSubtaskElement to avoid matching parent tasks.
+ *
+ * @param client - The simulated E2E client
+ * @param subtaskName - The subtask name to mark as done
+ */
+export const markSubtaskDone = async (
+  client: SimulatedE2EClient,
+  subtaskName: string,
+): Promise<void> => {
+  const subtask = getSubtaskElement(client, subtaskName);
+  await subtask.hover();
+  await subtask.locator('.task-done-btn').click();
+};
+
+/**
+ * Expand a parent task to show its subtasks.
+ *
+ * @param client - The simulated E2E client
+ * @param taskName - The parent task name
+ */
+export const expandTask = async (
+  client: SimulatedE2EClient,
+  taskName: string,
+): Promise<void> => {
+  const task = getTaskElement(client, taskName);
+  const expandBtn = task.locator('.expand-btn');
+  if (await expandBtn.isVisible()) {
+    await expandBtn.click();
+  }
+};
+
+/**
+ * Delete a task via keyboard shortcut (Backspace) and confirm if dialog appears.
+ *
+ * @param client - The simulated E2E client
+ * @param taskName - The task name to delete
+ */
+export const deleteTask = async (
+  client: SimulatedE2EClient,
+  taskName: string,
+): Promise<void> => {
+  const task = getTaskElement(client, taskName);
+  await task.click();
+  await client.page.keyboard.press('Backspace');
+
+  // Confirm deletion if dialog appears
+  const confirmBtn = client.page.locator('mat-dialog-actions button:has-text("Delete")');
+  if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await confirmBtn.click();
+  }
+  await client.page.waitForTimeout(500);
+};
+
+/**
+ * Rename a task by double-clicking and filling the input.
+ *
+ * @param client - The simulated E2E client
+ * @param oldName - The current task name
+ * @param newName - The new task name
+ */
+export const renameTask = async (
+  client: SimulatedE2EClient,
+  oldName: string,
+  newName: string,
+): Promise<void> => {
+  const task = getTaskElement(client, oldName);
+  await task.locator('task-title').click();
+  await client.page.waitForSelector('task textarea', { state: 'visible' });
+  await client.page.locator('task textarea').fill(newName);
+  await client.page.keyboard.press('Tab');
+  await client.page.waitForTimeout(300);
+};
+
+/**
+ * Start time tracking on a task.
+ *
+ * @param client - The simulated E2E client
+ * @param taskName - The task name to start tracking
+ */
+export const startTimeTracking = async (
+  client: SimulatedE2EClient,
+  taskName: string,
+): Promise<void> => {
+  const task = getTaskElement(client, taskName);
+  await task.hover();
+  const startBtn = task.locator('.start-task-btn');
+  await startBtn.waitFor({ state: 'visible', timeout: 5000 });
+  await startBtn.click();
+};
+
+/**
+ * Stop time tracking on a task.
+ *
+ * @param client - The simulated E2E client
+ * @param taskName - The task name to stop tracking
+ */
+export const stopTimeTracking = async (
+  client: SimulatedE2EClient,
+  taskName: string,
+): Promise<void> => {
+  const task = getTaskElement(client, taskName);
+  await task.hover();
+  const pauseBtn = task.locator('button:has(mat-icon:has-text("pause"))');
+  await pauseBtn.waitFor({ state: 'visible', timeout: 5000 });
+  await pauseBtn.click();
+};
+
+// ============================================================================
+// Task Query Helpers
+// ============================================================================
+
+/**
+ * Get the task count on a client.
+ *
+ * @param client - The simulated E2E client
+ * @returns The number of tasks
+ */
+export const getTaskCount = async (client: SimulatedE2EClient): Promise<number> => {
+  return client.page.locator('task').count();
+};
+
+/**
+ * Get all task titles as an array.
+ * Useful for comparing task order between clients.
+ *
+ * @param client - The simulated E2E client
+ * @returns Array of task titles in order
+ */
+export const getTaskTitles = async (client: SimulatedE2EClient): Promise<string[]> => {
+  const tasks = client.page.locator('task .task-title');
+  const count = await tasks.count();
+  const titles: string[] = [];
+  for (let i = 0; i < count; i++) {
+    const text = await tasks.nth(i).innerText();
+    titles.push(text.trim());
+  }
+  return titles;
+};
+
+/**
+ * Get the tracked time display text for a task.
+ *
+ * @param client - The simulated E2E client
+ * @param taskName - The task name
+ * @returns The time display text or null if not visible
+ */
+export const getTaskTimeDisplay = async (
+  client: SimulatedE2EClient,
+  taskName: string,
+): Promise<string | null> => {
+  const task = getTaskElement(client, taskName);
+  const timeVal = task.locator('.time-wrapper .time-val').first();
+  if (await timeVal.isVisible()) {
+    return timeVal.textContent();
+  }
+  return null;
+};
+
+/**
+ * Check if a task has the given text (exists on client).
+ *
+ * @param client - The simulated E2E client
+ * @param taskName - The task name to check
+ * @returns true if the task exists
+ */
+export const hasTaskOnClient = async (
+  client: SimulatedE2EClient,
+  taskName: string,
+): Promise<boolean> => {
+  return hasTask(client.page, taskName);
+};
+
+// ============================================================================
+// Test Setup Helpers
+// ============================================================================
+
+/**
+ * Generate a unique test run ID for data isolation.
+ * This replaces the common `generateTestRunId` function in test files.
+ *
+ * @param workerIndex - The Playwright worker index from testInfo
+ * @returns A unique test run ID string
+ */
+export const generateTestRunId = (workerIndex: number): string => {
+  return `${Date.now()}-${workerIndex}`;
 };

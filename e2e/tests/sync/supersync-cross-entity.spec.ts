@@ -1,11 +1,10 @@
-import { test as base, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/supersync.fixture';
 import {
   createTestUser,
   getSuperSyncConfig,
   createSimulatedClient,
   closeClient,
   waitForTask,
-  isServerHealthy,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 import { waitForUISettle } from '../../utils/waits';
@@ -19,24 +18,7 @@ import { waitForUISettle } from '../../utils/waits';
  * - Marking tasks done syncs across clients
  */
 
-let testCounter = 0;
-const generateTestRunId = (workerIndex: number): string => {
-  return `cross-${Date.now()}-${workerIndex}-${testCounter++}`;
-};
-
-base.describe('@supersync Cross-Entity Operations Sync', () => {
-  let serverHealthy: boolean | null = null;
-
-  base.beforeEach(async ({}, testInfo) => {
-    if (serverHealthy === null) {
-      serverHealthy = await isServerHealthy();
-      if (!serverHealthy) {
-        console.warn('SuperSync server not healthy - skipping tests');
-      }
-    }
-    testInfo.skip(!serverHealthy, 'SuperSync server not running');
-  });
-
+test.describe('@supersync Cross-Entity Operations Sync', () => {
   /**
    * Test: Multiple tasks sync as a batch
    *
@@ -46,8 +28,7 @@ base.describe('@supersync Cross-Entity Operations Sync', () => {
    * 3. Client B syncs
    * 4. Verify all 5 tasks appear on Client B
    */
-  base('Multiple tasks sync together', async ({ browser, baseURL }, testInfo) => {
-    const testRunId = generateTestRunId(testInfo.workerIndex);
+  test('Multiple tasks sync together', async ({ browser, baseURL, testRunId }) => {
     const uniqueId = Date.now();
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
@@ -110,8 +91,7 @@ base.describe('@supersync Cross-Entity Operations Sync', () => {
    * 3. Client B syncs
    * 4. Verify parent and all subtasks on Client B
    */
-  base('Task with subtasks syncs correctly', async ({ browser, baseURL }, testInfo) => {
-    const testRunId = generateTestRunId(testInfo.workerIndex);
+  test('Task with subtasks syncs correctly', async ({ browser, baseURL, testRunId }) => {
     const uniqueId = Date.now();
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;

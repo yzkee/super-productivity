@@ -1,11 +1,10 @@
-import { test as base, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/supersync.fixture';
 import {
   createTestUser,
   getSuperSyncConfig,
   createSimulatedClient,
   closeClient,
   waitForTask,
-  isServerHealthy,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 import { ImportPage } from '../../pages/import.page';
@@ -37,25 +36,7 @@ import { waitForAppReady } from '../../utils/waits';
  * Run with: npm run e2e:supersync:file e2e/tests/sync/supersync-stale-clock-regression.spec.ts
  */
 
-const generateTestRunId = (workerIndex: number): string => {
-  return `${Date.now()}-${workerIndex}`;
-};
-
-base.describe('@supersync @regression Stale Clock Regression', () => {
-  let serverHealthy: boolean | null = null;
-
-  base.beforeEach(async ({}, testInfo) => {
-    if (serverHealthy === null) {
-      serverHealthy = await isServerHealthy();
-      if (!serverHealthy) {
-        console.warn(
-          'SuperSync server not healthy at http://localhost:1901 - skipping tests',
-        );
-      }
-    }
-    testInfo.skip(!serverHealthy, 'SuperSync server not running');
-  });
-
+test.describe('@supersync @regression Stale Clock Regression', () => {
   /**
    * Regression test: Operations created during SYNC_IMPORT hydration use correct clock
    *
@@ -81,153 +62,153 @@ base.describe('@supersync @regression Stale Clock Regression', () => {
    * - No sync errors on either client
    * - B's reload + sync didn't cause data loss
    */
-  base(
-    'Operations created during SYNC_IMPORT hydration use merged clock (regression)',
-    async ({ browser, baseURL }, testInfo) => {
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      const uniqueId = Date.now();
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('Operations created during SYNC_IMPORT hydration use merged clock (regression)', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    const uniqueId = Date.now();
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // ============ PHASE 1: Setup Both Clients ============
-        console.log('[Stale Clock] Phase 1: Setting up both clients');
+      // ============ PHASE 1: Setup Both Clients ============
+      console.log('[Stale Clock] Phase 1: Setting up both clients');
 
-        clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
 
-        // Initial sync to establish vector clocks
-        await clientA.sync.syncAndWait();
-        await clientB.sync.syncAndWait();
-        console.log('[Stale Clock] Both clients synced initially');
+      // Initial sync to establish vector clocks
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
+      console.log('[Stale Clock] Both clients synced initially');
 
-        // ============ PHASE 2: Create Task Scheduled for Today ============
-        console.log('[Stale Clock] Phase 2: Creating task scheduled for today');
+      // ============ PHASE 2: Create Task Scheduled for Today ============
+      console.log('[Stale Clock] Phase 2: Creating task scheduled for today');
 
-        // This task will affect TODAY_TAG, which may trigger repair during hydration
-        const taskToday = `Today-Task-${uniqueId}`;
-        await clientA.workView.addTask(taskToday);
+      // This task will affect TODAY_TAG, which may trigger repair during hydration
+      const taskToday = `Today-Task-${uniqueId}`;
+      await clientA.workView.addTask(taskToday);
 
-        // Schedule for today by opening task details and setting due date
-        // Note: Using the planner page or task context menu might be needed
-        // For simplicity, just create a regular task - TODAY_TAG repair happens
-        // when there's any state inconsistency during loadAllData
+      // Schedule for today by opening task details and setting due date
+      // Note: Using the planner page or task context menu might be needed
+      // For simplicity, just create a regular task - TODAY_TAG repair happens
+      // when there's any state inconsistency during loadAllData
 
-        await clientA.sync.syncAndWait();
-        console.log(`[Stale Clock] Client A created and synced: ${taskToday}`);
+      await clientA.sync.syncAndWait();
+      console.log(`[Stale Clock] Client A created and synced: ${taskToday}`);
 
-        await clientB.sync.syncAndWait();
-        await waitForTask(clientB.page, taskToday);
-        console.log('[Stale Clock] Client B received the task');
+      await clientB.sync.syncAndWait();
+      await waitForTask(clientB.page, taskToday);
+      console.log('[Stale Clock] Client B received the task');
 
-        // ============ PHASE 3: Client A Imports Backup ============
-        console.log('[Stale Clock] Phase 3: Client A importing backup');
+      // ============ PHASE 3: Client A Imports Backup ============
+      console.log('[Stale Clock] Phase 3: Client A importing backup');
 
-        const importPage = new ImportPage(clientA.page);
-        await importPage.navigateToImportPage();
+      const importPage = new ImportPage(clientA.page);
+      await importPage.navigateToImportPage();
 
-        // Import backup (contains different tasks - E2E Import Test tasks)
-        const backupPath = ImportPage.getFixturePath('test-backup.json');
-        await importPage.importBackupFile(backupPath);
-        console.log('[Stale Clock] Client A imported backup');
+      // Import backup (contains different tasks - E2E Import Test tasks)
+      const backupPath = ImportPage.getFixturePath('test-backup.json');
+      await importPage.importBackupFile(backupPath);
+      console.log('[Stale Clock] Client A imported backup');
 
-        // Re-enable sync after import (import overwrites globalConfig)
-        await clientA.sync.setupSuperSync(syncConfig);
+      // Re-enable sync after import (import overwrites globalConfig)
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        // Wait for imported task to be visible
-        await waitForTask(clientA.page, 'E2E Import Test - Active Task With Subtask');
-        console.log('[Stale Clock] Client A has imported tasks');
+      // Wait for imported task to be visible
+      await waitForTask(clientA.page, 'E2E Import Test - Active Task With Subtask');
+      console.log('[Stale Clock] Client A has imported tasks');
 
-        // ============ PHASE 4: Sync to Propagate SYNC_IMPORT ============
-        console.log('[Stale Clock] Phase 4: Syncing to propagate SYNC_IMPORT');
+      // ============ PHASE 4: Sync to Propagate SYNC_IMPORT ============
+      console.log('[Stale Clock] Phase 4: Syncing to propagate SYNC_IMPORT');
 
-        await clientA.sync.syncAndWait();
-        console.log('[Stale Clock] Client A synced (SYNC_IMPORT uploaded)');
+      await clientA.sync.syncAndWait();
+      console.log('[Stale Clock] Client A synced (SYNC_IMPORT uploaded)');
 
-        await clientB.sync.syncAndWait();
-        console.log('[Stale Clock] Client B synced (received SYNC_IMPORT)');
+      await clientB.sync.syncAndWait();
+      console.log('[Stale Clock] Client B synced (received SYNC_IMPORT)');
 
-        // ============ PHASE 5: Client B Reloads (Triggers Hydration) ============
-        console.log('[Stale Clock] Phase 5: Client B reloading (triggers hydration)');
+      // ============ PHASE 5: Client B Reloads (Triggers Hydration) ============
+      console.log('[Stale Clock] Phase 5: Client B reloading (triggers hydration)');
 
-        // This is the CRITICAL step - reload triggers fresh hydration
-        // With the bug, operations created during loadAllData would get stale clocks
-        await clientB.page.reload();
-        await waitForAppReady(clientB.page);
-        console.log('[Stale Clock] Client B reloaded, hydration complete');
+      // This is the CRITICAL step - reload triggers fresh hydration
+      // With the bug, operations created during loadAllData would get stale clocks
+      await clientB.page.reload();
+      await waitForAppReady(clientB.page);
+      console.log('[Stale Clock] Client B reloaded, hydration complete');
 
-        // Navigate to work view
-        await clientB.page.goto('/#/work-view');
-        await clientB.page.waitForLoadState('networkidle');
+      // Navigate to work view
+      await clientB.page.goto('/#/work-view');
+      await clientB.page.waitForLoadState('networkidle');
 
-        // Wait for imported task to appear
-        await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
-        console.log('[Stale Clock] Client B showing imported data after reload');
+      // Wait for imported task to appear
+      await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
+      console.log('[Stale Clock] Client B showing imported data after reload');
 
-        // ============ PHASE 6: Client B Syncs After Reload ============
-        console.log('[Stale Clock] Phase 6: Client B syncing after reload');
+      // ============ PHASE 6: Client B Syncs After Reload ============
+      console.log('[Stale Clock] Phase 6: Client B syncing after reload');
 
-        // This sync should succeed - any ops created during hydration should have correct clocks
-        // With the bug, ops would be rejected as CONFLICT_STALE and treated as permanent rejection
-        await clientB.sync.syncAndWait();
-        console.log('[Stale Clock] Client B synced after reload');
+      // This sync should succeed - any ops created during hydration should have correct clocks
+      // With the bug, ops would be rejected as CONFLICT_STALE and treated as permanent rejection
+      await clientB.sync.syncAndWait();
+      console.log('[Stale Clock] Client B synced after reload');
 
-        // Client A syncs to receive any merged ops from B
-        await clientA.sync.syncAndWait();
-        console.log('[Stale Clock] Client A synced to receive B updates');
+      // Client A syncs to receive any merged ops from B
+      await clientA.sync.syncAndWait();
+      console.log('[Stale Clock] Client A synced to receive B updates');
 
-        // Brief wait for state to settle
-        await clientA.page.waitForTimeout(1000);
-        await clientB.page.waitForTimeout(1000);
+      // Brief wait for state to settle
+      await clientA.page.waitForTimeout(1000);
+      await clientB.page.waitForTimeout(1000);
 
-        // ============ PHASE 7: Verify Consistent State ============
-        console.log('[Stale Clock] Phase 7: Verifying consistent state');
+      // ============ PHASE 7: Verify Consistent State ============
+      console.log('[Stale Clock] Phase 7: Verifying consistent state');
 
-        // Navigate both to work view
-        await clientA.page.goto('/#/work-view');
-        await clientA.page.waitForLoadState('networkidle');
-        await clientB.page.goto('/#/work-view');
-        await clientB.page.waitForLoadState('networkidle');
+      // Navigate both to work view
+      await clientA.page.goto('/#/work-view');
+      await clientA.page.waitForLoadState('networkidle');
+      await clientB.page.goto('/#/work-view');
+      await clientB.page.waitForLoadState('networkidle');
 
-        // Both clients should have imported tasks
-        const importedTaskOnA = clientA.page.locator(
-          'task:has-text("E2E Import Test - Active Task With Subtask")',
-        );
-        const importedTaskOnB = clientB.page.locator(
-          'task:has-text("E2E Import Test - Active Task With Subtask")',
-        );
+      // Both clients should have imported tasks
+      const importedTaskOnA = clientA.page.locator(
+        'task:has-text("E2E Import Test - Active Task With Subtask")',
+      );
+      const importedTaskOnB = clientB.page.locator(
+        'task:has-text("E2E Import Test - Active Task With Subtask")',
+      );
 
-        await expect(importedTaskOnA).toBeVisible({ timeout: 5000 });
-        await expect(importedTaskOnB).toBeVisible({ timeout: 5000 });
-        console.log('[Stale Clock] ✓ Both clients have imported tasks');
+      await expect(importedTaskOnA).toBeVisible({ timeout: 5000 });
+      await expect(importedTaskOnB).toBeVisible({ timeout: 5000 });
+      console.log('[Stale Clock] Both clients have imported tasks');
 
-        // Original task should be gone (clean slate from import)
-        const originalTaskOnA = clientA.page.locator(`task:has-text("${taskToday}")`);
-        const originalTaskOnB = clientB.page.locator(`task:has-text("${taskToday}")`);
+      // Original task should be gone (clean slate from import)
+      const originalTaskOnA = clientA.page.locator(`task:has-text("${taskToday}")`);
+      const originalTaskOnB = clientB.page.locator(`task:has-text("${taskToday}")`);
 
-        await expect(originalTaskOnA).not.toBeVisible({ timeout: 5000 });
-        await expect(originalTaskOnB).not.toBeVisible({ timeout: 5000 });
-        console.log('[Stale Clock] ✓ Original tasks are gone (clean slate)');
+      await expect(originalTaskOnA).not.toBeVisible({ timeout: 5000 });
+      await expect(originalTaskOnB).not.toBeVisible({ timeout: 5000 });
+      console.log('[Stale Clock] Original tasks are gone (clean slate)');
 
-        // Check for sync error indicators
-        // The snack bar would show if there were rejected ops
-        const errorSnack = clientB.page.locator('simple-snack-bar.error');
-        await expect(errorSnack).not.toBeVisible({ timeout: 2000 });
-        console.log('[Stale Clock] ✓ No sync errors on Client B');
+      // Check for sync error indicators
+      // The snack bar would show if there were rejected ops
+      const errorSnack = clientB.page.locator('simple-snack-bar.error');
+      await expect(errorSnack).not.toBeVisible({ timeout: 2000 });
+      console.log('[Stale Clock] No sync errors on Client B');
 
-        console.log('[Stale Clock] ✓ Stale clock regression test PASSED!');
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
-      }
-    },
-  );
+      console.log('[Stale Clock] Stale clock regression test PASSED!');
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 
   /**
    * Regression test: Multiple reloads after SYNC_IMPORT don't cause accumulating errors
@@ -235,101 +216,101 @@ base.describe('@supersync @regression Stale Clock Regression', () => {
    * With the original bug, each reload could create more stale ops that get rejected.
    * This test verifies that multiple reload cycles don't cause accumulating issues.
    */
-  base(
-    'Multiple reloads after SYNC_IMPORT remain stable (no accumulating errors)',
-    async ({ browser, baseURL }, testInfo) => {
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('Multiple reloads after SYNC_IMPORT remain stable (no accumulating errors)', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // ============ Setup ============
-        console.log('[Multi-Reload] Setting up clients');
+      // ============ Setup ============
+      console.log('[Multi-Reload] Setting up clients');
 
-        clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
 
-        await clientA.sync.syncAndWait();
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
+
+      // ============ Import Backup ============
+      console.log('[Multi-Reload] Client A importing backup');
+
+      const importPage = new ImportPage(clientA.page);
+      await importPage.navigateToImportPage();
+      const backupPath = ImportPage.getFixturePath('test-backup.json');
+      await importPage.importBackupFile(backupPath);
+      await clientA.sync.setupSuperSync(syncConfig);
+      await waitForTask(clientA.page, 'E2E Import Test - Active Task With Subtask');
+
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
+      console.log('[Multi-Reload] SYNC_IMPORT propagated');
+
+      // ============ Multiple Reload Cycles ============
+      console.log('[Multi-Reload] Starting reload cycles');
+
+      for (let cycle = 1; cycle <= 3; cycle++) {
+        console.log(`[Multi-Reload] Reload cycle ${cycle}/3`);
+
+        // Reload Client B
+        await clientB.page.reload();
+        await waitForAppReady(clientB.page);
+
+        // Navigate and verify state
+        await clientB.page.goto('/#/work-view');
+        await clientB.page.waitForLoadState('networkidle');
+        await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
+
+        // Sync after reload
         await clientB.sync.syncAndWait();
 
-        // ============ Import Backup ============
-        console.log('[Multi-Reload] Client A importing backup');
-
-        const importPage = new ImportPage(clientA.page);
-        await importPage.navigateToImportPage();
-        const backupPath = ImportPage.getFixturePath('test-backup.json');
-        await importPage.importBackupFile(backupPath);
-        await clientA.sync.setupSuperSync(syncConfig);
-        await waitForTask(clientA.page, 'E2E Import Test - Active Task With Subtask');
-
-        await clientA.sync.syncAndWait();
-        await clientB.sync.syncAndWait();
-        console.log('[Multi-Reload] SYNC_IMPORT propagated');
-
-        // ============ Multiple Reload Cycles ============
-        console.log('[Multi-Reload] Starting reload cycles');
-
-        for (let cycle = 1; cycle <= 3; cycle++) {
-          console.log(`[Multi-Reload] Reload cycle ${cycle}/3`);
-
-          // Reload Client B
-          await clientB.page.reload();
-          await waitForAppReady(clientB.page);
-
-          // Navigate and verify state
-          await clientB.page.goto('/#/work-view');
-          await clientB.page.waitForLoadState('networkidle');
-          await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
-
-          // Sync after reload
-          await clientB.sync.syncAndWait();
-
-          // Check for errors
-          const errorSnack = clientB.page.locator('simple-snack-bar.error');
-          const isErrorVisible = await errorSnack.isVisible().catch(() => false);
-          if (isErrorVisible) {
-            throw new Error(
-              `Sync error appeared on reload cycle ${cycle} - stale clock bug may not be fixed`,
-            );
-          }
-
-          console.log(`[Multi-Reload] ✓ Cycle ${cycle} completed without errors`);
+        // Check for errors
+        const errorSnack = clientB.page.locator('simple-snack-bar.error');
+        const isErrorVisible = await errorSnack.isVisible().catch(() => false);
+        if (isErrorVisible) {
+          throw new Error(
+            `Sync error appeared on reload cycle ${cycle} - stale clock bug may not be fixed`,
+          );
         }
 
-        // ============ Final Verification ============
-        console.log('[Multi-Reload] Final verification');
-
-        // Sync A to get any updates from B
-        await clientA.sync.syncAndWait();
-
-        await clientA.page.goto('/#/work-view');
-        await clientB.page.goto('/#/work-view');
-        await clientA.page.waitForLoadState('networkidle');
-        await clientB.page.waitForLoadState('networkidle');
-
-        // Both should have imported task
-        await expect(
-          clientA.page.locator(
-            'task:has-text("E2E Import Test - Active Task With Subtask")',
-          ),
-        ).toBeVisible();
-        await expect(
-          clientB.page.locator(
-            'task:has-text("E2E Import Test - Active Task With Subtask")',
-          ),
-        ).toBeVisible();
-
-        console.log('[Multi-Reload] ✓ Multi-reload regression test PASSED!');
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
+        console.log(`[Multi-Reload] Cycle ${cycle} completed without errors`);
       }
-    },
-  );
+
+      // ============ Final Verification ============
+      console.log('[Multi-Reload] Final verification');
+
+      // Sync A to get any updates from B
+      await clientA.sync.syncAndWait();
+
+      await clientA.page.goto('/#/work-view');
+      await clientB.page.goto('/#/work-view');
+      await clientA.page.waitForLoadState('networkidle');
+      await clientB.page.waitForLoadState('networkidle');
+
+      // Both should have imported task
+      await expect(
+        clientA.page.locator(
+          'task:has-text("E2E Import Test - Active Task With Subtask")',
+        ),
+      ).toBeVisible();
+      await expect(
+        clientB.page.locator(
+          'task:has-text("E2E Import Test - Active Task With Subtask")',
+        ),
+      ).toBeVisible();
+
+      console.log('[Multi-Reload] Multi-reload regression test PASSED!');
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 });

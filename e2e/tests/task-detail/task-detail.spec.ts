@@ -42,6 +42,8 @@ test.describe('Task detail', () => {
     // Flipping the meridiem should guarantee a change
     timeInputText = timeInputText!.replace(/([AP])/, (_, c) => (c === 'A' ? 'P' : 'A'));
     await timeInput.fill(timeInputText);
+    // Blur to ensure Angular registers the change before saving
+    await timeInput.blur();
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(createdInfo).not.toHaveText(createdInfoText!);
@@ -75,6 +77,8 @@ test.describe('Task detail', () => {
     // Flipping the meridiem should guarantee a change
     timeInputText = timeInputText!.replace(/([AP])/, (_, c) => (c === 'A' ? 'P' : 'A'));
     await timeInput.fill(timeInputText);
+    // Blur to ensure Angular registers the change before saving
+    await timeInput.blur();
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(completedInfo).not.toHaveText(completedInfoText!);

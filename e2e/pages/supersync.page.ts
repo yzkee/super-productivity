@@ -80,6 +80,11 @@ export class SuperSyncPage extends BasePage {
       await this.syncBtn.waitFor({ state: 'visible', timeout: syncBtnTimeout });
     }
 
+    // Wait for network to be idle - helps ensure Angular has finished loading
+    await this.page.waitForLoadState('networkidle').catch(() => {
+      console.log('[SuperSyncPage] Network idle timeout (non-fatal)');
+    });
+
     // Retry loop for opening the sync settings dialog via right-click
     // Sometimes the right-click doesn't register, especially under load
     let dialogOpened = false;
@@ -97,8 +102,17 @@ export class SuperSyncPage extends BasePage {
       await this.syncBtn.click({ button: 'right' });
 
       try {
-        // Wait for dialog to be fully loaded - use shorter timeout to retry faster
+        // Wait for dialog container first
+        const dialogContainer = this.page.locator('mat-dialog-container');
+        await dialogContainer.waitFor({ state: 'visible', timeout: 5000 });
+
+        // Wait for the formly form to be rendered inside the dialog
+        // Under heavy load, the dialog may appear but form rendering is delayed
         await this.providerSelect.waitFor({ state: 'visible', timeout: 5000 });
+
+        // Ensure the element is actually attached and stable
+        await expect(this.providerSelect).toBeAttached({ timeout: 2000 });
+
         dialogOpened = true;
         console.log('[SuperSyncPage] Sync settings dialog opened successfully');
         break;
@@ -116,69 +130,69 @@ export class SuperSyncPage extends BasePage {
       // Last attempt with longer timeout
       console.log('[SuperSyncPage] Final attempt to open sync settings dialog...');
       await this.syncBtn.click({ button: 'right', force: true });
+      const dialogContainer = this.page.locator('mat-dialog-container');
+      await dialogContainer.waitFor({ state: 'visible', timeout: 10000 });
       await this.providerSelect.waitFor({ state: 'visible', timeout: 10000 });
+      await expect(this.providerSelect).toBeAttached({ timeout: 5000 });
     }
 
     // Additional wait for the element to be stable/interactive
     await this.page.waitForTimeout(300);
 
-    // Retry loop for opening the dropdown
-    let dropdownOpen = false;
+    // Retry loop for opening the dropdown - use toPass() for more robust retries
     const superSyncOption = this.page
       .locator('mat-option')
       .filter({ hasText: 'SuperSync' });
+    const dropdownPanel = this.page.locator('.mat-mdc-select-panel');
+    const dropdownBackdrop = this.page.locator(
+      '.cdk-overlay-backdrop.cdk-overlay-transparent-backdrop',
+    );
 
-    for (let i = 0; i < 5; i++) {
-      // Check if page is still open before each attempt
-      if (this.page.isClosed()) {
-        throw new Error('Page was closed during SuperSync setup');
-      }
-
-      try {
-        // Use shorter timeout for click to fail fast and retry
-        await this.providerSelect.click({ timeout: 5000 });
-        // Wait for dropdown animation
-        await this.page.waitForTimeout(500);
-
-        if (await superSyncOption.isVisible()) {
-          dropdownOpen = true;
-          break;
-        } else {
-          console.log(`[SuperSyncPage] Dropdown not open attempt ${i + 1}, retrying...`);
-          // If not visible, close any partial dropdown and wait before retry
-          if (!this.page.isClosed()) {
-            await this.page.keyboard.press('Escape');
-            await this.page.waitForTimeout(300);
-          }
-        }
-      } catch (e) {
-        // Check if page is closed before trying to recover
-        if (this.page.isClosed()) {
-          throw new Error('Page was closed during SuperSync setup');
-        }
-        console.log(`[SuperSyncPage] Error opening dropdown attempt ${i + 1}: ${e}`);
-        // On click timeout, try to dismiss any blocking overlays
-        await this.page.keyboard.press('Escape');
-        await this.page.waitForTimeout(500);
-      }
-    }
-
-    if (!dropdownOpen) {
+    await expect(async () => {
       // Check if page is still open
       if (this.page.isClosed()) {
         throw new Error('Page was closed during SuperSync setup');
       }
-      // Last ditch effort - force click
-      console.log('[SuperSyncPage] Last attempt - force clicking provider select');
-      await this.providerSelect.click({ force: true, timeout: 10000 });
-      await this.page.waitForTimeout(500);
-    }
 
-    await superSyncOption.waitFor({ state: 'visible', timeout: 10000 });
-    await superSyncOption.click();
+      // If a dropdown backdrop is showing, dismiss it first
+      if (await dropdownBackdrop.isVisible()) {
+        console.log('[SuperSyncPage] Dismissing existing dropdown overlay...');
+        await this.page.keyboard.press('Escape');
+        await dropdownBackdrop
+          .waitFor({ state: 'hidden', timeout: 2000 })
+          .catch(() => {});
+        await this.page.waitForTimeout(200);
+      }
 
-    // Wait for the dropdown overlay to close
-    await this.page.locator('.mat-mdc-select-panel').waitFor({ state: 'detached' });
+      // Ensure the select is still attached (may have been re-rendered)
+      await expect(this.providerSelect).toBeAttached({ timeout: 2000 });
+
+      // Click to open dropdown - use force to bypass any lingering overlays
+      await this.providerSelect.click({ timeout: 3000, force: true });
+
+      // Wait for dropdown panel to appear
+      await dropdownPanel.waitFor({ state: 'visible', timeout: 3000 });
+
+      // Verify the option is visible
+      await expect(superSyncOption).toBeVisible({ timeout: 2000 });
+    }).toPass({
+      timeout: 30000,
+      intervals: [500, 1000, 1500, 2000, 2500, 3000],
+    });
+
+    // Click the SuperSync option with retry to handle dropdown closing issues
+    await expect(async () => {
+      // Check if option is visible - if not, dropdown may have closed unexpectedly
+      if (await superSyncOption.isVisible()) {
+        await superSyncOption.click({ timeout: 2000 });
+      }
+
+      // Wait for dropdown panel to close
+      await dropdownPanel.waitFor({ state: 'detached', timeout: 3000 });
+    }).toPass({
+      timeout: 15000,
+      intervals: [500, 1000, 1500, 2000],
+    });
 
     // Fill Access Token first (it's outside the collapsible)
     await this.accessTokenInput.waitFor({ state: 'visible' });
@@ -327,8 +341,15 @@ export class SuperSyncPage extends BasePage {
       // Check if fresh client confirmation dialog appeared
       if (await this.freshClientDialog.isVisible()) {
         console.log('[SuperSyncPage] Fresh client dialog detected, confirming...');
-        await this.freshClientConfirmBtn.click();
-        await this.page.waitForTimeout(500);
+        try {
+          await this.freshClientConfirmBtn.click({ timeout: 2000 });
+          await this.page.waitForTimeout(500);
+        } catch (e) {
+          // Dialog may have auto-closed or been detached - that's OK
+          console.log(
+            '[SuperSyncPage] Fresh client dialog closed before click completed',
+          );
+        }
         stableCount = 0;
         continue;
       }
@@ -490,10 +511,16 @@ export class SuperSyncPage extends BasePage {
     );
 
     await newPasswordInput.fill(newPassword);
+    await newPasswordInput.blur(); // Trigger ngModel update
     await confirmPasswordInput.fill(newPassword);
+    await confirmPasswordInput.blur(); // Trigger ngModel update
 
-    // Click the confirm button
+    // Wait for Angular to process form validation
+    await this.page.waitForTimeout(200);
+
+    // Click the confirm button - wait for it to be enabled first
     const confirmBtn = changePasswordDialog.locator('button[color="warn"]');
+    await expect(confirmBtn).toBeEnabled({ timeout: 5000 });
     await confirmBtn.click();
 
     // Wait for the dialog to close (password change complete)

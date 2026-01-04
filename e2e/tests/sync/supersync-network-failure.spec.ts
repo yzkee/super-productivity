@@ -1,11 +1,10 @@
-import { test as base, expect } from '@playwright/test';
+import { test, expect } from '../../fixtures/supersync.fixture';
 import {
   createTestUser,
   getSuperSyncConfig,
   createSimulatedClient,
   closeClient,
   waitForTask,
-  isServerHealthy,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 
@@ -26,25 +25,7 @@ import {
  * Run with: npm run e2e:playwright:file e2e/tests/sync/supersync-network-failure.spec.ts
  */
 
-const generateTestRunId = (workerIndex: number): string => {
-  return `${Date.now()}-${workerIndex}`;
-};
-
-base.describe('@supersync Network Failure Recovery', () => {
-  let serverHealthy: boolean | null = null;
-
-  base.beforeEach(async ({}, testInfo) => {
-    if (serverHealthy === null) {
-      serverHealthy = await isServerHealthy();
-      if (!serverHealthy) {
-        console.warn(
-          'SuperSync server not healthy at http://localhost:1901 - skipping tests',
-        );
-      }
-    }
-    testInfo.skip(!serverHealthy, 'SuperSync server not running');
-  });
-
+test.describe('@supersync Network Failure Recovery', () => {
   /**
    * Test: Upload failure and retry
    *
@@ -54,74 +35,74 @@ base.describe('@supersync Network Failure Recovery', () => {
    * 3. Second sync attempt succeeds
    * 4. Client B receives the tasks
    */
-  base(
-    'recovers from upload failure and retries successfully',
-    async ({ browser, baseURL }, testInfo) => {
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
-      let failNextUpload = true;
+  test('recovers from upload failure and retries successfully', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
+    let failNextUpload = true;
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // Set up Client A
-        clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      // Set up Client A
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        // Create tasks
-        const taskName = `Task-${testRunId}-upload-test`;
-        await clientA.workView.addTask(taskName);
+      // Create tasks
+      const taskName = `Task-${testRunId}-upload-test`;
+      await clientA.workView.addTask(taskName);
 
-        // Set up route interception to fail first upload
-        await clientA.page.route('**/api/sync/ops/**', async (route) => {
-          if (failNextUpload && route.request().method() === 'POST') {
-            failNextUpload = false;
-            console.log('[Test] Simulating upload failure');
-            await route.abort('failed');
-          } else {
-            await route.continue();
-          }
-        });
-
-        // First sync attempt - should fail
-        try {
-          await clientA.sync.triggerSync();
-          // Wait a bit for the failure to be processed
-          await clientA.page.waitForTimeout(2000);
-        } catch {
-          // Expected to fail
-          console.log('[Test] First sync failed as expected');
+      // Set up route interception to fail first upload
+      await clientA.page.route('**/api/sync/ops/**', async (route) => {
+        if (failNextUpload && route.request().method() === 'POST') {
+          failNextUpload = false;
+          console.log('[Test] Simulating upload failure');
+          await route.abort('failed');
+        } else {
+          await route.continue();
         }
+      });
 
-        // Remove the failing route
-        await clientA.page.unroute('**/api/sync/ops/**');
-
-        // Second sync attempt - should succeed
-        await clientA.sync.syncAndWait();
-
-        // Verify task still exists on Client A
-        await waitForTask(clientA.page, taskName);
-
-        // Set up Client B
-        clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
-
-        // Client B syncs
-        await clientB.sync.syncAndWait();
-
-        // Verify Client B received the task
-        await waitForTask(clientB.page, taskName);
-
-        const taskLocatorB = clientB.page.locator(`task:has-text("${taskName}")`);
-        await expect(taskLocatorB).toBeVisible();
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
+      // First sync attempt - should fail
+      try {
+        await clientA.sync.triggerSync();
+        // Wait a bit for the failure to be processed
+        await clientA.page.waitForTimeout(2000);
+      } catch {
+        // Expected to fail
+        console.log('[Test] First sync failed as expected');
       }
-    },
-  );
+
+      // Remove the failing route
+      await clientA.page.unroute('**/api/sync/ops/**');
+
+      // Second sync attempt - should succeed
+      await clientA.sync.syncAndWait();
+
+      // Verify task still exists on Client A
+      await waitForTask(clientA.page, taskName);
+
+      // Set up Client B
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
+
+      // Client B syncs
+      await clientB.sync.syncAndWait();
+
+      // Verify Client B received the task
+      await waitForTask(clientB.page, taskName);
+
+      const taskLocatorB = clientB.page.locator(`task:has-text("${taskName}")`);
+      await expect(taskLocatorB).toBeVisible();
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 
   /**
    * Test: Download failure and retry
@@ -131,8 +112,7 @@ base.describe('@supersync Network Failure Recovery', () => {
    * 2. Client B's first download fails
    * 3. Client B retries and succeeds
    */
-  base('recovers from download failure', async ({ browser, baseURL }, testInfo) => {
-    const testRunId = generateTestRunId(testInfo.workerIndex);
+  test('recovers from download failure', async ({ browser, baseURL, testRunId }) => {
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
     let failNextDownload = true;
@@ -207,79 +187,79 @@ base.describe('@supersync Network Failure Recovery', () => {
    * 2. First sync returns 500 error
    * 3. Second sync succeeds
    */
-  base(
-    'handles server error (500) and retries',
-    async ({ browser, baseURL }, testInfo) => {
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('handles server error (500) and retries', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      // Use object to ensure mutable reference is captured correctly
-      const state = { returnServerError: true };
+    // Use object to ensure mutable reference is captured correctly
+    const state = { returnServerError: true };
 
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
+
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
+
+      const taskName = `Task-${testRunId}-server-error`;
+      await clientA.workView.addTask(taskName);
+      // Wait for task to be fully created in store
+      await waitForTask(clientA.page, taskName);
+
+      // Intercept and return 500 error on first request
+      await clientA.page.route('**/api/sync/ops/**', async (route) => {
+        if (state.returnServerError && route.request().method() === 'POST') {
+          state.returnServerError = false;
+          console.log('[Test] Simulating 500 server error');
+          await route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({ error: 'Internal Server Error' }),
+          });
+        } else {
+          await route.continue();
+        }
+      });
+
+      // First sync - server error
       try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
-
-        clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
-
-        const taskName = `Task-${testRunId}-server-error`;
-        await clientA.workView.addTask(taskName);
-        // Wait for task to be fully created in store
-        await waitForTask(clientA.page, taskName);
-
-        // Intercept and return 500 error on first request
-        await clientA.page.route('**/api/sync/ops/**', async (route) => {
-          if (state.returnServerError && route.request().method() === 'POST') {
-            state.returnServerError = false;
-            console.log('[Test] Simulating 500 server error');
-            await route.fulfill({
-              status: 500,
-              contentType: 'application/json',
-              body: JSON.stringify({ error: 'Internal Server Error' }),
-            });
-          } else {
-            await route.continue();
-          }
-        });
-
-        // First sync - server error
-        try {
-          await clientA.sync.triggerSync();
-          // Wait for the error to be processed
-          await clientA.page.waitForTimeout(3000);
-        } catch {
-          console.log('[Test] First sync got server error as expected');
-        }
-
-        // Remove interception before retry
-        await clientA.page.unroute('**/api/sync/ops/**');
-        // Give time for route to be fully removed
-        await clientA.page.waitForTimeout(500);
-
-        // Retry - should succeed now
-        await clientA.sync.syncAndWait();
-        console.log('[Test] Retry sync succeeded');
-
-        // Verify with Client B
-        clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
-        await clientB.sync.syncAndWait();
-
-        await waitForTask(clientB.page, taskName);
-        const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
-        await expect(taskLocator).toBeVisible();
-      } finally {
-        // Ensure routes are cleaned up
-        if (clientA) {
-          await clientA.page.unroute('**/api/sync/ops/**').catch(() => {});
-        }
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
+        await clientA.sync.triggerSync();
+        // Wait for the error to be processed
+        await clientA.page.waitForTimeout(3000);
+      } catch {
+        console.log('[Test] First sync got server error as expected');
       }
-    },
-  );
+
+      // Remove interception before retry
+      await clientA.page.unroute('**/api/sync/ops/**');
+      // Give time for route to be fully removed
+      await clientA.page.waitForTimeout(500);
+
+      // Retry - should succeed now
+      await clientA.sync.syncAndWait();
+      console.log('[Test] Retry sync succeeded');
+
+      // Verify with Client B
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
+      await clientB.sync.syncAndWait();
+
+      await waitForTask(clientB.page, taskName);
+      const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
+      await expect(taskLocator).toBeVisible();
+    } finally {
+      // Ensure routes are cleaned up
+      if (clientA) {
+        await clientA.page.unroute('**/api/sync/ops/**').catch(() => {});
+      }
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 
   /**
    * Test: Multiple tasks sync correctly after network recovery
@@ -289,90 +269,90 @@ base.describe('@supersync Network Failure Recovery', () => {
    * 2. Network recovers
    * 3. All tasks sync to Client B
    */
-  base(
-    'syncs all pending operations after network recovery',
-    async ({ browser, baseURL }, testInfo) => {
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('syncs all pending operations after network recovery', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      // Use object to ensure mutable reference is captured correctly
-      const state = { blockAllSyncRequests: true };
+    // Use object to ensure mutable reference is captured correctly
+    const state = { blockAllSyncRequests: true };
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        // Block all sync requests
-        await clientA.page.route('**/api/sync/**', async (route) => {
-          if (state.blockAllSyncRequests) {
-            console.log('[Test] Blocking sync request');
-            await route.abort('failed');
-          } else {
-            await route.continue();
-          }
-        });
-
-        // Create multiple tasks while "offline"
-        const taskNames = [
-          `Task-${testRunId}-offline-1`,
-          `Task-${testRunId}-offline-2`,
-          `Task-${testRunId}-offline-3`,
-        ];
-
-        for (const taskName of taskNames) {
-          await clientA.workView.addTask(taskName);
-          // Ensure task is created before adding next one
-          await waitForTask(clientA.page, taskName);
+      // Block all sync requests
+      await clientA.page.route('**/api/sync/**', async (route) => {
+        if (state.blockAllSyncRequests) {
+          console.log('[Test] Blocking sync request');
+          await route.abort('failed');
+        } else {
+          await route.continue();
         }
+      });
 
-        // Try to sync (will fail due to route blocking)
-        try {
-          await clientA.sync.triggerSync();
-          await clientA.page.waitForTimeout(2000);
-        } catch {
-          console.log('[Test] Sync blocked as expected');
-        }
+      // Create multiple tasks while "offline"
+      const taskNames = [
+        `Task-${testRunId}-offline-1`,
+        `Task-${testRunId}-offline-2`,
+        `Task-${testRunId}-offline-3`,
+      ];
 
-        // "Restore network" - unblock requests and remove route
-        state.blockAllSyncRequests = false;
-        await clientA.page.unroute('**/api/sync/**');
-        // Give time for route to be fully removed
-        await clientA.page.waitForTimeout(500);
-
-        // Sync should now succeed with all pending operations
-        await clientA.sync.syncAndWait();
-        console.log('[Test] Sync after network recovery succeeded');
-
-        // Verify all tasks on Client A
-        for (const taskName of taskNames) {
-          await waitForTask(clientA.page, taskName);
-        }
-
-        // Verify on Client B
-        clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
-        await clientB.sync.syncAndWait();
-
-        // All tasks should be present on Client B
-        for (const taskName of taskNames) {
-          await waitForTask(clientB.page, taskName);
-          const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
-          await expect(taskLocator).toBeVisible();
-        }
-      } finally {
-        // Ensure routes are cleaned up
-        if (clientA) {
-          await clientA.page.unroute('**/api/sync/**').catch(() => {});
-        }
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
+      for (const taskName of taskNames) {
+        await clientA.workView.addTask(taskName);
+        // Ensure task is created before adding next one
+        await waitForTask(clientA.page, taskName);
       }
-    },
-  );
+
+      // Try to sync (will fail due to route blocking)
+      try {
+        await clientA.sync.triggerSync();
+        await clientA.page.waitForTimeout(2000);
+      } catch {
+        console.log('[Test] Sync blocked as expected');
+      }
+
+      // "Restore network" - unblock requests and remove route
+      state.blockAllSyncRequests = false;
+      await clientA.page.unroute('**/api/sync/**');
+      // Give time for route to be fully removed
+      await clientA.page.waitForTimeout(500);
+
+      // Sync should now succeed with all pending operations
+      await clientA.sync.syncAndWait();
+      console.log('[Test] Sync after network recovery succeeded');
+
+      // Verify all tasks on Client A
+      for (const taskName of taskNames) {
+        await waitForTask(clientA.page, taskName);
+      }
+
+      // Verify on Client B
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
+      await clientB.sync.syncAndWait();
+
+      // All tasks should be present on Client B
+      for (const taskName of taskNames) {
+        await waitForTask(clientB.page, taskName);
+        const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
+        await expect(taskLocator).toBeVisible();
+      }
+    } finally {
+      // Ensure routes are cleaned up
+      if (clientA) {
+        await clientA.page.unroute('**/api/sync/**').catch(() => {});
+      }
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 
   /**
    * Test: Partial batch upload failure followed by successful retry
@@ -386,119 +366,119 @@ base.describe('@supersync Network Failure Recovery', () => {
    * This verifies that the operation log correctly tracks which ops
    * have been synced vs pending, and retry doesn't create duplicates.
    */
-  base(
-    'partial batch upload failure followed by retry uploads all without duplicates',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(180000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('partial batch upload failure followed by retry uploads all without duplicates', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    test.setTimeout(180000);
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      // Track how many POST requests we've seen
-      const state = {
-        requestCount: 0,
-        failAfter: 2, // Fail after 2 successful requests
-      };
+    // Track how many POST requests we've seen
+    const state = {
+      requestCount: 0,
+      failAfter: 2, // Fail after 2 successful requests
+    };
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        // Create 10 tasks rapidly
-        const taskCount = 10;
-        const taskNames: string[] = [];
-        for (let i = 0; i < taskCount; i++) {
-          const taskName = `Task-${testRunId}-batch-${i.toString().padStart(2, '0')}`;
-          taskNames.push(taskName);
-          await clientA.workView.addTask(taskName);
-          await waitForTask(clientA.page, taskName);
-        }
-        console.log(`[PartialBatch] Created ${taskCount} tasks on Client A`);
+      // Create 10 tasks rapidly
+      const taskCount = 10;
+      const taskNames: string[] = [];
+      for (let i = 0; i < taskCount; i++) {
+        const taskName = `Task-${testRunId}-batch-${i.toString().padStart(2, '0')}`;
+        taskNames.push(taskName);
+        await clientA.workView.addTask(taskName);
+        await waitForTask(clientA.page, taskName);
+      }
+      console.log(`[PartialBatch] Created ${taskCount} tasks on Client A`);
 
-        // Verify all tasks exist locally
-        for (const taskName of taskNames) {
-          const taskLocator = clientA.page.locator(`task:has-text("${taskName}")`);
-          await expect(taskLocator).toBeVisible();
-        }
+      // Verify all tasks exist locally
+      for (const taskName of taskNames) {
+        const taskLocator = clientA.page.locator(`task:has-text("${taskName}")`);
+        await expect(taskLocator).toBeVisible();
+      }
 
-        // Set up route interception to fail after first few requests
-        await clientA.page.route('**/api/sync/ops/**', async (route) => {
-          if (route.request().method() === 'POST') {
-            state.requestCount++;
-            if (state.requestCount > state.failAfter) {
-              console.log(
-                `[PartialBatch] Failing request #${state.requestCount} (after ${state.failAfter} successes)`,
-              );
-              await route.abort('failed');
-            } else {
-              console.log(`[PartialBatch] Allowing request #${state.requestCount}`);
-              await route.continue();
-            }
+      // Set up route interception to fail after first few requests
+      await clientA.page.route('**/api/sync/ops/**', async (route) => {
+        if (route.request().method() === 'POST') {
+          state.requestCount++;
+          if (state.requestCount > state.failAfter) {
+            console.log(
+              `[PartialBatch] Failing request #${state.requestCount} (after ${state.failAfter} successes)`,
+            );
+            await route.abort('failed');
           } else {
+            console.log(`[PartialBatch] Allowing request #${state.requestCount}`);
             await route.continue();
           }
-        });
-
-        // First sync attempt - will partially succeed then fail
-        console.log('[PartialBatch] Starting first sync (will partially fail)');
-        try {
-          await clientA.sync.triggerSync();
-          await clientA.page.waitForTimeout(3000);
-        } catch {
-          console.log('[PartialBatch] First sync failed as expected');
+        } else {
+          await route.continue();
         }
+      });
 
-        // Remove the failing route and reset counter
-        await clientA.page.unroute('**/api/sync/ops/**');
-        await clientA.page.waitForTimeout(500);
-        console.log('[PartialBatch] Route interception removed');
-
-        // Retry sync - should succeed and upload remaining ops
-        console.log('[PartialBatch] Retrying sync');
-        await clientA.sync.syncAndWait();
-        console.log('[PartialBatch] Retry sync completed');
-
-        // Verify all tasks still exist on Client A (no data loss)
-        for (const taskName of taskNames) {
-          await waitForTask(clientA.page, taskName);
-        }
-        console.log('[PartialBatch] All tasks still present on Client A');
-
-        // Set up Client B
-        clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
-        await clientB.sync.syncAndWait();
-
-        // Verify ALL tasks present on Client B (no missing, no duplicates)
-        for (const taskName of taskNames) {
-          await waitForTask(clientB.page, taskName);
-          const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
-          await expect(taskLocator).toBeVisible();
-        }
-
-        // Verify exact count (no duplicates)
-        const countB = await clientB.page
-          .locator(`task:has-text("${testRunId}-batch")`)
-          .count();
-        expect(countB).toBe(taskCount);
-        console.log(
-          `[PartialBatch] ✓ Client B has exactly ${taskCount} tasks (no duplicates)`,
-        );
-
-        console.log('[PartialBatch] ✓ Partial batch failure + retry test PASSED!');
-      } finally {
-        // Ensure routes are cleaned up
-        if (clientA) {
-          await clientA.page.unroute('**/api/sync/ops/**').catch(() => {});
-        }
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
+      // First sync attempt - will partially succeed then fail
+      console.log('[PartialBatch] Starting first sync (will partially fail)');
+      try {
+        await clientA.sync.triggerSync();
+        await clientA.page.waitForTimeout(3000);
+      } catch {
+        console.log('[PartialBatch] First sync failed as expected');
       }
-    },
-  );
+
+      // Remove the failing route and reset counter
+      await clientA.page.unroute('**/api/sync/ops/**');
+      await clientA.page.waitForTimeout(500);
+      console.log('[PartialBatch] Route interception removed');
+
+      // Retry sync - should succeed and upload remaining ops
+      console.log('[PartialBatch] Retrying sync');
+      await clientA.sync.syncAndWait();
+      console.log('[PartialBatch] Retry sync completed');
+
+      // Verify all tasks still exist on Client A (no data loss)
+      for (const taskName of taskNames) {
+        await waitForTask(clientA.page, taskName);
+      }
+      console.log('[PartialBatch] All tasks still present on Client A');
+
+      // Set up Client B
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
+      await clientB.sync.syncAndWait();
+
+      // Verify ALL tasks present on Client B (no missing, no duplicates)
+      for (const taskName of taskNames) {
+        await waitForTask(clientB.page, taskName);
+        const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
+        await expect(taskLocator).toBeVisible();
+      }
+
+      // Verify exact count (no duplicates)
+      const countB = await clientB.page
+        .locator(`task:has-text("${testRunId}-batch")`)
+        .count();
+      expect(countB).toBe(taskCount);
+      console.log(
+        `[PartialBatch] ✓ Client B has exactly ${taskCount} tasks (no duplicates)`,
+      );
+
+      console.log('[PartialBatch] ✓ Partial batch failure + retry test PASSED!');
+    } finally {
+      // Ensure routes are cleaned up
+      if (clientA) {
+        await clientA.page.unroute('**/api/sync/ops/**').catch(() => {});
+      }
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 
   /**
    * Test: Rate limit exceeded (429) response handling
@@ -512,84 +492,84 @@ base.describe('@supersync Network Failure Recovery', () => {
    *
    * This tests that the client properly handles rate limiting and retries.
    */
-  base(
-    'handles rate limit exceeded (429) and retries after delay',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(120000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('handles rate limit exceeded (429) and retries after delay', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    test.setTimeout(120000);
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      const state = { returnRateLimitError: true };
+    const state = { returnRateLimitError: true };
 
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
+
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
+
+      const taskName = `Task-${testRunId}-rate-limit`;
+      await clientA.workView.addTask(taskName);
+      await waitForTask(clientA.page, taskName);
+
+      // Intercept and return 429 rate limit error on first request
+      await clientA.page.route('**/api/sync/ops/**', async (route) => {
+        if (state.returnRateLimitError && route.request().method() === 'POST') {
+          state.returnRateLimitError = false;
+          console.log('[Test] Simulating 429 rate limit exceeded');
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          const headers = { 'Retry-After': '1' }; // Suggest retry after 1 second
+          await route.fulfill({
+            status: 429,
+            contentType: 'application/json',
+            headers,
+            body: JSON.stringify({
+              error: 'Too Many Requests',
+              code: 'RATE_LIMIT_EXCEEDED',
+              retryAfter: 1,
+            }),
+          });
+        } else {
+          await route.continue();
+        }
+      });
+
+      // First sync - rate limited
       try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
-
-        clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
-
-        const taskName = `Task-${testRunId}-rate-limit`;
-        await clientA.workView.addTask(taskName);
-        await waitForTask(clientA.page, taskName);
-
-        // Intercept and return 429 rate limit error on first request
-        await clientA.page.route('**/api/sync/ops/**', async (route) => {
-          if (state.returnRateLimitError && route.request().method() === 'POST') {
-            state.returnRateLimitError = false;
-            console.log('[Test] Simulating 429 rate limit exceeded');
-            // eslint-disable-next-line @typescript-eslint/naming-convention
-            const headers = { 'Retry-After': '1' }; // Suggest retry after 1 second
-            await route.fulfill({
-              status: 429,
-              contentType: 'application/json',
-              headers,
-              body: JSON.stringify({
-                error: 'Too Many Requests',
-                code: 'RATE_LIMIT_EXCEEDED',
-                retryAfter: 1,
-              }),
-            });
-          } else {
-            await route.continue();
-          }
-        });
-
-        // First sync - rate limited
-        try {
-          await clientA.sync.triggerSync();
-          await clientA.page.waitForTimeout(3000);
-        } catch {
-          console.log('[Test] First sync got rate limit error as expected');
-        }
-
-        // Remove interception before retry
-        await clientA.page.unroute('**/api/sync/ops/**');
-        await clientA.page.waitForTimeout(1500); // Wait longer than Retry-After
-
-        // Retry - should succeed now
-        await clientA.sync.syncAndWait();
-        console.log('[Test] Retry sync succeeded after rate limit');
-
-        // Verify with Client B
-        clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
-        await clientB.sync.syncAndWait();
-
-        await waitForTask(clientB.page, taskName);
-        const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
-        await expect(taskLocator).toBeVisible();
-
-        console.log('[RateLimit] ✓ Rate limit handling test PASSED');
-      } finally {
-        if (clientA) {
-          await clientA.page.unroute('**/api/sync/ops/**').catch(() => {});
-        }
-        if (clientA) await closeClient(clientA);
-        if (clientB) await closeClient(clientB);
+        await clientA.sync.triggerSync();
+        await clientA.page.waitForTimeout(3000);
+      } catch {
+        console.log('[Test] First sync got rate limit error as expected');
       }
-    },
-  );
+
+      // Remove interception before retry
+      await clientA.page.unroute('**/api/sync/ops/**');
+      await clientA.page.waitForTimeout(1500); // Wait longer than Retry-After
+
+      // Retry - should succeed now
+      await clientA.sync.syncAndWait();
+      console.log('[Test] Retry sync succeeded after rate limit');
+
+      // Verify with Client B
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
+      await clientB.sync.syncAndWait();
+
+      await waitForTask(clientB.page, taskName);
+      const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
+      await expect(taskLocator).toBeVisible();
+
+      console.log('[RateLimit] ✓ Rate limit handling test PASSED');
+    } finally {
+      if (clientA) {
+        await clientA.page.unroute('**/api/sync/ops/**').catch(() => {});
+      }
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 
   /**
    * Test: Server quota exceeded response handling
@@ -603,86 +583,86 @@ base.describe('@supersync Network Failure Recovery', () => {
    * This tests that quota exceeded is treated as a transient error
    * that requires user action, not a permanent rejection.
    */
-  base(
-    'handles server storage quota exceeded gracefully',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(60000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      let clientA: SimulatedE2EClient | null = null;
+  test('handles server storage quota exceeded gracefully', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    test.setTimeout(60000);
+    let clientA: SimulatedE2EClient | null = null;
 
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
+
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
+
+      // Set up dialog handler to dismiss any alerts BEFORE setting up route
+      let alertShown = false;
+      clientA.page.on('dialog', async (dialog) => {
+        console.log(`[Test] Alert shown: ${dialog.message()}`);
+        alertShown = true;
+        await dialog.accept();
+      });
+
+      // Wait for initial sync to complete so we have a baseline
+      await clientA.sync.syncAndWait();
+
+      // Intercept and return storage quota exceeded BEFORE creating task
+      // so the immediate upload service gets the error
+      await clientA.page.route('**/api/sync/ops', async (route) => {
+        if (route.request().method() === 'POST') {
+          console.log('[Test] Simulating storage quota exceeded');
+          await route.fulfill({
+            status: 413, // Payload too large is typical for quota
+            contentType: 'application/json',
+            body: JSON.stringify({
+              error: 'Storage quota exceeded',
+              code: 'STORAGE_QUOTA_EXCEEDED',
+              rejectedOps: [
+                {
+                  opId: 'mock-op-id',
+                  error: 'Storage quota exceeded',
+                  errorCode: 'STORAGE_QUOTA_EXCEEDED',
+                },
+              ],
+            }),
+          });
+        } else {
+          await route.continue();
+        }
+      });
+
+      // Now create a task - the immediate upload will get 413
+      const taskName = `Task-${testRunId}-quota`;
+      await clientA.workView.addTask(taskName);
+      await waitForTask(clientA.page, taskName);
+
+      // Wait for immediate upload to trigger and hit the 413
       try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
-
-        clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
-
-        // Set up dialog handler to dismiss any alerts BEFORE setting up route
-        let alertShown = false;
-        clientA.page.on('dialog', async (dialog) => {
-          console.log(`[Test] Alert shown: ${dialog.message()}`);
-          alertShown = true;
-          await dialog.accept();
-        });
-
-        // Wait for initial sync to complete so we have a baseline
-        await clientA.sync.syncAndWait();
-
-        // Intercept and return storage quota exceeded BEFORE creating task
-        // so the immediate upload service gets the error
-        await clientA.page.route('**/api/sync/ops', async (route) => {
-          if (route.request().method() === 'POST') {
-            console.log('[Test] Simulating storage quota exceeded');
-            await route.fulfill({
-              status: 413, // Payload too large is typical for quota
-              contentType: 'application/json',
-              body: JSON.stringify({
-                error: 'Storage quota exceeded',
-                code: 'STORAGE_QUOTA_EXCEEDED',
-                rejectedOps: [
-                  {
-                    opId: 'mock-op-id',
-                    error: 'Storage quota exceeded',
-                    errorCode: 'STORAGE_QUOTA_EXCEEDED',
-                  },
-                ],
-              }),
-            });
-          } else {
-            await route.continue();
-          }
-        });
-
-        // Now create a task - the immediate upload will get 413
-        const taskName = `Task-${testRunId}-quota`;
-        await clientA.workView.addTask(taskName);
-        await waitForTask(clientA.page, taskName);
-
-        // Wait for immediate upload to trigger and hit the 413
-        try {
-          await clientA.sync.triggerSync();
-          await clientA.page.waitForTimeout(3000);
-        } catch {
-          console.log('[Test] Sync failed with quota exceeded as expected');
-        }
-
-        // Task should still exist locally (not lost)
-        await waitForTask(clientA.page, taskName);
-        const taskLocator = clientA.page.locator(`task:has-text("${taskName}")`);
-        await expect(taskLocator).toBeVisible();
-
-        // Verify an alert was shown (quota exceeded shows window.alert)
-        expect(alertShown).toBe(true);
-
-        console.log('[StorageQuota] ✓ Server quota exceeded handling test PASSED');
-      } finally {
-        if (clientA) {
-          await clientA.page.unroute('**/api/sync/ops').catch(() => {});
-        }
-        if (clientA) await closeClient(clientA);
+        await clientA.sync.triggerSync();
+        await clientA.page.waitForTimeout(3000);
+      } catch {
+        console.log('[Test] Sync failed with quota exceeded as expected');
       }
-    },
-  );
+
+      // Task should still exist locally (not lost)
+      await waitForTask(clientA.page, taskName);
+      const taskLocator = clientA.page.locator(`task:has-text("${taskName}")`);
+      await expect(taskLocator).toBeVisible();
+
+      // Verify an alert was shown (quota exceeded shows window.alert)
+      expect(alertShown).toBe(true);
+
+      console.log('[StorageQuota] ✓ Server quota exceeded handling test PASSED');
+    } finally {
+      if (clientA) {
+        await clientA.page.unroute('**/api/sync/ops').catch(() => {});
+      }
+      if (clientA) await closeClient(clientA);
+    }
+  });
 
   /**
    * Test: Long offline period simulation
@@ -698,97 +678,97 @@ base.describe('@supersync Network Failure Recovery', () => {
    * This tests that clients can sync after extended offline periods
    * and receive all accumulated operations without issues.
    */
-  base(
-    'syncs correctly after simulated long offline period',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(180000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('syncs correctly after simulated long offline period', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    test.setTimeout(180000);
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // Set up both clients
-        clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      // Set up both clients
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
 
-        // Initial sync for both
-        await clientA.sync.syncAndWait();
-        await clientB.sync.syncAndWait();
+      // Initial sync for both
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
 
-        // Simulate Client B going offline
-        console.log('[LongOffline] Client B goes offline...');
-        await clientB.page.route('**/api/sync/**', async (route) => {
-          await route.abort('failed');
-        });
+      // Simulate Client B going offline
+      console.log('[LongOffline] Client B goes offline...');
+      await clientB.page.route('**/api/sync/**', async (route) => {
+        await route.abort('failed');
+      });
 
-        // Client A creates many tasks while B is offline
-        const taskCount = 15;
-        const taskNames: string[] = [];
-        for (let i = 0; i < taskCount; i++) {
-          const taskName = `Offline-Task-${testRunId}-${i.toString().padStart(2, '0')}`;
-          taskNames.push(taskName);
-          await clientA.workView.addTask(taskName);
-          await waitForTask(clientA.page, taskName);
+      // Client A creates many tasks while B is offline
+      const taskCount = 15;
+      const taskNames: string[] = [];
+      for (let i = 0; i < taskCount; i++) {
+        const taskName = `Offline-Task-${testRunId}-${i.toString().padStart(2, '0')}`;
+        taskNames.push(taskName);
+        await clientA.workView.addTask(taskName);
+        await waitForTask(clientA.page, taskName);
 
-          // Sync after each few tasks to simulate real usage over time
-          if ((i + 1) % 3 === 0) {
-            await clientA.sync.syncAndWait();
-            console.log(`[LongOffline] Client A synced ${i + 1} tasks`);
-          }
-        }
-
-        // Final sync for Client A
-        await clientA.sync.syncAndWait();
-        console.log(`[LongOffline] Client A finished syncing all ${taskCount} tasks`);
-
-        // Verify all tasks on Client A
-        for (const taskName of taskNames) {
-          await waitForTask(clientA.page, taskName);
-        }
-
-        // Client B comes back online after "long" period
-        console.log('[LongOffline] Client B comes back online...');
-        await clientB.page.unroute('**/api/sync/**');
-        await clientB.page.waitForTimeout(500);
-
-        // Client B syncs - should receive all accumulated operations
-        await clientB.sync.syncAndWait();
-
-        // May need multiple syncs if there are many operations (pagination)
-        await clientB.sync.syncAndWait();
-        await clientB.sync.syncAndWait();
-
-        // Verify ALL tasks are now on Client B
-        for (const taskName of taskNames) {
-          await waitForTask(clientB.page, taskName);
-          const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
-          await expect(taskLocator).toBeVisible();
-        }
-
-        // Verify exact count
-        const countB = await clientB.page
-          .locator(`task:has-text("Offline-Task-${testRunId}")`)
-          .count();
-        expect(countB).toBe(taskCount);
-
-        console.log(
-          `[LongOffline] ✓ Client B received all ${taskCount} tasks after coming back online`,
-        );
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) {
-          await clientB.page.unroute('**/api/sync/**').catch(() => {});
-          await closeClient(clientB);
+        // Sync after each few tasks to simulate real usage over time
+        if ((i + 1) % 3 === 0) {
+          await clientA.sync.syncAndWait();
+          console.log(`[LongOffline] Client A synced ${i + 1} tasks`);
         }
       }
-    },
-  );
+
+      // Final sync for Client A
+      await clientA.sync.syncAndWait();
+      console.log(`[LongOffline] Client A finished syncing all ${taskCount} tasks`);
+
+      // Verify all tasks on Client A
+      for (const taskName of taskNames) {
+        await waitForTask(clientA.page, taskName);
+      }
+
+      // Client B comes back online after "long" period
+      console.log('[LongOffline] Client B comes back online...');
+      await clientB.page.unroute('**/api/sync/**');
+      await clientB.page.waitForTimeout(500);
+
+      // Client B syncs - should receive all accumulated operations
+      await clientB.sync.syncAndWait();
+
+      // May need multiple syncs if there are many operations (pagination)
+      await clientB.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
+
+      // Verify ALL tasks are now on Client B
+      for (const taskName of taskNames) {
+        await waitForTask(clientB.page, taskName);
+        const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
+        await expect(taskLocator).toBeVisible();
+      }
+
+      // Verify exact count
+      const countB = await clientB.page
+        .locator(`task:has-text("Offline-Task-${testRunId}")`)
+        .count();
+      expect(countB).toBe(taskCount);
+
+      console.log(
+        `[LongOffline] ✓ Client B received all ${taskCount} tasks after coming back online`,
+      );
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) {
+        await clientB.page.unroute('**/api/sync/**').catch(() => {});
+        await closeClient(clientB);
+      }
+    }
+  });
 
   /**
    * Test: Malformed JSON response handling
@@ -801,78 +781,78 @@ base.describe('@supersync Network Failure Recovery', () => {
    *
    * This tests that the client handles JSON parsing failures gracefully.
    */
-  base(
-    'handles malformed JSON response gracefully',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(120000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('handles malformed JSON response gracefully', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    test.setTimeout(120000);
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      const state = { returnMalformedJson: true };
+    const state = { returnMalformedJson: true };
 
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
+
+      // Client A creates and syncs a task
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
+
+      const taskName = `Task-${testRunId}-malformed`;
+      await clientA.workView.addTask(taskName);
+      await clientA.sync.syncAndWait();
+      await waitForTask(clientA.page, taskName);
+
+      // Client B setup
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
+
+      // Intercept and return malformed JSON on first GET
+      await clientB.page.route('**/api/sync/ops/**', async (route) => {
+        if (state.returnMalformedJson && route.request().method() === 'GET') {
+          state.returnMalformedJson = false;
+          console.log('[Test] Simulating malformed JSON response');
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: '{ "ops": [ { "id": "op-1", "malformed', // Intentionally broken JSON
+          });
+        } else {
+          await route.continue();
+        }
+      });
+
+      // First sync - should fail due to JSON parse error
       try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
-
-        // Client A creates and syncs a task
-        clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
-
-        const taskName = `Task-${testRunId}-malformed`;
-        await clientA.workView.addTask(taskName);
-        await clientA.sync.syncAndWait();
-        await waitForTask(clientA.page, taskName);
-
-        // Client B setup
-        clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
-
-        // Intercept and return malformed JSON on first GET
-        await clientB.page.route('**/api/sync/ops/**', async (route) => {
-          if (state.returnMalformedJson && route.request().method() === 'GET') {
-            state.returnMalformedJson = false;
-            console.log('[Test] Simulating malformed JSON response');
-            await route.fulfill({
-              status: 200,
-              contentType: 'application/json',
-              body: '{ "ops": [ { "id": "op-1", "malformed', // Intentionally broken JSON
-            });
-          } else {
-            await route.continue();
-          }
-        });
-
-        // First sync - should fail due to JSON parse error
-        try {
-          await clientB.sync.triggerSync();
-          await clientB.page.waitForTimeout(2000);
-        } catch {
-          console.log('[Test] First sync failed due to malformed JSON as expected');
-        }
-
-        // Remove interception and retry
-        await clientB.page.unroute('**/api/sync/ops/**');
-        await clientB.page.waitForTimeout(500);
-
-        // Retry - should succeed
-        await clientB.sync.syncAndWait();
-
-        // Verify task was received
-        await waitForTask(clientB.page, taskName);
-        const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
-        await expect(taskLocator).toBeVisible();
-
-        console.log('[MalformedJSON] ✓ Malformed JSON handling test PASSED');
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) {
-          await clientB.page.unroute('**/api/sync/ops/**').catch(() => {});
-          await closeClient(clientB);
-        }
+        await clientB.sync.triggerSync();
+        await clientB.page.waitForTimeout(2000);
+      } catch {
+        console.log('[Test] First sync failed due to malformed JSON as expected');
       }
-    },
-  );
+
+      // Remove interception and retry
+      await clientB.page.unroute('**/api/sync/ops/**');
+      await clientB.page.waitForTimeout(500);
+
+      // Retry - should succeed
+      await clientB.sync.syncAndWait();
+
+      // Verify task was received
+      await waitForTask(clientB.page, taskName);
+      const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
+      await expect(taskLocator).toBeVisible();
+
+      console.log('[MalformedJSON] ✓ Malformed JSON handling test PASSED');
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) {
+        await clientB.page.unroute('**/api/sync/ops/**').catch(() => {});
+        await closeClient(clientB);
+      }
+    }
+  });
 
   /**
    * Test: Invalid operation structure from server
@@ -886,105 +866,105 @@ base.describe('@supersync Network Failure Recovery', () => {
    * This tests that invalid/corrupted operations from the server
    * are gracefully skipped without crashing the sync process.
    */
-  base(
-    'skips corrupted operations from server without crashing',
-    async ({ browser, baseURL }, testInfo) => {
-      testInfo.setTimeout(120000);
-      const testRunId = generateTestRunId(testInfo.workerIndex);
-      let clientA: SimulatedE2EClient | null = null;
-      let clientB: SimulatedE2EClient | null = null;
+  test('skips corrupted operations from server without crashing', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    test.setTimeout(120000);
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
 
-      const state = { injectCorruptedOps: true };
+    const state = { injectCorruptedOps: true };
 
-      try {
-        const user = await createTestUser(testRunId);
-        const syncConfig = getSuperSyncConfig(user);
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
 
-        // Client A creates and syncs a task
-        clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
-        await clientA.sync.setupSuperSync(syncConfig);
+      // Client A creates and syncs a task
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
 
-        const taskName = `Task-${testRunId}-corrupted-test`;
-        await clientA.workView.addTask(taskName);
-        await clientA.sync.syncAndWait();
+      const taskName = `Task-${testRunId}-corrupted-test`;
+      await clientA.workView.addTask(taskName);
+      await clientA.sync.syncAndWait();
 
-        // Setup Client B
-        clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-        await clientB.sync.setupSuperSync(syncConfig);
+      // Setup Client B
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
 
-        // Intercept and inject corrupted operations
-        await clientB.page.route('**/api/sync/ops/**', async (route) => {
-          if (route.request().method() === 'GET' && state.injectCorruptedOps) {
-            state.injectCorruptedOps = false;
-            console.log('[Test] Injecting corrupted operations into response');
+      // Intercept and inject corrupted operations
+      await clientB.page.route('**/api/sync/ops/**', async (route) => {
+        if (route.request().method() === 'GET' && state.injectCorruptedOps) {
+          state.injectCorruptedOps = false;
+          console.log('[Test] Injecting corrupted operations into response');
 
-            // Get real response then modify it
-            const response = await route.fetch();
-            const json = await response.json();
+          // Get real response then modify it
+          const response = await route.fetch();
+          const json = await response.json();
 
-            // Add corrupted operations to the response
-            if (json.ops) {
-              json.ops.push(
-                // Missing required fields
-                {
-                  id: 'corrupt-1',
-                  opType: 'UPD' /* missing entityType, payload, etc. */,
-                },
-                // Null payload
-                {
-                  id: 'corrupt-2',
-                  opType: 'UPD',
-                  entityType: 'TASK',
-                  entityId: 'bad-entity',
-                  payload: null,
-                  vectorClock: { bad: 1 },
-                  timestamp: Date.now(),
-                },
-                // Invalid opType
-                {
-                  id: 'corrupt-3',
-                  opType: 'INVALID_TYPE',
-                  entityType: 'TASK',
-                  entityId: 'bad-entity',
-                  payload: {},
-                  vectorClock: { bad: 1 },
-                  timestamp: Date.now(),
-                },
-              );
-            }
-
-            await route.fulfill({
-              status: 200,
-              contentType: 'application/json',
-              body: JSON.stringify(json),
-            });
-          } else {
-            await route.continue();
+          // Add corrupted operations to the response
+          if (json.ops) {
+            json.ops.push(
+              // Missing required fields
+              {
+                id: 'corrupt-1',
+                opType: 'UPD' /* missing entityType, payload, etc. */,
+              },
+              // Null payload
+              {
+                id: 'corrupt-2',
+                opType: 'UPD',
+                entityType: 'TASK',
+                entityId: 'bad-entity',
+                payload: null,
+                vectorClock: { bad: 1 },
+                timestamp: Date.now(),
+              },
+              // Invalid opType
+              {
+                id: 'corrupt-3',
+                opType: 'INVALID_TYPE',
+                entityType: 'TASK',
+                entityId: 'bad-entity',
+                payload: {},
+                vectorClock: { bad: 1 },
+                timestamp: Date.now(),
+              },
+            );
           }
-        });
 
-        // Sync - should handle corrupted ops gracefully
-        await clientB.sync.syncAndWait();
-
-        // Verify valid task was still received (corrupted ops didn't break sync)
-        await waitForTask(clientB.page, taskName);
-        const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
-        await expect(taskLocator).toBeVisible();
-
-        // Remove interception
-        await clientB.page.unroute('**/api/sync/ops/**');
-
-        // Final sync should work normally
-        await clientB.sync.syncAndWait();
-
-        console.log('[CorruptedOps] ✓ Corrupted operation handling test PASSED');
-      } finally {
-        if (clientA) await closeClient(clientA);
-        if (clientB) {
-          await clientB.page.unroute('**/api/sync/ops/**').catch(() => {});
-          await closeClient(clientB);
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify(json),
+          });
+        } else {
+          await route.continue();
         }
+      });
+
+      // Sync - should handle corrupted ops gracefully
+      await clientB.sync.syncAndWait();
+
+      // Verify valid task was still received (corrupted ops didn't break sync)
+      await waitForTask(clientB.page, taskName);
+      const taskLocator = clientB.page.locator(`task:has-text("${taskName}")`);
+      await expect(taskLocator).toBeVisible();
+
+      // Remove interception
+      await clientB.page.unroute('**/api/sync/ops/**');
+
+      // Final sync should work normally
+      await clientB.sync.syncAndWait();
+
+      console.log('[CorruptedOps] ✓ Corrupted operation handling test PASSED');
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) {
+        await clientB.page.unroute('**/api/sync/ops/**').catch(() => {});
+        await closeClient(clientB);
       }
-    },
-  );
+    }
+  });
 });
