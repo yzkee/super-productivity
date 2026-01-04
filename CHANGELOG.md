@@ -1,3 +1,17 @@
+## [16.8.3](https://github.com/johannesjo/super-productivity/compare/v16.8.2...v16.8.3) (2026-01-04)
+
+### Bug Fixes
+
+- **e2e:** use format-agnostic time change in task-detail tests ([098e19f](https://github.com/johannesjo/super-productivity/commit/098e19f9ca7d2ad218d311b9dddfe9709d775b99))
+- **e2e:** use pressSequentially for time input in task-detail tests ([333c3a1](https://github.com/johannesjo/super-productivity/commit/333c3a16bc442d71dfe7c6b6f6953123a6bba928))
+- **schedule:** start tracking selected task when pressing Y in schedule view ([acedc67](https://github.com/johannesjo/super-productivity/commit/acedc67f2af1d5a86df910a12bf5d3efaec7a1e6)), closes [#5884](https://github.com/johannesjo/super-productivity/issues/5884)
+- **sync:** resolve 25-second initial sync timeout race condition ([570a0b5](https://github.com/johannesjo/super-productivity/commit/570a0b590d94a1dab54991808a13e70d99db56d4)), closes [#5868](https://github.com/johannesjo/super-productivity/issues/5868) [#5877](https://github.com/johannesjo/super-productivity/issues/5877)
+- **tasks:** clear reminder when clicking "today" button on already-today tasks ([2af57d2](https://github.com/johannesjo/super-productivity/commit/2af57d2b4aba90ee0ccfc2780e4c3cce26c74b43)), closes [#5872](https://github.com/johannesjo/super-productivity/issues/5872)
+
+### Features
+
+- **e2e:** add Docker-based E2E test isolation ([40d7118](https://github.com/johannesjo/super-productivity/commit/40d7118e179ae46670d0180460a1255d4f63f903))
+
 ## [16.8.2](https://github.com/johannesjo/super-productivity/compare/v16.8.1...v16.8.2) (2026-01-04)
 
 ### Bug Fixes
