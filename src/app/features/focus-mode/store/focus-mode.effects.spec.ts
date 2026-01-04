@@ -381,16 +381,17 @@ describe('FocusModeEffects', () => {
       });
     });
 
-    it('should NOT dispatch startBreak for manual completions', (done) => {
+    it('should dispatch startBreak for manual completions (to allow early break start)', (done) => {
       actions$ = of(actions.completeFocusSession({ isManual: true }));
       store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 1);
       store.refreshState();
 
       effects.sessionComplete$.pipe(toArray()).subscribe((actionsArr) => {
         const startBreakAction = actionsArr.find(
           (a) => a.type === actions.startBreak.type,
         );
-        expect(startBreakAction).toBeUndefined();
+        expect(startBreakAction).toBeDefined();
         done();
       });
     });

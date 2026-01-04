@@ -282,13 +282,10 @@ export class FocusModeEffects {
           actionsToDispatch.push(unsetCurrentTask());
         }
 
-        // Check if we should start a break - only for automatic completions
-        // Manual completions should stay on SessionDone screen
-        // Also skip if manual break start is enabled (user must click "Start Break")
+        // Check if we should start a break after session completion
+        // Skip if manual break start is enabled (user must click "Start Break")
         const shouldAutoStartBreak =
-          !action.isManual &&
-          strategy.shouldStartBreakAfterSession &&
-          !focusModeConfig?.isManualBreakStart;
+          strategy.shouldStartBreakAfterSession && !focusModeConfig?.isManualBreakStart;
         if (shouldAutoStartBreak) {
           // Pause task tracking during break if enabled
           const shouldPauseTracking =
