@@ -11,9 +11,10 @@ import {
   inject,
   NgZone,
   OnDestroy,
+  signal,
   ViewChild,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ShortcutService } from './core-ui/shortcut/shortcut.service';
 import { GlobalConfigService } from './features/config/global-config.service';
 import { LayoutService } from './core-ui/layout/layout.service';
@@ -21,7 +22,7 @@ import { SnackService } from './core/snack/snack.service';
 import { IS_ELECTRON } from './app.constants';
 import { expandAnimation } from './ui/animations/expand.ani';
 import { warpRouteAnimation } from './ui/animations/warp-route';
-import { combineLatest, Observable, Subscription } from 'rxjs';
+import { combineLatest, Observable, Subscription, timer } from 'rxjs';
 import { fadeAnimation } from './ui/animations/fade.ani';
 import { BannerService } from './core/banner/banner.service';
 import { LS } from './core/persistence/storage-keys.const';
@@ -52,6 +53,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MarkdownPasteService } from './features/tasks/markdown-paste.service';
 import { TaskService } from './features/tasks/task.service';
+import { MatButton } from '@angular/material/button';
 import { MatMenuItem } from '@angular/material/menu';
 import { MatIcon } from '@angular/material/icon';
 import { DialogUnsplashPickerComponent } from './ui/dialog-unsplash-picker/dialog-unsplash-picker.component';
@@ -99,6 +101,7 @@ interface BeforeInstallPromptEvent extends Event {
     FocusModeOverlayComponent,
     ShepherdComponent,
     AsyncPipe,
+    MatButton,
     MatMenuItem,
     MatIcon,
     TranslatePipe,
@@ -136,6 +139,7 @@ export class AppComponent implements OnDestroy, AfterViewInit {
 
   productivityTipTitle: string = productivityTip?.[0] || '';
   productivityTipText: string = productivityTip?.[1] || '';
+  showSkipSyncButton = signal(false);
 
   @ViewChild('routeWrapper', { read: ElementRef }) routeWrapper?: ElementRef<HTMLElement>;
 
@@ -205,6 +209,17 @@ export class AppComponent implements OnDestroy, AfterViewInit {
       .subscribe(() => {
         void this._noteStartupBannerService.showLastNoteIfNeeded();
       });
+
+    // Show skip sync button after 3 seconds if still waiting for sync
+    timer(3000)
+      .pipe(takeUntilDestroyed())
+      .subscribe(() => {
+        this.showSkipSyncButton.set(true);
+      });
+  }
+
+  skipInitialSync(): void {
+    this.syncTriggerService.setInitialSyncDone(true);
   }
 
   @HostListener('document:paste', ['$event']) onPaste(ev: ClipboardEvent): void {
