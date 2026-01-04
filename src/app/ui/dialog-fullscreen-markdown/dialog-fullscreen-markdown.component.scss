@@ -66,7 +66,32 @@
   display: flex;
   flex-direction: column;
 
-  textarea,
+  .editor-section {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+
+    textarea {
+      flex-grow: 1;
+      padding: var(--s) var(--s2);
+      box-sizing: border-box;
+      overflow: auto;
+      background: inherit;
+      color: inherit;
+      border: none;
+      word-wrap: break-word;
+      display: block;
+      resize: none;
+      font-size: 14px;
+
+      @include scrollY;
+
+      &:focus {
+        outline: none;
+      }
+    }
+  }
+
   .markdown-preview {
     flex-grow: 1;
     padding: var(--s) var(--s2);
@@ -76,24 +101,10 @@
     @include scrollY;
   }
 
-  textarea {
-    background: inherit;
-    color: inherit;
-    border: none;
-    word-wrap: break-word;
-    display: block;
-    resize: none;
-    font-size: 14px;
-
-    &:focus {
-      outline: none;
-    }
-  }
-
   &.split-view {
     flex-direction: row;
 
-    textarea,
+    .editor-section,
     .markdown-preview {
       width: 50%;
     }
