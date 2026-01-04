@@ -91,6 +91,8 @@ END:VCALENDAR`;
     subscriptions.forEach((sub) => sub.unsubscribe());
     subscriptions = [];
     localStorage.clear();
+    // Reset selector overrides to prevent test pollution
+    store.resetSelectors();
   });
 
   it('should be created', () => {
