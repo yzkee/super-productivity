@@ -207,88 +207,69 @@ describe('FocusMode Bug #5875: Pomodoro timer sync issues', () => {
   describe('Bug 2: Manual End Session should stop time tracking', () => {
     it('should dispatch unsetCurrentTask when session is manually ended and sync is enabled', (done) => {
       // Setup: Session is running, sync is enabled, task is being tracked
-      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-      store.overrideSelector(selectors.selectCurrentCycle, 1);
       store.overrideSelector(selectFocusModeConfig, {
         isSyncSessionWithTracking: true,
         isSkipPreparation: false,
-        isPauseTrackingDuringBreak: false,
-        isManualBreakStart: true, // No auto-break, so we can isolate the tracking stop behavior
       });
       currentTaskId$.next('task-123'); // Task is being tracked
       store.refreshState();
 
       actions$ = of(actions.completeFocusSession({ isManual: true }));
 
-      effects.sessionComplete$.pipe(toArray()).subscribe((actionsArr) => {
-        const unsetAction = actionsArr.find((a) => a.type === unsetCurrentTask.type);
-        expect(unsetAction).toBeDefined();
+      effects.stopTrackingOnManualEnd$.pipe(take(1)).subscribe((action) => {
+        expect(action.type).toEqual(unsetCurrentTask.type);
         done();
       });
     });
 
     it('should NOT dispatch unsetCurrentTask when session ends automatically (timer completion)', (done) => {
-      // Setup: Session completes automatically (not manual), manual break start enabled
-      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-      store.overrideSelector(selectors.selectCurrentCycle, 1);
+      // Setup: Session completes automatically (not manual)
       store.overrideSelector(selectFocusModeConfig, {
         isSyncSessionWithTracking: true,
         isSkipPreparation: false,
-        isPauseTrackingDuringBreak: false, // Don't pause during break
-        isManualBreakStart: true, // Manual break start, so no auto-break
       });
       currentTaskId$.next('task-123');
       store.refreshState();
 
       actions$ = of(actions.completeFocusSession({ isManual: false }));
 
-      effects.sessionComplete$.pipe(toArray()).subscribe((actionsArr) => {
-        const unsetAction = actionsArr.find((a) => a.type === unsetCurrentTask.type);
-        // For automatic completion with manual break start and no pause during break,
-        // tracking should continue (user explicitly chose not to pause during break)
-        expect(unsetAction).toBeUndefined();
+      effects.stopTrackingOnManualEnd$.pipe(toArray()).subscribe((actionsArr) => {
+        // For automatic completion, tracking should continue
+        expect(actionsArr.length).toBe(0);
         done();
       });
     });
 
     it('should NOT dispatch unsetCurrentTask when sync is disabled', (done) => {
       // Setup: Sync is disabled
-      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-      store.overrideSelector(selectors.selectCurrentCycle, 1);
       store.overrideSelector(selectFocusModeConfig, {
         isSyncSessionWithTracking: false, // Sync disabled
         isSkipPreparation: false,
-        isManualBreakStart: true,
       });
       currentTaskId$.next('task-123');
       store.refreshState();
 
       actions$ = of(actions.completeFocusSession({ isManual: true }));
 
-      effects.sessionComplete$.pipe(toArray()).subscribe((actionsArr) => {
-        const unsetAction = actionsArr.find((a) => a.type === unsetCurrentTask.type);
-        expect(unsetAction).toBeUndefined();
+      effects.stopTrackingOnManualEnd$.pipe(toArray()).subscribe((actionsArr) => {
+        expect(actionsArr.length).toBe(0);
         done();
       });
     });
 
     it('should NOT dispatch unsetCurrentTask when no task is being tracked', (done) => {
       // Setup: No task is being tracked
-      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-      store.overrideSelector(selectors.selectCurrentCycle, 1);
       store.overrideSelector(selectFocusModeConfig, {
         isSyncSessionWithTracking: true,
         isSkipPreparation: false,
-        isManualBreakStart: true,
       });
       currentTaskId$.next(null); // No task tracking
       store.refreshState();
 
       actions$ = of(actions.completeFocusSession({ isManual: true }));
 
-      effects.sessionComplete$.pipe(toArray()).subscribe((actionsArr) => {
-        const unsetAction = actionsArr.find((a) => a.type === unsetCurrentTask.type);
-        expect(unsetAction).toBeUndefined();
+      effects.stopTrackingOnManualEnd$.pipe(toArray()).subscribe((actionsArr) => {
+        expect(actionsArr.length).toBe(0);
         done();
       });
     });
