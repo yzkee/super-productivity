@@ -453,11 +453,11 @@ You can persist data that will also be synced vai the `persistDataSynced` and `l
 
 ```javascript
 // Save plugin data
-await PluginAPI.persistDataSynced('myKey', { count: 42 });
+await PluginAPI.persistDataSynced(JSON.stringify({ count: 42 }));
 
 // Load saved data
-const data = await PluginAPI.loadSyncedData('myKey');
-console.log(data); // { count: 42 }
+const data = await PluginAPI.loadSyncedData();
+console.log(data); // '{ count: 42 }'
 ```
 
 ## Best Practices
