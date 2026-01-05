@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { firstValueFrom, Observable } from 'rxjs';
 import { Task, TaskCopy } from '../../../tasks/task.model';
 import { IssueServiceInterface } from '../../issue-service-interface';
 import {
@@ -66,9 +66,12 @@ export class CalendarCommonInterfacesService implements IssueServiceInterface {
     };
   }
 
-  searchIssues(query: string, issueProviderId: string): Promise<SearchResultItem[]> {
-    return this._getCfgOnce$(issueProviderId)
-      .pipe(
+  async searchIssues(
+    query: string,
+    issueProviderId: string,
+  ): Promise<SearchResultItem[]> {
+    const result = await firstValueFrom(
+      this._getCfgOnce$(issueProviderId).pipe(
         switchMap((cfg) =>
           this._calendarIntegrationService.requestEventsForSchedule$(cfg, true),
         ),
@@ -83,9 +86,9 @@ export class CalendarCommonInterfacesService implements IssueServiceInterface {
               issueData: calEvent,
             })),
         ),
-      )
-      .toPromise()
-      .then((result) => result ?? []);
+      ),
+    );
+    return result ?? [];
   }
 
   async getFreshDataForIssueTask(task: Task): Promise<{
@@ -125,13 +128,14 @@ export class CalendarCommonInterfacesService implements IssueServiceInterface {
     }[] = [];
 
     for (const [providerId, providerTasks] of tasksByProvider) {
-      const cfg = await this._getCfgOnce$(providerId).pipe(first()).toPromise();
+      const cfg = await firstValueFrom(this._getCfgOnce$(providerId).pipe(first()));
       if (!cfg) continue;
 
-      const events = await this._calendarIntegrationService
-        .requestEventsForSchedule$(cfg, false)
-        .pipe(first())
-        .toPromise();
+      const events = await firstValueFrom(
+        this._calendarIntegrationService
+          .requestEventsForSchedule$(cfg, false)
+          .pipe(first()),
+      );
       if (!events?.length) continue;
 
       for (const task of providerTasks) {

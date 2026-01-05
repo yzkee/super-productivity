@@ -276,9 +276,11 @@ describe('CalendarCommonInterfacesService', () => {
 
     it('should handle all-day event conversion correctly', async () => {
       const task = createMockTask({ dueWithTime: undefined, dueDay: '2025-01-15' });
+      // Use midday (12:00) to ensure date is consistent across all timezones
+      const eventStartTime = new Date('2025-01-16T12:00:00Z').getTime();
       const calendarEvent = createMockCalendarEvent({
         isAllDay: true,
-        start: new Date('2025-01-16T00:00:00Z').getTime(),
+        start: eventStartTime,
       });
       issueProviderServiceSpy.getCfgOnce$.and.returnValue(of(mockCalendarCfg as any));
       calendarIntegrationServiceSpy.requestEventsForSchedule$.and.returnValue(
@@ -288,9 +290,7 @@ describe('CalendarCommonInterfacesService', () => {
       const result = await service.getFreshDataForIssueTask(task);
 
       expect(result).not.toBeNull();
-      expect(result!.taskChanges.dueDay).toBe(
-        getDbDateStr(new Date('2025-01-16T00:00:00Z').getTime()),
-      );
+      expect(result!.taskChanges.dueDay).toBe(getDbDateStr(eventStartTime));
       expect(result!.taskChanges.dueWithTime).toBeUndefined();
     });
   });
@@ -378,6 +378,236 @@ describe('CalendarCommonInterfacesService', () => {
       expect(result.length).toBe(1);
       expect(result[0].task.id).toBe('task-2');
       expect(result[0].taskChanges.title).toBe('New Title');
+    });
+
+    it('should batch tasks by provider to minimize calendar fetches', async () => {
+      const mockCfgProvider1 = {
+        id: 'provider-1',
+        isEnabled: true,
+        icalUrl: 'https://example.com/calendar1.ics',
+      };
+      const mockCfgProvider2 = {
+        id: 'provider-2',
+        isEnabled: true,
+        icalUrl: 'https://example.com/calendar2.ics',
+      };
+
+      // Tasks from two different providers
+      const task1 = {
+        id: 'task-1',
+        issueId: 'event-1',
+        issueProviderId: 'provider-1',
+        issueType: 'ICAL',
+        title: 'Old Title 1',
+        dueWithTime: new Date('2025-01-15T10:00:00Z').getTime(),
+        timeEstimate: 3600000,
+      } as Task;
+
+      const task2 = {
+        id: 'task-2',
+        issueId: 'event-2',
+        issueProviderId: 'provider-1',
+        issueType: 'ICAL',
+        title: 'Old Title 2',
+        dueWithTime: new Date('2025-01-15T11:00:00Z').getTime(),
+        timeEstimate: 3600000,
+      } as Task;
+
+      const task3 = {
+        id: 'task-3',
+        issueId: 'event-3',
+        issueProviderId: 'provider-2',
+        issueType: 'ICAL',
+        title: 'Old Title 3',
+        dueWithTime: new Date('2025-01-15T12:00:00Z').getTime(),
+        timeEstimate: 3600000,
+      } as Task;
+
+      // Calendar events with updated titles
+      const calendarEvent1: CalendarIntegrationEvent = {
+        id: 'event-1',
+        calProviderId: 'provider-1',
+        title: 'New Title 1',
+        start: new Date('2025-01-15T10:00:00Z').getTime(),
+        duration: 3600000,
+      };
+
+      const calendarEvent2: CalendarIntegrationEvent = {
+        id: 'event-2',
+        calProviderId: 'provider-1',
+        title: 'New Title 2',
+        start: new Date('2025-01-15T11:00:00Z').getTime(),
+        duration: 3600000,
+      };
+
+      const calendarEvent3: CalendarIntegrationEvent = {
+        id: 'event-3',
+        calProviderId: 'provider-2',
+        title: 'New Title 3',
+        start: new Date('2025-01-15T12:00:00Z').getTime(),
+        duration: 3600000,
+      };
+
+      // Setup spies to return different configs for different providers
+      issueProviderServiceSpy.getCfgOnce$.and.callFake((providerId: string) => {
+        if (providerId === 'provider-1') return of(mockCfgProvider1 as any);
+        if (providerId === 'provider-2') return of(mockCfgProvider2 as any);
+        return of(null as any);
+      });
+
+      // Setup calendar service to return events based on config
+      calendarIntegrationServiceSpy.requestEventsForSchedule$.and.callFake((cfg: any) => {
+        if (cfg.id === 'provider-1') return of([calendarEvent1, calendarEvent2]);
+        if (cfg.id === 'provider-2') return of([calendarEvent3]);
+        return of([]);
+      });
+
+      const result = await service.getFreshDataForIssueTasks([task1, task2, task3]);
+
+      // Should return all 3 tasks with changes
+      expect(result.length).toBe(3);
+
+      // Verify batching: getCfgOnce$ should be called once per provider (not per task)
+      expect(issueProviderServiceSpy.getCfgOnce$.calls.count()).toBe(2);
+
+      // Verify batching: requestEventsForSchedule$ should be called once per provider
+      expect(calendarIntegrationServiceSpy.requestEventsForSchedule$.calls.count()).toBe(
+        2,
+      );
+
+      // Verify all tasks got their updates
+      const task1Result = result.find((r) => r.task.id === 'task-1');
+      const task2Result = result.find((r) => r.task.id === 'task-2');
+      const task3Result = result.find((r) => r.task.id === 'task-3');
+
+      expect(task1Result?.taskChanges.title).toBe('New Title 1');
+      expect(task2Result?.taskChanges.title).toBe('New Title 2');
+      expect(task3Result?.taskChanges.title).toBe('New Title 3');
+    });
+
+    it('should handle mixed scenarios: some providers fail, some succeed', async () => {
+      const mockCfgProvider1 = {
+        id: 'provider-1',
+        isEnabled: true,
+        icalUrl: 'https://example.com/calendar1.ics',
+      };
+
+      const task1 = {
+        id: 'task-1',
+        issueId: 'event-1',
+        issueProviderId: 'provider-1',
+        issueType: 'ICAL',
+        title: 'Old Title',
+        dueWithTime: new Date('2025-01-15T10:00:00Z').getTime(),
+        timeEstimate: 3600000,
+      } as Task;
+
+      const task2 = {
+        id: 'task-2',
+        issueId: 'event-2',
+        issueProviderId: 'provider-missing',
+        issueType: 'ICAL',
+        title: 'Old Title 2',
+        dueWithTime: new Date('2025-01-15T11:00:00Z').getTime(),
+        timeEstimate: 3600000,
+      } as Task;
+
+      const calendarEvent1: CalendarIntegrationEvent = {
+        id: 'event-1',
+        calProviderId: 'provider-1',
+        title: 'New Title',
+        start: new Date('2025-01-15T10:00:00Z').getTime(),
+        duration: 3600000,
+      };
+
+      issueProviderServiceSpy.getCfgOnce$.and.callFake((providerId: string) => {
+        if (providerId === 'provider-1') return of(mockCfgProvider1 as any);
+        return of(null as any); // Provider not found
+      });
+
+      calendarIntegrationServiceSpy.requestEventsForSchedule$.and.returnValue(
+        of([calendarEvent1]),
+      );
+
+      const result = await service.getFreshDataForIssueTasks([task1, task2]);
+
+      // Should only return the task from the working provider
+      expect(result.length).toBe(1);
+      expect(result[0].task.id).toBe('task-1');
+      expect(result[0].taskChanges.title).toBe('New Title');
+    });
+
+    it('should skip tasks without issueProviderId or issueId', async () => {
+      const taskWithoutProvider = {
+        id: 'task-1',
+        issueId: 'event-1',
+        issueProviderId: undefined, // Missing provider
+        issueType: 'ICAL',
+        title: 'Task 1',
+      } as Task;
+
+      const taskWithoutIssueId = {
+        id: 'task-2',
+        issueId: undefined, // Missing issue ID
+        issueProviderId: 'provider-1',
+        issueType: 'ICAL',
+        title: 'Task 2',
+      } as Task;
+
+      const result = await service.getFreshDataForIssueTasks([
+        taskWithoutProvider,
+        taskWithoutIssueId,
+      ]);
+
+      // Should return empty array since both tasks are invalid
+      expect(result).toEqual([]);
+      // Should not call any services
+      expect(issueProviderServiceSpy.getCfgOnce$.calls.count()).toBe(0);
+      expect(calendarIntegrationServiceSpy.requestEventsForSchedule$.calls.count()).toBe(
+        0,
+      );
+    });
+
+    it('should handle multiple changes in a single event', async () => {
+      const task = {
+        id: 'task-1',
+        issueId: 'event-1',
+        issueProviderId: 'provider-1',
+        issueType: 'ICAL',
+        title: 'Old Title',
+        dueWithTime: new Date('2025-01-15T10:00:00Z').getTime(),
+        timeEstimate: 3600000, // 1 hour
+      } as Task;
+
+      // Event with multiple changes: title, time, and duration
+      const calendarEvent: CalendarIntegrationEvent = {
+        id: 'event-1',
+        calProviderId: 'provider-1',
+        title: 'New Title',
+        start: new Date('2025-01-16T14:00:00Z').getTime(), // Different day and time
+        duration: 7200000, // 2 hours
+      };
+
+      issueProviderServiceSpy.getCfgOnce$.and.returnValue(of(mockCalendarCfg as any));
+      calendarIntegrationServiceSpy.requestEventsForSchedule$.and.returnValue(
+        of([calendarEvent]),
+      );
+
+      const result = await service.getFreshDataForIssueTasks([task]);
+
+      expect(result.length).toBe(1);
+      expect(result[0].taskChanges.title).toBe('New Title');
+      expect(result[0].taskChanges.dueWithTime).toBe(
+        new Date('2025-01-16T14:00:00Z').getTime(),
+      );
+      expect(result[0].taskChanges.timeEstimate).toBe(7200000);
+      expect(result[0].taskChanges.issueWasUpdated).toBe(true);
+    });
+  });
+
+  describe('pollInterval', () => {
+    it('should have a poll interval of 10 minutes', () => {
+      expect(service.pollInterval).toBe(10 * 60 * 1000);
     });
   });
 });
