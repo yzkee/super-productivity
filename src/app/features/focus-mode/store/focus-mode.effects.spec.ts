@@ -58,6 +58,7 @@ describe('FocusModeEffects', () => {
 
     taskServiceMock = {
       currentTaskId$: currentTaskId$.asObservable(),
+      currentTaskId: jasmine.createSpy('currentTaskId').and.returnValue(null),
     };
 
     globalConfigServiceMock = {
@@ -1645,6 +1646,302 @@ describe('FocusModeEffects', () => {
 
       setTimeout(() => {
         expect(notifyUserSpy).not.toHaveBeenCalled();
+        done();
+      }, 50);
+    });
+  });
+
+  describe('_getIconButtonActions banner button behavior (issue #5889)', () => {
+    let dispatchSpy: jasmine.Spy;
+
+    beforeEach(() => {
+      dispatchSpy = spyOn(store, 'dispatch').and.callThrough();
+    });
+
+    it('should dispatch startBreak when session completed with isManualBreakStart=true in Pomodoro mode', (done) => {
+      // Setup Pomodoro mode with manual break start
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 1);
+      store.refreshState();
+
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 25 * 60 * 1000,
+      });
+      const focusModeConfig = {
+        isManualBreakStart: true,
+        isPauseTrackingDuringBreak: false,
+      };
+
+      // Access private method via bracket notation
+      const buttonActions = (effects as any)._getIconButtonActions(
+        timer,
+        false, // isOnBreak
+        true, // isSessionCompleted
+        false, // isBreakTimeUp
+        focusModeConfig,
+      );
+
+      // Verify play button exists
+      expect(buttonActions.action).toBeDefined();
+      expect(buttonActions.action.icon).toBe('play_arrow');
+
+      // Click the button
+      buttonActions.action.fn();
+
+      // Wait for async store select to complete
+      setTimeout(() => {
+        const startBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startBreak.type);
+        expect(startBreakCall).toBeDefined();
+        expect(startBreakCall?.args[0].duration).toBe(5 * 60 * 1000);
+        expect(startBreakCall?.args[0].isLongBreak).toBeFalse();
+        done();
+      }, 50);
+    });
+
+    it('should dispatch startFocusSession when session completed with isManualBreakStart=false', (done) => {
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 1);
+      store.refreshState();
+
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 25 * 60 * 1000,
+      });
+      const focusModeConfig = {
+        isManualBreakStart: false, // Disabled
+      };
+
+      const buttonActions = (effects as any)._getIconButtonActions(
+        timer,
+        false,
+        true,
+        false,
+        focusModeConfig,
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        const startSessionCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startFocusSession.type);
+        const startBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startBreak.type);
+        expect(startSessionCall).toBeDefined();
+        expect(startBreakCall).toBeUndefined();
+        done();
+      }, 50);
+    });
+
+    it('should dispatch startFocusSession for Flowtime mode even with isManualBreakStart=true', (done) => {
+      // Flowtime doesn't support breaks
+      strategyFactoryMock.getStrategy.and.returnValue({
+        initialSessionDuration: 0,
+        shouldStartBreakAfterSession: false,
+        shouldAutoStartNextSession: false,
+        getBreakDuration: () => null,
+      });
+
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Flowtime);
+      store.overrideSelector(selectors.selectCurrentCycle, 1);
+      store.refreshState();
+
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 0,
+        elapsed: 30 * 60 * 1000,
+      });
+      const focusModeConfig = {
+        isManualBreakStart: true, // Even if set, should not start break
+      };
+
+      const buttonActions = (effects as any)._getIconButtonActions(
+        timer,
+        false,
+        true,
+        false,
+        focusModeConfig,
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        const startSessionCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startFocusSession.type);
+        const startBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startBreak.type);
+        expect(startSessionCall).toBeDefined();
+        expect(startBreakCall).toBeUndefined();
+        done();
+      }, 50);
+    });
+
+    it('should dispatch unsetCurrentTask before startBreak when isPauseTrackingDuringBreak=true', (done) => {
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 1);
+      store.refreshState();
+
+      // Mock that there's a current task
+      taskServiceMock.currentTaskId = jasmine
+        .createSpy('currentTaskId')
+        .and.returnValue('task-123');
+
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 25 * 60 * 1000,
+      });
+      const focusModeConfig = {
+        isManualBreakStart: true,
+        isPauseTrackingDuringBreak: true, // Should pause tracking
+      };
+
+      const buttonActions = (effects as any)._getIconButtonActions(
+        timer,
+        false,
+        true,
+        false,
+        focusModeConfig,
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        const unsetTaskCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === '[Task] UnsetCurrentTask');
+        expect(unsetTaskCall).toBeDefined();
+
+        const startBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startBreak.type);
+        expect(startBreakCall).toBeDefined();
+        expect(startBreakCall?.args[0].pausedTaskId).toBe('task-123');
+        done();
+      }, 50);
+    });
+
+    it('should dispatch startBreak with long break when cycle triggers long break', (done) => {
+      // Mock strategy to return long break
+      strategyFactoryMock.getStrategy.and.returnValue({
+        initialSessionDuration: 25 * 60 * 1000,
+        shouldStartBreakAfterSession: true,
+        shouldAutoStartNextSession: true,
+        getBreakDuration: jasmine.createSpy('getBreakDuration').and.returnValue({
+          duration: 15 * 60 * 1000,
+          isLong: true,
+        }),
+      });
+
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 4);
+      store.refreshState();
+
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 25 * 60 * 1000,
+      });
+      const focusModeConfig = {
+        isManualBreakStart: true,
+        isPauseTrackingDuringBreak: false,
+      };
+
+      const buttonActions = (effects as any)._getIconButtonActions(
+        timer,
+        false,
+        true,
+        false,
+        focusModeConfig,
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        const startBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startBreak.type);
+        expect(startBreakCall).toBeDefined();
+        expect(startBreakCall?.args[0].duration).toBe(15 * 60 * 1000);
+        expect(startBreakCall?.args[0].isLongBreak).toBeTrue();
+        done();
+      }, 50);
+    });
+
+    it('should NOT dispatch startBreak when focusModeConfig is undefined', (done) => {
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 1);
+      store.refreshState();
+
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 25 * 60 * 1000,
+      });
+
+      const buttonActions = (effects as any)._getIconButtonActions(
+        timer,
+        false,
+        true,
+        false,
+        undefined, // No config
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        // Should dispatch startFocusSession since no config means no manual break
+        const startSessionCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startFocusSession.type);
+        const startBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startBreak.type);
+        expect(startSessionCall).toBeDefined();
+        expect(startBreakCall).toBeUndefined();
+        done();
+      }, 50);
+    });
+
+    it('should handle isBreakTimeUp case correctly (existing behavior)', (done) => {
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectPausedTaskId, null);
+      store.refreshState();
+
+      const timer = createMockTimer({
+        purpose: 'break',
+        duration: 5 * 60 * 1000,
+        elapsed: 5 * 60 * 1000,
+        isRunning: false,
+      });
+      const focusModeConfig = {
+        isManualBreakStart: true,
+      };
+
+      const buttonActions = (effects as any)._getIconButtonActions(
+        timer,
+        true, // isOnBreak
+        false, // isSessionCompleted
+        true, // isBreakTimeUp
+        focusModeConfig,
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        // Should dispatch skipBreak (existing behavior for break time up)
+        const skipBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.skipBreak.type);
+        expect(skipBreakCall).toBeDefined();
         done();
       }, 50);
     });

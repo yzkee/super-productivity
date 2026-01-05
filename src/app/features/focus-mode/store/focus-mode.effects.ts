@@ -29,6 +29,7 @@ import {
   selectIsFocusModeEnabled,
   selectPomodoroConfig,
 } from '../../config/store/global-config.reducer';
+import { FocusModeConfig } from '../../config/global-config.model';
 import { updateGlobalConfigSection } from '../../config/store/global-config.actions';
 import { FocusModeMode, FocusScreen, TimerState } from '../focus-mode.model';
 import { BannerService } from '../../../core/banner/banner.service';
@@ -689,6 +690,7 @@ export class FocusModeEffects {
                       isOnBreak,
                       isSessionCompleted,
                       isBreakTimeUp,
+                      focusModeConfig,
                     )
                   : this._getTextButtonActions(isSessionCompleted)),
               });
@@ -730,6 +732,7 @@ export class FocusModeEffects {
     isOnBreak: boolean,
     isSessionCompleted: boolean,
     isBreakTimeUp: boolean,
+    focusModeConfig: FocusModeConfig | undefined,
   ): Pick<Banner, 'action' | 'action2' | 'action3'> {
     const isPaused = !timer.isRunning && timer.purpose !== null;
 
@@ -765,17 +768,46 @@ export class FocusModeEffects {
                   }
                 });
             } else {
-              // Start a new session using the current mode's strategy
-              this.store
-                .select(selectors.selectMode)
+              // Session completed - check if we should start a break or new session
+              combineLatest([
+                this.store.select(selectors.selectMode),
+                this.store.select(selectors.selectCurrentCycle),
+              ])
                 .pipe(take(1))
-                .subscribe((mode) => {
+                .subscribe(([mode, cycle]) => {
                   const strategy = this.strategyFactory.getStrategy(mode);
-                  this.store.dispatch(
-                    actions.startFocusSession({
-                      duration: strategy.initialSessionDuration,
-                    }),
-                  );
+
+                  // If manual break start is enabled and mode supports breaks, start a break
+                  if (
+                    focusModeConfig?.isManualBreakStart &&
+                    strategy.shouldStartBreakAfterSession
+                  ) {
+                    const breakInfo = strategy.getBreakDuration(cycle ?? 1);
+                    if (breakInfo) {
+                      const currentTaskId = this.taskService.currentTaskId();
+                      const shouldPauseTracking =
+                        focusModeConfig?.isPauseTrackingDuringBreak && currentTaskId;
+
+                      if (shouldPauseTracking) {
+                        this.store.dispatch(unsetCurrentTask());
+                      }
+
+                      this.store.dispatch(
+                        actions.startBreak({
+                          duration: breakInfo.duration,
+                          isLongBreak: breakInfo.isLong,
+                          pausedTaskId: shouldPauseTracking ? currentTaskId : undefined,
+                        }),
+                      );
+                    }
+                  } else {
+                    // Otherwise start a new session
+                    this.store.dispatch(
+                      actions.startFocusSession({
+                        duration: strategy.initialSessionDuration,
+                      }),
+                    );
+                  }
                 });
             }
           },
