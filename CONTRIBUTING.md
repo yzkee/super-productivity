@@ -27,7 +27,7 @@ In case you want to contribute, but you wouldn't know how, here are some suggest
 
 7. **[Make a feature or improvement request](https://github.com/super-productivity/super-productivity/issues/new)**: Something can be done better? Something essential missing? Let us know!
 
-8. **[Translations](https://github.com/super-productivity/super-productivity/tree/master/src/assets/i18n), Icons, etc.**: You don't have to be programmer to help. Some of the icons really need improvement and many of the translations could use some love.
+8. **[Translations](docs/TRANSLATING.md)**: You don't have to be programmer to help. See our [translation guide](docs/TRANSLATING.md) for details on how to contribute translations.
 
 9. **[Sponsor the project](https://github.com/sponsors/johannesjo)**
 
