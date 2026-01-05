@@ -44,8 +44,22 @@ export const test = base.extend<SuperSyncFixtures>({
   /**
    * Generate a unique test run ID for this test.
    * Used to isolate test data between parallel test runs.
+   * Also checks server health and skips test if server unavailable.
    */
   testRunId: async ({}, use, testInfo) => {
+    // Check server health once per worker
+    if (serverHealthyCache === null) {
+      serverHealthyCache = await isServerHealthy();
+      if (!serverHealthyCache) {
+        console.warn(
+          'SuperSync server not healthy at http://localhost:1901 - skipping tests',
+        );
+      }
+    }
+
+    // Skip if server not healthy
+    testInfo.skip(!serverHealthyCache, 'SuperSync server not running');
+
     const id = generateTestRunId(testInfo.workerIndex);
     await use(id);
   },
