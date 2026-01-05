@@ -10,7 +10,6 @@ import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions'
 import { DEFAULT_TASK, Task } from '../task.model';
 import { TestScheduler } from 'rxjs/testing';
 import { T } from '../../../t.const';
-import { removeReminderFromTask } from './task.actions';
 
 describe('TaskReminderEffects', () => {
   let actions$: Observable<Action>;
@@ -20,7 +19,6 @@ describe('TaskReminderEffects', () => {
   let store: jasmine.SpyObj<Store>;
   let datePipe: jasmine.SpyObj<LocaleDatePipe>;
   let testScheduler: TestScheduler;
-  let taskServiceMock: jasmine.SpyObj<TaskService>;
 
   const mockTask: Task = {
     ...DEFAULT_TASK,
@@ -40,11 +38,6 @@ describe('TaskReminderEffects', () => {
     const taskServiceSpy = jasmine.createSpyObj('TaskService', ['getByIdOnce$']);
     const storeSpy = jasmine.createSpyObj('Store', ['dispatch']);
     const datePipeSpy = jasmine.createSpyObj('LocaleDatePipe', ['transform']);
-
-    taskServiceMock = jasmine.createSpyObj('TaskService', [
-      'getByIdOnce$',
-      'getByIdsLive$',
-    ]);
 
     TestBed.configureTestingModule({
       providers: [
@@ -302,97 +295,6 @@ describe('TaskReminderEffects', () => {
     });
   });
 
-  describe('removeTaskReminderTrigger1$', () => {
-    it('should handle undefined tasks in array without crashing (issue #5873)', (done) => {
-      const taskWithReminder = createMockTask({ id: 'task-1', reminderId: 'rem-1' });
-      // Simulate a deleted task that returns undefined from the selector
-      taskServiceMock.getByIdsLive$.and.returnValue(
-        of([
-          taskWithReminder,
-          undefined as unknown as Task,
-          undefined as unknown as Task,
-        ]),
-      );
-
-      actions$ = of(
-        TaskSharedActions.planTasksForToday({
-          taskIds: ['task-1', 'deleted-task', 'another-deleted'],
-          parentTaskMap: {},
-          isSkipRemoveReminder: false,
-        }),
-      );
-
-      const emittedActions: any[] = [];
-      effects.removeTaskReminderTrigger1$.subscribe({
-        next: (action) => emittedActions.push(action),
-        complete: () => {
-          // Should only emit action for the valid task with reminder
-          expect(emittedActions.length).toBe(1);
-          expect(emittedActions[0]).toEqual(
-            removeReminderFromTask({
-              id: 'task-1',
-              reminderId: 'rem-1',
-              isSkipToast: true,
-            }),
-          );
-          done();
-        },
-      });
-    });
-
-    it('should not emit actions when all tasks are undefined', (done) => {
-      taskServiceMock.getByIdsLive$.and.returnValue(
-        of([undefined as unknown as Task, undefined as unknown as Task]),
-      );
-
-      actions$ = of(
-        TaskSharedActions.planTasksForToday({
-          taskIds: ['deleted-1', 'deleted-2'],
-          parentTaskMap: {},
-          isSkipRemoveReminder: false,
-        }),
-      );
-
-      const emittedActions: any[] = [];
-      effects.removeTaskReminderTrigger1$.subscribe({
-        next: (action) => emittedActions.push(action),
-        complete: () => {
-          expect(emittedActions.length).toBe(0);
-          done();
-        },
-      });
-    });
-
-    it('should only emit for tasks with reminderId', (done) => {
-      const taskWithReminder = createMockTask({ id: 'task-1', reminderId: 'rem-1' });
-      const taskWithoutReminder = createMockTask({ id: 'task-2', reminderId: undefined });
-      taskServiceMock.getByIdsLive$.and.returnValue(
-        of([taskWithReminder, taskWithoutReminder]),
-      );
-
-      actions$ = of(
-        TaskSharedActions.planTasksForToday({
-          taskIds: ['task-1', 'task-2'],
-          parentTaskMap: {},
-          isSkipRemoveReminder: false,
-        }),
-      );
-
-      const emittedActions: any[] = [];
-      effects.removeTaskReminderTrigger1$.subscribe({
-        next: (action) => emittedActions.push(action),
-        complete: () => {
-          expect(emittedActions.length).toBe(1);
-          expect(emittedActions[0]).toEqual(
-            removeReminderFromTask({
-              id: 'task-1',
-              reminderId: 'rem-1',
-              isSkipToast: true,
-            }),
-          );
-          done();
-        },
-      });
-    });
-  });
+  // NOTE: Tests for removeTaskReminderTrigger1$ were removed because the effect no longer exists.
+  // The reminder removal is now handled differently in the task-shared scheduling meta-reducer.
 });

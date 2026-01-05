@@ -58,6 +58,90 @@ describe('plannerSharedMetaReducer', () => {
       );
     });
 
+    it('should remove task from planner.days[today] when moving from today to different day', () => {
+      // This test ensures that tasks are removed from planner.days[today] when transferred away,
+      // preventing AddTasksForTomorrowService from finding stale tasks and re-adding them to today.
+      const todayStr = getDbDateStr();
+      const testState = createStateWithExistingTasks([], [], [], ['task1', 'other-task']);
+      // Set up planner.days[today] to contain the task
+      testState.planner = {
+        ...testState.planner,
+        days: {
+          ...testState.planner.days,
+          [todayStr]: ['task1', 'task2'],
+        },
+      };
+      const task = createMockTask({ id: 'task1' });
+      const action = createTransferTaskAction(task, todayStr, 0, '2026-01-10', todayStr);
+
+      metaReducer(testState, action);
+      const resultState = mockReducer.calls.mostRecent().args[0];
+
+      // task1 should be removed from planner.days[today]
+      expect(resultState.planner.days[todayStr]).toEqual(['task2']);
+      // task1 should be added to the new day
+      expect(resultState.planner.days['2026-01-10']).toContain('task1');
+    });
+
+    it('should update task.dueDay when transferring from today to different day', () => {
+      const todayStr = getDbDateStr();
+      const newDay = '2026-01-15';
+      const testState = createStateWithExistingTasks([], [], [], ['task1']);
+      testState.planner = {
+        ...testState.planner,
+        days: { [todayStr]: ['task1'] },
+      };
+      // Set task's initial dueDay to today
+      (testState as any).tasks.entities['task1'] = createMockTask({
+        id: 'task1',
+        dueDay: todayStr,
+      });
+      const task = createMockTask({ id: 'task1', dueDay: todayStr });
+      const action = createTransferTaskAction(task, todayStr, 0, newDay, todayStr);
+
+      metaReducer(testState, action);
+      const resultState = mockReducer.calls.mostRecent().args[0];
+
+      // task.dueDay should be updated to the new day
+      expect(resultState.tasks.entities['task1'].dueDay).toBe(newDay);
+    });
+
+    it('should handle transfer from today when planner.days[today] does not exist', () => {
+      const todayStr = getDbDateStr();
+      const testState = createStateWithExistingTasks([], [], [], ['task1']);
+      // Do NOT set up planner.days[today] - it doesn't exist
+      const task = createMockTask({ id: 'task1' });
+      const action = createTransferTaskAction(task, todayStr, 0, '2026-01-10', todayStr);
+
+      // Should not throw
+      expect(() => metaReducer(testState, action)).not.toThrow();
+
+      const resultState = mockReducer.calls.mostRecent().args[0];
+      // Task should be added to the new day
+      expect(resultState.planner.days['2026-01-10']).toContain('task1');
+    });
+
+    it('should handle transfer from today when task is not in planner.days[today]', () => {
+      const todayStr = getDbDateStr();
+      const testState = createStateWithExistingTasks([], [], [], ['task1']);
+      // Set up planner.days[today] but WITHOUT the task
+      testState.planner = {
+        ...testState.planner,
+        days: { [todayStr]: ['other-task'] },
+      };
+      const task = createMockTask({ id: 'task1' });
+      const action = createTransferTaskAction(task, todayStr, 0, '2026-01-10', todayStr);
+
+      // Should not throw
+      expect(() => metaReducer(testState, action)).not.toThrow();
+
+      const resultState = mockReducer.calls.mostRecent().args[0];
+      // other-task should remain in today
+      expect(resultState.planner.days[todayStr]).toEqual(['other-task']);
+      // Task should be added to the new day
+      expect(resultState.planner.days['2026-01-10']).toContain('task1');
+    });
+
     it('should add task to Today tag when moving from different day to today', () => {
       const todayStr = getDbDateStr();
       const testState = createStateWithExistingTasks([], [], [], ['existing-task']);

@@ -55,11 +55,11 @@ const handleTransferTask = (
   const daysCopy = { ...plannerState.days };
 
   // Update previous day (remove task)
+  // Note: We intentionally DO remove from planner.days[today] when transferring away,
+  // so that AddTasksForTomorrowService doesn't find stale tasks in planner.days[today].
+  // TODAY_TAG.taskIds handles today's task ordering, but planner.days[today] should stay consistent.
   const updatePrevDay =
-    prevDay === ADD_TASK_PANEL_ID ||
-    prevDay === OVERDUE_LIST_ID ||
-    !daysCopy[prevDay] ||
-    prevDay === today;
+    prevDay === ADD_TASK_PANEL_ID || prevDay === OVERDUE_LIST_ID || !daysCopy[prevDay];
 
   if (!updatePrevDay && daysCopy[prevDay]) {
     daysCopy[prevDay] = daysCopy[prevDay].filter((id: string) => id !== task.id);
