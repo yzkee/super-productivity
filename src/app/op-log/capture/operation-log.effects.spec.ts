@@ -8,7 +8,6 @@ import { LockService } from '../sync/lock.service';
 import { VectorClockService } from '../sync/vector-clock.service';
 import { OperationLogCompactionService } from '../store/operation-log-compaction.service';
 import { SnackService } from '../../core/snack/snack.service';
-import { Injector } from '@angular/core';
 import { ImmediateUploadService } from '../sync/immediate-upload.service';
 import { ActionType, OpType } from '../core/operation.types';
 import { PersistentAction } from '../core/persistent-action.interface';
@@ -17,6 +16,8 @@ import {
   bufferDeferredAction,
   clearDeferredActions,
 } from './operation-capture.meta-reducer';
+import { ClientIdService } from '../../core/util/client-id.service';
+import { OperationCaptureService } from './operation-capture.service';
 
 describe('OperationLogEffects', () => {
   let effects: OperationLogEffects;
@@ -26,21 +27,10 @@ describe('OperationLogEffects', () => {
   let mockVectorClockService: jasmine.SpyObj<VectorClockService>;
   let mockCompactionService: jasmine.SpyObj<OperationLogCompactionService>;
   let mockSnackService: jasmine.SpyObj<SnackService>;
-  let mockInjector: jasmine.SpyObj<Injector>;
   let mockStore: jasmine.SpyObj<Store>;
   let mockImmediateUploadService: jasmine.SpyObj<ImmediateUploadService>;
-
-  const mockPfapiService = {
-    pf: {
-      metaModel: {
-        loadClientId: jasmine.createSpy().and.returnValue(Promise.resolve('testClient')),
-        incrementVectorClockForLocalChange: jasmine
-          .createSpy()
-          .and.returnValue(Promise.resolve()),
-      },
-      isSyncInProgress: false,
-    },
-  };
+  let mockClientIdService: jasmine.SpyObj<ClientIdService>;
+  let mockOperationCaptureService: jasmine.SpyObj<OperationCaptureService>;
 
   const createPersistentAction = (
     type: string,
@@ -63,6 +53,7 @@ describe('OperationLogEffects', () => {
       'append',
       'appendWithVectorClockUpdate',
       'getCompactionCounter',
+      'clearVectorClockCache',
     ]);
     mockLockService = jasmine.createSpyObj('LockService', ['request']);
     mockVectorClockService = jasmine.createSpyObj('VectorClockService', [
@@ -73,10 +64,13 @@ describe('OperationLogEffects', () => {
       'emergencyCompact',
     ]);
     mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
-    mockInjector = jasmine.createSpyObj('Injector', ['get']);
     mockStore = jasmine.createSpyObj('Store', ['dispatch', 'select']);
     mockImmediateUploadService = jasmine.createSpyObj('ImmediateUploadService', [
       'trigger',
+    ]);
+    mockClientIdService = jasmine.createSpyObj('ClientIdService', ['loadClientId']);
+    mockOperationCaptureService = jasmine.createSpyObj('OperationCaptureService', [
+      'dequeue',
     ]);
 
     // Default mock implementations
@@ -93,8 +87,9 @@ describe('OperationLogEffects', () => {
     );
     mockCompactionService.compact.and.returnValue(Promise.resolve());
     mockCompactionService.emergencyCompact.and.returnValue(Promise.resolve(true));
-    mockInjector.get.and.returnValue(mockPfapiService);
     mockStore.select.and.returnValue(of({})); // Return empty state observable
+    mockClientIdService.loadClientId.and.returnValue(Promise.resolve('testClient'));
+    mockOperationCaptureService.dequeue.and.returnValue([]);
 
     TestBed.configureTestingModule({
       providers: [
@@ -105,9 +100,10 @@ describe('OperationLogEffects', () => {
         { provide: VectorClockService, useValue: mockVectorClockService },
         { provide: OperationLogCompactionService, useValue: mockCompactionService },
         { provide: SnackService, useValue: mockSnackService },
-        { provide: Injector, useValue: mockInjector },
         { provide: Store, useValue: mockStore },
         { provide: ImmediateUploadService, useValue: mockImmediateUploadService },
+        { provide: ClientIdService, useValue: mockClientIdService },
+        { provide: OperationCaptureService, useValue: mockOperationCaptureService },
       ],
     });
 
@@ -301,7 +297,7 @@ describe('OperationLogEffects', () => {
 
     it('should cache clientId after first load', (done) => {
       // Reset the spy counter
-      mockPfapiService.pf.metaModel.loadClientId.calls.reset();
+      mockClientIdService.loadClientId.calls.reset();
 
       // Emit two actions
       const action1 = createPersistentAction(ActionType.TASK_SHARED_ADD);
@@ -316,7 +312,7 @@ describe('OperationLogEffects', () => {
           effects.persistOperation$.subscribe({
             complete: () => {
               // ClientId should only be loaded once
-              expect(mockPfapiService.pf.metaModel.loadClientId).toHaveBeenCalledTimes(1);
+              expect(mockClientIdService.loadClientId).toHaveBeenCalledTimes(1);
               done();
             },
           });
