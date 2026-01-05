@@ -696,23 +696,6 @@
         "NOTE_LABEL": "أدخل نصًا لحفظه كملاحظة ..."
       },
       "D_FULLSCREEN": {
-        "TOOLBAR": {
-          "BOLD": "Bold",
-          "BULLET_LIST": "Bulleted list",
-          "CODE_BLOCK": "Code block",
-          "HEADING_1": "Heading 1",
-          "HEADING_2": "Heading 2",
-          "HEADING_3": "Heading 3",
-          "INLINE_CODE": "Inline code",
-          "INSERT_IMAGE": "Insert image",
-          "INSERT_LINK": "Insert link",
-          "INSERT_TABLE": "Insert table",
-          "ITALIC": "Italic",
-          "NUMBERED_LIST": "Numbered list",
-          "QUOTE": "Quote",
-          "STRIKETHROUGH": "Strikethrough",
-          "TASK_LIST": "Task list"
-        },
         "VIEW_PARSED": "العرض في صورة ترميز معدل (غير قابل للتحرير)",
         "VIEW_SPLIT": "عرض العلامات المحررة وغير المحررة في طريقة عرض منقسمة",
         "VIEW_TEXT_ONLY": "عرض كنص غير محرر"

@@ -696,23 +696,6 @@
         "NOTE_LABEL": "メモとして保存するテキストを入力してください..."
       },
       "D_FULLSCREEN": {
-        "TOOLBAR": {
-          "BOLD": "Bold",
-          "BULLET_LIST": "Bulleted list",
-          "CODE_BLOCK": "Code block",
-          "HEADING_1": "Heading 1",
-          "HEADING_2": "Heading 2",
-          "HEADING_3": "Heading 3",
-          "INLINE_CODE": "Inline code",
-          "INSERT_IMAGE": "Insert image",
-          "INSERT_LINK": "Insert link",
-          "INSERT_TABLE": "Insert table",
-          "ITALIC": "Italic",
-          "NUMBERED_LIST": "Numbered list",
-          "QUOTE": "Quote",
-          "STRIKETHROUGH": "Strikethrough",
-          "TASK_LIST": "Task list"
-        },
         "VIEW_PARSED": "解析された（編集不可能な）マークダウンとして表示する",
         "VIEW_SPLIT": "解析されたマークダウンと解析されていないマークダウンを分割表示する",
         "VIEW_TEXT_ONLY": "解析されていないテキストとして表示"

@@ -581,23 +581,6 @@
         "NOTE_LABEL": "Введіть текст для збереження як нотатку (ви можете використовувати markdown)..."
       },
       "D_FULLSCREEN": {
-        "TOOLBAR": {
-          "BOLD": "Bold",
-          "BULLET_LIST": "Bulleted list",
-          "CODE_BLOCK": "Code block",
-          "HEADING_1": "Heading 1",
-          "HEADING_2": "Heading 2",
-          "HEADING_3": "Heading 3",
-          "INLINE_CODE": "Inline code",
-          "INSERT_IMAGE": "Insert image",
-          "INSERT_LINK": "Insert link",
-          "INSERT_TABLE": "Insert table",
-          "ITALIC": "Italic",
-          "NUMBERED_LIST": "Numbered list",
-          "QUOTE": "Quote",
-          "STRIKETHROUGH": "Strikethrough",
-          "TASK_LIST": "Task list"
-        },
         "VIEW_PARSED": "Переглянути як опрацьований (не редагований) markdown",
         "VIEW_SPLIT": "Переглянути опрацьований та неопрацьований markdown у розділеному вигляді",
         "VIEW_TEXT_ONLY": "Переглянути як неопрацьований текст"

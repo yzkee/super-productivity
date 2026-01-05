@@ -708,23 +708,6 @@
         "NOTE_LABEL": "Entrez le texte à enregistrer en tant que note ..."
       },
       "D_FULLSCREEN": {
-        "TOOLBAR": {
-          "BOLD": "Bold",
-          "BULLET_LIST": "Bulleted list",
-          "CODE_BLOCK": "Code block",
-          "HEADING_1": "Heading 1",
-          "HEADING_2": "Heading 2",
-          "HEADING_3": "Heading 3",
-          "INLINE_CODE": "Inline code",
-          "INSERT_IMAGE": "Insert image",
-          "INSERT_LINK": "Insert link",
-          "INSERT_TABLE": "Insert table",
-          "ITALIC": "Italic",
-          "NUMBERED_LIST": "Numbered list",
-          "QUOTE": "Quote",
-          "STRIKETHROUGH": "Strikethrough",
-          "TASK_LIST": "Task list"
-        },
         "VIEW_PARSED": "Afficher comme Markdown parsé (non modifiable)",
         "VIEW_SPLIT": "Afficher les fichiers Markdown parsés et non parsés dans la vue fractionnée",
         "VIEW_TEXT_ONLY": "Afficher comme texte non parsé"

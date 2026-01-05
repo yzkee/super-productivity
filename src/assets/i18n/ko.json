@@ -584,23 +584,6 @@
         "NOTE_LABEL": "메모로 저장할 텍스트를 입력하십시오 ..."
       },
       "D_FULLSCREEN": {
-        "TOOLBAR": {
-          "BOLD": "Bold",
-          "BULLET_LIST": "Bulleted list",
-          "CODE_BLOCK": "Code block",
-          "HEADING_1": "Heading 1",
-          "HEADING_2": "Heading 2",
-          "HEADING_3": "Heading 3",
-          "INLINE_CODE": "Inline code",
-          "INSERT_IMAGE": "Insert image",
-          "INSERT_LINK": "Insert link",
-          "INSERT_TABLE": "Insert table",
-          "ITALIC": "Italic",
-          "NUMBERED_LIST": "Numbered list",
-          "QUOTE": "Quote",
-          "STRIKETHROUGH": "Strikethrough",
-          "TASK_LIST": "Task list"
-        },
         "VIEW_PARSED": "구문 분석된(편집 불가) 마크다운으로 보기",
         "VIEW_SPLIT": "분할 보기에서 구문 분석된 마크다운과 구문 분석되지 않은 마크다운 보기",
         "VIEW_TEXT_ONLY": "구문 분석되지 않은 텍스트로 보기"

@@ -441,23 +441,6 @@
         "NOTE_LABEL": "Zadejte text pro uložení jako poznámku (můžete použít markdown)..."
       },
       "D_FULLSCREEN": {
-        "TOOLBAR": {
-          "BOLD": "Bold",
-          "BULLET_LIST": "Bulleted list",
-          "CODE_BLOCK": "Code block",
-          "HEADING_1": "Heading 1",
-          "HEADING_2": "Heading 2",
-          "HEADING_3": "Heading 3",
-          "INLINE_CODE": "Inline code",
-          "INSERT_IMAGE": "Insert image",
-          "INSERT_LINK": "Insert link",
-          "INSERT_TABLE": "Insert table",
-          "ITALIC": "Italic",
-          "NUMBERED_LIST": "Numbered list",
-          "QUOTE": "Quote",
-          "STRIKETHROUGH": "Strikethrough",
-          "TASK_LIST": "Task list"
-        },
         "VIEW_PARSED": "Zobrazit jako parsovaný (neupravitelný) markdown",
         "VIEW_SPLIT": "Zobrazit rozdělený pohled pro parsovaný a neparsovaný markdown",
         "VIEW_TEXT_ONLY": "Zobrazit jako neparsovaný text"
