@@ -73,7 +73,7 @@ export class WorkContextEffects {
   /**
    * Validates the active work context after data is reloaded (e.g., from sync).
    * If the active project or tag no longer exists in the new data, redirects to TODAY tag.
-   * Fixes: https://github.com/johannesjo/super-productivity/issues/5859
+   * Fixes: https://github.com/super-productivity/super-productivity/issues/5859
    */
   validateContextAfterDataLoad$: Observable<unknown> = createEffect(() =>
     this._actions$.pipe(

@@ -1,6 +1,6 @@
 /**
  * E2E test for GitHub issue #5117
- * https://github.com/johannesjo/super-productivity/issues/5117
+ * https://github.com/super-productivity/super-productivity/issues/5117
  *
  * Bug: Flowtime focus mode stops counting up at the value set in Countdown mode
  * (e.g., 25 minutes or 5 minutes) instead of counting indefinitely.
