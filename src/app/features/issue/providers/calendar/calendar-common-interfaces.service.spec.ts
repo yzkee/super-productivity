@@ -5,22 +5,34 @@ import { IssueProviderService } from '../../issue-provider.service';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { ICalIssueReduced } from './calendar.model';
 import { getDbDateStr } from '../../../../util/get-db-date-str';
+import { of } from 'rxjs';
+import { Task } from '../../../tasks/task.model';
+import { CalendarIntegrationEvent } from '../../../calendar-integration/calendar-integration.model';
 
 describe('CalendarCommonInterfacesService', () => {
   let service: CalendarCommonInterfacesService;
+  let calendarIntegrationServiceSpy: jasmine.SpyObj<CalendarIntegrationService>;
+  let issueProviderServiceSpy: jasmine.SpyObj<IssueProviderService>;
 
   beforeEach(() => {
+    calendarIntegrationServiceSpy = jasmine.createSpyObj('CalendarIntegrationService', [
+      'requestEventsForSchedule$',
+    ]);
+    issueProviderServiceSpy = jasmine.createSpyObj('IssueProviderService', [
+      'getCfgOnce$',
+    ]);
+
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
         CalendarCommonInterfacesService,
         {
           provide: CalendarIntegrationService,
-          useValue: {},
+          useValue: calendarIntegrationServiceSpy,
         },
         {
           provide: IssueProviderService,
-          useValue: {},
+          useValue: issueProviderServiceSpy,
         },
       ],
     });
@@ -116,6 +128,256 @@ describe('CalendarCommonInterfacesService', () => {
       const result = service.getAddTaskData(eventWithoutDescription);
 
       expect(result.notes).toBe('');
+    });
+  });
+
+  describe('getFreshDataForIssueTask', () => {
+    const mockCalendarCfg = {
+      id: 'provider-1',
+      isEnabled: true,
+      icalUrl: 'https://example.com/calendar.ics',
+    };
+
+    const createMockTask = (overrides: Partial<Task> = {}): Task =>
+      ({
+        id: 'task-1',
+        issueId: 'event-123',
+        issueProviderId: 'provider-1',
+        issueType: 'ICAL',
+        title: 'Original Title',
+        dueWithTime: new Date('2025-01-15T10:00:00Z').getTime(),
+        timeEstimate: 3600000,
+        ...overrides,
+      }) as Task;
+
+    const createMockCalendarEvent = (
+      overrides: Partial<CalendarIntegrationEvent> = {},
+    ): CalendarIntegrationEvent => ({
+      id: 'event-123',
+      calProviderId: 'provider-1',
+      title: 'Original Title',
+      start: new Date('2025-01-15T10:00:00Z').getTime(),
+      duration: 3600000,
+      ...overrides,
+    });
+
+    it('should return null when task has no issueProviderId', async () => {
+      const task = createMockTask({ issueProviderId: undefined });
+
+      const result = await service.getFreshDataForIssueTask(task);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when task has no issueId', async () => {
+      const task = createMockTask({ issueId: undefined });
+
+      const result = await service.getFreshDataForIssueTask(task);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when provider config is not found', async () => {
+      const task = createMockTask();
+      issueProviderServiceSpy.getCfgOnce$.and.returnValue(of(null as any));
+
+      const result = await service.getFreshDataForIssueTask(task);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when matching event is not found', async () => {
+      const task = createMockTask();
+      issueProviderServiceSpy.getCfgOnce$.and.returnValue(of(mockCalendarCfg as any));
+      calendarIntegrationServiceSpy.requestEventsForSchedule$.and.returnValue(of([]));
+
+      const result = await service.getFreshDataForIssueTask(task);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null when event has no changes', async () => {
+      const task = createMockTask();
+      const calendarEvent = createMockCalendarEvent();
+      issueProviderServiceSpy.getCfgOnce$.and.returnValue(of(mockCalendarCfg as any));
+      calendarIntegrationServiceSpy.requestEventsForSchedule$.and.returnValue(
+        of([calendarEvent]),
+      );
+
+      const result = await service.getFreshDataForIssueTask(task);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return taskChanges when event time changed', async () => {
+      const task = createMockTask();
+      const newStartTime = new Date('2025-01-15T14:00:00Z').getTime();
+      const calendarEvent = createMockCalendarEvent({ start: newStartTime });
+      issueProviderServiceSpy.getCfgOnce$.and.returnValue(of(mockCalendarCfg as any));
+      calendarIntegrationServiceSpy.requestEventsForSchedule$.and.returnValue(
+        of([calendarEvent]),
+      );
+
+      const result = await service.getFreshDataForIssueTask(task);
+
+      expect(result).not.toBeNull();
+      expect(result!.taskChanges.dueWithTime).toBe(newStartTime);
+      expect(result!.taskChanges.issueWasUpdated).toBe(true);
+      expect(result!.issueTitle).toBe('Original Title');
+    });
+
+    it('should return taskChanges when event title changed', async () => {
+      const task = createMockTask();
+      const calendarEvent = createMockCalendarEvent({ title: 'Updated Title' });
+      issueProviderServiceSpy.getCfgOnce$.and.returnValue(of(mockCalendarCfg as any));
+      calendarIntegrationServiceSpy.requestEventsForSchedule$.and.returnValue(
+        of([calendarEvent]),
+      );
+
+      const result = await service.getFreshDataForIssueTask(task);
+
+      expect(result).not.toBeNull();
+      expect(result!.taskChanges.title).toBe('Updated Title');
+      expect(result!.issueTitle).toBe('Updated Title');
+    });
+
+    it('should return taskChanges when event duration changed', async () => {
+      const task = createMockTask();
+      const newDuration = 7200000; // 2 hours
+      const calendarEvent = createMockCalendarEvent({ duration: newDuration });
+      issueProviderServiceSpy.getCfgOnce$.and.returnValue(of(mockCalendarCfg as any));
+      calendarIntegrationServiceSpy.requestEventsForSchedule$.and.returnValue(
+        of([calendarEvent]),
+      );
+
+      const result = await service.getFreshDataForIssueTask(task);
+
+      expect(result).not.toBeNull();
+      expect(result!.taskChanges.timeEstimate).toBe(newDuration);
+    });
+
+    it('should match event by legacy ID', async () => {
+      const task = createMockTask({ issueId: 'legacy-event-id' });
+      const calendarEvent = createMockCalendarEvent({
+        id: 'new-event-id',
+        legacyIds: ['legacy-event-id'],
+        title: 'Updated Title',
+      });
+      issueProviderServiceSpy.getCfgOnce$.and.returnValue(of(mockCalendarCfg as any));
+      calendarIntegrationServiceSpy.requestEventsForSchedule$.and.returnValue(
+        of([calendarEvent]),
+      );
+
+      const result = await service.getFreshDataForIssueTask(task);
+
+      expect(result).not.toBeNull();
+      expect(result!.taskChanges.title).toBe('Updated Title');
+    });
+
+    it('should handle all-day event conversion correctly', async () => {
+      const task = createMockTask({ dueWithTime: undefined, dueDay: '2025-01-15' });
+      const calendarEvent = createMockCalendarEvent({
+        isAllDay: true,
+        start: new Date('2025-01-16T00:00:00Z').getTime(),
+      });
+      issueProviderServiceSpy.getCfgOnce$.and.returnValue(of(mockCalendarCfg as any));
+      calendarIntegrationServiceSpy.requestEventsForSchedule$.and.returnValue(
+        of([calendarEvent]),
+      );
+
+      const result = await service.getFreshDataForIssueTask(task);
+
+      expect(result).not.toBeNull();
+      expect(result!.taskChanges.dueDay).toBe(
+        getDbDateStr(new Date('2025-01-16T00:00:00Z').getTime()),
+      );
+      expect(result!.taskChanges.dueWithTime).toBeUndefined();
+    });
+  });
+
+  describe('getFreshDataForIssueTasks', () => {
+    const mockCalendarCfg = {
+      id: 'provider-1',
+      isEnabled: true,
+      icalUrl: 'https://example.com/calendar.ics',
+    };
+
+    it('should return empty array when no tasks have changes', async () => {
+      const task = {
+        id: 'task-1',
+        issueId: 'event-123',
+        issueProviderId: 'provider-1',
+        issueType: 'ICAL',
+        title: 'Same Title',
+        dueWithTime: new Date('2025-01-15T10:00:00Z').getTime(),
+        timeEstimate: 3600000,
+      } as Task;
+
+      const calendarEvent: CalendarIntegrationEvent = {
+        id: 'event-123',
+        calProviderId: 'provider-1',
+        title: 'Same Title',
+        start: new Date('2025-01-15T10:00:00Z').getTime(),
+        duration: 3600000,
+      };
+
+      issueProviderServiceSpy.getCfgOnce$.and.returnValue(of(mockCalendarCfg as any));
+      calendarIntegrationServiceSpy.requestEventsForSchedule$.and.returnValue(
+        of([calendarEvent]),
+      );
+
+      const result = await service.getFreshDataForIssueTasks([task]);
+
+      expect(result).toEqual([]);
+    });
+
+    it('should return only tasks with changes', async () => {
+      const task1 = {
+        id: 'task-1',
+        issueId: 'event-1',
+        issueProviderId: 'provider-1',
+        issueType: 'ICAL',
+        title: 'Same Title',
+        dueWithTime: new Date('2025-01-15T10:00:00Z').getTime(),
+        timeEstimate: 3600000,
+      } as Task;
+
+      const task2 = {
+        id: 'task-2',
+        issueId: 'event-2',
+        issueProviderId: 'provider-1',
+        issueType: 'ICAL',
+        title: 'Old Title',
+        dueWithTime: new Date('2025-01-15T11:00:00Z').getTime(),
+        timeEstimate: 3600000,
+      } as Task;
+
+      const calendarEvent1: CalendarIntegrationEvent = {
+        id: 'event-1',
+        calProviderId: 'provider-1',
+        title: 'Same Title',
+        start: new Date('2025-01-15T10:00:00Z').getTime(),
+        duration: 3600000,
+      };
+
+      const calendarEvent2: CalendarIntegrationEvent = {
+        id: 'event-2',
+        calProviderId: 'provider-1',
+        title: 'New Title',
+        start: new Date('2025-01-15T11:00:00Z').getTime(),
+        duration: 3600000,
+      };
+
+      issueProviderServiceSpy.getCfgOnce$.and.returnValue(of(mockCalendarCfg as any));
+      calendarIntegrationServiceSpy.requestEventsForSchedule$.and.returnValue(
+        of([calendarEvent1, calendarEvent2]),
+      );
+
+      const result = await service.getFreshDataForIssueTasks([task1, task2]);
+
+      expect(result.length).toBe(1);
+      expect(result[0].task.id).toBe('task-2');
+      expect(result[0].taskChanges.title).toBe('New Title');
     });
   });
 });
