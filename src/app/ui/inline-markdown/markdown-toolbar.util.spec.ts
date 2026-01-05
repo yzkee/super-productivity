@@ -266,4 +266,104 @@ describe('markdown-toolbar.util', () => {
       expect(result.text.startsWith('hello\n|')).toBe(true);
     });
   });
+
+  // =========================================================================
+  // Edge case tests
+  // =========================================================================
+
+  describe('edge cases - empty string input', () => {
+    it('applyBold should handle empty string', () => {
+      const result = applyBold('', 0, 0);
+      expect(result.text).toBe('****');
+      expect(result.selectionStart).toBe(2);
+      expect(result.selectionEnd).toBe(2);
+    });
+
+    it('applyItalic should handle empty string', () => {
+      const result = applyItalic('', 0, 0);
+      expect(result.text).toBe('__');
+      expect(result.selectionStart).toBe(1);
+      expect(result.selectionEnd).toBe(1);
+    });
+
+    it('applyHeading should handle empty string', () => {
+      const result = applyHeading('', 0, 0, 1);
+      expect(result.text).toBe('# ');
+    });
+
+    it('applyBulletList should handle empty string', () => {
+      const result = applyBulletList('', 0, 0);
+      expect(result.text).toBe('- ');
+    });
+
+    it('insertLink should handle empty string', () => {
+      const result = insertLink('', 0, 0);
+      expect(result.text).toBe('[text](https://)');
+    });
+  });
+
+  describe('edge cases - cursor at beginning/end', () => {
+    it('applyBold at beginning should wrap first word', () => {
+      const result = applyBold('hello world', 0, 0);
+      expect(result.text).toBe('****hello world');
+      expect(result.selectionStart).toBe(2);
+      expect(result.selectionEnd).toBe(2);
+    });
+
+    it('applyBold at end should insert markers at end', () => {
+      const result = applyBold('hello world', 11, 11);
+      expect(result.text).toBe('hello world****');
+      expect(result.selectionStart).toBe(13);
+      expect(result.selectionEnd).toBe(13);
+    });
+
+    it('applyHeading at beginning should add prefix', () => {
+      const result = applyHeading('hello', 0, 0, 1);
+      expect(result.text).toBe('# hello');
+    });
+
+    it('insertLink at end should append link', () => {
+      const result = insertLink('hello', 5, 5);
+      expect(result.text).toBe('hello[text](https://)');
+    });
+  });
+
+  describe('edge cases - multi-line selections for inline formatting', () => {
+    it('applyBold on multi-line selection should wrap entire selection', () => {
+      const result = applyBold('hello\nworld', 0, 11);
+      expect(result.text).toBe('**hello\nworld**');
+    });
+
+    it('applyItalic on multi-line selection should wrap entire selection', () => {
+      const result = applyItalic('hello\nworld', 0, 11);
+      expect(result.text).toBe('_hello\nworld_');
+    });
+
+    it('applyInlineCode on multi-line selection should wrap entire selection', () => {
+      const result = applyInlineCode('hello\nworld', 0, 11);
+      expect(result.text).toBe('`hello\nworld`');
+    });
+  });
+
+  describe('edge cases - nested formatting', () => {
+    it('applyBold inside list item should work', () => {
+      const result = applyBold('- hello world', 2, 7);
+      expect(result.text).toBe('- **hello** world');
+    });
+
+    it('applyItalic inside quoted text should work', () => {
+      const result = applyItalic('> hello world', 2, 7);
+      expect(result.text).toBe('> _hello_ world');
+    });
+
+    it('applyBold inside heading should work', () => {
+      const result = applyBold('# hello world', 2, 7);
+      expect(result.text).toBe('# **hello** world');
+    });
+
+    it('applyBulletList on already formatted text should preserve formatting', () => {
+      const result = applyBulletList('**bold text**', 0, 13);
+      expect(result.text).toBe('- **bold text**');
+    });
+  });
 });

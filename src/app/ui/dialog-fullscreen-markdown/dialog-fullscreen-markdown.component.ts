@@ -1,12 +1,12 @@
-import { ESCAPE } from '@angular/cdk/keycodes';
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   inject,
-  OnDestroy,
   viewChild,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
@@ -15,7 +15,6 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MarkdownComponent } from 'ngx-markdown';
-import { Subscription } from 'rxjs';
 import { LS } from '../../core/persistence/storage-keys.const';
 import { T } from '../../t.const';
 import { isSmallScreen } from '../../util/is-small-screen';
@@ -41,7 +40,8 @@ const ALL_VIEW_MODES: ['SPLIT', 'PARSED', 'TEXT_ONLY'] = ['SPLIT', 'PARSED', 'TE
     TranslatePipe,
   ],
 })
-export class DialogFullscreenMarkdownComponent implements OnDestroy {
+export class DialogFullscreenMarkdownComponent {
+  private readonly _destroyRef = inject(DestroyRef);
   _matDialogRef = inject<MatDialogRef<DialogFullscreenMarkdownComponent>>(MatDialogRef);
   data: { content: string } = inject(MAT_DIALOG_DATA) || { content: '' };
 
@@ -49,7 +49,6 @@ export class DialogFullscreenMarkdownComponent implements OnDestroy {
   viewMode: ViewMode = isSmallScreen() ? 'TEXT_ONLY' : 'SPLIT';
   readonly previewEl = viewChild<MarkdownComponent>('previewEl');
   readonly textareaEl = viewChild<ElementRef>('textareaEl');
-  private _subs: Subscription = new Subscription();
 
   constructor() {
     const lastViewMode = localStorage.getItem(LS.LAST_FULLSCREEN_EDIT_VIEW_MODE);
@@ -68,14 +67,15 @@ export class DialogFullscreenMarkdownComponent implements OnDestroy {
 
     // we want to save as default
     this._matDialogRef.disableClose = true;
-    this._subs.add(
-      this._matDialogRef.keydownEvents().subscribe((e) => {
-        if ((e as any).keyCode === ESCAPE) {
+    this._matDialogRef
+      .keydownEvents()
+      .pipe(takeUntilDestroyed(this._destroyRef))
+      .subscribe((e) => {
+        if (e.key === 'Escape') {
           e.preventDefault();
           this.close(undefined, true);
         }
-      }),
-    );
+      });
   }
 
   keydownHandler(ev: KeyboardEvent): void {
@@ -85,10 +85,6 @@ export class DialogFullscreenMarkdownComponent implements OnDestroy {
   }
 
   ngModelChange(data: string): void {}
-
-  ngOnDestroy(): void {
-    this._subs.unsubscribe();
-  }
 
   close(isSkipSave: boolean = false, isEscapeClose: boolean = false): void {
     this._matDialogRef.close(!isSkipSave ? this.data?.content : undefined);
@@ -138,15 +134,15 @@ export class DialogFullscreenMarkdownComponent implements OnDestroy {
   // =========================================================================
 
   onApplyBold(): void {
-    this._applyTransform(MarkdownToolbar.applyBold);
+    this._applyTransformWithArgs(MarkdownToolbar.applyBold);
   }
 
   onApplyItalic(): void {
-    this._applyTransform(MarkdownToolbar.applyItalic);
+    this._applyTransformWithArgs(MarkdownToolbar.applyItalic);
   }
 
   onApplyStrikethrough(): void {
-    this._applyTransform(MarkdownToolbar.applyStrikethrough);
+    this._applyTransformWithArgs(MarkdownToolbar.applyStrikethrough);
   }
 
   onApplyHeading(level: 1 | 2 | 3): void {
@@ -156,49 +152,39 @@ export class DialogFullscreenMarkdownComponent implements OnDestroy {
   }
 
   onApplyQuote(): void {
-    this._applyTransform(MarkdownToolbar.applyQuote);
+    this._applyTransformWithArgs(MarkdownToolbar.applyQuote);
   }
 
   onApplyBulletList(): void {
-    this._applyTransform(MarkdownToolbar.applyBulletList);
+    this._applyTransformWithArgs(MarkdownToolbar.applyBulletList);
   }
 
   onApplyNumberedList(): void {
-    this._applyTransform(MarkdownToolbar.applyNumberedList);
+    this._applyTransformWithArgs(MarkdownToolbar.applyNumberedList);
   }
 
   onApplyTaskList(): void {
-    this._applyTransform(MarkdownToolbar.applyTaskList);
+    this._applyTransformWithArgs(MarkdownToolbar.applyTaskList);
   }
 
   onApplyInlineCode(): void {
-    this._applyTransform(MarkdownToolbar.applyInlineCode);
+    this._applyTransformWithArgs(MarkdownToolbar.applyInlineCode);
   }
 
   onApplyCodeBlock(): void {
-    this._applyTransform(MarkdownToolbar.applyCodeBlock);
+    this._applyTransformWithArgs(MarkdownToolbar.applyCodeBlock);
   }
 
   onInsertLink(): void {
-    this._applyTransform(MarkdownToolbar.insertLink);
+    this._applyTransformWithArgs(MarkdownToolbar.insertLink);
   }
 
   onInsertImage(): void {
-    this._applyTransform(MarkdownToolbar.insertImage);
+    this._applyTransformWithArgs(MarkdownToolbar.insertImage);
   }
 
   onInsertTable(): void {
-    this._applyTransform(MarkdownToolbar.insertTable);
-  }
-
-  private _applyTransform(
-    transformFn: (
-      text: string,
-      start: number,
-      end: number,
-    ) => MarkdownToolbar.TextTransformResult,
-  ): void {
-    this._applyTransformWithArgs(transformFn);
+    this._applyTransformWithArgs(MarkdownToolbar.insertTable);
   }
 
   private _applyTransformWithArgs(
@@ -218,7 +204,7 @@ export class DialogFullscreenMarkdownComponent implements OnDestroy {
 
     this.data.content = result.text;
 
-    // Restore focus and selection
+    // Wait for Angular to update the DOM after ngModel change before restoring selection
     setTimeout(() => {
       textarea.focus();
       textarea.setSelectionRange(result.selectionStart, result.selectionEnd);
