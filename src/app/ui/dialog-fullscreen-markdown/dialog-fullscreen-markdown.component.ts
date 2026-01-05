@@ -72,7 +72,7 @@ export class DialogFullscreenMarkdownComponent {
 
     // Auto-save with debounce
     this._contentChanges$
-      .pipe(debounceTime(500), takeUntilDestroyed())
+      .pipe(debounceTime(500), takeUntilDestroyed(this._destroyRef))
       .subscribe((value) => {
         this.contentChanged.emit(value);
       });
@@ -99,7 +99,7 @@ export class DialogFullscreenMarkdownComponent {
   ngModelChange(content: string): void {
     this._contentChanges$.next(content);
   }
-  
+
   close(): void {
     this._matDialogRef.close(this.data?.content);
   }
@@ -219,6 +219,7 @@ export class DialogFullscreenMarkdownComponent {
     const result = transformFn(value || '', selectionStart, selectionEnd);
 
     this.data.content = result.text;
+    this._contentChanges$.next(result.text);
 
     // Wait for Angular to update the DOM after ngModel change before restoring selection
     setTimeout(() => {
