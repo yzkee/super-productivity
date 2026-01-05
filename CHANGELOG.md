@@ -1,3 +1,107 @@
+## [16.8.3](https://github.com/johannesjo/super-productivity/compare/v16.8.2...v16.8.3) (2026-01-04)
+
+### Bug Fixes
+
+- **e2e:** use format-agnostic time change in task-detail tests ([098e19f](https://github.com/johannesjo/super-productivity/commit/098e19f9ca7d2ad218d311b9dddfe9709d775b99))
+- **e2e:** use pressSequentially for time input in task-detail tests ([333c3a1](https://github.com/johannesjo/super-productivity/commit/333c3a16bc442d71dfe7c6b6f6953123a6bba928))
+- **schedule:** start tracking selected task when pressing Y in schedule view ([acedc67](https://github.com/johannesjo/super-productivity/commit/acedc67f2af1d5a86df910a12bf5d3efaec7a1e6)), closes [#5884](https://github.com/johannesjo/super-productivity/issues/5884)
+- **sync:** resolve 25-second initial sync timeout race condition ([570a0b5](https://github.com/johannesjo/super-productivity/commit/570a0b590d94a1dab54991808a13e70d99db56d4)), closes [#5868](https://github.com/johannesjo/super-productivity/issues/5868) [#5877](https://github.com/johannesjo/super-productivity/issues/5877)
+- **tasks:** clear reminder when clicking "today" button on already-today tasks ([2af57d2](https://github.com/johannesjo/super-productivity/commit/2af57d2b4aba90ee0ccfc2780e4c3cce26c74b43)), closes [#5872](https://github.com/johannesjo/super-productivity/issues/5872)
+
+### Features
+
+- **e2e:** add Docker-based E2E test isolation ([40d7118](https://github.com/johannesjo/super-productivity/commit/40d7118e179ae46670d0180460a1255d4f63f903))
+
+## [16.8.2](https://github.com/johannesjo/super-productivity/compare/v16.8.1...v16.8.2) (2026-01-04)
+
+### Bug Fixes
+
+- **calendar:** add periodic refresh for planner and scheduler views ([77c4c33](https://github.com/johannesjo/super-productivity/commit/77c4c33988577f2e475ea2dd28f257455f684fa3)), closes [#4474](https://github.com/johannesjo/super-productivity/issues/4474)
+- **db:** add missing \_afterReady guard to loadAll method ([270eca3](https://github.com/johannesjo/super-productivity/commit/270eca3600270bc1d4a741ece9536dc4c1d33b1f)), closes [#5734](https://github.com/johannesjo/super-productivity/issues/5734)
+- **focus-mode:** sync time tracking with Pomodoro breaks and manual end ([55fc855](https://github.com/johannesjo/super-productivity/commit/55fc8551cdf005e754503bd2f8c9ddddcd1fda10)), closes [#5875](https://github.com/johannesjo/super-productivity/issues/5875)
+- **i18n:** add missing translate pipe to play button tooltip ([abfff27](https://github.com/johannesjo/super-productivity/commit/abfff278a4329425abd6aedd6b43bc4730e28c03)), closes [#5874](https://github.com/johannesjo/super-productivity/issues/5874)
+- **pomodoro:** allow manual session end to start break early ([291d3e8](https://github.com/johannesjo/super-productivity/commit/291d3e8caf66fecde24a664ead4fc91547301d5c)), closes [#5876](https://github.com/johannesjo/super-productivity/issues/5876)
+- **sync:** show skip button immediately when offline ([ccd4846](https://github.com/johannesjo/super-productivity/commit/ccd4846b882c24cd399f8c8586904be8dcddb3bd)), closes [#5877](https://github.com/johannesjo/super-productivity/issues/5877)
+- **tasks:** handle undefined tasks in reminder effect ([4497aed](https://github.com/johannesjo/super-productivity/commit/4497aed3172bb4423c2680f092a34f78a8818fc2)), closes [#5873](https://github.com/johannesjo/super-productivity/issues/5873)
+- **test:** reset selector overrides to prevent test pollution ([d4b40e8](https://github.com/johannesjo/super-productivity/commit/d4b40e80d5ea7ecbb4bbe10fc285e195f9a1d043))
+
+### Features
+
+- **android:** add alarm sound and vibration to task reminders ([b7cbef2](https://github.com/johannesjo/super-productivity/commit/b7cbef2f79f014f997d746c358c5253844d8d853)), closes [#5603](https://github.com/johannesjo/super-productivity/issues/5603)
+- **e2e:** streamline e2e test development with improved infrastructure ([402fb69](https://github.com/johannesjo/super-productivity/commit/402fb69a858459c9c1a46f1ea497063d0dc4c04a))
+- **effects:** consolidate task update actions in PluginHooksEffects ([386c636](https://github.com/johannesjo/super-productivity/commit/386c636e5fe163bd68f68f52e347a967761fb1d3))
+- **sync:** add skip button to loading screen when waiting for sync ([12e68cd](https://github.com/johannesjo/super-productivity/commit/12e68cdb0e321a83cd8425d8ae927a5c51999460)), closes [#5868](https://github.com/johannesjo/super-productivity/issues/5868)
+
+### Performance Improvements
+
+- **e2e:** optimize wait utilities and addTask method for faster test execution ([c0fc56f](https://github.com/johannesjo/super-productivity/commit/c0fc56f729aef697d3f7f37febc5aa9af05d3998))
+- **e2e:** remove ineffective waits to speed up test runs ([24c008d](https://github.com/johannesjo/super-productivity/commit/24c008df92959af98498c5ae1a79f1dbc5a16901))
+
+## [16.8.1](https://github.com/johannesjo/super-productivity/compare/v16.8.0...v16.8.1) (2026-01-02)
+
+### Bug Fixes
+
+- **e2e:** improve WebDAV sync test reliability ([e6b6468](https://github.com/johannesjo/super-productivity/commit/e6b6468d2aba39149354419b492f860b60bd4fc5))
+
+# [16.8.0](https://github.com/johannesjo/super-productivity/compare/v16.7.3...v16.8.0) (2026-01-02)
+
+### Bug Fixes
+
+- address code review issues from today's changes ([795ec42](https://github.com/johannesjo/super-productivity/commit/795ec42f644139d03d10c660cafb2db14f845d32))
+- address code review issues from today's changes ([6d57aaf](https://github.com/johannesjo/super-productivity/commit/6d57aaff13b423c2e78b7f2bca60e3dfe460b402))
+- **android:** add error handling for native service calls ([a14c950](https://github.com/johannesjo/super-productivity/commit/a14c95093de3ad01e86c0e1879be866787d81874)), closes [#5819](https://github.com/johannesjo/super-productivity/issues/5819)
+- **android:** resolve race condition and improve widget reliability ([00fdb29](https://github.com/johannesjo/super-productivity/commit/00fdb29db96c50515c755370afcfba9272316f85))
+- **android:** skip reminder dialog on Android to fix snooze button ([ed2dbfb](https://github.com/johannesjo/super-productivity/commit/ed2dbfbc27692afe09fed1b94f05627921bfb755)), closes [#5775](https://github.com/johannesjo/super-productivity/issues/5775)
+- **android:** sync notification timer when time spent is manually changed ([2c910f6](https://github.com/johannesjo/super-productivity/commit/2c910f6753cf444c90c5463d6ffc75f13803f2e8)), closes [#5772](https://github.com/johannesjo/super-productivity/issues/5772)
+- **android:** sync time tracking from notification correctly on resume ([55d4fd1](https://github.com/johannesjo/super-productivity/commit/55d4fd1520ad958b2b89100a4d0e504100cdcb29)), closes [#5840](https://github.com/johannesjo/super-productivity/issues/5840) [#5842](https://github.com/johannesjo/super-productivity/issues/5842)
+- **audio:** prevent app freeze during focus mode ticking sound ([3a5cddd](https://github.com/johannesjo/super-productivity/commit/3a5cddd8e86b7aee5451262ba5cc19cb05c70132)), closes [#5798](https://github.com/johannesjo/super-productivity/issues/5798)
+- **backup:** correct logical operator for platform check on first launch ([80acc92](https://github.com/johannesjo/super-productivity/commit/80acc9253a9e6501d563e6aa9bfef269e26ae79d)), closes [#5796](https://github.com/johannesjo/super-productivity/issues/5796)
+- **build:** ensure consistent Windows EXE metadata for installer and portable ([fff8596](https://github.com/johannesjo/super-productivity/commit/fff8596d50aad3eb12f54e5a6ad0c6ea99243c7d)), closes [#4625](https://github.com/johannesjo/super-productivity/issues/4625)
+- **build:** remove deprecated win32metadata from electron-builder config ([50de4c1](https://github.com/johannesjo/super-productivity/commit/50de4c1fd71990b765a22297dc7a889e967c2663))
+- **data-repair:** change quickSetting to CUSTOM when startDate is missing ([cb27b53](https://github.com/johannesjo/super-productivity/commit/cb27b53f85b547437b1f0e12948ec19406c0d06a)), closes [#5802](https://github.com/johannesjo/super-productivity/issues/5802)
+- **database:** prevent repeated error dialogs when disk is full ([9f6442b](https://github.com/johannesjo/super-productivity/commit/9f6442bf6b9ff75efc06eb833f7d19b646cb4a8d)), closes [#5845](https://github.com/johannesjo/super-productivity/issues/5845)
+- **electron:** delay window focus after notification to prevent accidental input ([29be592](https://github.com/johannesjo/super-productivity/commit/29be5929ead9ef8916f4d31475fd6df28c999602)), closes [#5762](https://github.com/johannesjo/super-productivity/issues/5762)
+- **electron:** reduce idle detection log verbosity ([62d449a](https://github.com/johannesjo/super-productivity/commit/62d449a82fda81ed058d7786187ff41c8ea9ec79)), closes [#5794](https://github.com/johannesjo/super-productivity/issues/5794)
+- **error-handler:** use getErrorTxt to prevent [object Object] in error titles ([b2d0319](https://github.com/johannesjo/super-productivity/commit/b2d0319ea236eb7166cc2bce93732718e2f7dc28)), closes [#5822](https://github.com/johannesjo/super-productivity/issues/5822)
+- **error-handling:** prevent [object Object] from appearing in error messages ([e571d6e](https://github.com/johannesjo/super-productivity/commit/e571d6e3bcbe4db998678cd9c5ef039a2a5022f7)), closes [#5790](https://github.com/johannesjo/super-productivity/issues/5790)
+- **focus-mode:** address critical focus mode and Android notification issues ([d114358](https://github.com/johannesjo/super-productivity/commit/d11435808eaff33b7d3fb446ffd62ba60dc9facb))
+- **focus-mode:** respect isFocusModeEnabled setting in App Features ([47a9897](https://github.com/johannesjo/super-productivity/commit/47a989710da3c59db23b223d4f0687a8a7a7a121)), closes [#5776](https://github.com/johannesjo/super-productivity/issues/5776)
+- **focus-mode:** use independent 1s timer for Pomodoro countdown ([ce70df4](https://github.com/johannesjo/super-productivity/commit/ce70df4a665b3ce2b4b9a04ba85c19526dbb0362)), closes [#5813](https://github.com/johannesjo/super-productivity/issues/5813)
+- **ical:** prevent race condition in lazy loader ([6d82c19](https://github.com/johannesjo/super-productivity/commit/6d82c1982d06d68b9262bda6f00f220ca1e0a519))
+- **localization:** respect Sunday as first day of week preference ([635083e](https://github.com/johannesjo/super-productivity/commit/635083ef76cc34188755cf6604b17ff7b732ee28)), closes [#5862](https://github.com/johannesjo/super-productivity/issues/5862)
+- **offline-banner:** prevent repeated offline banner on Linux/Electron ([871ee35](https://github.com/johannesjo/super-productivity/commit/871ee354ca148c101e11021e16257f64ee059066)), closes [#5738](https://github.com/johannesjo/super-productivity/issues/5738)
+- **planner:** schedule next month uses first day of month ([ece1644](https://github.com/johannesjo/super-productivity/commit/ece1644d4e366fd6ff05300b04f4c54325f13ee0))
+- **planner:** use task startDate for weekly repeat weekday calculation ([4198a6b](https://github.com/johannesjo/super-productivity/commit/4198a6bbc924f5d2ccf88afef549ed2da7a68cf7)), closes [#5806](https://github.com/johannesjo/super-productivity/issues/5806)
+- **plugins:** ensure setCounter creates valid SimpleCounter records ([1529920](https://github.com/johannesjo/super-productivity/commit/1529920c370162744e3a5911a1000b790d52713d)), closes [#5812](https://github.com/johannesjo/super-productivity/issues/5812)
+- **reflection-note:** prevent trailing spaces from being deleted while typing ([4c27881](https://github.com/johannesjo/super-productivity/commit/4c278812d8b021ac853732bdda59b9eabbfdb526)), closes [#5800](https://github.com/johannesjo/super-productivity/issues/5800)
+- **reminder:** cancel native Android reminders immediately on task deletion ([93e957e](https://github.com/johannesjo/super-productivity/commit/93e957edc1f218083867fdf470cfb63e02691573)), closes [#5831](https://github.com/johannesjo/super-productivity/issues/5831)
+- **reminder:** prevent dismissed reminders from reappearing ([9c3834b](https://github.com/johannesjo/super-productivity/commit/9c3834b7ee6ca15f4eea4247dc4f67d6ef4043dc)), closes [#5826](https://github.com/johannesjo/super-productivity/issues/5826)
+- **security:** address CodeQL security alerts ([c4023b4](https://github.com/johannesjo/super-productivity/commit/c4023b4f457b8f0738589a53dd9845e3e26cfd48)), closes [#50-52](https://github.com/johannesjo/super-productivity/issues/50-52) [#40](https://github.com/johannesjo/super-productivity/issues/40) [#39](https://github.com/johannesjo/super-productivity/issues/39) [#37-38](https://github.com/johannesjo/super-productivity/issues/37-38)
+- **security:** update Angular packages to address CVEs ([efb164c](https://github.com/johannesjo/super-productivity/commit/efb164c1fed35a8694db022eefa6e2d1dcc22131))
+- **security:** update axios and brace-expansion dependencies ([b2332c4](https://github.com/johannesjo/super-productivity/commit/b2332c4fb67e6c08c6b13235f2b84192da11f29a))
+- **sync:** add error handling for JSON parse failures in sync data ([7496b2d](https://github.com/johannesjo/super-productivity/commit/7496b2dd604824886a80177def74877607f50f03)), closes [#5771](https://github.com/johannesjo/super-productivity/issues/5771)
+- **sync:** redirect to TODAY when active project removed during sync ([8794194](https://github.com/johannesjo/super-productivity/commit/8794194e998c4f9aef1fb3e14266646506841245)), closes [#5859](https://github.com/johannesjo/super-productivity/issues/5859)
+- **sync:** show context-aware permission error for Flatpak/Snap ([18a0e78](https://github.com/johannesjo/super-productivity/commit/18a0e78f129b65fa18d0b6c052fca1ac29bb6c44)), closes [#4078](https://github.com/johannesjo/super-productivity/issues/4078)
+- **task-repeat:** prevent race condition when saving repeat config ([dc12403](https://github.com/johannesjo/super-productivity/commit/dc12403747fbf2012dfde08e33ef1c61574fabac)), closes [#5828](https://github.com/johannesjo/super-productivity/issues/5828)
+- **test:** fix fetch spy setup in audio tests ([1ba7cf8](https://github.com/johannesjo/super-productivity/commit/1ba7cf89608177ef98fbbf3ceabdca8dbe9a9057))
+- **test:** use dynamic date in year boundary test to avoid today collision ([6dea85c](https://github.com/johannesjo/super-productivity/commit/6dea85c083391797c9b20ae8aae4ae94f5afbd28))
+
+### Features
+
+- **android:** add quick add widget ([4a89c05](https://github.com/johannesjo/super-productivity/commit/4a89c05d321ea7da429dd328bd1e51a921cf4c73))
+- **focus-mode:** add manual break start option for Pomodoro ([c74cebd](https://github.com/johannesjo/super-productivity/commit/c74cebddcba77ecb7cd79059063d48e09f545660)), closes [#5736](https://github.com/johannesjo/super-productivity/issues/5736)
+- **focus-mode:** add Skip Break button to banner during active breaks ([b9bf655](https://github.com/johannesjo/super-productivity/commit/b9bf655e0007987041046b21cb7ad946913065e8)), closes [#5818](https://github.com/johannesjo/super-productivity/issues/5818)
+- **i18n:** add new translations ([ca22c0d](https://github.com/johannesjo/super-productivity/commit/ca22c0d8f6010d7086f920749e43fbb9a49cfd43))
+- **i18n:** update Turkish language ([66121a1](https://github.com/johannesjo/super-productivity/commit/66121a113106ca39e8fd86b6b3c37f2dbf4afb03))
+- **notes:** add auto-save to fullscreen markdown editor ([09d0131](https://github.com/johannesjo/super-productivity/commit/09d0131760d2fb5488b1324472680a67316fd714)), closes [#5804](https://github.com/johannesjo/super-productivity/issues/5804)
+- **sync:** add WebDAV Test Connection button and improve UX ([660adf7](https://github.com/johannesjo/super-productivity/commit/660adf76bc05090a3e3e1981d24bc0be2a5b9edb)), closes [#5508](https://github.com/johannesjo/super-productivity/issues/5508) [#5508](https://github.com/johannesjo/super-productivity/issues/5508)
+- **task:** add Go to Task button for all newly created tasks ([b37065a](https://github.com/johannesjo/super-productivity/commit/b37065a84c899c73c7e14c2d97d019f37f137585)), closes [#5759](https://github.com/johannesjo/super-productivity/issues/5759)
+
+### Performance Improvements
+
+- **android:** prewarm WebView during idle time to speed up startup ([25edb4f](https://github.com/johannesjo/super-productivity/commit/25edb4ff1e0fbded63a4ce2b9de5159259974bb6))
+- lazy load ical.js to reduce initial bundle size ([1cb1e1c](https://github.com/johannesjo/super-productivity/commit/1cb1e1c7424129eda9aeee8b3b660febd58de63f))
+
 ## [16.7.3](https://github.com/johannesjo/super-productivity/compare/v16.7.2...v16.7.3) (2025-12-20)
 
 ### Bug Fixes

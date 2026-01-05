@@ -12,7 +12,7 @@ import { FocusModeStorageService } from '../focus-mode-storage.service';
 import * as actions from './focus-mode.actions';
 import * as selectors from './focus-mode.selectors';
 import { FocusModeMode, FocusScreen, TimerState } from '../focus-mode.model';
-import { unsetCurrentTask } from '../../tasks/store/task.actions';
+import { unsetCurrentTask, setCurrentTask } from '../../tasks/store/task.actions';
 import { openIdleDialog } from '../../idle/store/idle.actions';
 import { selectTaskById } from '../../tasks/store/task.selectors';
 import {
@@ -381,9 +381,30 @@ describe('FocusModeEffects', () => {
       });
     });
 
-    it('should NOT dispatch startBreak for manual completions', (done) => {
+    it('should dispatch startBreak for manual completions (to allow early break start)', (done) => {
       actions$ = of(actions.completeFocusSession({ isManual: true }));
       store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 1);
+      store.refreshState();
+
+      effects.sessionComplete$.pipe(toArray()).subscribe((actionsArr) => {
+        const startBreakAction = actionsArr.find(
+          (a) => a.type === actions.startBreak.type,
+        );
+        expect(startBreakAction).toBeDefined();
+        done();
+      });
+    });
+
+    it('should NOT dispatch startBreak when isManualBreakStart is enabled', (done) => {
+      actions$ = of(actions.completeFocusSession({ isManual: false }));
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 1);
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: false,
+        isSkipPreparation: false,
+        isManualBreakStart: true,
+      });
       store.refreshState();
 
       effects.sessionComplete$.pipe(toArray()).subscribe((actionsArr) => {
@@ -424,7 +445,7 @@ describe('FocusModeEffects', () => {
 
   describe('breakComplete$', () => {
     it('should dispatch startFocusSession when strategy.shouldAutoStartNextSession is true', (done) => {
-      actions$ = of(actions.completeBreak());
+      actions$ = of(actions.completeBreak({ pausedTaskId: null }));
       store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
       store.refreshState();
 
@@ -435,7 +456,7 @@ describe('FocusModeEffects', () => {
     });
 
     it('should NOT dispatch startFocusSession when shouldAutoStartNextSession is false', (done) => {
-      actions$ = of(actions.completeBreak());
+      actions$ = of(actions.completeBreak({ pausedTaskId: null }));
       store.overrideSelector(selectors.selectMode, FocusModeMode.Countdown);
       store.refreshState();
 
@@ -455,11 +476,30 @@ describe('FocusModeEffects', () => {
         },
       });
     });
+
+    it('should dispatch setCurrentTask when pausedTaskId is provided', (done) => {
+      const pausedTaskId = 'test-paused-task-id';
+      actions$ = of(actions.completeBreak({ pausedTaskId }));
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Countdown);
+      store.refreshState();
+
+      strategyFactoryMock.getStrategy.and.returnValue({
+        initialSessionDuration: 25 * 60 * 1000,
+        shouldStartBreakAfterSession: false,
+        shouldAutoStartNextSession: false,
+        getBreakDuration: () => null,
+      });
+
+      effects.breakComplete$.pipe(take(1)).subscribe((action) => {
+        expect(action).toEqual(setCurrentTask({ id: pausedTaskId }));
+        done();
+      });
+    });
   });
 
   describe('skipBreak$', () => {
     it('should dispatch startFocusSession when strategy.shouldAutoStartNextSession is true', (done) => {
-      actions$ = of(actions.skipBreak());
+      actions$ = of(actions.skipBreak({ pausedTaskId: null }));
       store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
       store.refreshState();
 
@@ -470,7 +510,7 @@ describe('FocusModeEffects', () => {
     });
 
     it('should NOT dispatch startFocusSession when shouldAutoStartNextSession is false', (done) => {
-      actions$ = of(actions.skipBreak());
+      actions$ = of(actions.skipBreak({ pausedTaskId: null }));
       store.overrideSelector(selectors.selectMode, FocusModeMode.Countdown);
       store.refreshState();
 
@@ -488,6 +528,25 @@ describe('FocusModeEffects', () => {
           expect(result.length).toBe(0);
           done();
         },
+      });
+    });
+
+    it('should dispatch setCurrentTask when pausedTaskId is provided', (done) => {
+      const pausedTaskId = 'test-paused-task-id';
+      actions$ = of(actions.skipBreak({ pausedTaskId }));
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Countdown);
+      store.refreshState();
+
+      strategyFactoryMock.getStrategy.and.returnValue({
+        initialSessionDuration: 25 * 60 * 1000,
+        shouldStartBreakAfterSession: false,
+        shouldAutoStartNextSession: false,
+        getBreakDuration: () => null,
+      });
+
+      effects.skipBreak$.pipe(take(1)).subscribe((action) => {
+        expect(action).toEqual(setCurrentTask({ id: pausedTaskId }));
+        done();
       });
     });
   });

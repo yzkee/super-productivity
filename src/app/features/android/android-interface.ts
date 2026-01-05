@@ -55,8 +55,10 @@ export interface AndroidInterface {
   ): void;
   stopFocusModeService?(): void;
   updateFocusModeService?(
+    title: string,
     remainingMs: number,
     isPaused: boolean,
+    isBreak: boolean,
     taskTitle: string | null,
   ): void;
 
@@ -70,6 +72,9 @@ export interface AndroidInterface {
     triggerAtMs: number,
   ): void;
   cancelNativeReminder?(notificationId: number): void;
+
+  // Widget task queue - get queued tasks from home screen widget
+  getWidgetTaskQueue?(): string | null;
 
   // added here only
   onResume$: Subject<void>;

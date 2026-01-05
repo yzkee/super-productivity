@@ -143,9 +143,17 @@ export class HttpNotOkAPIError extends AdditionalLogErrorBase {
     }
 
     // Strip script and style tags with their content
-    const cleanBody = body
-      .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, '')
-      .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, '');
+    // Apply repeatedly to handle nested/crafted inputs like <scri<script>pt>
+    let cleanBody = body;
+    let previousBody: string;
+    do {
+      previousBody = cleanBody;
+      cleanBody = cleanBody
+        .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gim, '')
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gim, '')
+        .replace(/<script\b/gim, '')
+        .replace(/<style\b/gim, '');
+    } while (cleanBody !== previousBody);
 
     // Strip HTML tags for plain text
     const withoutTags = cleanBody
@@ -247,6 +255,42 @@ export class CompressError extends AdditionalLogErrorBase {
 
 export class DecompressError extends AdditionalLogErrorBase {
   override name = 'DecompressError';
+}
+
+export class JsonParseError extends Error {
+  override name = 'JsonParseError';
+  position?: number;
+  dataSample?: string;
+
+  constructor(originalError: unknown, dataStr?: string) {
+    // Extract position from SyntaxError message (e.g., "...at position 80999")
+    const positionMatch =
+      originalError instanceof Error
+        ? originalError.message.match(/position\s+(\d+)/i)
+        : null;
+    const position = positionMatch ? parseInt(positionMatch[1], 10) : undefined;
+
+    // Create human-readable message
+    const positionInfo = position !== undefined ? ` at position ${position}` : '';
+    const message = `Failed to parse JSON data${positionInfo}. The sync data may be corrupted or incomplete.`;
+
+    super(message);
+    this.position = position;
+
+    // Extract a sample of the data around the error position for debugging
+    if (dataStr && position !== undefined) {
+      const start = Math.max(0, position - 50);
+      const end = Math.min(dataStr.length, position + 50);
+      this.dataSample = `...${dataStr.substring(start, end)}...`;
+    }
+
+    PFLog.err('JsonParseError:', {
+      message: this.message,
+      position: this.position,
+      dataSample: this.dataSample,
+      originalError,
+    });
+  }
 }
 
 // --------------MODEL AND DB ERRORS--------------
