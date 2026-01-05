@@ -1,6 +1,6 @@
 /**
  * Integration tests for GitHub issue #5813
- * https://github.com/johannesjo/super-productivity/issues/5813
+ * https://github.com/super-productivity/super-productivity/issues/5813
  *
  * Bug: New Pomodoro Timer doesn't work if you change the time tracking interval
  *

@@ -176,7 +176,7 @@ jobs:
       #      - run: |
       #          echo Installed chromium version: ${{ steps.setup-chrome.outputs.chrome-version }}
       #          ${{ steps.setup-chrome.outputs.chrome-path }} --version
-      # Disabled because not working atm: https://github.com/johannesjo/super-productivity/actions/runs/5924016145/job/16060737982
+      # Disabled because not working atm: https://github.com/super-productivity/super-productivity/actions/runs/5924016145/job/16060737982
       #      - name: Test E2E
       #        run: npm run e2e
 

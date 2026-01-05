@@ -1565,6 +1565,7 @@
         "REMINDER_ADDED": "Scheduled <strong>{{title}}</strong> at <strong>{{date}}</strong>",
         "REMINDER_DELETED": "Deleted reminder for task",
         "REMINDER_UPDATED": "Updated reminder for task \"{{title}}\"",
+        "TASK_ALREADY_EXISTS": "Task <strong>{{title}}</strong> already exists",
         "TASK_CREATED": "Created task \"{{taskTitle}}\""
       },
       "SELECT_OR_CREATE": "Select or create task",
@@ -2011,6 +2012,7 @@
       "EN": "English",
       "ES": "Español",
       "FA": "فارسی",
+      "FI": "Suomi",
       "FR": "français",
       "HR": "Hrvatski",
       "ID": "Indonesian",
@@ -2025,6 +2027,7 @@
       "PT_BR": "Português (Brazil)",
       "RU": "Русский",
       "SK": "Slovak",
+      "SV": "Svenska",
       "TIME_LOCALE": "Datetime format locale",
       "TIME_LOCALE_AUTO": "System default",
       "TIME_LOCALE_DE_DE": "German: 24-hour, DD.MM.YYYY",
