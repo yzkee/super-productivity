@@ -691,6 +691,23 @@
         "NOTE_LABEL": "Not olarak kaydetmek için bir metin girin (markdown kullanabilirsiniz)..."
       },
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Bold",
+          "BULLET_LIST": "Bulleted list",
+          "CODE_BLOCK": "Code block",
+          "HEADING_1": "Heading 1",
+          "HEADING_2": "Heading 2",
+          "HEADING_3": "Heading 3",
+          "INLINE_CODE": "Inline code",
+          "INSERT_IMAGE": "Insert image",
+          "INSERT_LINK": "Insert link",
+          "INSERT_TABLE": "Insert table",
+          "ITALIC": "Italic",
+          "NUMBERED_LIST": "Numbered list",
+          "QUOTE": "Quote",
+          "STRIKETHROUGH": "Strikethrough",
+          "TASK_LIST": "Task list"
+        },
         "VIEW_PARSED": "Ayrıştırılmış (düzenlenemez) markdown olarak görüntüle",
         "VIEW_SPLIT": "Ayrıştırılmış ve ayrıştırılmamış markdown'ı bölünmüş görünümde görüntüleyin",
         "VIEW_TEXT_ONLY": "Ayrıştırılmamış metin olarak görüntüle"

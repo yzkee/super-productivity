@@ -708,6 +708,23 @@
         "NOTE_LABEL": "Voer wat tekst in om op te slaan als notitie ..."
       },
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Vetgedrukt",
+          "BULLET_LIST": "Opsomming",
+          "CODE_BLOCK": "Code blok",
+          "HEADING_1": "Kop 1",
+          "HEADING_2": "Kop 2",
+          "HEADING_3": "Kop 3",
+          "INLINE_CODE": "Inline code",
+          "INSERT_IMAGE": "Afbeelding invoegen",
+          "INSERT_LINK": "Link invoegen",
+          "INSERT_TABLE": "Tabel invoegen",
+          "ITALIC": "Cursief",
+          "NUMBERED_LIST": "Genummerde lijst",
+          "QUOTE": "Citaat",
+          "STRIKETHROUGH": "Doorhalen",
+          "TASK_LIST": "Takenlijst"
+        },
         "VIEW_PARSED": "Weergeven als geparseerde (niet bewerkbare) markdown",
         "VIEW_SPLIT": "Geparsed en ongeparsed markdown in gesplitste weergave bekijken",
         "VIEW_TEXT_ONLY": "Weergeven als niet-uitgestuurde tekst"

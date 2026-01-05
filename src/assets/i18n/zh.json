@@ -31,7 +31,7 @@
     "SHOW_ISSUE_PANEL": "显示问题看板",
     "SHOW_NOTES": "显示项目备注",
     "SHOW_TASK_VIEW_CUSTOMIZER_PANEL": "显示筛选/分组/排序看板"
-  },  
+  },
   "CONFIRM": {
     "AUTO_FIX": "您的数据似乎已损坏（“{{validityError}}”）。您想尝试自动修复吗？这可能会导致部分数据丢失。",
     "RELOAD_AFTER_IDB_ERROR": "无法访问数据库 :( 可能的原因是在后台更新了应用或磁盘空间不足。如果您在 Linux 上将应用安装为 snap，您还需要启用刷新感知 'snap set core experimental.refresh-app-awareness=true'，直到他们在他们那边修复此问题。按 OK 重新加载应用（在某些平台上可能需要手动重新启动应用）。",
@@ -691,6 +691,23 @@
         "NOTE_LABEL": "输入一些文本保存为备注（您可以使用 Markdown）..."
       },
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Bold",
+          "BULLET_LIST": "Bulleted list",
+          "CODE_BLOCK": "Code block",
+          "HEADING_1": "Heading 1",
+          "HEADING_2": "Heading 2",
+          "HEADING_3": "Heading 3",
+          "INLINE_CODE": "Inline code",
+          "INSERT_IMAGE": "Insert image",
+          "INSERT_LINK": "Insert link",
+          "INSERT_TABLE": "Insert table",
+          "ITALIC": "Italic",
+          "NUMBERED_LIST": "Numbered list",
+          "QUOTE": "Quote",
+          "STRIKETHROUGH": "Strikethrough",
+          "TASK_LIST": "Task list"
+        },
         "VIEW_PARSED": "查看解析后的（不可编辑）Markdown",
         "VIEW_SPLIT": "在拆分视图中查看解析和未解析的 Markdown",
         "VIEW_TEXT_ONLY": "查看未解析的文本"
@@ -1135,8 +1152,8 @@
         "L_SYNC_INTERVAL": "同步间隔",
         "L_SYNC_PROVIDER": "同步提供者",
         "LOCAL_FILE": {
-        "L_SYNC_FILE_PATH_PERMISSION_VALIDATION": "需要文件访问权限",
-        "L_SYNC_FOLDER_PATH": "同步文件夹路径"
+          "L_SYNC_FILE_PATH_PERMISSION_VALIDATION": "需要文件访问权限",
+          "L_SYNC_FOLDER_PATH": "同步文件夹路径"
         },
         "TITLE": "同步",
         "WEB_DAV": {
@@ -1147,7 +1164,7 @@
           "L_PASSWORD": "密码",
           "L_SYNC_FOLDER_PATH": "同步文件夹路径",
           "L_TEST_CONNECTION": "测试链接",
-          "L_USER_NAME": "用户名"	,
+          "L_USER_NAME": "用户名",
           "S_TEST_FAIL": "连接测试失败：{{error}} - 目标URL：{{url}}",
           "S_TEST_SUCCESS": "连接测试成功！目标URL：{{url}}"
         }

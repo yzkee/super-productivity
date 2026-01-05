@@ -689,6 +689,23 @@
         "NOTE_LABEL": "Introduce algún texto para guardar como nota (puedes usar markdown)..."
       },
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Bold",
+          "BULLET_LIST": "Bulleted list",
+          "CODE_BLOCK": "Code block",
+          "HEADING_1": "Heading 1",
+          "HEADING_2": "Heading 2",
+          "HEADING_3": "Heading 3",
+          "INLINE_CODE": "Inline code",
+          "INSERT_IMAGE": "Insert image",
+          "INSERT_LINK": "Insert link",
+          "INSERT_TABLE": "Insert table",
+          "ITALIC": "Italic",
+          "NUMBERED_LIST": "Numbered list",
+          "QUOTE": "Quote",
+          "STRIKETHROUGH": "Strikethrough",
+          "TASK_LIST": "Task list"
+        },
         "VIEW_PARSED": "Ver como markdown analizado (no editable)",
         "VIEW_SPLIT": "Ver markdown analizado y sin analizar en vista dividida",
         "VIEW_TEXT_ONLY": "Ver como texto sin analizar"

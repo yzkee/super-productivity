@@ -680,6 +680,23 @@
         "NOTE_LABEL": "Ange text som ska sparas som anteckning (du kan använda markdown)..."
       },
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Bold",
+          "BULLET_LIST": "Bulleted list",
+          "CODE_BLOCK": "Code block",
+          "HEADING_1": "Heading 1",
+          "HEADING_2": "Heading 2",
+          "HEADING_3": "Heading 3",
+          "INLINE_CODE": "Inline code",
+          "INSERT_IMAGE": "Insert image",
+          "INSERT_LINK": "Insert link",
+          "INSERT_TABLE": "Insert table",
+          "ITALIC": "Italic",
+          "NUMBERED_LIST": "Numbered list",
+          "QUOTE": "Quote",
+          "STRIKETHROUGH": "Strikethrough",
+          "TASK_LIST": "Task list"
+        },
         "VIEW_PARSED": "Visa som analyserad (ej redigerbar) markdown",
         "VIEW_SPLIT": "Visa analyserad och oanalyserad markdown i delad vy",
         "VIEW_TEXT_ONLY": "Visa som oparserad text"
