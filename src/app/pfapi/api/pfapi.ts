@@ -41,6 +41,17 @@ import { OperationLogSyncService } from '../../op-log/sync/operation-log-sync.se
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { inject } from '@angular/core'; // Inject is used here
 
+/**
+ * Model IDs from older versions that are no longer used and should be silently skipped
+ * during import without showing a warning dialog to the user.
+ */
+const SKIPPED_LEGACY_MODEL_IDS = [
+  'lastLocalSyncModelChange',
+  'lastArchiveUpdate',
+  'improvement', // Deprecated: was part of the old metric system
+  'obstruction', // Deprecated: was part of the old metric system
+];
+
 export class Pfapi<const MD extends ModelCfgs> {
   private static _wasInstanceCreated = false;
 
@@ -468,10 +479,10 @@ export class Pfapi<const MD extends ModelCfgs> {
     }
 
     // 3. Filter out legacy model IDs
-    const SKIPPED_MODEL_IDS = ['lastLocalSyncModelChange', 'lastArchiveUpdate'];
     const filteredData = { ...data } as AllSyncModels<MD>;
     for (const modelId of Object.keys(filteredData)) {
-      if (SKIPPED_MODEL_IDS.includes(modelId)) {
+      if (SKIPPED_LEGACY_MODEL_IDS.includes(modelId)) {
+        PFLog.warn(`Skipping deprecated model during import: "${modelId}"`);
         delete (filteredData as Record<string, unknown>)[modelId];
       } else if (!this.m[modelId] && !isSkipLegacyWarnings) {
         PFLog.err(
@@ -564,14 +575,18 @@ export class Pfapi<const MD extends ModelCfgs> {
     try {
       this.db.lock();
       const modelIds = Object.keys(data);
-      const SKIPPED_MODEL_IDS = ['lastLocalSyncModelChange', 'lastArchiveUpdate'];
       const promises = modelIds.map((modelId) => {
         const modelData = data[modelId];
         const modelCtrl = this.m[modelId];
         if (!modelCtrl) {
+          // Check if this is a known deprecated model that should be silently skipped
+          if (SKIPPED_LEGACY_MODEL_IDS.includes(modelId)) {
+            PFLog.warn(`Skipping deprecated model during import: "${modelId}"`);
+            return Promise.resolve();
+          }
+          // For unknown models, log error and prompt user (unless skipping legacy warnings)
           PFLog.err('ModelId without Ctrl', modelId, modelData);
           if (
-            SKIPPED_MODEL_IDS.includes(modelId) ||
             isSkipLegacyWarnings ||
             confirm(
               `ModelId "${modelId}" was found in data. The model seems to be outdated. Ignore and proceed to import anyway?`,
