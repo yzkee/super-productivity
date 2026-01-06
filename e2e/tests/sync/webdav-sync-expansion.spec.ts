@@ -10,7 +10,7 @@ import {
   setupSyncClient,
   waitForSyncComplete,
   WEBDAV_CONFIG_TEMPLATE,
-} from '../../utils/sync-test-helpers';
+} from '../../utils/sync-helpers';
 
 // Timing constants for sync detection
 

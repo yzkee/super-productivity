@@ -36,10 +36,7 @@ export class ProjectPage extends BasePage {
   }
 
   async createProject(projectName: string): Promise<void> {
-    // Add test prefix to project name
-    const prefixedProjectName = this.testPrefix
-      ? `${this.testPrefix}-${projectName}`
-      : projectName;
+    const prefixedProjectName = this.applyPrefix(projectName);
 
     try {
       // Check for empty state first (single "Create Project" button)
@@ -128,9 +125,7 @@ export class ProjectPage extends BasePage {
   }
 
   async navigateToProjectByName(projectName: string): Promise<void> {
-    const fullProjectName = this.testPrefix
-      ? `${this.testPrefix}-${projectName}`
-      : projectName;
+    const fullProjectName = this.applyPrefix(projectName);
 
     // Wait for Angular to fully render after any navigation
     await this.page.waitForTimeout(2000);
@@ -304,9 +299,7 @@ export class ProjectPage extends BasePage {
     await this.createProject('Test Project');
 
     // Navigate to the created project
-    const projectName = this.testPrefix
-      ? `${this.testPrefix}-Test Project`
-      : 'Test Project';
+    const projectName = this.applyPrefix('Test Project');
 
     // After creating a project, ensure Projects group is visible and expanded
     await this.page.waitForTimeout(2000); // Increased wait for DOM updates

@@ -8,7 +8,7 @@ import {
   createSyncFolder,
   waitForSyncComplete,
   generateSyncFolderName,
-} from '../../utils/sync-test-helpers';
+} from '../../utils/sync-helpers';
 
 test.describe('WebDAV Sync Advanced Features', () => {
   // Run sync tests serially to avoid WebDAV server contention

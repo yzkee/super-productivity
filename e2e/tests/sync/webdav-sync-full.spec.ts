@@ -10,7 +10,7 @@ import {
   waitForSyncComplete,
   generateSyncFolderName,
   dismissTourIfVisible,
-} from '../../utils/sync-test-helpers';
+} from '../../utils/sync-helpers';
 
 test.describe('WebDAV Sync Full Flow', () => {
   // Run sync tests serially to avoid WebDAV server contention

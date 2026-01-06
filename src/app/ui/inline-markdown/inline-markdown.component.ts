@@ -14,17 +14,17 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { fadeInAnimation } from '../animations/fade.ani';
+import { FormsModule } from '@angular/forms';
+import { MatIconButton } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import { MarkdownComponent } from 'ngx-markdown';
 import { IS_ELECTRON } from '../../app.constants';
 import { GlobalConfigService } from '../../features/config/global-config.service';
-import { MatDialog } from '@angular/material/dialog';
-import { DialogFullscreenMarkdownComponent } from '../dialog-fullscreen-markdown/dialog-fullscreen-markdown.component';
 import { isMarkdownChecklist } from '../../features/markdown-checklist/is-markdown-checklist';
-import { FormsModule } from '@angular/forms';
-import { MatIconButton } from '@angular/material/button';
-import { MatTooltip } from '@angular/material/tooltip';
-import { MatIcon } from '@angular/material/icon';
+import { fadeInAnimation } from '../animations/fade.ani';
+import { DialogFullscreenMarkdownComponent } from '../dialog-fullscreen-markdown/dialog-fullscreen-markdown.component';
 
 const HIDE_OVERFLOW_TIMEOUT_DURATION = 300;
 

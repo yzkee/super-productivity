@@ -14,12 +14,22 @@ export abstract class BasePage {
     this.testPrefix = testPrefix;
   }
 
+  /**
+   * Apply the test prefix to a value for test isolation.
+   * Returns the original value if already prefixed or no prefix is set.
+   * @param value - The value to prefix (task name, project name, etc.)
+   * @returns The prefixed value
+   */
+  protected applyPrefix(value: string): string {
+    if (!this.testPrefix || value.startsWith(this.testPrefix)) {
+      return value;
+    }
+    return `${this.testPrefix}-${value}`;
+  }
+
   async addTask(taskName: string, skipClose = false): Promise<void> {
-    // Add test prefix to task name for isolation only if not already prefixed
-    const prefixedTaskName =
-      this.testPrefix && !taskName.startsWith(this.testPrefix)
-        ? `${this.testPrefix}-${taskName}`
-        : taskName;
+    // Add test prefix to task name for isolation
+    const prefixedTaskName = this.applyPrefix(taskName);
 
     const inputEl = this.page.locator('add-task-bar.global input');
 

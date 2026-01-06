@@ -78,6 +78,18 @@ export class TaskReminderEffects {
         concatMap(({ task }) => this._taskService.getByIdOnce$(task.id as string)),
         tap((task) => {
           if (task?.remindAt) {
+            // On Android, immediately cancel native reminder to prevent notifications
+            // for done tasks. This is necessary because the reactive cancellation
+            // via reminders$ observable can have a delay.
+            if (IS_ANDROID_WEB_VIEW) {
+              try {
+                const notificationId = generateNotificationId(task.id);
+                androidInterface.cancelNativeReminder?.(notificationId);
+              } catch (e) {
+                console.error('Failed to cancel native reminder:', e);
+              }
+            }
+
             this._store.dispatch(
               TaskSharedActions.unscheduleTask({
                 id: task.id,

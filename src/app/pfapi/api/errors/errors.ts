@@ -2,15 +2,66 @@ import { IValidation } from 'typia';
 import { AllModelData } from '../pfapi.model';
 import { PFLog } from '../../../core/log';
 
+/**
+ * Extracts a meaningful error message from various error shapes.
+ * Handles Error objects with nested cause, zlib error codes, and plain strings.
+ * This is important because some browser APIs (like DecompressionStream) throw
+ * errors with empty messages but contain the real error in the 'cause' property.
+ */
+export const extractErrorMessage = (err: unknown): string | null => {
+  if (typeof err === 'string' && err.length > 0) {
+    return err;
+  }
+
+  if (err instanceof Error) {
+    // Check for nested cause first (e.g., DecompressionStream errors)
+    const cause = (err as Error & { cause?: unknown }).cause;
+    if (cause instanceof Error && cause.message) {
+      return cause.message;
+    }
+
+    // Check for error code (e.g., zlib errors like Z_DATA_ERROR)
+    const code = (err as Error & { code?: string }).code;
+    if (typeof code === 'string' && code.length > 0) {
+      // Make zlib error codes more readable
+      if (code.startsWith('Z_')) {
+        return `Compression error: ${code.replace('Z_', '').replace(/_/g, ' ').toLowerCase()}`;
+      }
+      return code;
+    }
+
+    // Use the error's own message if available
+    if (err.message && err.message.length > 0) {
+      return err.message;
+    }
+  }
+
+  // For objects with message property
+  if (
+    err !== null &&
+    typeof err === 'object' &&
+    'message' in err &&
+    typeof (err as { message: unknown }).message === 'string'
+  ) {
+    const msg = (err as { message: string }).message;
+    if (msg.length > 0) {
+      return msg;
+    }
+  }
+
+  return null;
+};
+
 class AdditionalLogErrorBase<T = unknown[]> extends Error {
   additionalLog: T;
 
-  // TODO improve typing here
   constructor(...additional: unknown[]) {
-    super(typeof additional[0] === 'string' ? additional[0] : new.target.name);
+    // Extract meaningful message from first argument, fall back to class name
+    const extractedMessage = extractErrorMessage(additional[0]);
+    // Use hardcoded class name pattern to avoid minification issues
+    super(extractedMessage ?? 'Unknown error');
 
     if (additional.length > 0) {
-      // PFLog.critical( this.name, ...additional);
       PFLog.log(this.name, ...additional);
       try {
         PFLog.log('additional error log: ' + JSON.stringify(additional));
