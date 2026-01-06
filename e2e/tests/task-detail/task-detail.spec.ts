@@ -33,24 +33,14 @@ test.describe('Task detail', () => {
   test('should update created with a time change', async ({ page, workViewPage }) => {
     await addAndOpenIncompleteTask(workViewPage, page);
 
-    const createdInfo = await findDateInfo(page, 'Created');
+    const createdInfo = findDateInfo(page, 'Created');
     const createdInfoText = await createdInfo.textContent();
     await createdInfo.click();
 
-    const timeInput = await page.getByRole('combobox', { name: 'Time' });
-    const timeInputText = await timeInput.inputValue();
-    // Change the hour by adding 1 - works with both 12h and 24h formats
-    const match = timeInputText!.match(/^(\d+):(\d+)/);
-    expect(match).toBeTruthy();
-    const hour = parseInt(match![1], 10);
-    const newHour = (hour + 1) % 24;
-    const newTime = timeInputText!.replace(
-      /^\d+/,
-      String(newHour).padStart(match![1].length, '0'),
-    );
-    await timeInput.clear();
-    await timeInput.pressSequentially(newTime);
-    // Press Tab to commit the change before clicking Save
+    const timeInput = page.getByRole('combobox', { name: 'Time' });
+    // Use fill() with a fixed valid time - simpler and more reliable than computing relative changes
+    await timeInput.fill('11:59 PM');
+    // Blur to trigger form update (ngModelOptions: updateOn: 'blur')
     await timeInput.press('Tab');
     await page.getByRole('button', { name: 'Save' }).click();
 
@@ -76,24 +66,14 @@ test.describe('Task detail', () => {
   test('should update completed with a time change', async ({ page, workViewPage }) => {
     await addAndOpenCompleteTask(workViewPage, page);
 
-    const completedInfo = await findDateInfo(page, 'Completed');
+    const completedInfo = findDateInfo(page, 'Completed');
     const completedInfoText = await completedInfo.textContent();
     await completedInfo.click();
 
-    const timeInput = await page.getByRole('combobox', { name: 'Time' });
-    const timeInputText = await timeInput.inputValue();
-    // Change the hour by adding 1 - works with both 12h and 24h formats
-    const match = timeInputText!.match(/^(\d+):(\d+)/);
-    expect(match).toBeTruthy();
-    const hour = parseInt(match![1], 10);
-    const newHour = (hour + 1) % 24;
-    const newTime = timeInputText!.replace(
-      /^\d+/,
-      String(newHour).padStart(match![1].length, '0'),
-    );
-    await timeInput.clear();
-    await timeInput.pressSequentially(newTime);
-    // Press Tab to commit the change before clicking Save
+    const timeInput = page.getByRole('combobox', { name: 'Time' });
+    // Use fill() with a fixed valid time - simpler and more reliable than computing relative changes
+    await timeInput.fill('11:59 PM');
+    // Blur to trigger form update (ngModelOptions: updateOn: 'blur')
     await timeInput.press('Tab');
     await page.getByRole('button', { name: 'Save' }).click();
 
