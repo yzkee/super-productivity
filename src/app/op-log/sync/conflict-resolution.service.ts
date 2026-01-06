@@ -597,6 +597,10 @@ export class ConflictResolutionService {
     const preservedTimestamp = Math.max(...conflict.localOps.map((op) => op.timestamp));
 
     // Create the update operation
+    // NOTE: LWW Update action types (e.g., '[TASK] LWW Update') are intentionally
+    // NOT in the ActionType enum. They are dynamically constructed here and matched
+    // by regex in lwwUpdateMetaReducer. This is by design - LWW ops are synthetic,
+    // created during conflict resolution to carry the winning local state to remote clients.
     const op: Operation = {
       id: uuidv7(),
       actionType: `[${conflict.entityType}] LWW Update` as ActionType,

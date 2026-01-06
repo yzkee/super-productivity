@@ -130,17 +130,11 @@ test.describe('@supersync SuperSync Encryption', () => {
         clientC.page.locator(`task:has-text("${secretTaskName}")`),
       ).not.toBeVisible();
 
-      // Verify Error UI
-      // Check for error icon or snackbar
+      // Verify Error UI - always assert error occurred
+      // Silent decryption failure is unacceptable - wrong password MUST produce visible error
       const hasError = await clientC.sync.hasSyncError();
       const snackbar = clientC.page.locator('simple-snack-bar');
-      // "Decryption failed" or "Wrong encryption password"
-      if (!hasError && !(await snackbar.isVisible())) {
-        // If sync didn't report error, maybe it just silently ignored ops (shouldn't happen with current logic)
-        // But let's check if we at least DON'T have the data.
-      } else {
-        expect(hasError || (await snackbar.isVisible())).toBe(true);
-      }
+      expect(hasError || (await snackbar.isVisible())).toBe(true);
     } finally {
       if (clientA) await closeClient(clientA);
       if (clientC) await closeClient(clientC);

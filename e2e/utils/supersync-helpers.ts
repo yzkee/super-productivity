@@ -7,6 +7,20 @@ import {
 import { SuperSyncPage, type SuperSyncConfig } from '../pages/supersync.page';
 import { WorkViewPage } from '../pages/work-view.page';
 import { waitForAppReady } from './waits';
+import {
+  HEALTH_CHECK_TIMEOUT,
+  API_REQUEST_TIMEOUT,
+  UI_VISIBLE_TIMEOUT,
+  UI_VISIBLE_TIMEOUT_LONG,
+  UI_SETTLE_SMALL,
+  UI_SETTLE_MEDIUM,
+  UI_SETTLE_STANDARD,
+  UI_SETTLE_EXTENDED,
+  RETRY_BASE_DELAY,
+  TASK_POLL_INTERVAL,
+  TASK_WAIT_TIMEOUT,
+  UI_VISIBLE_TIMEOUT_SHORT,
+} from './e2e-constants';
 
 /**
  * SuperSync server URL for E2E tests.
@@ -63,7 +77,7 @@ export const createTestUser = async (
 
     // Handle rate limiting with exponential backoff
     if (response.status === 429 && attempt < maxRetries - 1) {
-      const delay = 1000 * Math.pow(2, attempt);
+      const delay = RETRY_BASE_DELAY * Math.pow(2, attempt);
       console.log(`[createTestUser] Rate limited (429), retrying in ${delay}ms...`);
       await new Promise((r) => setTimeout(r, delay));
       continue;
@@ -125,7 +139,7 @@ export const isServerHealthy = async (): Promise<boolean> => {
     // First check basic health
     const healthResponse = await fetch(`${SUPERSYNC_BASE_URL}/health`, {
       method: 'GET',
-      signal: AbortSignal.timeout(2000),
+      signal: AbortSignal.timeout(HEALTH_CHECK_TIMEOUT),
     });
     if (!healthResponse.ok) {
       return false;
@@ -142,7 +156,7 @@ export const isServerHealthy = async (): Promise<boolean> => {
         email: `health-check-${Date.now()}@test.local`,
         password: 'HealthCheck123!',
       }),
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(API_REQUEST_TIMEOUT),
     });
 
     // If test mode is disabled, the route won't exist (404)
@@ -258,7 +272,7 @@ export const closeClient = async (client: SimulatedE2EClient): Promise<void> => 
 export const waitForTask = async (
   page: Page,
   taskName: string,
-  timeout = 60000,
+  timeout = TASK_WAIT_TIMEOUT,
 ): Promise<void> => {
   const escapedName = taskName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const startTime = Date.now();
@@ -272,7 +286,7 @@ export const waitForTask = async (
 
     try {
       await page.waitForSelector(`task:has-text("${escapedName}")`, {
-        timeout: 5000,
+        timeout: UI_VISIBLE_TIMEOUT,
         state: 'visible',
       });
       return; // Success
@@ -282,7 +296,7 @@ export const waitForTask = async (
         throw new Error(`Page was closed while waiting for task "${taskName}"`);
       }
       // Wait a bit and retry
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(TASK_POLL_INTERVAL);
     }
   }
 
@@ -290,7 +304,7 @@ export const waitForTask = async (
   if (page.isClosed()) {
     throw new Error(`Page was closed while waiting for task "${taskName}"`);
   }
-  const remaining = Math.max(timeout - (Date.now() - startTime), 1000);
+  const remaining = Math.max(timeout - (Date.now() - startTime), RETRY_BASE_DELAY);
   await page.waitForSelector(`task:has-text("${escapedName}")`, {
     timeout: remaining,
     state: 'visible',
@@ -500,10 +514,12 @@ export const deleteTask = async (
 
   // Confirm deletion if dialog appears
   const confirmBtn = client.page.locator('mat-dialog-actions button:has-text("Delete")');
-  if (await confirmBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+  if (
+    await confirmBtn.isVisible({ timeout: UI_VISIBLE_TIMEOUT_SHORT }).catch(() => false)
+  ) {
     await confirmBtn.click();
   }
-  await client.page.waitForTimeout(500);
+  await client.page.waitForTimeout(UI_SETTLE_STANDARD);
 };
 
 /**
@@ -523,7 +539,7 @@ export const renameTask = async (
   await client.page.waitForSelector('task textarea', { state: 'visible' });
   await client.page.locator('task textarea').fill(newName);
   await client.page.keyboard.press('Tab');
-  await client.page.waitForTimeout(300);
+  await client.page.waitForTimeout(UI_SETTLE_MEDIUM);
 };
 
 /**
@@ -539,7 +555,7 @@ export const startTimeTracking = async (
   const task = getTaskElement(client, taskName);
   await task.hover();
   const startBtn = task.locator('.start-task-btn');
-  await startBtn.waitFor({ state: 'visible', timeout: 5000 });
+  await startBtn.waitFor({ state: 'visible', timeout: UI_VISIBLE_TIMEOUT });
   await startBtn.click();
 };
 
@@ -556,7 +572,7 @@ export const stopTimeTracking = async (
   const task = getTaskElement(client, taskName);
   await task.hover();
   const pauseBtn = task.locator('button:has(mat-icon:has-text("pause"))');
-  await pauseBtn.waitFor({ state: 'visible', timeout: 5000 });
+  await pauseBtn.waitFor({ state: 'visible', timeout: UI_VISIBLE_TIMEOUT });
   await pauseBtn.click();
 };
 
@@ -638,4 +654,77 @@ export const hasTaskOnClient = async (
  */
 export const generateTestRunId = (workerIndex: number): string => {
   return `${Date.now()}-${workerIndex}`;
+};
+
+// ============================================================================
+// UI HELPERS - For direct DOM interactions during tests
+// ============================================================================
+
+/**
+ * Reliably create a project through the UI.
+ * Handles sidebar state, hover-to-reveal buttons, and dialog interaction.
+ *
+ * @param page - The Playwright page
+ * @param projectName - The name for the new project
+ */
+export const createProjectReliably = async (
+  page: Page,
+  projectName: string,
+): Promise<void> => {
+  await page.goto('/#/tag/TODAY/work');
+  await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(UI_SETTLE_EXTENDED);
+
+  // Ensure sidebar is in full mode (visible labels)
+  const navSidenav = page.locator('.nav-sidenav');
+  if (await navSidenav.isVisible()) {
+    const isCompact = await navSidenav.evaluate((el) =>
+      el.classList.contains('compactMode'),
+    );
+    if (isCompact) {
+      const toggleBtn = navSidenav.locator('.mode-toggle');
+      if (await toggleBtn.isVisible()) {
+        await toggleBtn.click();
+        await page.waitForTimeout(UI_SETTLE_STANDARD);
+      }
+    }
+  }
+
+  // Find the Projects section wrapper
+  const projectsTree = page
+    .locator('nav-list-tree')
+    .filter({ hasText: 'Projects' })
+    .first();
+  await projectsTree.waitFor({ state: 'visible' });
+
+  // The "Create Project" button is an additional-btn with an 'add' icon
+  const addBtn = projectsTree.locator('.additional-btn mat-icon:has-text("add")').first();
+
+  if (await addBtn.isVisible()) {
+    await addBtn.click();
+  } else {
+    // Try to hover the group header to make buttons appear
+    const groupNavItem = projectsTree.locator('nav-item').first();
+    await groupNavItem.hover();
+    await page.waitForTimeout(UI_SETTLE_SMALL);
+    if (await addBtn.isVisible()) {
+      await addBtn.click();
+    } else {
+      throw new Error('Could not find Create Project button');
+    }
+  }
+
+  // Dialog
+  const nameInput = page.getByRole('textbox', { name: 'Project Name' });
+  await nameInput.waitFor({ state: 'visible', timeout: UI_VISIBLE_TIMEOUT_LONG });
+  await nameInput.fill(projectName);
+
+  const submitBtn = page.locator('dialog-create-project button[type=submit]').first();
+  await submitBtn.click();
+
+  // Wait for dialog to close
+  await nameInput.waitFor({ state: 'hidden', timeout: UI_VISIBLE_TIMEOUT });
+
+  // Wait for project to appear
+  await page.waitForTimeout(UI_SETTLE_EXTENDED);
 };

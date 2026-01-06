@@ -1,11 +1,11 @@
 import { test, expect } from '../../fixtures/supersync.fixture';
-import { Page } from '@playwright/test';
 import {
   createTestUser,
   getSuperSyncConfig,
   createSimulatedClient,
   closeClient,
   waitForTask,
+  createProjectReliably,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 
@@ -15,66 +15,6 @@ import {
  * Covers specific edge cases like moving tasks between projects,
  * offline bursts, and conflict handling.
  */
-
-// Robust helper to create a project (copied from supersync-models.spec.ts for self-containment)
-const createProjectReliably = async (page: Page, projectName: string): Promise<void> => {
-  await page.goto('/#/tag/TODAY/work');
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(1000);
-
-  // Ensure sidebar is in full mode (visible labels)
-  const navSidenav = page.locator('.nav-sidenav');
-  if (await navSidenav.isVisible()) {
-    const isCompact = await navSidenav.evaluate((el) =>
-      el.classList.contains('compactMode'),
-    );
-    if (isCompact) {
-      const toggleBtn = navSidenav.locator('.mode-toggle');
-      if (await toggleBtn.isVisible()) {
-        await toggleBtn.click();
-        await page.waitForTimeout(500);
-      }
-    }
-  }
-
-  // Find the Projects section wrapper
-  const projectsTree = page
-    .locator('nav-list-tree')
-    .filter({ hasText: 'Projects' })
-    .first();
-  await projectsTree.waitFor({ state: 'visible' });
-
-  // The "Create Project" button is an additional-btn with an 'add' icon
-  const addBtn = projectsTree.locator('.additional-btn mat-icon:has-text("add")').first();
-
-  if (await addBtn.isVisible()) {
-    await addBtn.click();
-  } else {
-    // Try to hover the group header to make buttons appear
-    const groupNavItem = projectsTree.locator('nav-item').first();
-    await groupNavItem.hover();
-    await page.waitForTimeout(200);
-    if (await addBtn.isVisible()) {
-      await addBtn.click();
-    } else {
-      throw new Error('Could not find Create Project button');
-    }
-  }
-
-  // Dialog
-  const nameInput = page.getByRole('textbox', { name: 'Project Name' });
-  await nameInput.waitFor({ state: 'visible', timeout: 10000 });
-  await nameInput.fill(projectName);
-
-  const submitBtn = page.locator('dialog-create-project button[type=submit]').first();
-  await submitBtn.click();
-
-  // Wait for dialog to close
-  await nameInput.waitFor({ state: 'hidden', timeout: 5000 });
-
-  // Wait for project to appear
-  await page.waitForTimeout(1000);
-};
 
 test.describe('@supersync SuperSync Edge Cases', () => {
   // Server health check is handled automatically by the supersync fixture

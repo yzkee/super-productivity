@@ -18,6 +18,7 @@ import {
 import { Task } from '../../../features/tasks/task.model';
 import { unique } from '../../../util/unique';
 import { getDbDateStr } from '../../../util/get-db-date-str';
+import { OpLog } from '../../../core/log';
 
 /**
  * Regex to match LWW Update action types.
@@ -80,6 +81,11 @@ const syncProjectTaskIds = (
         projectState,
       );
     }
+  } else if (oldProjectId) {
+    // Old project was deleted before LWW update arrived - benign race condition
+    OpLog.warn(
+      `lwwUpdateMetaReducer: syncProjectTaskIds: old project ${oldProjectId} not found for task ${taskId}`,
+    );
   }
 
   // Add to new project's taskIds
@@ -97,6 +103,11 @@ const syncProjectTaskIds = (
         projectState,
       );
     }
+  } else if (newProjectId) {
+    // New project was deleted before LWW update arrived - benign race condition
+    OpLog.warn(
+      `lwwUpdateMetaReducer: syncProjectTaskIds: new project ${newProjectId} not found for task ${taskId}`,
+    );
   }
 
   return {
@@ -152,6 +163,11 @@ const syncTagTaskIds = (
           tagState,
         );
       }
+    } else {
+      // Tag was deleted before LWW update arrived - benign race condition
+      OpLog.warn(
+        `lwwUpdateMetaReducer: syncTagTaskIds: removed tag ${tagId} not found for task ${taskId}`,
+      );
     }
   }
 
@@ -170,6 +186,11 @@ const syncTagTaskIds = (
           tagState,
         );
       }
+    } else {
+      // Tag was deleted before LWW update arrived - benign race condition
+      OpLog.warn(
+        `lwwUpdateMetaReducer: syncTagTaskIds: added tag ${tagId} not found for task ${taskId}`,
+      );
     }
   }
 
@@ -285,6 +306,11 @@ const syncParentSubTaskIds = (
         taskState,
       );
     }
+  } else if (oldParentId) {
+    // Old parent was deleted before LWW update arrived - benign race condition
+    OpLog.warn(
+      `lwwUpdateMetaReducer: syncParentSubTaskIds: old parent ${oldParentId} not found for task ${taskId}`,
+    );
   }
 
   // Add to new parent's subTaskIds
@@ -302,6 +328,11 @@ const syncParentSubTaskIds = (
         taskState,
       );
     }
+  } else if (newParentId) {
+    // New parent was deleted before LWW update arrived - benign race condition
+    OpLog.warn(
+      `lwwUpdateMetaReducer: syncParentSubTaskIds: new parent ${newParentId} not found for task ${taskId}`,
+    );
   }
 
   return {
@@ -347,7 +378,7 @@ export const lwwUpdateMetaReducer: MetaReducer = (
     const config = getEntityConfig(entityType);
 
     if (!config || !isAdapterEntity(config)) {
-      console.warn(
+      OpLog.warn(
         `lwwUpdateMetaReducer: Unknown or non-adapter entity type: ${entityType}`,
       );
       return reducer(state, action);
@@ -355,7 +386,7 @@ export const lwwUpdateMetaReducer: MetaReducer = (
 
     const { featureName, adapter } = config;
     if (!featureName || !adapter) {
-      console.warn(
+      OpLog.warn(
         `lwwUpdateMetaReducer: Missing featureName or adapter for: ${entityType}`,
       );
       return reducer(state, action);
@@ -365,7 +396,7 @@ export const lwwUpdateMetaReducer: MetaReducer = (
     const featureState = rootState[featureName as keyof RootState];
 
     if (!featureState) {
-      console.warn(`lwwUpdateMetaReducer: Feature state not found: ${featureName}`);
+      OpLog.warn(`lwwUpdateMetaReducer: Feature state not found: ${featureName}`);
       return reducer(state, action);
     }
 
@@ -379,7 +410,7 @@ export const lwwUpdateMetaReducer: MetaReducer = (
     }
 
     if (!entityData['id']) {
-      console.warn('lwwUpdateMetaReducer: Entity data has no id');
+      OpLog.warn('lwwUpdateMetaReducer: Entity data has no id');
       return reducer(state, action);
     }
 
@@ -392,7 +423,7 @@ export const lwwUpdateMetaReducer: MetaReducer = (
       // Entity was deleted locally but UPDATE won via LWW.
       // This means another client's update beat our delete, so we need to
       // recreate the entity with the winning state.
-      console.log(
+      OpLog.log(
         `lwwUpdateMetaReducer: Entity ${entityType}:${entityId} not found, recreating from LWW update`,
       );
       updatedFeatureState = (adapter as EntityAdapter<any>).addOne(

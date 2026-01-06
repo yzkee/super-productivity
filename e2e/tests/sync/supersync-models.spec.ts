@@ -6,77 +6,10 @@ import {
   createSimulatedClient,
   closeClient,
   waitForTask,
+  createProjectReliably,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 import { ProjectPage } from '../../pages/project.page';
-
-// Robust helper to create a project
-const createProjectReliably = async (page: Page, projectName: string): Promise<void> => {
-  await page.goto('/#/tag/TODAY/work');
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(1000);
-
-  // Ensure sidebar is in full mode (visible labels)
-  const navSidenav = page.locator('.nav-sidenav');
-  if (await navSidenav.isVisible()) {
-    const isCompact = await navSidenav.evaluate((el) =>
-      el.classList.contains('compactMode'),
-    );
-    if (isCompact) {
-      const toggleBtn = navSidenav.locator('.mode-toggle');
-      if (await toggleBtn.isVisible()) {
-        await toggleBtn.click();
-        await page.waitForTimeout(500);
-      }
-    }
-  }
-
-  // Find the Projects section wrapper
-  const projectsTree = page
-    .locator('nav-list-tree')
-    .filter({ hasText: 'Projects' })
-    .first();
-  await projectsTree.waitFor({ state: 'visible' });
-
-  // Expand if collapsed (check the nav-item inside)
-  const groupNavItem = projectsTree.locator('nav-item').first();
-
-  // Note: The logic to check if expanded might be tricky without specific attributes,
-  // but usually we can proceed to find the add button.
-
-  // The "Create Project" button is an additional-btn with an 'add' icon
-  const addBtn = projectsTree.locator('.additional-btn mat-icon:has-text("add")').first();
-
-  if (await addBtn.isVisible()) {
-    await addBtn.click();
-  } else {
-    // Try finding it by tooltip via aria-label or just try clicking the group to ensure it's active
-    // Fallback: Use keyboard shortcut or global add if available?
-    // For now, let's try to hover the group header to make buttons appear if they are hover-only
-    await groupNavItem.hover();
-    await page.waitForTimeout(200);
-    if (await addBtn.isVisible()) {
-      await addBtn.click();
-    } else {
-      // Absolute fallback
-      throw new Error('Could not find Create Project button');
-    }
-  }
-
-  // Dialog
-  const nameInput = page.getByRole('textbox', { name: 'Project Name' });
-  await nameInput.waitFor({ state: 'visible', timeout: 10000 });
-  await nameInput.fill(projectName);
-
-  const submitBtn = page.locator('dialog-create-project button[type=submit]').first();
-  await submitBtn.click();
-
-  // Wait for dialog to close
-  await nameInput.waitFor({ state: 'hidden', timeout: 5000 });
-
-  // Wait for project to appear in list
-  await page.waitForTimeout(1000);
-};
 
 // Robust helper to create a tag
 const createTagReliably = async (page: Page, tagName: string): Promise<void> => {

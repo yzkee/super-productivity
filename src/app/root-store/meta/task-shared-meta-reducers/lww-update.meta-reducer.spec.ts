@@ -8,6 +8,7 @@ import { Task } from '../../../features/tasks/task.model';
 import { Project } from '../../../features/project/project.model';
 import { Tag } from '../../../features/tag/tag.model';
 import { TODAY_TAG } from '../../../features/tag/tag.const';
+import { OpLog } from '../../../core/log';
 
 describe('lwwUpdateMetaReducer', () => {
   const mockReducer = jasmine.createSpy('reducer');
@@ -193,10 +194,10 @@ describe('lwwUpdateMetaReducer', () => {
         meta: { isPersistent: true, entityType: 'TASK', entityId: 'recreated-task' },
       };
 
-      spyOn(console, 'log');
+      spyOn(OpLog, 'log');
       reducer(state, action);
 
-      expect(console.log).toHaveBeenCalledWith(
+      expect(OpLog.log).toHaveBeenCalledWith(
         jasmine.stringMatching(
           /Entity TASK:recreated-task not found, recreating from LWW update/,
         ),
@@ -239,10 +240,10 @@ describe('lwwUpdateMetaReducer', () => {
         meta: { isPersistent: true, entityType: 'TASK' },
       };
 
-      spyOn(console, 'warn');
+      spyOn(OpLog, 'warn');
       reducer(state, action);
 
-      expect(console.warn).toHaveBeenCalledWith(
+      expect(OpLog.warn).toHaveBeenCalledWith(
         jasmine.stringMatching(/Entity data has no id/),
       );
       expect(mockReducer).toHaveBeenCalledWith(state, action);
@@ -312,10 +313,10 @@ describe('lwwUpdateMetaReducer', () => {
         meta: { isPersistent: true, entityType: 'UNKNOWN_ENTITY', entityId: 'unknown-1' },
       };
 
-      spyOn(console, 'warn');
+      spyOn(OpLog, 'warn');
       reducer(state, action);
 
-      expect(console.warn).toHaveBeenCalledWith(
+      expect(OpLog.warn).toHaveBeenCalledWith(
         jasmine.stringMatching(/Unknown or non-adapter entity type: UNKNOWN_ENTITY/),
       );
       expect(mockReducer).toHaveBeenCalledWith(state, action);
@@ -1185,7 +1186,7 @@ describe('lwwUpdateMetaReducer', () => {
         meta: { isPersistent: true, entityType: 'TASK', entityId: TASK_ID },
       };
 
-      spyOn(console, 'log');
+      spyOn(OpLog, 'log');
       reducer(state, action);
 
       const updatedState = mockReducer.calls.mostRecent().args[0] as Partial<RootState>;
