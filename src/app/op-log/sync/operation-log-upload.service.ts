@@ -8,7 +8,7 @@ import { chunkArray } from '../../util/chunk-array';
 import {
   OperationSyncCapable,
   SyncOperation,
-} from '../../pfapi/api/sync/sync-provider.interface';
+} from '../../sync/providers/provider.interface';
 import { syncOpToOperation } from './operation-sync.util';
 import { OperationEncryptionService } from './operation-encryption.service';
 

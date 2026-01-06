@@ -3,17 +3,15 @@ import { SyncTriggerService } from './sync-trigger.service';
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import { DataInitStateService } from '../../core/data-init/data-init-state.service';
 import { IdleService } from '../../features/idle/idle.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
 import { SyncWrapperService } from './sync-wrapper.service';
 import { Store } from '@ngrx/store';
-import { EMPTY, of, ReplaySubject } from 'rxjs';
+import { of, ReplaySubject } from 'rxjs';
 
 describe('SyncTriggerService', () => {
   let service: SyncTriggerService;
   let globalConfigService: jasmine.SpyObj<GlobalConfigService>;
   let dataInitStateService: jasmine.SpyObj<DataInitStateService>;
   let idleService: jasmine.SpyObj<IdleService>;
-  let pfapiService: jasmine.SpyObj<PfapiService>;
   let syncWrapperService: jasmine.SpyObj<SyncWrapperService>;
   let store: jasmine.SpyObj<Store>;
 
@@ -34,10 +32,6 @@ describe('SyncTriggerService', () => {
       isIdle$: of(false),
     });
 
-    pfapiService = jasmine.createSpyObj('PfapiService', [], {
-      onLocalMetaUpdate$: EMPTY,
-    });
-
     syncWrapperService = jasmine.createSpyObj('SyncWrapperService', [], {
       syncProviderId$: of(null),
       isWaitingForUserInput$: of(false),
@@ -52,7 +46,6 @@ describe('SyncTriggerService', () => {
         { provide: GlobalConfigService, useValue: globalConfigService },
         { provide: DataInitStateService, useValue: dataInitStateService },
         { provide: IdleService, useValue: idleService },
-        { provide: PfapiService, useValue: pfapiService },
         { provide: SyncWrapperService, useValue: syncWrapperService },
         { provide: Store, useValue: store },
       ],

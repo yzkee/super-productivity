@@ -9,7 +9,7 @@ import {
 } from '@angular/material/dialog';
 import { T } from 'src/app/t.const';
 import { DialogConflictResolutionResult } from '../sync.model';
-import { ConflictData, VectorClock } from '../../../pfapi/api';
+import { ConflictData, VectorClock } from '../../../sync/sync-exports';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';

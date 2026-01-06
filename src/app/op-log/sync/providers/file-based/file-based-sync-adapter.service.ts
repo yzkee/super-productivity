@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { SyncProviderId } from '../../../../pfapi/api/pfapi.const';
+import { SyncProviderId } from '../../../../sync/providers/provider.const';
 import {
   SyncProviderServiceInterface,
   OperationSyncCapable,
@@ -8,9 +8,9 @@ import {
   OpDownloadResponse,
   ServerSyncOperation,
   SnapshotUploadResponse,
-} from '../../../../pfapi/api/sync/sync-provider.interface';
-import { EncryptAndCompressHandlerService } from '../../../../pfapi/api/sync/encrypt-and-compress-handler.service';
-import { EncryptAndCompressCfg } from '../../../../pfapi/api/pfapi.model';
+} from '../../../../sync/providers/provider.interface';
+import { EncryptAndCompressHandlerService } from '../../../../sync/util/encrypt-and-compress-handler.service';
+import { EncryptAndCompressCfg } from '../../../../sync/sync.types';
 import { CompactOperation } from '../../../../core/persistence/operation-log/compact/compact-operation.types';
 import {
   encodeOperation,
@@ -29,10 +29,10 @@ import {
   SyncDataCorruptedError,
 } from './file-based-sync.types';
 import { OpLog } from '../../../../core/log';
-import { RemoteFileNotFoundAPIError } from '../../../../pfapi/api/errors/errors';
+import { RemoteFileNotFoundAPIError } from '../../../../sync/errors/sync-errors';
 import { mergeVectorClocks } from '../../../../core/util/vector-clock';
 import { ArchiveDbAdapter } from '../../../../core/persistence/archive-db-adapter.service';
-import { PfapiStoreDelegateService } from '../../../../pfapi/pfapi-store-delegate.service';
+import { StateSnapshotService } from '../../../../sync/state-snapshot.service';
 
 /**
  * Adapter that enables file-based sync providers (WebDAV, Dropbox, LocalFile)
@@ -67,7 +67,7 @@ import { PfapiStoreDelegateService } from '../../../../pfapi/pfapi-store-delegat
 export class FileBasedSyncAdapterService {
   private _encryptAndCompressHandler = new EncryptAndCompressHandlerService();
   private _archiveDbAdapter = inject(ArchiveDbAdapter);
-  private _storeDelegateService = inject(PfapiStoreDelegateService);
+  private _stateSnapshotService = inject(StateSnapshotService);
 
   /** Expected sync version for optimistic locking, keyed by provider+user */
   private _expectedSyncVersions = new Map<string, number>();
@@ -351,7 +351,7 @@ export class FileBasedSyncAdapterService {
     const archiveOld = await this._archiveDbAdapter.loadArchiveOld();
 
     // Get current state from NgRx store - this keeps the snapshot up-to-date
-    const currentState = await this._storeDelegateService.getAllSyncModelDataFromStore();
+    const currentState = await this._stateSnapshotService.getStateSnapshot();
 
     const newData: FileBasedSyncData = {
       version: FILE_BASED_SYNC_CONSTANTS.FILE_VERSION,

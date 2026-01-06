@@ -6,7 +6,7 @@ import {
   SchemaMigrationService,
 } from './schema-migration.service';
 import { VectorClockService } from '../sync/vector-clock.service';
-import { PfapiStoreDelegateService } from '../../pfapi/pfapi-store-delegate.service';
+import { StateSnapshotService } from '../../sync/state-snapshot.service';
 import { OpLog } from '../../core/log';
 
 type StateCache = MigratableStateCache;
@@ -26,7 +26,7 @@ type StateCache = MigratableStateCache;
 export class OperationLogSnapshotService {
   private opLogStore = inject(OperationLogStoreService);
   private vectorClockService = inject(VectorClockService);
-  private storeDelegateService = inject(PfapiStoreDelegateService);
+  private stateSnapshotService = inject(StateSnapshotService);
   private schemaMigrationService = inject(SchemaMigrationService);
 
   /**
@@ -66,7 +66,7 @@ export class OperationLogSnapshotService {
   async saveCurrentStateAsSnapshot(): Promise<void> {
     try {
       // Get current state from NgRx
-      const currentState = await this.storeDelegateService.getAllSyncModelDataFromStore();
+      const currentState = this.stateSnapshotService.getStateSnapshot();
 
       // Get current vector clock and last seq
       const vectorClock = await this.vectorClockService.getCurrentVectorClock();

@@ -591,7 +591,7 @@ import { ProjectService } from '../features/project/project.service';
 import { TagService } from '../features/tag/tag.service';
 import { PluginUserPersistenceService } from './plugin-user-persistence.service';
 import { PluginConfigService } from './plugin-config.service';
-import { TaskArchiveService } from '../features/time-tracking/task-archive.service';
+import { TaskArchiveService } from '../features/archive/task-archive.service';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { SyncWrapperService } from '../imex/sync/sync-wrapper.service';

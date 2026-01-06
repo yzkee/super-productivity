@@ -8,7 +8,7 @@ import {
 } from './archive-operation-handler.service';
 import { LOCAL_ACTIONS } from '../../util/local-actions.token';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
-import { flushYoungToOld } from '../../features/time-tracking/store/archive.actions';
+import { flushYoungToOld } from '../../features/archive/store/archive.actions';
 import { deleteTag } from '../../features/tag/store/tag.actions';
 import { Action } from '@ngrx/store';
 import { Task, TaskWithSubTasks } from '../../features/tasks/task.model';

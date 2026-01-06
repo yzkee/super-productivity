@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
-import { ENCRYPT_FN, DECRYPT_FN } from '../../pfapi/api/encryption/encryption.token';
-import { SyncOperation } from '../../pfapi/api/sync/sync-provider.interface';
-import { DecryptError } from '../../pfapi/api/errors/errors';
+import { ENCRYPT_FN, DECRYPT_FN } from '../../sync/util/encryption.token';
+import { SyncOperation } from '../../sync/providers/provider.interface';
+import { DecryptError } from '../../sync/errors/sync-errors';
 
 /**
  * Handles E2E encryption/decryption of operation payloads for SuperSync.

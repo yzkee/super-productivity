@@ -186,7 +186,7 @@ export interface RepairSummary {
  * Contains the fully repaired state and a summary of what was fixed.
  */
 export interface RepairPayload {
-  appDataComplete: unknown; // AppDataCompleteNew - using unknown to avoid circular deps
+  appDataComplete: unknown; // AppDataComplete - using unknown to avoid circular deps
   repairSummary: RepairSummary;
 }
 

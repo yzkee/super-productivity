@@ -13,9 +13,10 @@ import {
   isCompactOperation,
 } from '../../core/persistence/operation-log/compact/operation-codec.service';
 import { CompactOperation } from '../../core/persistence/operation-log/compact/compact-operation.types';
+import { ArchiveModel } from '../../features/time-tracking/time-tracking.model';
 
 const DB_NAME = 'SUP_OPS';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 /**
  * Vector clock entry stored in the vector_clock object store.
@@ -24,6 +25,16 @@ const DB_VERSION = 3;
 interface VectorClockEntry {
   clock: VectorClock;
   lastUpdate: number;
+}
+
+/**
+ * Archive entry stored in archive_young or archive_old object stores.
+ * Contains the archive data and last modification timestamp.
+ */
+interface ArchiveStoreEntry {
+  id: 'current';
+  data: ArchiveModel;
+  lastModified: number;
 }
 
 /**
@@ -108,6 +119,22 @@ interface OpLogDB extends DBSchema {
     key: string; // 'current'
     value: VectorClockEntry;
   };
+  /**
+   * Stores archiveYoung data (recently archived tasks, < 21 days).
+   * Migrated from legacy 'pf' database in version 4.
+   */
+  archive_young: {
+    key: string; // 'current'
+    value: ArchiveStoreEntry;
+  };
+  /**
+   * Stores archiveOld data (older archived tasks, >= 21 days).
+   * Migrated from legacy 'pf' database in version 4.
+   */
+  archive_old: {
+    key: string; // 'current'
+    value: ArchiveStoreEntry;
+  };
 }
 
 /**
@@ -165,6 +192,13 @@ export class OperationLogStoreService {
         if (oldVersion < 3) {
           const opStore = transaction.objectStore('ops');
           opStore.createIndex('bySourceAndStatus', ['source', 'applicationStatus']);
+        }
+
+        // Version 4: Add archive stores for archiveYoung and archiveOld
+        // Consolidates archive data from legacy 'pf' database into SUP_OPS
+        if (oldVersion < 4) {
+          db.createObjectStore('archive_young', { keyPath: 'id' });
+          db.createObjectStore('archive_old', { keyPath: 'id' });
         }
       },
     });
@@ -818,13 +852,22 @@ export class OperationLogStoreService {
   async _clearAllDataForTesting(): Promise<void> {
     await this._ensureInit();
     const tx = this.db.transaction(
-      ['ops', 'state_cache', 'import_backup', 'vector_clock'],
+      [
+        'ops',
+        'state_cache',
+        'import_backup',
+        'vector_clock',
+        'archive_young',
+        'archive_old',
+      ],
       'readwrite',
     );
     await tx.objectStore('ops').clear();
     await tx.objectStore('state_cache').clear();
     await tx.objectStore('import_backup').clear();
     await tx.objectStore('vector_clock').clear();
+    await tx.objectStore('archive_young').clear();
+    await tx.objectStore('archive_old').clear();
     await tx.done;
     // Invalidate all caches
     this._appliedOpIdsCache = null;
@@ -1045,5 +1088,75 @@ export class OperationLogStoreService {
 
     await tx.done;
     return seq as number;
+  }
+
+  // ============================================================
+  // Archive Storage (migrated from legacy 'pf' database)
+  // ============================================================
+
+  /**
+   * Loads archiveYoung data from SUP_OPS IndexedDB.
+   * @returns The archive data, or undefined if not found.
+   */
+  async loadArchiveYoung(): Promise<ArchiveModel | undefined> {
+    await this._ensureInit();
+    const entry = await this.db.get('archive_young', 'current');
+    return entry?.data;
+  }
+
+  /**
+   * Saves archiveYoung data to SUP_OPS IndexedDB.
+   * @param data The archive data to save.
+   */
+  async saveArchiveYoung(data: ArchiveModel): Promise<void> {
+    await this._ensureInit();
+    await this.db.put('archive_young', {
+      id: 'current',
+      data,
+      lastModified: Date.now(),
+    });
+  }
+
+  /**
+   * Loads archiveOld data from SUP_OPS IndexedDB.
+   * @returns The archive data, or undefined if not found.
+   */
+  async loadArchiveOld(): Promise<ArchiveModel | undefined> {
+    await this._ensureInit();
+    const entry = await this.db.get('archive_old', 'current');
+    return entry?.data;
+  }
+
+  /**
+   * Saves archiveOld data to SUP_OPS IndexedDB.
+   * @param data The archive data to save.
+   */
+  async saveArchiveOld(data: ArchiveModel): Promise<void> {
+    await this._ensureInit();
+    await this.db.put('archive_old', {
+      id: 'current',
+      data,
+      lastModified: Date.now(),
+    });
+  }
+
+  /**
+   * Checks if archiveYoung exists in the database.
+   * Used to determine if migration from legacy 'pf' database is needed.
+   */
+  async hasArchiveYoung(): Promise<boolean> {
+    await this._ensureInit();
+    const entry = await this.db.get('archive_young', 'current');
+    return !!entry;
+  }
+
+  /**
+   * Checks if archiveOld exists in the database.
+   * Used to determine if migration from legacy 'pf' database is needed.
+   */
+  async hasArchiveOld(): Promise<boolean> {
+    await this._ensureInit();
+    const entry = await this.db.get('archive_old', 'current');
+    return !!entry;
   }
 }

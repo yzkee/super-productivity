@@ -1,7 +1,8 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import { SyncLog } from '../../core/log';
-import { PfapiService } from '../../pfapi/pfapi.service';
-import { CompleteBackup } from '../../pfapi/api';
+import { BackupService } from '../../sync/backup.service';
+import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
+import { CompleteBackup } from '../../sync/sync-exports';
 import { Subject } from 'rxjs';
 import { nanoid } from 'nanoid';
 import { SnackService } from '../../core/snack/snack.service';
@@ -42,17 +43,23 @@ const TOTAL_BACKUP_SLOTS = 4;
 export class SyncSafetyBackupService {
   private readonly _injector = inject(Injector);
 
-  // Lazy-loaded PfapiService to avoid circular dependency
-  // Chain: PfapiService -> Pfapi -> OperationLogSyncService -> ConflictResolutionService -> SyncSafetyBackupService
-  private _pfapiService: PfapiService | null = null;
-  private _getPfapiService(): PfapiService {
-    if (!this._pfapiService) {
-      this._pfapiService = this._injector.get(PfapiService);
+  // Lazy-loaded services to avoid circular dependency
+  private _backupService: BackupService | null = null;
+  private _getBackupService(): BackupService {
+    if (!this._backupService) {
+      this._backupService = this._injector.get(BackupService);
     }
-    return this._pfapiService;
+    return this._backupService;
   }
 
-  // Lazy-loaded SnackService to avoid circular dependency
+  private _legacyPfDbService: LegacyPfDbService | null = null;
+  private _getLegacyPfDbService(): LegacyPfDbService {
+    if (!this._legacyPfDbService) {
+      this._legacyPfDbService = this._injector.get(LegacyPfDbService);
+    }
+    return this._legacyPfDbService;
+  }
+
   private _snackService: SnackService | null = null;
   private _getSnackService(): SnackService {
     if (!this._snackService) {
@@ -65,82 +72,59 @@ export class SyncSafetyBackupService {
   private readonly _backupsChanged$ = new Subject<void>();
   readonly backupsChanged$ = this._backupsChanged$.asObservable();
 
-  constructor() {
-    // Defer event subscription to avoid circular dependency during construction
-    // Use setTimeout to ensure PfapiService is fully constructed before we access it
-    setTimeout(() => {
-      this._initEventSubscription();
-    }, 0);
-  }
-
-  private _initEventSubscription(): void {
-    // Subscribe to the onBeforeUpdateLocal event
-    this._getPfapiService().pf.ev.on('onBeforeUpdateLocal', async (eventData) => {
-      try {
-        SyncLog.normal('SyncSafetyBackupService: Received onBeforeUpdateLocal event', {
-          modelsToUpdate: eventData.modelsToUpdate,
-        });
-
-        const backupId = nanoid();
-        if (!this._isValidBackupId(backupId)) {
-          throw new Error('Invalid backup ID generated');
-        }
-
-        // Get the last changed model from meta-data
-        const metaData = await this._getPfapiService().pf.metaModel.load();
-        const lastChangedModelId = metaData.lastUpdateAction || null;
-
-        const backup: SyncSafetyBackup = {
-          id: backupId,
-          timestamp: Date.now(),
-          data: eventData.backup,
-          reason: 'BEFORE_UPDATE_LOCAL',
-          lastChangedModelId,
-          modelsToUpdate: eventData.modelsToUpdate,
-        };
-
-        await this._saveBackup(backup);
-        SyncLog.normal('SyncSafetyBackupService: Backup created before UpdateLocal', {
-          backupId: backup.id,
-          lastChangedModelId,
-          modelsToUpdate: eventData.modelsToUpdate,
-        });
-      } catch (error) {
-        SyncLog.critical(
-          'SyncSafetyBackupService: Failed to create backup on UpdateLocal',
-          {
-            error,
-          },
-        );
-        // Notify user that backup failed but sync continues
-        this._getSnackService().open({
-          type: 'ERROR',
-          msg: T.F.SYNC.SAFETY_BACKUP.CREATE_FAILED_SYNC_CONTINUES,
-        });
+  /**
+   * Creates a backup before sync update.
+   * Called by sync services before applying remote changes.
+   */
+  async createBackupBeforeUpdate(modelsToUpdate?: string[]): Promise<void> {
+    try {
+      const backupId = nanoid();
+      if (!this._isValidBackupId(backupId)) {
+        throw new Error('Invalid backup ID generated');
       }
-    });
+
+      const backup: SyncSafetyBackup = {
+        id: backupId,
+        timestamp: Date.now(),
+        data: await this._getBackupService().loadCompleteBackup(true),
+        reason: 'BEFORE_UPDATE_LOCAL',
+        lastChangedModelId: null,
+        modelsToUpdate,
+      };
+
+      await this._saveBackup(backup);
+      SyncLog.normal('SyncSafetyBackupService: Backup created before UpdateLocal', {
+        backupId: backup.id,
+        modelsToUpdate,
+      });
+    } catch (error) {
+      SyncLog.critical(
+        'SyncSafetyBackupService: Failed to create backup on UpdateLocal',
+        { error },
+      );
+      this._getSnackService().open({
+        type: 'ERROR',
+        msg: T.F.SYNC.SAFETY_BACKUP.CREATE_FAILED_SYNC_CONTINUES,
+      });
+    }
   }
 
   /**
    * Creates a manual backup
    */
   async createBackup(): Promise<void> {
-    const data = await this._getPfapiService().pf.loadCompleteBackup();
+    const data = await this._getBackupService().loadCompleteBackup(true);
     const backupId = nanoid();
     if (!this._isValidBackupId(backupId)) {
       throw new Error('Invalid backup ID generated');
     }
-
-    // Get the last changed model from meta data
-    const metaData = await this._getPfapiService().pf.metaModel.load();
-    const lastChangedModelId = metaData.lastUpdateAction || null;
 
     const backup: SyncSafetyBackup = {
       id: backupId,
       timestamp: Date.now(),
       data,
       reason: 'MANUAL',
-      lastChangedModelId,
+      lastChangedModelId: null,
     };
 
     await this._saveBackup(backup);
@@ -154,8 +138,8 @@ export class SyncSafetyBackupService {
    */
   async getBackups(): Promise<SyncSafetyBackup[]> {
     try {
-      // Use pfapi db adapter for loading
-      const backups = (await this._getPfapiService().pf.db.load(
+      // Use LegacyPfDbService for loading
+      const backups = (await this._getLegacyPfDbService().load(
         STORAGE_KEY,
       )) as SyncSafetyBackup[];
       if (!backups || !Array.isArray(backups)) {
@@ -256,7 +240,7 @@ export class SyncSafetyBackupService {
 
       try {
         // Import backup with: isSkipLegacyWarnings=false, isSkipReload=true, isForceConflict=true
-        await this._getPfapiService().importCompleteBackup(
+        await this._getBackupService().importCompleteBackup(
           backup.data,
           false,
           true,
@@ -287,8 +271,8 @@ export class SyncSafetyBackupService {
     const backups = await this.getBackups();
     const filteredBackups = backups.filter((b) => b.id !== backupId);
 
-    // Use pfapi db adapter for saving
-    await this._getPfapiService().pf.db.save(STORAGE_KEY, filteredBackups, true);
+    // Use LegacyPfDbService for saving
+    await this._getLegacyPfDbService().save(STORAGE_KEY, filteredBackups);
 
     // Notify components that backups have changed
     this._backupsChanged$.next();
@@ -300,8 +284,8 @@ export class SyncSafetyBackupService {
    * Clears all backups
    */
   async clearAllBackups(): Promise<void> {
-    // Use pfapi db adapter for saving
-    await this._getPfapiService().pf.db.save(STORAGE_KEY, [], true);
+    // Use LegacyPfDbService for saving
+    await this._getLegacyPfDbService().save(STORAGE_KEY, []);
 
     // Notify components that backups have changed
     this._backupsChanged$.next();
@@ -317,7 +301,7 @@ export class SyncSafetyBackupService {
     const categorized = this._categorizeBackups(existingBackups, todayStart);
     const result = this._buildBackupSlots(backup, categorized, todayStart);
 
-    await this._getPfapiService().pf.db.save(STORAGE_KEY, result, true);
+    await this._getLegacyPfDbService().save(STORAGE_KEY, result);
     this._backupsChanged$.next();
 
     SyncLog.normal(

@@ -2,14 +2,14 @@ import { globalConfigReducer, initialGlobalConfigState } from './global-config.r
 import { loadAllData } from '../../../root-store/meta/load-all-data.action';
 import { GlobalConfigState } from '../global-config.model';
 import { LegacySyncProvider } from '../../../imex/sync/legacy-sync-provider.model';
-import { AppDataCompleteNew } from '../../../pfapi/pfapi-config';
+import { AppDataComplete } from '../../../sync/model-config';
 
 describe('GlobalConfigReducer', () => {
   describe('loadAllData action', () => {
     it('should return oldState when appDataComplete.globalConfig is falsy', () => {
       const result = globalConfigReducer(
         initialGlobalConfigState,
-        loadAllData({ appDataComplete: {} as AppDataCompleteNew }),
+        loadAllData({ appDataComplete: {} as AppDataComplete }),
       );
 
       expect(result).toBe(initialGlobalConfigState);
@@ -27,7 +27,7 @@ describe('GlobalConfigReducer', () => {
       const result = globalConfigReducer(
         initialGlobalConfigState,
         loadAllData({
-          appDataComplete: { globalConfig: newConfig } as AppDataCompleteNew,
+          appDataComplete: { globalConfig: newConfig } as AppDataComplete,
         }),
       );
 
@@ -49,7 +49,7 @@ describe('GlobalConfigReducer', () => {
       const result = globalConfigReducer(
         oldState,
         loadAllData({
-          appDataComplete: { globalConfig: snapshotConfig } as AppDataCompleteNew,
+          appDataComplete: { globalConfig: snapshotConfig } as AppDataComplete,
         }),
       );
 
@@ -81,7 +81,7 @@ describe('GlobalConfigReducer', () => {
       const result = globalConfigReducer(
         oldState,
         loadAllData({
-          appDataComplete: { globalConfig: syncedConfig } as AppDataCompleteNew,
+          appDataComplete: { globalConfig: syncedConfig } as AppDataComplete,
         }),
       );
 
@@ -111,7 +111,7 @@ describe('GlobalConfigReducer', () => {
       const result = globalConfigReducer(
         oldState,
         loadAllData({
-          appDataComplete: { globalConfig: syncedConfig } as AppDataCompleteNew,
+          appDataComplete: { globalConfig: syncedConfig } as AppDataComplete,
         }),
       );
 
@@ -142,7 +142,7 @@ describe('GlobalConfigReducer', () => {
       const result = globalConfigReducer(
         oldState,
         loadAllData({
-          appDataComplete: { globalConfig: syncedConfig } as AppDataCompleteNew,
+          appDataComplete: { globalConfig: syncedConfig } as AppDataComplete,
         }),
       );
 

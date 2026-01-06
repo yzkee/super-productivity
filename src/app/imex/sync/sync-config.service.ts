@@ -1,10 +1,10 @@
 import { inject, Injectable } from '@angular/core';
-import { PfapiService } from '../../pfapi/pfapi.service';
+import { SyncProviderManager } from '../../sync/provider-manager.service';
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import { combineLatest, from, Observable, of } from 'rxjs';
 import { SyncConfig } from '../../features/config/global-config.model';
 import { switchMap, tap } from 'rxjs/operators';
-import { PrivateCfgByProviderId, SyncProviderId } from '../../pfapi/api';
+import { PrivateCfgByProviderId, SyncProviderId } from '../../sync/sync-exports';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 import { SyncLog } from '../../core/log';
 
@@ -81,14 +81,14 @@ const PROVIDER_FIELD_DEFAULTS: Record<
   providedIn: 'root',
 })
 export class SyncConfigService {
-  private _pfapiService = inject(PfapiService);
+  private _providerManager = inject(SyncProviderManager);
   private _globalConfigService = inject(GlobalConfigService);
 
   private _lastSettings: SyncConfig | null = null;
 
   readonly syncSettingsForm$: Observable<SyncConfig> = combineLatest([
     this._globalConfigService.sync$,
-    this._pfapiService.currentProviderPrivateCfg$,
+    this._providerManager.currentProviderPrivateCfg$,
   ]).pipe(
     switchMap(([syncCfg, currentProviderCfg]) => {
       // Base config with defaults
@@ -125,7 +125,7 @@ export class SyncConfigService {
       const prop = PROP_MAP_TO_FORM[currentProviderCfg.providerId];
 
       // Create config with provider-specific settings
-      const result = {
+      const result: SyncConfig = {
         ...baseConfig,
         encryptKey: currentProviderCfg?.privateCfg?.encryptKey || '',
         // Reset provider-specific configs to defaults first
@@ -136,7 +136,7 @@ export class SyncConfigService {
 
       // Add current provider config if applicable
       if (prop && currentProviderCfg.privateCfg) {
-        result[prop] = currentProviderCfg.privateCfg;
+        (result as any)[prop] = currentProviderCfg.privateCfg;
       }
 
       return of(result);
@@ -150,8 +150,8 @@ export class SyncConfigService {
     syncProviderId?: SyncProviderId,
   ): Promise<void> {
     const activeProvider = syncProviderId
-      ? await this._pfapiService.pf.getSyncProviderById(syncProviderId)
-      : this._pfapiService.pf.getActiveSyncProvider();
+      ? this._providerManager.getProviderById(syncProviderId)
+      : this._providerManager.getActiveProvider();
     if (!activeProvider) {
       // During initial sync setup, no provider exists yet to store the key.
       // The key will be saved when the user completes provider configuration.
@@ -162,7 +162,7 @@ export class SyncConfigService {
     }
     const oldConfig = await activeProvider.privateCfg.load();
 
-    await this._pfapiService.pf.setPrivateCfgForSyncProvider(activeProvider.id, {
+    await this._providerManager.setProviderConfig(activeProvider.id, {
       ...oldConfig,
       encryptKey: pwd,
     } as PrivateCfgByProviderId<SyncProviderId>);
@@ -189,15 +189,18 @@ export class SyncConfigService {
     }
 
     // For SuperSync, propagate provider-specific encryption setting to global config
-    // This ensures pfapi.service.ts sees isEncryptionEnabled=true when SuperSync encryption is enabled
+    // This ensures sync services see isEncryptionEnabled=true when SuperSync encryption is enabled
     // Note: We need to check the SAVED private config because Formly doesn't include hidden fields
     if (providerId === SyncProviderId.SuperSync) {
-      const activeProvider = await this._pfapiService.pf.getSyncProviderById(providerId);
+      const activeProvider = this._providerManager.getProviderById(providerId);
       const savedPrivateCfg = activeProvider
         ? await activeProvider.privateCfg.load()
         : null;
       const isEncryptionEnabled =
-        superSync?.isEncryptionEnabled ?? savedPrivateCfg?.isEncryptionEnabled ?? false;
+        superSync?.isEncryptionEnabled ??
+        (savedPrivateCfg as { isEncryptionEnabled?: boolean } | null)
+          ?.isEncryptionEnabled ??
+        false;
       if (isEncryptionEnabled) {
         globalConfig.isEncryptionEnabled = true;
       }
@@ -213,7 +216,7 @@ export class SyncConfigService {
     const prop = PROP_MAP_TO_FORM[providerId];
 
     // Load existing config to preserve OAuth tokens and other settings
-    const activeProvider = await this._pfapiService.pf.getSyncProviderById(providerId);
+    const activeProvider = this._providerManager.getProviderById(providerId);
     const oldConfig = activeProvider ? await activeProvider.privateCfg.load() : {};
 
     // Form fields contain provider-specific settings, but Dropbox uses OAuth tokens
@@ -233,7 +236,7 @@ export class SyncConfigService {
         (privateConfigProviderSpecific as any)?.encryptKey || settings.encryptKey || '',
     };
 
-    await this._pfapiService.pf.setPrivateCfgForSyncProvider(
+    await this._providerManager.setProviderConfig(
       providerId,
       configWithDefaults as PrivateCfgByProviderId<SyncProviderId>,
     );

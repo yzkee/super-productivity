@@ -90,8 +90,8 @@ import {
   syncTimeTracking,
 } from '../time-tracking/store/time-tracking.actions';
 import { selectTimeTrackingState } from '../time-tracking/store/time-tracking.selectors';
-import { ArchiveService } from '../time-tracking/archive.service';
-import { TaskArchiveService } from '../time-tracking/task-archive.service';
+import { ArchiveService } from '../archive/archive.service';
+import { TaskArchiveService } from '../archive/task-archive.service';
 import { TODAY_TAG } from '../tag/tag.const';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { getDbDateStr } from '../../util/get-db-date-str';

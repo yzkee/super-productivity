@@ -8,8 +8,7 @@ import {
   SchemaMigrationService,
   CURRENT_SCHEMA_VERSION,
 } from './schema-migration.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
-import { PfapiStoreDelegateService } from '../../pfapi/pfapi-store-delegate.service';
+import { StateSnapshotService } from '../../sync/state-snapshot.service';
 import { SnackService } from '../../core/snack/snack.service';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { RepairOperationService } from '../validation/repair-operation.service';
@@ -34,8 +33,7 @@ describe('OperationLogHydratorService', () => {
   let mockOpLogStore: jasmine.SpyObj<OperationLogStoreService>;
   let mockMigrationService: jasmine.SpyObj<OperationLogMigrationService>;
   let mockSchemaMigrationService: jasmine.SpyObj<SchemaMigrationService>;
-  let mockPfapiService: jasmine.SpyObj<PfapiService>;
-  let mockStoreDelegateService: jasmine.SpyObj<PfapiStoreDelegateService>;
+  let mockStateSnapshotService: jasmine.SpyObj<StateSnapshotService>;
   let mockSnackService: jasmine.SpyObj<SnackService>;
   let mockValidateStateService: jasmine.SpyObj<ValidateStateService>;
   let mockRepairOperationService: jasmine.SpyObj<RepairOperationService>;
@@ -117,22 +115,8 @@ describe('OperationLogHydratorService', () => {
       'operationNeedsMigration',
       'migrateOperations',
     ]);
-    mockPfapiService = jasmine.createSpyObj('PfapiService', [], {
-      pf: {
-        metaModel: {
-          loadClientId: jasmine
-            .createSpy()
-            .and.returnValue(Promise.resolve('test-client')),
-          syncVectorClock: jasmine.createSpy().and.returnValue(Promise.resolve()),
-          load: jasmine.createSpy().and.returnValue(Promise.resolve({ vectorClock: {} })),
-        },
-        getAllSyncModelDataFromModelCtrls: jasmine
-          .createSpy()
-          .and.returnValue(Promise.resolve({})),
-      },
-    });
-    mockStoreDelegateService = jasmine.createSpyObj('PfapiStoreDelegateService', [
-      'getAllSyncModelDataFromStore',
+    mockStateSnapshotService = jasmine.createSpyObj('StateSnapshotService', [
+      'getStateSnapshot',
     ]);
     mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
     mockValidateStateService = jasmine.createSpyObj('ValidateStateService', [
@@ -192,9 +176,7 @@ describe('OperationLogHydratorService', () => {
       isValid: true,
       wasRepaired: false,
     });
-    mockStoreDelegateService.getAllSyncModelDataFromStore.and.returnValue(
-      Promise.resolve(mockState),
-    );
+    mockStateSnapshotService.getStateSnapshot.and.returnValue(mockState);
     mockVectorClockService.getCurrentVectorClock.and.returnValue(
       Promise.resolve({ clientA: 5 }),
     );
@@ -213,8 +195,7 @@ describe('OperationLogHydratorService', () => {
         { provide: OperationLogStoreService, useValue: mockOpLogStore },
         { provide: OperationLogMigrationService, useValue: mockMigrationService },
         { provide: SchemaMigrationService, useValue: mockSchemaMigrationService },
-        { provide: PfapiService, useValue: mockPfapiService },
-        { provide: PfapiStoreDelegateService, useValue: mockStoreDelegateService },
+        { provide: StateSnapshotService, useValue: mockStateSnapshotService },
         { provide: SnackService, useValue: mockSnackService },
         { provide: ValidateStateService, useValue: mockValidateStateService },
         { provide: RepairOperationService, useValue: mockRepairOperationService },
@@ -996,32 +977,6 @@ describe('OperationLogHydratorService', () => {
 
         // Only dispatch should NOT happen because recovery takes over
         expect(mockRecoveryService.attemptRecovery).toHaveBeenCalled();
-      });
-    });
-
-    describe('PFAPI vector clock sync', () => {
-      it('should sync PFAPI vector clock after hydration', async () => {
-        const snapshot = createMockSnapshot();
-        mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(snapshot));
-        mockVectorClockService.getCurrentVectorClock.and.returnValue(
-          Promise.resolve({ clientA: 10 }),
-        );
-
-        await service.hydrateStore();
-
-        expect(mockPfapiService.pf.metaModel.syncVectorClock).toHaveBeenCalledWith({
-          clientA: 10,
-        });
-      });
-
-      it('should not sync PFAPI vector clock on fresh install', async () => {
-        mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(null));
-        mockOpLogStore.getOpsAfterSeq.and.returnValue(Promise.resolve([]));
-        mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
-
-        await service.hydrateStore();
-
-        expect(mockPfapiService.pf.metaModel.syncVectorClock).not.toHaveBeenCalled();
       });
     });
 

@@ -10,9 +10,12 @@ import {
 import { OperationLogSnapshotService } from './operation-log-snapshot.service';
 import { OperationLogRecoveryService } from './operation-log-recovery.service';
 import { SyncHydrationService } from './sync-hydration.service';
+import { ArchiveMigrationService } from './archive-migration.service';
 import { OpLog } from '../../core/log';
-import { PfapiService } from '../../pfapi/pfapi.service';
-import { PfapiStoreDelegateService } from '../../pfapi/pfapi-store-delegate.service';
+import {
+  StateSnapshotService,
+  AppStateSnapshot,
+} from '../../sync/state-snapshot.service';
 import { Operation, OpType, RepairPayload } from '../core/operation.types';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
@@ -20,7 +23,6 @@ import { ValidateStateService } from '../validation/validate-state.service';
 import { OperationApplierService } from '../apply/operation-applier.service';
 import { HydrationStateService } from '../apply/hydration-state.service';
 import { bulkApplyOperations } from '../apply/bulk-hydration.action';
-import { AppDataCompleteNew } from '../../pfapi/pfapi-config';
 import { VectorClockService } from '../sync/vector-clock.service';
 import { MAX_CONFLICT_RETRY_ATTEMPTS } from '../core/operation-log.const';
 
@@ -37,8 +39,7 @@ export class OperationLogHydratorService {
   private opLogStore = inject(OperationLogStoreService);
   private migrationService = inject(OperationLogMigrationService);
   private schemaMigrationService = inject(SchemaMigrationService);
-  private pfapiService = inject(PfapiService);
-  private storeDelegateService = inject(PfapiStoreDelegateService);
+  private stateSnapshotService = inject(StateSnapshotService);
   private snackService = inject(SnackService);
   private validateStateService = inject(ValidateStateService);
   private vectorClockService = inject(VectorClockService);
@@ -49,6 +50,7 @@ export class OperationLogHydratorService {
   private snapshotService = inject(OperationLogSnapshotService);
   private recoveryService = inject(OperationLogRecoveryService);
   private syncHydrationService = inject(SyncHydrationService);
+  private archiveMigrationService = inject(ArchiveMigrationService);
 
   // Mutex to prevent concurrent repair operations and re-validation during repair
   private _repairMutex: Promise<void> | null = null;
@@ -75,6 +77,11 @@ export class OperationLogHydratorService {
       // Clean up corrupt operations (e.g., with undefined entityId) that cause
       // infinite rejection loops during sync. Must run after recoverPendingRemoteOps.
       await this.recoveryService.cleanupCorruptOps();
+
+      // Migrate archives from legacy 'pf' database to SUP_OPS if needed.
+      // This is idempotent - skips if archives already exist in SUP_OPS.
+      await this.archiveMigrationService.migrateArchivesIfNeeded();
+
       if (hasBackup) {
         OpLog.warn(
           'OperationLogHydratorService: Found migration backup - previous migration may have crashed. Restoring...',
@@ -122,7 +129,7 @@ export class OperationLogHydratorService {
         // synchronously if a migration ran (schema changed).
         // TODO: Consider removing this validation after ops-log testing phase.
         // Checkpoint C validates the final state anyway, making this redundant.
-        let stateToLoad = snapshot.state as AppDataCompleteNew;
+        let stateToLoad = snapshot.state as AppStateSnapshot;
         const snapshotSchemaVersion = (snapshot as { schemaVersion?: number })
           .schemaVersion;
         const needsSyncValidation =
@@ -134,11 +141,11 @@ export class OperationLogHydratorService {
             'OperationLogHydratorService: Running synchronous validation (migration ran or schema mismatch)',
           );
           const validationResult = await this._validateAndRepairState(
-            stateToLoad,
+            stateToLoad as unknown as Record<string, unknown>,
             'snapshot',
           );
           if (validationResult.wasRepaired && validationResult.repairedState) {
-            stateToLoad = validationResult.repairedState;
+            stateToLoad = validationResult.repairedState as unknown as AppStateSnapshot;
             // Update snapshot with repaired state
             snapshot = { ...snapshot, state: stateToLoad };
           }
@@ -163,7 +170,8 @@ export class OperationLogHydratorService {
         }
 
         // 3. Hydrate NgRx with (possibly repaired) snapshot
-        this.store.dispatch(loadAllData({ appDataComplete: stateToLoad }));
+        // Cast to any - stateToLoad is AppStateSnapshot which is runtime-compatible but TypeScript can't verify
+        this.store.dispatch(loadAllData({ appDataComplete: stateToLoad as any }));
 
         // 4. Replay tail operations (A.7.13: with operation migration)
         const tailOps = await this.opLogStore.getOpsAfterSeq(snapshot.lastAppliedOpSeq);
@@ -181,25 +189,25 @@ export class OperationLogHydratorService {
             // This prevents corrupted SyncImport/Repair operations from breaking the app
             if (!this._repairMutex) {
               const validationResult = await this._validateAndRepairState(
-                appData as AppDataCompleteNew,
+                appData as Record<string, unknown>,
                 'tail-full-state-op-load',
               );
               const tailStateToLoad =
                 validationResult.wasRepaired && validationResult.repairedState
                   ? validationResult.repairedState
-                  : (appData as AppDataCompleteNew);
+                  : (appData as Record<string, unknown>);
               // FIX: Merge vector clock BEFORE dispatching loadAllData
               // This ensures any operations created synchronously during loadAllData
               // (e.g., TODAY_TAG repair) will have the correct merged clock.
               // Without this, those operations get stale clocks and are rejected by the server.
               await this.opLogStore.mergeRemoteOpClocks([lastOp]);
-              this.store.dispatch(loadAllData({ appDataComplete: tailStateToLoad }));
+              this.store.dispatch(
+                loadAllData({ appDataComplete: tailStateToLoad as any }),
+              );
             } else {
               // FIX: Same fix for the else branch
               await this.opLogStore.mergeRemoteOpClocks([lastOp]);
-              this.store.dispatch(
-                loadAllData({ appDataComplete: appData as AppDataCompleteNew }),
-              );
+              this.store.dispatch(loadAllData({ appDataComplete: appData as any }));
             }
             // No snapshot save needed - full state ops already contain complete state
             // Snapshot will be saved after next batch of regular operations
@@ -269,23 +277,21 @@ export class OperationLogHydratorService {
           // This prevents corrupted SyncImport/Repair operations from breaking the app
           if (!this._repairMutex) {
             const validationResult = await this._validateAndRepairState(
-              appData as AppDataCompleteNew,
+              appData as Record<string, unknown>,
               'full-state-op-load',
             );
             const stateToLoad =
               validationResult.wasRepaired && validationResult.repairedState
                 ? validationResult.repairedState
-                : (appData as AppDataCompleteNew);
+                : (appData as Record<string, unknown>);
             // FIX: Merge vector clock BEFORE dispatching loadAllData
             // Same fix as the tail ops branch - prevents stale clock bug
             await this.opLogStore.mergeRemoteOpClocks([lastOp]);
-            this.store.dispatch(loadAllData({ appDataComplete: stateToLoad }));
+            this.store.dispatch(loadAllData({ appDataComplete: stateToLoad as any }));
           } else {
             // FIX: Same fix for the else branch
             await this.opLogStore.mergeRemoteOpClocks([lastOp]);
-            this.store.dispatch(
-              loadAllData({ appDataComplete: appData as AppDataCompleteNew }),
-            );
+            this.store.dispatch(loadAllData({ appDataComplete: appData as any }));
           }
           // No snapshot save needed - full state ops already contain complete state
         } else {
@@ -442,15 +448,15 @@ export class OperationLogHydratorService {
    * @returns Validation result with optional repaired state
    */
   private async _validateAndRepairState(
-    state: AppDataCompleteNew,
+    state: Record<string, unknown>,
     context: string,
-  ): Promise<{ wasRepaired: boolean; repairedState?: AppDataCompleteNew }> {
+  ): Promise<{ wasRepaired: boolean; repairedState?: Record<string, unknown> }> {
     // Wait for any ongoing repair to complete before validating
     if (this._repairMutex) {
       await this._repairMutex;
     }
 
-    const result = this.validateStateService.validateAndRepair(state);
+    const result = this.validateStateService.validateAndRepair(state as never);
 
     if (!result.wasRepaired) {
       return { wasRepaired: false };
@@ -498,54 +504,25 @@ export class OperationLogHydratorService {
    */
   private async _validateAndRepairCurrentState(context: string): Promise<void> {
     // Get current state from NgRx
-    const currentState =
-      (await this.storeDelegateService.getAllSyncModelDataFromStore()) as AppDataCompleteNew;
+    const currentState = this.stateSnapshotService.getStateSnapshot();
 
-    const result = await this._validateAndRepairState(currentState, context);
+    const result = await this._validateAndRepairState(
+      currentState as unknown as Record<string, unknown>,
+      context,
+    );
 
     if (result.wasRepaired && result.repairedState) {
       // Dispatch the repaired state to NgRx
-      this.store.dispatch(loadAllData({ appDataComplete: result.repairedState }));
+      this.store.dispatch(loadAllData({ appDataComplete: result.repairedState as any }));
     }
   }
 
   /**
-   * Syncs PFAPI meta model's vector clock with the current SUP_OPS vector clock.
-   * This ensures eventual consistency if a previous PFAPI update failed after
-   * an operation was written to SUP_OPS.
+   * Legacy method - previously synced vector clock to PFAPI meta model.
+   * Now a no-op since PFAPI layer was removed.
    */
   private async _syncPfapiVectorClock(): Promise<void> {
-    try {
-      const currentClock = await this.vectorClockService.getCurrentVectorClock();
-
-      // Only sync if we have operations (not fresh install)
-      if (Object.keys(currentClock).length === 0) {
-        return;
-      }
-
-      // Update PFAPI meta model to match SUP_OPS clock
-      // This uses a direct update rather than increment to set the exact values
-      await this.pfapiService.pf.metaModel.syncVectorClock(currentClock);
-      OpLog.normal('OperationLogHydratorService: Synced PFAPI vector clock with SUP_OPS');
-    } catch (e) {
-      // Distinguish between expected errors and actual failures
-      const errorMessage = e instanceof Error ? e.message : String(e);
-      const isExpectedError =
-        errorMessage.includes('not initialized') ||
-        errorMessage.includes('sync not enabled') ||
-        errorMessage.includes('not ready');
-
-      if (isExpectedError) {
-        // Non-fatal - PFAPI might not be ready yet or sync might not be enabled
-        OpLog.verbose(
-          'OperationLogHydratorService: Could not sync PFAPI vector clock (expected)',
-          e,
-        );
-      } else {
-        // Unexpected error - log as warning for visibility
-        OpLog.warn('OperationLogHydratorService: Failed to sync PFAPI vector clock', e);
-      }
-    }
+    // No-op: PFAPI layer was removed, vector clock is managed by SUP_OPS only
   }
 
   /**
@@ -606,34 +583,10 @@ export class OperationLogHydratorService {
   }
 
   /**
-   * Migrates the vector clock from pf.META_MODEL to SUP_OPS.vector_clock if needed.
-   * This is a one-time migration when upgrading from DB version 1 to 2.
+   * Legacy method - previously migrated vector clock from PFAPI meta model.
+   * Now a no-op since PFAPI layer was removed.
    */
   private async _migrateVectorClockFromPfapiIfNeeded(): Promise<void> {
-    const existingClock = await this.opLogStore.getVectorClock();
-
-    if (existingClock !== null) {
-      OpLog.normal(
-        'OperationLogHydratorService: SUP_OPS already has vector clock, skipping migration',
-      );
-      return;
-    }
-
-    // Load vector clock from pf.META_MODEL
-    const metaModel = await this.pfapiService.pf.metaModel.load();
-    if (metaModel?.vectorClock && Object.keys(metaModel.vectorClock).length > 0) {
-      OpLog.normal(
-        'OperationLogHydratorService: Migrating vector clock from pf.META_MODEL to SUP_OPS',
-        {
-          clockSize: Object.keys(metaModel.vectorClock).length,
-        },
-      );
-
-      await this.opLogStore.setVectorClock(metaModel.vectorClock);
-    } else {
-      OpLog.normal(
-        'OperationLogHydratorService: No vector clock to migrate from pf.META_MODEL',
-      );
-    }
+    // No-op: PFAPI layer was removed, no legacy migration needed
   }
 }

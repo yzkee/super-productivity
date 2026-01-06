@@ -3,14 +3,12 @@ import { from, Observable } from 'rxjs';
 import { mapTo, take } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
 import { allDataWasLoaded } from '../../root-store/meta/all-data-was-loaded.actions';
-import { PfapiService } from '../../pfapi/pfapi.service';
 import { DataInitStateService } from './data-init-state.service';
 import { UserProfileService } from '../../features/user-profile/user-profile.service';
 import { OperationLogHydratorService } from '../../op-log/store/operation-log-hydrator.service';
 
 @Injectable({ providedIn: 'root' })
 export class DataInitService {
-  private _pfapiService = inject(PfapiService);
   private _store$ = inject<Store<any>>(Store);
   private _dataInitStateService = inject(DataInitStateService);
   private _userProfileService = inject(UserProfileService);
@@ -42,9 +40,6 @@ export class DataInitService {
       // Only initialize profile system if explicitly enabled
       await this._userProfileService.initialize();
     }
-
-    // Ensure legacy migration check is done (if applicable)
-    await this._pfapiService.pf.wasDataMigratedInitiallyPromise;
 
     // Hydrate from Operation Log (which handles migration from legacy if needed)
     await this._operationLogHydratorService.hydrateStore();

@@ -9,7 +9,7 @@ import {
 import { devError } from '../../util/dev-error';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
-import { remoteArchiveDataApplied } from '../../features/time-tracking/store/archive.actions';
+import { remoteArchiveDataApplied } from '../../features/archive/store/archive.actions';
 import { WorklogService } from '../../features/worklog/worklog.service';
 
 /**

@@ -1,16 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { EncryptionPasswordChangeService } from './encryption-password-change.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
-import { PfapiStoreDelegateService } from '../../pfapi/pfapi-store-delegate.service';
+import { SyncProviderManager } from '../../sync/provider-manager.service';
+import { StateSnapshotService } from '../../sync/state-snapshot.service';
 import { OperationEncryptionService } from '../../op-log/sync/operation-encryption.service';
 import { VectorClockService } from '../../op-log/sync/vector-clock.service';
 import { CLIENT_ID_PROVIDER } from '../../op-log/util/client-id.provider';
-import { SyncProviderId } from '../../pfapi/api/pfapi.const';
+import { SyncProviderId } from '../../sync/providers/provider.const';
 
 describe('EncryptionPasswordChangeService', () => {
   let service: EncryptionPasswordChangeService;
-  let mockPfapiService: jasmine.SpyObj<any>;
-  let mockStoreDelegateService: jasmine.SpyObj<PfapiStoreDelegateService>;
+  let mockProviderManager: jasmine.SpyObj<any>;
+  let mockStateSnapshotService: jasmine.SpyObj<StateSnapshotService>;
   let mockEncryptionService: jasmine.SpyObj<OperationEncryptionService>;
   let mockVectorClockService: jasmine.SpyObj<VectorClockService>;
   let mockClientIdProvider: jasmine.SpyObj<any>;
@@ -54,21 +54,17 @@ describe('EncryptionPasswordChangeService', () => {
     mockSyncProvider.setPrivateCfg.and.returnValue(Promise.resolve());
     mockSyncProvider.setLastServerSeq.and.returnValue(Promise.resolve());
 
-    // Create mock PfapiService
-    mockPfapiService = {
-      pf: {
-        getActiveSyncProvider: jasmine
-          .createSpy('getActiveSyncProvider')
-          .and.returnValue(mockSyncProvider),
-      },
+    // Create mock SyncProviderManager
+    mockProviderManager = {
+      getActiveProvider: jasmine
+        .createSpy('getActiveProvider')
+        .and.returnValue(mockSyncProvider),
     };
 
-    mockStoreDelegateService = jasmine.createSpyObj('PfapiStoreDelegateService', [
-      'getAllSyncModelDataFromStore',
+    mockStateSnapshotService = jasmine.createSpyObj('StateSnapshotService', [
+      'getStateSnapshot',
     ]);
-    mockStoreDelegateService.getAllSyncModelDataFromStore.and.returnValue(
-      Promise.resolve(TEST_CURRENT_STATE),
-    );
+    mockStateSnapshotService.getStateSnapshot.and.returnValue(TEST_CURRENT_STATE);
 
     mockEncryptionService = jasmine.createSpyObj('OperationEncryptionService', [
       'encryptPayload',
@@ -93,8 +89,8 @@ describe('EncryptionPasswordChangeService', () => {
     TestBed.configureTestingModule({
       providers: [
         EncryptionPasswordChangeService,
-        { provide: PfapiService, useValue: mockPfapiService },
-        { provide: PfapiStoreDelegateService, useValue: mockStoreDelegateService },
+        { provide: SyncProviderManager, useValue: mockProviderManager },
+        { provide: StateSnapshotService, useValue: mockStateSnapshotService },
         { provide: OperationEncryptionService, useValue: mockEncryptionService },
         { provide: VectorClockService, useValue: mockVectorClockService },
         { provide: CLIENT_ID_PROVIDER, useValue: mockClientIdProvider },
@@ -108,7 +104,7 @@ describe('EncryptionPasswordChangeService', () => {
       await service.changePassword(TEST_PASSWORD);
 
       // Verify correct sequence of operations
-      expect(mockStoreDelegateService.getAllSyncModelDataFromStore).toHaveBeenCalled();
+      expect(mockStateSnapshotService.getStateSnapshot).toHaveBeenCalled();
       expect(mockVectorClockService.getCurrentVectorClock).toHaveBeenCalled();
       expect(mockClientIdProvider.loadClientId).toHaveBeenCalled();
       expect(mockSyncProvider.deleteAllData).toHaveBeenCalled();
@@ -142,7 +138,7 @@ describe('EncryptionPasswordChangeService', () => {
     });
 
     it('should throw error if no sync provider is active', async () => {
-      mockPfapiService.pf.getActiveSyncProvider.and.returnValue(null);
+      mockProviderManager.getActiveProvider.and.returnValue(null);
 
       await expectAsync(service.changePassword(TEST_PASSWORD)).toBeRejectedWithError(
         'Password change is only supported for SuperSync',

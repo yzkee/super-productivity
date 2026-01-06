@@ -7,13 +7,13 @@ import {
   SchemaMigrationService,
 } from './schema-migration.service';
 import { VectorClockService } from '../sync/vector-clock.service';
-import { PfapiStoreDelegateService } from '../../pfapi/pfapi-store-delegate.service';
+import { StateSnapshotService } from '../../sync/state-snapshot.service';
 
 describe('OperationLogSnapshotService', () => {
   let service: OperationLogSnapshotService;
   let mockOpLogStore: jasmine.SpyObj<OperationLogStoreService>;
   let mockVectorClockService: jasmine.SpyObj<VectorClockService>;
-  let mockStoreDelegateService: jasmine.SpyObj<PfapiStoreDelegateService>;
+  let mockStateSnapshotService: jasmine.SpyObj<StateSnapshotService>;
   let mockSchemaMigrationService: jasmine.SpyObj<SchemaMigrationService>;
 
   beforeEach(() => {
@@ -27,8 +27,8 @@ describe('OperationLogSnapshotService', () => {
     mockVectorClockService = jasmine.createSpyObj('VectorClockService', [
       'getCurrentVectorClock',
     ]);
-    mockStoreDelegateService = jasmine.createSpyObj('PfapiStoreDelegateService', [
-      'getAllSyncModelDataFromStore',
+    mockStateSnapshotService = jasmine.createSpyObj('StateSnapshotService', [
+      'getStateSnapshot',
     ]);
     mockSchemaMigrationService = jasmine.createSpyObj('SchemaMigrationService', [
       'migrateStateIfNeeded',
@@ -39,7 +39,7 @@ describe('OperationLogSnapshotService', () => {
         OperationLogSnapshotService,
         { provide: OperationLogStoreService, useValue: mockOpLogStore },
         { provide: VectorClockService, useValue: mockVectorClockService },
-        { provide: PfapiStoreDelegateService, useValue: mockStoreDelegateService },
+        { provide: StateSnapshotService, useValue: mockStateSnapshotService },
         { provide: SchemaMigrationService, useValue: mockSchemaMigrationService },
       ],
     });
@@ -125,9 +125,7 @@ describe('OperationLogSnapshotService', () => {
         globalConfig: {},
       };
       const vectorClock = { client1: 5, client2: 3 };
-      mockStoreDelegateService.getAllSyncModelDataFromStore.and.resolveTo(
-        stateData as any,
-      );
+      mockStateSnapshotService.getStateSnapshot.and.resolveTo(stateData as any);
       mockVectorClockService.getCurrentVectorClock.and.resolveTo(vectorClock);
       mockOpLogStore.getLastSeq.and.resolveTo(10);
       mockOpLogStore.saveStateCache.and.resolveTo(undefined);
@@ -145,7 +143,7 @@ describe('OperationLogSnapshotService', () => {
     });
 
     it('should not throw when save fails', async () => {
-      mockStoreDelegateService.getAllSyncModelDataFromStore.and.resolveTo({} as any);
+      mockStateSnapshotService.getStateSnapshot.and.resolveTo({} as any);
       mockVectorClockService.getCurrentVectorClock.and.resolveTo({});
       mockOpLogStore.getLastSeq.and.resolveTo(1);
       mockOpLogStore.saveStateCache.and.rejectWith(new Error('Save failed'));
@@ -156,7 +154,7 @@ describe('OperationLogSnapshotService', () => {
 
     it('should include compactedAt timestamp', async () => {
       const beforeTime = Date.now();
-      mockStoreDelegateService.getAllSyncModelDataFromStore.and.resolveTo({} as any);
+      mockStateSnapshotService.getStateSnapshot.and.resolveTo({} as any);
       mockVectorClockService.getCurrentVectorClock.and.resolveTo({});
       mockOpLogStore.getLastSeq.and.resolveTo(1);
       mockOpLogStore.saveStateCache.and.resolveTo(undefined);

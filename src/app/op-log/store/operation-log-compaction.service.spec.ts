@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { OperationLogCompactionService } from './operation-log-compaction.service';
 import { OperationLogStoreService } from './operation-log-store.service';
 import { LockService } from '../sync/lock.service';
-import { PfapiStoreDelegateService } from '../../pfapi/pfapi-store-delegate.service';
+import { StateSnapshotService } from '../../sync/state-snapshot.service';
 import { VectorClockService } from '../sync/vector-clock.service';
 import {
   COMPACTION_RETENTION_MS,
@@ -11,7 +11,7 @@ import {
 import { CURRENT_SCHEMA_VERSION } from './schema-migration.service';
 import { OperationLogEntry } from '../core/operation.types';
 import { OpLog } from '../../core/log';
-import { PFAPI_MODEL_CFGS } from '../../pfapi/pfapi-config';
+import { MODEL_CONFIGS } from '../../sync/model-config';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -19,7 +19,7 @@ describe('OperationLogCompactionService', () => {
   let service: OperationLogCompactionService;
   let mockOpLogStore: jasmine.SpyObj<OperationLogStoreService>;
   let mockLockService: jasmine.SpyObj<LockService>;
-  let mockStoreDelegate: jasmine.SpyObj<PfapiStoreDelegateService>;
+  let mockStateSnapshot: jasmine.SpyObj<StateSnapshotService>;
   let mockVectorClockService: jasmine.SpyObj<VectorClockService>;
 
   const mockState = {
@@ -38,7 +38,8 @@ describe('OperationLogCompactionService', () => {
       'deleteOpsWhere',
     ]);
     mockLockService = jasmine.createSpyObj('LockService', ['request']);
-    mockStoreDelegate = jasmine.createSpyObj('PfapiStoreDelegateService', [
+    mockStateSnapshot = jasmine.createSpyObj('StateSnapshotService', [
+      'getStateSnapshot',
       'getAllSyncModelDataFromStore',
     ]);
     mockVectorClockService = jasmine.createSpyObj('VectorClockService', [
@@ -59,9 +60,8 @@ describe('OperationLogCompactionService', () => {
     mockOpLogStore.saveStateCache.and.returnValue(Promise.resolve());
     mockOpLogStore.resetCompactionCounter.and.returnValue(Promise.resolve());
     mockOpLogStore.deleteOpsWhere.and.returnValue(Promise.resolve());
-    mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-      Promise.resolve(mockState),
-    );
+    mockStateSnapshot.getStateSnapshot.and.returnValue(mockState);
+    mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue(mockState);
     mockVectorClockService.getCurrentVectorClock.and.returnValue(
       Promise.resolve(mockVectorClock),
     );
@@ -71,7 +71,7 @@ describe('OperationLogCompactionService', () => {
         OperationLogCompactionService,
         { provide: OperationLogStoreService, useValue: mockOpLogStore },
         { provide: LockService, useValue: mockLockService },
-        { provide: PfapiStoreDelegateService, useValue: mockStoreDelegate },
+        { provide: StateSnapshotService, useValue: mockStateSnapshot },
         { provide: VectorClockService, useValue: mockVectorClockService },
       ],
     });
@@ -92,7 +92,7 @@ describe('OperationLogCompactionService', () => {
     it('should get current state from store delegate', async () => {
       await service.compact();
 
-      expect(mockStoreDelegate.getAllSyncModelDataFromStore).toHaveBeenCalled();
+      expect(mockStateSnapshot.getStateSnapshot).toHaveBeenCalled();
     });
 
     it('should log metrics if compaction is slow', async () => {
@@ -257,9 +257,7 @@ describe('OperationLogCompactionService', () => {
     });
 
     it('should handle empty state', async () => {
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve({} as any),
-      );
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue({} as any);
 
       await service.compact();
 
@@ -299,7 +297,7 @@ describe('OperationLogCompactionService', () => {
         },
       );
 
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.callFake((async () => {
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.callFake((() => {
         callOrder.push('getState');
         return mockState;
       }) as any);
@@ -357,7 +355,7 @@ describe('OperationLogCompactionService', () => {
     });
 
     it('should propagate errors from state delegate', async () => {
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.rejectWith(
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.throwError(
         new Error('State read failed'),
       );
 
@@ -462,7 +460,7 @@ describe('OperationLogCompactionService', () => {
     it('should complete all phases during emergency compaction', async () => {
       await service.emergencyCompact();
 
-      expect(mockStoreDelegate.getAllSyncModelDataFromStore).toHaveBeenCalled();
+      expect(mockStateSnapshot.getStateSnapshot).toHaveBeenCalled();
       expect(mockVectorClockService.getCurrentVectorClock).toHaveBeenCalled();
       expect(mockOpLogStore.getLastSeq).toHaveBeenCalled();
       expect(mockOpLogStore.saveStateCache).toHaveBeenCalled();
@@ -490,9 +488,7 @@ describe('OperationLogCompactionService', () => {
         reminders: [{ id: 'reminder-1' }],
       } as any;
 
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve(stateWithEntities),
-      );
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue(stateWithEntities);
 
       await service.compact();
 
@@ -506,9 +502,7 @@ describe('OperationLogCompactionService', () => {
         task: { ids: ['task-1', 'task-2', 'task-3'], entities: {} },
       } as any;
 
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve(stateWithTasks),
-      );
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue(stateWithTasks);
 
       await service.compact();
 
@@ -523,9 +517,7 @@ describe('OperationLogCompactionService', () => {
         project: { ids: ['proj-a', 'proj-b'], entities: {} },
       } as any;
 
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve(stateWithProjects),
-      );
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue(stateWithProjects);
 
       await service.compact();
 
@@ -539,9 +531,7 @@ describe('OperationLogCompactionService', () => {
         tag: { ids: ['tag-1'], entities: {} },
       } as any;
 
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve(stateWithTags),
-      );
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue(stateWithTags);
 
       await service.compact();
 
@@ -554,9 +544,7 @@ describe('OperationLogCompactionService', () => {
         reminders: [{ id: 'rem-1' }, { id: 'rem-2' }],
       } as any;
 
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve(stateWithReminders),
-      );
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue(stateWithReminders);
 
       await service.compact();
 
@@ -573,9 +561,7 @@ describe('OperationLogCompactionService', () => {
         timeTracking: { entries: {} },
       } as any;
 
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve(stateWithSingletons),
-      );
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue(stateWithSingletons);
 
       await service.compact();
 
@@ -592,9 +578,7 @@ describe('OperationLogCompactionService', () => {
         archiveOld: { task: { ids: ['old-archived-task'], entities: {} } },
       } as any;
 
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve(stateWithArchive),
-      );
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue(stateWithArchive);
 
       await service.compact();
 
@@ -605,9 +589,7 @@ describe('OperationLogCompactionService', () => {
     });
 
     it('should handle empty state gracefully', async () => {
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve({} as any),
-      );
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue({} as any);
 
       await service.compact();
 
@@ -623,9 +605,7 @@ describe('OperationLogCompactionService', () => {
         reminders: [],
       } as any;
 
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve(stateWithEmptyIds),
-      );
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue(stateWithEmptyIds);
 
       await service.compact();
 
@@ -638,13 +618,13 @@ describe('OperationLogCompactionService', () => {
       expect(taskKeys.length).toBe(0);
     });
 
-    it('should extract entity keys for ALL models defined in PFAPI_MODEL_CFGS', async () => {
+    it('should extract entity keys for ALL models defined in MODEL_CONFIGS', async () => {
       // 1. Create a complete mock state with one item for every model type
       const completeState: any = {};
 
       // Helper to generate mock data for each model type
-      Object.keys(PFAPI_MODEL_CFGS).forEach((modelKey) => {
-        const key = modelKey as keyof typeof PFAPI_MODEL_CFGS;
+      Object.keys(MODEL_CONFIGS).forEach((modelKey) => {
+        const key = modelKey as keyof typeof MODEL_CONFIGS;
 
         if (key === 'reminders') {
           completeState[key] = [{ id: 'reminder-1' }];
@@ -669,9 +649,7 @@ describe('OperationLogCompactionService', () => {
         }
       });
 
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve(completeState),
-      );
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue(completeState);
 
       // 2. Run compaction
       await service.compact();
@@ -704,7 +682,7 @@ describe('OperationLogCompactionService', () => {
 
       const missingModels: string[] = [];
 
-      Object.keys(PFAPI_MODEL_CFGS).forEach((modelKey) => {
+      Object.keys(MODEL_CONFIGS).forEach((modelKey) => {
         const expectedPrefix = modelToEntityType[modelKey];
         if (!expectedPrefix) {
           fail(
@@ -739,9 +717,7 @@ describe('OperationLogCompactionService', () => {
         note: { ids: [], entities: {} }, // empty but defined
       } as any;
 
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve(partialState),
-      );
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue(partialState);
 
       await service.compact();
 
@@ -991,10 +967,7 @@ describe('OperationLogCompactionService', () => {
       });
 
       // Make state retrieval trigger a timeout check
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.callFake(async () => {
-        // This will trigger timeout check after "26 seconds"
-        return mockState;
-      });
+      mockStateSnapshot.getStateSnapshot.and.returnValue(mockState);
 
       await expectAsync(service.compact()).toBeRejectedWithError(
         /Compaction timeout after.*Aborting to prevent lock expiration/,
@@ -1006,9 +979,7 @@ describe('OperationLogCompactionService', () => {
 
     it('should not throw when compaction completes within timeout', async () => {
       // Normal operation should complete without timeout
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve(mockState),
-      );
+      mockStateSnapshot.getStateSnapshot.and.returnValue(mockState);
 
       await expectAsync(service.compact()).toBeResolved();
     });
@@ -1024,9 +995,7 @@ describe('OperationLogCompactionService', () => {
         return 26000;
       });
 
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.callFake(async () => {
-        return mockState;
-      });
+      mockStateSnapshot.getStateSnapshot.and.returnValue(mockState);
 
       try {
         await service.compact();

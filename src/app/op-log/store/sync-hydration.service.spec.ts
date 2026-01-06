@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { SyncHydrationService } from './sync-hydration.service';
 import { OperationLogStoreService } from './operation-log-store.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
+import { StateSnapshotService } from '../../sync/state-snapshot.service';
 import { ClientIdService } from '../../core/util/client-id.service';
 import { VectorClockService } from '../sync/vector-clock.service';
 import { ValidateStateService } from '../validation/validate-state.service';
@@ -13,12 +13,7 @@ describe('SyncHydrationService', () => {
   let service: SyncHydrationService;
   let mockStore: jasmine.SpyObj<Store>;
   let mockOpLogStore: jasmine.SpyObj<OperationLogStoreService>;
-  let mockPfapiService: {
-    pf: {
-      getAllSyncModelDataFromModelCtrls: jasmine.Spy;
-      metaModel: { load: jasmine.Spy };
-    };
-  };
+  let mockStateSnapshotService: jasmine.SpyObj<StateSnapshotService>;
   let mockClientIdService: jasmine.SpyObj<ClientIdService>;
   let mockVectorClockService: jasmine.SpyObj<VectorClockService>;
   let mockValidateStateService: jasmine.SpyObj<ValidateStateService>;
@@ -30,13 +25,14 @@ describe('SyncHydrationService', () => {
       'getLastSeq',
       'saveStateCache',
       'setVectorClock',
+      'loadStateCache',
     ]);
-    mockPfapiService = {
-      pf: {
-        getAllSyncModelDataFromModelCtrls: jasmine.createSpy().and.resolveTo({}),
-        metaModel: { load: jasmine.createSpy().and.resolveTo(null) },
-      },
-    };
+    mockStateSnapshotService = jasmine.createSpyObj('StateSnapshotService', [
+      'getAllSyncModelDataFromStoreAsync',
+    ]);
+    mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo({} as any);
+    // Default: state cache has no vector clock (simulates fresh start)
+    mockOpLogStore.loadStateCache.and.resolveTo(null);
     mockClientIdService = jasmine.createSpyObj('ClientIdService', ['loadClientId']);
     mockVectorClockService = jasmine.createSpyObj('VectorClockService', [
       'getCurrentVectorClock',
@@ -50,7 +46,7 @@ describe('SyncHydrationService', () => {
         SyncHydrationService,
         { provide: Store, useValue: mockStore },
         { provide: OperationLogStoreService, useValue: mockOpLogStore },
-        { provide: PfapiService, useValue: mockPfapiService },
+        { provide: StateSnapshotService, useValue: mockStateSnapshotService },
         { provide: ClientIdService, useValue: mockClientIdService },
         { provide: VectorClockService, useValue: mockVectorClockService },
         { provide: ValidateStateService, useValue: mockValidateStateService },
@@ -81,7 +77,9 @@ describe('SyncHydrationService', () => {
         archiveYoung: { data: 'young' },
         archiveOld: { data: 'old' },
       };
-      mockPfapiService.pf.getAllSyncModelDataFromModelCtrls.and.resolveTo(archiveData);
+      mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo(
+        archiveData as any,
+      );
 
       await service.hydrateFromRemoteSync(downloadedData);
 
@@ -108,11 +106,13 @@ describe('SyncHydrationService', () => {
       );
     });
 
-    it('should merge local and PFAPI vector clocks', async () => {
+    it('should merge local and state cache vector clocks', async () => {
       const localClock = { localClient: 5 };
-      const pfapiClock = { remoteClient: 10, otherClient: 3 };
+      const stateCacheClock = { remoteClient: 10, otherClient: 3 };
       mockVectorClockService.getCurrentVectorClock.and.resolveTo(localClock);
-      mockPfapiService.pf.metaModel.load.and.resolveTo({ vectorClock: pfapiClock });
+      mockOpLogStore.loadStateCache.and.resolveTo({
+        vectorClock: stateCacheClock,
+      } as any);
 
       await service.hydrateFromRemoteSync({});
 
@@ -124,8 +124,8 @@ describe('SyncHydrationService', () => {
       expect(vectorClock['otherClient']).toBe(3);
     });
 
-    it('should handle missing PFAPI meta model gracefully', async () => {
-      mockPfapiService.pf.metaModel.load.and.resolveTo(null);
+    it('should handle missing state cache gracefully', async () => {
+      mockOpLogStore.loadStateCache.and.resolveTo(null);
 
       await service.hydrateFromRemoteSync({});
 
@@ -135,8 +135,8 @@ describe('SyncHydrationService', () => {
       expect(vectorClock['localClient']).toBe(6);
     });
 
-    it('should handle PFAPI meta model with missing vectorClock', async () => {
-      mockPfapiService.pf.metaModel.load.and.resolveTo({ someOtherProp: 'value' });
+    it('should handle state cache with missing vectorClock', async () => {
+      mockOpLogStore.loadStateCache.and.resolveTo({ someOtherProp: 'value' } as any);
 
       await service.hydrateFromRemoteSync({});
 
@@ -211,7 +211,7 @@ describe('SyncHydrationService', () => {
 
     it('should update vector clock store after sync', async () => {
       mockVectorClockService.getCurrentVectorClock.and.resolveTo({ localClient: 5 });
-      mockPfapiService.pf.metaModel.load.and.resolveTo({ vectorClock: { remote: 3 } });
+      mockOpLogStore.loadStateCache.and.resolveTo({ vectorClock: { remote: 3 } } as any);
 
       await service.hydrateFromRemoteSync({});
 
@@ -225,7 +225,7 @@ describe('SyncHydrationService', () => {
 
     it('should dispatch loadAllData with synced data', async () => {
       const downloadedData = { task: { ids: ['t1'] }, project: {} };
-      mockPfapiService.pf.getAllSyncModelDataFromModelCtrls.and.resolveTo({});
+      mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo({} as any);
 
       await service.hydrateFromRemoteSync(downloadedData);
 
@@ -274,7 +274,9 @@ describe('SyncHydrationService', () => {
 
     it('should handle null downloadedMainModelData by using only DB data', async () => {
       const dbData = { archiveYoung: { data: 'archive' } };
-      mockPfapiService.pf.getAllSyncModelDataFromModelCtrls.and.resolveTo(dbData);
+      mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo(
+        dbData as any,
+      );
 
       await service.hydrateFromRemoteSync(undefined);
 
@@ -305,7 +307,9 @@ describe('SyncHydrationService', () => {
 
     it('should handle non-object data gracefully', async () => {
       // Pass null - the merged data should still work
-      mockPfapiService.pf.getAllSyncModelDataFromModelCtrls.and.resolveTo(null as any);
+      mockStateSnapshotService.getAllSyncModelDataFromStoreAsync.and.resolveTo(
+        null as any,
+      );
 
       // Should not throw when calling hydrateFromRemoteSync with data that gets
       // merged with null from DB

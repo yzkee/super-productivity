@@ -6,7 +6,7 @@ import { OpLog } from '../../core/log';
 import {
   OperationSyncCapable,
   SyncOperation,
-} from '../../pfapi/api/sync/sync-provider.interface';
+} from '../../sync/providers/provider.interface';
 import { syncOpToOperation } from './operation-sync.util';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
@@ -17,7 +17,7 @@ import {
   CLOCK_DRIFT_THRESHOLD_MS,
 } from '../core/operation-log.const';
 import { OperationEncryptionService } from './operation-encryption.service';
-import { DecryptError } from '../../pfapi/api/errors/errors';
+import { DecryptError } from '../../sync/errors/sync-errors';
 import { SuperSyncStatusService } from './super-sync-status.service';
 
 /**

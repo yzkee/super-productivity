@@ -3,7 +3,7 @@ import { DialogRestorePointComponent } from './dialog-restore-point.component';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { SuperSyncRestoreService } from '../super-sync-restore.service';
 import { TranslateModule } from '@ngx-translate/core';
-import { RestorePoint } from '../../../pfapi/api/sync/sync-provider.interface';
+import { RestorePoint } from '../../../sync/providers/provider.interface';
 import { T } from '../../../t.const';
 import { of } from 'rxjs';
 

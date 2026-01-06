@@ -1,29 +1,56 @@
 import { inject, Injectable } from '@angular/core';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { Store } from '@ngrx/store';
 import { firstValueFrom } from 'rxjs';
 import { OperationLogStoreService } from './operation-log-store.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
-import { ActionType, Operation, OpType } from '../core/operation.types';
-import { uuidv7 } from '../../util/uuid-v7';
 import { OpLog } from '../../core/log';
-import { CURRENT_SCHEMA_VERSION } from './schema-migration.service';
-import { DialogConfirmComponent } from '../../ui/dialog-confirm/dialog-confirm.component';
-import { download } from '../../util/download';
-import { T } from '../../t.const';
+import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
 import { ClientIdService } from '../../core/util/client-id.service';
+import {
+  DialogLegacyMigrationComponent,
+  MigrationStatus,
+} from './dialog-legacy-migration/dialog-legacy-migration.component';
+import { loadAllData } from '../../root-store/meta/load-all-data.action';
+import { download } from '../../util/download';
+import { validateFull } from '../../sync/validation/validation-fn';
+import { isDataRepairPossible } from '../../sync/validation/is-data-repair-possible.util';
+import { dataRepair } from '../../sync/validation/data-repair';
+import { uuidv7 } from '../../util/uuid-v7';
+import { ActionType, Operation, OpType } from '../core/operation.types';
+import { CURRENT_SCHEMA_VERSION } from './schema-migration.service';
+import { AppDataComplete } from '../../sync/model-config';
 
+/**
+ * Service to check for valid operation log state during startup and migrate
+ * legacy PFAPI data if found.
+ *
+ * Migration flow:
+ * 1. Check if SUP_OPS already has valid state (state_cache or Genesis op)
+ * 2. Check if legacy 'pf' database has usable data
+ * 3. Show info dialog, create auto-backup, validate/repair, then migrate
+ */
 @Injectable({ providedIn: 'root' })
 export class OperationLogMigrationService {
   private opLogStore = inject(OperationLogStoreService);
-  private pfapiService = inject(PfapiService);
-  private matDialog = inject(MatDialog);
+  private legacyPfDb = inject(LegacyPfDbService);
   private clientIdService = inject(ClientIdService);
+  private matDialog = inject(MatDialog);
+  private store = inject(Store);
 
+  /**
+   * Checks if the operation log is in a valid state and migrates legacy data if found.
+   *
+   * Returns early if:
+   * - A state cache (snapshot) exists - system is properly initialized
+   * - A Genesis or Recovery operation exists - migration was already done
+   *
+   * Clears orphan operations if found (operations without a Genesis).
+   * Migrates legacy PFAPI data if found and no valid state exists.
+   */
   async checkAndMigrate(): Promise<void> {
-    // Check if there's a state cache (snapshot) - this indicates a proper migration happened
+    // Check if there's a state cache (snapshot) - this indicates proper initialization
     const snapshot = await this.opLogStore.loadStateCache();
     if (snapshot) {
-      // Already migrated - snapshot exists
       return;
     }
 
@@ -43,107 +70,155 @@ export class OperationLogMigrationService {
 
       // Orphan operations exist (captured before migration ran).
       // This happens when effects dispatch actions during app init before hydration completes.
-      // We need to clear these orphan ops and proceed with proper migration.
+      // We need to clear these orphan ops.
       OpLog.warn(
         `OperationLogMigrationService: Found ${allOps.length} orphan operations without Genesis. ` +
-          `Clearing them and proceeding with migration.`,
+          `Clearing them.`,
       );
       await this.opLogStore.deleteOpsWhere(() => true);
     }
 
-    OpLog.normal('OperationLogMigrationService: Checking for legacy data to migrate...');
-
-    // Load all legacy data directly from ModelCtrl caches ('pf' database).
-    // We must use getAllSyncModelDataFromModelCtrls() instead of getAllSyncModelData()
-    // because the NgRx store delegate is set early in initialization, and NgRx store
-    // is empty at migration time. Reading from 'pf' database gets the actual legacy data.
-    const legacyState = await this.pfapiService.pf.getAllSyncModelDataFromModelCtrls();
-
-    // Check if there is any actual user data to migrate.
-    // We only check for TASKS because:
-    // - Config models like globalConfig always have non-empty defaults
-    // - Project model has default INBOX_PROJECT on fresh databases
-    // - Tag model might have default tags
-    // - Without tasks, there's no meaningful user data to migrate
-    const taskModel = legacyState['task' as keyof typeof legacyState] as
-      | { ids?: string[] }
-      | undefined;
-    const hasUserData = taskModel?.ids && taskModel.ids.length > 0;
-
-    if (!hasUserData) {
+    // Check for legacy PFAPI data
+    const hasLegacyData = await this.legacyPfDb.hasUsableEntityData();
+    if (!hasLegacyData) {
       OpLog.normal('OperationLogMigrationService: No legacy data found. Starting fresh.');
       return;
     }
 
-    // Show dialog and download backup before migration
-    await this._showMigrationDialogAndCreateBackup(legacyState);
-
-    OpLog.normal(
-      'OperationLogMigrationService: Legacy data found. Creating Genesis Operation.',
-    );
-
-    const clientId = await this.clientIdService.loadClientId();
-    if (!clientId) {
-      throw new Error('Failed to load clientId - cannot create Genesis operation');
+    // Acquire migration lock (prevent concurrent tab migrations)
+    const lockAcquired = await this.legacyPfDb.acquireMigrationLock();
+    if (!lockAcquired) {
+      OpLog.warn(
+        'OperationLogMigrationService: Migration lock held by another instance, skipping.',
+      );
+      return;
     }
 
-    // Create Genesis Operation
-    const genesisOp: Operation = {
+    // Show migration dialog and perform migration
+    const dialogRef = this._showMigrationDialog();
+    try {
+      await this._createAutoBackup(dialogRef);
+      await this._performMigration(dialogRef);
+    } catch (error) {
+      OpLog.err('OperationLogMigrationService: Migration failed:', error);
+      dialogRef.componentInstance.error.set(
+        'Migration failed. Your backup has been downloaded. Please restart or import the backup file.',
+      );
+      // Wait for user acknowledgment before throwing
+      await firstValueFrom(dialogRef.afterClosed());
+      throw error;
+    } finally {
+      await this.legacyPfDb.releaseMigrationLock();
+      dialogRef.close();
+    }
+  }
+
+  private _showMigrationDialog(): MatDialogRef<DialogLegacyMigrationComponent> {
+    return this.matDialog.open(DialogLegacyMigrationComponent, {
+      disableClose: true, // Prevent closing via escape or backdrop click
+      width: '400px',
+    });
+  }
+
+  private async _createAutoBackup(
+    dialogRef: MatDialogRef<DialogLegacyMigrationComponent>,
+  ): Promise<void> {
+    this._setStatus(dialogRef, 'backup');
+
+    const legacyData = await this.legacyPfDb.loadAllEntityData();
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `sp-pre-migration-backup-${timestamp}.json`;
+
+    await download(filename, JSON.stringify(legacyData));
+    OpLog.normal(`OperationLogMigrationService: Backup created: ${filename}`);
+  }
+
+  private async _performMigration(
+    dialogRef: MatDialogRef<DialogLegacyMigrationComponent>,
+  ): Promise<void> {
+    this._setStatus(dialogRef, 'migrating');
+
+    // 1. Load data from legacy database
+    const legacyData = await this.legacyPfDb.loadAllEntityData();
+
+    // 2. Validate and repair if needed
+    // Cast to any since LegacyAppData types don't match exactly with validation functions
+    const validationResult = validateFull(legacyData as any);
+    let dataToMigrate: AppDataComplete = legacyData as any;
+
+    if (!validationResult.isValid) {
+      OpLog.warn(
+        'OperationLogMigrationService: Legacy data validation failed, attempting repair',
+      );
+
+      if (!isDataRepairPossible(legacyData as any)) {
+        throw new Error('Legacy data is corrupted and cannot be repaired');
+      }
+
+      const errors =
+        'errors' in validationResult.typiaResult
+          ? validationResult.typiaResult.errors
+          : [];
+      dataToMigrate = dataRepair(legacyData as any, errors);
+
+      // Re-validate after repair to ensure success
+      const postRepairValidation = validateFull(dataToMigrate);
+      if (!postRepairValidation.isValid) {
+        throw new Error('Data repair failed - data still invalid after repair attempt');
+      }
+
+      OpLog.normal('OperationLogMigrationService: Data repair successful');
+    }
+
+    // 3. Get client ID (inherit from legacy or generate new)
+    const meta = await this.legacyPfDb.loadMetaModel();
+    const legacyClientId = await this.legacyPfDb.loadClientId();
+    const clientId = legacyClientId || (await this.clientIdService.generateNewClientId());
+
+    OpLog.normal(`OperationLogMigrationService: Using client ID: ${clientId}`);
+
+    // 4. Create MIGRATION genesis operation
+    const migrationOp: Operation = {
       id: uuidv7(),
       actionType: ActionType.MIGRATION_GENESIS_IMPORT,
       opType: OpType.Batch,
       entityType: 'MIGRATION',
       entityId: '*',
-      payload: legacyState,
-      clientId: clientId,
-      vectorClock: { [clientId]: 1 },
+      payload: dataToMigrate,
+      clientId,
+      vectorClock: meta.vectorClock || { [clientId]: 1 },
       timestamp: Date.now(),
       schemaVersion: CURRENT_SCHEMA_VERSION,
     };
 
-    // Write Genesis Operation
-    await this.opLogStore.append(genesisOp);
+    // 5. Persist to operation log
+    await this.opLogStore.append(migrationOp);
+    const lastSeq = await this.opLogStore.getLastSeq();
 
-    // Create initial state cache
     await this.opLogStore.saveStateCache({
-      state: legacyState,
-      lastAppliedOpSeq: 1, // The genesis op will be seq 1
-      vectorClock: genesisOp.vectorClock,
+      state: dataToMigrate,
+      lastAppliedOpSeq: lastSeq,
+      vectorClock: migrationOp.vectorClock,
       compactedAt: Date.now(),
+      schemaVersion: CURRENT_SCHEMA_VERSION,
     });
 
-    // Persist vector clock to IndexedDB store for immediate availability
-    // Without this, getVectorClock() returns stale clock until cache is populated
-    await this.opLogStore.setVectorClock(genesisOp.vectorClock);
+    await this.opLogStore.setVectorClock(migrationOp.vectorClock);
 
-    OpLog.normal(
-      'OperationLogMigrationService: Migration complete. Genesis Operation created.',
-    );
+    // 6. Dispatch to NgRx store
+    this.store.dispatch(loadAllData({ appDataComplete: dataToMigrate }));
+
+    this._setStatus(dialogRef, 'complete');
+    OpLog.normal('OperationLogMigrationService: Migration complete');
+
+    // Brief delay to show completion status
+    await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
-  /**
-   * Shows a dialog informing the user about the system update and downloads a backup.
-   */
-  private async _showMigrationDialogAndCreateBackup(legacyState: unknown): Promise<void> {
-    // Show informational dialog (Continue button only, no cancel)
-    await firstValueFrom(
-      this.matDialog
-        .open(DialogConfirmComponent, {
-          disableClose: true,
-          data: {
-            title: T.PRE_MIGRATION.DIALOG_TITLE,
-            message: T.PRE_MIGRATION.DIALOG_MESSAGE,
-            okTxt: T.G.CONTINUE,
-            hideCancelButton: true,
-          },
-        })
-        .afterClosed(),
-    );
-
-    // Download backup file
-    const filename = `super-productivity-pre-migration-backup-${Date.now()}.json`;
-    await download(filename, JSON.stringify(legacyState));
-
-    OpLog.normal('OperationLogMigrationService: Pre-migration backup downloaded.');
+  private _setStatus(
+    dialogRef: MatDialogRef<DialogLegacyMigrationComponent>,
+    status: MigrationStatus,
+  ): void {
+    dialogRef.componentInstance.status.set(status);
   }
 }

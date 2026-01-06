@@ -18,7 +18,7 @@ import { DatePipe } from '@angular/common';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { SuperSyncRestoreService } from '../super-sync-restore.service';
-import { RestorePoint } from '../../../pfapi/api/sync/sync-provider.interface';
+import { RestorePoint } from '../../../sync/providers/provider.interface';
 import { T } from '../../../t.const';
 import { DialogConfirmComponent } from '../../../ui/dialog-confirm/dialog-confirm.component';
 import { firstValueFrom } from 'rxjs';

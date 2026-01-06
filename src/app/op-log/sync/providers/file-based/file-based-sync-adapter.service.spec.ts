@@ -1,28 +1,28 @@
 import { TestBed } from '@angular/core/testing';
 import { FileBasedSyncAdapterService } from './file-based-sync-adapter.service';
-import { SyncProviderId } from '../../../../pfapi/api/pfapi.const';
+import { SyncProviderId } from '../../../../sync/providers/provider.const';
 import {
   SyncProviderServiceInterface,
   OperationSyncCapable,
   SyncOperation,
-} from '../../../../pfapi/api/sync/sync-provider.interface';
+} from '../../../../sync/providers/provider.interface';
 import {
   FILE_BASED_SYNC_CONSTANTS,
   FileBasedSyncData,
   SyncDataCorruptedError,
 } from './file-based-sync.types';
-import { RemoteFileNotFoundAPIError } from '../../../../pfapi/api/errors/errors';
-import { EncryptAndCompressCfg } from '../../../../pfapi/api/pfapi.model';
-import { getSyncFilePrefix } from '../../../../pfapi/api/util/sync-file-prefix';
+import { RemoteFileNotFoundAPIError } from '../../../../sync/errors/sync-errors';
+import { EncryptAndCompressCfg } from '../../../../sync/sync.types';
+import { getSyncFilePrefix } from '../../../../sync/util/sync-file-prefix';
 import { ArchiveDbAdapter } from '../../../../core/persistence/archive-db-adapter.service';
 import { ArchiveModel } from '../../../../features/time-tracking/time-tracking.model';
-import { PfapiStoreDelegateService } from '../../../../pfapi/pfapi-store-delegate.service';
+import { StateSnapshotService } from '../../../../sync/state-snapshot.service';
 
 describe('FileBasedSyncAdapterService', () => {
   let service: FileBasedSyncAdapterService;
   let mockProvider: jasmine.SpyObj<SyncProviderServiceInterface<SyncProviderId>>;
   let mockArchiveDbAdapter: jasmine.SpyObj<ArchiveDbAdapter>;
-  let mockStoreDelegateService: jasmine.SpyObj<PfapiStoreDelegateService>;
+  let mockStateSnapshotService: jasmine.SpyObj<StateSnapshotService>;
   let adapter: OperationSyncCapable;
 
   const mockCfg: EncryptAndCompressCfg = {
@@ -124,19 +124,20 @@ describe('FileBasedSyncAdapterService', () => {
     mockArchiveDbAdapter.saveArchiveYoung.and.returnValue(Promise.resolve());
     mockArchiveDbAdapter.saveArchiveOld.and.returnValue(Promise.resolve());
 
-    mockStoreDelegateService = jasmine.createSpyObj('PfapiStoreDelegateService', [
-      'getAllSyncModelDataFromStore',
+    mockStateSnapshotService = jasmine.createSpyObj('StateSnapshotService', [
+      'getStateSnapshot',
     ]);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockStoreDelegateService.getAllSyncModelDataFromStore.and.returnValue(
-      Promise.resolve({ tasks: [], projects: [] } as any),
-    );
+    mockStateSnapshotService.getStateSnapshot.and.returnValue({
+      tasks: [],
+      projects: [],
+    } as any);
 
     TestBed.configureTestingModule({
       providers: [
         FileBasedSyncAdapterService,
         { provide: ArchiveDbAdapter, useValue: mockArchiveDbAdapter },
-        { provide: PfapiStoreDelegateService, useValue: mockStoreDelegateService },
+        { provide: StateSnapshotService, useValue: mockStateSnapshotService },
       ],
     });
 

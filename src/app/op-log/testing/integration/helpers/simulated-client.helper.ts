@@ -8,7 +8,7 @@ import { OperationLogStoreService } from '../../../store/operation-log-store.ser
 import {
   SyncOperation,
   ServerSyncOperation,
-} from '../../../../pfapi/api/sync/sync-provider.interface';
+} from '../../../../sync/providers/provider.interface';
 import { MockSyncServer } from './mock-sync-server.helper';
 import { TestClient } from './test-client.helper';
 

@@ -10,7 +10,7 @@ import {
   createMinimalTaskPayload,
   createMinimalProjectPayload,
 } from './helpers/operation-factory.helper';
-import { PfapiStoreDelegateService } from '../../../pfapi/pfapi-store-delegate.service';
+import { StateSnapshotService } from '../../../sync/state-snapshot.service';
 
 /**
  * Performance integration tests for operation log.
@@ -28,25 +28,28 @@ describe('Performance Integration', () => {
   let storeService: OperationLogStoreService;
   let compactionService: OperationLogCompactionService;
   let vectorClockService: VectorClockService;
-  let mockStoreDelegate: jasmine.SpyObj<PfapiStoreDelegateService>;
+  let mockStateSnapshot: jasmine.SpyObj<StateSnapshotService>;
 
   beforeEach(async () => {
-    mockStoreDelegate = jasmine.createSpyObj('PfapiStoreDelegateService', [
+    mockStateSnapshot = jasmine.createSpyObj('StateSnapshotService', [
+      'getStateSnapshot',
       'getAllSyncModelDataFromStore',
     ]);
-    mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-      Promise.resolve({
-        task: { ids: [], entities: {} },
-        project: { ids: [], entities: {} },
-      } as any),
-    );
+    mockStateSnapshot.getStateSnapshot.and.returnValue({
+      task: { ids: [], entities: {} },
+      project: { ids: [], entities: {} },
+    } as any);
+    mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue({
+      task: { ids: [], entities: {} },
+      project: { ids: [], entities: {} },
+    } as any);
 
     TestBed.configureTestingModule({
       providers: [
         OperationLogStoreService,
         OperationLogCompactionService,
         VectorClockService,
-        { provide: PfapiStoreDelegateService, useValue: mockStoreDelegate },
+        { provide: StateSnapshotService, useValue: mockStateSnapshot },
       ],
     });
 
@@ -291,11 +294,9 @@ describe('Performance Integration', () => {
           title: `Task ${entityId}`,
         });
       }
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve({
-          task: { ids: taskIds, entities: taskEntities },
-        } as any),
-      );
+      mockStateSnapshot.getAllSyncModelDataFromStore.and.returnValue({
+        task: { ids: taskIds, entities: taskEntities },
+      } as any);
 
       // Measure compaction
       const compactStart = Date.now();

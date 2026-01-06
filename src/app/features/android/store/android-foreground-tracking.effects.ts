@@ -4,7 +4,6 @@ import { Store } from '@ngrx/store';
 import {
   distinctUntilChanged,
   filter,
-  first,
   map,
   pairwise,
   startWith,
@@ -14,10 +13,7 @@ import {
 import { IS_ANDROID_WEB_VIEW } from '../../../util/is-android-web-view';
 import { androidInterface } from '../android-interface';
 import { TaskService } from '../../tasks/task.service';
-import {
-  selectCurrentTask,
-  selectTaskFeatureState,
-} from '../../tasks/store/task.selectors';
+import { selectCurrentTask } from '../../tasks/store/task.selectors';
 import { DroidLog } from '../../../core/log';
 import { DateService } from '../../../core/date/date.service';
 import { Task } from '../../tasks/task.model';
@@ -25,10 +21,8 @@ import { selectTimer } from '../../focus-mode/store/focus-mode.selectors';
 import { combineLatest, firstValueFrom } from 'rxjs';
 import { HydrationStateService } from '../../../op-log/apply/hydration-state.service';
 import { SnackService } from '../../../core/snack/snack.service';
-import { PfapiService } from '../../../pfapi/pfapi.service';
-import { selectTimeTrackingState } from '../../time-tracking/store/time-tracking.selectors';
-import { environment } from '../../../../environments/environment';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
+import { OperationWriteFlushService } from '../../../op-log/sync/operation-write-flush.service';
 
 @Injectable()
 export class AndroidForegroundTrackingEffects {
@@ -37,8 +31,8 @@ export class AndroidForegroundTrackingEffects {
   private _dateService = inject(DateService);
   private _hydrationState = inject(HydrationStateService);
   private _snackService = inject(SnackService);
-  private _pfapiService = inject(PfapiService);
   private _globalTrackingIntervalService = inject(GlobalTrackingIntervalService);
+  private _operationWriteFlush = inject(OperationWriteFlushService);
 
   /**
    * Start/stop the native foreground service when the current task changes.
@@ -208,9 +202,9 @@ export class AndroidForegroundTrackingEffects {
             DroidLog.log('Pause action from notification');
             // Sync elapsed time first and wait for completion
             await this._syncElapsedTimeForTask(currentTask!.id);
-            // Force immediate save to prevent data loss (bypasses 15s debounce)
-            this._saveTimeTrackingImmediately();
             this._taskService.pauseCurrent();
+            // Flush pending operations to IndexedDB to prevent data loss
+            this._flushPendingOperations();
           }),
         ),
       { dispatch: false },
@@ -232,9 +226,9 @@ export class AndroidForegroundTrackingEffects {
             // Sync elapsed time and wait for completion
             await this._syncElapsedTimeForTask(currentTask!.id);
             this._taskService.setDone(currentTask!.id);
-            // Force immediate save to prevent data loss (bypasses 15s debounce)
-            this._saveTimeTrackingImmediately();
             this._taskService.pauseCurrent();
+            // Flush pending operations to IndexedDB to prevent data loss
+            this._flushPendingOperations();
           }),
         ),
       { dispatch: false },
@@ -252,43 +246,15 @@ export class AndroidForegroundTrackingEffects {
   }
 
   /**
-   * Force immediate save of time tracking data to IndexedDB.
-   * This bypasses the normal 15-second debounce to ensure data is persisted
+   * Force immediate flush of pending operations to IndexedDB.
+   * This ensures all dispatched NgRx actions are persisted to the operation log
    * before the app can be closed (e.g., after notification button clicks).
    */
-  private _saveTimeTrackingImmediately(): void {
-    // Save task state
-    this._store
-      .select(selectTaskFeatureState)
-      .pipe(first())
-      .subscribe((taskState) => {
-        this._pfapiService.m.task
-          .save(
-            {
-              ...taskState,
-              selectedTaskId: environment.production ? null : taskState.selectedTaskId,
-              currentTaskId: null,
-            },
-            { isUpdateRevAndLastUpdate: true },
-          )
-          .catch((e) => DroidLog.err('Failed to save task state immediately', e));
-      });
-
-    // Save time tracking state
-    this._store
-      .select(selectTimeTrackingState)
-      .pipe(first())
-      .subscribe((ttState) => {
-        this._pfapiService.m.timeTracking
-          .save(ttState, {
-            isUpdateRevAndLastUpdate: true,
-          })
-          .catch((e) =>
-            DroidLog.err('Failed to save time tracking state immediately', e),
-          );
-      });
-
-    DroidLog.log('Forced immediate save of time tracking data');
+  private _flushPendingOperations(): void {
+    this._operationWriteFlush.flushPendingWrites().catch((e) => {
+      DroidLog.err('Failed to flush pending operations', e);
+    });
+    DroidLog.log('Triggered immediate flush of pending operations');
   }
 
   /**

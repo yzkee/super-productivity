@@ -1,14 +1,14 @@
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ImmediateUploadService } from './immediate-upload.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
+import { SyncProviderManager } from '../../sync/provider-manager.service';
 import { OperationLogSyncService } from './operation-log-sync.service';
 import { ActionType, Operation, OpType } from '../core/operation.types';
 
 describe('ImmediateUploadService', () => {
   let service: ImmediateUploadService;
-  let mockPfapiService: any;
+  let mockProviderManager: jasmine.SpyObj<SyncProviderManager>;
   let mockSyncService: jasmine.SpyObj<OperationLogSyncService>;
-  let syncStatusEmitSpy: jasmine.Spy;
+  let mockProvider: any;
 
   const createMockOp = (id: string): Operation => ({
     id,
@@ -24,23 +24,21 @@ describe('ImmediateUploadService', () => {
   });
 
   beforeEach(() => {
-    syncStatusEmitSpy = jasmine.createSpy('emit');
-    mockPfapiService = {
-      pf: {
-        isSyncInProgress: false,
-        getActiveSyncProvider: jasmine
-          .createSpy('getActiveSyncProvider')
-          .and.returnValue({
-            id: 'SuperProductivitySync',
-            supportsOperationSync: true, // Required for isOperationSyncCapable check
-            uploadOperations: jasmine.createSpy('uploadOperations'),
-            isReady: jasmine.createSpy('isReady').and.returnValue(Promise.resolve(true)),
-          }),
-        ev: {
-          emit: syncStatusEmitSpy,
-        },
-      },
+    mockProvider = {
+      id: 'SuperProductivitySync',
+      supportsOperationSync: true, // Required for isOperationSyncCapable check
+      uploadOperations: jasmine.createSpy('uploadOperations'),
+      isReady: jasmine.createSpy('isReady').and.returnValue(Promise.resolve(true)),
     };
+
+    mockProviderManager = jasmine.createSpyObj(
+      'SyncProviderManager',
+      ['getActiveProvider', 'setSyncStatus'],
+      {
+        isSyncInProgress: false,
+      },
+    );
+    mockProviderManager.getActiveProvider.and.returnValue(mockProvider);
 
     // ImmediateUploadService now calls syncService.uploadPendingOps() which includes:
     // - Server migration detection
@@ -53,7 +51,7 @@ describe('ImmediateUploadService', () => {
     TestBed.configureTestingModule({
       providers: [
         ImmediateUploadService,
-        { provide: PfapiService, useValue: mockPfapiService },
+        { provide: SyncProviderManager, useValue: mockProviderManager },
         { provide: OperationLogSyncService, useValue: mockSyncService },
       ],
     });
@@ -80,7 +78,7 @@ describe('ImmediateUploadService', () => {
       service.trigger();
       tick(2100); // Debounce (2000ms) + processing
 
-      expect(syncStatusEmitSpy).toHaveBeenCalledWith('syncStatusChange', 'IN_SYNC');
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('IN_SYNC');
     }));
 
     it('should NOT show checkmark when piggybacked ops exist', fakeAsync(() => {
@@ -100,7 +98,7 @@ describe('ImmediateUploadService', () => {
 
       // Piggybacked ops are processed internally by syncService.uploadPendingOps()
       // ImmediateUploadService should NOT show checkmark when there are piggybacked ops
-      expect(syncStatusEmitSpy).not.toHaveBeenCalled();
+      expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalled();
     }));
 
     it('should NOT show checkmark when nothing was uploaded', fakeAsync(() => {
@@ -117,7 +115,7 @@ describe('ImmediateUploadService', () => {
       service.trigger();
       tick(2100);
 
-      expect(syncStatusEmitSpy).not.toHaveBeenCalled();
+      expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalled();
     }));
 
     it('should NOT show checkmark when upload fails', async () => {
@@ -132,7 +130,7 @@ describe('ImmediateUploadService', () => {
       await new Promise((resolve) => setTimeout(resolve, 150));
 
       // Silent failure - no checkmark, no error state
-      expect(syncStatusEmitSpy).not.toHaveBeenCalled();
+      expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalled();
     });
 
     it('should NOT show checkmark when piggybacked ops exist (multiple)', fakeAsync(() => {
@@ -155,13 +153,14 @@ describe('ImmediateUploadService', () => {
       tick(2100);
 
       // Piggybacked ops are processed internally, no checkmark shown
-      expect(syncStatusEmitSpy).not.toHaveBeenCalled();
+      expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalled();
     }));
   });
 
   describe('guards', () => {
     it('should skip upload when sync is in progress', fakeAsync(() => {
-      mockPfapiService.pf.isSyncInProgress = true;
+      // Need to re-create the mock with isSyncInProgress = true
+      Object.defineProperty(mockProviderManager, 'isSyncInProgress', { value: true });
       mockSyncService.uploadPendingOps.and.returnValue(
         Promise.resolve({
           uploadedCount: 1,
@@ -189,13 +188,11 @@ describe('ImmediateUploadService', () => {
 
       // Upload was called, but returned null - no checkmark shown
       expect(mockSyncService.uploadPendingOps).toHaveBeenCalled();
-      expect(syncStatusEmitSpy).not.toHaveBeenCalled();
+      expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalled();
     }));
 
     it('should skip upload when provider is not ready', fakeAsync(() => {
-      mockPfapiService.pf
-        .getActiveSyncProvider()
-        .isReady.and.returnValue(Promise.resolve(false));
+      mockProvider.isReady.and.returnValue(Promise.resolve(false));
       mockSyncService.uploadPendingOps.and.returnValue(
         Promise.resolve({
           uploadedCount: 1,

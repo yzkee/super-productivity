@@ -53,7 +53,7 @@ import { TaskSummaryTablesComponent } from '../../features/tasks/task-summary-ta
 import { Task, TaskWithSubTasks } from '../../features/tasks/task.model';
 import { TaskService } from '../../features/tasks/task.service';
 import { TasksByTagComponent } from '../../features/tasks/tasks-by-tag/tasks-by-tag.component';
-import { TaskArchiveService } from '../../features/time-tracking/task-archive.service';
+import { TaskArchiveService } from '../../features/archive/task-archive.service';
 import { WorkContextType } from '../../features/work-context/work-context.model';
 import { WorkContextService } from '../../features/work-context/work-context.service';
 import { WorklogWeekComponent } from '../../features/worklog/worklog-week/worklog-week.component';

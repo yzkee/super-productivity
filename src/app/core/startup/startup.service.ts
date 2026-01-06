@@ -1,5 +1,4 @@
 import { effect, inject, Injectable } from '@angular/core';
-import { PfapiService } from '../../pfapi/pfapi.service';
 import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
 import { TranslateService } from '@ngx-translate/core';
 import { LocalBackupService } from '../../imex/local-backup/local-backup.service';
@@ -16,7 +15,7 @@ import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
 import { IS_ELECTRON } from '../../app.constants';
 import { Log } from '../log';
 import { T } from '../../t.const';
-import { DEFAULT_META_MODEL } from '../../pfapi/api/model-ctrl/meta-model-ctrl';
+import { OperationLogStoreService } from '../../op-log/store/operation-log-store.service';
 import { BannerId } from '../banner/banner.model';
 import { isOnline$ } from '../../util/is-online';
 import { LS } from '../persistence/storage-keys.const';
@@ -39,7 +38,6 @@ const DEFERRED_INIT_DELAY_MS = 1000;
   providedIn: 'root',
 })
 export class StartupService {
-  private _pfapiService = inject(PfapiService);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private _imexMetaService = inject(ImexViewService);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -55,6 +53,7 @@ export class StartupService {
   private _chromeExtensionInterfaceService = inject(ChromeExtensionInterfaceService);
   private _projectService = inject(ProjectService);
   private _trackingReminderService = inject(TrackingReminderService);
+  private _opLogStore = inject(OperationLogStoreService);
 
   constructor() {
     // needs to be injected somewhere to initialize
@@ -154,13 +153,11 @@ export class StartupService {
   }
 
   private async _initBackups(): Promise<void> {
-    // if everything is normal, check for TMP stray backup
-    await this._pfapiService.isCheckForStrayLocalTmpDBBackupAndImport();
-
     // if completely fresh instance check for local backups
     if (IS_ELECTRON || IS_ANDROID_WEB_VIEW) {
-      const meta = await this._pfapiService.pf.metaModel.load();
-      if (!meta || meta.lastUpdate === DEFAULT_META_MODEL.lastUpdate) {
+      const stateCache = await this._opLogStore.loadStateCache();
+      // If no state cache exists, this is a fresh instance - offer to restore from backup
+      if (!stateCache) {
         await this._localBackupService.askForFileStoreBackupIfAvailable();
       }
       // trigger backup init after

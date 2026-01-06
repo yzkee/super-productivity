@@ -26,7 +26,7 @@ import { dateStrToUtcDate } from '../../../util/date-str-to-utc-date';
 import { getDateTimeFromClockString } from '../../../util/get-date-time-from-clock-string';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { isToday } from '../../../util/is-today.util';
-import { TaskArchiveService } from '../../time-tracking/task-archive.service';
+import { TaskArchiveService } from '../../archive/task-archive.service';
 import { Log } from '../../../core/log';
 import {
   addSubTask,

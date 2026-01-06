@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { OperationLogStoreService } from './operation-log-store.service';
 import { CURRENT_SCHEMA_VERSION } from './schema-migration.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
+import { StateSnapshotService } from '../../sync/state-snapshot.service';
 import { ClientIdService } from '../../core/util/client-id.service';
 import { VectorClockService } from '../sync/vector-clock.service';
 import { ValidateStateService } from '../validation/validate-state.service';
@@ -11,7 +11,7 @@ import { Operation, OpType, ActionType } from '../core/operation.types';
 import { uuidv7 } from '../../util/uuid-v7';
 import { incrementVectorClock, mergeVectorClocks } from '../../core/util/vector-clock';
 import { OpLog } from '../../core/log';
-import { AppDataCompleteNew } from '../../pfapi/pfapi-config';
+import { AppDataComplete } from '../../sync/model-config';
 
 /**
  * Handles hydration after remote sync downloads.
@@ -29,7 +29,7 @@ import { AppDataCompleteNew } from '../../pfapi/pfapi-config';
 export class SyncHydrationService {
   private store = inject(Store);
   private opLogStore = inject(OperationLogStoreService);
-  private pfapiService = inject(PfapiService);
+  private stateSnapshotService = inject(StateSnapshotService);
   private clientIdService = inject(ClientIdService);
   private vectorClockService = inject(VectorClockService);
   private validateStateService = inject(ValidateStateService);
@@ -57,7 +57,7 @@ export class SyncHydrationService {
       // 1. Read archive data from IndexedDB and merge with passed entity data
       // Entity models (task, tag, project, etc.) come from downloadedMainModelData
       // Archive models (archiveYoung, archiveOld) come from IndexedDB
-      const dbData = await this.pfapiService.pf.getAllSyncModelDataFromModelCtrls();
+      const dbData = await this.stateSnapshotService.getAllSyncModelDataFromStoreAsync();
       const mergedData = downloadedMainModelData
         ? { ...dbData, ...downloadedMainModelData }
         : dbData;
@@ -66,7 +66,7 @@ export class SyncHydrationService {
         'SyncHydrationService: Loaded synced data',
         downloadedMainModelData
           ? '(merged passed entity models with archive data from DB)'
-          : '(from pf database only)',
+          : '(from state snapshot)',
       );
 
       // 2. Get client ID for vector clock
@@ -79,16 +79,16 @@ export class SyncHydrationService {
       // CRITICAL: The SYNC_IMPORT's clock must include ALL known clients, not just local ones.
       // If we only use the local clock, ops from other clients will be CONCURRENT with
       // this import and get filtered out by SyncImportFilterService.
-      // By merging the PFAPI meta model's clock (which includes synced clients),
-      // we ensure ops created AFTER this sync point are GREATER_THAN the import.
+      // We now use the state cache's vector clock (which includes synced clients),
+      // to ensure ops created AFTER this sync point are GREATER_THAN the import.
       const localClock = await this.vectorClockService.getCurrentVectorClock();
-      const pfapiMetaModel = await this.pfapiService.pf.metaModel.load();
-      const pfapiClock = pfapiMetaModel?.vectorClock || {};
-      const mergedClock = mergeVectorClocks(localClock, pfapiClock);
+      const stateCache = await this.opLogStore.loadStateCache();
+      const stateCacheClock = stateCache?.vectorClock || {};
+      const mergedClock = mergeVectorClocks(localClock, stateCacheClock);
       const newClock = incrementVectorClock(mergedClock, clientId);
       OpLog.normal('SyncHydrationService: Creating SYNC_IMPORT with merged clock', {
         localClockSize: Object.keys(localClock).length,
-        pfapiClockSize: Object.keys(pfapiClock).length,
+        stateCacheClockSize: Object.keys(stateCacheClock).length,
         mergedClockSize: Object.keys(mergedClock).length,
       });
 
@@ -113,10 +113,11 @@ export class SyncHydrationService {
 
       // 6. Validate and repair synced data before dispatching
       // This fixes stale task references (e.g., tags/projects referencing deleted tasks)
-      let dataToLoad = syncedData as AppDataCompleteNew;
+      let dataToLoad = syncedData as AppDataComplete;
       const validationResult = this.validateStateService.validateAndRepair(dataToLoad);
       if (validationResult.wasRepaired && validationResult.repairedState) {
-        dataToLoad = validationResult.repairedState;
+        // Cast to any since Record<string, unknown> doesn't directly map to AppDataComplete
+        dataToLoad = validationResult.repairedState as any;
         OpLog.normal('SyncHydrationService: Repaired synced data before loading');
       }
 

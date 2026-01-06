@@ -8,7 +8,7 @@ import {
   SyncOperation,
   OpUploadResponse,
   OpDownloadResponse,
-} from '../../../pfapi/api/sync/sync-provider.interface';
+} from '../../../sync/providers/provider.interface';
 import { createMinimalTaskPayload } from './helpers/operation-factory.helper';
 
 /**

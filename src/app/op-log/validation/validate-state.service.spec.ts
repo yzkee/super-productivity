@@ -2,37 +2,65 @@ import { TestBed } from '@angular/core/testing';
 import { provideMockStore } from '@ngrx/store/testing';
 import { ValidateStateService } from './validate-state.service';
 import { RepairOperationService } from './repair-operation.service';
-import { PfapiStoreDelegateService } from '../../pfapi/pfapi-store-delegate.service';
-import { AppDataCompleteNew, PFAPI_MODEL_CFGS } from '../../pfapi/pfapi-config';
-import { MenuTreeKind } from '../../features/menu-tree/store/menu-tree.model';
+import { StateSnapshotService } from '../../sync/state-snapshot.service';
+import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
+import { plannerInitialState } from '../../features/planner/store/planner.reducer';
+import { initialTimeTrackingState } from '../../features/time-tracking/store/time-tracking.reducer';
+import { initialMetricState } from '../../features/metric/store/metric.reducer';
+import { menuTreeInitialState } from '../../features/menu-tree/store/menu-tree.reducer';
+import {
+  MenuTreeKind,
+  MenuTreeState,
+} from '../../features/menu-tree/store/menu-tree.model';
 import { environment } from '../../../environments/environment';
 
 describe('ValidateStateService', () => {
   let service: ValidateStateService;
   let mockRepairService: jasmine.SpyObj<RepairOperationService>;
-  let mockStoreDelegateService: jasmine.SpyObj<PfapiStoreDelegateService>;
+  let mockStateSnapshotService: jasmine.SpyObj<StateSnapshotService>;
 
-  const createEmptyState = (): AppDataCompleteNew => {
-    const state: any = {};
-    for (const key of Object.keys(PFAPI_MODEL_CFGS)) {
-      state[key] = (PFAPI_MODEL_CFGS as any)[key].defaultData;
-    }
-    return state as AppDataCompleteNew;
-  };
+  const createEmptyState = (): Record<string, unknown> => ({
+    task: { ids: [], entities: {} },
+    project: { ids: [], entities: {} },
+    tag: { ids: [], entities: {} },
+    note: { ids: [], entities: {} },
+    simpleCounter: { ids: [], entities: {} },
+    issueProvider: { ids: [], entities: {} },
+    taskRepeatCfg: { ids: [], entities: {} },
+    metric: initialMetricState,
+    boards: { boardCfgs: [] },
+    planner: plannerInitialState,
+    menuTree: menuTreeInitialState,
+    globalConfig: DEFAULT_GLOBAL_CONFIG,
+    timeTracking: initialTimeTrackingState,
+    reminders: [],
+    pluginUserData: [],
+    pluginMetadata: [],
+    archiveYoung: {
+      task: { ids: [], entities: {} },
+      timeTracking: initialTimeTrackingState,
+      lastTimeTrackingFlush: 0,
+    },
+    archiveOld: {
+      task: { ids: [], entities: {} },
+      timeTracking: initialTimeTrackingState,
+      lastTimeTrackingFlush: 0,
+    },
+  });
 
   beforeEach(() => {
     mockRepairService = jasmine.createSpyObj('RepairOperationService', [
       'createRepairOperation',
     ]);
-    mockStoreDelegateService = jasmine.createSpyObj('PfapiStoreDelegateService', [
-      'getAllSyncModelDataFromStore',
+    mockStateSnapshotService = jasmine.createSpyObj('StateSnapshotService', [
+      'getStateSnapshot',
     ]);
 
     TestBed.configureTestingModule({
       providers: [
         provideMockStore(),
         { provide: RepairOperationService, useValue: mockRepairService },
-        { provide: PfapiStoreDelegateService, useValue: mockStoreDelegateService },
+        { provide: StateSnapshotService, useValue: mockStateSnapshotService },
       ],
     });
     service = TestBed.inject(ValidateStateService);
@@ -53,7 +81,7 @@ describe('ValidateStateService', () => {
       // Introduce an orphaned project reference in menuTree
       // This triggers isRelatedModelDataValid -> devError -> throw Error
       state.menuTree = {
-        ...state.menuTree,
+        ...(state.menuTree as MenuTreeState),
         projectTree: [
           {
             id: 'NON_EXISTENT_PROJECT_ID',
@@ -86,7 +114,7 @@ describe('ValidateStateService', () => {
 
       // Introduce an orphaned project reference in menuTree
       state.menuTree = {
-        ...state.menuTree,
+        ...(state.menuTree as MenuTreeState),
         projectTree: [
           {
             id: 'NON_EXISTENT_PROJECT_ID',
@@ -103,7 +131,7 @@ describe('ValidateStateService', () => {
 
       const repairedState = result.repairedState!;
       // The orphaned node should be gone
-      expect(repairedState.menuTree.projectTree!.length).toBe(0);
+      expect((repairedState.menuTree as MenuTreeState).projectTree!.length).toBe(0);
     } finally {
       (environment as any).production = originalEnvProduction;
     }

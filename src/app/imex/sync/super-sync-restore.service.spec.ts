@@ -1,14 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { SuperSyncRestoreService } from './super-sync-restore.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
+import { SyncProviderManager } from '../../sync/provider-manager.service';
+import { BackupService } from '../../sync/backup.service';
 import { SnackService } from '../../core/snack/snack.service';
-import { SyncProviderId } from '../../pfapi/api/pfapi.const';
-import { RestorePoint } from '../../pfapi/api/sync/sync-provider.interface';
+import { SyncProviderId } from '../../sync/providers/provider.const';
+import { RestorePoint } from '../../sync/providers/provider.interface';
 import { T } from '../../t.const';
 
 describe('SuperSyncRestoreService', () => {
   let service: SuperSyncRestoreService;
-  let mockPfapiService: jasmine.SpyObj<PfapiService>;
+  let mockProviderManager: jasmine.SpyObj<SyncProviderManager>;
+  let mockBackupService: jasmine.SpyObj<BackupService>;
   let mockSnackService: jasmine.SpyObj<SnackService>;
   let mockProvider: any;
 
@@ -20,22 +22,20 @@ describe('SuperSyncRestoreService', () => {
       getStateAtSeq: jasmine.createSpy('getStateAtSeq'),
     };
 
-    const mockPf = {
-      getActiveSyncProvider: jasmine
-        .createSpy('getActiveSyncProvider')
-        .and.returnValue(mockProvider),
-    };
+    mockProviderManager = jasmine.createSpyObj('SyncProviderManager', [
+      'getActiveProvider',
+    ]);
+    mockProviderManager.getActiveProvider.and.returnValue(mockProvider);
 
-    mockPfapiService = jasmine.createSpyObj('PfapiService', ['importCompleteBackup'], {
-      pf: mockPf,
-    });
+    mockBackupService = jasmine.createSpyObj('BackupService', ['importCompleteBackup']);
 
     mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
 
     TestBed.configureTestingModule({
       providers: [
         SuperSyncRestoreService,
-        { provide: PfapiService, useValue: mockPfapiService },
+        { provide: SyncProviderManager, useValue: mockProviderManager },
+        { provide: BackupService, useValue: mockBackupService },
         { provide: SnackService, useValue: mockSnackService },
       ],
     });
@@ -62,7 +62,7 @@ describe('SuperSyncRestoreService', () => {
     });
 
     it('should return false when SuperSync is not the active provider', async () => {
-      mockPfapiService.pf.getActiveSyncProvider = jasmine.createSpy().and.returnValue({
+      mockProviderManager.getActiveProvider = jasmine.createSpy().and.returnValue({
         id: SyncProviderId.WebDAV,
       });
 
@@ -72,9 +72,7 @@ describe('SuperSyncRestoreService', () => {
     });
 
     it('should return false when no provider is active', async () => {
-      mockPfapiService.pf.getActiveSyncProvider = jasmine
-        .createSpy()
-        .and.returnValue(null);
+      mockProviderManager.getActiveProvider = jasmine.createSpy().and.returnValue(null);
 
       const result = await service.isAvailable();
 
@@ -116,9 +114,7 @@ describe('SuperSyncRestoreService', () => {
     });
 
     it('should throw error when SuperSync is not active', async () => {
-      mockPfapiService.pf.getActiveSyncProvider = jasmine
-        .createSpy()
-        .and.returnValue(null);
+      mockProviderManager.getActiveProvider = jasmine.createSpy().and.returnValue(null);
 
       await expectAsync(service.getRestorePoints()).toBeRejectedWithError(
         'Super Sync is not the active sync provider',
@@ -126,7 +122,7 @@ describe('SuperSyncRestoreService', () => {
     });
 
     it('should throw error when different provider is active', async () => {
-      mockPfapiService.pf.getActiveSyncProvider = jasmine.createSpy().and.returnValue({
+      mockProviderManager.getActiveProvider = jasmine.createSpy().and.returnValue({
         id: SyncProviderId.Dropbox,
       });
 
@@ -150,14 +146,14 @@ describe('SuperSyncRestoreService', () => {
           generatedAt: Date.now(),
         }),
       );
-      mockPfapiService.importCompleteBackup.and.returnValue(Promise.resolve());
+      mockBackupService.importCompleteBackup.and.returnValue(Promise.resolve());
     });
 
     it('should fetch state and import backup successfully', async () => {
       await service.restoreToPoint(100);
 
       expect(mockProvider.getStateAtSeq).toHaveBeenCalledWith(100);
-      expect(mockPfapiService.importCompleteBackup).toHaveBeenCalledWith(
+      expect(mockBackupService.importCompleteBackup).toHaveBeenCalledWith(
         mockState as any,
         true, // isSkipLegacyWarnings
         true, // isSkipReload
@@ -183,7 +179,7 @@ describe('SuperSyncRestoreService', () => {
 
     it('should show error when import fails', async () => {
       const error = new Error('Import failed');
-      mockPfapiService.importCompleteBackup.and.returnValue(Promise.reject(error));
+      mockBackupService.importCompleteBackup.and.returnValue(Promise.reject(error));
 
       await expectAsync(service.restoreToPoint(100)).toBeRejectedWith(error);
 
@@ -194,9 +190,7 @@ describe('SuperSyncRestoreService', () => {
     });
 
     it('should throw when SuperSync is not active', async () => {
-      mockPfapiService.pf.getActiveSyncProvider = jasmine
-        .createSpy()
-        .and.returnValue(null);
+      mockProviderManager.getActiveProvider = jasmine.createSpy().and.returnValue(null);
 
       await expectAsync(service.restoreToPoint(100)).toBeRejectedWithError(
         'Super Sync is not the active sync provider',
@@ -204,20 +198,18 @@ describe('SuperSyncRestoreService', () => {
     });
   });
 
-  describe('lazy PfapiService injection', () => {
-    it('should use Injector.get() to lazily load PfapiService', () => {
-      // The service uses Injector.get() instead of direct inject()
-      // This test verifies the service can be instantiated without errors
+  describe('service instantiation', () => {
+    it('should instantiate without errors', () => {
       expect(service).toBeTruthy();
     });
 
-    it('should cache PfapiService after first access', async () => {
+    it('should use injected services for operations', async () => {
       // Access the service multiple times
       await service.isAvailable();
       await service.isAvailable();
 
-      // The same mock is used, which means caching works
-      expect(mockPfapiService.pf.getActiveSyncProvider).toHaveBeenCalledTimes(2);
+      // The same mocks are used for both calls
+      expect(mockProviderManager.getActiveProvider).toHaveBeenCalledTimes(2);
     });
   });
 });

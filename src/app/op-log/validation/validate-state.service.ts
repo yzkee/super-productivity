@@ -1,35 +1,34 @@
 import { inject, Injectable } from '@angular/core';
 import { IValidation } from 'typia';
-import { validateFull } from '../../pfapi/validate/validation-fn';
+import { validateFull } from '../../sync/validation/validation-fn';
 // TEMPORARILY DISABLED - repair is disabled for debugging
-// import { dataRepair } from '../../pfapi/repair/data-repair';
-// import { isDataRepairPossible } from '../../pfapi/repair/is-data-repair-possible.util';
-import { AppDataCompleteNew } from '../../pfapi/pfapi-config';
+// import { dataRepair } from '../../sync/validation/data-repair';
+// import { isDataRepairPossible } from '../../sync/validation/is-data-repair-possible.util';
 import { RepairSummary } from '../core/operation.types';
 import { OpLog } from '../../core/log';
 // DISABLED: Repair system is non-functional
 // import { RepairOperationService } from './repair-operation.service';
-import { PfapiStoreDelegateService } from '../../pfapi/pfapi-store-delegate.service';
+import { StateSnapshotService } from '../../sync/state-snapshot.service';
 // DISABLED: Repair system is non-functional
-// import { PfapiService } from '../../pfapi/pfapi.service';
+// import { PfapiService } from '../../sync/sync.service';
 // import { loadAllData } from '../../root-store/meta/load-all-data.action';
 
 /* DISABLED: Repair system helper types and functions - unused while repair is disabled
 interface EntityState<T = unknown> { ids: string[]; entities: Record<string, T>; }
 
 const getEntityState = (
-  state: AppDataCompleteNew,
+  state: AppDataComplete,
   model: 'task' | 'project' | 'tag' | 'note' | 'simpleCounter',
 ): EntityState | undefined => { ... };
 
 const getArchiveEntityState = (
-  state: AppDataCompleteNew,
+  state: AppDataComplete,
   archiveType: 'archiveYoung' | 'archiveOld',
 ): EntityState | undefined => { ... };
 
 interface TaskEntity { id: string; projectId?: string; tagIds?: string[]; }
 
-const getTaskEntities = (state: AppDataCompleteNew): Record<string, TaskEntity> => { ... };
+const getTaskEntities = (state: AppDataComplete): Record<string, TaskEntity> => { ... };
 
 interface MenuTreeStateLocal { projectTree?: unknown[]; tagTree?: unknown[]; }
 */
@@ -49,7 +48,7 @@ export interface StateValidationResult {
 export interface ValidateAndRepairResult {
   isValid: boolean;
   wasRepaired: boolean;
-  repairedState?: AppDataCompleteNew;
+  repairedState?: Record<string, unknown>;
   repairSummary?: RepairSummary;
   error?: string;
   crossModelError?: string;
@@ -70,7 +69,7 @@ export interface ValidateAndRepairResult {
 export class ValidateStateService {
   // DISABLED: Repair system is non-functional
   // private store = inject(Store);
-  private storeDelegateService = inject(PfapiStoreDelegateService);
+  private stateSnapshotService = inject(StateSnapshotService);
   // DISABLED: Repair system is non-functional
   // private repairOperationService = inject(RepairOperationService);
   // private injector = inject(Injector);
@@ -92,10 +91,11 @@ export class ValidateStateService {
       `[ValidateStateService:${context}] Running post-operation validation...`,
     );
 
-    const currentState =
-      (await this.storeDelegateService.getAllSyncModelDataFromStore()) as AppDataCompleteNew;
+    const currentState = this.stateSnapshotService.getStateSnapshot();
 
-    const result = this.validateAndRepair(currentState);
+    const result = this.validateAndRepair(
+      currentState as unknown as Record<string, unknown>,
+    );
 
     if (result.isValid && !result.wasRepaired) {
       OpLog.normal(`[ValidateStateService:${context}] State valid`);
@@ -127,7 +127,7 @@ export class ValidateStateService {
     //   { skipLock: options?.callerHoldsLock },
     // );
     // this.store.dispatch(
-    //   loadAllData({ appDataComplete: result.repairedState as AppDataCompleteNew }),
+    //   loadAllData({ appDataComplete: result.repairedState as AppDataComplete }),
     // );
     // OpLog.log(`[ValidateStateService:${context}] Created REPAIR operation`);
     // return true;
@@ -140,8 +140,9 @@ export class ValidateStateService {
    * Validates application state using both Typia schema validation
    * and cross-model relationship validation via the shared validateFull() function.
    */
-  validateState(state: AppDataCompleteNew): StateValidationResult {
-    const fullResult = validateFull(state);
+  validateState(state: Record<string, unknown>): StateValidationResult {
+    // Cast to any since validateFull expects a more specific type
+    const fullResult = validateFull(state as any);
 
     if (fullResult.isValid) {
       OpLog.normal('[ValidateStateService] State validation passed');
@@ -180,7 +181,7 @@ export class ValidateStateService {
    * TEMPORARILY DISABLED: Repair is disabled to help debug archive subtask loss.
    * Instead of repairing, we show an error alert to expose what validation fails.
    */
-  validateAndRepair(state: AppDataCompleteNew): ValidateAndRepairResult {
+  validateAndRepair(state: Record<string, unknown>): ValidateAndRepairResult {
     // First, validate the state
     const validationResult = this.validateState(state);
 
@@ -284,8 +285,8 @@ export class ValidateStateService {
    *
    * private _createRepairSummary(
    *   validationResult: StateValidationResult,
-   *   original: AppDataCompleteNew,
-   *   repaired: AppDataCompleteNew,
+   *   original: AppDataComplete,
+   *   repaired: AppDataComplete,
    * ): RepairSummary {
    *   const summary: RepairSummary = {
    *     entityStateFixed: 0,
@@ -304,10 +305,10 @@ export class ValidateStateService {
    *   return summary;
    * }
    *
-   * private _countEntityStateChanges(original: AppDataCompleteNew, repaired: AppDataCompleteNew): number { ... }
-   * private _countRelationshipChanges(original: AppDataCompleteNew, repaired: AppDataCompleteNew): number { ... }
-   * private _countOrphanedEntityChanges(original: AppDataCompleteNew, repaired: AppDataCompleteNew): number { ... }
-   * private _countInvalidReferenceRemovals(original: AppDataCompleteNew, repaired: AppDataCompleteNew): number { ... }
-   * private _countStructureRepairs(original: AppDataCompleteNew, repaired: AppDataCompleteNew): number { ... }
+   * private _countEntityStateChanges(original: AppDataComplete, repaired: AppDataComplete): number { ... }
+   * private _countRelationshipChanges(original: AppDataComplete, repaired: AppDataComplete): number { ... }
+   * private _countOrphanedEntityChanges(original: AppDataComplete, repaired: AppDataComplete): number { ... }
+   * private _countInvalidReferenceRemovals(original: AppDataComplete, repaired: AppDataComplete): number { ... }
+   * private _countStructureRepairs(original: AppDataComplete, repaired: AppDataComplete): number { ... }
    */
 }

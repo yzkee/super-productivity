@@ -2,7 +2,7 @@ import { inject, Injectable, OnDestroy } from '@angular/core';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime, exhaustMap, filter } from 'rxjs/operators';
 import { isOnline } from '../../util/is-online';
-import { PfapiService } from '../../pfapi/pfapi.service';
+import { SyncProviderManager } from '../../sync/provider-manager.service';
 import { OperationLogSyncService } from './operation-log-sync.service';
 import { isOperationSyncCapable } from './operation-sync.util';
 import { OpLog } from '../../core/log';
@@ -39,7 +39,7 @@ const IMMEDIATE_UPLOAD_DEBOUNCE_MS = 2000;
   providedIn: 'root',
 })
 export class ImmediateUploadService implements OnDestroy {
-  private _pfapiService = inject(PfapiService);
+  private _providerManager = inject(SyncProviderManager);
   private _syncService = inject(OperationLogSyncService);
 
   private _uploadTrigger$ = new Subject<void>();
@@ -87,12 +87,12 @@ export class ImmediateUploadService implements OnDestroy {
     }
 
     // Don't overlap with full sync
-    if (this._pfapiService.pf.isSyncInProgress) {
+    if (this._providerManager.isSyncInProgress) {
       return false;
     }
 
     // Must have SuperSync active (operation-sync capable)
-    const provider = this._pfapiService.pf.getActiveSyncProvider();
+    const provider = this._providerManager.getActiveProvider();
     if (!provider || !isOperationSyncCapable(provider)) {
       return false;
     }
@@ -109,7 +109,7 @@ export class ImmediateUploadService implements OnDestroy {
    * - Handling of rejected ops
    */
   private async _performUpload(): Promise<void> {
-    const provider = this._pfapiService.pf.getActiveSyncProvider();
+    const provider = this._providerManager.getActiveProvider();
     if (!provider || !isOperationSyncCapable(provider)) {
       return;
     }
@@ -157,7 +157,7 @@ export class ImmediateUploadService implements OnDestroy {
       // Show checkmark ONLY when server confirms no pending remote ops
       // (empty piggybackedOps means we're confirmed in sync)
       if (result.uploadedCount > 0 || (result.localWinOpsCreated ?? 0) > 0) {
-        this._pfapiService.pf.ev.emit('syncStatusChange', 'IN_SYNC');
+        this._providerManager.setSyncStatus('IN_SYNC');
         OpLog.verbose(
           `ImmediateUploadService: Uploaded ${result.uploadedCount} ops, confirmed in sync`,
         );

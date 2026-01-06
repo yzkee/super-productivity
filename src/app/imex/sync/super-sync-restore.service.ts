@@ -1,14 +1,12 @@
-import { inject, Injectable, Injector } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { SnackService } from '../../core/snack/snack.service';
-import { SyncProviderId } from '../../pfapi/api/pfapi.const';
-import { SuperSyncProvider } from '../../pfapi/api/sync/providers/super-sync/super-sync';
-import {
-  RestoreCapable,
-  RestorePoint,
-} from '../../pfapi/api/sync/sync-provider.interface';
-import { AppDataCompleteNew } from '../../pfapi/pfapi-config';
+import { SyncProviderId } from '../../sync/providers/provider.const';
+import { SuperSyncProvider } from '../../sync/providers/super-sync/super-sync';
+import { RestoreCapable, RestorePoint } from '../../sync/providers/provider.interface';
+import { AppDataComplete } from '../../sync/model-config';
 import { T } from '../../t.const';
-import { PfapiService } from '../../pfapi/pfapi.service';
+import { SyncProviderManager } from '../../sync/provider-manager.service';
+import { BackupService } from '../../sync/backup.service';
 
 /**
  * Service for restoring state from Super Sync server history.
@@ -16,18 +14,9 @@ import { PfapiService } from '../../pfapi/pfapi.service';
  */
 @Injectable({ providedIn: 'root' })
 export class SuperSyncRestoreService {
-  private _injector = inject(Injector);
   private _snackService = inject(SnackService);
-
-  // Lazy-loaded PfapiService to avoid potential circular dependency
-  // We use Injector.get() instead of direct inject() to defer resolution
-  private _pfapiService: PfapiService | null = null;
-  private _getPfapiService(): PfapiService {
-    if (!this._pfapiService) {
-      this._pfapiService = this._injector.get(PfapiService);
-    }
-    return this._pfapiService;
-  }
+  private _providerManager = inject(SyncProviderManager);
+  private _backupService = inject(BackupService);
 
   /**
    * Check if Super Sync restore is available.
@@ -63,8 +52,8 @@ export class SuperSyncRestoreService {
 
       // 2. Import with isForceConflict=true to generate fresh vector clock
       // This ensures the restored state syncs cleanly to all devices
-      await this._getPfapiService().importCompleteBackup(
-        snapshot.state as AppDataCompleteNew,
+      await this._backupService.importCompleteBackup(
+        snapshot.state as AppDataComplete,
         true, // isSkipLegacyWarnings
         true, // isSkipReload - no page reload needed
         true, // isForceConflict - generates fresh vector clock
@@ -88,7 +77,7 @@ export class SuperSyncRestoreService {
    * Get the Super Sync provider if it's the active provider.
    */
   private _getProvider(): SuperSyncProvider | null {
-    const provider = this._getPfapiService().pf.getActiveSyncProvider();
+    const provider = this._providerManager.getActiveProvider();
     if (!provider || provider.id !== SyncProviderId.SuperSync) {
       return null;
     }

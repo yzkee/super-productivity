@@ -6,7 +6,7 @@ import {
 import { createFeature, createReducer, on } from '@ngrx/store';
 import { TimeTrackingState } from '../time-tracking.model';
 import { loadAllData } from '../../../root-store/meta/load-all-data.action';
-import { AppDataCompleteNew } from '../../../pfapi/pfapi-config';
+import { AppDataComplete } from '../../../sync/model-config';
 import { roundTsToMinutes } from '../../../util/round-ts-to-minutes';
 import { TODAY_TAG } from '../../tag/tag.const';
 
@@ -23,8 +23,8 @@ export const timeTrackingReducer = createReducer(
   initialTimeTrackingState,
 
   on(loadAllData, (state, { appDataComplete }) =>
-    (appDataComplete as AppDataCompleteNew).timeTracking
-      ? (appDataComplete as AppDataCompleteNew).timeTracking
+    (appDataComplete as AppDataComplete).timeTracking
+      ? (appDataComplete as AppDataComplete).timeTracking
       : state,
   ),
   on(TimeTrackingActions.updateWholeState, (state, { newState }) => newState),

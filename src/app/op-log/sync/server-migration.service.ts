@@ -1,12 +1,11 @@
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { OperationSyncCapable } from '../../pfapi/api/sync/sync-provider.interface';
+import { OperationSyncCapable } from '../../sync/providers/provider.interface';
 import { OperationLogStoreService } from '../store/operation-log-store.service';
 import { VectorClockService } from './vector-clock.service';
 import { incrementVectorClock, mergeVectorClocks } from '../../core/util/vector-clock';
-import { PfapiStoreDelegateService } from '../../pfapi/pfapi-store-delegate.service';
+import { StateSnapshotService } from '../../sync/state-snapshot.service';
 import { ValidateStateService } from '../validation/validate-state.service';
-import { AppDataCompleteNew } from '../../pfapi/pfapi-config';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
@@ -45,7 +44,7 @@ export class ServerMigrationService {
   private opLogStore = inject(OperationLogStoreService);
   private vectorClockService = inject(VectorClockService);
   private validateStateService = inject(ValidateStateService);
-  private storeDelegateService = inject(PfapiStoreDelegateService);
+  private stateSnapshotService = inject(StateSnapshotService);
   private snackService = inject(SnackService);
   private clientIdProvider = inject(CLIENT_ID_PROVIDER);
 
@@ -142,7 +141,9 @@ export class ServerMigrationService {
     );
 
     // Get current full state from NgRx store
-    let currentState = await this.storeDelegateService.getAllSyncModelDataFromStore();
+    // Cast to Record for validation compatibility
+    let currentState: Record<string, unknown> =
+      this.stateSnapshotService.getStateSnapshot() as unknown as Record<string, unknown>;
 
     // Skip if local state is effectively empty
     if (this._isEmptyState(currentState)) {
@@ -153,9 +154,7 @@ export class ServerMigrationService {
     // Validate and repair state before creating SYNC_IMPORT
     // This prevents corrupted state (e.g., orphaned menuTree references) from
     // propagating to other clients via the full state import.
-    const validationResult = this.validateStateService.validateAndRepair(
-      currentState as AppDataCompleteNew,
-    );
+    const validationResult = this.validateStateService.validateAndRepair(currentState);
 
     // If state is invalid and couldn't be repaired, abort - don't propagate corruption
     if (!validationResult.isValid) {
@@ -180,7 +179,7 @@ export class ServerMigrationService {
 
       // Also update NgRx store with repaired state so local client is consistent
       this.store.dispatch(
-        loadAllData({ appDataComplete: validationResult.repairedState }),
+        loadAllData({ appDataComplete: validationResult.repairedState as any }),
       );
     }
 

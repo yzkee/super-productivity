@@ -9,12 +9,13 @@ import { TestClient, resetTestUuidCounter } from './helpers/test-client.helper';
 import { convertOpToAction } from '../../apply/operation-converter.util';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
 import { Task, TaskWithSubTasks } from '../../../features/tasks/task.model';
-import { ArchiveService } from '../../../features/time-tracking/archive.service';
+import { ArchiveService } from '../../../features/archive/archive.service';
 import { ArchiveOperationHandler } from '../../apply/archive-operation-handler.service';
-import { TaskArchiveService } from '../../../features/time-tracking/task-archive.service';
-import { PfapiService } from '../../../pfapi/pfapi.service';
+import { TaskArchiveService } from '../../../features/archive/task-archive.service';
+import { ArchiveDbAdapter } from '../../../core/persistence/archive-db-adapter.service';
 import { TimeTrackingService } from '../../../features/time-tracking/time-tracking.service';
 import { flattenTasks } from '../../../features/tasks/store/task.selectors';
+import { ArchiveModel } from '../../../features/archive/archive.model';
 
 /**
  * Integration tests for archive subtask sync.
@@ -472,30 +473,26 @@ describe('Archive Subtask Sync - Handler Integration', () => {
     ]);
     mockTaskArchiveService.hasTask.and.returnValue(Promise.resolve(false));
 
-    const mockPfapiService = jasmine.createSpyObj('PfapiService', [], {
-      m: {
-        archiveYoung: {
-          load: jasmine.createSpy('load').and.returnValue(
-            Promise.resolve({
-              task: { ids: [], entities: {} },
-              timeTracking: { project: {}, tag: {} },
-              lastTimeTrackingFlush: 0,
-            }),
-          ),
-          save: jasmine.createSpy('save').and.returnValue(Promise.resolve()),
-        },
-        archiveOld: {
-          load: jasmine.createSpy('load').and.returnValue(
-            Promise.resolve({
-              task: { ids: [], entities: {} },
-              timeTracking: { project: {}, tag: {} },
-              lastTimeTrackingFlush: 0,
-            }),
-          ),
-          save: jasmine.createSpy('save').and.returnValue(Promise.resolve()),
-        },
-      },
+    const createEmptyArchiveModel = (): ArchiveModel => ({
+      task: { ids: [], entities: {} },
+      timeTracking: { project: {}, tag: {} },
+      lastTimeTrackingFlush: 0,
     });
+
+    const mockArchiveDbAdapter = jasmine.createSpyObj('ArchiveDbAdapter', [
+      'loadArchiveYoung',
+      'loadArchiveOld',
+      'saveArchiveYoung',
+      'saveArchiveOld',
+    ]);
+    mockArchiveDbAdapter.loadArchiveYoung.and.returnValue(
+      Promise.resolve(createEmptyArchiveModel()),
+    );
+    mockArchiveDbAdapter.loadArchiveOld.and.returnValue(
+      Promise.resolve(createEmptyArchiveModel()),
+    );
+    mockArchiveDbAdapter.saveArchiveYoung.and.returnValue(Promise.resolve());
+    mockArchiveDbAdapter.saveArchiveOld.and.returnValue(Promise.resolve());
 
     const mockTimeTrackingService = jasmine.createSpyObj('TimeTrackingService', [
       'cleanupDataEverywhereForProject',
@@ -508,7 +505,7 @@ describe('Archive Subtask Sync - Handler Integration', () => {
         ArchiveOperationHandler,
         { provide: ArchiveService, useValue: mockArchiveService },
         { provide: TaskArchiveService, useValue: mockTaskArchiveService },
-        { provide: PfapiService, useValue: mockPfapiService },
+        { provide: ArchiveDbAdapter, useValue: mockArchiveDbAdapter },
         { provide: TimeTrackingService, useValue: mockTimeTrackingService },
       ],
     });

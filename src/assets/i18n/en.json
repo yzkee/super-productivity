@@ -1862,6 +1862,14 @@
     "URL_PLACEHOLDER": "Enter URL to import from",
     "BTN_COMPRESS_ARCHIVE": "Compress Archive"
   },
+  "MIGRATE": {
+    "DIALOG_TITLE": "Migrating Your Data",
+    "DIALOG_MESSAGE": "We're updating how your data is stored for improved sync reliability. A backup will be downloaded automatically.",
+    "STATUS_PREPARING": "Preparing migration...",
+    "STATUS_BACKUP": "Creating backup of your data...",
+    "STATUS_MIGRATING": "Migrating data...",
+    "STATUS_COMPLETE": "Migration complete!"
+  },
   "G": {
     "ADD": "Add",
     "ADVANCED_CFG": "Advanced Config",

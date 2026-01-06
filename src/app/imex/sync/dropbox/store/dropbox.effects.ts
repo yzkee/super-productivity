@@ -6,13 +6,13 @@ import { filter, tap, withLatestFrom } from 'rxjs/operators';
 import { SyncConfig } from '../../../../features/config/global-config.model';
 import { updateGlobalConfigSection } from '../../../../features/config/store/global-config.actions';
 import { environment } from '../../../../../environments/environment';
-import { PfapiService } from '../../../../pfapi/pfapi.service';
-import { DropboxPrivateCfg, SyncProviderId } from '../../../../pfapi/api';
+import { SyncProviderManager } from '../../../../sync/provider-manager.service';
+import { DropboxPrivateCfg, SyncProviderId } from '../../../../sync/sync-exports';
 
 @Injectable()
 export class DropboxEffects {
   private _actions$ = inject(LOCAL_ACTIONS);
-  private _pfapiService = inject(PfapiService);
+  private _providerManager = inject(SyncProviderManager);
 
   askToDeleteTokensOnDisable$: Observable<unknown> = createEffect(
     () =>
@@ -22,7 +22,7 @@ export class DropboxEffects {
           ({ sectionKey, sectionCfg }): boolean =>
             sectionKey === 'sync' && (sectionCfg as SyncConfig).isEnabled === false,
         ),
-        withLatestFrom(this._pfapiService.currentProviderPrivateCfg$),
+        withLatestFrom(this._providerManager.currentProviderPrivateCfg$),
         tap(async ([, provider]) => {
           if (
             provider?.providerId === SyncProviderId.Dropbox &&
@@ -33,14 +33,11 @@ export class DropboxEffects {
             }
             alert('Delete tokens');
             const existingConfig = provider.privateCfg as DropboxPrivateCfg;
-            await this._pfapiService.pf.setPrivateCfgForSyncProvider(
-              SyncProviderId.Dropbox,
-              {
-                ...existingConfig,
-                accessToken: '',
-                refreshToken: '',
-              },
-            );
+            await this._providerManager.setProviderConfig(SyncProviderId.Dropbox, {
+              ...existingConfig,
+              accessToken: '',
+              refreshToken: '',
+            });
           }
         }),
       ),

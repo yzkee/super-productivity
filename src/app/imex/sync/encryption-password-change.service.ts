@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
-import { PfapiService } from '../../pfapi/pfapi.service';
-import { PfapiStoreDelegateService } from '../../pfapi/pfapi-store-delegate.service';
+import { SyncProviderManager } from '../../sync/provider-manager.service';
+import { StateSnapshotService } from '../../sync/state-snapshot.service';
 import { OperationEncryptionService } from '../../op-log/sync/operation-encryption.service';
 import { VectorClockService } from '../../op-log/sync/vector-clock.service';
 import {
@@ -8,8 +8,8 @@ import {
   ClientIdProvider,
 } from '../../op-log/util/client-id.provider';
 import { isOperationSyncCapable } from '../../op-log/sync/operation-sync.util';
-import { SyncProviderId } from '../../pfapi/api/pfapi.const';
-import { SuperSyncPrivateCfg } from '../../pfapi/api/sync/providers/super-sync/super-sync.model';
+import { SyncProviderId } from '../../sync/providers/provider.const';
+import { SuperSyncPrivateCfg } from '../../sync/providers/super-sync/super-sync.model';
 import { CURRENT_SCHEMA_VERSION } from '../../op-log/store/schema-migration.service';
 import { SyncLog } from '../../core/log';
 
@@ -25,8 +25,8 @@ import { SyncLog } from '../../core/log';
   providedIn: 'root',
 })
 export class EncryptionPasswordChangeService {
-  private _pfapiService = inject(PfapiService);
-  private _storeDelegateService = inject(PfapiStoreDelegateService);
+  private _providerManager = inject(SyncProviderManager);
+  private _stateSnapshotService = inject(StateSnapshotService);
   private _encryptionService = inject(OperationEncryptionService);
   private _vectorClockService = inject(VectorClockService);
   private _clientIdProvider: ClientIdProvider = inject(CLIENT_ID_PROVIDER);
@@ -46,7 +46,7 @@ export class EncryptionPasswordChangeService {
     SyncLog.normal('EncryptionPasswordChangeService: Starting password change...');
 
     // Get the sync provider
-    const syncProvider = this._pfapiService.pf.getActiveSyncProvider();
+    const syncProvider = this._providerManager.getActiveProvider();
     if (!syncProvider || syncProvider.id !== SyncProviderId.SuperSync) {
       throw new Error('Password change is only supported for SuperSync');
     }
@@ -62,7 +62,7 @@ export class EncryptionPasswordChangeService {
 
     // Get current state
     SyncLog.normal('EncryptionPasswordChangeService: Getting current state...');
-    const currentState = await this._storeDelegateService.getAllSyncModelDataFromStore();
+    const currentState = this._stateSnapshotService.getStateSnapshot();
     const vectorClock = await this._vectorClockService.getCurrentVectorClock();
     const clientId = await this._clientIdProvider.loadClientId();
     if (!clientId) {

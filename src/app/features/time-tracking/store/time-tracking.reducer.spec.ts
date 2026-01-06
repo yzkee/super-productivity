@@ -6,7 +6,7 @@ import {
   syncTimeTracking,
 } from './time-tracking.actions';
 import { loadAllData } from '../../../root-store/meta/load-all-data.action';
-import { AppDataCompleteNew } from '../../../pfapi/pfapi-config';
+import { AppDataComplete } from '../../../sync/model-config';
 import { TaskCopy } from '../../tasks/task.model';
 import { WorkContextType } from '../../work-context/work-context.model';
 
@@ -18,12 +18,12 @@ describe('TimeTracking Reducer', () => {
   });
 
   it('should load all data', () => {
-    const appDataComplete: AppDataCompleteNew = {
+    const appDataComplete: AppDataComplete = {
       timeTracking: {
         project: { '1': { '2023-01-01': { s: 1, e: 2, b: 3, bt: 4 } } },
         tag: { '2': { '2023-01-02': { s: 5, e: 6, b: 7, bt: 8 } } },
       },
-    } as Partial<AppDataCompleteNew> as AppDataCompleteNew;
+    } as Partial<AppDataComplete> as AppDataComplete;
     const action = loadAllData({ appDataComplete });
     const result = timeTrackingReducer(initialTimeTrackingState, action);
     expect(result).toEqual(appDataComplete.timeTracking);

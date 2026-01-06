@@ -6,7 +6,7 @@ import { TaskRepeatCfgEffects } from './task-repeat-cfg.effects';
 import { TaskService } from '../../tasks/task.service';
 import { TaskRepeatCfgService } from '../task-repeat-cfg.service';
 import { MatDialog } from '@angular/material/dialog';
-import { TaskArchiveService } from '../../time-tracking/task-archive.service';
+import { TaskArchiveService } from '../../archive/task-archive.service';
 import { addTaskRepeatCfgToTask, updateTaskRepeatCfg } from './task-repeat-cfg.actions';
 import {
   DEFAULT_TASK,

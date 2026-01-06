@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { OperationLogRecoveryService } from './operation-log-recovery.service';
 import { OperationLogStoreService } from './operation-log-store.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
+import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
 import { ClientIdService } from '../../core/util/client-id.service';
 import { ActionType, OpType } from '../core/operation.types';
 import { PENDING_OPERATION_EXPIRY_MS } from '../core/operation-log.const';
@@ -11,12 +11,7 @@ describe('OperationLogRecoveryService', () => {
   let service: OperationLogRecoveryService;
   let mockStore: jasmine.SpyObj<Store>;
   let mockOpLogStore: jasmine.SpyObj<OperationLogStoreService>;
-  let mockPfapiService: {
-    pf: {
-      getAllSyncModelDataFromModelCtrls: jasmine.Spy;
-      metaModel: { syncVectorClock: jasmine.Spy };
-    };
-  };
+  let mockLegacyPfDb: jasmine.SpyObj<LegacyPfDbService>;
   let mockClientIdService: jasmine.SpyObj<ClientIdService>;
 
   beforeEach(() => {
@@ -32,12 +27,10 @@ describe('OperationLogRecoveryService', () => {
       'getUnsynced',
     ]);
     mockOpLogStore.setVectorClock.and.resolveTo(undefined);
-    mockPfapiService = {
-      pf: {
-        getAllSyncModelDataFromModelCtrls: jasmine.createSpy().and.resolveTo({}),
-        metaModel: { syncVectorClock: jasmine.createSpy().and.resolveTo(undefined) },
-      },
-    };
+    mockLegacyPfDb = jasmine.createSpyObj('LegacyPfDbService', [
+      'hasUsableEntityData',
+      'loadAllEntityData',
+    ]);
     mockClientIdService = jasmine.createSpyObj('ClientIdService', ['loadClientId']);
 
     TestBed.configureTestingModule({
@@ -45,63 +38,18 @@ describe('OperationLogRecoveryService', () => {
         OperationLogRecoveryService,
         { provide: Store, useValue: mockStore },
         { provide: OperationLogStoreService, useValue: mockOpLogStore },
-        { provide: PfapiService, useValue: mockPfapiService },
+        { provide: LegacyPfDbService, useValue: mockLegacyPfDb },
         { provide: ClientIdService, useValue: mockClientIdService },
       ],
     });
     service = TestBed.inject(OperationLogRecoveryService);
   });
 
-  describe('hasUsableData', () => {
-    it('should return true when tasks exist', () => {
-      const data = { task: { ids: ['task1'] } };
-      expect(service.hasUsableData(data)).toBe(true);
-    });
-
-    it('should return false when task ids are empty', () => {
-      const data = { task: { ids: [] } };
-      expect(service.hasUsableData(data)).toBe(false);
-    });
-
-    it('should return true when more than one project exists', () => {
-      const data = { task: { ids: [] }, project: { ids: ['proj1', 'proj2'] } };
-      expect(service.hasUsableData(data)).toBe(true);
-    });
-
-    it('should return false when only default project exists', () => {
-      const data = { task: { ids: [] }, project: { ids: ['defaultProject'] } };
-      expect(service.hasUsableData(data)).toBe(false);
-    });
-
-    it('should return true when globalConfig has entries', () => {
-      const data = {
-        task: { ids: [] },
-        project: { ids: [] },
-        globalConfig: { lang: 'en' },
-      };
-      expect(service.hasUsableData(data)).toBe(true);
-    });
-
-    it('should return false for completely empty data', () => {
-      const data = {};
-      expect(service.hasUsableData(data)).toBe(false);
-    });
-
-    it('should return false when task state is undefined', () => {
-      const data = { project: { ids: [] } };
-      expect(service.hasUsableData(data)).toBe(false);
-    });
-
-    it('should return false for empty globalConfig', () => {
-      const data = { task: { ids: [] }, project: { ids: [] }, globalConfig: {} };
-      expect(service.hasUsableData(data)).toBe(false);
-    });
-  });
-
   describe('attemptRecovery', () => {
     it('should recover from legacy data when available', async () => {
       const legacyData = { task: { ids: ['task1'] } };
-      mockPfapiService.pf.getAllSyncModelDataFromModelCtrls.and.resolveTo(legacyData);
+      mockLegacyPfDb.hasUsableEntityData.and.resolveTo(true);
+      mockLegacyPfDb.loadAllEntityData.and.resolveTo(legacyData as any);
       mockClientIdService.loadClientId.and.resolveTo('testClient');
       mockOpLogStore.append.and.resolveTo(undefined);
       mockOpLogStore.getLastSeq.and.resolveTo(1);
@@ -121,20 +69,17 @@ describe('OperationLogRecoveryService', () => {
     });
 
     it('should not recover when no usable legacy data exists', async () => {
-      mockPfapiService.pf.getAllSyncModelDataFromModelCtrls.and.resolveTo({
-        task: { ids: [] },
-      });
+      mockLegacyPfDb.hasUsableEntityData.and.resolveTo(false);
 
       await service.attemptRecovery();
 
+      expect(mockLegacyPfDb.loadAllEntityData).not.toHaveBeenCalled();
       expect(mockOpLogStore.append).not.toHaveBeenCalled();
       expect(mockStore.dispatch).not.toHaveBeenCalled();
     });
 
     it('should handle database access errors gracefully', async () => {
-      mockPfapiService.pf.getAllSyncModelDataFromModelCtrls.and.rejectWith(
-        new Error('Database error'),
-      );
+      mockLegacyPfDb.hasUsableEntityData.and.rejectWith(new Error('Database error'));
 
       // Should not throw
       await expectAsync(service.attemptRecovery()).toBeResolved();
@@ -191,20 +136,6 @@ describe('OperationLogRecoveryService', () => {
           vectorClock: { testClient: 1 },
         }),
       );
-    });
-
-    it('should sync PFAPI vector clock after recovery', async () => {
-      const legacyData = { task: { ids: ['task1'] } };
-      mockClientIdService.loadClientId.and.resolveTo('testClient');
-      mockOpLogStore.append.and.resolveTo(undefined);
-      mockOpLogStore.getLastSeq.and.resolveTo(1);
-      mockOpLogStore.saveStateCache.and.resolveTo(undefined);
-
-      await service.recoverFromLegacyData(legacyData);
-
-      expect(mockPfapiService.pf.metaModel.syncVectorClock).toHaveBeenCalledWith({
-        testClient: 1,
-      });
     });
 
     it('should persist vector clock to IndexedDB store after recovery', async () => {

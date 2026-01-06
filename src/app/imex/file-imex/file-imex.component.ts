@@ -19,8 +19,8 @@ import { MatIcon } from '@angular/material/icon';
 import { MatButton } from '@angular/material/button';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { AppDataCompleteNew } from '../../pfapi/pfapi-config';
-import { PfapiService } from 'src/app/pfapi/pfapi.service';
+import { AppDataComplete } from '../../sync/model-config';
+import { BackupService } from '../../sync/backup.service';
 import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
 import { first } from 'rxjs/operators';
 import {
@@ -28,7 +28,7 @@ import {
   DialogConfirmUrlImportData,
 } from '../dialog-confirm-url-import/dialog-confirm-url-import.component';
 import { Log } from '../../core/log';
-import { DialogArchiveCompressionComponent } from '../../features/time-tracking/dialog-archive-compression/dialog-archive-compression.component';
+import { DialogArchiveCompressionComponent } from '../../features/archive/dialog-archive-compression/dialog-archive-compression.component';
 
 @Component({
   selector: 'file-imex',
@@ -40,7 +40,7 @@ import { DialogArchiveCompressionComponent } from '../../features/time-tracking/
 export class FileImexComponent implements OnInit {
   private _snackService = inject(SnackService);
   private _router = inject(Router);
-  private _pfapiService = inject(PfapiService);
+  private _backupService = inject(BackupService);
   private _activatedRoute = inject(ActivatedRoute);
   private _matDialog = inject(MatDialog);
   private _http = inject(HttpClient);
@@ -155,7 +155,7 @@ export class FileImexComponent implements OnInit {
   }
 
   private async _processAndImportData(dataString: string): Promise<void> {
-    let data: AppDataCompleteNew | undefined;
+    let data: AppDataComplete | undefined;
     let oldData: unknown; // For V1 legacy data format check
 
     try {
@@ -183,8 +183,8 @@ export class FileImexComponent implements OnInit {
     try {
       // Import first, then navigate (no page reload, state updates inline)
       // isForceConflict=true resets vector clock to prevent accumulation of old client IDs
-      await this._pfapiService.importCompleteBackup(
-        data as AppDataCompleteNew,
+      await this._backupService.importCompleteBackup(
+        data as AppDataComplete,
         false,
         true,
       );
@@ -199,7 +199,7 @@ export class FileImexComponent implements OnInit {
   }
 
   async downloadBackup(): Promise<void> {
-    const data = await this._pfapiService.pf.loadCompleteBackup();
+    const data = await this._backupService.loadCompleteBackup(true);
     const result = await download('super-productivity-backup.json', JSON.stringify(data));
     if ((IS_ANDROID_WEB_VIEW && !result.wasCanceled) || result.isSnap) {
       this._snackService.open({
@@ -213,7 +213,7 @@ export class FileImexComponent implements OnInit {
   }
 
   async privacyAppDataDownload(): Promise<void> {
-    const data = await this._pfapiService.pf.loadCompleteBackup();
+    const data = await this._backupService.loadCompleteBackup(true);
     const result = await download('super-productivity-backup.json', privacyExport(data));
     if ((IS_ANDROID_WEB_VIEW && !result.wasCanceled) || result.isSnap) {
       this._snackService.open({

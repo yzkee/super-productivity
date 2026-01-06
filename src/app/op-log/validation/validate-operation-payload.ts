@@ -39,12 +39,12 @@ const findEntityInPayload = (payload: Record<string, unknown>): unknown => {
 };
 
 /**
- * Checks if an object looks like AppDataCompleteNew.
+ * Checks if an object looks like AppDataComplete.
  */
 const isLikelyAppDataComplete = (obj: unknown): boolean => {
   if (!obj || typeof obj !== 'object') return false;
   const o = obj as Record<string, unknown>;
-  // Check for a few key properties that AppDataCompleteNew should have
+  // Check for a few key properties that AppDataComplete should have
   return 'task' in o || 'project' in o || 'globalConfig' in o;
 };
 

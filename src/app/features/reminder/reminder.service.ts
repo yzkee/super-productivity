@@ -10,8 +10,8 @@ import { GlobalConfigService } from '../config/global-config.service';
 import { Store } from '@ngrx/store';
 import { selectAllTasksWithReminder } from '../tasks/store/task.selectors';
 import { TaskWithReminder, TaskWithReminderData } from '../tasks/task.model';
-import { PfapiService } from '../../pfapi/pfapi.service';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
+import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
 
 interface WorkerReminder {
   id: string;
@@ -36,7 +36,7 @@ export class ReminderService {
   private readonly _imexMetaService = inject(ImexViewService);
   private readonly _globalConfigService = inject(GlobalConfigService);
   private readonly _store = inject(Store);
-  private readonly _pfapiService = inject(PfapiService);
+  private readonly _legacyPfDb = inject(LegacyPfDbService);
 
   private _onRemindersActive$: Subject<TaskWithReminderData[]> = new Subject<
     TaskWithReminderData[]
@@ -95,9 +95,7 @@ export class ReminderService {
 
   private async _migrateLegacyReminders(): Promise<void> {
     try {
-      const legacyReminders = (await this._pfapiService.pf.m.reminders.load()) as
-        | LegacyReminder[]
-        | null;
+      const legacyReminders = await this._legacyPfDb.load<LegacyReminder[]>('reminders');
 
       if (!legacyReminders || legacyReminders.length === 0) {
         Log.log('ReminderService: No legacy reminders to migrate');
@@ -136,9 +134,7 @@ export class ReminderService {
       }
 
       // Clear legacy reminders after migration
-      await this._pfapiService.pf.m.reminders.save([], {
-        isUpdateRevAndLastUpdate: false,
-      });
+      await this._legacyPfDb.save('reminders', []);
 
       Log.log(
         `ReminderService: Migration complete - ${migratedCount} migrated, ${skippedNotes} NOTE reminders skipped`,

@@ -62,7 +62,7 @@ import { DateService } from 'src/app/core/date/date.service';
 import { getTimeSpentForDay } from './get-time-spent-for-day.util';
 import { TimeTrackingService } from '../time-tracking/time-tracking.service';
 import { updateWorkContextData } from '../time-tracking/store/time-tracking.actions';
-import { TaskArchiveService } from '../time-tracking/task-archive.service';
+import { TaskArchiveService } from '../archive/task-archive.service';
 import { INBOX_PROJECT } from '../project/project.const';
 import { selectProjectById } from '../project/store/project.selectors';
 import { getDbDateStr } from '../../util/get-db-date-str';

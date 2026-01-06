@@ -2,14 +2,14 @@ import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { OperationLogStoreService } from './operation-log-store.service';
 import { CURRENT_SCHEMA_VERSION } from './schema-migration.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
+import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
 import { ClientIdService } from '../../core/util/client-id.service';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { Operation, OpType, ActionType } from '../core/operation.types';
 import { uuidv7 } from '../../util/uuid-v7';
 import { PENDING_OPERATION_EXPIRY_MS } from '../core/operation-log.const';
 import { OpLog } from '../../core/log';
-import { AppDataCompleteNew } from '../../pfapi/pfapi-config';
+import { AppDataComplete } from '../../sync/model-config';
 
 /**
  * Handles crash recovery and data restoration for the operation log system.
@@ -26,13 +26,13 @@ import { AppDataCompleteNew } from '../../pfapi/pfapi-config';
 export class OperationLogRecoveryService {
   private store = inject(Store);
   private opLogStore = inject(OperationLogStoreService);
-  private pfapiService = inject(PfapiService);
+  private legacyPfDb = inject(LegacyPfDbService);
   private clientIdService = inject(ClientIdService);
 
   /**
    * Attempts to recover from a corrupted or missing SUP_OPS database.
    * Recovery strategy:
-   * 1. Try to load data from legacy 'pf' database (ModelCtrl caches)
+   * 1. Try to load data from legacy 'pf' database (IndexedDB)
    * 2. If found, run genesis migration with that data
    * 3. If no legacy data, log error (user will need to sync or restore from backup)
    */
@@ -41,16 +41,16 @@ export class OperationLogRecoveryService {
 
     try {
       // 1. Try to load from legacy 'pf' database
-      const legacyData = await this.pfapiService.pf.getAllSyncModelDataFromModelCtrls();
+      const hasLegacyData = await this.legacyPfDb.hasUsableEntityData();
 
-      // Check if legacy data has any actual content
-      const hasData = this.hasUsableData(legacyData);
-
-      if (hasData) {
+      if (hasLegacyData) {
         OpLog.normal(
           'OperationLogRecoveryService: Found data in legacy database. Recovering...',
         );
-        await this.recoverFromLegacyData(legacyData);
+        const legacyData = await this.legacyPfDb.loadAllEntityData();
+        await this.recoverFromLegacyData(
+          legacyData as unknown as Record<string, unknown>,
+        );
         return;
       }
 
@@ -67,32 +67,6 @@ export class OperationLogRecoveryService {
       // App will start with NgRx initial state (empty).
       // User can sync or restore from backup.
     }
-  }
-
-  /**
-   * Checks if the data has any usable content (not just empty/default state).
-   */
-  hasUsableData(data: Record<string, unknown>): boolean {
-    // Check if there are any tasks (the most important data)
-    const taskState = data['task'] as { ids?: string[] } | undefined;
-    if (taskState?.ids && taskState.ids.length > 0) {
-      return true;
-    }
-
-    // Check if there are any projects beyond the default
-    const projectState = data['project'] as { ids?: string[] } | undefined;
-    if (projectState?.ids && projectState.ids.length > 1) {
-      return true;
-    }
-
-    // Check if there's any configuration that suggests user has used the app
-    const globalConfig = data['globalConfig'] as Record<string, unknown> | undefined;
-    if (globalConfig && Object.keys(globalConfig).length > 0) {
-      // Has some configuration - might be worth recovering
-      return true;
-    }
-
-    return false;
   }
 
   /**
@@ -135,13 +109,7 @@ export class OperationLogRecoveryService {
     await this.opLogStore.setVectorClock(recoveryOp.vectorClock);
 
     // Dispatch to NgRx
-    this.store.dispatch(
-      loadAllData({ appDataComplete: legacyData as AppDataCompleteNew }),
-    );
-
-    // Sync PFAPI vector clock to match the recovery operation
-    // This ensures that the meta model knows about the new clock state
-    await this.pfapiService.pf.metaModel.syncVectorClock(recoveryOp.vectorClock);
+    this.store.dispatch(loadAllData({ appDataComplete: legacyData as AppDataComplete }));
 
     OpLog.normal(
       'OperationLogRecoveryService: Recovery complete. Data restored from legacy database.',

@@ -10,17 +10,16 @@ import { OperationApplierService } from '../../apply/operation-applier.service';
 import { ConflictResolutionService } from '../../sync/conflict-resolution.service';
 import { ValidateStateService } from '../../validation/validate-state.service';
 import { RepairOperationService } from '../../validation/repair-operation.service';
-import { PfapiStoreDelegateService } from '../../../pfapi/pfapi-store-delegate.service';
-import { PfapiService } from '../../../pfapi/pfapi.service';
+import { StateSnapshotService } from '../../../sync/state-snapshot.service';
 import {
   SyncProviderServiceInterface,
   OperationSyncCapable,
   OpUploadResponse,
   OpDownloadResponse,
   SyncOperation,
-} from '../../../pfapi/api/sync/sync-provider.interface';
-import { SyncProviderId } from '../../../pfapi/api/pfapi.const';
-import { SuperSyncPrivateCfg } from '../../../pfapi/api/sync/providers/super-sync/super-sync.model';
+} from '../../../sync/providers/provider.interface';
+import { SyncProviderId } from '../../../sync/providers/provider.const';
+import { SuperSyncPrivateCfg } from '../../../sync/providers/super-sync/super-sync.model';
 import { provideMockStore } from '@ngrx/store/testing';
 import {
   ActionType,
@@ -42,8 +41,16 @@ import { resetTestUuidCounter } from './helpers/test-client.helper';
 import { LockService } from '../../sync/lock.service';
 import { SchemaMigrationService } from '../../store/schema-migration.service';
 import { mockDecrypt, mockEncrypt } from '../helpers/mock-encryption.helper';
-import { ENCRYPT_FN, DECRYPT_FN } from '../../../pfapi/api/encryption/encryption.token';
+import { ENCRYPT_FN, DECRYPT_FN } from '../../../sync/util/encryption.token';
 import { TranslateService } from '@ngx-translate/core';
+import { SuperSyncStatusService } from '../../sync/super-sync-status.service';
+import { ServerMigrationService } from '../../sync/server-migration.service';
+import { OperationWriteFlushService } from '../../sync/operation-write-flush.service';
+import { RemoteOpsProcessingService } from '../../sync/remote-ops-processing.service';
+import { RejectedOpsHandlerService } from '../../sync/rejected-ops-handler.service';
+import { SyncHydrationService } from '../../store/sync-hydration.service';
+import { OperationLogCompactionService } from '../../store/operation-log-compaction.service';
+import { SyncImportFilterService } from '../../sync/sync-import-filter.service';
 
 // Mock Sync Provider that supports operation sync
 class MockOperationSyncProvider
@@ -73,6 +80,14 @@ class MockOperationSyncProvider
   setEncryption(enabled: boolean, key?: string): void {
     this._privateCfg.isEncryptionEnabled = enabled;
     this._privateCfg.encryptKey = key;
+  }
+
+  // getEncryptKey implementation for OperationSyncCapable interface
+  async getEncryptKey(): Promise<string | undefined> {
+    if (this._privateCfg.isEncryptionEnabled && this._privateCfg.encryptKey) {
+      return this._privateCfg.encryptKey;
+    }
+    return undefined;
   }
 
   // Last Server Seq handling
@@ -282,6 +297,49 @@ describe('Service Logic Integration', () => {
     const dialogSpy = jasmine.createSpyObj('MatDialog', ['open']);
     dialogSpy.open.and.returnValue({ afterClosed: () => of(true) });
 
+    // Mock SuperSyncStatusService
+    const superSyncStatusSpy = jasmine.createSpyObj('SuperSyncStatusService', [
+      'markRemoteChecked',
+      'updatePendingOpsStatus',
+      'clearScope',
+    ]);
+
+    // Mock ServerMigrationService
+    const serverMigrationSpy = jasmine.createSpyObj('ServerMigrationService', [
+      'checkAndHandleMigration',
+      'handleServerMigration',
+    ]);
+    serverMigrationSpy.checkAndHandleMigration.and.returnValue(Promise.resolve());
+    serverMigrationSpy.handleServerMigration.and.returnValue(Promise.resolve());
+
+    // Mock OperationWriteFlushService
+    const writeFlushSpy = jasmine.createSpyObj('OperationWriteFlushService', [
+      'flushPendingWrites',
+    ]);
+    writeFlushSpy.flushPendingWrites.and.returnValue(Promise.resolve());
+
+    // Mock RejectedOpsHandlerService
+    const rejectedOpsHandlerSpy = jasmine.createSpyObj('RejectedOpsHandlerService', [
+      'handleRejectedOps',
+    ]);
+    rejectedOpsHandlerSpy.handleRejectedOps.and.returnValue(Promise.resolve(0));
+
+    // Mock SyncHydrationService
+    const syncHydrationSpy = jasmine.createSpyObj('SyncHydrationService', [
+      'hydrateFromRemoteSync',
+    ]);
+    syncHydrationSpy.hydrateFromRemoteSync.and.returnValue(Promise.resolve());
+
+    // Mock OperationLogCompactionService
+    const compactionSpy = jasmine.createSpyObj('OperationLogCompactionService', [
+      'compact',
+    ]);
+    compactionSpy.compact.and.returnValue(Promise.resolve());
+
+    // Use real SyncImportFilterService for SYNC_IMPORT filtering integration tests
+    // Note: This must be the real service, not a mock, because we're testing the
+    // filtering behavior. The service is provided via TestBed below.
+
     TestBed.configureTestingModule({
       providers: [
         OperationLogSyncService,
@@ -292,12 +350,20 @@ describe('Service Logic Integration', () => {
         LockService,
         VectorClockService,
         SchemaMigrationService,
+        RemoteOpsProcessingService,
         provideMockStore(),
         // Use fast mock encryption instead of real Argon2id (saves ~500ms per test)
         { provide: ENCRYPT_FN, useValue: mockEncrypt },
         { provide: DECRYPT_FN, useValue: mockDecrypt },
         { provide: ConflictResolutionService, useValue: conflictServiceSpy },
         { provide: OperationApplierService, useValue: applierSpy },
+        { provide: SuperSyncStatusService, useValue: superSyncStatusSpy },
+        { provide: ServerMigrationService, useValue: serverMigrationSpy },
+        { provide: OperationWriteFlushService, useValue: writeFlushSpy },
+        { provide: RejectedOpsHandlerService, useValue: rejectedOpsHandlerSpy },
+        { provide: SyncHydrationService, useValue: syncHydrationSpy },
+        { provide: OperationLogCompactionService, useValue: compactionSpy },
+        SyncImportFilterService, // Use real service for SYNC_IMPORT filtering tests
         {
           provide: ValidateStateService,
           useValue: jasmine.createSpyObj('ValidateStateService', [
@@ -311,22 +377,8 @@ describe('Service Logic Integration', () => {
           ]),
         },
         {
-          provide: PfapiStoreDelegateService,
-          useValue: jasmine.createSpyObj('PfapiStoreDelegateService', [
-            'getAllSyncModelDataFromStore',
-          ]),
-        },
-        {
-          provide: PfapiService,
-          useValue: {
-            pf: {
-              metaModel: {
-                loadClientId: jasmine
-                  .createSpy('loadClientId')
-                  .and.returnValue(Promise.resolve('test-client-id')),
-              },
-            },
-          },
+          provide: StateSnapshotService,
+          useValue: jasmine.createSpyObj('StateSnapshotService', ['getStateSnapshot']),
         },
         {
           provide: SnackService,

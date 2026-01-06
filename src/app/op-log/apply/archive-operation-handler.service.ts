@@ -7,18 +7,20 @@ import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import {
   compressArchive,
   flushYoungToOld,
-} from '../../features/time-tracking/store/archive.actions';
-import { ArchiveService } from '../../features/time-tracking/archive.service';
-import { TaskArchiveService } from '../../features/time-tracking/task-archive.service';
-import { sortTimeTrackingAndTasksFromArchiveYoungToOld } from '../../features/time-tracking/sort-data-to-flush';
-import { ARCHIVE_TASK_YOUNG_TO_OLD_THRESHOLD } from '../../features/time-tracking/archive.service';
+} from '../../features/archive/store/archive.actions';
+import {
+  ArchiveService,
+  ARCHIVE_TASK_YOUNG_TO_OLD_THRESHOLD,
+} from '../../features/archive/archive.service';
+import { TaskArchiveService } from '../../features/archive/task-archive.service';
+import { sortTimeTrackingAndTasksFromArchiveYoungToOld } from '../../features/archive/util/sort-data-to-flush';
 import { OpLog } from '../../core/log';
 import { lazyInject } from '../../util/lazy-inject';
 import { deleteTag, deleteTags } from '../../features/tag/store/tag.actions';
 import { TimeTrackingService } from '../../features/time-tracking/time-tracking.service';
-import { ArchiveCompressionService } from '../../features/time-tracking/archive-compression.service';
+import { ArchiveCompressionService } from '../../features/archive/archive-compression.service';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
-import { ArchiveModel } from '../../features/time-tracking/time-tracking.model';
+import { ArchiveModel } from '../../features/archive/archive.model';
 import { ArchiveDbAdapter } from '../../core/persistence/archive-db-adapter.service';
 
 /**
@@ -364,17 +366,13 @@ export class ArchiveOperationHandler {
    * This operation is deterministic - given the same timestamp, it produces
    * the same result on all clients.
    *
-   * @localBehavior Executes normally (acquires DB lock)
-   * @remoteBehavior Executes with isIgnoreDBLock (sync has DB locked)
+   * Uses ArchiveDbAdapter which directly accesses IndexedDB without PFAPI's lock.
    */
   private async _handleCompressArchive(action: PersistentAction): Promise<void> {
     const { oneYearAgoTimestamp } = action as ReturnType<typeof compressArchive>;
     const isRemote = !!action.meta?.isRemote;
 
-    await this._getArchiveCompressionService().compressArchive(
-      oneYearAgoTimestamp,
-      isRemote,
-    );
+    await this._getArchiveCompressionService().compressArchive(oneYearAgoTimestamp);
 
     OpLog.log(`Archive compressed (via ${isRemote ? 'remote' : 'local'} op handler)`);
   }

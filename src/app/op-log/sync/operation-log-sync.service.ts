@@ -1,15 +1,13 @@
-import { inject, Injectable, Injector } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { OperationLogStoreService } from '../store/operation-log-store.service';
 import { VectorClock } from '../core/operation.types';
 import { OpLog } from '../../core/log';
-import { OperationSyncCapable } from '../../pfapi/api/sync/sync-provider.interface';
+import { OperationSyncCapable } from '../../sync/providers/provider.interface';
 import { OperationLogUploadService, UploadResult } from './operation-log-upload.service';
 import { OperationLogDownloadService } from './operation-log-download.service';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
-import { PfapiService } from '../../pfapi/pfapi.service';
-import { lazyInject } from '../../util/lazy-inject';
 import { SuperSyncStatusService } from './super-sync-status.service';
 import { ServerMigrationService } from './server-migration.service';
 import { OperationWriteFlushService } from './operation-write-flush.service';
@@ -100,11 +98,6 @@ export class OperationLogSyncService {
   private remoteOpsProcessingService = inject(RemoteOpsProcessingService);
   private rejectedOpsHandlerService = inject(RejectedOpsHandlerService);
   private syncHydrationService = inject(SyncHydrationService);
-
-  // Lazy injection to break circular dependency for getActiveSyncProvider():
-  // PfapiService -> Pfapi -> OperationLogSyncService -> PfapiService
-  private _injector = inject(Injector);
-  private _getPfapiService = lazyInject(this._injector, PfapiService);
 
   /**
    * Checks if this client is "wholly fresh" - meaning it has never synced before

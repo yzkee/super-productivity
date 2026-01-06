@@ -7,10 +7,11 @@ import { LocalBackupMeta } from './local-backup.model';
 import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
 import { IS_ELECTRON } from '../../app.constants';
 import { androidInterface } from '../../features/android/android-interface';
-import { PfapiService } from '../../pfapi/pfapi.service';
+import { StateSnapshotService } from '../../sync/state-snapshot.service';
+import { BackupService } from '../../sync/backup.service';
 import { T } from '../../t.const';
 import { TranslateService } from '@ngx-translate/core';
-import { AppDataCompleteNew } from '../../pfapi/pfapi-config';
+import { AppDataComplete } from '../../sync/model-config';
 import { SnackService } from '../../core/snack/snack.service';
 import { Log } from '../../core/log';
 
@@ -24,7 +25,8 @@ const ANDROID_DB_KEY = 'backup';
 })
 export class LocalBackupService {
   private _configService = inject(GlobalConfigService);
-  private _pfapiService = inject(PfapiService);
+  private _stateSnapshotService = inject(StateSnapshotService);
+  private _backupService = inject(BackupService);
   private _snackService = inject(SnackService);
   private _translateService = inject(TranslateService);
 
@@ -93,7 +95,8 @@ export class LocalBackupService {
   }
 
   private async _backup(): Promise<void> {
-    const data = await this._pfapiService.pf.getAllSyncModelData();
+    const data =
+      this._stateSnapshotService.getAllSyncModelDataFromStore() as AppDataComplete;
     if (IS_ELECTRON) {
       window.ea.backupAppData(data);
     }
@@ -105,8 +108,8 @@ export class LocalBackupService {
   private async _importBackup(backupData: string): Promise<void> {
     try {
       // isForceConflict=true resets vector clock to prevent accumulation of old client IDs
-      await this._pfapiService.importCompleteBackup(
-        JSON.parse(backupData) as AppDataCompleteNew,
+      await this._backupService.importCompleteBackup(
+        JSON.parse(backupData) as AppDataComplete,
         false,
         true,
       );

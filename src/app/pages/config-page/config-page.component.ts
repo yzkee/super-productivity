@@ -34,10 +34,10 @@ import { ConfigSoundFormComponent } from '../../features/config/config-sound-for
 import { TranslatePipe } from '@ngx-translate/core';
 import { SYNC_FORM } from '../../features/config/form-cfgs/sync-form.const';
 import { SYNC_SAFETY_BACKUPS_FORM } from '../../features/config/form-cfgs/sync-safety-backups-form.const';
-import { PfapiService } from '../../pfapi/pfapi.service';
+import { SyncProviderManager } from '../../sync/provider-manager.service';
 import { map, tap } from 'rxjs/operators';
 import { SyncConfigService } from '../../imex/sync/sync-config.service';
-import { WebdavApi } from '../../pfapi/api/sync/providers/webdav/webdav-api';
+import { WebdavApi } from '../../sync/providers/webdav/webdav-api';
 import { AsyncPipe } from '@angular/common';
 import { PluginManagementComponent } from '../../plugins/ui/plugin-management/plugin-management.component';
 import { CollapsibleComponent } from '../../ui/collapsible/collapsible.component';
@@ -74,7 +74,7 @@ import { DialogChangeEncryptionPasswordComponent } from '../../imex/sync/dialog-
 })
 export class ConfigPageComponent implements OnInit, OnDestroy {
   private readonly _cd = inject(ChangeDetectorRef);
-  private readonly _pfapiService = inject(PfapiService);
+  private readonly _providerManager = inject(SyncProviderManager);
   readonly configService = inject(GlobalConfigService);
   readonly syncSettingsService = inject(SyncConfigService);
   private readonly _syncWrapperService = inject(SyncWrapperService);
@@ -110,7 +110,7 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
   // TODO needs to contain all sync providers....
   // TODO maybe handling this in an effect would be better????
   syncFormCfg$: Observable<any> = combineLatest([
-    this._pfapiService.currentProviderPrivateCfg$,
+    this._providerManager.currentProviderPrivateCfg$,
     this.configService.sync$,
   ])
     .pipe(

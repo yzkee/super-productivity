@@ -5,17 +5,17 @@ import { ServerMigrationService } from './server-migration.service';
 import { OperationLogStoreService } from '../store/operation-log-store.service';
 import { VectorClockService } from './vector-clock.service';
 import { ValidateStateService } from '../validation/validate-state.service';
-import { PfapiStoreDelegateService } from '../../pfapi/pfapi-store-delegate.service';
+import { StateSnapshotService } from '../../sync/state-snapshot.service';
 import { SnackService } from '../../core/snack/snack.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
 import {
   SyncProviderServiceInterface,
   OperationSyncCapable,
-} from '../../pfapi/api/sync/sync-provider.interface';
-import { SyncProviderId } from '../../pfapi/api/pfapi.const';
+} from '../../sync/providers/provider.interface';
+import { SyncProviderId } from '../../sync/providers/provider.const';
 import { OpType } from '../core/operation.types';
 import { SYSTEM_TAG_IDS } from '../../features/tag/tag.const';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
+import { CLIENT_ID_PROVIDER, ClientIdProvider } from '../util/client-id.provider';
 
 describe('ServerMigrationService', () => {
   let service: ServerMigrationService;
@@ -23,9 +23,9 @@ describe('ServerMigrationService', () => {
   let opLogStoreSpy: jasmine.SpyObj<OperationLogStoreService>;
   let vectorClockServiceSpy: jasmine.SpyObj<VectorClockService>;
   let validateStateServiceSpy: jasmine.SpyObj<ValidateStateService>;
-  let storeDelegateServiceSpy: jasmine.SpyObj<PfapiStoreDelegateService>;
+  let stateSnapshotServiceSpy: jasmine.SpyObj<StateSnapshotService>;
   let snackServiceSpy: jasmine.SpyObj<SnackService>;
-  let pfapiServiceSpy: any;
+  let clientIdProviderSpy: jasmine.SpyObj<ClientIdProvider>;
   let defaultProvider: OperationSyncProvider;
 
   // Type for operation-sync-capable provider
@@ -69,21 +69,11 @@ describe('ServerMigrationService', () => {
     validateStateServiceSpy = jasmine.createSpyObj('ValidateStateService', [
       'validateAndRepair',
     ]);
-    storeDelegateServiceSpy = jasmine.createSpyObj('PfapiStoreDelegateService', [
-      'getAllSyncModelDataFromStore',
+    stateSnapshotServiceSpy = jasmine.createSpyObj('StateSnapshotService', [
+      'getStateSnapshot',
     ]);
     snackServiceSpy = jasmine.createSpyObj('SnackService', ['open']);
-
-    // Mock PfapiService
-    pfapiServiceSpy = {
-      pf: {
-        metaModel: {
-          loadClientId: jasmine
-            .createSpy('loadClientId')
-            .and.returnValue(Promise.resolve('test-client')),
-        },
-      },
-    };
+    clientIdProviderSpy = jasmine.createSpyObj('ClientIdProvider', ['loadClientId']);
 
     // Default mock returns
     opLogStoreSpy.hasSyncedOps.and.returnValue(Promise.resolve(true));
@@ -96,16 +86,15 @@ describe('ServerMigrationService', () => {
       isValid: true,
       wasRepaired: false,
     } as any);
-    storeDelegateServiceSpy.getAllSyncModelDataFromStore.and.returnValue(
-      Promise.resolve({
-        task: {
-          ids: ['task-1'],
-          entities: { 'task-1': { id: 'task-1', title: 'Test' } },
-        },
-        project: { ids: [], entities: {} },
-        tag: { ids: [], entities: {} },
-      }) as any,
-    );
+    stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
+      task: {
+        ids: ['task-1'],
+        entities: { 'task-1': { id: 'task-1', title: 'Test' } },
+      },
+      project: { ids: [], entities: {} },
+      tag: { ids: [], entities: {} },
+    } as any);
+    clientIdProviderSpy.loadClientId.and.returnValue(Promise.resolve('test-client'));
 
     TestBed.configureTestingModule({
       providers: [
@@ -114,9 +103,9 @@ describe('ServerMigrationService', () => {
         { provide: OperationLogStoreService, useValue: opLogStoreSpy },
         { provide: VectorClockService, useValue: vectorClockServiceSpy },
         { provide: ValidateStateService, useValue: validateStateServiceSpy },
-        { provide: PfapiStoreDelegateService, useValue: storeDelegateServiceSpy },
+        { provide: StateSnapshotService, useValue: stateSnapshotServiceSpy },
         { provide: SnackService, useValue: snackServiceSpy },
-        { provide: PfapiService, useValue: pfapiServiceSpy },
+        { provide: CLIENT_ID_PROVIDER, useValue: clientIdProviderSpy },
       ],
     });
 
@@ -182,7 +171,7 @@ describe('ServerMigrationService', () => {
 
   describe('handleServerMigration', () => {
     it('should skip if state is empty (no tasks/projects/tags)', async () => {
-      storeDelegateServiceSpy.getAllSyncModelDataFromStore.and.returnValue(
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
         Promise.resolve({
           task: { ids: [], entities: {} },
           project: { ids: [], entities: {} },
@@ -197,7 +186,7 @@ describe('ServerMigrationService', () => {
 
     it('should skip if state only has system tags', async () => {
       const systemTagIds = Array.from(SYSTEM_TAG_IDS);
-      storeDelegateServiceSpy.getAllSyncModelDataFromStore.and.returnValue(
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
         Promise.resolve({
           task: { ids: [], entities: {} },
           project: { ids: [], entities: {} },
@@ -259,7 +248,7 @@ describe('ServerMigrationService', () => {
         project: { ids: [], entities: {} },
         tag: { ids: [], entities: {} },
       };
-      storeDelegateServiceSpy.getAllSyncModelDataFromStore.and.returnValue(
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
         Promise.resolve(mockState) as any,
       );
       vectorClockServiceSpy.getCurrentVectorClock.and.returnValue(
@@ -278,7 +267,7 @@ describe('ServerMigrationService', () => {
     });
 
     it('should abort if no client ID is available', async () => {
-      pfapiServiceSpy.pf.metaModel.loadClientId.and.returnValue(Promise.resolve(null));
+      clientIdProviderSpy.loadClientId.and.returnValue(Promise.resolve(null));
 
       await service.handleServerMigration(defaultProvider);
 
@@ -286,7 +275,7 @@ describe('ServerMigrationService', () => {
     });
 
     it('should proceed if state has tasks', async () => {
-      storeDelegateServiceSpy.getAllSyncModelDataFromStore.and.returnValue(
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
         Promise.resolve({
           task: { ids: ['task-1'], entities: { 'task-1': { id: 'task-1' } } },
           project: { ids: [], entities: {} },
@@ -300,7 +289,7 @@ describe('ServerMigrationService', () => {
     });
 
     it('should proceed if state has projects', async () => {
-      storeDelegateServiceSpy.getAllSyncModelDataFromStore.and.returnValue(
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
         Promise.resolve({
           task: { ids: [], entities: {} },
           project: { ids: ['proj-1'], entities: { 'proj-1': { id: 'proj-1' } } },
@@ -314,7 +303,7 @@ describe('ServerMigrationService', () => {
     });
 
     it('should proceed if state has user-created tags', async () => {
-      storeDelegateServiceSpy.getAllSyncModelDataFromStore.and.returnValue(
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
         Promise.resolve({
           task: { ids: [], entities: {} },
           project: { ids: [], entities: {} },
@@ -330,7 +319,7 @@ describe('ServerMigrationService', () => {
 
   describe('_isEmptyState (tested via handleServerMigration)', () => {
     it('should treat null state as empty', async () => {
-      storeDelegateServiceSpy.getAllSyncModelDataFromStore.and.returnValue(
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
         Promise.resolve(null) as any,
       );
 
@@ -340,7 +329,7 @@ describe('ServerMigrationService', () => {
     });
 
     it('should treat undefined state as empty', async () => {
-      storeDelegateServiceSpy.getAllSyncModelDataFromStore.and.returnValue(
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
         Promise.resolve(undefined) as any,
       );
 
@@ -350,7 +339,7 @@ describe('ServerMigrationService', () => {
     });
 
     it('should treat non-object state as empty', async () => {
-      storeDelegateServiceSpy.getAllSyncModelDataFromStore.and.returnValue(
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
         Promise.resolve('not an object') as any,
       );
 
@@ -364,7 +353,7 @@ describe('ServerMigrationService', () => {
     it('should identify system tags correctly', async () => {
       for (const systemTagId of SYSTEM_TAG_IDS) {
         opLogStoreSpy.append.calls.reset();
-        storeDelegateServiceSpy.getAllSyncModelDataFromStore.and.returnValue(
+        stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
           Promise.resolve({
             task: { ids: [], entities: {} },
             project: { ids: [], entities: {} },
@@ -379,7 +368,7 @@ describe('ServerMigrationService', () => {
     });
 
     it('should proceed with mixed system and user tags', async () => {
-      storeDelegateServiceSpy.getAllSyncModelDataFromStore.and.returnValue(
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
         Promise.resolve({
           task: { ids: [], entities: {} },
           project: { ids: [], entities: {} },

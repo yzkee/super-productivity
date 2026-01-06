@@ -100,11 +100,11 @@ import {
 import {
   ARCHIVE_YOUNG_FEATURE_NAME,
   archiveYoungReducer,
-} from '../features/time-tracking/store/archive-young.reducer';
+} from '../features/archive/store/archive-young.reducer';
 import {
   ARCHIVE_OLD_FEATURE_NAME,
   archiveOldReducer,
-} from '../features/time-tracking/store/archive-old.reducer';
+} from '../features/archive/store/archive-old.reducer';
 
 @NgModule({
   declarations: [],

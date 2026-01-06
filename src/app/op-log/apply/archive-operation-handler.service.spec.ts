@@ -4,12 +4,12 @@ import {
   isArchiveAffectingAction,
 } from './archive-operation-handler.service';
 import { PersistentAction } from '../core/persistent-action.interface';
-import { ArchiveService } from '../../features/time-tracking/archive.service';
-import { TaskArchiveService } from '../../features/time-tracking/task-archive.service';
+import { ArchiveService } from '../../features/archive/archive.service';
+import { TaskArchiveService } from '../../features/archive/task-archive.service';
 import { Task, TaskWithSubTasks } from '../../features/tasks/task.model';
-import { ArchiveModel } from '../../features/time-tracking/time-tracking.model';
+import { ArchiveModel } from '../../features/archive/archive.model';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
-import { flushYoungToOld } from '../../features/time-tracking/store/archive.actions';
+import { flushYoungToOld } from '../../features/archive/store/archive.actions';
 import { deleteTag, deleteTags } from '../../features/tag/store/tag.actions';
 import { TimeTrackingService } from '../../features/time-tracking/time-tracking.service';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';

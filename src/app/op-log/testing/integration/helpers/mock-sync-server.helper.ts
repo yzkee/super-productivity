@@ -4,7 +4,7 @@ import {
   OpUploadResponse,
   OpDownloadResponse,
   OpUploadResult,
-} from '../../../../pfapi/api/sync/sync-provider.interface';
+} from '../../../../sync/providers/provider.interface';
 
 /**
  * Simulates a sync server for integration testing.

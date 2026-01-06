@@ -4,7 +4,7 @@ import { OperationApplierService } from './operation-applier.service';
 import { Operation, OpType, EntityType, ActionType } from '../core/operation.types';
 import { ArchiveOperationHandler } from './archive-operation-handler.service';
 import { HydrationStateService } from './hydration-state.service';
-import { remoteArchiveDataApplied } from '../../features/time-tracking/store/archive.actions';
+import { remoteArchiveDataApplied } from '../../features/archive/store/archive.actions';
 import { bulkApplyOperations } from './bulk-hydration.action';
 import { OperationLogEffects } from '../capture/operation-log.effects';
 

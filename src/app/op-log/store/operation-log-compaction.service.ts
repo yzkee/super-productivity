@@ -8,12 +8,13 @@ import {
   SLOW_COMPACTION_THRESHOLD_MS,
 } from '../core/operation-log.const';
 import { OperationLogStoreService } from './operation-log-store.service';
-import { PfapiStoreDelegateService } from '../../pfapi/pfapi-store-delegate.service';
+import {
+  StateSnapshotService,
+  AppStateSnapshot,
+} from '../../sync/state-snapshot.service';
 import { CURRENT_SCHEMA_VERSION } from './schema-migration.service';
 import { VectorClockService } from '../sync/vector-clock.service';
 import { OpLog } from '../../core/log';
-import { PfapiAllModelCfg } from '../../pfapi/pfapi-config';
-import { AllSyncModels } from '../../pfapi/api/pfapi.model';
 
 /**
  * Manages the compaction (garbage collection) of the operation log.
@@ -27,7 +28,7 @@ import { AllSyncModels } from '../../pfapi/api/pfapi.model';
 export class OperationLogCompactionService {
   private opLogStore = inject(OperationLogStoreService);
   private lockService = inject(LockService);
-  private storeDelegate = inject(PfapiStoreDelegateService);
+  private stateSnapshot = inject(StateSnapshotService);
   private vectorClockService = inject(VectorClockService);
 
   async compact(): Promise<void> {
@@ -59,8 +60,8 @@ export class OperationLogCompactionService {
       const startTime = Date.now();
       const label = isEmergency ? 'emergency ' : '';
 
-      // 1. Get current state from NgRx store (via delegate for consistency)
-      const currentState = await this.storeDelegate.getAllSyncModelDataFromStore();
+      // 1. Get current state from NgRx store
+      const currentState = this.stateSnapshot.getStateSnapshot();
       this.checkCompactionTimeout(startTime, `${label}state snapshot`);
 
       // 2. Get current vector clock (max of all ops)
@@ -137,22 +138,24 @@ export class OperationLogCompactionService {
    *
    * Format: "ENTITY_TYPE:entityId" (e.g., "TASK:abc123", "PROJECT:xyz789")
    */
-  private _extractEntityKeysFromState(state: AllSyncModels<PfapiAllModelCfg>): string[] {
+  private _extractEntityKeysFromState(state: AppStateSnapshot): string[] {
     const keys: string[] = [];
 
     // Entity adapter states (have ids array)
+    // Cast to expected type - we know NgRx entity adapter states have ids array
+    type EntityState = { ids?: (string | number)[] } | undefined;
     const entityStates: Array<{
       key: string;
-      state: { ids?: (string | number)[] } | undefined;
+      state: EntityState;
     }> = [
-      { key: 'TASK', state: state.task },
-      { key: 'PROJECT', state: state.project },
-      { key: 'TAG', state: state.tag },
-      { key: 'NOTE', state: state.note },
-      { key: 'ISSUE_PROVIDER', state: state.issueProvider },
-      { key: 'SIMPLE_COUNTER', state: state.simpleCounter },
-      { key: 'TASK_REPEAT_CFG', state: state.taskRepeatCfg },
-      { key: 'METRIC', state: state.metric },
+      { key: 'TASK', state: state.task as EntityState },
+      { key: 'PROJECT', state: state.project as EntityState },
+      { key: 'TAG', state: state.tag as EntityState },
+      { key: 'NOTE', state: state.note as EntityState },
+      { key: 'ISSUE_PROVIDER', state: state.issueProvider as EntityState },
+      { key: 'SIMPLE_COUNTER', state: state.simpleCounter as EntityState },
+      { key: 'TASK_REPEAT_CFG', state: state.taskRepeatCfg as EntityState },
+      { key: 'METRIC', state: state.metric as EntityState },
     ];
 
     for (const { key, state: entityState } of entityStates) {
@@ -191,8 +194,10 @@ export class OperationLogCompactionService {
     }
 
     // Boards have a different structure: { boardCfgs: BoardCfg[] }
-    if (state.boards?.boardCfgs && Array.isArray(state.boards.boardCfgs)) {
-      for (const board of state.boards.boardCfgs) {
+    type BoardsState = { boardCfgs?: Array<{ id?: string }> } | undefined;
+    const boardsState = state.boards as BoardsState;
+    if (boardsState?.boardCfgs && Array.isArray(boardsState.boardCfgs)) {
+      for (const board of boardsState.boardCfgs) {
         if (board?.id) {
           keys.push(`BOARD:${board.id}`);
         }

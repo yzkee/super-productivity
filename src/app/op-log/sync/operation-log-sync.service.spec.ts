@@ -8,8 +8,6 @@ import { OperationApplierService } from '../apply/operation-applier.service';
 import { ConflictResolutionService } from './conflict-resolution.service';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { RepairOperationService } from '../validation/repair-operation.service';
-import { PfapiStoreDelegateService } from '../../pfapi/pfapi-store-delegate.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
 import { OperationLogUploadService } from './operation-log-upload.service';
 import { OperationLogDownloadService } from './operation-log-download.service';
 import { LockService } from './lock.service';
@@ -117,24 +115,6 @@ describe('OperationLogSyncService', () => {
           useValue: jasmine.createSpyObj('RepairOperationService', [
             'createRepairOperation',
           ]),
-        },
-        {
-          provide: PfapiStoreDelegateService,
-          useValue: jasmine.createSpyObj('PfapiStoreDelegateService', [
-            'getAllSyncModelDataFromStore',
-          ]),
-        },
-        {
-          provide: PfapiService,
-          useValue: {
-            pf: {
-              metaModel: {
-                loadClientId: jasmine
-                  .createSpy('loadClientId')
-                  .and.returnValue(Promise.resolve('test-client-id')),
-              },
-            },
-          },
         },
         {
           provide: OperationLogUploadService,

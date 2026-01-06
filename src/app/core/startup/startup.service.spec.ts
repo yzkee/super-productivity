@@ -1,6 +1,5 @@
 import { TestBed, fakeAsync, tick, flush } from '@angular/core/testing';
 import { StartupService } from './startup.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
 import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
 import { TranslateService } from '@ngx-translate/core';
 import { LocalBackupService } from '../../imex/local-backup/local-backup.service';
@@ -21,7 +20,6 @@ import { LS } from '../persistence/storage-keys.const';
 
 describe('StartupService', () => {
   let service: StartupService;
-  let pfapiService: jasmine.SpyObj<PfapiService>;
   let matDialog: jasmine.SpyObj<MatDialog>;
   let pluginService: jasmine.SpyObj<PluginService>;
 
@@ -36,20 +34,8 @@ describe('StartupService', () => {
     );
 
     // Create spies for all dependencies
-    const pfapiServiceSpy = jasmine.createSpyObj('PfapiService', [
-      'isCheckForStrayLocalTmpDBBackupAndImport',
-    ]);
-    pfapiServiceSpy.isCheckForStrayLocalTmpDBBackupAndImport.and.returnValue(
-      Promise.resolve(),
-    );
-    pfapiServiceSpy.pf = {
-      metaModel: {
-        load: jasmine.createSpy().and.returnValue(Promise.resolve(null)),
-      },
-    };
-
-    const imexViewServiceSpy = jasmine.createSpyObj('ImexViewService', ['']);
-    const translateServiceSpy = jasmine.createSpyObj('TranslateService', ['']);
+    const imexViewServiceSpy = jasmine.createSpyObj('ImexViewService', ['init']);
+    const translateServiceSpy = jasmine.createSpyObj('TranslateService', ['instant']);
 
     const localBackupServiceSpy = jasmine.createSpyObj('LocalBackupService', [
       'askForFileStoreBackupIfAvailable',
@@ -105,13 +91,12 @@ describe('StartupService', () => {
     ]);
 
     const syncSafetyBackupServiceSpy = jasmine.createSpyObj('SyncSafetyBackupService', [
-      '',
+      'init',
     ]);
 
     TestBed.configureTestingModule({
       providers: [
         StartupService,
-        { provide: PfapiService, useValue: pfapiServiceSpy },
         { provide: ImexViewService, useValue: imexViewServiceSpy },
         { provide: TranslateService, useValue: translateServiceSpy },
         { provide: LocalBackupService, useValue: localBackupServiceSpy },
@@ -133,7 +118,6 @@ describe('StartupService', () => {
     });
 
     service = TestBed.inject(StartupService);
-    pfapiService = TestBed.inject(PfapiService) as jasmine.SpyObj<PfapiService>;
     matDialog = TestBed.inject(MatDialog) as jasmine.SpyObj<MatDialog>;
     pluginService = TestBed.inject(PluginService) as jasmine.SpyObj<PluginService>;
   });
@@ -163,8 +147,6 @@ describe('StartupService', () => {
 
       service.init();
       tick(200); // Wait for single instance check
-
-      expect(pfapiService.isCheckForStrayLocalTmpDBBackupAndImport).toHaveBeenCalled();
 
       flush();
 

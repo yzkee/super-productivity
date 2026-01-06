@@ -11,7 +11,7 @@
 
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { syncTimeSpent } from '../../features/time-tracking/store/time-tracking.actions';
-import { flushYoungToOld } from '../../features/time-tracking/store/archive.actions';
+import { flushYoungToOld } from '../../features/archive/store/archive.actions';
 import {
   addProject,
   updateProject,

@@ -1,66 +1,38 @@
 import { TestBed, fakeAsync, tick, discardPeriodicTasks } from '@angular/core/testing';
 import { SyncSafetyBackupService, SyncSafetyBackup } from './sync-safety-backup.service';
-import { PfapiService } from '../../pfapi/pfapi.service';
+import { BackupService } from '../../sync/backup.service';
+import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
 
 describe('SyncSafetyBackupService', () => {
   let service: SyncSafetyBackupService;
-  let mockPfapiService: jasmine.SpyObj<any>;
-  let mockDb: jasmine.SpyObj<any>;
-  let mockMetaModel: jasmine.SpyObj<any>;
-  let mockEv: jasmine.SpyObj<any>;
-  let eventHandlers: { [key: string]: ((...args: unknown[]) => void)[] };
+  let mockBackupService: jasmine.SpyObj<BackupService>;
+  let mockLegacyPfDbService: jasmine.SpyObj<LegacyPfDbService>;
   let originalConfirm: typeof window.confirm;
 
   beforeEach(() => {
-    eventHandlers = {};
-
     // Save original confirm
     originalConfirm = window.confirm;
 
-    mockDb = {
-      load: jasmine.createSpy('load').and.returnValue(Promise.resolve([])),
-      save: jasmine.createSpy('save').and.returnValue(Promise.resolve()),
-    };
+    mockLegacyPfDbService = jasmine.createSpyObj('LegacyPfDbService', ['load', 'save']);
+    mockLegacyPfDbService.load.and.returnValue(Promise.resolve([]));
+    mockLegacyPfDbService.save.and.returnValue(Promise.resolve());
 
-    mockMetaModel = {
-      load: jasmine.createSpy('load').and.returnValue(
-        Promise.resolve({
-          lastUpdateAction: 'task',
-        }),
-      ),
-    };
-
-    mockEv = {
-      on: jasmine
-        .createSpy('on')
-        .and.callFake((event: string, handler: (...args: unknown[]) => void) => {
-          if (!eventHandlers[event]) {
-            eventHandlers[event] = [];
-          }
-          eventHandlers[event].push(handler);
-        }),
-    };
-
-    const mockPf = {
-      db: mockDb,
-      metaModel: mockMetaModel,
-      ev: mockEv,
-      loadCompleteBackup: jasmine.createSpy('loadCompleteBackup').and.returnValue(
-        Promise.resolve({
-          project: { entities: {} },
-          task: { entities: {} },
-        }),
-      ),
-    };
-
-    mockPfapiService = jasmine.createSpyObj('PfapiService', ['importCompleteBackup'], {
-      pf: mockPf,
-    });
+    mockBackupService = jasmine.createSpyObj('BackupService', [
+      'loadCompleteBackup',
+      'importCompleteBackup',
+    ]);
+    mockBackupService.loadCompleteBackup.and.returnValue(
+      Promise.resolve({
+        project: { entities: {} },
+        task: { entities: {} },
+      } as any),
+    );
 
     TestBed.configureTestingModule({
       providers: [
         SyncSafetyBackupService,
-        { provide: PfapiService, useValue: mockPfapiService },
+        { provide: BackupService, useValue: mockBackupService },
+        { provide: LegacyPfDbService, useValue: mockLegacyPfDbService },
       ],
     });
 
@@ -72,20 +44,18 @@ describe('SyncSafetyBackupService', () => {
     window.confirm = originalConfirm;
   });
 
-  describe('lazy PfapiService injection', () => {
-    it('should instantiate without circular dependency errors', () => {
-      // The service uses Injector.get() instead of direct inject()
-      // which defers the resolution of PfapiService
+  describe('service instantiation', () => {
+    it('should instantiate without errors', () => {
       expect(service).toBeTruthy();
     });
 
-    it('should cache PfapiService after first access', async () => {
-      // Multiple operations should use the cached instance
+    it('should use BackupService and LegacyPfDbService for operations', async () => {
+      // Multiple operations should use the injected services
       await service.getBackups();
       await service.getBackups();
 
       // Both calls use the same mocked db.load
-      expect(mockDb.load).toHaveBeenCalledTimes(2);
+      expect(mockLegacyPfDbService.load).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -98,19 +68,19 @@ describe('SyncSafetyBackupService', () => {
     it('should create a manual backup', async () => {
       await service.createBackup();
 
-      expect(mockPfapiService.pf.loadCompleteBackup).toHaveBeenCalled();
-      expect(mockMetaModel.load).toHaveBeenCalled();
-      expect(mockDb.save).toHaveBeenCalled();
+      expect(mockBackupService.loadCompleteBackup).toHaveBeenCalled();
+      expect(mockLegacyPfDbService.save).toHaveBeenCalled();
     });
 
-    it('should include lastUpdateAction in backup', async () => {
+    it('should set lastChangedModelId to null in backup', async () => {
       await service.createBackup();
 
-      const saveCall = mockDb.save.calls.mostRecent();
+      const saveCall = mockLegacyPfDbService.save.calls.mostRecent();
       const savedBackups = saveCall.args[1] as SyncSafetyBackup[];
 
       expect(savedBackups.length).toBeGreaterThan(0);
-      expect(savedBackups[0].lastChangedModelId).toBe('task');
+      // lastChangedModelId is no longer available without metaModel, so it's null
+      expect(savedBackups[0].lastChangedModelId).toBeNull();
       expect(savedBackups[0].reason).toBe('MANUAL');
     });
 
@@ -156,11 +126,11 @@ describe('SyncSafetyBackupService', () => {
           reason: 'MANUAL',
         }, // today slot (first backup of today)
       ];
-      mockDb.load.and.returnValue(Promise.resolve(existingBackups));
+      mockLegacyPfDbService.load.and.returnValue(Promise.resolve(existingBackups));
 
       await service.createBackup();
 
-      const saveCall = mockDb.save.calls.mostRecent();
+      const saveCall = mockLegacyPfDbService.save.calls.mostRecent();
       const savedBackups = saveCall.args[1] as SyncSafetyBackup[];
 
       // Should have max 4 slots: 2 recent + 1 today + (optionally 1 before today)
@@ -179,7 +149,7 @@ describe('SyncSafetyBackupService', () => {
     }));
 
     it('should return empty array when no backups exist', async () => {
-      mockDb.load.and.returnValue(Promise.resolve(null));
+      mockLegacyPfDbService.load.and.returnValue(Promise.resolve(null));
 
       const backups = await service.getBackups();
 
@@ -187,7 +157,7 @@ describe('SyncSafetyBackupService', () => {
     });
 
     it('should return empty array when db returns non-array', async () => {
-      mockDb.load.and.returnValue(Promise.resolve({ invalid: 'data' }));
+      mockLegacyPfDbService.load.and.returnValue(Promise.resolve({ invalid: 'data' }));
 
       const backups = await service.getBackups();
 
@@ -195,7 +165,7 @@ describe('SyncSafetyBackupService', () => {
     });
 
     it('should filter out invalid backups', async () => {
-      mockDb.load.and.returnValue(
+      mockLegacyPfDbService.load.and.returnValue(
         Promise.resolve([
           { id: 'valid-1', timestamp: Date.now(), data: {}, reason: 'MANUAL' },
           { id: '', timestamp: Date.now(), data: {}, reason: 'MANUAL' }, // invalid - empty id
@@ -213,7 +183,7 @@ describe('SyncSafetyBackupService', () => {
 
     it('should sort backups by timestamp descending', async () => {
       const now = Date.now();
-      mockDb.load.and.returnValue(
+      mockLegacyPfDbService.load.and.returnValue(
         Promise.resolve([
           { id: 'old', timestamp: now - 10000, data: {}, reason: 'MANUAL' },
           { id: 'newest', timestamp: now, data: {}, reason: 'MANUAL' },
@@ -229,7 +199,7 @@ describe('SyncSafetyBackupService', () => {
     });
 
     it('should regenerate duplicate IDs', async () => {
-      mockDb.load.and.returnValue(
+      mockLegacyPfDbService.load.and.returnValue(
         Promise.resolve([
           { id: 'duplicate', timestamp: Date.now(), data: {}, reason: 'MANUAL' },
           { id: 'duplicate', timestamp: Date.now() - 1000, data: {}, reason: 'MANUAL' },
@@ -244,7 +214,9 @@ describe('SyncSafetyBackupService', () => {
     });
 
     it('should return empty array on load error', async () => {
-      mockDb.load.and.returnValue(Promise.reject(new Error('Load failed')));
+      mockLegacyPfDbService.load.and.returnValue(
+        Promise.reject(new Error('Load failed')),
+      );
 
       const backups = await service.getBackups();
 
@@ -268,11 +240,11 @@ describe('SyncSafetyBackupService', () => {
           reason: 'MANUAL',
         },
       ];
-      mockDb.load.and.returnValue(Promise.resolve(existingBackups));
+      mockLegacyPfDbService.load.and.returnValue(Promise.resolve(existingBackups));
 
       await service.deleteBackup('backup-1');
 
-      const saveCall = mockDb.save.calls.mostRecent();
+      const saveCall = mockLegacyPfDbService.save.calls.mostRecent();
       const savedBackups = saveCall.args[1] as SyncSafetyBackup[];
 
       expect(savedBackups.length).toBe(1);
@@ -280,7 +252,7 @@ describe('SyncSafetyBackupService', () => {
     });
 
     it('should emit backupsChanged$ after deleting', async () => {
-      mockDb.load.and.returnValue(Promise.resolve([]));
+      mockLegacyPfDbService.load.and.returnValue(Promise.resolve([]));
 
       let emitted = false;
       service.backupsChanged$.subscribe(() => {
@@ -302,7 +274,7 @@ describe('SyncSafetyBackupService', () => {
     it('should save empty array', async () => {
       await service.clearAllBackups();
 
-      expect(mockDb.save).toHaveBeenCalledWith('SYNC_SAFETY_BACKUPS', [], true);
+      expect(mockLegacyPfDbService.save).toHaveBeenCalledWith('SYNC_SAFETY_BACKUPS', []);
     });
 
     it('should emit backupsChanged$', async () => {
@@ -324,7 +296,7 @@ describe('SyncSafetyBackupService', () => {
     }));
 
     it('should throw error when backup not found', async () => {
-      mockDb.load.and.returnValue(Promise.resolve([]));
+      mockLegacyPfDbService.load.and.returnValue(Promise.resolve([]));
 
       await expectAsync(service.restoreBackup('non-existent')).toBeRejectedWithError(
         'Backup with ID non-existent not found',
@@ -333,7 +305,7 @@ describe('SyncSafetyBackupService', () => {
 
     it('should not restore when user cancels confirmation', async () => {
       const backupData = { project: {} };
-      mockDb.load.and.returnValue(
+      mockLegacyPfDbService.load.and.returnValue(
         Promise.resolve([
           { id: 'backup-1', timestamp: Date.now(), data: backupData, reason: 'MANUAL' },
         ]),
@@ -344,12 +316,12 @@ describe('SyncSafetyBackupService', () => {
 
       await service.restoreBackup('backup-1');
 
-      expect(mockPfapiService.importCompleteBackup).not.toHaveBeenCalled();
+      expect(mockBackupService.importCompleteBackup).not.toHaveBeenCalled();
     });
 
     it('should restore when user confirms', async () => {
       const backupData = { project: {}, task: {} };
-      mockDb.load.and.returnValue(
+      mockLegacyPfDbService.load.and.returnValue(
         Promise.resolve([
           { id: 'backup-1', timestamp: Date.now(), data: backupData, reason: 'MANUAL' },
         ]),
@@ -360,8 +332,8 @@ describe('SyncSafetyBackupService', () => {
 
       await service.restoreBackup('backup-1');
 
-      expect(mockPfapiService.importCompleteBackup).toHaveBeenCalledWith(
-        backupData,
+      expect(mockBackupService.importCompleteBackup).toHaveBeenCalledWith(
+        backupData as any,
         false, // isSkipLegacyWarnings
         true, // isSkipReload
         true, // isForceConflict
@@ -369,7 +341,7 @@ describe('SyncSafetyBackupService', () => {
     });
 
     it('should throw error when restore fails', async () => {
-      mockDb.load.and.returnValue(
+      mockLegacyPfDbService.load.and.returnValue(
         Promise.resolve([
           { id: 'backup-1', timestamp: Date.now(), data: {}, reason: 'MANUAL' },
         ]),
@@ -377,7 +349,7 @@ describe('SyncSafetyBackupService', () => {
 
       // Replace window.confirm with mock
       window.confirm = jasmine.createSpy('confirm').and.returnValue(true);
-      mockPfapiService.importCompleteBackup.and.returnValue(
+      mockBackupService.importCompleteBackup.and.returnValue(
         Promise.reject(new Error('Import failed')),
       );
 
@@ -387,40 +359,25 @@ describe('SyncSafetyBackupService', () => {
     });
   });
 
-  describe('onBeforeUpdateLocal event handler', () => {
-    it('should create backup when event is received', (done) => {
-      // Give the constructor's setTimeout time to fire
-      setTimeout(async () => {
-        const eventData = {
-          backup: { project: {}, task: {} },
-          modelsToUpdate: ['task', 'project'],
-        };
+  describe('createBackupBeforeUpdate', () => {
+    beforeEach(fakeAsync(() => {
+      tick(1); // Process constructor setTimeout
+      discardPeriodicTasks();
+    }));
 
-        // Verify handler was registered
-        if (
-          !eventHandlers['onBeforeUpdateLocal'] ||
-          eventHandlers['onBeforeUpdateLocal'].length === 0
-        ) {
-          // Skip test if handler wasn't registered (timing issue in tests)
-          done();
-          return;
-        }
+    it('should create backup with BEFORE_UPDATE_LOCAL reason and modelsToUpdate', async () => {
+      const modelsToUpdate = ['task', 'project'];
+      await service.createBackupBeforeUpdate(modelsToUpdate);
 
-        // Trigger the event
-        const handler = eventHandlers['onBeforeUpdateLocal'][0];
-        await handler(eventData);
+      expect(mockBackupService.loadCompleteBackup).toHaveBeenCalled();
+      expect(mockLegacyPfDbService.save).toHaveBeenCalled();
 
-        expect(mockDb.save).toHaveBeenCalled();
+      const saveCall = mockLegacyPfDbService.save.calls.mostRecent();
+      const savedBackups = saveCall.args[1] as SyncSafetyBackup[];
 
-        const saveCall = mockDb.save.calls.mostRecent();
-        const savedBackups = saveCall.args[1] as SyncSafetyBackup[];
-
-        expect(savedBackups.length).toBeGreaterThan(0);
-        expect(savedBackups[0].reason).toBe('BEFORE_UPDATE_LOCAL');
-        expect(savedBackups[0].modelsToUpdate).toEqual(['task', 'project']);
-
-        done();
-      }, 10);
+      expect(savedBackups.length).toBeGreaterThan(0);
+      expect(savedBackups[0].reason).toBe('BEFORE_UPDATE_LOCAL');
+      expect(savedBackups[0].modelsToUpdate).toEqual(['task', 'project']);
     });
   });
 });

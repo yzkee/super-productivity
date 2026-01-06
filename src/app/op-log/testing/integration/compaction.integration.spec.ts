@@ -14,7 +14,7 @@ import {
   COMPACTION_RETENTION_MS,
   EMERGENCY_COMPACTION_RETENTION_MS,
 } from '../../core/operation-log.const';
-import { PfapiStoreDelegateService } from '../../../pfapi/pfapi-store-delegate.service';
+import { StateSnapshotService } from '../../../sync/state-snapshot.service';
 
 /**
  * Integration tests for operation log compaction and snapshot functionality.
@@ -33,31 +33,29 @@ describe('Compaction Integration', () => {
   let storeService: OperationLogStoreService;
   let compactionService: OperationLogCompactionService;
   let vectorClockService: VectorClockService;
-  let mockStoreDelegate: jasmine.SpyObj<PfapiStoreDelegateService>;
+  let mockStateSnapshot: jasmine.SpyObj<StateSnapshotService>;
 
   beforeEach(async () => {
-    // Create mock for PfapiStoreDelegateService
-    mockStoreDelegate = jasmine.createSpyObj('PfapiStoreDelegateService', [
-      'getAllSyncModelDataFromStore',
+    // Create mock for StateSnapshotService
+    mockStateSnapshot = jasmine.createSpyObj('StateSnapshotService', [
+      'getStateSnapshot',
     ]);
 
     // Default mock return value - cast to any since we only need partial data for tests
-    mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-      Promise.resolve({
-        task: { ids: [], entities: {} },
-        project: { ids: [], entities: {} },
-        tag: { ids: [], entities: {} },
-        note: { ids: [], entities: {} },
-        globalConfig: {},
-      } as any),
-    );
+    mockStateSnapshot.getStateSnapshot.and.returnValue({
+      task: { ids: [], entities: {} },
+      project: { ids: [], entities: {} },
+      tag: { ids: [], entities: {} },
+      note: { ids: [], entities: {} },
+      globalConfig: {},
+    } as any);
 
     TestBed.configureTestingModule({
       providers: [
         OperationLogStoreService,
         OperationLogCompactionService,
         VectorClockService,
-        { provide: PfapiStoreDelegateService, useValue: mockStoreDelegate },
+        { provide: StateSnapshotService, useValue: mockStateSnapshot },
       ],
     });
 
@@ -326,17 +324,15 @@ describe('Compaction Integration', () => {
       );
 
       // Mock state for compaction - cast to any since we only need partial data for tests
-      mockStoreDelegate.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve({
-          task: {
-            ids: ['task-1'],
-            entities: {
-              // eslint-disable-next-line @typescript-eslint/naming-convention
-              'task-1': createMinimalTaskPayload('task-1', { title: 'Task 1' }),
-            },
+      mockStateSnapshot.getStateSnapshot.and.returnValue({
+        task: {
+          ids: ['task-1'],
+          entities: {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            'task-1': createMinimalTaskPayload('task-1', { title: 'Task 1' }),
           },
-        } as any),
-      );
+        },
+      } as any);
 
       const result = await compactionService.emergencyCompact();
       expect(result).toBe(true);
