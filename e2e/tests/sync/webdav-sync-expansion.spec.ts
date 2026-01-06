@@ -11,7 +11,7 @@ import {
   waitForSyncComplete,
   generateSyncFolderName,
   dismissTourIfVisible,
-} from '../../utils/sync-test-helpers';
+} from '../../utils/sync-helpers';
 
 test.describe('WebDAV Sync Expansion', () => {
   // Run sync tests serially to avoid WebDAV server contention
