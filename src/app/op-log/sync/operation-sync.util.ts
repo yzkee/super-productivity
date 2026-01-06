@@ -5,9 +5,11 @@ import {
   SyncOperation,
 } from '../../pfapi/api/sync/sync-provider.interface';
 import { SyncProviderId } from '../../pfapi/api/pfapi.const';
+import { FileBasedOperationSyncCapable } from './providers/file-based/file-based-sync.types';
 
 /**
  * Type guard to check if a provider supports operation-based sync (API sync).
+ * This is for providers like SuperSync that have a dedicated API endpoint.
  */
 export const isOperationSyncCapable = (
   provider: SyncProviderServiceInterface<SyncProviderId>,
@@ -15,6 +17,21 @@ export const isOperationSyncCapable = (
   return (
     'supportsOperationSync' in provider &&
     (provider as unknown as OperationSyncCapable).supportsOperationSync === true
+  );
+};
+
+/**
+ * Type guard to check if a provider supports file-based operation sync.
+ * This is for providers like WebDAV, Dropbox, LocalFile that use file storage.
+ */
+export const isFileBasedOperationSyncCapable = (
+  provider: SyncProviderServiceInterface<SyncProviderId>,
+): provider is SyncProviderServiceInterface<SyncProviderId> &
+  FileBasedOperationSyncCapable => {
+  return (
+    'supportsFileBasedOperationSync' in provider &&
+    (provider as unknown as FileBasedOperationSyncCapable)
+      .supportsFileBasedOperationSync === true
   );
 };
 

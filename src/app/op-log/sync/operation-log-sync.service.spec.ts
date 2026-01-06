@@ -680,13 +680,20 @@ describe('OperationLogSyncService', () => {
             }),
           );
 
+          const setLastServerSeqSpy = jasmine
+            .createSpy('setLastServerSeq')
+            .and.resolveTo();
           const mockProvider = {
             isReady: () => Promise.resolve(true),
-            // supportsOperationSync NOT set - not an operation sync provider
+            setLastServerSeq: setLastServerSeqSpy,
+            // supportsOperationSync NOT set - but method still called since provider passed
           } as any;
 
-          // Should not throw even though provider doesn't support operation sync
+          // Should not throw even though provider doesn't have supportsOperationSync
           await expectAsync(service.downloadRemoteOps(mockProvider)).toBeResolved();
+
+          // setLastServerSeq should still be called when latestServerSeq is present
+          expect(setLastServerSeqSpy).toHaveBeenCalledWith(100);
         });
       });
     });
@@ -697,4 +704,271 @@ describe('OperationLogSyncService', () => {
 
   // Tests for _resolveStaleLocalOps have been moved to stale-operation-resolver.service.spec.ts
   // The functionality is now in StaleOperationResolverService
+
+  describe('forceUploadLocalState', () => {
+    let uploadServiceSpy: jasmine.SpyObj<OperationLogUploadService>;
+
+    beforeEach(() => {
+      uploadServiceSpy = TestBed.inject(
+        OperationLogUploadService,
+      ) as jasmine.SpyObj<OperationLogUploadService>;
+
+      // Default mock behaviors
+      uploadServiceSpy.uploadPendingOps.and.resolveTo({
+        uploadedCount: 1,
+        piggybackedOps: [],
+        rejectedCount: 0,
+        rejectedOps: [],
+        localWinOpsCreated: 0,
+      });
+    });
+
+    it('should call handleServerMigration to create SYNC_IMPORT', async () => {
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await service.forceUploadLocalState(mockProvider);
+
+      expect(serverMigrationServiceSpy.handleServerMigration).toHaveBeenCalledWith(
+        mockProvider,
+      );
+    });
+
+    it('should upload pending ops after creating SYNC_IMPORT', async () => {
+      const callOrder: string[] = [];
+      serverMigrationServiceSpy.handleServerMigration.and.callFake(async () => {
+        callOrder.push('handleServerMigration');
+      });
+      uploadServiceSpy.uploadPendingOps.and.callFake(async () => {
+        callOrder.push('uploadPendingOps');
+        return {
+          uploadedCount: 1,
+          piggybackedOps: [],
+          rejectedCount: 0,
+          rejectedOps: [],
+          localWinOpsCreated: 0,
+        };
+      });
+
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await service.forceUploadLocalState(mockProvider);
+
+      expect(callOrder).toEqual(['handleServerMigration', 'uploadPendingOps']);
+    });
+
+    it('should propagate errors from handleServerMigration', async () => {
+      const error = new Error('Failed to create SYNC_IMPORT');
+      serverMigrationServiceSpy.handleServerMigration.and.rejectWith(error);
+
+      const mockProvider = {
+        supportsOperationSync: true,
+      } as any;
+
+      await expectAsync(service.forceUploadLocalState(mockProvider)).toBeRejectedWith(
+        error,
+      );
+    });
+
+    it('should propagate errors from uploadPendingOps', async () => {
+      const error = new Error('Upload failed');
+      uploadServiceSpy.uploadPendingOps.and.rejectWith(error);
+
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await expectAsync(service.forceUploadLocalState(mockProvider)).toBeRejectedWith(
+        error,
+      );
+    });
+  });
+
+  describe('forceDownloadRemoteState', () => {
+    let downloadServiceSpy: jasmine.SpyObj<OperationLogDownloadService>;
+
+    beforeEach(() => {
+      downloadServiceSpy = TestBed.inject(
+        OperationLogDownloadService,
+      ) as jasmine.SpyObj<OperationLogDownloadService>;
+
+      opLogStoreSpy.clearUnsyncedOps = jasmine
+        .createSpy('clearUnsyncedOps')
+        .and.resolveTo();
+    });
+
+    it('should clear unsynced ops before downloading', async () => {
+      const callOrder: string[] = [];
+      opLogStoreSpy.clearUnsyncedOps.and.callFake(async () => {
+        callOrder.push('clearUnsyncedOps');
+      });
+      downloadServiceSpy.downloadRemoteOps.and.callFake(async () => {
+        callOrder.push('downloadRemoteOps');
+        return {
+          newOps: [],
+          needsFullStateUpload: false,
+          success: true,
+          failedFileCount: 0,
+        };
+      });
+
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await service.forceDownloadRemoteState(mockProvider);
+
+      expect(callOrder[0]).toBe('clearUnsyncedOps');
+    });
+
+    it('should reset lastServerSeq to 0', async () => {
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [],
+        needsFullStateUpload: false,
+        success: true,
+        failedFileCount: 0,
+      });
+
+      const setLastServerSeqSpy = jasmine.createSpy('setLastServerSeq').and.resolveTo();
+
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: setLastServerSeqSpy,
+      } as any;
+
+      await service.forceDownloadRemoteState(mockProvider);
+
+      expect(setLastServerSeqSpy).toHaveBeenCalledWith(0);
+    });
+
+    it('should download ops with forceFromSeq0 option', async () => {
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [],
+        needsFullStateUpload: false,
+        success: true,
+        failedFileCount: 0,
+      });
+
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await service.forceDownloadRemoteState(mockProvider);
+
+      expect(downloadServiceSpy.downloadRemoteOps).toHaveBeenCalledWith(
+        mockProvider,
+        jasmine.objectContaining({ forceFromSeq0: true }),
+      );
+    });
+
+    it('should process downloaded ops without confirmation', async () => {
+      const mockOps: Operation[] = [
+        {
+          id: 'op1',
+          actionType: 'ACTION' as ActionType,
+          opType: 'UPDATE' as OpType,
+          entityType: 'TASK',
+          entityId: 'task1',
+          payload: {},
+          clientId: 'remote',
+          vectorClock: {},
+          timestamp: Date.now(),
+          schemaVersion: 1,
+        },
+      ];
+
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: mockOps,
+        needsFullStateUpload: false,
+        success: true,
+        failedFileCount: 0,
+        latestServerSeq: 1,
+      });
+
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await service.forceDownloadRemoteState(mockProvider);
+
+      expect(remoteOpsProcessingServiceSpy.processRemoteOps).toHaveBeenCalledWith(
+        mockOps,
+      );
+    });
+
+    it('should update lastServerSeq after processing ops', async () => {
+      const mockOp: Operation = {
+        id: 'op1',
+        actionType: 'ACTION' as ActionType,
+        opType: 'UPDATE' as OpType,
+        entityType: 'TASK',
+        entityId: 'task1',
+        payload: {},
+        clientId: 'remote',
+        vectorClock: {},
+        timestamp: Date.now(),
+        schemaVersion: 1,
+      };
+
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [mockOp],
+        needsFullStateUpload: false,
+        success: true,
+        failedFileCount: 0,
+        latestServerSeq: 50,
+      });
+
+      const setLastServerSeqSpy = jasmine.createSpy('setLastServerSeq').and.resolveTo();
+
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: setLastServerSeqSpy,
+      } as any;
+
+      await service.forceDownloadRemoteState(mockProvider);
+
+      // First call is reset to 0, second call is update to latestServerSeq
+      expect(setLastServerSeqSpy).toHaveBeenCalledWith(0);
+      expect(setLastServerSeqSpy).toHaveBeenCalledWith(50);
+    });
+
+    it('should handle empty remote state gracefully', async () => {
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [],
+        needsFullStateUpload: false,
+        success: true,
+        failedFileCount: 0,
+      });
+
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await expectAsync(service.forceDownloadRemoteState(mockProvider)).toBeResolved();
+      expect(remoteOpsProcessingServiceSpy.processRemoteOps).not.toHaveBeenCalled();
+    });
+
+    it('should propagate errors from clearUnsyncedOps', async () => {
+      const error = new Error('Failed to clear ops');
+      opLogStoreSpy.clearUnsyncedOps.and.rejectWith(error);
+
+      const mockProvider = {
+        supportsOperationSync: true,
+      } as any;
+
+      await expectAsync(service.forceDownloadRemoteState(mockProvider)).toBeRejectedWith(
+        error,
+      );
+    });
+  });
 });

@@ -15,8 +15,8 @@ describe('Pfapi Sync Lock', () => {
     // Create mock sync service
     mockSyncService = jasmine.createSpyObj('SyncService', [
       'sync',
-      'downloadAll',
-      'uploadAll',
+      'forceUploadLocalState',
+      'forceDownloadRemoteState',
     ]);
 
     // Create a minimal Pfapi instance for testing
@@ -28,15 +28,15 @@ describe('Pfapi Sync Lock', () => {
       _syncService: mockSyncService,
       _wrapSyncAction: Pfapi.prototype['_wrapSyncAction'],
       sync: Pfapi.prototype.sync,
-      downloadAll: Pfapi.prototype.downloadAll,
-      uploadAll: Pfapi.prototype.uploadAll,
+      forceUploadLocalState: Pfapi.prototype.forceUploadLocalState,
+      forceDownloadRemoteState: Pfapi.prototype.forceDownloadRemoteState,
     };
 
     // Bind the methods to the instance
     pfapi._wrapSyncAction = pfapi._wrapSyncAction.bind(pfapi);
     pfapi.sync = pfapi.sync.bind(pfapi);
-    pfapi.downloadAll = pfapi.downloadAll.bind(pfapi);
-    pfapi.uploadAll = pfapi.uploadAll.bind(pfapi);
+    pfapi.forceUploadLocalState = pfapi.forceUploadLocalState.bind(pfapi);
+    pfapi.forceDownloadRemoteState = pfapi.forceDownloadRemoteState.bind(pfapi);
   });
 
   describe('_wrapSyncAction', () => {
@@ -71,9 +71,9 @@ describe('Pfapi Sync Lock', () => {
     });
 
     it('should emit correct sync status events in order', async () => {
-      mockSyncService.downloadAll.and.returnValue(Promise.resolve());
+      mockSyncService.forceDownloadRemoteState.and.returnValue(Promise.resolve());
 
-      await pfapi.downloadAll();
+      await pfapi.forceDownloadRemoteState();
 
       const emitCalls = pfapi.ev.emit.calls.allArgs();
       expect(emitCalls[0]).toEqual(['syncStatusChange', 'SYNCING']);
@@ -81,13 +81,13 @@ describe('Pfapi Sync Lock', () => {
       expect(emitCalls[2]).toEqual(['syncStatusChange', 'IN_SYNC']);
     });
 
-    it('should lock database during uploadAll', async () => {
-      mockSyncService.uploadAll.and.returnValue(Promise.resolve());
+    it('should lock database during forceUploadLocalState', async () => {
+      mockSyncService.forceUploadLocalState.and.returnValue(Promise.resolve());
 
-      await pfapi.uploadAll(true);
+      await pfapi.forceUploadLocalState();
 
-      expect(mockDb.lock).toHaveBeenCalledBefore(mockSyncService.uploadAll);
-      expect(mockSyncService.uploadAll).toHaveBeenCalledWith(true);
+      expect(mockDb.lock).toHaveBeenCalledBefore(mockSyncService.forceUploadLocalState);
+      expect(mockSyncService.forceUploadLocalState).toHaveBeenCalled();
       expect(mockDb.unlock).toHaveBeenCalled();
     });
 
@@ -201,17 +201,17 @@ describe('Pfapi Sync Lock', () => {
       mockSyncService.sync.and.returnValue(
         Promise.resolve({ status: SyncStatus.InSync }),
       );
-      mockSyncService.downloadAll.and.returnValue(Promise.resolve());
-      mockSyncService.uploadAll.and.returnValue(Promise.resolve());
+      mockSyncService.forceDownloadRemoteState.and.returnValue(Promise.resolve());
+      mockSyncService.forceUploadLocalState.and.returnValue(Promise.resolve());
 
       await pfapi.sync();
-      await pfapi.downloadAll(true);
-      await pfapi.uploadAll(false);
+      await pfapi.forceDownloadRemoteState();
+      await pfapi.forceUploadLocalState();
 
-      // Verify each method was called with correct parameters
+      // Verify each method was called
       expect(mockSyncService.sync).toHaveBeenCalled();
-      expect(mockSyncService.downloadAll).toHaveBeenCalledWith(true);
-      expect(mockSyncService.uploadAll).toHaveBeenCalledWith(false);
+      expect(mockSyncService.forceDownloadRemoteState).toHaveBeenCalled();
+      expect(mockSyncService.forceUploadLocalState).toHaveBeenCalled();
     });
   });
 

@@ -255,13 +255,13 @@ export class SyncWrapperService {
           }
 
           if (res === 'USE_LOCAL') {
-            SyncLog.log('User chose USE_LOCAL, calling uploadAll(true) with force');
-            // Use force upload to skip the meta file check and ensure lastUpdate is updated
-            await this._pfapiService.pf.uploadAll(true);
-            SyncLog.log('uploadAll(true) completed');
+            SyncLog.log('User chose USE_LOCAL, calling forceUploadLocalState()');
+            // Force upload creates a SYNC_IMPORT with current local state
+            await this._pfapiService.pf.forceUploadLocalState();
+            SyncLog.log('forceUploadLocalState() completed');
             return SyncStatus.UpdateRemoteAll;
           } else if (res === 'USE_REMOTE') {
-            await this._pfapiService.pf.downloadAll();
+            await this._pfapiService.pf.forceDownloadRemoteState();
             await this._reInitAppAfterDataModelChange();
             await this._syncVectorClockFromPfapi();
           }
@@ -355,7 +355,7 @@ export class SyncWrapperService {
       return;
     }
     try {
-      await this._pfapiService.pf.uploadAll(true);
+      await this._pfapiService.pf.forceUploadLocalState();
     } catch (e) {
       const errStr = getSyncErrorStr(e);
       this._snackService.open({
@@ -446,7 +446,7 @@ export class SyncWrapperService {
         if (res === 'FORCE_UPDATE_REMOTE') {
           await this._forceUpload();
         } else if (res === 'FORCE_UPDATE_LOCAL') {
-          await this._pfapiService.pf.downloadAll();
+          await this._pfapiService.pf.forceDownloadRemoteState();
           await this._reInitAppAfterDataModelChange();
           await this._syncVectorClockFromPfapi();
         }

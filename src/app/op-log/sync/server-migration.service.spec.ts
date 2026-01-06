@@ -57,21 +57,6 @@ describe('ServerMigrationService', () => {
     } as unknown as OperationSyncProvider;
   };
 
-  // Mock sync provider that does NOT support operations
-  const createLegacySyncProvider = (): SyncProviderServiceInterface<SyncProviderId> => {
-    return {
-      id: 'WebDAV' as SyncProviderId,
-      maxConcurrentRequests: 5,
-      privateCfg: {} as any,
-      getFileRev: jasmine.createSpy('getFileRev'),
-      downloadFile: jasmine.createSpy('downloadFile'),
-      uploadFile: jasmine.createSpy('uploadFile'),
-      removeFile: jasmine.createSpy('removeFile'),
-      isReady: jasmine.createSpy('isReady'),
-      setPrivateCfg: jasmine.createSpy('setPrivateCfg'),
-    } as unknown as SyncProviderServiceInterface<SyncProviderId>;
-  };
-
   beforeEach(() => {
     opLogStoreSpy = jasmine.createSpyObj('OperationLogStoreService', [
       'hasSyncedOps',
@@ -144,13 +129,8 @@ describe('ServerMigrationService', () => {
   });
 
   describe('checkAndHandleMigration', () => {
-    it('should skip for non-operation-sync-capable providers', async () => {
-      const legacyProvider = createLegacySyncProvider();
-      await service.checkAndHandleMigration(legacyProvider);
-
-      expect(opLogStoreSpy.hasSyncedOps).not.toHaveBeenCalled();
-      expect(opLogStoreSpy.append).not.toHaveBeenCalled();
-    });
+    // Note: The check for non-operation-sync-capable providers is now done at
+    // a higher level (sync.service.ts), so these methods expect OperationSyncCapable.
 
     it('should skip if lastServerSeq !== 0 (already synced with server)', async () => {
       const provider = createMockSyncProvider();
@@ -501,24 +481,8 @@ describe('ServerMigrationService', () => {
       expect(appendedOp.vectorClock['test-client']).toBe(11);
     });
 
-    it('should skip for non-operation-sync-capable provider', async () => {
-      // Create a legacy provider (no downloadOps method)
-      const legacyProvider = createLegacySyncProvider();
-
-      // This should still proceed but skip the double-check
-      // (legacy providers don't support operation sync anyway)
-      storeDelegateServiceSpy.getAllSyncModelDataFromStore.and.returnValue(
-        Promise.resolve({
-          task: { ids: ['task-1'], entities: { 'task-1': { id: 'task-1' } } },
-          project: { ids: [], entities: {} },
-          tag: { ids: [], entities: {} },
-        }) as any,
-      );
-
-      await service.handleServerMigration(legacyProvider as any);
-
-      // Should create SYNC_IMPORT without double-check
-      expect(opLogStoreSpy.append).toHaveBeenCalled();
-    });
+    // Note: Test for non-operation-sync-capable providers removed.
+    // The check for operation-sync capability is now done at a higher level
+    // (sync.service.ts), so handleServerMigration expects OperationSyncCapable.
   });
 });

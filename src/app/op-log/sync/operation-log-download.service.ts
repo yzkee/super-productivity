@@ -4,12 +4,10 @@ import { LockService } from './lock.service';
 import { Operation } from '../core/operation.types';
 import { OpLog } from '../../core/log';
 import {
-  SyncProviderServiceInterface,
   OperationSyncCapable,
   SyncOperation,
 } from '../../pfapi/api/sync/sync-provider.interface';
-import { SyncProviderId } from '../../pfapi/api/pfapi.const';
-import { isOperationSyncCapable, syncOpToOperation } from './operation-sync.util';
+import { syncOpToOperation } from './operation-sync.util';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
 import {
@@ -19,7 +17,6 @@ import {
   CLOCK_DRIFT_THRESHOLD_MS,
 } from '../core/operation-log.const';
 import { OperationEncryptionService } from './operation-encryption.service';
-import { SuperSyncPrivateCfg } from '../../pfapi/api/sync/providers/super-sync/super-sync.model';
 import { DecryptError } from '../../pfapi/api/errors/errors';
 import { SuperSyncStatusService } from './super-sync-status.service';
 
@@ -57,6 +54,12 @@ export interface DownloadResult {
    * Clients need this to create merged updates that dominate all known clocks.
    */
   snapshotVectorClock?: import('../core/operation.types').VectorClock;
+  /**
+   * Full state snapshot from file-based sync providers.
+   * Only set when downloading from seq 0 (fresh download) from a file-based provider.
+   * Contains the complete application state for bootstrapping a new client.
+   */
+  snapshotState?: unknown;
 }
 
 /**
@@ -85,7 +88,7 @@ export class OperationLogDownloadService {
   private hasWarnedClockDrift = false;
 
   async downloadRemoteOps(
-    syncProvider: SyncProviderServiceInterface<SyncProviderId>,
+    syncProvider: OperationSyncCapable,
     options?: { forceFromSeq0?: boolean },
   ): Promise<DownloadResult> {
     if (!syncProvider) {
@@ -95,19 +98,11 @@ export class OperationLogDownloadService {
       return { newOps: [], success: false, failedFileCount: 0 };
     }
 
-    // Operation log sync requires an API-capable provider
-    if (!isOperationSyncCapable(syncProvider)) {
-      OpLog.error(
-        'OperationLogDownloadService: Sync provider does not support operation sync.',
-      );
-      return { newOps: [], success: false, failedFileCount: 0 };
-    }
-
     return this._downloadRemoteOpsViaApi(syncProvider, options);
   }
 
   private async _downloadRemoteOpsViaApi(
-    syncProvider: SyncProviderServiceInterface<SyncProviderId> & OperationSyncCapable,
+    syncProvider: OperationSyncCapable,
     options?: { forceFromSeq0?: boolean },
   ): Promise<DownloadResult> {
     const forceFromSeq0 = options?.forceFromSeq0 ?? false;
@@ -121,11 +116,12 @@ export class OperationLogDownloadService {
     let needsFullStateUpload = false;
     let finalLatestSeq = 0;
     let snapshotVectorClock: import('../core/operation.types').VectorClock | undefined;
+    let snapshotState: unknown | undefined;
 
-    // Get encryption key upfront
-    const privateCfg =
-      (await syncProvider.privateCfg.load()) as SuperSyncPrivateCfg | null;
-    const encryptKey = privateCfg?.encryptKey;
+    // Get encryption key upfront (optional - file-based adapters handle encryption internally)
+    const encryptKey = syncProvider.getEncryptKey
+      ? await syncProvider.getEncryptKey()
+      : undefined;
 
     await this.lockService.request(LOCK_NAMES.DOWNLOAD, async () => {
       const lastServerSeq = forceFromSeq0 ? 0 : await syncProvider.getLastServerSeq();
@@ -165,6 +161,15 @@ export class OperationLogDownloadService {
           );
         }
 
+        // Capture snapshot state from first response (file-based sync providers only)
+        // This is only present when downloading from seq 0 (fresh download)
+        if (!snapshotState && response.snapshotState) {
+          snapshotState = response.snapshotState;
+          OpLog.normal(
+            'OperationLogDownloadService: Received snapshotState for fresh download bootstrap',
+          );
+        }
+
         // Handle gap detection: server was reset or client has stale lastServerSeq
         if (response.gapDetected && !hasResetForGap) {
           OpLog.warn(
@@ -177,6 +182,7 @@ export class OperationLogDownloadService {
           allNewOps.length = 0; // Clear any ops we may have accumulated
           allOpClocks.length = 0; // Clear clocks too
           snapshotVectorClock = undefined; // Clear snapshot clock to capture fresh one after reset
+          snapshotState = undefined; // Clear snapshot state to capture fresh one after reset
           // NOTE: Don't persist lastServerSeq=0 here - caller will persist the final value
           // after ops are stored in IndexedDB. This ensures localStorage and IndexedDB stay in sync.
           continue;
@@ -334,6 +340,8 @@ export class OperationLogDownloadService {
       ...(forceFromSeq0 && allOpClocks.length > 0 ? { allOpClocks } : {}),
       // Include snapshot vector clock when snapshot optimization was used
       ...(snapshotVectorClock ? { snapshotVectorClock } : {}),
+      // Include snapshot state for file-based sync fresh downloads
+      ...(snapshotState ? { snapshotState } : {}),
     };
   }
 

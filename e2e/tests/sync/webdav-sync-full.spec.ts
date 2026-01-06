@@ -44,6 +44,18 @@ test.describe('WebDAV Sync Full Flow', () => {
     const { context: contextA, page: pageA } = await setupSyncClient(browser, url);
     const syncPageA = new SyncPage(pageA);
     const workViewPageA = new WorkViewPage(pageA);
+
+    // Add console logging for debugging
+    pageA.on('console', (msg) => {
+      if (
+        msg.text().includes('FileBasedSyncAdapter') ||
+        msg.text().includes('OperationLogSyncService') ||
+        msg.text().includes('SyncService')
+      ) {
+        console.log(`[Client A Console] ${msg.type()}: ${msg.text()}`);
+      }
+    });
+
     await workViewPageA.waitForTaskList();
 
     // Configure Sync on Client A
@@ -54,24 +66,57 @@ test.describe('WebDAV Sync Full Flow', () => {
     const taskName = 'Task from Client A';
     await workViewPageA.addTask(taskName);
     await expect(pageA.locator('task')).toHaveCount(1);
+    console.log('[Test] Task created on Client A');
+
+    // Wait for state to persist before syncing
+    await waitForStatePersistence(pageA);
+    console.log('[Test] State persisted on Client A');
 
     // Sync Client A (Upload)
     await syncPageA.triggerSync();
     await waitForSyncComplete(pageA, syncPageA);
+    console.log('[Test] Sync completed on Client A');
 
     // --- Client B ---
     const { context: contextB, page: pageB } = await setupSyncClient(browser, url);
     const syncPageB = new SyncPage(pageB);
     const workViewPageB = new WorkViewPage(pageB);
+
+    // Add console logging for debugging
+    pageB.on('console', (msg) => {
+      if (
+        msg.text().includes('FileBasedSyncAdapter') ||
+        msg.text().includes('OperationLogSyncService') ||
+        msg.text().includes('SyncService') ||
+        msg.text().includes('RemoteOpsProcessingService') ||
+        msg.text().includes('OperationApplierService')
+      ) {
+        console.log(`[Client B Console] ${msg.type()}: ${msg.text()}`);
+      }
+    });
+
     await workViewPageB.waitForTaskList();
 
     // Configure Sync on Client B (Same path)
     await syncPageB.setupWebdavSync(WEBDAV_CONFIG);
     await expect(syncPageB.syncBtn).toBeVisible();
+    console.log('[Test] Sync configured on Client B');
 
     // Sync Client B (Download)
     await syncPageB.triggerSync();
     await waitForSyncComplete(pageB, syncPageB);
+    console.log('[Test] Sync completed on Client B');
+
+    // Debug: Check task count
+    const taskCountB = await pageB.locator('task').count();
+    console.log(`[Test] Task count on Client B: ${taskCountB}`);
+
+    // Debug: Check for any tasks in DOM
+    const taskHTML = await pageB
+      .locator('task-list')
+      .innerHTML()
+      .catch(() => 'N/A');
+    console.log(`[Test] TaskList HTML length: ${taskHTML.length}`);
 
     // Verify Task appears on Client B
     await expect(pageB.locator('task')).toHaveCount(1);

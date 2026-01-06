@@ -213,6 +213,12 @@ export interface OpDownloadResponse {
    * For clock drift detection, we need the server's CURRENT time, not old timestamps.
    */
   serverTime?: number;
+  /**
+   * Full state snapshot from file-based sync providers.
+   * Only set when downloading from seq 0 (fresh download) from a file-based provider.
+   * Contains the complete application state for bootstrapping a new client.
+   */
+  snapshotState?: unknown;
 }
 
 /**
@@ -283,6 +289,13 @@ export interface OperationSyncCapable {
    * tombstones, devices, and resets sync state.
    */
   deleteAllData(): Promise<{ success: boolean }>;
+
+  /**
+   * Get the encryption key for E2E encryption (optional).
+   * For API-based providers (SuperSync), returns the key from privateCfg.
+   * For file-based providers, encryption is handled internally so this returns undefined.
+   */
+  getEncryptKey?(): Promise<string | undefined>;
 }
 
 /**

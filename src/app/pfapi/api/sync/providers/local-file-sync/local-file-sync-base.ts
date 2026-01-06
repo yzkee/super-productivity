@@ -23,8 +23,13 @@ export abstract class LocalFileSyncBase
   readonly id = SyncProviderId.LocalFile;
   readonly isUploadForcePossible: boolean = false;
   readonly maxConcurrentRequests = 10;
-  // since we cannot guarantee the order of files, we need to mush all our data into a single file
-  // removed as operation log requires multiple files
+
+  /**
+   * Indicates this provider supports file-based operation sync.
+   * When true, the sync system will use FileBasedSyncAdapter to enable
+   * operation-log sync via file operations instead of PFAPI model sync.
+   */
+  readonly supportsFileBasedOperationSync = true as const;
 
   public privateCfg!: SyncProviderPrivateCfgStore<SyncProviderId.LocalFile>;
 

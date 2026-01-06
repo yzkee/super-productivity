@@ -1,8 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { SyncProviderServiceInterface } from '../../pfapi/api/sync/sync-provider.interface';
-import { SyncProviderId } from '../../pfapi/api/pfapi.const';
-import { isOperationSyncCapable } from './operation-sync.util';
+import { OperationSyncCapable } from '../../pfapi/api/sync/sync-provider.interface';
 import { OperationLogStoreService } from '../store/operation-log-store.service';
 import { VectorClockService } from './vector-clock.service';
 import { incrementVectorClock, mergeVectorClocks } from '../../core/util/vector-clock';
@@ -67,14 +65,7 @@ export class ServerMigrationService {
    *
    * @param syncProvider - The sync provider to check against
    */
-  async checkAndHandleMigration(
-    syncProvider: SyncProviderServiceInterface<SyncProviderId>,
-  ): Promise<void> {
-    // Only check for operation-sync capable providers
-    if (!isOperationSyncCapable(syncProvider)) {
-      return;
-    }
-
+  async checkAndHandleMigration(syncProvider: OperationSyncCapable): Promise<void> {
     // Check if lastServerSeq is 0 (first time connecting to this server)
     const lastServerSeq = await syncProvider.getLastServerSeq();
     if (lastServerSeq !== 0) {
@@ -134,20 +125,16 @@ export class ServerMigrationService {
    *
    * @param syncProvider - The sync provider to use for double-check
    */
-  async handleServerMigration(
-    syncProvider: SyncProviderServiceInterface<SyncProviderId>,
-  ): Promise<void> {
+  async handleServerMigration(syncProvider: OperationSyncCapable): Promise<void> {
     // Double-check server is still empty (in case another client just uploaded)
     // This is called inside the upload lock, but network timing could still race
-    if (isOperationSyncCapable(syncProvider)) {
-      const freshCheck = await syncProvider.downloadOps(0, undefined, 1);
-      if (freshCheck.latestSeq !== 0) {
-        OpLog.warn(
-          'ServerMigrationService: Server no longer empty, aborting SYNC_IMPORT. ' +
-            'Another client may have just uploaded.',
-        );
-        return;
-      }
+    const freshCheck = await syncProvider.downloadOps(0, undefined, 1);
+    if (freshCheck.latestSeq !== 0) {
+      OpLog.warn(
+        'ServerMigrationService: Server no longer empty, aborting SYNC_IMPORT. ' +
+          'Another client may have just uploaded.',
+      );
+      return;
     }
 
     OpLog.warn(

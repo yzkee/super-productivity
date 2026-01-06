@@ -45,7 +45,8 @@ import {
   TimeTrackingState,
 } from '../features/time-tracking/time-tracking.model';
 import { initialTimeTrackingState } from '../features/time-tracking/store/time-tracking.reducer';
-import { CROSS_MODEL_MIGRATIONS } from './migrate/cross-model-migrations';
+// Legacy cross-model migrations have been removed - all data schema migrations
+// now happen via the operation-log sync system.
 import { appDataValidators, validateFull } from './validate/validation-fn';
 import { fixEntityStateConsistency } from '../util/check-fix-entity-state-consistency';
 import { IValidation } from 'typia';
@@ -269,5 +270,5 @@ export const PFAPI_CFG: PfapiBaseCfg<PfapiAllModelCfg> = {
     }
     return dataRepair(data, errors) as AppDataCompleteNew;
   },
-  crossModelMigrations: CROSS_MODEL_MIGRATIONS,
+  crossModelMigrations: {}, // Migrations removed - schema migrations via op-log sync
 };

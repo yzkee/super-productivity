@@ -495,6 +495,31 @@ export class OperationLogStoreService {
   }
 
   /**
+   * Clears all unsynced local operations by marking them as rejected.
+   * Used when force-downloading remote state to discard local changes.
+   */
+  async clearUnsyncedOps(): Promise<void> {
+    await this._ensureInit();
+
+    const unsynced = await this.getUnsynced();
+    if (unsynced.length === 0) return;
+
+    const tx = this.db.transaction('ops', 'readwrite');
+    const store = tx.objectStore('ops');
+    const now = Date.now();
+
+    for (const entry of unsynced) {
+      const stored = await store.get(entry.seq);
+      if (stored) {
+        stored.rejectedAt = now;
+        await store.put(stored);
+      }
+    }
+    await tx.done;
+    this._invalidateUnsyncedCache();
+  }
+
+  /**
    * Marks operations as failed (can be retried later).
    * Increments the retry count for each operation.
    * If maxRetries is provided and reached, marks as rejected instead.

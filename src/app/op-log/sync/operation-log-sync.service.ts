@@ -3,9 +3,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { OperationLogStoreService } from '../store/operation-log-store.service';
 import { VectorClock } from '../core/operation.types';
 import { OpLog } from '../../core/log';
-import { SyncProviderServiceInterface } from '../../pfapi/api/sync/sync-provider.interface';
-import { SyncProviderId } from '../../pfapi/api/pfapi.const';
-import { isOperationSyncCapable } from './operation-sync.util';
+import { OperationSyncCapable } from '../../pfapi/api/sync/sync-provider.interface';
 import { OperationLogUploadService, UploadResult } from './operation-log-upload.service';
 import { OperationLogDownloadService } from './operation-log-download.service';
 import { SnackService } from '../../core/snack/snack.service';
@@ -20,6 +18,7 @@ import {
   DownloadResultForRejection,
   RejectedOpsHandlerService,
 } from './rejected-ops-handler.service';
+import { SyncHydrationService } from '../store/sync-hydration.service';
 
 /**
  * Orchestrates synchronization of the Operation Log with remote storage.
@@ -100,6 +99,7 @@ export class OperationLogSyncService {
   // Extracted services
   private remoteOpsProcessingService = inject(RemoteOpsProcessingService);
   private rejectedOpsHandlerService = inject(RejectedOpsHandlerService);
+  private syncHydrationService = inject(SyncHydrationService);
 
   // Lazy injection to break circular dependency for getActiveSyncProvider():
   // PfapiService -> Pfapi -> OperationLogSyncService -> PfapiService
@@ -142,7 +142,7 @@ export class OperationLogSyncService {
    * before uploading regular ops. This ensures all data is transferred to the new server.
    */
   async uploadPendingOps(
-    syncProvider: SyncProviderServiceInterface<SyncProviderId>,
+    syncProvider: OperationSyncCapable,
   ): Promise<UploadResult | null> {
     // CRITICAL: Ensure all pending write operations have completed before uploading.
     // The effect that writes operations uses concatMap for sequential processing,
@@ -229,7 +229,7 @@ export class OperationLogSyncService {
    *          and how many local-win ops were created during LWW resolution
    */
   async downloadRemoteOps(
-    syncProvider: SyncProviderServiceInterface<SyncProviderId>,
+    syncProvider: OperationSyncCapable,
     options?: { forceFromSeq0?: boolean },
   ): Promise<{
     serverMigrationHandled: boolean;
@@ -245,11 +245,64 @@ export class OperationLogSyncService {
     if (result.needsFullStateUpload) {
       await this.serverMigrationService.handleServerMigration(syncProvider);
       // Persist lastServerSeq=0 for the migration case (server was reset)
-      if (isOperationSyncCapable(syncProvider) && result.latestServerSeq !== undefined) {
+      if (result.latestServerSeq !== undefined) {
         await syncProvider.setLastServerSeq(result.latestServerSeq);
       }
       // Return with flag indicating migration was handled - caller should upload the SYNC_IMPORT
       return { serverMigrationHandled: true, localWinOpsCreated: 0, newOpsCount: 0 };
+    }
+
+    // FILE-BASED SYNC: Handle full state snapshot from fresh download
+    // When downloading from seq 0 on file-based providers (Dropbox, WebDAV, LocalFile),
+    // we receive the complete application state in snapshotState. This must be hydrated
+    // directly instead of processing incremental ops (which are already reflected in the state).
+    if (result.snapshotState) {
+      OpLog.normal(
+        'OperationLogSyncService: Received snapshotState from file-based sync. Hydrating...',
+      );
+
+      // Show fresh client confirmation if this is a wholly fresh client
+      const isFreshClient = await this.isWhollyFreshClient();
+      if (isFreshClient) {
+        OpLog.warn(
+          'OperationLogSyncService: Fresh client detected. Requesting confirmation before accepting snapshot.',
+        );
+
+        const confirmed = this._showFreshClientSyncConfirmation(1); // Show as "1 snapshot"
+        if (!confirmed) {
+          OpLog.normal(
+            'OperationLogSyncService: User cancelled fresh client sync. Snapshot not applied.',
+          );
+          this.snackService.open({
+            msg: T.F.SYNC.S.FRESH_CLIENT_SYNC_CANCELLED,
+          });
+          return { serverMigrationHandled: false, localWinOpsCreated: 0, newOpsCount: 0 };
+        }
+
+        OpLog.normal(
+          'OperationLogSyncService: User confirmed fresh client sync. Proceeding with snapshot.',
+        );
+      }
+
+      // Hydrate state from snapshot - this creates a SYNC_IMPORT operation and updates NgRx
+      await this.syncHydrationService.hydrateFromRemoteSync(
+        result.snapshotState as Record<string, unknown>,
+      );
+
+      // Persist lastServerSeq after hydration
+      if (result.latestServerSeq !== undefined) {
+        await syncProvider.setLastServerSeq(result.latestServerSeq);
+      }
+
+      OpLog.normal('OperationLogSyncService: Snapshot hydration complete.');
+
+      return {
+        serverMigrationHandled: false,
+        localWinOpsCreated: 0,
+        newOpsCount: 0, // Snapshot applied, not incremental ops
+        allOpClocks: result.allOpClocks,
+        snapshotVectorClock: result.snapshotVectorClock,
+      };
     }
 
     if (result.newOps.length === 0) {
@@ -259,7 +312,7 @@ export class OperationLogSyncService {
       // IMPORTANT: Persist lastServerSeq even when no ops - keeps client in sync with server.
       // This is safe because we're not storing any ops, so there's no risk of localStorage
       // getting ahead of IndexedDB.
-      if (isOperationSyncCapable(syncProvider) && result.latestServerSeq !== undefined) {
+      if (result.latestServerSeq !== undefined) {
         await syncProvider.setLastServerSeq(result.latestServerSeq);
       }
       return {
@@ -307,7 +360,7 @@ export class OperationLogSyncService {
     // This ensures localStorage and IndexedDB stay in sync. If we crash before this point,
     // lastServerSeq won't be updated, and the client will re-download the ops on next sync.
     // This is the correct behavior - better to re-download than to skip ops.
-    if (isOperationSyncCapable(syncProvider) && result.latestServerSeq !== undefined) {
+    if (result.latestServerSeq !== undefined) {
       await syncProvider.setLastServerSeq(result.latestServerSeq);
     }
 
@@ -338,5 +391,81 @@ export class OperationLogSyncService {
       },
     );
     return window.confirm(`${title}\n\n${message}`);
+  }
+
+  /**
+   * Force upload local state as a SYNC_IMPORT, replacing all remote data.
+   * This is used when user explicitly chooses "USE_LOCAL" in conflict resolution.
+   *
+   * Unlike server migration, this does NOT check if server is empty - it always
+   * creates a SYNC_IMPORT to override remote state with local state.
+   *
+   * @param syncProvider - The sync provider to upload to
+   */
+  async forceUploadLocalState(syncProvider: OperationSyncCapable): Promise<void> {
+    OpLog.warn(
+      'OperationLogSyncService: Force uploading local state - creating SYNC_IMPORT to override remote.',
+    );
+
+    // Create SYNC_IMPORT with current local state
+    await this.serverMigrationService.handleServerMigration(syncProvider);
+
+    // Upload the SYNC_IMPORT (and any pending ops)
+    await this.uploadPendingOps(syncProvider);
+
+    OpLog.normal('OperationLogSyncService: Force upload complete.');
+  }
+
+  /**
+   * Force download all remote state, replacing local data.
+   * This is used when user explicitly chooses "USE_REMOTE" in conflict resolution.
+   *
+   * Clears all local unsynced operations and downloads from seq 0 to get
+   * the complete remote state including any SYNC_IMPORT.
+   *
+   * IMPORTANT: This also resets the vector clock to the remote snapshot's clock
+   * to ensure rejected local ops don't pollute the causal history.
+   *
+   * @param syncProvider - The sync provider to download from
+   */
+  async forceDownloadRemoteState(syncProvider: OperationSyncCapable): Promise<void> {
+    OpLog.warn(
+      'OperationLogSyncService: Force downloading remote state - clearing local unsynced ops.',
+    );
+
+    // Clear all unsynced local ops - we're replacing them with remote state
+    await this.opLogStore.clearUnsyncedOps();
+
+    // Reset lastServerSeq to 0 so we download everything
+    await syncProvider.setLastServerSeq(0);
+
+    // Download all remote ops from the beginning
+    const result = await this.downloadService.downloadRemoteOps(syncProvider, {
+      forceFromSeq0: true,
+    });
+
+    // Reset the vector clock to the remote snapshot's clock.
+    // This removes entries from rejected local ops that would otherwise
+    // pollute the causal history and cause incorrect conflict detection.
+    if (result.snapshotVectorClock) {
+      await this.opLogStore.setVectorClock(result.snapshotVectorClock);
+      OpLog.normal(
+        'OperationLogSyncService: Reset vector clock to remote snapshot clock.',
+      );
+    }
+
+    if (result.newOps.length > 0) {
+      // Process all remote ops (no confirmation needed - user already chose USE_REMOTE)
+      await this.remoteOpsProcessingService.processRemoteOps(result.newOps);
+
+      // Update lastServerSeq
+      if (result.latestServerSeq !== undefined) {
+        await syncProvider.setLastServerSeq(result.latestServerSeq);
+      }
+    }
+
+    OpLog.normal(
+      `OperationLogSyncService: Force download complete. Processed ${result.newOps.length} ops.`,
+    );
   }
 }

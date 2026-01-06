@@ -1,95 +1,44 @@
 import {
   ConflictData,
   EncryptAndCompressCfg,
-  LocalMeta,
   MainModelData,
   ModelCfgs,
-  ModelCfgToModelCtrl,
-  RemoteMeta,
-  RevMap,
-  UploadMeta,
 } from '../pfapi.model';
 import { SyncProviderServiceInterface } from './sync-provider.interface';
 import { MiniObservable } from '../util/mini-observable';
 import { SyncProviderId, SyncStatus } from '../pfapi.const';
-import {
-  ImpossibleError,
-  LockFromLocalClientPresentError,
-  ModelVersionToImportNewerThanLocalError,
-  NoRemoteMetaFile,
-  UnknownSyncStateError,
-} from '../errors/errors';
+import { ImpossibleError } from '../errors/errors';
 import { PFLog } from '../../../core/log';
-import { MetaModelCtrl } from '../model-ctrl/meta-model-ctrl';
-import { EncryptAndCompressHandlerService } from './encrypt-and-compress-handler.service';
-import { cleanRev } from '../util/clean-rev';
-import { getSyncStatusFromMetaFiles } from '../util/get-sync-status-from-meta-files';
-import { validateRevMap } from '../util/validate-rev-map';
-import { loadBalancer } from '../util/load-balancer';
-import { Pfapi } from '../pfapi';
-import { modelVersionCheck, ModelVersionCheckResult } from '../util/model-version-check';
-import { MetaSyncService } from './meta-sync.service';
-import { ModelSyncService } from './model-sync.service';
-import {
-  mergeVectorClocks,
-  incrementVectorClock,
-  limitVectorClockSize,
-  sanitizeVectorClock,
-} from '../util/vector-clock';
-import { getVectorClock } from '../util/backwards-compat';
 import { OperationLogSyncService } from '../../../op-log/sync/operation-log-sync.service';
+import { FileBasedSyncAdapterService } from '../../../op-log/sync/providers/file-based/file-based-sync-adapter.service';
+import { isFileBasedOperationSyncCapable } from '../../../op-log/sync/operation-sync.util';
+import { OperationSyncCapable } from './sync-provider.interface';
+import { PfapiMigrationService } from '../../../op-log/sync/providers/file-based/pfapi-migration.service';
 
 /**
  * Sync Service for Super Productivity
  *
- * Change Detection System:
- * Uses vector clocks for detecting concurrent changes and conflicts between devices.
- * Each client maintains its own counter in the vector clock which is incremented
- * on local changes. This allows proper conflict detection when changes happen
- * on multiple devices simultaneously.
+ * All sync now uses the operation log system:
+ * - API-based providers (SuperSync) - direct operation sync
+ * - File-based providers (WebDAV, Dropbox, LocalFile) - via FileBasedSyncAdapter
+ *
+ * The legacy PFAPI model-per-file sync has been removed as part of Phase 5 deprecation.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export class SyncService<const MD extends ModelCfgs> {
-  public readonly IS_DO_CROSS_MODEL_MIGRATIONS: boolean;
-  private static readonly UPDATE_ALL_REV = 'UPDATE_ALL_REV';
   private static readonly L = 'SyncService';
 
-  private _metaFileSyncService: MetaSyncService;
-  private _modelSyncService: ModelSyncService<MD>;
-
   constructor(
-    public m: ModelCfgToModelCtrl<MD>,
-    private _pfapiMain: Pfapi<MD>,
-    private _metaModelCtrl: MetaModelCtrl,
     private _currentSyncProvider$: MiniObservable<SyncProviderServiceInterface<SyncProviderId> | null>,
-    _encryptAndCompressCfg$: MiniObservable<EncryptAndCompressCfg>,
-    _encryptAndCompressHandler: EncryptAndCompressHandlerService,
+    private _encryptAndCompressCfg$: MiniObservable<EncryptAndCompressCfg>,
     private _operationLogSyncService: OperationLogSyncService,
-  ) {
-    this._metaFileSyncService = new MetaSyncService(
-      _metaModelCtrl,
-      _currentSyncProvider$,
-      _encryptAndCompressHandler,
-      _encryptAndCompressCfg$,
-    );
-    this._modelSyncService = new ModelSyncService(
-      m,
-      _pfapiMain,
-      _currentSyncProvider$,
-      _encryptAndCompressHandler,
-      _encryptAndCompressCfg$,
-    );
-
-    this.IS_DO_CROSS_MODEL_MIGRATIONS = !!(
-      _pfapiMain.cfg?.crossModelVersion &&
-      _pfapiMain.cfg?.crossModelMigrations &&
-      Object.keys(_pfapiMain.cfg?.crossModelMigrations).length
-    );
-  }
+    private _fileBasedSyncAdapterService: FileBasedSyncAdapterService,
+    private _pfapiMigrationService: PfapiMigrationService,
+  ) {}
 
   /**
-   * Synchronizes data between local and remote storage
-   * Determines sync direction based on timestamps and data state
-   * @returns Promise containing sync status, optional conflict data, and downloaded main model data
+   * Synchronizes data between local and remote storage using operation log sync.
+   * @returns Promise containing sync status
    */
   async sync(): Promise<{
     status: SyncStatus;
@@ -102,727 +51,150 @@ export class SyncService<const MD extends ModelCfgs> {
         return { status: SyncStatus.NotConfigured };
       }
 
-      // --- Operation Log Sync Phase ---
-      // Operation log sync is only for providers that support it.
-      // Currently ALL providers (WebDAV, Dropbox, LocalFileSync) use legacy LWW sync.
-      // Op-log sync is reserved for future server-based providers only.
       const currentSyncProvider = this._currentSyncProvider$.value;
-      if (currentSyncProvider && this._supportsOpLogSync(currentSyncProvider)) {
-        const uploadResult =
-          await this._operationLogSyncService.uploadPendingOps(currentSyncProvider);
+      if (!currentSyncProvider) {
+        return { status: SyncStatus.NotConfigured };
+      }
 
-        // OPTIMIZATION: Skip download if all remote ops were already piggybacked during upload.
-        // This reduces sync to a single round-trip when remote changes are small (≤500 ops).
-        // When hasMorePiggyback=true, we still need to download remaining ops.
-        let downloadResult: {
-          serverMigrationHandled: boolean;
-          localWinOpsCreated: number;
-          newOpsCount: number;
-        };
-
-        // OPTIMIZATION: Skip download ONLY when server explicitly confirms no more ops.
-        // hasMorePiggyback === false means: we uploaded something AND server returned the flag.
-        // hasMorePiggyback === undefined means: no upload happened (nothing to upload) - MUST download.
-        // hasMorePiggyback === true means: server has more ops beyond the piggyback limit.
-        if (uploadResult && uploadResult.hasMorePiggyback === false) {
-          // Server confirmed all remote ops fit in piggyback - no download needed
-          const opCount = uploadResult.piggybackedOps.length;
-          PFLog.normal(
-            `${SyncService.L}.${this.sync.name}(): All ops piggybacked (${opCount}), skip download`,
-          );
-          downloadResult = {
-            serverMigrationHandled: false,
-            localWinOpsCreated: 0,
-            newOpsCount: 0,
-          };
-        } else {
-          // Need to download remaining ops
-          downloadResult =
-            await this._operationLogSyncService.downloadRemoteOps(currentSyncProvider);
-        }
-
-        // Track if we need a re-upload:
-        // 1. Server migration created a SYNC_IMPORT that needs uploading
-        // 2. LWW local-wins created new update ops from piggybacked ops (during upload)
-        // 3. LWW local-wins created new update ops from downloaded ops
-        let needsReupload =
-          downloadResult.serverMigrationHandled ||
-          (uploadResult?.localWinOpsCreated ?? 0) > 0 ||
-          downloadResult.localWinOpsCreated > 0;
-
-        // Loop until all merged ops are uploaded
-        // Each upload may fail due to concurrent modification and create more merged ops
-        const MAX_REUPLOAD_ATTEMPTS = 5;
-        let reuploadAttempts = 0;
-
-        while (needsReupload && reuploadAttempts < MAX_REUPLOAD_ATTEMPTS) {
-          reuploadAttempts++;
-
-          if (downloadResult.serverMigrationHandled && reuploadAttempts === 1) {
-            PFLog.normal(
-              `${SyncService.L}.${this.sync.name}(): Server migration detected, uploading full state snapshot`,
-            );
-          } else {
-            const totalLocalWinOps =
-              (uploadResult?.localWinOpsCreated ?? 0) + downloadResult.localWinOpsCreated;
-            PFLog.normal(
-              `${SyncService.L}.${this.sync.name}(): LWW local-wins created ` +
-                `${totalLocalWinOps} update op(s), re-uploading (attempt ${reuploadAttempts})`,
-            );
-          }
-
-          const reuploadResult =
-            await this._operationLogSyncService.uploadPendingOps(currentSyncProvider);
-
-          // Check if re-upload created more merged ops (due to concurrent modification)
-          needsReupload = (reuploadResult?.localWinOpsCreated ?? 0) > 0;
-        }
-
-        if (reuploadAttempts >= MAX_REUPLOAD_ATTEMPTS) {
-          PFLog.warn(
-            `${SyncService.L}.${this.sync.name}(): Max re-upload attempts reached, some ops may still be pending`,
-          );
-        }
-
-        // For operation-only providers (like SuperSync), skip file-based sync
-        // Operation sync handles all data synchronization
-        PFLog.normal(
-          `${SyncService.L}.${this.sync.name}(): Operation sync complete, skipping file-based sync`,
+      // For file-based providers, check if migration from PFAPI is needed
+      if (isFileBasedOperationSyncCapable(currentSyncProvider)) {
+        const cfg = this._encryptAndCompressCfg$.value;
+        const encryptKey = (await currentSyncProvider.privateCfg.load())?.encryptKey;
+        const migrated = await this._pfapiMigrationService.migrateIfNeeded(
+          currentSyncProvider,
+          cfg,
+          encryptKey,
         );
-        return { status: SyncStatus.InSync };
+        if (migrated) {
+          PFLog.normal(
+            `${SyncService.L}.${this.sync.name}(): PFAPI migration completed, continuing with op-log sync`,
+          );
+        }
       }
-      // --- END Operation Log Sync Phase ---
 
-      const localMeta0 = await this._metaModelCtrl.load();
-
-      PFLog.normal(`${SyncService.L}.${this.sync.name}(): Initial meta check`, {
-        lastUpdate: localMeta0.lastUpdate,
-        lastSyncedUpdate: localMeta0.lastSyncedUpdate,
-        metaRev: localMeta0.metaRev,
-        isInSync: localMeta0.lastSyncedUpdate === localMeta0.lastUpdate,
-      });
-
-      // NOTE: Early return optimization removed - always do full vector clock comparison
-      // The metaRev (Last-Modified timestamp) comparison was unreliable with WebDAV servers
-      // and caused sync to incorrectly return InSync when remote had changes
-
-      const { remoteMeta, remoteMetaRev } = await this._metaFileSyncService.download();
-
-      // we load again, to get the latest local changes for our checks and the data to upload
-      const localMeta = await this._metaModelCtrl.load();
-
-      const { status, conflictData } = getSyncStatusFromMetaFiles(remoteMeta, localMeta);
-
-      PFLog.normal(
-        `${SyncService.L}.${this.sync.name}(): __SYNC_START__ metaFileCheck`,
-        status,
-        {
-          l: localMeta.lastUpdate && new Date(localMeta.lastUpdate).toISOString(),
-          r: remoteMeta.lastUpdate && new Date(remoteMeta.lastUpdate).toISOString(),
-          remoteMetaFileContent: remoteMeta,
-          localSyncMetaData: localMeta,
-          remoteMetaRev,
-        },
-      );
-
-      switch (status) {
-        case SyncStatus.UpdateLocal:
-          // Emit event before updating local data
-          try {
-            const currentBackup = await this._pfapiMain.loadCompleteBackup();
-
-            // Get the models that will be updated
-            const { toUpdate } = this._modelSyncService.getModelIdsToUpdateFromRevMaps({
-              revMapNewer: remoteMeta.revMap,
-              revMapToOverwrite: localMeta.revMap,
-              errorContext: 'DOWNLOAD',
-            });
-
-            this._pfapiMain.ev.emit('onBeforeUpdateLocal', {
-              backup: currentBackup,
-              modelsToUpdate: toUpdate,
-            });
-          } catch (error) {
-            PFLog.critical('Failed to emit onBeforeUpdateLocal event', error);
-            // Continue with sync even if backup event fails
-          }
-
-          if (this.IS_DO_CROSS_MODEL_MIGRATIONS) {
-            const mvcR = modelVersionCheck({
-              // TODO check for problems
-              clientVersion:
-                this._pfapiMain.cfg?.crossModelVersion || localMeta.crossModelVersion,
-              toImport: remoteMeta.crossModelVersion,
-            });
-            switch (mvcR) {
-              case ModelVersionCheckResult.MinorUpdate:
-              case ModelVersionCheckResult.MajorUpdate:
-                PFLog.normal('Downloading all since model version changed');
-                await this.downloadAll();
-                return {
-                  status: SyncStatus.UpdateLocalAll,
-                  downloadedMainModelData: remoteMeta.mainModelData,
-                };
-              case ModelVersionCheckResult.RemoteMajorAhead:
-                throw new ModelVersionToImportNewerThanLocalError({
-                  localMeta,
-                  remoteMeta,
-                });
-              // NOTE case ModelVersionCheckResult.RemoteModelEqualOrMinorUpdateOnly is fallthrough
-            }
-          }
-          // NOTE: also fallthrough for case ModelVersionCheckResult.RemoteModelEqualOrMinorUpdateOnly:
-          await this.downloadToLocal(remoteMeta, localMeta, remoteMetaRev);
-          return { status, downloadedMainModelData: remoteMeta.mainModelData };
-
-        case SyncStatus.UpdateRemote:
-          await this.uploadToRemote(remoteMeta, localMeta, remoteMetaRev);
-          return { status };
-        case SyncStatus.InSync:
-          // Ensure lastSyncedUpdate is set even when already in sync
-          if (localMeta.lastSyncedUpdate !== localMeta.lastUpdate) {
-            PFLog.normal('InSync but lastSyncedUpdate needs update', {
-              lastSyncedUpdate: localMeta.lastSyncedUpdate,
-              lastUpdate: localMeta.lastUpdate,
-            });
-
-            // Get the local vector clock
-            const localVector = localMeta.vectorClock;
-
-            const updatedMeta = {
-              ...localMeta,
-              lastSyncedUpdate: localMeta.lastUpdate,
-              metaRev: remoteMetaRev,
-              // Ensure vector clock fields are always present
-              vectorClock: localMeta.vectorClock || {},
-              lastSyncedVectorClock: localVector || null,
-            };
-
-            await this._metaFileSyncService.saveLocal(updatedMeta);
-          }
-          return { status };
-        case SyncStatus.Conflict:
-          return { status, conflictData };
-        case SyncStatus.IncompleteRemoteData:
-          return { status, conflictData };
-        default:
-          // likely will never happen
-          throw new UnknownSyncStateError();
+      // Get the OperationSyncCapable interface (direct or wrapped)
+      const opLogProvider = await this._getOpLogSyncProvider(currentSyncProvider);
+      if (!opLogProvider) {
+        throw new ImpossibleError('Provider does not support operation sync');
       }
+
+      const uploadResult =
+        await this._operationLogSyncService.uploadPendingOps(opLogProvider);
+
+      // OPTIMIZATION: Skip download if all remote ops were already piggybacked during upload.
+      let downloadResult: {
+        serverMigrationHandled: boolean;
+        localWinOpsCreated: number;
+        newOpsCount: number;
+      };
+
+      if (uploadResult && uploadResult.hasMorePiggyback === false) {
+        // Server confirmed all remote ops fit in piggyback - no download needed
+        const opCount = uploadResult.piggybackedOps.length;
+        PFLog.normal(
+          `${SyncService.L}.${this.sync.name}(): All ops piggybacked (${opCount}), skip download`,
+        );
+        downloadResult = {
+          serverMigrationHandled: false,
+          localWinOpsCreated: 0,
+          newOpsCount: 0,
+        };
+      } else {
+        // Need to download remaining ops
+        downloadResult =
+          await this._operationLogSyncService.downloadRemoteOps(opLogProvider);
+      }
+
+      // Track if we need a re-upload:
+      // 1. Server migration created a SYNC_IMPORT that needs uploading
+      // 2. LWW local-wins created new update ops from piggybacked ops (during upload)
+      // 3. LWW local-wins created new update ops from downloaded ops
+      let needsReupload =
+        downloadResult.serverMigrationHandled ||
+        (uploadResult?.localWinOpsCreated ?? 0) > 0 ||
+        downloadResult.localWinOpsCreated > 0;
+
+      // Loop until all merged ops are uploaded
+      const MAX_REUPLOAD_ATTEMPTS = 5;
+      let reuploadAttempts = 0;
+
+      while (needsReupload && reuploadAttempts < MAX_REUPLOAD_ATTEMPTS) {
+        reuploadAttempts++;
+
+        if (downloadResult.serverMigrationHandled && reuploadAttempts === 1) {
+          PFLog.normal(
+            `${SyncService.L}.${this.sync.name}(): Server migration detected, uploading full state snapshot`,
+          );
+        } else {
+          const totalLocalWinOps =
+            (uploadResult?.localWinOpsCreated ?? 0) + downloadResult.localWinOpsCreated;
+          PFLog.normal(
+            `${SyncService.L}.${this.sync.name}(): LWW local-wins created ` +
+              `${totalLocalWinOps} update op(s), re-uploading (attempt ${reuploadAttempts})`,
+          );
+        }
+
+        const reuploadResult =
+          await this._operationLogSyncService.uploadPendingOps(opLogProvider);
+
+        // Check if re-upload created more merged ops (due to concurrent modification)
+        needsReupload = (reuploadResult?.localWinOpsCreated ?? 0) > 0;
+      }
+
+      if (reuploadAttempts >= MAX_REUPLOAD_ATTEMPTS) {
+        PFLog.warn(
+          `${SyncService.L}.${this.sync.name}(): Max re-upload attempts reached, some ops may still be pending`,
+        );
+      }
+
+      PFLog.normal(`${SyncService.L}.${this.sync.name}(): Operation sync complete`);
+      return { status: SyncStatus.InSync };
     } catch (e) {
       PFLog.critical(`${SyncService.L}.${this.sync.name}(): Sync error`, e);
-
-      if (e instanceof NoRemoteMetaFile) {
-        PFLog.critical('No remote meta file found, uploading all data');
-        // if there is no remote meta file, we need to upload all data
-        await this.uploadAll(true);
-        return { status: SyncStatus.UpdateRemoteAll };
-      }
-
-      // This indicates an incomplete sync, retry upload
-      if (e instanceof LockFromLocalClientPresentError) {
-        PFLog.critical('Lock from local client present, forcing upload of all data');
-        await this.uploadAll(true);
-        return { status: SyncStatus.UpdateRemoteAll };
-      }
       throw e;
     }
   }
 
   /**
-   * Uploads all local data to remote storage
-   * @param isForceUpload Whether to force upload even if lock exists
+   * Force upload local state, replacing all remote data.
+   * Used when user explicitly chooses "USE_LOCAL" in conflict resolution.
+   * Creates a SYNC_IMPORT operation with current local state.
    */
-  async uploadAll(isForceUpload: boolean = false): Promise<void> {
-    PFLog.normal(
-      `${SyncService.L}.${this.uploadAll.name}(): Uploading all data to remote, force=${isForceUpload}`,
-    );
-
-    // we need to check meta file for being in locked mode
-    if (!isForceUpload) {
-      await this._metaFileSyncService.download();
+  async forceUploadLocalState(): Promise<void> {
+    const currentSyncProvider = this._currentSyncProvider$.value;
+    if (!currentSyncProvider) {
+      throw new Error('No sync provider configured');
     }
 
-    let local = await this._metaModelCtrl.load();
-    if (isForceUpload) {
-      // Get client ID for vector clock operations
-      const clientId = await this._metaModelCtrl.loadClientId();
-      let localVector = local.vectorClock || {};
-
-      // For conflict resolution, fetch remote metadata once and handle vector clocks
-      let remoteMeta: RemoteMeta | null = null;
-
-      try {
-        const result = await this._metaFileSyncService.download();
-        remoteMeta = result.remoteMeta;
-      } catch (e) {
-        // Only proceed without remote metadata if it's a NoRemoteMetaFile error
-        // (meaning this is a fresh sync, no remote data exists)
-        if (e instanceof NoRemoteMetaFile) {
-          PFLog.normal(
-            `${SyncService.L}.${this.uploadAll.name}(): No remote meta file found, proceeding with fresh upload`,
-          );
-        } else {
-          // For other errors, fail fast to prevent vector clock drift
-          PFLog.critical(
-            `${SyncService.L}.${this.uploadAll.name}(): Cannot fetch remote metadata during force upload`,
-            e,
-          );
-          throw new Error(
-            'Force upload failed: unable to fetch remote metadata for vector clock merge. ' +
-              'This could cause data inconsistency. Please check your connection and retry.',
-          );
-        }
-      }
-
-      // Merge vector clocks if remote metadata was successfully fetched
-      if (remoteMeta && remoteMeta.vectorClock) {
-        let remoteVector = remoteMeta.vectorClock;
-        // Sanitize remote vector clock before merging
-        remoteVector = sanitizeVectorClock(remoteVector);
-        localVector = mergeVectorClocks(localVector, remoteVector);
-        PFLog.normal('Merged remote vector clock for force upload', {
-          localOriginal: local.vectorClock,
-          remote: remoteVector,
-          merged: localVector,
-        });
-      } else if (remoteMeta) {
-        // Remote exists but has no vector clock - legacy data, safe to proceed
-        PFLog.warn(
-          `${SyncService.L}.${this.uploadAll.name}(): Remote metadata has no vector clock (legacy data)`,
-        );
-      }
-      // If remoteMeta is null, it's a fresh upload (NoRemoteMetaFile case) - safe to proceed
-
-      let newVector = incrementVectorClock(localVector, clientId);
-
-      // Apply size limiting to prevent unbounded growth
-      newVector = limitVectorClockSize(newVector, clientId);
-
-      const updatedMeta = {
-        ...local,
-        lastUpdate: Date.now(),
-        vectorClock: newVector,
-      };
-
-      await this._metaModelCtrl.save(
-        updatedMeta,
-        // NOTE we always ignore db lock while syncing
-        true,
-      );
-      local = await this._metaModelCtrl.load();
+    const opLogProvider = await this._getOpLogSyncProvider(currentSyncProvider);
+    if (!opLogProvider) {
+      throw new Error('Could not get op-log provider');
     }
 
-    try {
-      // Get the local vector clock
-      const localVector = local.vectorClock;
-
-      return await this.uploadToRemote(
-        {
-          crossModelVersion: local.crossModelVersion,
-          lastUpdate: local.lastUpdate,
-          revMap: {},
-          // Will be assigned later
-          mainModelData: {},
-          vectorClock: localVector,
-        },
-        {
-          ...local,
-          revMap: this._fakeFullRevMap(),
-          // Ensure lastSyncedUpdate matches lastUpdate to prevent false conflicts
-          lastSyncedUpdate: local.lastUpdate,
-        },
-        null,
-      );
-    } catch (e) {
-      if (e instanceof LockFromLocalClientPresentError) {
-        PFLog.critical(
-          'Lock from local client detected during uploadAll, forcing upload',
-        );
-        return await this.uploadAll(true);
-      }
-      throw e;
-    }
+    await this._operationLogSyncService.forceUploadLocalState(opLogProvider);
   }
 
   /**
-   * Downloads all data from remote storage to local
-   * @param isSkipModelRevMapCheck Whether to skip revision map checks
+   * Force download all remote state, replacing local data.
+   * Used when user explicitly chooses "USE_REMOTE" in conflict resolution.
+   * Clears all local unsynced operations and downloads from seq 0.
    */
-  async downloadAll(isSkipModelRevMapCheck: boolean = false): Promise<void> {
-    PFLog.normal(
-      `${SyncService.L}.${this.downloadAll.name}(): Downloading all data from remote`,
-    );
-
-    const local = await this._metaModelCtrl.load();
-    const { remoteMeta, remoteMetaRev } = await this._metaFileSyncService.download();
-    const fakeLocal: LocalMeta = {
-      // We still need local modelVersions here as they contain latest model versions for migrations
-      crossModelVersion: local.crossModelVersion,
-      lastUpdate: 1,
-      lastSyncedUpdate: null,
-      metaRev: null,
-      revMap: {},
-      // Include vector clock fields to prevent comparison issues
-      vectorClock: {},
-      lastSyncedVectorClock: null,
-    };
-
-    return await this.downloadToLocal(
-      remoteMeta,
-      fakeLocal,
-      remoteMetaRev,
-      isSkipModelRevMapCheck,
-      true,
-    );
-  }
-
-  /**
-   * Downloads data from remote to local storage
-   * @param remote Remote metadata
-   * @param local Local metadata
-   * @param remoteRev Remote revision
-   * @param isSkipModelRevMapCheck Whether to skip revision map checks
-   * @param isDownloadAll Whether attempting to download all the data
-   */
-  async downloadToLocal(
-    remote: RemoteMeta,
-    local: LocalMeta,
-    remoteRev: string,
-    isSkipModelRevMapCheck: boolean = false,
-    isDownloadAll: boolean = false,
-  ): Promise<void> {
-    const { toUpdate, toDelete } = this._modelSyncService.getModelIdsToUpdateFromRevMaps({
-      revMapNewer: remote.revMap,
-      revMapToOverwrite: local.revMap,
-      errorContext: 'DOWNLOAD',
-    });
-
-    PFLog.normal(`${SyncService.L}.${this.downloadToLocal.name}()`, {
-      remoteMeta: remote,
-      localMeta: local,
-      remoteRev,
-      toUpdate,
-      toDelete,
-      isDownloadAll,
-    });
-
-    // If nothing to update or provider limited to single file sync
-    if (
-      (!isDownloadAll && toUpdate.length === 0 && toDelete.length === 0) ||
-      this._currentSyncProvider$.getOrError().isLimitedToSingleFileSync
-    ) {
-      await this._modelSyncService.updateLocalMainModelsFromRemoteMetaFile(remote);
-      PFLog.verbose('RevMap comparison', {
-        isEqual: JSON.stringify(remote.revMap) === JSON.stringify(local.revMap),
-        remoteRevMap: remote.revMap,
-        localRevMap: local.revMap,
-      });
-
-      // Get client ID for vector clock operations
-      const clientId = await this._metaModelCtrl.loadClientId();
-
-      // Merge vector clocks if available
-      const localVector = sanitizeVectorClock(getVectorClock(local, clientId) || {});
-      const remoteVector = sanitizeVectorClock(getVectorClock(remote, clientId) || {});
-      let mergedVector = mergeVectorClocks(localVector, remoteVector);
-
-      // Apply size limiting after merge
-      if (mergedVector) {
-        mergedVector = limitVectorClockSize(mergedVector, clientId);
-      }
-
-      const updatedMeta = {
-        // shared
-        lastUpdate: remote.lastUpdate,
-        crossModelVersion: remote.crossModelVersion,
-        revMap: remote.revMap,
-        // local meta
-        lastSyncedUpdate: remote.lastUpdate,
-        metaRev: remoteRev,
-        // Always include vector clock fields to prevent them from being lost
-        vectorClock: mergedVector || local.vectorClock || remote.vectorClock || {},
-        lastSyncedVectorClock:
-          mergedVector || local.vectorClock || remote.vectorClock || {},
-      };
-
-      await this._metaFileSyncService.saveLocal(updatedMeta);
-      return;
+  async forceDownloadRemoteState(): Promise<void> {
+    const currentSyncProvider = this._currentSyncProvider$.value;
+    if (!currentSyncProvider) {
+      throw new Error('No sync provider configured');
     }
 
-    return this._downloadToLocalMULTI(
-      remote,
-      local,
-      remoteRev,
-      isSkipModelRevMapCheck,
-      isDownloadAll,
-    );
-  }
-
-  /**
-   * Multi-file download implementation
-   * Downloads multiple models in parallel with load balancing
-   */
-  async _downloadToLocalMULTI(
-    remote: RemoteMeta,
-    local: LocalMeta,
-    remoteRev: string,
-    isSkipModelRevMapCheck: boolean = false,
-    isDownloadAll: boolean = false,
-  ): Promise<void> {
-    PFLog.normal(`${SyncService.L}.${this._downloadToLocalMULTI.name}()`, {
-      remote,
-      local,
-      remoteRev,
-      isSkipModelRevMapCheck,
-      isDownloadAll,
-    });
-
-    const { toUpdate, toDelete } = this._modelSyncService.getModelIdsToUpdateFromRevMaps({
-      revMapNewer: remote.revMap,
-      revMapToOverwrite: local.revMap,
-      errorContext: 'DOWNLOAD',
-    });
-
-    const dataMap: { [key: string]: unknown } = {};
-    const realRemoteRevMap: RevMap = {};
-
-    const downloadModelFns = toUpdate.map(
-      (modelId) => () =>
-        this._modelSyncService
-          .download(modelId, isSkipModelRevMapCheck ? null : remote.revMap[modelId])
-          .then(({ rev, data }) => {
-            if (typeof rev !== 'string') {
-              throw new ImpossibleError('No rev found for modelId: ' + modelId);
-            }
-            realRemoteRevMap[modelId] = rev;
-            dataMap[modelId] = data;
-          }),
-    );
-
-    await loadBalancer(
-      downloadModelFns,
-      this._currentSyncProvider$.getOrError().maxConcurrentRequests,
-    );
-
-    if (isDownloadAll) {
-      const fullData = { ...dataMap, ...remote.mainModelData } as any;
-      PFLog.normal(`${SyncService.L}.${this._downloadToLocalMULTI.name}()`, {
-        fullData,
-        dataMap,
-        realRemoteRevMap,
-        toUpdate,
-      });
-      await this._pfapiMain.importAllSycModelData({
-        data: fullData,
-        crossModelVersion: remote.crossModelVersion,
-        isAttemptRepair: true,
-        isBackupData: true,
-        isSkipLegacyWarnings: false,
-      });
-    } else {
-      await this._modelSyncService.updateLocalUpdated(toUpdate, toDelete, dataMap);
-      await this._modelSyncService.updateLocalMainModelsFromRemoteMetaFile(remote);
+    const opLogProvider = await this._getOpLogSyncProvider(currentSyncProvider);
+    if (!opLogProvider) {
+      throw new Error('Could not get op-log provider');
     }
 
-    // Get client ID for vector clock operations
-    const clientId = await this._metaModelCtrl.loadClientId();
-
-    // Merge vector clocks if available
-    const localVector = sanitizeVectorClock(getVectorClock(local, clientId) || {});
-    const remoteVector = sanitizeVectorClock(getVectorClock(remote, clientId) || {});
-    let mergedVector = mergeVectorClocks(localVector, remoteVector);
-
-    // Apply size limiting after merge
-    if (mergedVector) {
-      mergedVector = limitVectorClockSize(mergedVector, clientId);
-    }
-
-    const updatedMeta = {
-      metaRev: remoteRev,
-      lastSyncedUpdate: remote.lastUpdate,
-      lastUpdate: remote.lastUpdate,
-      lastSyncedAction: `Downloaded ${isDownloadAll ? 'all data' : `${toUpdate.length} models`} at ${new Date().toISOString()}`,
-      revMap: validateRevMap({
-        ...local.revMap,
-        ...realRemoteRevMap,
-      }),
-      crossModelVersion: remote.crossModelVersion,
-      // Always include vector clock fields to prevent them from being lost
-      vectorClock: mergedVector || local.vectorClock || remote.vectorClock || {},
-      lastSyncedVectorClock:
-        mergedVector || local.vectorClock || remote.vectorClock || {},
-    };
-
-    await this._metaFileSyncService.saveLocal(updatedMeta);
-  }
-
-  /**
-   * Uploads local changes to remote storage
-   * @param remote Remote metadata
-   * @param local Local metadata
-   * @param lastRemoteRev Last known remote revision
-   */
-  async uploadToRemote(
-    remote: RemoteMeta,
-    local: LocalMeta,
-    lastRemoteRev: string | null,
-  ): Promise<void> {
-    PFLog.normal(`${SyncService.L}.${this.uploadToRemote.name}()`, {
-      remoteMeta: remote,
-      localMeta: local,
-    });
-
-    const { toUpdate, toDelete } = this._modelSyncService.getModelIdsToUpdateFromRevMaps({
-      revMapNewer: local.revMap,
-      revMapToOverwrite: remote.revMap,
-      errorContext: 'UPLOAD',
-    });
-
-    // For single file sync or when nothing to update
-    if (
-      (toUpdate.length === 0 && toDelete.length === 0) ||
-      this._currentSyncProvider$.getOrError().isLimitedToSingleFileSync
-    ) {
-      const syncProvider = this._currentSyncProvider$.getOrError();
-      const mainModelData = syncProvider.isLimitedToSingleFileSync
-        ? await this._pfapiMain.getAllSyncModelData()
-        : await this._modelSyncService.getMainFileModelDataForUpload();
-
-      const uploadMeta: UploadMeta = {
-        revMap: local.revMap,
-        lastUpdate: local.lastUpdate,
-        lastUpdateAction: local.lastUpdateAction,
-        crossModelVersion: local.crossModelVersion,
-        mainModelData,
-        vectorClock: local.vectorClock,
-        ...(syncProvider.isLimitedToSingleFileSync ? { isFullData: true } : {}),
-      };
-
-      const metaRevAfterUpdate = await this._metaFileSyncService.upload(
-        uploadMeta,
-        lastRemoteRev,
-      );
-
-      // Update local after successful upload
-      PFLog.normal(
-        `${SyncService.L}.${this.uploadToRemote.name}(): Updating local metadata after upload`,
-        {
-          localLastUpdate: local.lastUpdate,
-          localLastSyncedUpdate: local.lastSyncedUpdate,
-          willSetLastSyncedUpdate: local.lastUpdate,
-          metaRevAfterUpdate,
-        },
-      );
-
-      const updatedMeta = {
-        ...local,
-        lastSyncedUpdate: local.lastUpdate,
-        lastSyncedAction: `Uploaded single file at ${new Date().toISOString()}`,
-        metaRev: metaRevAfterUpdate,
-        lastSyncedVectorClock: local.vectorClock || null,
-      };
-
-      await this._metaFileSyncService.saveLocal(updatedMeta);
-
-      PFLog.normal(
-        `${SyncService.L}.${this.uploadToRemote.name}(): Local metadata updated successfully`,
-      );
-      return;
-    }
-
-    return this._uploadToRemoteMULTI(remote, local, lastRemoteRev);
-  }
-
-  /**
-   * Multi-file upload implementation
-   * Uploads multiple models in parallel with load balancing
-   * @param remote Remote metadata
-   * @param local Local metadata
-   * @param remoteMetaRev Remote metadata revision
-   */
-  async _uploadToRemoteMULTI(
-    remote: RemoteMeta,
-    local: LocalMeta,
-    remoteMetaRev: string | null,
-  ): Promise<void> {
-    const { toUpdate, toDelete } = this._modelSyncService.getModelIdsToUpdateFromRevMaps({
-      revMapNewer: local.revMap,
-      revMapToOverwrite: remote.revMap,
-      errorContext: 'UPLOAD',
-    });
-
-    PFLog.normal(`${SyncService.L}.${this._uploadToRemoteMULTI.name}()`, {
-      toUpdate,
-      toDelete,
-      remote,
-      local,
-    });
-
-    const realRevMap: RevMap = {
-      ...local.revMap,
-    };
-    const completeData = await this._pfapiMain.getAllSyncModelData();
-
-    // Lock meta file during multi-file upload to prevent concurrent modifications
-    await this._metaFileSyncService.lock(remoteMetaRev);
-
-    const syncProvider = this._currentSyncProvider$.getOrError();
-    const maxConcurrentRequests = syncProvider.maxConcurrentRequests;
-
-    // Create functions for updates and deletions
-    const uploadModelFns = toUpdate.map(
-      (modelId) => () =>
-        this._modelSyncService.upload(modelId, completeData[modelId]).then((rev) => {
-          realRevMap[modelId] = cleanRev(rev);
-        }),
-    );
-    const toDeleteFns = toDelete.map(
-      (modelId) => () => this._modelSyncService.remove(modelId),
-    );
-
-    // Execute operations with load balancing
-    await loadBalancer([...uploadModelFns, ...toDeleteFns], maxConcurrentRequests);
-
-    PFLog.verbose('Final revMap after uploads', realRevMap);
-
-    // Validate and upload the final revMap
-    const validatedRevMap = validateRevMap(realRevMap);
-
-    const uploadMeta: UploadMeta = {
-      revMap: validatedRevMap,
-      lastUpdate: local.lastUpdate,
-      lastUpdateAction: local.lastUpdateAction,
-      crossModelVersion: local.crossModelVersion,
-      mainModelData:
-        await this._modelSyncService.getMainFileModelDataForUpload(completeData),
-      vectorClock: local.vectorClock,
-    };
-
-    const metaRevAfterUpload = await this._metaFileSyncService.upload(uploadMeta);
-
-    // Update local after successful upload
-    const updatedMeta = {
-      // leave as is basically
-      lastUpdate: local.lastUpdate,
-      crossModelVersion: local.crossModelVersion,
-      // Always include vector clock fields to prevent them from being lost
-      vectorClock: local.vectorClock || {},
-      lastSyncedVectorClock: local.vectorClock || null,
-
-      // actual updates
-      lastSyncedUpdate: local.lastUpdate,
-      lastSyncedAction: `Uploaded ${toUpdate.length} models at ${new Date().toISOString()}`,
-      revMap: validatedRevMap,
-      metaRev: metaRevAfterUpload,
-    };
-
-    await this._metaFileSyncService.saveLocal(updatedMeta);
+    await this._operationLogSyncService.forceDownloadRemoteState(opLogProvider);
   }
 
   /**
    * Checks if the sync provider is ready for synchronization
-   * @returns Promise resolving to boolean indicating readiness
    */
   private async _isReadyForSync(): Promise<boolean> {
     const currentSyncProvider = this._currentSyncProvider$.value;
@@ -830,41 +202,26 @@ export class SyncService<const MD extends ModelCfgs> {
   }
 
   /**
-   * Checks if the sync provider supports operation log sync.
-   * Currently ALL providers (WebDAV, Dropbox, LocalFileSync) use legacy LWW sync.
-   * Op-log sync is reserved for future server-based providers only.
-   * @param provider The sync provider to check
-   * @returns boolean indicating if operation log sync is supported
+   * Gets an OperationSyncCapable interface for the current provider.
+   * For API-based providers (SuperSync), returns the provider directly.
+   * For file-based providers, wraps them with FileBasedSyncAdapter.
    */
-  private _supportsOpLogSync(
+  private async _getOpLogSyncProvider(
     provider: SyncProviderServiceInterface<SyncProviderId>,
-  ): boolean {
-    // Check if provider implements OperationSyncCapable
-    // We cast to unknown first then to OperationSyncCapable to access the property safely
-    const p = provider as unknown as { supportsOperationSync?: boolean };
-    return !!p.supportsOperationSync;
-  }
+  ): Promise<OperationSyncCapable | null> {
+    // Check for direct API-based operation sync (SuperSync)
+    const p = provider as unknown as OperationSyncCapable;
+    if (p.supportsOperationSync) {
+      return p;
+    }
 
-  /**
-   * Creates a fake full revision map for all models
-   * Used when uploading all data
-   * @returns RevMap with fake revisions for all models
-   */
-  private _fakeFullRevMap(): RevMap {
-    const revMap: RevMap = {};
-    this._allModelIds().forEach((modelId) => {
-      if (!this.m[modelId].modelCfg.isMainFileModel) {
-        revMap[modelId] = SyncService.UPDATE_ALL_REV;
-      }
-    });
-    return revMap;
-  }
+    // Check for file-based operation sync (WebDAV, Dropbox, LocalFile)
+    if (isFileBasedOperationSyncCapable(provider)) {
+      const cfg = this._encryptAndCompressCfg$.value;
+      const encryptKey = (await provider.privateCfg.load())?.encryptKey;
+      return this._fileBasedSyncAdapterService.createAdapter(provider, cfg, encryptKey);
+    }
 
-  /**
-   * Returns all model IDs from the configuration
-   * @returns Array of model IDs
-   */
-  private _allModelIds(): string[] {
-    return Object.keys(this.m);
+    return null;
   }
 }

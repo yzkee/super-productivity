@@ -310,6 +310,11 @@ export class SuperSyncProvider
     return response;
   }
 
+  async getEncryptKey(): Promise<string | undefined> {
+    const cfg = await this.privateCfg.load();
+    return cfg?.encryptKey;
+  }
+
   // === Private Helper Methods ===
 
   private async _cfgOrError(): Promise<SuperSyncPrivateCfg> {

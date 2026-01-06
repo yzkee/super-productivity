@@ -6,14 +6,11 @@ import { OpLog } from '../../core/log';
 import { LOCK_NAMES } from '../core/operation-log.const';
 import { chunkArray } from '../../util/chunk-array';
 import {
-  SyncProviderServiceInterface,
   OperationSyncCapable,
   SyncOperation,
 } from '../../pfapi/api/sync/sync-provider.interface';
-import { SyncProviderId } from '../../pfapi/api/pfapi.const';
-import { isOperationSyncCapable, syncOpToOperation } from './operation-sync.util';
+import { syncOpToOperation } from './operation-sync.util';
 import { OperationEncryptionService } from './operation-encryption.service';
-import { SuperSyncPrivateCfg } from '../../pfapi/api/sync/providers/super-sync/super-sync.model';
 
 /**
  * Operation types that contain full application state and should use
@@ -82,7 +79,7 @@ export class OperationLogUploadService {
   private encryptionService = inject(OperationEncryptionService);
 
   async uploadPendingOps(
-    syncProvider: SyncProviderServiceInterface<SyncProviderId>,
+    syncProvider: OperationSyncCapable,
     options?: UploadOptions,
   ): Promise<UploadResult> {
     if (!syncProvider) {
@@ -90,19 +87,11 @@ export class OperationLogUploadService {
       return { uploadedCount: 0, piggybackedOps: [], rejectedCount: 0, rejectedOps: [] };
     }
 
-    // Operation log sync requires an API-capable provider
-    if (!isOperationSyncCapable(syncProvider)) {
-      OpLog.error(
-        'OperationLogUploadService: Sync provider does not support operation sync.',
-      );
-      return { uploadedCount: 0, piggybackedOps: [], rejectedCount: 0, rejectedOps: [] };
-    }
-
     return this._uploadPendingOpsViaApi(syncProvider, options);
   }
 
   private async _uploadPendingOpsViaApi(
-    syncProvider: SyncProviderServiceInterface<SyncProviderId> & OperationSyncCapable,
+    syncProvider: OperationSyncCapable,
     options?: UploadOptions,
   ): Promise<UploadResult> {
     OpLog.normal('OperationLogUploadService: Uploading pending operations via API...');
@@ -134,12 +123,11 @@ export class OperationLogUploadService {
       // Track highest received sequence across ALL chunks to prevent regression
       let highestReceivedSeq = lastKnownServerSeq;
 
-      // Check if E2E encryption is enabled
-      const privateCfg =
-        (await syncProvider.privateCfg.load()) as SuperSyncPrivateCfg | null;
-      const isEncryptionEnabled =
-        privateCfg?.isEncryptionEnabled && !!privateCfg?.encryptKey;
-      const encryptKey = privateCfg?.encryptKey;
+      // Get encryption key (optional - file-based adapters handle encryption internally)
+      const encryptKey = syncProvider.getEncryptKey
+        ? await syncProvider.getEncryptKey()
+        : undefined;
+      const isEncryptionEnabled = !!encryptKey;
 
       // Separate full-state operations (backup imports, repairs) from regular ops
       // Full-state ops are uploaded via snapshot endpoint for better efficiency
@@ -373,7 +361,7 @@ export class OperationLogUploadService {
    * for large payloads as the snapshot endpoint is designed for full state uploads.
    */
   private async _uploadFullStateOpAsSnapshot(
-    syncProvider: SyncProviderServiceInterface<SyncProviderId> & OperationSyncCapable,
+    syncProvider: OperationSyncCapable,
     entry: OperationLogEntry,
     encryptKey: string | undefined,
   ): Promise<{

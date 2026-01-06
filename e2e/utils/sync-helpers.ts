@@ -91,7 +91,7 @@ export const createWebDavFolder = async (
 
 /**
  * Creates a new browser context and page for sync testing.
- * Handles app initialization and tour dismissal.
+ * Handles app initialization, tour dismissal, and auto-accepts fresh client sync confirmations.
  *
  * @param browser - Playwright Browser instance
  * @param baseURL - Base URL for the app
@@ -103,6 +103,16 @@ export const setupSyncClient = async (
 ): Promise<{ context: BrowserContext; page: Page }> => {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
+
+  // Auto-accept confirm dialogs for fresh client sync
+  // This handles the window.confirm() call in OperationLogSyncService._showFreshClientSyncConfirmation
+  page.on('dialog', async (dialog) => {
+    if (dialog.type() === 'confirm') {
+      console.log(`Auto-accepting confirm dialog: ${dialog.message()}`);
+      await dialog.accept();
+    }
+  });
+
   await page.goto('/');
   await waitForAppReady(page);
   await dismissTourIfVisible(page);

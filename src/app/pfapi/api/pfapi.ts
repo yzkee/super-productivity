@@ -21,7 +21,6 @@ import { MiniObservable } from './util/mini-observable';
 import { SyncProviderServiceInterface } from './sync/sync-provider.interface';
 import { PFLog } from '../../core/log';
 import { SyncProviderId, SyncStatus } from './pfapi.const';
-import { EncryptAndCompressHandlerService } from './sync/encrypt-and-compress-handler.service';
 import { SyncProviderPrivateCfgStore } from './sync/sync-provider-private-cfg-store';
 import {
   BackupImportFailedError,
@@ -38,6 +37,8 @@ import { PFEventEmitter } from './util/events';
 import { MigrationService } from './migration/migration.service';
 import { IValidation } from 'typia';
 import { OperationLogSyncService } from '../../op-log/sync/operation-log-sync.service';
+import { FileBasedSyncAdapterService } from '../../op-log/sync/providers/file-based/file-based-sync-adapter.service';
+import { PfapiMigrationService } from '../../op-log/sync/providers/file-based/pfapi-migration.service';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { inject } from '@angular/core'; // Inject is used here
 
@@ -83,6 +84,10 @@ export class Pfapi<const MD extends ModelCfgs> {
   public readonly migrationService: MigrationService<MD>;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private _operationLogSyncService = inject(OperationLogSyncService); // Inject the service here
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private _fileBasedSyncAdapterService = inject(FileBasedSyncAdapterService);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private _pfapiMigrationService = inject(PfapiMigrationService);
 
   /**
    * Delegate function to get all sync model data from an external source (e.g., NgRx store).
@@ -136,13 +141,11 @@ export class Pfapi<const MD extends ModelCfgs> {
     this.migrationService = new MigrationService<MD>(this);
 
     this._syncService = new SyncService<MD>(
-      this.m,
-      this,
-      this.metaModel,
       this._activeSyncProvider$,
       this._encryptAndCompressCfg$,
-      new EncryptAndCompressHandlerService(),
-      this._operationLogSyncService, // Pass the new service here
+      this._operationLogSyncService,
+      this._fileBasedSyncAdapterService,
+      this._pfapiMigrationService,
     );
 
     this.wasDataMigratedInitiallyPromise = this.migrationService.checkAndMigrateLocalDB();
@@ -158,15 +161,23 @@ export class Pfapi<const MD extends ModelCfgs> {
     );
   }
 
-  async downloadAll(isSkipRevChange: boolean = false): Promise<void> {
-    return await this._wrapSyncAction(`${this.downloadAll.name}()`, () =>
-      this._syncService.downloadAll(isSkipRevChange),
+  /**
+   * Force upload local state, replacing all remote data.
+   * Used when user explicitly chooses "USE_LOCAL" in conflict resolution.
+   */
+  async forceUploadLocalState(): Promise<void> {
+    return await this._wrapSyncAction(`${this.forceUploadLocalState.name}()`, () =>
+      this._syncService.forceUploadLocalState(),
     );
   }
 
-  async uploadAll(isForceUpload: boolean = false): Promise<void> {
-    return await this._wrapSyncAction(`${this.uploadAll.name}() f:${isForceUpload}`, () =>
-      this._syncService.uploadAll(isForceUpload),
+  /**
+   * Force download all remote state, replacing local data.
+   * Used when user explicitly chooses "USE_REMOTE" in conflict resolution.
+   */
+  async forceDownloadRemoteState(): Promise<void> {
+    return await this._wrapSyncAction(`${this.forceDownloadRemoteState.name}()`, () =>
+      this._syncService.forceDownloadRemoteState(),
     );
   }
 
