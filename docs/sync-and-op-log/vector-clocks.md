@@ -71,15 +71,14 @@ This leads to false conflicts where user intervention is required even though on
 ### File Structure
 
 ```
-src/app/pfapi/api/
-├── util/
-│   ├── vector-clock.ts          # Core vector clock operations
-│   ├── backwards-compat.ts      # Migration helpers
-│   └── get-sync-status-from-meta-files.ts  # Sync status detection
-├── model-ctrl/
-│   └── meta-model-ctrl.ts       # Updates vector clocks on changes
-└── sync/
-    └── sync.service.ts          # Integrates vector clocks in sync flow
+src/app/
+├── sync/                        # Sync providers and utilities
+│   ├── util/
+│   │   └── vector-clock.ts      # Core vector clock operations
+│   └── providers/               # WebDAV, Dropbox, SuperSync, etc.
+└── op-log/                      # Operation log system
+    └── sync/
+        └── vector-clock.service.ts  # Vector clock management for op-log
 ```
 
 ### Core Operations
@@ -255,8 +254,8 @@ See the operation log architecture docs for detailed diagrams of this late-joine
 ### Enable Verbose Logging
 
 ```typescript
-// In pfapi/api/util/log.ts, set log level to 2 or higher
-pfLog(2, 'Vector clock comparison', {
+// In op-log/util/log.ts, set log level to 2 or higher
+opLog(2, 'Vector clock comparison', {
   localVector: vectorClockToString(localVector),
   remoteVector: vectorClockToString(remoteVector),
   result: comparison,

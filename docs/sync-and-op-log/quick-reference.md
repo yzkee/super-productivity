@@ -200,7 +200,7 @@ Conflict detection uses vector clocks to determine causal relationships.
 
 - `vector-clock.service.ts` - Vector clock management
 - `conflict-resolution.service.ts` - Conflict detection logic
-- `src/app/pfapi/api/util/vector-clock.ts` - Clock comparison
+- `src/app/sync/util/vector-clock.ts` - Clock comparison
 
 ---
 
@@ -643,7 +643,7 @@ End-to-end encryption ensures the server never sees plaintext data.
 **Key Files:**
 
 - `operation-encryption.service.ts` - High-level API
-- `pfapi/api/encryption/encryption.ts` - AES-GCM + Argon2id
+- `sync/encryption/encryption.ts` - AES-GCM + Argon2id
 - `operation-log-upload.service.ts` - Encryption during upload
 - `operation-log-download.service.ts` - Decryption during download
 

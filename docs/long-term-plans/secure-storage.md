@@ -164,7 +164,7 @@ async getOrCreateKey(): Promise<CryptoKey> {
 **Modified files:**
 
 - `src/app/core/startup/startup.service.ts` - Call migration in `init()`
-- `src/app/pfapi/api/sync/sync-provider-private-cfg-store.ts` - Add `clear()` method
+- `src/app/sync/providers/private-cfg-store.ts` - Add `clear()` method
 
 **Migration flow:**
 
@@ -240,17 +240,17 @@ async get(key: string): Promise<string | null> {
 
 ### Modified Files (9)
 
-| Path                                                        | Changes             |
-| ----------------------------------------------------------- | ------------------- |
-| `electron/shared-with-frontend/ipc-events.const.ts`         | Add 4 IPC events    |
-| `electron/preload.ts`                                       | Add 4 methods       |
-| `electron/electronAPI.d.ts`                                 | Type definitions    |
-| `electron/ipc-handler.ts`                                   | Register handlers   |
-| `src/app/core/window-ea.d.ts`                               | Frontend types      |
-| `src/app/core/startup/startup.service.ts`                   | Trigger migration   |
-| `src/app/pfapi/api/sync/sync-provider-private-cfg-store.ts` | Add clear()         |
-| `android/app/build.gradle`                                  | Add security-crypto |
-| `android/.../CapacitorMainActivity.kt`                      | Register plugin     |
+| Path                                                | Changes             |
+| --------------------------------------------------- | ------------------- |
+| `electron/shared-with-frontend/ipc-events.const.ts` | Add 4 IPC events    |
+| `electron/preload.ts`                               | Add 4 methods       |
+| `electron/electronAPI.d.ts`                         | Type definitions    |
+| `electron/ipc-handler.ts`                           | Register handlers   |
+| `src/app/core/window-ea.d.ts`                       | Frontend types      |
+| `src/app/core/startup/startup.service.ts`           | Trigger migration   |
+| `src/app/sync/providers/private-cfg-store.ts`       | Add clear()         |
+| `android/app/build.gradle`                          | Add security-crypto |
+| `android/.../CapacitorMainActivity.kt`              | Register plugin     |
 
 ---
 
