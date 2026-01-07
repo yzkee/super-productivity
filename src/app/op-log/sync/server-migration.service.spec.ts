@@ -10,8 +10,8 @@ import { SnackService } from '../../core/snack/snack.service';
 import {
   SyncProviderServiceInterface,
   OperationSyncCapable,
-} from './providers/provider.interface';
-import { SyncProviderId } from './providers/provider.const';
+} from '../sync-providers/provider.interface';
+import { SyncProviderId } from '../sync-providers/provider.const';
 import { OpType } from '../core/operation.types';
 import { SYSTEM_TAG_IDS } from '../../features/tag/tag.const';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
@@ -93,7 +93,7 @@ describe('ServerMigrationService', () => {
       },
       project: { ids: [], entities: {} },
       tag: { ids: [], entities: {} },
-    });
+    } as any);
     clientIdProviderSpy.loadClientId.and.returnValue(Promise.resolve('test-client'));
 
     TestBed.configureTestingModule({
@@ -175,7 +175,7 @@ describe('ServerMigrationService', () => {
         task: { ids: [], entities: {} },
         project: { ids: [], entities: {} },
         tag: { ids: [], entities: {} },
-      });
+      } as any);
 
       await service.handleServerMigration(defaultProvider);
 
@@ -188,7 +188,7 @@ describe('ServerMigrationService', () => {
         task: { ids: [], entities: {} },
         project: { ids: [], entities: {} },
         tag: { ids: systemTagIds, entities: {} },
-      });
+      } as any);
 
       await service.handleServerMigration(defaultProvider);
 
@@ -244,7 +244,7 @@ describe('ServerMigrationService', () => {
         project: { ids: [], entities: {} },
         tag: { ids: [], entities: {} },
       };
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(mockState);
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(mockState as any);
       vectorClockServiceSpy.getCurrentVectorClock.and.returnValue(
         Promise.resolve({ 'test-client': 5 }),
       );
@@ -273,7 +273,7 @@ describe('ServerMigrationService', () => {
         task: { ids: ['task-1'], entities: { 'task-1': { id: 'task-1' } } },
         project: { ids: [], entities: {} },
         tag: { ids: [], entities: {} },
-      });
+      } as any);
 
       await service.handleServerMigration(defaultProvider);
 
@@ -285,7 +285,7 @@ describe('ServerMigrationService', () => {
         task: { ids: [], entities: {} },
         project: { ids: ['proj-1'], entities: { 'proj-1': { id: 'proj-1' } } },
         tag: { ids: [], entities: {} },
-      });
+      } as any);
 
       await service.handleServerMigration(defaultProvider);
 
@@ -297,7 +297,7 @@ describe('ServerMigrationService', () => {
         task: { ids: [], entities: {} },
         project: { ids: [], entities: {} },
         tag: { ids: ['user-tag-1'], entities: { 'user-tag-1': { id: 'user-tag-1' } } },
-      });
+      } as any);
 
       await service.handleServerMigration(defaultProvider);
 
@@ -339,7 +339,7 @@ describe('ServerMigrationService', () => {
           task: { ids: [], entities: {} },
           project: { ids: [], entities: {} },
           tag: { ids: [systemTagId], entities: {} },
-        });
+        } as any);
 
         await service.handleServerMigration(defaultProvider);
 
@@ -352,7 +352,7 @@ describe('ServerMigrationService', () => {
         task: { ids: [], entities: {} },
         project: { ids: [], entities: {} },
         tag: { ids: ['TODAY', 'user-custom-tag'], entities: {} },
-      });
+      } as any);
 
       await service.handleServerMigration(defaultProvider);
 

@@ -173,10 +173,14 @@ export class LegacyPfDbService {
       db.close();
 
       // Has usable data if any of these have content
-      const hasTaskData = task && Array.isArray(task.ids) && task.ids.length > 0;
-      const hasProjectData =
-        project && Array.isArray(project.ids) && project.ids.length > 0;
-      const hasConfigData = globalConfig && typeof globalConfig === 'object';
+      // Note: Use !! to coerce to boolean, since null && ... returns null, not false
+      const hasTaskData = !!(task && Array.isArray(task.ids) && task.ids.length > 0);
+      const hasProjectData = !!(
+        project &&
+        Array.isArray(project.ids) &&
+        project.ids.length > 0
+      );
+      const hasConfigData = !!(globalConfig && typeof globalConfig === 'object');
 
       return hasTaskData || hasProjectData || hasConfigData;
     } catch (e) {
