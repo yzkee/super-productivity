@@ -29,7 +29,10 @@ import {
   SyncDataCorruptedError,
 } from './file-based-sync.types';
 import { OpLog } from '../../../core/log';
-import { RemoteFileNotFoundAPIError } from '../../core/errors/sync-errors';
+import {
+  RemoteFileNotFoundAPIError,
+  UploadRevToMatchMismatchAPIError,
+} from '../../core/errors/sync-errors';
 import { mergeVectorClocks } from '../../../core/util/vector-clock';
 import { ArchiveDbAdapter } from '../../../core/persistence/archive-db-adapter.service';
 import { StateSnapshotService } from '../../backup/state-snapshot.service';
@@ -77,6 +80,19 @@ export class FileBasedSyncAdapterService {
 
   /** Set of processed operation IDs per provider - prevents missing ops when array is trimmed */
   private _processedOpIds = new Map<string, Set<string>>();
+
+  /** Cache for downloaded sync data within a sync cycle (avoids redundant downloads) */
+  private _syncCycleCache = new Map<
+    string,
+    {
+      data: FileBasedSyncData;
+      rev: string;
+      timestamp: number;
+    }
+  >();
+
+  /** Cache TTL - 30 seconds (sync cycle should complete within this) */
+  private readonly _CACHE_TTL_MS = 30_000;
 
   /** Tracks whether we've loaded persisted state from localStorage */
   private _persistedStateLoaded = false;
@@ -189,6 +205,46 @@ export class FileBasedSyncAdapterService {
   }
 
   /**
+   * Gets cached sync data if available and not expired.
+   */
+  private _getCachedSyncData(
+    providerKey: string,
+  ): { data: FileBasedSyncData; rev: string } | null {
+    const cached = this._syncCycleCache.get(providerKey);
+    if (!cached) return null;
+
+    // Check TTL
+    if (Date.now() - cached.timestamp > this._CACHE_TTL_MS) {
+      this._syncCycleCache.delete(providerKey);
+      return null;
+    }
+
+    return { data: cached.data, rev: cached.rev };
+  }
+
+  /**
+   * Caches sync data with its revision for reuse within the sync cycle.
+   */
+  private _setCachedSyncData(
+    providerKey: string,
+    data: FileBasedSyncData,
+    rev: string,
+  ): void {
+    this._syncCycleCache.set(providerKey, {
+      data,
+      rev,
+      timestamp: Date.now(),
+    });
+  }
+
+  /**
+   * Clears cached sync data (e.g., after successful upload).
+   */
+  private _clearCachedSyncData(providerKey: string): void {
+    this._syncCycleCache.delete(providerKey);
+  }
+
+  /**
    * Creates an OperationSyncCapable adapter for a file-based provider.
    *
    * @param provider - The underlying file provider (WebDAV, Dropbox, etc.)
@@ -289,21 +345,35 @@ export class FileBasedSyncAdapterService {
   ): Promise<OpUploadResponse> {
     const providerKey = this._getProviderKey(provider);
 
-    // Step 1: Download current sync file
+    // Step 1: Get current sync data (from cache or download)
+    // The cache is populated by _downloadOps() to avoid redundant downloads
     let currentData: FileBasedSyncData | null = null;
     let currentSyncVersion = 0;
     let fileExists = true;
+    let revToMatch: string | null = null;
 
-    try {
-      currentData = await this._downloadSyncFile(provider, cfg, encryptKey);
-      currentSyncVersion = currentData.syncVersion;
-    } catch (e) {
-      if (!(e instanceof RemoteFileNotFoundAPIError)) {
-        throw e;
+    // Try to use cached data from _downloadOps() first
+    const cached = this._getCachedSyncData(providerKey);
+    if (cached) {
+      currentData = cached.data;
+      currentSyncVersion = cached.data.syncVersion;
+      revToMatch = cached.rev;
+      OpLog.normal('FileBasedSyncAdapter: Using cached sync data (saved 1 download)');
+    } else {
+      // Fallback: download if no cache
+      try {
+        const result = await this._downloadSyncFile(provider, cfg, encryptKey);
+        currentData = result.data;
+        currentSyncVersion = result.data.syncVersion;
+        revToMatch = result.rev;
+      } catch (e) {
+        if (!(e instanceof RemoteFileNotFoundAPIError)) {
+          throw e;
+        }
+        // No file exists yet - this is first sync
+        fileExists = false;
+        OpLog.normal('FileBasedSyncAdapter: No existing sync file, creating new');
       }
-      // No file exists yet - this is first sync
-      fileExists = false;
-      OpLog.normal('FileBasedSyncAdapter: No existing sync file, creating new');
     }
 
     // If no ops to upload AND file already exists, just return current state
@@ -370,43 +440,86 @@ export class FileBasedSyncAdapterService {
       recentOps: mergedOps,
     };
 
-    // Step 4: Backup current file (best effort)
-    if (currentData) {
-      try {
-        const backupData = await this._encryptAndCompressHandler.compressAndEncryptData(
-          cfg,
-          encryptKey,
-          currentData,
-          FILE_BASED_SYNC_CONSTANTS.FILE_VERSION,
-        );
-        await provider.uploadFile(
-          FILE_BASED_SYNC_CONSTANTS.BACKUP_FILE,
-          backupData,
-          null,
-          true,
-        );
-      } catch (backupErr) {
-        OpLog.warn('FileBasedSyncAdapter: Backup creation failed', backupErr);
-        // Continue anyway - backup is best effort
-      }
-    }
-
-    // Step 5: Upload new sync file
+    // Step 4: Upload new sync file with ETag-based conditional upload
+    // Uses revToMatch to detect if another client uploaded between our download and upload
     const uploadData = await this._encryptAndCompressHandler.compressAndEncryptData(
       cfg,
       encryptKey,
       newData,
       FILE_BASED_SYNC_CONSTANTS.FILE_VERSION,
     );
-    await provider.uploadFile(
-      FILE_BASED_SYNC_CONSTANTS.SYNC_FILE,
-      uploadData,
-      null,
-      true, // Force overwrite - we've already done our own version check
-    );
 
-    // Step 6: Update expected sync version for next upload
-    this._expectedSyncVersions.set(providerKey, newSyncVersion);
+    try {
+      await provider.uploadFile(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_FILE,
+        uploadData,
+        revToMatch, // Conditional upload - will fail if rev changed
+        false, // Don't force overwrite - let server detect conflict via ETag
+      );
+    } catch (e) {
+      if (e instanceof UploadRevToMatchMismatchAPIError) {
+        // Another client uploaded between our download and upload - retry once
+        OpLog.normal(
+          'FileBasedSyncAdapter: Rev mismatch detected, re-downloading and retrying...',
+        );
+
+        // Re-download fresh data
+        const { data: freshData, rev: freshRev } = await this._downloadSyncFile(
+          provider,
+          cfg,
+          encryptKey,
+        );
+
+        // Re-merge operations with fresh data
+        const freshExistingOps = freshData.recentOps || [];
+        const freshMergedOps = [...freshExistingOps, ...compactOps].slice(
+          -FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS,
+        );
+
+        // Update merged clock with fresh data
+        let freshMergedClock = freshData.vectorClock || {};
+        for (const op of ops) {
+          freshMergedClock = mergeVectorClocks(freshMergedClock, op.vectorClock);
+        }
+
+        const freshNewData: FileBasedSyncData = {
+          ...newData,
+          syncVersion: freshData.syncVersion + 1,
+          vectorClock: freshMergedClock,
+          recentOps: freshMergedOps,
+          lastModified: Date.now(),
+        };
+
+        const freshUploadData =
+          await this._encryptAndCompressHandler.compressAndEncryptData(
+            cfg,
+            encryptKey,
+            freshNewData,
+            FILE_BASED_SYNC_CONSTANTS.FILE_VERSION,
+          );
+
+        // Retry upload with fresh rev
+        await provider.uploadFile(
+          FILE_BASED_SYNC_CONSTANTS.SYNC_FILE,
+          freshUploadData,
+          freshRev,
+          false,
+        );
+
+        // Update newSyncVersion for the return value
+        newData.syncVersion = freshNewData.syncVersion;
+
+        OpLog.normal('FileBasedSyncAdapter: Retry upload successful');
+      } else {
+        throw e;
+      }
+    }
+
+    // Clear cache after successful upload (data is now stale)
+    this._clearCachedSyncData(providerKey);
+
+    // Step 5: Update expected sync version for next upload
+    this._expectedSyncVersions.set(providerKey, newData.syncVersion);
 
     // Calculate latestSeq from actual merged ops count
     const latestSeq = mergedOps.length;
@@ -445,7 +558,7 @@ export class FileBasedSyncAdapterService {
     }
 
     OpLog.normal(
-      `FileBasedSyncAdapter: Upload complete (syncVersion=${newSyncVersion}, latestSeq=${latestSeq}, piggybacked=${newOps.length})`,
+      `FileBasedSyncAdapter: Upload complete (syncVersion=${newData.syncVersion}, latestSeq=${latestSeq}, piggybacked=${newOps.length})`,
     );
 
     // Persist state after successful upload
@@ -481,8 +594,13 @@ export class FileBasedSyncAdapterService {
     const providerKey = this._getProviderKey(provider);
 
     let syncData: FileBasedSyncData;
+    let rev: string;
     try {
-      syncData = await this._downloadSyncFile(provider, cfg, encryptKey);
+      const result = await this._downloadSyncFile(provider, cfg, encryptKey);
+      syncData = result.data;
+      rev = result.rev;
+      // Cache data + rev for use in _uploadOps() (avoids redundant download)
+      this._setCachedSyncData(providerKey, syncData, rev);
     } catch (e) {
       if (e instanceof RemoteFileNotFoundAPIError) {
         // No sync file yet - return empty
@@ -615,26 +733,7 @@ export class FileBasedSyncAdapterService {
       recentOps: [], // Fresh start - no recent ops
     };
 
-    // Backup existing file before overwrite
-    try {
-      const currentData = await this._downloadSyncFile(provider, cfg, encryptKey);
-      const backupData = await this._encryptAndCompressHandler.compressAndEncryptData(
-        cfg,
-        encryptKey,
-        currentData,
-        FILE_BASED_SYNC_CONSTANTS.FILE_VERSION,
-      );
-      await provider.uploadFile(
-        FILE_BASED_SYNC_CONSTANTS.BACKUP_FILE,
-        backupData,
-        null,
-        true,
-      );
-    } catch {
-      // No existing file or backup failed - continue anyway
-    }
-
-    // Upload snapshot
+    // Upload snapshot (no backup - snapshots replace state completely)
     const uploadData = await this._encryptAndCompressHandler.compressAndEncryptData(
       cfg,
       encryptKey,
@@ -710,12 +809,13 @@ export class FileBasedSyncAdapterService {
 
   /**
    * Downloads and decrypts the sync file.
+   * @returns The sync data and its revision (ETag) for conditional upload
    */
   private async _downloadSyncFile(
     provider: SyncProviderServiceInterface<SyncProviderId>,
     cfg: EncryptAndCompressCfg,
     encryptKey: string | undefined,
-  ): Promise<FileBasedSyncData> {
+  ): Promise<{ data: FileBasedSyncData; rev: string }> {
     const response = await provider.downloadFile(FILE_BASED_SYNC_CONSTANTS.SYNC_FILE);
     const data =
       await this._encryptAndCompressHandler.decompressAndDecryptData<FileBasedSyncData>(
@@ -732,7 +832,7 @@ export class FileBasedSyncAdapterService {
       );
     }
 
-    return data;
+    return { data, rev: response.rev };
   }
 
   /**
@@ -797,7 +897,8 @@ export class FileBasedSyncAdapterService {
     encryptKey: string | undefined,
   ): Promise<FileBasedSyncData | null> {
     try {
-      return await this._downloadSyncFile(provider, cfg, encryptKey);
+      const { data } = await this._downloadSyncFile(provider, cfg, encryptKey);
+      return data;
     } catch (e) {
       if (e instanceof RemoteFileNotFoundAPIError) {
         return null;
