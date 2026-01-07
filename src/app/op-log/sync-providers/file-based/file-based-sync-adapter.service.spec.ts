@@ -181,11 +181,36 @@ describe('FileBasedSyncAdapterService', () => {
   });
 
   describe('uploadOps', () => {
-    it('should return empty results when no ops to upload', async () => {
+    it('should return empty results when no ops to upload and file exists', async () => {
+      // Mock that a sync file already exists
+      const syncData = createMockSyncData({ syncVersion: 1 });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
+      );
+
       const result = await adapter.uploadOps([], 'client1');
 
       expect(result.results).toEqual([]);
       expect(mockProvider.uploadFile).not.toHaveBeenCalled();
+    });
+
+    it('should create sync file with state even when no ops to upload and file does not exist', async () => {
+      // Mock that no sync file exists yet
+      mockProvider.downloadFile.and.throwError(
+        new RemoteFileNotFoundAPIError('sync-data.json'),
+      );
+      mockProvider.uploadFile.and.returnValue(Promise.resolve({ rev: 'rev-1' }));
+
+      const result = await adapter.uploadOps([], 'client1');
+
+      // Should still create the sync file with current state
+      expect(mockProvider.uploadFile).toHaveBeenCalledWith(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_FILE,
+        jasmine.any(String),
+        null,
+        true,
+      );
+      expect(result.results).toEqual([]);
     });
 
     it('should create new sync file when none exists', async () => {

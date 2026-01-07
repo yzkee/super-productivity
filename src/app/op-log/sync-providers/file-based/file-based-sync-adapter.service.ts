@@ -289,22 +289,10 @@ export class FileBasedSyncAdapterService {
   ): Promise<OpUploadResponse> {
     const providerKey = this._getProviderKey(provider);
 
-    if (ops.length === 0) {
-      // No ops to upload - just return current state
-      const currentSeq = this._localSeqCounters.get(providerKey) || 0;
-      return {
-        results: [],
-        latestSeq: currentSeq,
-      };
-    }
-
-    OpLog.normal(
-      `FileBasedSyncAdapter: Uploading ${ops.length} ops for client ${clientId}`,
-    );
-
     // Step 1: Download current sync file
     let currentData: FileBasedSyncData | null = null;
     let currentSyncVersion = 0;
+    let fileExists = true;
 
     try {
       currentData = await this._downloadSyncFile(provider, cfg, encryptKey);
@@ -314,8 +302,24 @@ export class FileBasedSyncAdapterService {
         throw e;
       }
       // No file exists yet - this is first sync
+      fileExists = false;
       OpLog.normal('FileBasedSyncAdapter: No existing sync file, creating new');
     }
+
+    // If no ops to upload AND file already exists, just return current state
+    // But if no file exists, we need to create one even with 0 ops
+    if (ops.length === 0 && fileExists) {
+      OpLog.normal('FileBasedSyncAdapter: No ops to upload, file already exists');
+      const currentSeq = this._localSeqCounters.get(providerKey) || 0;
+      return {
+        results: [],
+        latestSeq: currentSeq,
+      };
+    }
+
+    OpLog.normal(
+      `FileBasedSyncAdapter: Uploading ${ops.length} ops for client ${clientId}${!fileExists ? ' (creating initial sync file)' : ''}`,
+    );
 
     // Step 2: Handle version mismatch (another client synced since our last download)
     // Instead of throwing an error, we proceed with the merge - our ops will be combined
