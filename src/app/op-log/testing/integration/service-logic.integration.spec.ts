@@ -41,7 +41,7 @@ import { resetTestUuidCounter } from './helpers/test-client.helper';
 import { LockService } from '../../sync/lock.service';
 import { SchemaMigrationService } from '../../store/schema-migration.service';
 import { mockDecrypt, mockEncrypt } from '../helpers/mock-encryption.helper';
-import { ENCRYPT_FN, DECRYPT_FN } from '../../../sync/util/encryption.token';
+import { ENCRYPT_FN, DECRYPT_FN } from '../../encryption/encryption.token';
 import { TranslateService } from '@ngx-translate/core';
 import { SuperSyncStatusService } from '../../sync/super-sync-status.service';
 import { ServerMigrationService } from '../../sync/server-migration.service';

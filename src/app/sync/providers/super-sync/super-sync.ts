@@ -21,7 +21,7 @@ import { SyncLog } from '../../../core/log';
 import {
   compressWithGzip,
   compressWithGzipToString,
-} from '../../util/compression-handler';
+} from '../../../op-log/encryption/compression-handler';
 import { IS_ANDROID_WEB_VIEW } from '../../../util/is-android-web-view';
 
 const LAST_SERVER_SEQ_KEY_PREFIX = 'super_sync_last_server_seq_';

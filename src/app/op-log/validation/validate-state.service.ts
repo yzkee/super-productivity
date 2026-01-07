@@ -1,16 +1,16 @@
 import { inject, Injectable } from '@angular/core';
 import { IValidation } from 'typia';
-import { validateFull } from '../../sync/validation/validation-fn';
+import { validateFull } from './validation-fn';
 // TEMPORARILY DISABLED - repair is disabled for debugging
-// import { dataRepair } from '../../sync/validation/data-repair';
-// import { isDataRepairPossible } from '../../sync/validation/is-data-repair-possible.util';
+// import { dataRepair } from './data-repair';
+// import { isDataRepairPossible } from './is-data-repair-possible.util';
 import { RepairSummary } from '../core/operation.types';
 import { OpLog } from '../../core/log';
 // DISABLED: Repair system is non-functional
 // import { RepairOperationService } from './repair-operation.service';
 import { StateSnapshotService } from '../../sync/state-snapshot.service';
 // DISABLED: Repair system is non-functional
-// import { PfapiService } from '../../sync/sync.service';
+// import { SyncService } from '../../sync/sync.service';
 // import { loadAllData } from '../../root-store/meta/load-all-data.action';
 
 /* DISABLED: Repair system helper types and functions - unused while repair is disabled
@@ -56,7 +56,7 @@ export interface ValidateAndRepairResult {
 
 /**
  * Service for validating and repairing application state.
- * Wraps PFAPI's validation (Typia + cross-model) and repair functionality.
+ * Wraps validation (Typia + cross-model) and repair functionality.
  *
  * Validation happens at key checkpoints:
  * - Checkpoint B: After loading snapshot during hydration

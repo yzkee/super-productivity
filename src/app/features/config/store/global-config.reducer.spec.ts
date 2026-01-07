@@ -2,7 +2,7 @@ import { globalConfigReducer, initialGlobalConfigState } from './global-config.r
 import { loadAllData } from '../../../root-store/meta/load-all-data.action';
 import { GlobalConfigState } from '../global-config.model';
 import { LegacySyncProvider } from '../../../imex/sync/legacy-sync-provider.model';
-import { AppDataComplete } from '../../../sync/model-config';
+import { AppDataComplete } from '../../../op-log/model/model-config';
 
 describe('GlobalConfigReducer', () => {
   describe('loadAllData action', () => {

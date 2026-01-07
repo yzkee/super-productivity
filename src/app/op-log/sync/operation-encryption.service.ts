@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { ENCRYPT_FN, DECRYPT_FN } from '../../sync/util/encryption.token';
+import { ENCRYPT_FN, DECRYPT_FN } from '../encryption/encryption.token';
 import { SyncOperation } from '../../sync/providers/provider.interface';
 import { DecryptError } from '../../sync/errors/sync-errors';
 

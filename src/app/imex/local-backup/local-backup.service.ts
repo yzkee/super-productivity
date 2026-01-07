@@ -11,7 +11,7 @@ import { StateSnapshotService } from '../../sync/state-snapshot.service';
 import { BackupService } from '../../sync/backup.service';
 import { T } from '../../t.const';
 import { TranslateService } from '@ngx-translate/core';
-import { AppDataComplete } from '../../sync/model-config';
+import { AppDataComplete } from '../../op-log/model/model-config';
 import { SnackService } from '../../core/snack/snack.service';
 import { Log } from '../../core/log';
 

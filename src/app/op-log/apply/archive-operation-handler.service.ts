@@ -73,7 +73,7 @@ export const isArchiveAffectingAction = (action: Action): action is PersistentAc
  *
  * ## Why This Architecture
  *
- * Archive data is stored in IndexedDB (via PFAPI), not in NgRx state. Previously,
+ * Archive data is stored in IndexedDB, not in NgRx state. Previously,
  * archive operations were duplicated across multiple effect files. This handler
  * consolidates all archive logic to:
  *
@@ -108,15 +108,13 @@ export class ArchiveOperationHandler {
   //
   // Some services use lazyInject() to break circular dependency chains:
   //   DataInitService -> OperationLogHydratorService -> OperationApplierService
-  //   -> ArchiveOperationHandler -> ArchiveService/TaskArchiveService -> PfapiService
-  //   DataInitService also injects PfapiService directly, causing the cycle.
+  //   -> ArchiveOperationHandler -> ArchiveService/TaskArchiveService
   //
-  // ArchiveDbAdapter is used for direct IndexedDB access to break the PfapiService
-  // dependency for archive operations (_handleFlushYoungToOld, _handleLoadAllData).
-  // This avoids the circular dependency while providing the same functionality.
+  // ArchiveDbAdapter is used for direct IndexedDB access for archive operations
+  // (_handleFlushYoungToOld, _handleLoadAllData) to avoid potential circular deps.
   //
   // Other services still use lazyInject because they have their own complex
-  // dependency chains through PfapiService that would require deeper refactoring.
+  // dependency chains that would require deeper refactoring.
   // ═══════════════════════════════════════════════════════════════════════════
   private _injector = inject(Injector);
   private _archiveDbAdapter = inject(ArchiveDbAdapter);
@@ -366,7 +364,7 @@ export class ArchiveOperationHandler {
    * This operation is deterministic - given the same timestamp, it produces
    * the same result on all clients.
    *
-   * Uses ArchiveDbAdapter which directly accesses IndexedDB without PFAPI's lock.
+   * Uses ArchiveDbAdapter which directly accesses IndexedDB.
    */
   private async _handleCompressArchive(action: PersistentAction): Promise<void> {
     const { oneYearAgoTimestamp } = action as ReturnType<typeof compressArchive>;
@@ -473,12 +471,12 @@ export class ArchiveOperationHandler {
    * Fixes bug where SYNC_IMPORT updated NgRx state but never persisted archive
    * data to IndexedDB on remote client, causing data loss on restart.
    *
-   * @localBehavior SKIP - Archive written by PfapiService._updateModelCtrlCaches()
-   * @remoteBehavior Executes - Uses ArchiveDbAdapter for direct IndexedDB access (bypasses PfapiService)
+   * @localBehavior SKIP - Archive written by local backup import flow
+   * @remoteBehavior Executes - Uses ArchiveDbAdapter for direct IndexedDB access
    */
   private async _handleLoadAllData(action: PersistentAction): Promise<void> {
     if (!action.meta?.isRemote) {
-      return; // Local: already written by PfapiService._updateModelCtrlCaches
+      return; // Local: already written by local backup import flow
     }
 
     const loadAllDataAction = action as unknown as ReturnType<typeof loadAllData>;

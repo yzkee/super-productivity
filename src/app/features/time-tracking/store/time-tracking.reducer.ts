@@ -6,7 +6,7 @@ import {
 import { createFeature, createReducer, on } from '@ngrx/store';
 import { TimeTrackingState } from '../time-tracking.model';
 import { loadAllData } from '../../../root-store/meta/load-all-data.action';
-import { AppDataComplete } from '../../../sync/model-config';
+import { AppDataComplete } from '../../../op-log/model/model-config';
 import { roundTsToMinutes } from '../../../util/round-ts-to-minutes';
 import { TODAY_TAG } from '../../tag/tag.const';
 

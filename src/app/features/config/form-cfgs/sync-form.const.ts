@@ -4,7 +4,7 @@ import { ConfigFormSection, SyncConfig } from '../global-config.model';
 import { LegacySyncProvider } from '../../../imex/sync/legacy-sync-provider.model';
 import { IS_ANDROID_WEB_VIEW } from '../../../util/is-android-web-view';
 import { IS_ELECTRON } from '../../../app.constants';
-import { fileSyncDroid, fileSyncElectron } from '../../../sync/model-config';
+import { fileSyncDroid, fileSyncElectron } from '../../../op-log/model/model-config';
 import { FormlyFieldConfig } from '@ngx-formly/core';
 
 /**

@@ -1,4 +1,4 @@
-import { AppDataComplete } from '../../sync/model-config';
+import { AppDataComplete } from '../model/model-config';
 import { PFLog } from '../../core/log';
 import { TODAY_TAG } from '../../features/tag/tag.const';
 

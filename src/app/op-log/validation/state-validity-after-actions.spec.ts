@@ -25,7 +25,7 @@ import {
   addProjectToAppData,
   addTagToAppData,
 } from './state-validity-test-utils';
-import { AppDataComplete } from '../../sync/model-config';
+import { AppDataComplete } from '../model/model-config';
 import { RootState } from '../../root-store/root-state';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { WorkContextType } from '../../features/work-context/work-context.model';

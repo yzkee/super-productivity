@@ -11,7 +11,7 @@ import { Operation, OpType, ActionType } from '../core/operation.types';
 import { uuidv7 } from '../../util/uuid-v7';
 import { incrementVectorClock, mergeVectorClocks } from '../../core/util/vector-clock';
 import { OpLog } from '../../core/log';
-import { AppDataComplete } from '../../sync/model-config';
+import { AppDataComplete } from '../model/model-config';
 
 /**
  * Handles hydration after remote sync downloads.

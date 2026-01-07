@@ -3,7 +3,7 @@
  * These helpers construct valid AppDataComplete states and
  * validate them using the same validation functions used in production.
  */
-import { AppDataComplete } from '../../sync/model-config';
+import { AppDataComplete } from '../model/model-config';
 import { validateFull } from './validation-fn';
 import { initialTaskState } from '../../features/tasks/store/task.reducer';
 import { initialProjectState } from '../../features/project/store/project.reducer';

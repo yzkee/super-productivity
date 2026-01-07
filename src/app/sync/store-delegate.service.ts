@@ -21,7 +21,7 @@ import { selectTaskRepeatCfgFeatureState } from '../features/task-repeat-cfg/sto
 import { selectTimeTrackingState } from '../features/time-tracking/store/time-tracking.selectors';
 
 import { AllSyncModels } from './sync.types';
-import { AllModelConfig } from '../sync/model-config';
+import { AllModelConfig } from '../op-log/model/model-config';
 import { environment } from '../../environments/environment';
 import { ArchiveModel } from '../features/time-tracking/time-tracking.model';
 import { initialTimeTrackingState } from '../features/time-tracking/store/time-tracking.reducer';

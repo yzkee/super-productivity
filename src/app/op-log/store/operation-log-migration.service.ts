@@ -12,13 +12,13 @@ import {
 } from './dialog-legacy-migration/dialog-legacy-migration.component';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { download } from '../../util/download';
-import { validateFull } from '../../sync/validation/validation-fn';
-import { isDataRepairPossible } from '../../sync/validation/is-data-repair-possible.util';
-import { dataRepair } from '../../sync/validation/data-repair';
+import { validateFull } from '../validation/validation-fn';
+import { isDataRepairPossible } from '../validation/is-data-repair-possible.util';
+import { dataRepair } from '../validation/data-repair';
 import { uuidv7 } from '../../util/uuid-v7';
 import { ActionType, Operation, OpType } from '../core/operation.types';
 import { CURRENT_SCHEMA_VERSION } from './schema-migration.service';
-import { AppDataComplete } from '../../sync/model-config';
+import { AppDataComplete } from '../model/model-config';
 
 /**
  * Service to check for valid operation log state during startup and migrate

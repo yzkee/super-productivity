@@ -1155,7 +1155,7 @@ describe('SuperSyncProvider', () => {
       ): Promise<{ base64Gzip: string; headers: Record<string, string>; url: string }> {
         // Instead of actually calling CapacitorHttp, return what would be sent
         const { compressWithGzipToString } = await import(
-          '../../util/compression-handler'
+          '../../../op-log/encryption/compression-handler'
         );
         const base64Gzip = await compressWithGzipToString(jsonPayload);
         const baseUrl = cfg.baseUrl.replace(/\/$/, '');

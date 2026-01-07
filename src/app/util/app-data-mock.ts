@@ -1,6 +1,6 @@
 import { DEFAULT_GLOBAL_CONFIG } from '../features/config/default-global-config.const';
 import { createEmptyEntity } from './create-empty-entity';
-import { AppDataComplete } from '../sync/model-config';
+import { AppDataComplete } from '../op-log/model/model-config';
 import { initialTimeTrackingState } from '../features/time-tracking/store/time-tracking.reducer';
 
 export const createAppDataCompleteMock = (): AppDataComplete => ({

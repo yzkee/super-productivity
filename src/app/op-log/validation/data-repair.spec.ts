@@ -12,7 +12,7 @@ import {
   TaskRepeatCfg,
 } from '../../features/task-repeat-cfg/task-repeat-cfg.model';
 import { IssueProvider } from '../../features/issue/issue.model';
-import { AppDataComplete } from '../../sync/model-config';
+import { AppDataComplete } from '../model/model-config';
 import { dirtyDeepCopy } from '../../util/dirtyDeepCopy';
 
 const FAKE_PROJECT_ID = 'FAKE_PROJECT_ID';

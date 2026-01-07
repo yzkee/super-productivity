@@ -1,16 +1,19 @@
-import { extractSyncFileStateFromPrefix, getSyncFilePrefix } from './sync-file-prefix';
+import {
+  extractSyncFileStateFromPrefix,
+  getSyncFilePrefix,
+} from '../../sync/util/sync-file-prefix';
 import { PFLog } from '../../core/log';
 import { decrypt, encrypt } from './encryption';
 import {
   DecryptError,
   DecryptNoPasswordError,
   JsonParseError,
-} from '../errors/sync-errors';
+} from '../../sync/errors/sync-errors';
 import {
   compressWithGzipToString,
   decompressGzipFromString,
 } from './compression-handler';
-import { EncryptAndCompressCfg } from '../sync.types';
+import { EncryptAndCompressCfg } from '../../sync/sync.types';
 
 export class EncryptAndCompressHandlerService {
   private static readonly L = 'EncryptAndCompressHandlerService';

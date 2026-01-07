@@ -1,5 +1,4 @@
-// Barrel export for sync module - replaces pfapi/api
-// This provides backward compatibility for existing imports
+// Barrel export for sync module - providers and related types
 
 // Types from sync.types.ts
 export {
@@ -59,6 +58,3 @@ export { DropboxPrivateCfg } from './providers/dropbox/dropbox';
 
 // VectorClock from core
 export { VectorClock } from '../core/util/vector-clock';
-
-// Legacy type stubs for backward compatibility
-export type ModelCfgToModelCtrl<T> = T;

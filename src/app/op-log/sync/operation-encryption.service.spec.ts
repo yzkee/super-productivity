@@ -4,7 +4,7 @@ import { SyncOperation } from '../../sync/providers/provider.interface';
 import { DecryptError } from '../../sync/errors/sync-errors';
 import { ActionType } from '../core/operation.types';
 import { mockEncrypt, mockDecrypt } from '../testing/helpers/mock-encryption.helper';
-import { ENCRYPT_FN, DECRYPT_FN } from '../../sync/util/encryption.token';
+import { ENCRYPT_FN, DECRYPT_FN } from '../encryption/encryption.token';
 
 describe('OperationEncryptionService', () => {
   let service: OperationEncryptionService;

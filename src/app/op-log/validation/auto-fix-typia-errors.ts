@@ -1,4 +1,4 @@
-import { AppDataComplete } from '../../sync/model-config';
+import { AppDataComplete } from '../model/model-config';
 import { IValidation } from 'typia';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 import { PFLog } from '../../core/log';

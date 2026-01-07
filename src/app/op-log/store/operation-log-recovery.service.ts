@@ -9,7 +9,7 @@ import { Operation, OpType, ActionType } from '../core/operation.types';
 import { uuidv7 } from '../../util/uuid-v7';
 import { PENDING_OPERATION_EXPIRY_MS } from '../core/operation-log.const';
 import { OpLog } from '../../core/log';
-import { AppDataComplete } from '../../sync/model-config';
+import { AppDataComplete } from '../model/model-config';
 
 /**
  * Handles crash recovery and data restoration for the operation log system.

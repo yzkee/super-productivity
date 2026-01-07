@@ -8,7 +8,7 @@ import { JiraCfg } from '../src/app/features/issue/providers/jira/jira.model';
 import { AppDataCompleteLegacy, SyncGetRevResult } from '../src/app/imex/sync/sync.model';
 import { Task } from '../src/app/features/tasks/task.model';
 import { LocalBackupMeta } from '../src/app/imex/local-backup/local-backup.model';
-import { AppDataComplete } from '../src/app/sync/model-config';
+import { AppDataComplete } from '../src/app/op-log/model/model-config';
 import {
   PluginNodeScriptRequest,
   PluginNodeScriptResult,

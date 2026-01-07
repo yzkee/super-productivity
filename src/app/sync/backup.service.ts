@@ -10,11 +10,15 @@ import { CURRENT_SCHEMA_VERSION } from '../op-log/store/schema-migration.service
 import { incrementVectorClock } from '../core/util/vector-clock';
 import { uuidv7 } from '../util/uuid-v7';
 import { loadAllData } from '../root-store/meta/load-all-data.action';
-import { validateFull } from './validation/validation-fn';
-import { dataRepair } from './validation/data-repair';
-import { isDataRepairPossible } from './validation/is-data-repair-possible.util';
+import { validateFull } from '../op-log/validation/validation-fn';
+import { dataRepair } from '../op-log/validation/data-repair';
+import { isDataRepairPossible } from '../op-log/validation/is-data-repair-possible.util';
 import { PFLog } from '../core/log';
-import { AppDataComplete, CROSS_MODEL_VERSION, AllModelConfig } from './model-config';
+import {
+  AppDataComplete,
+  CROSS_MODEL_VERSION,
+  AllModelConfig,
+} from '../op-log/model/model-config';
 import { CompleteBackup } from './sync.types';
 
 /**

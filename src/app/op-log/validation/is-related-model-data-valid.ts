@@ -1,6 +1,6 @@
 import { devError } from '../../util/dev-error';
 import { environment } from '../../../environments/environment';
-import { AppDataComplete } from '../../sync/model-config';
+import { AppDataComplete } from '../model/model-config';
 import { PFLog } from '../../core/log';
 import { MenuTreeKind } from '../../features/menu-tree/store/menu-tree.model';
 import { TODAY_TAG } from '../../features/tag/tag.const';

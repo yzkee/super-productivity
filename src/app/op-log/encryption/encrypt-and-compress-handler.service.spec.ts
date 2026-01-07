@@ -1,5 +1,5 @@
 import { PFLog } from '../../core/log';
-import { JsonParseError } from '../errors/sync-errors';
+import { JsonParseError } from '../../sync/errors/sync-errors';
 import { EncryptAndCompressHandlerService } from './encrypt-and-compress-handler.service';
 import { getErrorTxt } from '../../util/get-error-text';
 

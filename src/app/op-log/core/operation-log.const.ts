@@ -11,8 +11,8 @@ import { InjectionToken } from '@angular/core';
  * - SYNC_WAIT_TIMEOUT_MS (40s) - Max wait for ongoing sync to complete
  * - INITIAL_SYNC_DELAY_MS (500ms) - Delay before triggering initial sync
  *
- * **Meta Sync Lock** (`src/app/pfapi/api/sync/meta-sync.service.ts`):
- * - LOCK_TTL_MS (5 min) - Lock TTL for distributed lock on remote metadata
+ * **Meta Sync Lock** (`src/app/sync/providers/webdav/webdav.ts`):
+ * - LOCK_TTL_MS (5 min) - Lock TTL for distributed lock on remote metadata (WebDAV)
  */
 
 /**

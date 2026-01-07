@@ -67,9 +67,8 @@ export class OperationLogHydratorService {
       const [, , hasBackup] = await Promise.all([
         // Check for pending remote ops from crashed sync (touches 'ops' store)
         this.recoveryService.recoverPendingRemoteOps(),
-        // Migrate vector clock from pf.META_MODEL to SUP_OPS.vector_clock if needed
-        // (touches 'vector_clock' store). One-time migration for DB version 1 to 2.
-        this._migrateVectorClockFromPfapiIfNeeded(),
+        // Legacy migration placeholder - kept for future DB migrations if needed
+        this._runLegacyMigrationIfNeeded(),
         // A.7.12: Check for interrupted migration (touches 'state_cache' store)
         this.opLogStore.hasStateCacheBackup(),
       ]);
@@ -330,9 +329,8 @@ export class OperationLogHydratorService {
         OpLog.normal('OperationLogHydratorService: Full replay complete.');
       }
 
-      // Sync PFAPI vector clock with SUP_OPS to ensure consistency
-      // This recovers from any failed PFAPI updates during previous operations
-      await this._syncPfapiVectorClock();
+      // Legacy cleanup placeholder - kept for future maintenance operations if needed
+      await this._runLegacyCleanupIfNeeded();
 
       // Retry any failed remote ops from previous conflict resolution attempts
       // Now that state is fully hydrated, dependencies might be resolved
@@ -518,11 +516,11 @@ export class OperationLogHydratorService {
   }
 
   /**
-   * Legacy method - previously synced vector clock to PFAPI meta model.
-   * Now a no-op since PFAPI layer was removed.
+   * Legacy cleanup placeholder.
+   * Kept for future maintenance operations if needed.
    */
-  private async _syncPfapiVectorClock(): Promise<void> {
-    // No-op: PFAPI layer was removed, vector clock is managed by SUP_OPS only
+  private async _runLegacyCleanupIfNeeded(): Promise<void> {
+    // No-op: placeholder for future cleanup operations
   }
 
   /**
@@ -583,10 +581,10 @@ export class OperationLogHydratorService {
   }
 
   /**
-   * Legacy method - previously migrated vector clock from PFAPI meta model.
-   * Now a no-op since PFAPI layer was removed.
+   * Legacy migration placeholder.
+   * Kept for future DB migrations if needed.
    */
-  private async _migrateVectorClockFromPfapiIfNeeded(): Promise<void> {
-    // No-op: PFAPI layer was removed, no legacy migration needed
+  private async _runLegacyMigrationIfNeeded(): Promise<void> {
+    // No-op: placeholder for future migrations
   }
 }

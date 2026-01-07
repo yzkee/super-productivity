@@ -21,8 +21,8 @@ import { BoardsState } from '../../features/boards/store/boards.reducer';
 import { IssueProviderState } from '../../features/issue/issue.model';
 import { MetricState } from '../../features/metric/metric.model';
 import { GlobalConfigState } from '../../features/config/global-config.model';
-import { AppDataComplete } from '../../sync/model-config';
-import { ValidationResult } from '../sync.types';
+import { AppDataComplete } from '../model/model-config';
+import { ValidationResult } from '../../sync/sync.types';
 import { PFLog } from '../../core/log';
 import {
   PluginMetaDataState,

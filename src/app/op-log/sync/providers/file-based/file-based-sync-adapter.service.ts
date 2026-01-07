@@ -9,7 +9,7 @@ import {
   ServerSyncOperation,
   SnapshotUploadResponse,
 } from '../../../../sync/providers/provider.interface';
-import { EncryptAndCompressHandlerService } from '../../../../sync/util/encrypt-and-compress-handler.service';
+import { EncryptAndCompressHandlerService } from '../../../encryption/encrypt-and-compress-handler.service';
 import { EncryptAndCompressCfg } from '../../../../sync/sync.types';
 import { CompactOperation } from '../../../../core/persistence/operation-log/compact/compact-operation.types';
 import {

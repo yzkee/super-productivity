@@ -1,5 +1,5 @@
 import { AppDataCompleteLegacy } from '../../imex/sync/sync.model';
-import { AppDataComplete } from '../../sync/model-config';
+import { AppDataComplete } from '../model/model-config';
 
 export const isDataRepairPossible = (
   data: AppDataCompleteLegacy | AppDataComplete,

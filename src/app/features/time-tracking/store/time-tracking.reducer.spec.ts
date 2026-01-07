@@ -6,7 +6,7 @@ import {
   syncTimeTracking,
 } from './time-tracking.actions';
 import { loadAllData } from '../../../root-store/meta/load-all-data.action';
-import { AppDataComplete } from '../../../sync/model-config';
+import { AppDataComplete } from '../../../op-log/model/model-config';
 import { TaskCopy } from '../../tasks/task.model';
 import { WorkContextType } from '../../work-context/work-context.model';
 

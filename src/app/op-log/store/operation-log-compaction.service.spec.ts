@@ -11,7 +11,7 @@ import {
 import { CURRENT_SCHEMA_VERSION } from './schema-migration.service';
 import { OperationLogEntry } from '../core/operation.types';
 import { OpLog } from '../../core/log';
-import { MODEL_CONFIGS } from '../../sync/model-config';
+import { MODEL_CONFIGS } from '../model/model-config';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
