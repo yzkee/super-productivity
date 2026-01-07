@@ -55,7 +55,6 @@ import { IS_ELECTRON } from '../../app.constants';
 import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
 import { OperationLogSyncService } from '../../op-log/sync/operation-log-sync.service';
 import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
-import { isFileBasedProvider } from '../../op-log/sync/operation-sync.util';
 
 /**
  * Converts LegacySyncProvider to SyncProviderId.
@@ -237,15 +236,10 @@ export class SyncWrapperService {
         await this._opLogSyncService.uploadPendingOps(syncCapableProvider);
       }
 
-      // Mark as in-sync - only for SuperSync (API-based sync)
-      // File-based providers (Dropbox, WebDAV, LocalFile) don't get IN_SYNC status
-      // because we can't confirm real-time sync without server confirmation.
-      if (rawProvider && !isFileBasedProvider(rawProvider)) {
-        this._providerManager.setSyncStatus('IN_SYNC');
-        SyncLog.log('SyncWrapperService: Sync complete, status=IN_SYNC');
-      } else {
-        SyncLog.log('SyncWrapperService: Sync complete (file-based provider)');
-      }
+      // Mark as in-sync for all providers after successful sync
+      // This indicates the sync operation completed successfully
+      this._providerManager.setSyncStatus('IN_SYNC');
+      SyncLog.log('SyncWrapperService: Sync complete, status=IN_SYNC');
       return SyncStatus.InSync;
     } catch (error) {
       SyncLog.err(error);

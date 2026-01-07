@@ -265,6 +265,34 @@ export class OperationLogDownloadService {
         );
       }
 
+      // Alternative migration detection for file-based providers:
+      // When connecting to an empty server, check if the client has previously synced ops
+      // (from another provider like SuperSync OR from a previous sync with this provider).
+      // This handles:
+      // 1. Provider switch scenario (e.g., SuperSync → Dropbox)
+      // 2. Server reset scenario (e.g., user deleted sync-data.json in Dropbox)
+      // File-based providers don't return gapDetected, so we need this alternative check.
+      // NOTE: We check regardless of lastServerSeq because:
+      // - lastServerSeq might be non-zero from a previous sync with this provider
+      // - If server is empty but client has ops, we need to migrate regardless
+      OpLog.verbose(
+        `OperationLogDownloadService: Migration check - needsFullStateUpload=${needsFullStateUpload}, ` +
+          `allNewOps=${allNewOps.length}, finalLatestSeq=${finalLatestSeq}, lastServerSeq=${lastServerSeq}`,
+      );
+      if (!needsFullStateUpload && allNewOps.length === 0 && finalLatestSeq === 0) {
+        const hasSyncedOps = await this.opLogStore.hasSyncedOps();
+        OpLog.verbose(
+          `OperationLogDownloadService: Empty server detected, hasSyncedOps=${hasSyncedOps}`,
+        );
+        if (hasSyncedOps) {
+          needsFullStateUpload = true;
+          OpLog.warn(
+            'OperationLogDownloadService: Server migration detected - empty server with synced ops. ' +
+              'Full state upload will be required.',
+          );
+        }
+      }
+
       OpLog.normal(
         `OperationLogDownloadService: Downloaded ${allNewOps.length} new operations via API.`,
       );

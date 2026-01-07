@@ -22,6 +22,7 @@ describe('OperationLogDownloadService', () => {
   beforeEach(() => {
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', [
       'getAppliedOpIds',
+      'hasSyncedOps',
     ]);
     mockLockService = jasmine.createSpyObj('LockService', ['request']);
     mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
@@ -36,6 +37,7 @@ describe('OperationLogDownloadService', () => {
       },
     );
     mockOpLogStore.getAppliedOpIds.and.returnValue(Promise.resolve(new Set<string>()));
+    mockOpLogStore.hasSyncedOps.and.returnValue(Promise.resolve(false));
 
     TestBed.configureTestingModule({
       providers: [
@@ -1089,6 +1091,166 @@ describe('OperationLogDownloadService', () => {
           expect(result.latestServerSeq).toBe(5);
           // Download service no longer calls setLastServerSeq directly
           expect(mockApiProvider.setLastServerSeq).not.toHaveBeenCalled();
+        });
+      });
+
+      describe('server migration detection for file-based providers', () => {
+        it('should set needsFullStateUpload when empty server AND first connect AND has synced ops', async () => {
+          // Scenario: User switches from SuperSync to Dropbox
+          // - Server is empty (no sync-data.json file)
+          // - First time connecting (lastServerSeq === 0)
+          // - Client has previously synced ops (from SuperSync)
+          mockApiProvider.getLastServerSeq.and.returnValue(Promise.resolve(0));
+          mockApiProvider.downloadOps.and.returnValue(
+            Promise.resolve({
+              ops: [],
+              hasMore: false,
+              latestSeq: 0, // Empty server
+            }),
+          );
+          // Client has synced ops from previous provider
+          mockOpLogStore.hasSyncedOps.and.returnValue(Promise.resolve(true));
+
+          const result = await service.downloadRemoteOps(mockApiProvider);
+
+          expect(result.needsFullStateUpload).toBeTrue();
+          expect(OpLog.warn).toHaveBeenCalledWith(
+            jasmine.stringContaining(
+              'Server migration detected - empty server with synced ops',
+            ),
+          );
+        });
+
+        it('should NOT set needsFullStateUpload when empty server AND first connect AND NO synced ops', async () => {
+          // Scenario: Fresh client connecting for the first time
+          // - Server is empty
+          // - First time connecting
+          // - No previous sync history (fresh client)
+          mockApiProvider.getLastServerSeq.and.returnValue(Promise.resolve(0));
+          mockApiProvider.downloadOps.and.returnValue(
+            Promise.resolve({
+              ops: [],
+              hasMore: false,
+              latestSeq: 0,
+            }),
+          );
+          // Client has NO synced ops (fresh client)
+          mockOpLogStore.hasSyncedOps.and.returnValue(Promise.resolve(false));
+
+          const result = await service.downloadRemoteOps(mockApiProvider);
+
+          expect(result.needsFullStateUpload).toBeFalsy();
+        });
+
+        it('should NOT set needsFullStateUpload when server has data', async () => {
+          // Scenario: Joining existing sync group
+          // - Server has ops
+          // - Client may or may not have synced ops - irrelevant
+          mockApiProvider.getLastServerSeq.and.returnValue(Promise.resolve(0));
+          mockApiProvider.downloadOps.and.returnValue(
+            Promise.resolve({
+              ops: [
+                {
+                  serverSeq: 1,
+                  receivedAt: Date.now(),
+                  op: {
+                    id: 'op-1',
+                    clientId: 'c1',
+                    actionType: '[Task] Add' as ActionType,
+                    opType: OpType.Create,
+                    entityType: 'TASK',
+                    payload: {},
+                    vectorClock: {},
+                    timestamp: Date.now(),
+                    schemaVersion: 1,
+                  },
+                },
+              ],
+              hasMore: false,
+              latestSeq: 1,
+            }),
+          );
+          mockOpLogStore.hasSyncedOps.and.returnValue(Promise.resolve(true));
+
+          const result = await service.downloadRemoteOps(mockApiProvider);
+
+          expect(result.needsFullStateUpload).toBeFalsy();
+        });
+
+        it('should NOT set needsFullStateUpload when already synced with this server (server has data)', async () => {
+          // Scenario: Regular sync with already-connected server
+          // - lastServerSeq > 0 means we've synced before
+          // - Server has data (latestSeq > 0)
+          mockApiProvider.getLastServerSeq.and.returnValue(Promise.resolve(50)); // Already synced
+          mockApiProvider.downloadOps.and.returnValue(
+            Promise.resolve({
+              ops: [],
+              hasMore: false,
+              latestSeq: 50, // Server has data
+            }),
+          );
+          mockOpLogStore.hasSyncedOps.and.returnValue(Promise.resolve(true));
+
+          const result = await service.downloadRemoteOps(mockApiProvider);
+
+          expect(result.needsFullStateUpload).toBeFalsy();
+        });
+
+        it('should set needsFullStateUpload when server was reset (previously synced, now empty)', async () => {
+          // Scenario: User previously synced with Dropbox, then cleared the Dropbox folder
+          // - lastServerSeq > 0 (had previous sync)
+          // - Server is now empty (user deleted sync-data.json)
+          // - Client has synced ops
+          // This is a server reset scenario - need full state upload
+          mockApiProvider.getLastServerSeq.and.returnValue(Promise.resolve(100)); // Had previous sync
+          mockApiProvider.downloadOps.and.returnValue(
+            Promise.resolve({
+              ops: [],
+              hasMore: false,
+              latestSeq: 0, // Server is empty now
+            }),
+          );
+          mockOpLogStore.hasSyncedOps.and.returnValue(Promise.resolve(true));
+
+          const result = await service.downloadRemoteOps(mockApiProvider);
+
+          expect(result.needsFullStateUpload).toBeTrue();
+          expect(OpLog.warn).toHaveBeenCalledWith(
+            jasmine.stringContaining(
+              'Server migration detected - empty server with synced ops',
+            ),
+          );
+        });
+
+        it('should NOT set needsFullStateUpload if gapDetected migration already triggered', async () => {
+          // Scenario: API-based provider with gap detection
+          // The gapDetected path should take precedence
+          mockApiProvider.getLastServerSeq.and.returnValue(Promise.resolve(100));
+          mockApiProvider.downloadOps.and.returnValues(
+            // Gap detected on empty server - triggers migration via hasResetForGap path
+            Promise.resolve({
+              ops: [],
+              hasMore: false,
+              latestSeq: 0,
+              gapDetected: true,
+            }),
+            // After reset, still empty
+            Promise.resolve({
+              ops: [],
+              hasMore: false,
+              latestSeq: 0,
+            }),
+          );
+          mockOpLogStore.hasSyncedOps.and.returnValue(Promise.resolve(true));
+
+          const result = await service.downloadRemoteOps(mockApiProvider);
+
+          // Should have been triggered by the gapDetected path, not the alternative path
+          expect(result.needsFullStateUpload).toBeTrue();
+          // The warning should mention the gap-based detection
+          expect(OpLog.warn).toHaveBeenCalledWith(
+            jasmine.stringContaining('gap on empty server'),
+          );
         });
       });
     });
