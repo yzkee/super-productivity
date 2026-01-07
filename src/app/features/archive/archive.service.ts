@@ -16,6 +16,7 @@ import { ArchiveDbAdapter } from '../../core/persistence/archive-db-adapter.serv
 import { ArchiveModel } from './archive.model';
 import { TimeTrackingState } from '../time-tracking/time-tracking.model';
 import { first } from 'rxjs/operators';
+import { firstValueFrom } from 'rxjs';
 import { selectTimeTrackingState } from '../time-tracking/store/time-tracking.selectors';
 
 /**
@@ -137,10 +138,9 @@ export class ArchiveService {
     // Move all archived tasks to archiveYoung
     // Move timeTracking data to archiveYoung
     // Get time tracking from the store as it is fresher
-    const timeTracking = await this._store
-      .select(selectTimeTrackingState)
-      .pipe(first())
-      .toPromise();
+    const timeTracking = await firstValueFrom(
+      this._store.select(selectTimeTrackingState).pipe(first()),
+    );
     const newSorted1 = sortTimeTrackingDataToArchiveYoung({
       timeTracking: timeTracking || DEFAULT_TIME_TRACKING,
       archiveYoung,
@@ -293,10 +293,9 @@ export class ArchiveService {
     // Also move historical time tracking data to archiveYoung
     // This ensures the remote client's archive matches the originating client
     // Get time tracking from the store as it is fresher
-    const timeTracking = await this._store
-      .select(selectTimeTrackingState)
-      .pipe(first())
-      .toPromise();
+    const timeTracking = await firstValueFrom(
+      this._store.select(selectTimeTrackingState).pipe(first()),
+    );
     const sorted = sortTimeTrackingDataToArchiveYoung({
       timeTracking: timeTracking || DEFAULT_TIME_TRACKING,
       archiveYoung,

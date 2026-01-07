@@ -77,13 +77,18 @@ export class ArchiveMigrationService {
     if (!archive) return false;
 
     // Check for tasks
-    const hasTaskData = archive.task && archive.task.ids && archive.task.ids.length > 0;
+    const hasTaskData = !!(
+      archive.task &&
+      archive.task.ids &&
+      archive.task.ids.length > 0
+    );
 
     // Check for time tracking data
-    const hasTimeTrackingData =
+    const hasTimeTrackingData = !!(
       archive.timeTracking &&
       (Object.keys(archive.timeTracking.project || {}).length > 0 ||
-        Object.keys(archive.timeTracking.tag || {}).length > 0);
+        Object.keys(archive.timeTracking.tag || {}).length > 0)
+    );
 
     return hasTaskData || hasTimeTrackingData;
   }
