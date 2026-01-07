@@ -8,7 +8,6 @@ import {
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 import { ImportPage } from '../../pages/import.page';
-import { waitForAppReady } from '../../utils/waits';
 
 /**
  * SuperSync Stale Clock Regression E2E Tests
@@ -146,14 +145,12 @@ test.describe('@supersync @regression Stale Clock Regression', () => {
       // This is the CRITICAL step - reload triggers fresh hydration
       // With the bug, operations created during loadAllData would get stale clocks
       await clientB.page.reload();
-      await waitForAppReady(clientB.page);
+      await clientB.page.waitForLoadState('networkidle');
       console.log('[Stale Clock] Client B reloaded, hydration complete');
 
-      // Navigate to work view
+      // Navigate to work view and wait for imported task to appear
       await clientB.page.goto('/#/work-view');
       await clientB.page.waitForLoadState('networkidle');
-
-      // Wait for imported task to appear
       await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
       console.log('[Stale Clock] Client B showing imported data after reload');
 
@@ -272,7 +269,7 @@ test.describe('@supersync @regression Stale Clock Regression', () => {
 
         // Reload Client B
         await clientB.page.reload();
-        await waitForAppReady(clientB.page);
+        await clientB.page.waitForLoadState('networkidle');
 
         // Navigate and verify state
         await clientB.page.goto('/#/work-view');
