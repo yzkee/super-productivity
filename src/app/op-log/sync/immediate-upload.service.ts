@@ -3,8 +3,8 @@ import { Subject, Subscription } from 'rxjs';
 import { debounceTime, exhaustMap, filter } from 'rxjs/operators';
 import { isOnline } from '../../util/is-online';
 import { SyncProviderManager } from '../sync-providers/provider-manager.service';
-import { WrappedProviderService } from '../sync-providers/wrapped-provider.service';
 import { OperationLogSyncService } from './operation-log-sync.service';
+import { isFileBasedProvider, isOperationSyncCapable } from './operation-sync.util';
 import { OpLog } from '../../core/log';
 
 const IMMEDIATE_UPLOAD_DEBOUNCE_MS = 2000;
@@ -20,8 +20,9 @@ const IMMEDIATE_UPLOAD_DEBOUNCE_MS = 2000;
  * - Handles piggybacked operations from server responses
  *
  * ## Provider Types
- * - **SuperSync**: Uses API-based sync directly
- * - **File-based (Dropbox, WebDAV, LocalFile)**: Wrapped with FileBasedSyncAdapterService
+ * - **SuperSync**: Uses API-based sync directly - IMMEDIATE UPLOAD ENABLED
+ * - **File-based (Dropbox, WebDAV, LocalFile)**: IMMEDIATE UPLOAD DISABLED
+ *   (uses periodic sync instead to avoid excessive API calls)
  *
  * ## Checkmark (IN_SYNC) behavior
  *
@@ -35,7 +36,7 @@ const IMMEDIATE_UPLOAD_DEBOUNCE_MS = 2000;
  *
  * Guards:
  * - Only uploads when online
- * - Only uploads when provider supports operation sync (via WrappedProviderService)
+ * - Only uploads for SuperSync (not file-based providers)
  * - Skips when full sync is in progress
  * - Skips for fresh clients (no history)
  */
@@ -44,7 +45,6 @@ const IMMEDIATE_UPLOAD_DEBOUNCE_MS = 2000;
 })
 export class ImmediateUploadService implements OnDestroy {
   private _providerManager = inject(SyncProviderManager);
-  private _wrappedProvider = inject(WrappedProviderService);
   private _syncService = inject(OperationLogSyncService);
 
   private _uploadTrigger$ = new Subject<void>();
@@ -84,8 +84,7 @@ export class ImmediateUploadService implements OnDestroy {
 
   /**
    * Synchronous guard checks before attempting upload.
-   * Note: Operation sync capability is checked asynchronously in _performUpload()
-   * since file-based providers need to be wrapped (requires async privateCfg load).
+   * Immediate upload is ONLY for SuperSync - file-based providers use periodic sync.
    */
   private _canUpload(): boolean {
     // Must be online
@@ -98,9 +97,21 @@ export class ImmediateUploadService implements OnDestroy {
       return false;
     }
 
-    // Must have an active provider (capability checked in _performUpload)
+    // Must have an active provider
     const provider = this._providerManager.getActiveProvider();
     if (!provider) {
+      return false;
+    }
+
+    // IMPORTANT: Only enable immediate upload for SuperSync (API-based sync).
+    // File-based providers (Dropbox, WebDAV, LocalFile) should use periodic sync
+    // to avoid excessive API calls and rate limiting.
+    if (isFileBasedProvider(provider)) {
+      return false;
+    }
+
+    // Must support operation sync (SuperSync implements this directly)
+    if (!isOperationSyncCapable(provider)) {
       return false;
     }
 
@@ -114,29 +125,24 @@ export class ImmediateUploadService implements OnDestroy {
    * - Server migration detection and SYNC_IMPORT creation
    * - Processing of piggybacked ops from server
    * - Handling of rejected ops
+   *
+   * Note: This is only called for SuperSync (file-based providers are filtered in _canUpload)
    */
   private async _performUpload(): Promise<void> {
-    const rawProvider = this._providerManager.getActiveProvider();
-    if (!rawProvider) {
-      return;
-    }
-
-    // Get operation-sync-capable version of the provider
-    // (SuperSync returns as-is, file-based providers get wrapped with FileBasedSyncAdapterService)
-    const syncCapableProvider =
-      await this._wrappedProvider.getOperationSyncCapable(rawProvider);
-    if (!syncCapableProvider) {
-      OpLog.verbose(
-        'ImmediateUploadService: Provider does not support operation sync, skipping',
-      );
+    const provider = this._providerManager.getActiveProvider();
+    if (!provider) {
       return;
     }
 
     // Check provider is ready (authenticated)
-    if (!(await rawProvider.isReady())) {
+    if (!(await provider.isReady())) {
       OpLog.verbose('ImmediateUploadService: Provider not ready, skipping');
       return;
     }
+
+    // Provider is already validated as OperationSyncCapable in _canUpload()
+    const syncCapableProvider =
+      provider as unknown as import('../sync-providers/provider.interface').OperationSyncCapable;
 
     try {
       OpLog.verbose('ImmediateUploadService: Starting immediate upload...');

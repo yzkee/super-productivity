@@ -2,16 +2,14 @@ import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ImmediateUploadService } from './immediate-upload.service';
 import { SyncProviderManager } from '../sync-providers/provider-manager.service';
 import { OperationLogSyncService } from './operation-log-sync.service';
-import { WrappedProviderService } from '../sync-providers/wrapped-provider.service';
 import { ActionType, Operation, OpType } from '../core/operation.types';
+import { SyncProviderId } from '../sync-providers/provider.const';
 
 describe('ImmediateUploadService', () => {
   let service: ImmediateUploadService;
   let mockProviderManager: jasmine.SpyObj<SyncProviderManager>;
   let mockSyncService: jasmine.SpyObj<OperationLogSyncService>;
-  let mockWrappedProvider: jasmine.SpyObj<WrappedProviderService>;
   let mockProvider: any;
-  let mockSyncCapableProvider: any;
 
   const createMockOp = (id: string): Operation => ({
     id,
@@ -27,18 +25,12 @@ describe('ImmediateUploadService', () => {
   });
 
   beforeEach(() => {
+    // SuperSync provider - supports operation sync and immediate upload
     mockProvider = {
-      id: 'SuperProductivitySync',
+      id: SyncProviderId.SuperSync,
       supportsOperationSync: true, // Required for isOperationSyncCapable check
       uploadOperations: jasmine.createSpy('uploadOperations'),
       isReady: jasmine.createSpy('isReady').and.returnValue(Promise.resolve(true)),
-    };
-
-    // The sync-capable version of the provider (may be wrapped for file-based providers)
-    mockSyncCapableProvider = {
-      supportsOperationSync: true,
-      uploadOps: jasmine.createSpy('uploadOps'),
-      downloadOps: jasmine.createSpy('downloadOps'),
     };
 
     mockProviderManager = jasmine.createSpyObj(
@@ -49,14 +41,6 @@ describe('ImmediateUploadService', () => {
       },
     );
     mockProviderManager.getActiveProvider.and.returnValue(mockProvider);
-
-    // Mock WrappedProviderService to return sync-capable provider
-    mockWrappedProvider = jasmine.createSpyObj('WrappedProviderService', [
-      'getOperationSyncCapable',
-    ]);
-    mockWrappedProvider.getOperationSyncCapable.and.returnValue(
-      Promise.resolve(mockSyncCapableProvider),
-    );
 
     // ImmediateUploadService now calls syncService.uploadPendingOps() which includes:
     // - Server migration detection
@@ -71,7 +55,6 @@ describe('ImmediateUploadService', () => {
         ImmediateUploadService,
         { provide: SyncProviderManager, useValue: mockProviderManager },
         { provide: OperationLogSyncService, useValue: mockSyncService },
-        { provide: WrappedProviderService, useValue: mockWrappedProvider },
       ],
     });
 
@@ -212,6 +195,61 @@ describe('ImmediateUploadService', () => {
 
     it('should skip upload when provider is not ready', fakeAsync(() => {
       mockProvider.isReady.and.returnValue(Promise.resolve(false));
+      mockSyncService.uploadPendingOps.and.returnValue(
+        Promise.resolve({
+          uploadedCount: 1,
+          rejectedCount: 0,
+          piggybackedOps: [],
+          rejectedOps: [],
+        }),
+      );
+
+      service.initialize();
+      service.trigger();
+      tick(2100);
+
+      expect(mockSyncService.uploadPendingOps).not.toHaveBeenCalled();
+    }));
+
+    it('should skip upload for Dropbox (file-based provider)', fakeAsync(() => {
+      // File-based providers use periodic sync, not immediate upload
+      mockProvider.id = SyncProviderId.Dropbox;
+      mockSyncService.uploadPendingOps.and.returnValue(
+        Promise.resolve({
+          uploadedCount: 1,
+          rejectedCount: 0,
+          piggybackedOps: [],
+          rejectedOps: [],
+        }),
+      );
+
+      service.initialize();
+      service.trigger();
+      tick(2100);
+
+      expect(mockSyncService.uploadPendingOps).not.toHaveBeenCalled();
+    }));
+
+    it('should skip upload for WebDAV (file-based provider)', fakeAsync(() => {
+      mockProvider.id = SyncProviderId.WebDAV;
+      mockSyncService.uploadPendingOps.and.returnValue(
+        Promise.resolve({
+          uploadedCount: 1,
+          rejectedCount: 0,
+          piggybackedOps: [],
+          rejectedOps: [],
+        }),
+      );
+
+      service.initialize();
+      service.trigger();
+      tick(2100);
+
+      expect(mockSyncService.uploadPendingOps).not.toHaveBeenCalled();
+    }));
+
+    it('should skip upload for LocalFile (file-based provider)', fakeAsync(() => {
+      mockProvider.id = SyncProviderId.LocalFile;
       mockSyncService.uploadPendingOps.and.returnValue(
         Promise.resolve({
           uploadedCount: 1,
