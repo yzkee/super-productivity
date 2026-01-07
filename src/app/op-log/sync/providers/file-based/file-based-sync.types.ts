@@ -86,31 +86,8 @@ export interface FileBasedSyncData {
   checksum?: string;
 }
 
-/**
- * Marker interface for providers that support file-based operation sync.
- * File-based providers (WebDAV, Dropbox, LocalFile) will implement this.
- */
-export interface FileBasedOperationSyncCapable {
-  /**
-   * Marker indicating this provider uses file-based operation sync.
-   * Distinguished from `supportsOperationSync` which indicates API-based sync (SuperSync).
-   */
-  supportsFileBasedOperationSync: true;
-}
-
-/**
- * Type guard for FileBasedOperationSyncCapable
- */
-export const isFileBasedOperationSyncCapable = (
-  provider: unknown,
-): provider is FileBasedOperationSyncCapable => {
-  return (
-    typeof provider === 'object' &&
-    provider !== null &&
-    'supportsFileBasedOperationSync' in provider &&
-    (provider as FileBasedOperationSyncCapable).supportsFileBasedOperationSync === true
-  );
-};
+// Note: FileBasedOperationSyncCapable interface was removed.
+// Use isFileBasedProvider() from operation-sync.util.ts instead.
 
 /**
  * Error thrown when sync version conflict is detected.

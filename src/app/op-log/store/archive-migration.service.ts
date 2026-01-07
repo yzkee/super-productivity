@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { OperationLogStoreService } from './operation-log-store.service';
+import { ArchiveStoreService } from './archive-store.service';
 import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
 import { Log } from '../../core/log';
 import { ArchiveModel } from '../../features/time-tracking/time-tracking.model';
@@ -18,7 +18,7 @@ import { ArchiveModel } from '../../features/time-tracking/time-tracking.model';
   providedIn: 'root',
 })
 export class ArchiveMigrationService {
-  private _opLogStore = inject(OperationLogStoreService);
+  private _archiveStore = inject(ArchiveStoreService);
   private _legacyPfDb = inject(LegacyPfDbService);
 
   /**
@@ -30,8 +30,8 @@ export class ArchiveMigrationService {
   async migrateArchivesIfNeeded(): Promise<boolean> {
     // Check if archives already exist in SUP_OPS
     const [hasYoung, hasOld] = await Promise.all([
-      this._opLogStore.hasArchiveYoung(),
-      this._opLogStore.hasArchiveOld(),
+      this._archiveStore.hasArchiveYoung(),
+      this._archiveStore.hasArchiveOld(),
     ]);
 
     if (hasYoung && hasOld) {
@@ -57,13 +57,13 @@ export class ArchiveMigrationService {
     // Migrate archiveYoung if it has data and doesn't exist in SUP_OPS
     if (!hasYoung && this._hasArchiveData(legacyYoung)) {
       Log.log('ArchiveMigrationService: Migrating archiveYoung to SUP_OPS');
-      await this._opLogStore.saveArchiveYoung(legacyYoung);
+      await this._archiveStore.saveArchiveYoung(legacyYoung);
     }
 
     // Migrate archiveOld if it has data and doesn't exist in SUP_OPS
     if (!hasOld && this._hasArchiveData(legacyOld)) {
       Log.log('ArchiveMigrationService: Migrating archiveOld to SUP_OPS');
-      await this._opLogStore.saveArchiveOld(legacyOld);
+      await this._archiveStore.saveArchiveOld(legacyOld);
     }
 
     Log.log('ArchiveMigrationService: Archive migration complete');

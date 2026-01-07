@@ -22,13 +22,6 @@ export abstract class WebdavBaseProvider<T extends SyncProviderId.WebDAV>
   readonly isUploadForcePossible = false;
   readonly maxConcurrentRequests = 10;
 
-  /**
-   * Indicates this provider supports file-based operation sync.
-   * When true, the sync system will use FileBasedSyncAdapter to enable
-   * operation-log sync via file operations instead of PFAPI model sync.
-   */
-  readonly supportsFileBasedOperationSync = true as const;
-
   protected readonly _api: WebdavApi;
   public privateCfg: SyncCredentialStore<T>;
 

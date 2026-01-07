@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { ArchiveModel } from '../../features/time-tracking/time-tracking.model';
-import { OperationLogStoreService } from '../../op-log/store/operation-log-store.service';
+import { ArchiveStoreService } from '../../op-log/store/archive-store.service';
 
 /**
  * Adapter for archive storage operations.
@@ -8,7 +8,7 @@ import { OperationLogStoreService } from '../../op-log/store/operation-log-store
  * ## Purpose
  *
  * This service provides a clean interface for archive persistence operations
- * (archiveYoung, archiveOld). It delegates to OperationLogStoreService which
+ * (archiveYoung, archiveOld). It delegates to ArchiveStoreService which
  * stores archives in the SUP_OPS IndexedDB database.
  *
  * ## Usage
@@ -23,33 +23,33 @@ import { OperationLogStoreService } from '../../op-log/store/operation-log-store
   providedIn: 'root',
 })
 export class ArchiveDbAdapter {
-  private _opLogStore = inject(OperationLogStoreService);
+  private _archiveStore = inject(ArchiveStoreService);
 
   /**
    * Loads archiveYoung data from SUP_OPS IndexedDB.
    */
   async loadArchiveYoung(): Promise<ArchiveModel | undefined> {
-    return this._opLogStore.loadArchiveYoung();
+    return this._archiveStore.loadArchiveYoung();
   }
 
   /**
    * Saves archiveYoung data to SUP_OPS IndexedDB.
    */
   async saveArchiveYoung(data: ArchiveModel): Promise<void> {
-    return this._opLogStore.saveArchiveYoung(data);
+    return this._archiveStore.saveArchiveYoung(data);
   }
 
   /**
    * Loads archiveOld data from SUP_OPS IndexedDB.
    */
   async loadArchiveOld(): Promise<ArchiveModel | undefined> {
-    return this._opLogStore.loadArchiveOld();
+    return this._archiveStore.loadArchiveOld();
   }
 
   /**
    * Saves archiveOld data to SUP_OPS IndexedDB.
    */
   async saveArchiveOld(data: ArchiveModel): Promise<void> {
-    return this._opLogStore.saveArchiveOld(data);
+    return this._archiveStore.saveArchiveOld(data);
   }
 }

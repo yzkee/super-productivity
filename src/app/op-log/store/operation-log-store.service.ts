@@ -14,9 +14,14 @@ import {
 } from '../../core/persistence/operation-log/compact/operation-codec.service';
 import { CompactOperation } from '../../core/persistence/operation-log/compact/compact-operation.types';
 import { ArchiveModel } from '../../features/time-tracking/time-tracking.model';
-
-const DB_NAME = 'SUP_OPS';
-const DB_VERSION = 4;
+import {
+  DB_NAME,
+  DB_VERSION,
+  STORE_NAMES,
+  SINGLETON_KEY,
+  BACKUP_KEY,
+  OPS_INDEXES,
+} from './db-keys.const';
 
 /**
  * Vector clock entry stored in the vector_clock object store.
@@ -78,18 +83,19 @@ const getOpId = (op: Operation | CompactOperation): string => {
   return op.id;
 };
 
+// Note: DBSchema requires literal string keys matching STORE_NAMES values
 interface OpLogDB extends DBSchema {
-  ops: {
+  [STORE_NAMES.OPS]: {
     key: number; // seq
     value: StoredOperationLogEntry;
     indexes: {
-      byId: string;
-      bySyncedAt: number;
+      [OPS_INDEXES.BY_ID]: string;
+      [OPS_INDEXES.BY_SYNCED_AT]: number;
       // PERF: Compound index for efficient queries on remote ops by status
-      bySourceAndStatus: string;
+      [OPS_INDEXES.BY_SOURCE_AND_STATUS]: string;
     };
   };
-  state_cache: {
+  [STORE_NAMES.STATE_CACHE]: {
     key: string;
     value: {
       id: string;
@@ -102,7 +108,7 @@ interface OpLogDB extends DBSchema {
       snapshotEntityKeys?: string[]; // Entity keys that existed at compaction time
     };
   };
-  import_backup: {
+  [STORE_NAMES.IMPORT_BACKUP]: {
     key: string;
     value: {
       id: string;
@@ -115,24 +121,24 @@ interface OpLogDB extends DBSchema {
    * This is the single source of truth for the vector clock, updated atomically
    * with operation writes to avoid multiple database transactions per action.
    */
-  vector_clock: {
-    key: string; // 'current'
+  [STORE_NAMES.VECTOR_CLOCK]: {
+    key: string; // SINGLETON_KEY ('current')
     value: VectorClockEntry;
   };
   /**
    * Stores archiveYoung data (recently archived tasks, < 21 days).
    * Migrated from legacy 'pf' database in version 4.
    */
-  archive_young: {
-    key: string; // 'current'
+  [STORE_NAMES.ARCHIVE_YOUNG]: {
+    key: string; // SINGLETON_KEY ('current')
     value: ArchiveStoreEntry;
   };
   /**
    * Stores archiveOld data (older archived tasks, >= 21 days).
    * Migrated from legacy 'pf' database in version 4.
    */
-  archive_old: {
-    key: string; // 'current'
+  [STORE_NAMES.ARCHIVE_OLD]: {
+    key: string; // SINGLETON_KEY ('current')
     value: ArchiveStoreEntry;
   };
 }
@@ -168,37 +174,40 @@ export class OperationLogStoreService {
       upgrade: (db, oldVersion, _newVersion, transaction) => {
         // Version 1: Create initial stores
         if (oldVersion < 1) {
-          const opStore = db.createObjectStore('ops', {
+          const opStore = db.createObjectStore(STORE_NAMES.OPS, {
             keyPath: 'seq',
             autoIncrement: true,
           });
-          opStore.createIndex('byId', 'op.id', { unique: true });
-          opStore.createIndex('bySyncedAt', 'syncedAt');
+          opStore.createIndex(OPS_INDEXES.BY_ID, 'op.id', { unique: true });
+          opStore.createIndex(OPS_INDEXES.BY_SYNCED_AT, 'syncedAt');
 
-          db.createObjectStore('state_cache', { keyPath: 'id' });
-          db.createObjectStore('import_backup', { keyPath: 'id' });
+          db.createObjectStore(STORE_NAMES.STATE_CACHE, { keyPath: 'id' });
+          db.createObjectStore(STORE_NAMES.IMPORT_BACKUP, { keyPath: 'id' });
         }
 
         // Version 2: Add vector_clock store for atomic writes
         // This consolidates the vector clock from pf.META_MODEL into SUP_OPS
         // to enable single-transaction writes (op + vector clock together)
         if (oldVersion < 2) {
-          db.createObjectStore('vector_clock');
+          db.createObjectStore(STORE_NAMES.VECTOR_CLOCK);
         }
 
         // Version 3: Add compound index for efficient source+status queries
         // PERF: Enables O(results) queries for getPendingRemoteOps/getFailedRemoteOps
         // instead of O(all ops) full table scan
         if (oldVersion < 3) {
-          const opStore = transaction.objectStore('ops');
-          opStore.createIndex('bySourceAndStatus', ['source', 'applicationStatus']);
+          const opStore = transaction.objectStore(STORE_NAMES.OPS);
+          opStore.createIndex(OPS_INDEXES.BY_SOURCE_AND_STATUS, [
+            'source',
+            'applicationStatus',
+          ]);
         }
 
         // Version 4: Add archive stores for archiveYoung and archiveOld
         // Consolidates archive data from legacy 'pf' database into SUP_OPS
         if (oldVersion < 4) {
-          db.createObjectStore('archive_young', { keyPath: 'id' });
-          db.createObjectStore('archive_old', { keyPath: 'id' });
+          db.createObjectStore(STORE_NAMES.ARCHIVE_YOUNG, { keyPath: 'id' });
+          db.createObjectStore(STORE_NAMES.ARCHIVE_OLD, { keyPath: 'id' });
         }
       },
     });
@@ -243,7 +252,7 @@ export class OperationLogStoreService {
         source === 'remote' ? (options?.pendingApply ? 'pending' : 'applied') : undefined,
     };
     // seq is auto-incremented, returned for later reference
-    return this.db.add('ops', entry as StoredOperationLogEntry);
+    return this.db.add(STORE_NAMES.OPS, entry as StoredOperationLogEntry);
   }
 
   async appendBatch(
@@ -252,8 +261,8 @@ export class OperationLogStoreService {
     options?: { pendingApply?: boolean },
   ): Promise<number[]> {
     await this._ensureInit();
-    const tx = this.db.transaction('ops', 'readwrite');
-    const store = tx.objectStore('ops');
+    const tx = this.db.transaction(STORE_NAMES.OPS, 'readwrite');
+    const store = tx.objectStore(STORE_NAMES.OPS);
     const seqs: number[] = [];
 
     for (const op of ops) {
@@ -286,8 +295,8 @@ export class OperationLogStoreService {
    */
   async markApplied(seqs: number[]): Promise<void> {
     await this._ensureInit();
-    const tx = this.db.transaction('ops', 'readwrite');
-    const store = tx.objectStore('ops');
+    const tx = this.db.transaction(STORE_NAMES.OPS, 'readwrite');
+    const store = tx.objectStore(STORE_NAMES.OPS);
     for (const seq of seqs) {
       const entry = await store.get(seq);
       // Allow transitioning from 'pending' or 'failed' to 'applied'
@@ -314,17 +323,18 @@ export class OperationLogStoreService {
     try {
       // Type assertion needed for compound index key - idb's types don't fully support this
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      storedEntries = await this.db.getAllFromIndex('ops', 'bySourceAndStatus', [
-        'remote',
-        'pending',
-      ] as any);
+      storedEntries = await this.db.getAllFromIndex(
+        STORE_NAMES.OPS,
+        OPS_INDEXES.BY_SOURCE_AND_STATUS,
+        ['remote', 'pending'] as any,
+      );
     } catch (e) {
       // Fallback for databases created before version 3 index migration
       // This handles the case where the bySourceAndStatus index doesn't exist
       console.warn(
         'OperationLogStoreService: bySourceAndStatus index not found, using fallback scan',
       );
-      const allOps = await this.db.getAll('ops');
+      const allOps = await this.db.getAll(STORE_NAMES.OPS);
       storedEntries = allOps.filter(
         (entry) => entry.source === 'remote' && entry.applicationStatus === 'pending',
       );
@@ -335,7 +345,7 @@ export class OperationLogStoreService {
 
   async hasOp(id: string): Promise<boolean> {
     await this._ensureInit();
-    const entry = await this.db.getFromIndex('ops', 'byId', id);
+    const entry = await this.db.getFromIndex(STORE_NAMES.OPS, OPS_INDEXES.BY_ID, id);
     return !!entry;
   }
 
@@ -356,13 +366,16 @@ export class OperationLogStoreService {
    */
   async getOpById(id: string): Promise<OperationLogEntry | undefined> {
     await this._ensureInit();
-    const stored = await this.db.getFromIndex('ops', 'byId', id);
+    const stored = await this.db.getFromIndex(STORE_NAMES.OPS, OPS_INDEXES.BY_ID, id);
     return stored ? decodeStoredEntry(stored) : undefined;
   }
 
   async getOpsAfterSeq(seq: number): Promise<OperationLogEntry[]> {
     await this._ensureInit();
-    const storedEntries = await this.db.getAll('ops', IDBKeyRange.lowerBound(seq, true));
+    const storedEntries = await this.db.getAll(
+      STORE_NAMES.OPS,
+      IDBKeyRange.lowerBound(seq, true),
+    );
     return storedEntries.map(decodeStoredEntry);
   }
 
@@ -381,7 +394,7 @@ export class OperationLogStoreService {
 
     // Scan all ops to find full-state operations
     // Note: We scan backwards from the end since the latest is most likely near the end
-    const storedOps = await this.db.getAll('ops');
+    const storedOps = await this.db.getAll(STORE_NAMES.OPS);
 
     // Decode and filter to full-state ops
     const fullStateEntries = storedOps
@@ -416,7 +429,7 @@ export class OperationLogStoreService {
     // If cache exists but is stale (new ops added), incrementally add new unsynced ops
     if (this._unsyncedCache && this._unsyncedCacheLastSeq > 0) {
       const newStoredEntries = await this.db.getAll(
-        'ops',
+        STORE_NAMES.OPS,
         IDBKeyRange.lowerBound(this._unsyncedCacheLastSeq, true),
       );
       const newUnsynced = newStoredEntries
@@ -428,7 +441,7 @@ export class OperationLogStoreService {
     }
 
     // Initial cache build - full scan required
-    const all = await this.db.getAll('ops');
+    const all = await this.db.getAll(STORE_NAMES.OPS);
     this._unsyncedCache = all
       .filter((e) => !e.syncedAt && !e.rejectedAt)
       .map(decodeStoredEntry);
@@ -473,7 +486,7 @@ export class OperationLogStoreService {
     // If cache exists but is stale, incrementally add new IDs
     if (this._appliedOpIdsCache && this._cacheLastSeq > 0) {
       const newEntries = await this.db.getAll(
-        'ops',
+        STORE_NAMES.OPS,
         IDBKeyRange.lowerBound(this._cacheLastSeq, true),
       );
       for (const entry of newEntries) {
@@ -485,7 +498,7 @@ export class OperationLogStoreService {
     }
 
     // Initial cache build - full scan required
-    const entries = await this.db.getAll('ops');
+    const entries = await this.db.getAll(STORE_NAMES.OPS);
     // Handle both compact and full operation formats
     this._appliedOpIdsCache = new Set(entries.map((e) => getOpId(e.op)));
     this._cacheLastSeq = currentLastSeq;
@@ -495,8 +508,8 @@ export class OperationLogStoreService {
 
   async markSynced(seqs: number[]): Promise<void> {
     await this._ensureInit();
-    const tx = this.db.transaction('ops', 'readwrite');
-    const store = tx.objectStore('ops');
+    const tx = this.db.transaction(STORE_NAMES.OPS, 'readwrite');
+    const store = tx.objectStore(STORE_NAMES.OPS);
     const now = Date.now();
     for (const seq of seqs) {
       const entry = await store.get(seq);
@@ -512,8 +525,8 @@ export class OperationLogStoreService {
   async markRejected(opIds: string[]): Promise<void> {
     await this._ensureInit();
 
-    const tx = this.db.transaction('ops', 'readwrite');
-    const store = tx.objectStore('ops');
+    const tx = this.db.transaction(STORE_NAMES.OPS, 'readwrite');
+    const store = tx.objectStore(STORE_NAMES.OPS);
     const index = store.index('byId');
     const now = Date.now();
 
@@ -538,8 +551,8 @@ export class OperationLogStoreService {
     const unsynced = await this.getUnsynced();
     if (unsynced.length === 0) return;
 
-    const tx = this.db.transaction('ops', 'readwrite');
-    const store = tx.objectStore('ops');
+    const tx = this.db.transaction(STORE_NAMES.OPS, 'readwrite');
+    const store = tx.objectStore(STORE_NAMES.OPS);
     const now = Date.now();
 
     for (const entry of unsynced) {
@@ -560,8 +573,8 @@ export class OperationLogStoreService {
    */
   async markFailed(opIds: string[], maxRetries?: number): Promise<void> {
     await this._ensureInit();
-    const tx = this.db.transaction('ops', 'readwrite');
-    const store = tx.objectStore('ops');
+    const tx = this.db.transaction(STORE_NAMES.OPS, 'readwrite');
+    const store = tx.objectStore(STORE_NAMES.OPS);
     const index = store.index('byId');
     const now = Date.now();
 
@@ -595,16 +608,17 @@ export class OperationLogStoreService {
     try {
       // Type assertion needed for compound index key - idb's types don't fully support this
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      storedEntries = await this.db.getAllFromIndex('ops', 'bySourceAndStatus', [
-        'remote',
-        'failed',
-      ] as any);
+      storedEntries = await this.db.getAllFromIndex(
+        STORE_NAMES.OPS,
+        OPS_INDEXES.BY_SOURCE_AND_STATUS,
+        ['remote', 'failed'] as any,
+      );
     } catch (e) {
       // Fallback for databases created before version 3 index migration
       console.warn(
         'OperationLogStoreService: bySourceAndStatus index not found, using fallback scan',
       );
-      const allOps = await this.db.getAll('ops');
+      const allOps = await this.db.getAll(STORE_NAMES.OPS);
       storedEntries = allOps.filter(
         (entry) => entry.source === 'remote' && entry.applicationStatus === 'failed',
       );
@@ -619,8 +633,8 @@ export class OperationLogStoreService {
     // Ideally we delete by range (older than X).
     // The predicate in plan: syncedAt && appliedAt < old && seq <= lastSeq
     // We can iterate via cursor.
-    const tx = this.db.transaction('ops', 'readwrite');
-    const store = tx.objectStore('ops');
+    const tx = this.db.transaction(STORE_NAMES.OPS, 'readwrite');
+    const store = tx.objectStore(STORE_NAMES.OPS);
     let cursor = await store.openCursor();
     let deletedCount = 0;
     while (cursor) {
@@ -644,7 +658,9 @@ export class OperationLogStoreService {
 
   async getLastSeq(): Promise<number> {
     await this._ensureInit();
-    const cursor = await this.db.transaction('ops').store.openCursor(null, 'prev');
+    const cursor = await this.db
+      .transaction(STORE_NAMES.OPS)
+      .store.openCursor(null, 'prev');
     return cursor ? (cursor.key as number) : 0;
   }
 
@@ -663,7 +679,10 @@ export class OperationLogStoreService {
   async hasSyncedOps(): Promise<boolean> {
     await this._ensureInit();
     // Use the bySyncedAt index to find synced ops, but exclude MIGRATION/RECOVERY
-    let cursor = await this.db.transaction('ops').store.index('bySyncedAt').openCursor();
+    let cursor = await this.db
+      .transaction(STORE_NAMES.OPS)
+      .store.index(OPS_INDEXES.BY_SYNCED_AT)
+      .openCursor();
 
     while (cursor) {
       const op = cursor.value.op;
@@ -687,8 +706,8 @@ export class OperationLogStoreService {
     snapshotEntityKeys?: string[];
   }): Promise<void> {
     await this._ensureInit();
-    await this.db.put('state_cache', {
-      id: 'current',
+    await this.db.put(STORE_NAMES.STATE_CACHE, {
+      id: SINGLETON_KEY,
       ...snapshot,
     });
   }
@@ -702,7 +721,7 @@ export class OperationLogStoreService {
     snapshotEntityKeys?: string[];
   } | null> {
     await this._ensureInit();
-    const cache = await this.db.get('state_cache', 'current');
+    const cache = await this.db.get(STORE_NAMES.STATE_CACHE, SINGLETON_KEY);
     // Return null if cache doesn't exist or if state is null/undefined.
     // incrementCompactionCounter() may create a cache entry with state: null
     // just to track the counter - this shouldn't be treated as a valid snapshot.
@@ -722,11 +741,11 @@ export class OperationLogStoreService {
    */
   async saveStateCacheBackup(): Promise<void> {
     await this._ensureInit();
-    const current = await this.db.get('state_cache', 'current');
+    const current = await this.db.get(STORE_NAMES.STATE_CACHE, SINGLETON_KEY);
     if (current) {
-      await this.db.put('state_cache', {
+      await this.db.put(STORE_NAMES.STATE_CACHE, {
         ...current,
-        id: 'backup',
+        id: BACKUP_KEY,
       });
     }
   }
@@ -744,7 +763,7 @@ export class OperationLogStoreService {
     snapshotEntityKeys?: string[];
   } | null> {
     await this._ensureInit();
-    const backup = await this.db.get('state_cache', 'backup');
+    const backup = await this.db.get(STORE_NAMES.STATE_CACHE, BACKUP_KEY);
     return backup || null;
   }
 
@@ -753,7 +772,7 @@ export class OperationLogStoreService {
    */
   async clearStateCacheBackup(): Promise<void> {
     await this._ensureInit();
-    await this.db.delete('state_cache', 'backup');
+    await this.db.delete(STORE_NAMES.STATE_CACHE, BACKUP_KEY);
   }
 
   /**
@@ -761,7 +780,7 @@ export class OperationLogStoreService {
    */
   async hasStateCacheBackup(): Promise<boolean> {
     await this._ensureInit();
-    const backup = await this.db.get('state_cache', 'backup');
+    const backup = await this.db.get(STORE_NAMES.STATE_CACHE, BACKUP_KEY);
     return !!backup;
   }
 
@@ -771,13 +790,13 @@ export class OperationLogStoreService {
    */
   async restoreStateCacheFromBackup(): Promise<void> {
     await this._ensureInit();
-    const backup = await this.db.get('state_cache', 'backup');
+    const backup = await this.db.get(STORE_NAMES.STATE_CACHE, BACKUP_KEY);
     if (backup) {
-      await this.db.put('state_cache', {
+      await this.db.put(STORE_NAMES.STATE_CACHE, {
         ...backup,
-        id: 'current',
+        id: SINGLETON_KEY,
       });
-      await this.db.delete('state_cache', 'backup');
+      await this.db.delete(STORE_NAMES.STATE_CACHE, BACKUP_KEY);
     }
   }
 
@@ -791,7 +810,7 @@ export class OperationLogStoreService {
    */
   async getCompactionCounter(): Promise<number> {
     await this._ensureInit();
-    const cache = await this.db.get('state_cache', 'current');
+    const cache = await this.db.get(STORE_NAMES.STATE_CACHE, SINGLETON_KEY);
     return cache?.compactionCounter ?? 0;
   }
 
@@ -802,15 +821,15 @@ export class OperationLogStoreService {
    */
   async incrementCompactionCounter(): Promise<number> {
     await this._ensureInit();
-    const tx = this.db.transaction('state_cache', 'readwrite');
-    const store = tx.objectStore('state_cache');
+    const tx = this.db.transaction(STORE_NAMES.STATE_CACHE, 'readwrite');
+    const store = tx.objectStore(STORE_NAMES.STATE_CACHE);
     const cache = await store.get('current');
 
     if (!cache) {
       // No state cache yet - create one with counter starting at 1
       // Provide default values for required schema fields
       await store.put({
-        id: 'current',
+        id: SINGLETON_KEY,
         state: null,
         lastAppliedOpSeq: 0,
         vectorClock: {},
@@ -836,9 +855,9 @@ export class OperationLogStoreService {
    */
   async resetCompactionCounter(): Promise<void> {
     await this._ensureInit();
-    const cache = await this.db.get('state_cache', 'current');
+    const cache = await this.db.get(STORE_NAMES.STATE_CACHE, SINGLETON_KEY);
     if (cache) {
-      await this.db.put('state_cache', {
+      await this.db.put(STORE_NAMES.STATE_CACHE, {
         ...cache,
         compactionCounter: 0,
       });
@@ -853,21 +872,21 @@ export class OperationLogStoreService {
     await this._ensureInit();
     const tx = this.db.transaction(
       [
-        'ops',
-        'state_cache',
-        'import_backup',
-        'vector_clock',
-        'archive_young',
-        'archive_old',
+        STORE_NAMES.OPS,
+        STORE_NAMES.STATE_CACHE,
+        STORE_NAMES.IMPORT_BACKUP,
+        STORE_NAMES.VECTOR_CLOCK,
+        STORE_NAMES.ARCHIVE_YOUNG,
+        STORE_NAMES.ARCHIVE_OLD,
       ],
       'readwrite',
     );
-    await tx.objectStore('ops').clear();
-    await tx.objectStore('state_cache').clear();
-    await tx.objectStore('import_backup').clear();
-    await tx.objectStore('vector_clock').clear();
-    await tx.objectStore('archive_young').clear();
-    await tx.objectStore('archive_old').clear();
+    await tx.objectStore(STORE_NAMES.OPS).clear();
+    await tx.objectStore(STORE_NAMES.STATE_CACHE).clear();
+    await tx.objectStore(STORE_NAMES.IMPORT_BACKUP).clear();
+    await tx.objectStore(STORE_NAMES.VECTOR_CLOCK).clear();
+    await tx.objectStore(STORE_NAMES.ARCHIVE_YOUNG).clear();
+    await tx.objectStore(STORE_NAMES.ARCHIVE_OLD).clear();
     await tx.done;
     // Invalidate all caches
     this._appliedOpIdsCache = null;
@@ -887,8 +906,8 @@ export class OperationLogStoreService {
    */
   async saveImportBackup(state: unknown): Promise<void> {
     await this._ensureInit();
-    await this.db.put('import_backup', {
-      id: 'current',
+    await this.db.put(STORE_NAMES.IMPORT_BACKUP, {
+      id: SINGLETON_KEY,
       state,
       savedAt: Date.now(),
     });
@@ -899,7 +918,7 @@ export class OperationLogStoreService {
    */
   async loadImportBackup(): Promise<{ state: unknown; savedAt: number } | null> {
     await this._ensureInit();
-    const backup = await this.db.get('import_backup', 'current');
+    const backup = await this.db.get(STORE_NAMES.IMPORT_BACKUP, SINGLETON_KEY);
     return backup ? { state: backup.state, savedAt: backup.savedAt } : null;
   }
 
@@ -908,7 +927,7 @@ export class OperationLogStoreService {
    */
   async clearImportBackup(): Promise<void> {
     await this._ensureInit();
-    await this.db.delete('import_backup', 'current');
+    await this.db.delete(STORE_NAMES.IMPORT_BACKUP, SINGLETON_KEY);
   }
 
   /**
@@ -916,7 +935,7 @@ export class OperationLogStoreService {
    */
   async hasImportBackup(): Promise<boolean> {
     await this._ensureInit();
-    const backup = await this.db.get('import_backup', 'current');
+    const backup = await this.db.get(STORE_NAMES.IMPORT_BACKUP, SINGLETON_KEY);
     return !!backup;
   }
 
@@ -927,8 +946,8 @@ export class OperationLogStoreService {
    */
   async clearAllOperations(): Promise<void> {
     await this._ensureInit();
-    const tx = this.db.transaction('ops', 'readwrite');
-    await tx.objectStore('ops').clear();
+    const tx = this.db.transaction(STORE_NAMES.OPS, 'readwrite');
+    await tx.objectStore(STORE_NAMES.OPS).clear();
     await tx.done;
     // Invalidate caches since we cleared all ops
     this._appliedOpIdsCache = null;
@@ -950,7 +969,7 @@ export class OperationLogStoreService {
       return { ...this._vectorClockCache };
     }
     await this._ensureInit();
-    const entry = await this.db.get('vector_clock', 'current');
+    const entry = await this.db.get(STORE_NAMES.VECTOR_CLOCK, SINGLETON_KEY);
     this._vectorClockCache = entry?.clock ?? null;
     return this._vectorClockCache ? { ...this._vectorClockCache } : null;
   }
@@ -962,7 +981,11 @@ export class OperationLogStoreService {
    */
   async setVectorClock(clock: VectorClock): Promise<void> {
     await this._ensureInit();
-    await this.db.put('vector_clock', { clock, lastUpdate: Date.now() }, 'current');
+    await this.db.put(
+      STORE_NAMES.VECTOR_CLOCK,
+      { clock, lastUpdate: Date.now() },
+      SINGLETON_KEY,
+    );
     this._vectorClockCache = clock;
   }
 
@@ -1034,7 +1057,7 @@ export class OperationLogStoreService {
    */
   async getVectorClockEntry(): Promise<VectorClockEntry | null> {
     await this._ensureInit();
-    const entry = await this.db.get('vector_clock', 'current');
+    const entry = await this.db.get(STORE_NAMES.VECTOR_CLOCK, SINGLETON_KEY);
     return entry ?? null;
   }
 
@@ -1062,9 +1085,12 @@ export class OperationLogStoreService {
   ): Promise<number> {
     await this._ensureInit();
 
-    const tx = this.db.transaction(['ops', 'vector_clock'], 'readwrite');
-    const opsStore = tx.objectStore('ops');
-    const vcStore = tx.objectStore('vector_clock');
+    const tx = this.db.transaction(
+      [STORE_NAMES.OPS, STORE_NAMES.VECTOR_CLOCK],
+      'readwrite',
+    );
+    const opsStore = tx.objectStore(STORE_NAMES.OPS);
+    const vcStore = tx.objectStore(STORE_NAMES.VECTOR_CLOCK);
 
     // 1. Append operation to ops store (encoded to compact format)
     const compactOp = encodeOperation(op);
@@ -1082,81 +1108,14 @@ export class OperationLogStoreService {
     // The op.vectorClock already contains the incremented value from the caller.
     // We store it as the current clock so subsequent operations can build on it.
     if (source === 'local') {
-      await vcStore.put({ clock: op.vectorClock, lastUpdate: Date.now() }, 'current');
+      await vcStore.put({ clock: op.vectorClock, lastUpdate: Date.now() }, SINGLETON_KEY);
       this._vectorClockCache = op.vectorClock;
     }
 
     await tx.done;
     return seq as number;
   }
-
-  // ============================================================
-  // Archive Storage (migrated from legacy 'pf' database)
-  // ============================================================
-
-  /**
-   * Loads archiveYoung data from SUP_OPS IndexedDB.
-   * @returns The archive data, or undefined if not found.
-   */
-  async loadArchiveYoung(): Promise<ArchiveModel | undefined> {
-    await this._ensureInit();
-    const entry = await this.db.get('archive_young', 'current');
-    return entry?.data;
-  }
-
-  /**
-   * Saves archiveYoung data to SUP_OPS IndexedDB.
-   * @param data The archive data to save.
-   */
-  async saveArchiveYoung(data: ArchiveModel): Promise<void> {
-    await this._ensureInit();
-    await this.db.put('archive_young', {
-      id: 'current',
-      data,
-      lastModified: Date.now(),
-    });
-  }
-
-  /**
-   * Loads archiveOld data from SUP_OPS IndexedDB.
-   * @returns The archive data, or undefined if not found.
-   */
-  async loadArchiveOld(): Promise<ArchiveModel | undefined> {
-    await this._ensureInit();
-    const entry = await this.db.get('archive_old', 'current');
-    return entry?.data;
-  }
-
-  /**
-   * Saves archiveOld data to SUP_OPS IndexedDB.
-   * @param data The archive data to save.
-   */
-  async saveArchiveOld(data: ArchiveModel): Promise<void> {
-    await this._ensureInit();
-    await this.db.put('archive_old', {
-      id: 'current',
-      data,
-      lastModified: Date.now(),
-    });
-  }
-
-  /**
-   * Checks if archiveYoung exists in the database.
-   * Used to determine if migration from legacy 'pf' database is needed.
-   */
-  async hasArchiveYoung(): Promise<boolean> {
-    await this._ensureInit();
-    const entry = await this.db.get('archive_young', 'current');
-    return !!entry;
-  }
-
-  /**
-   * Checks if archiveOld exists in the database.
-   * Used to determine if migration from legacy 'pf' database is needed.
-   */
-  async hasArchiveOld(): Promise<boolean> {
-    await this._ensureInit();
-    const entry = await this.db.get('archive_old', 'current');
-    return !!entry;
-  }
 }
+
+// Note: Archive storage methods have been moved to ArchiveStoreService.
+// See src/app/op-log/store/archive-store.service.ts
