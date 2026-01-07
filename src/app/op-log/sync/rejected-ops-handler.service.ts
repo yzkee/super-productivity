@@ -1,27 +1,18 @@
 import { inject, Injectable } from '@angular/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
-import { Operation, VectorClock } from '../core/operation.types';
+import { Operation } from '../core/operation.types';
 import { OpLog } from '../../core/log';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
 import { MAX_REJECTED_OPS_BEFORE_WARNING } from '../core/operation-log.const';
 import { StaleOperationResolverService } from './stale-operation-resolver.service';
+import { DownloadCallback } from '../core/types/sync-results.types';
 
-/**
- * Result from a download operation, used for concurrent modification resolution.
- */
-export interface DownloadResultForRejection {
-  newOpsCount: number;
-  allOpClocks?: VectorClock[];
-  snapshotVectorClock?: VectorClock;
-}
-
-/**
- * Callback type for triggering downloads during concurrent modification resolution.
- */
-export type DownloadCallback = (options?: {
-  forceFromSeq0?: boolean;
-}) => Promise<DownloadResultForRejection>;
+// Re-export for consumers that import from this service
+export type {
+  DownloadResultForRejection,
+  DownloadCallback,
+} from '../core/types/sync-results.types';
 
 /**
  * Handles operations that were rejected by the server during upload.

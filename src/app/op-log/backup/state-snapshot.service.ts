@@ -24,36 +24,16 @@ import { ArchiveModel } from '../../features/time-tracking/time-tracking.model';
 import { initialTimeTrackingState } from '../../features/time-tracking/store/time-tracking.reducer';
 import { ArchiveDbAdapter } from '../../core/persistence/archive-db-adapter.service';
 
+import { AppStateSnapshot } from '../core/types/backup.types';
+
+// Re-export for consumers that import from this service
+export type { AppStateSnapshot } from '../core/types/backup.types';
+
 const DEFAULT_ARCHIVE: ArchiveModel = {
   task: { ids: [], entities: {} },
   timeTracking: initialTimeTrackingState,
   lastTimeTrackingFlush: 0,
 };
-
-/**
- * Complete application state snapshot.
- * Used for sync operations and backup/restore.
- */
-export interface AppStateSnapshot {
-  task: unknown;
-  project: unknown;
-  tag: unknown;
-  globalConfig: unknown;
-  note: unknown;
-  issueProvider: unknown;
-  planner: unknown;
-  boards: unknown;
-  metric: unknown;
-  simpleCounter: unknown;
-  taskRepeatCfg: unknown;
-  menuTree: unknown;
-  timeTracking: unknown;
-  pluginUserData: unknown;
-  pluginMetadata: unknown;
-  reminders: unknown;
-  archiveYoung: ArchiveModel;
-  archiveOld: ArchiveModel;
-}
 
 /**
  * Service that reads complete application state from NgRx store and IndexedDB.

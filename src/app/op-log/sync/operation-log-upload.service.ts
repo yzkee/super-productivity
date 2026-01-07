@@ -11,6 +11,18 @@ import {
 } from '../sync-providers/provider.interface';
 import { syncOpToOperation } from './operation-sync.util';
 import { OperationEncryptionService } from './operation-encryption.service';
+import {
+  RejectedOpInfo,
+  UploadResult,
+  UploadOptions,
+} from '../core/types/sync-results.types';
+
+// Re-export for consumers that import from this service
+export type {
+  RejectedOpInfo,
+  UploadResult,
+  UploadOptions,
+} from '../core/types/sync-results.types';
 
 /**
  * Operation types that contain full application state and should use
@@ -21,45 +33,6 @@ const FULL_STATE_OP_TYPES = new Set([
   OpType.BackupImport,
   OpType.Repair,
 ]);
-
-/**
- * Result of an upload operation. May contain piggybacked operations
- * from other clients when using API-based sync.
- */
-export interface RejectedOpInfo {
-  opId: string;
-  error?: string;
-  errorCode?: string;
-}
-
-export interface UploadResult {
-  uploadedCount: number;
-  piggybackedOps: Operation[];
-  rejectedCount: number;
-  rejectedOps: RejectedOpInfo[];
-  /**
-   * Number of local-win update ops created during LWW conflict resolution.
-   * These ops need to be uploaded to propagate local state to other clients.
-   * Set by OperationLogSyncService.uploadPendingOps after processing piggybacked ops.
-   */
-  localWinOpsCreated?: number;
-  /**
-   * True when piggybacked ops were limited (more ops exist on server).
-   * Caller should trigger a download to get the remaining operations.
-   */
-  hasMorePiggyback?: boolean;
-}
-
-/**
- * Options for uploadPendingOps.
- */
-export interface UploadOptions {
-  /**
-   * Optional callback executed INSIDE the upload lock, BEFORE checking for pending ops.
-   * Use this for operations that must be atomic with the upload, such as server migration checks.
-   */
-  preUploadCallback?: () => Promise<void>;
-}
 
 /**
  * Handles uploading local pending operations to remote storage.
