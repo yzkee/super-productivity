@@ -20,7 +20,7 @@ import { tryCatchInlineAsync } from '../../../../util/try-catch-inline';
 interface DropboxApiOptions {
   method: HttpMethod;
   url: string;
-  headers?: Record<string, any>;
+  headers?: Record<string, string>;
   data?: string | Record<string, unknown>;
   params?: Record<string, string>;
   accessToken?: string;
@@ -34,6 +34,31 @@ interface TokenResponse {
 }
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS';
+
+/**
+ * Dropbox file/folder entry from list_folder API
+ */
+interface DropboxListEntry {
+  '.tag': 'file' | 'folder' | 'deleted';
+  name: string;
+  path_lower: string;
+  path_display: string;
+  id: string;
+}
+
+interface DropboxListFolderResult {
+  entries: DropboxListEntry[];
+  cursor: string;
+  has_more: boolean;
+}
+
+interface DropboxErrorResponse {
+  error_summary?: string;
+  error?: {
+    retry_after?: number;
+    [key: string]: unknown;
+  };
+}
 
 /**
  * API class for Dropbox integration
@@ -62,13 +87,13 @@ export class DropboxApi {
         headers: { 'Content-Type': 'application/json' },
         data: { path },
       });
-      const result = await response.json();
+      const result = (await response.json()) as DropboxListFolderResult;
       if (!result || !result.entries) {
         return [];
       }
       return result.entries
-        .filter((entry: any) => entry['.tag'] === 'file') // Only return files
-        .map((entry: any) => entry.path_lower); // Return full path in lower case
+        .filter((entry) => entry['.tag'] === 'file') // Only return files
+        .map((entry) => entry.path_lower); // Return full path in lower case
     } catch (e) {
       PFLog.critical(`${DropboxApi.L}.listFiles() error for path: ${path}`, e);
       this._checkCommonErrors(e, path);
@@ -432,11 +457,11 @@ export class DropboxApi {
    */
   private async _handleErrorResponse(
     response: Response,
-    headers: Record<string, any>,
+    headers: Record<string, string>,
     path: string,
-    originalRequestExecutor: () => Promise<any>,
+    originalRequestExecutor: () => Promise<unknown>,
   ): Promise<never> {
-    let responseData = {};
+    let responseData: DropboxErrorResponse = {};
     try {
       responseData = await response.json();
     } catch (e) {
@@ -444,8 +469,8 @@ export class DropboxApi {
     }
 
     // Handle rate limiting
-    if ((responseData as any)?.error_summary?.includes('too_many_write_operations')) {
-      const retryAfter = (responseData as any)?.error?.retry_after;
+    if (responseData.error_summary?.includes('too_many_write_operations')) {
+      const retryAfter = responseData.error?.retry_after;
       if (retryAfter) {
         return this._handleRateLimit(retryAfter, path, originalRequestExecutor);
       }
@@ -453,14 +478,14 @@ export class DropboxApi {
     }
 
     // Handle specific error cases
-    if ((responseData as any)?.error_summary?.includes('path/not_found/')) {
+    if (responseData.error_summary?.includes('path/not_found/')) {
       throw new RemoteFileNotFoundAPIError(path, responseData);
     }
 
     if (response.status === 401) {
       if (
-        (responseData as any)?.error_summary?.includes('expired_access_token') ||
-        (responseData as any)?.error_summary?.includes('invalid_access_token')
+        responseData.error_summary?.includes('expired_access_token') ||
+        responseData.error_summary?.includes('invalid_access_token')
       ) {
         throw new AuthFailSPError('Dropbox token expired or invalid', '', responseData);
       }
@@ -478,7 +503,7 @@ export class DropboxApi {
         status: response.status,
         data: responseData,
       },
-      error_summary: (responseData as any)?.error_summary,
+      error_summary: responseData.error_summary,
     };
   }
 
@@ -488,14 +513,16 @@ export class DropboxApi {
   private _handleRateLimit(
     retryAfter: number,
     path: string,
-    originalRequestExecutor: () => Promise<any>,
+    originalRequestExecutor: () => Promise<unknown>,
   ): Promise<never> {
     const EXTRA_WAIT = 1;
     return new Promise((resolve, reject) => {
       setTimeout(
         () => {
           PFLog.normal(`Too many requests ${path}, retrying in ${retryAfter}s...`);
-          originalRequestExecutor().then(resolve).catch(reject);
+          originalRequestExecutor()
+            .then(resolve as (value: unknown) => void)
+            .catch(reject);
         },
         (retryAfter + EXTRA_WAIT) * 1000,
       );
@@ -505,7 +532,7 @@ export class DropboxApi {
   /**
    * Check for common API errors and convert to appropriate custom errors
    */
-  private _checkCommonErrors(e: any, targetPath: string): void {
+  private _checkCommonErrors(e: unknown, targetPath: string): void {
     if (
       e instanceof RemoteFileNotFoundAPIError ||
       e instanceof AuthFailSPError ||
@@ -515,11 +542,13 @@ export class DropboxApi {
       return;
     }
 
-    if (e?.status === 401) {
-      throw new AuthFailSPError(`Dropbox ${e.status}`, targetPath);
+    const err = e as { status?: number; error_summary?: string } | null;
+
+    if (err?.status === 401) {
+      throw new AuthFailSPError(`Dropbox ${err.status}`, targetPath);
     }
 
-    if (e?.error_summary?.includes('path/not_found/')) {
+    if (err?.error_summary?.includes('path/not_found/')) {
       throw new RemoteFileNotFoundAPIError(targetPath);
     }
   }
