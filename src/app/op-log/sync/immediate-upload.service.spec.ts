@@ -2,13 +2,16 @@ import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ImmediateUploadService } from './immediate-upload.service';
 import { SyncProviderManager } from '../sync-providers/provider-manager.service';
 import { OperationLogSyncService } from './operation-log-sync.service';
+import { WrappedProviderService } from '../sync-providers/wrapped-provider.service';
 import { ActionType, Operation, OpType } from '../core/operation.types';
 
 describe('ImmediateUploadService', () => {
   let service: ImmediateUploadService;
   let mockProviderManager: jasmine.SpyObj<SyncProviderManager>;
   let mockSyncService: jasmine.SpyObj<OperationLogSyncService>;
+  let mockWrappedProvider: jasmine.SpyObj<WrappedProviderService>;
   let mockProvider: any;
+  let mockSyncCapableProvider: any;
 
   const createMockOp = (id: string): Operation => ({
     id,
@@ -31,6 +34,13 @@ describe('ImmediateUploadService', () => {
       isReady: jasmine.createSpy('isReady').and.returnValue(Promise.resolve(true)),
     };
 
+    // The sync-capable version of the provider (may be wrapped for file-based providers)
+    mockSyncCapableProvider = {
+      supportsOperationSync: true,
+      uploadOps: jasmine.createSpy('uploadOps'),
+      downloadOps: jasmine.createSpy('downloadOps'),
+    };
+
     mockProviderManager = jasmine.createSpyObj(
       'SyncProviderManager',
       ['getActiveProvider', 'setSyncStatus'],
@@ -39,6 +49,14 @@ describe('ImmediateUploadService', () => {
       },
     );
     mockProviderManager.getActiveProvider.and.returnValue(mockProvider);
+
+    // Mock WrappedProviderService to return sync-capable provider
+    mockWrappedProvider = jasmine.createSpyObj('WrappedProviderService', [
+      'getOperationSyncCapable',
+    ]);
+    mockWrappedProvider.getOperationSyncCapable.and.returnValue(
+      Promise.resolve(mockSyncCapableProvider),
+    );
 
     // ImmediateUploadService now calls syncService.uploadPendingOps() which includes:
     // - Server migration detection
@@ -53,6 +71,7 @@ describe('ImmediateUploadService', () => {
         ImmediateUploadService,
         { provide: SyncProviderManager, useValue: mockProviderManager },
         { provide: OperationLogSyncService, useValue: mockSyncService },
+        { provide: WrappedProviderService, useValue: mockWrappedProvider },
       ],
     });
 

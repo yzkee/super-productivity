@@ -53,6 +53,8 @@ import { SYNC_WAIT_TIMEOUT_MS, SYNC_REINIT_DELAY_MS } from './sync.const';
 import { SuperSyncStatusService } from '../../op-log/sync/super-sync-status.service';
 import { IS_ELECTRON } from '../../app.constants';
 import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
+import { OperationLogSyncService } from '../../op-log/sync/operation-log-sync.service';
+import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
 
 /**
  * Converts LegacySyncProvider to SyncProviderId.
@@ -86,6 +88,8 @@ export class SyncWrapperService {
   private _userInputWaitState = inject(UserInputWaitStateService);
   private _superSyncStatusService = inject(SuperSyncStatusService);
   private _opLogStore = inject(OperationLogStoreService);
+  private _opLogSyncService = inject(OperationLogSyncService);
+  private _wrappedProvider = inject(WrappedProviderService);
 
   syncState$ = this._providerManager.syncStatus$;
 
@@ -190,9 +194,51 @@ export class SyncWrapperService {
         await this._syncVectorClockToPfapi();
       }
 
-      // All sync providers now use operation-log sync in the background.
-      // This method is kept for compatibility but actual sync is triggered by effects.
-      SyncLog.log('SyncWrapperService: Sync requested - handled by op-log sync');
+      // Get the sync-capable version of the provider
+      // - SuperSync: returned as-is (already implements OperationSyncCapable)
+      // - File-based (Dropbox, WebDAV, LocalFile): wrapped with FileBasedSyncAdapterService
+      const rawProvider = this._providerManager.getActiveProvider();
+      const syncCapableProvider =
+        await this._wrappedProvider.getOperationSyncCapable(rawProvider);
+
+      if (!syncCapableProvider) {
+        SyncLog.warn('SyncWrapperService: Provider does not support operation sync');
+        return SyncStatus.InSync;
+      }
+
+      // Perform actual sync: download first, then upload
+      SyncLog.log('SyncWrapperService: Starting op-log sync...');
+
+      // 1. Download remote ops first (important for fresh clients to receive data)
+      const downloadResult =
+        await this._opLogSyncService.downloadRemoteOps(syncCapableProvider);
+      SyncLog.log(
+        `SyncWrapperService: Download complete. newOps=${downloadResult.newOpsCount}, migration=${downloadResult.serverMigrationHandled}`,
+      );
+
+      // 2. Upload pending local ops
+      const uploadResult =
+        await this._opLogSyncService.uploadPendingOps(syncCapableProvider);
+      if (uploadResult) {
+        SyncLog.log(
+          `SyncWrapperService: Upload complete. uploaded=${uploadResult.uploadedCount}, piggybacked=${uploadResult.piggybackedOps.length}`,
+        );
+      }
+
+      // 3. If LWW created local-win ops, upload them
+      const totalLocalWinOps =
+        (downloadResult.localWinOpsCreated ?? 0) +
+        (uploadResult?.localWinOpsCreated ?? 0);
+      if (totalLocalWinOps > 0) {
+        SyncLog.log(
+          `SyncWrapperService: Re-uploading ${totalLocalWinOps} local-win op(s) from LWW...`,
+        );
+        await this._opLogSyncService.uploadPendingOps(syncCapableProvider);
+      }
+
+      // Mark as in-sync
+      this._providerManager.setSyncStatus('IN_SYNC');
+      SyncLog.log('SyncWrapperService: Sync complete, status=IN_SYNC');
       return SyncStatus.InSync;
     } catch (error) {
       SyncLog.err(error);
