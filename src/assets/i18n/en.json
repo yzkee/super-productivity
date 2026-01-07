@@ -1168,6 +1168,10 @@
         "OK": "Download Remote Data",
         "TITLE": "Initial Sync"
       },
+      "D_LOCAL_DATA_REPLACE_CONFIRM": {
+        "MESSAGE": "You have {{count}} unsynced local changes that will be replaced by remote data. Do you want to continue?",
+        "TITLE": "Replace Local Data?"
+      },
       "D_INCOMPLETE_SYNC": {
         "BTN_CLOSE_APP": "Close App",
         "BTN_DOWNLOAD_BACKUP": "Download Local Backup",
@@ -1308,6 +1312,7 @@
         "VERSION_UNSUPPORTED": "Cannot sync: data requires a newer app version. Please update.",
         "NEWER_VERSION_AVAILABLE": "Some changes are from a newer app version. Consider updating for full compatibility.",
         "FRESH_CLIENT_SYNC_CANCELLED": "Initial sync cancelled. Remote data was not applied.",
+        "LOCAL_DATA_REPLACE_CANCELLED": "Sync cancelled. Your local data has been preserved.",
         "RESTORE_SUCCESS": "Data restored successfully",
         "RESTORE_ERROR": "Failed to restore data",
         "PARTIAL_APPLY_FAILURE": "Some sync operations failed to apply. Data has been validated.",

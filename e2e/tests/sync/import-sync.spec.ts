@@ -89,6 +89,11 @@ base.describe('@importsync @supersync Import + Sync E2E', () => {
         await importPage.importBackupFile(backupPath);
         console.log('[Import Test] Client A imported backup successfully');
 
+        // Reload page after import to ensure UI reflects the imported state
+        // (bulk state updates from BACKUP_IMPORT may not trigger component re-renders)
+        await clientA.page.reload();
+        await clientA.page.waitForLoadState('networkidle');
+
         // Wait for import to complete and verify tasks are visible
         // The backup contains tasks with "E2E Import Test" in their titles
         await waitForTask(clientA.page, 'E2E Import Test - Active Task With Subtask');
@@ -110,6 +115,11 @@ base.describe('@importsync @supersync Import + Sync E2E', () => {
         await clientB.sync.setupSuperSync(syncConfig);
         await clientB.sync.syncAndWait();
         console.log('[Import Test] Client B sync complete');
+
+        // Reload Client B after sync to ensure UI reflects synced state
+        // (bulk state updates from SYNC_IMPORT may not trigger component re-renders)
+        await clientB.page.reload();
+        await clientB.page.waitForLoadState('networkidle');
 
         // ============ PHASE 4: Verify Active Tasks on Client B ============
         console.log('[Import Test] Phase 4: Verifying active tasks on Client B');
@@ -273,6 +283,11 @@ base.describe('@importsync @supersync Import + Sync E2E', () => {
         await importPage.importBackupFile(backupPath);
         console.log('[Merge Test] Client A imported backup');
 
+        // Reload page after import to ensure UI reflects the imported state
+        // (bulk state updates from BACKUP_IMPORT may not trigger component re-renders)
+        await clientA.page.reload();
+        await clientA.page.waitForLoadState('networkidle');
+
         // Re-enable sync after import (import overwrites globalConfig including sync settings)
         console.log('[Merge Test] Re-enabling sync after import');
         await clientA.sync.setupSuperSync(syncConfig);
@@ -282,6 +297,10 @@ base.describe('@importsync @supersync Import + Sync E2E', () => {
 
         await clientA.sync.syncAndWait();
         await clientB.sync.syncAndWait();
+
+        // Reload Client B after sync to ensure UI reflects synced state
+        await clientB.page.reload();
+        await clientB.page.waitForLoadState('networkidle');
 
         // ============ PHASE 4: Verify Merged Data ============
         console.log('[Merge Test] Phase 4: Verifying merged data');

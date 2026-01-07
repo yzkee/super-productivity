@@ -255,7 +255,10 @@ export class SyncProviderManager {
     if (!provider) {
       throw new Error(`Provider not found: ${providerId}`);
     }
-    await provider.privateCfg.setComplete(config);
+    // Use setPrivateCfg() instead of privateCfg.setComplete() to ensure
+    // provider-specific caches (like lastServerSeq key) are invalidated.
+    // This is critical for server migration detection when switching users.
+    await provider.setPrivateCfg(config);
 
     // If this is the active provider, update the current config observable
     if (this._activeProvider?.id === providerId) {

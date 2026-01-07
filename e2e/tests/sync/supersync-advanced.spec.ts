@@ -12,6 +12,7 @@ import {
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 import { expectTaskNotVisible } from '../../utils/supersync-assertions';
+import { waitForAppReady } from '../../utils/waits';
 
 /**
  * SuperSync Advanced E2E Tests
@@ -83,8 +84,14 @@ test.describe('@supersync SuperSync Advanced', () => {
       // Verify B has all tasks
       console.log(`[LargeData] Verifying Client B count...`);
 
-      // Wait for tasks to populate
-      await clientB.page.waitForTimeout(2000);
+      // Wait for first task to appear (ensures sync operations have rendered)
+      await waitForTask(clientB.page, `Task-${testRunId}-1`);
+
+      // If the page needs a refresh to show all synced tasks, reload and wait
+      // This handles bulk dispatch UI update timing issues
+      await clientB.page.reload();
+      await waitForAppReady(clientB.page);
+      await waitForTask(clientB.page, `Task-${testRunId}-1`);
 
       const countB = await countTasks(clientB.page);
       expect(countB).toBe(countA);

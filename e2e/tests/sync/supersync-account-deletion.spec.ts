@@ -70,13 +70,13 @@ test.describe('@supersync SuperSync Account Deletion', () => {
       // 4. Wait for error indicator to appear
       // The sync button should show error state (sync_problem icon),
       // or a snackbar with error message should appear
+      // Note: App uses snack-custom component, not simple-snack-bar
       const errorIndicator = client.page.locator(
-        // Error snackbar with any of these indicators
-        'simple-snack-bar:has-text("Configure"), ' +
-          'simple-snack-bar:has-text("error"), ' +
-          'simple-snack-bar:has-text("401"), ' +
-          'simple-snack-bar:has-text("403"), ' +
-          'simple-snack-bar:has-text("Authentication"), ' +
+        // Error snackbar with any of these indicators (snack-custom or mat-mdc-snack-bar-container)
+        'snack-custom:has-text("Configure"), ' +
+          'snack-custom:has-text("Authentication"), ' +
+          '.mat-mdc-snack-bar-container:has-text("Configure"), ' +
+          '.mat-mdc-snack-bar-container:has-text("Authentication"), ' +
           // Or sync button showing error icon
           '.sync-btn mat-icon:has-text("sync_problem")',
       );

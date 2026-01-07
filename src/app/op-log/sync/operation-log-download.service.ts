@@ -88,6 +88,9 @@ export class OperationLogDownloadService {
     await this.lockService.request(LOCK_NAMES.DOWNLOAD, async () => {
       const lastServerSeq = forceFromSeq0 ? 0 : await syncProvider.getLastServerSeq();
       const appliedOpIds = await this.opLogStore.getAppliedOpIds();
+      OpLog.verbose(
+        `OperationLogDownloadService: [DEBUG] Starting download. lastServerSeq=${lastServerSeq}, appliedOpIds.size=${appliedOpIds.size}`,
+      );
 
       if (forceFromSeq0) {
         OpLog.warn(
@@ -114,6 +117,11 @@ export class OperationLogDownloadService {
 
         const response = await syncProvider.downloadOps(sinceSeq, undefined, 500);
         finalLatestSeq = response.latestSeq;
+        OpLog.verbose(
+          `OperationLogDownloadService: [DEBUG] Download response: ops=${response.ops.length}, ` +
+            `latestSeq=${response.latestSeq}, hasMore=${response.hasMore}, ` +
+            `gapDetected=${response.gapDetected}, snapshotState=${!!response.snapshotState}`,
+        );
 
         // Capture snapshot vector clock from first response (only present when snapshot optimization used)
         if (!snapshotVectorClock && response.snapshotVectorClock) {
@@ -276,17 +284,17 @@ export class OperationLogDownloadService {
       // - lastServerSeq might be non-zero from a previous sync with this provider
       // - If server is empty but client has ops, we need to migrate regardless
       OpLog.verbose(
-        `OperationLogDownloadService: Migration check - needsFullStateUpload=${needsFullStateUpload}, ` +
+        `OperationLogDownloadService: [DEBUG] Migration check - needsFullStateUpload=${needsFullStateUpload}, ` +
           `allNewOps=${allNewOps.length}, finalLatestSeq=${finalLatestSeq}, lastServerSeq=${lastServerSeq}`,
       );
       if (!needsFullStateUpload && allNewOps.length === 0 && finalLatestSeq === 0) {
         const hasSyncedOps = await this.opLogStore.hasSyncedOps();
         OpLog.verbose(
-          `OperationLogDownloadService: Empty server detected, hasSyncedOps=${hasSyncedOps}`,
+          `OperationLogDownloadService: [DEBUG] Empty server detected, hasSyncedOps=${hasSyncedOps}`,
         );
         if (hasSyncedOps) {
           needsFullStateUpload = true;
-          OpLog.warn(
+          OpLog.normal(
             'OperationLogDownloadService: Server migration detected - empty server with synced ops. ' +
               'Full state upload will be required.',
           );
@@ -317,6 +325,12 @@ export class OperationLogDownloadService {
 
     // Mark that we successfully checked the remote server
     this.superSyncStatusService.markRemoteChecked();
+
+    OpLog.verbose(
+      `OperationLogDownloadService: [DEBUG] Return values - newOps=${allNewOps.length}, ` +
+        `needsFullStateUpload=${needsFullStateUpload}, latestServerSeq=${finalLatestSeq}, ` +
+        `hasSnapshotState=${!!snapshotState}`,
+    );
 
     // Return latestServerSeq so caller can persist it AFTER storing ops in IndexedDB.
     // This ensures localStorage (lastServerSeq) and IndexedDB (ops) stay in sync.

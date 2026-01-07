@@ -145,6 +145,59 @@ describe('SyncHydrationService', () => {
       expect(vectorClock['localClient']).toBe(6);
     });
 
+    it('should merge remote snapshot vector clock when provided', async () => {
+      const localClock = { localClient: 5 };
+      const stateCacheClock = { cachedClient: 3 };
+      const remoteVectorClock = { remoteClient: 100, anotherRemote: 50 };
+      mockVectorClockService.getCurrentVectorClock.and.resolveTo(localClock);
+      mockOpLogStore.loadStateCache.and.resolveTo({
+        vectorClock: stateCacheClock,
+      } as any);
+
+      await service.hydrateFromRemoteSync({}, remoteVectorClock);
+
+      const appendCall = mockOpLogStore.append.calls.mostRecent();
+      const vectorClock = appendCall.args[0].vectorClock;
+      // Should have all clients: local (incremented), cached, and remote
+      expect(vectorClock['localClient']).toBe(6); // incremented
+      expect(vectorClock['cachedClient']).toBe(3);
+      expect(vectorClock['remoteClient']).toBe(100);
+      expect(vectorClock['anotherRemote']).toBe(50);
+    });
+
+    it('should handle undefined remote vector clock gracefully', async () => {
+      const localClock = { localClient: 5 };
+      mockVectorClockService.getCurrentVectorClock.and.resolveTo(localClock);
+      mockOpLogStore.loadStateCache.and.resolveTo(null);
+
+      // Pass undefined explicitly
+      await service.hydrateFromRemoteSync({}, undefined);
+
+      const appendCall = mockOpLogStore.append.calls.mostRecent();
+      const vectorClock = appendCall.args[0].vectorClock;
+      expect(vectorClock['localClient']).toBe(6);
+    });
+
+    it('should take max value when merging conflicting clock entries', async () => {
+      const localClock = { localClient: 5, sharedClient: 10 };
+      const stateCacheClock = { sharedClient: 8, cachedClient: 3 };
+      const remoteVectorClock = { sharedClient: 15, remoteClient: 100 };
+      mockVectorClockService.getCurrentVectorClock.and.resolveTo(localClock);
+      mockOpLogStore.loadStateCache.and.resolveTo({
+        vectorClock: stateCacheClock,
+      } as any);
+
+      await service.hydrateFromRemoteSync({}, remoteVectorClock);
+
+      const appendCall = mockOpLogStore.append.calls.mostRecent();
+      const vectorClock = appendCall.args[0].vectorClock;
+      // sharedClient should be max of 10, 8, 15 = 15
+      expect(vectorClock['sharedClient']).toBe(15);
+      expect(vectorClock['localClient']).toBe(6); // incremented from 5
+      expect(vectorClock['cachedClient']).toBe(3);
+      expect(vectorClock['remoteClient']).toBe(100);
+    });
+
     it('should strip syncProvider from globalConfig.sync', async () => {
       const downloadedData = {
         task: {},
@@ -299,6 +352,101 @@ describe('SyncHydrationService', () => {
       await expectAsync(service.hydrateFromRemoteSync({})).toBeRejectedWithError(
         'Save failed',
       );
+    });
+
+    describe('createSyncImportOp parameter', () => {
+      it('should create SYNC_IMPORT when createSyncImportOp is true (default)', async () => {
+        await service.hydrateFromRemoteSync({ task: {} });
+
+        expect(mockOpLogStore.append).toHaveBeenCalledWith(
+          jasmine.objectContaining({
+            opType: OpType.SyncImport,
+          }),
+          'remote',
+        );
+      });
+
+      it('should create SYNC_IMPORT when createSyncImportOp is explicitly true', async () => {
+        await service.hydrateFromRemoteSync({ task: {} }, undefined, true);
+
+        expect(mockOpLogStore.append).toHaveBeenCalledWith(
+          jasmine.objectContaining({
+            opType: OpType.SyncImport,
+          }),
+          'remote',
+        );
+      });
+
+      it('should NOT create SYNC_IMPORT when createSyncImportOp is false', async () => {
+        await service.hydrateFromRemoteSync({ task: {} }, undefined, false);
+
+        expect(mockOpLogStore.append).not.toHaveBeenCalled();
+      });
+
+      it('should still save state cache when createSyncImportOp is false', async () => {
+        mockOpLogStore.getLastSeq.and.resolveTo(42);
+
+        await service.hydrateFromRemoteSync({ task: {} }, undefined, false);
+
+        expect(mockOpLogStore.saveStateCache).toHaveBeenCalled();
+      });
+
+      it('should still update vector clock when createSyncImportOp is false', async () => {
+        mockVectorClockService.getCurrentVectorClock.and.resolveTo({ localClient: 5 });
+
+        await service.hydrateFromRemoteSync({ task: {} }, undefined, false);
+
+        expect(mockOpLogStore.setVectorClock).toHaveBeenCalledWith(
+          jasmine.objectContaining({
+            localClient: 6, // Should still increment
+          }),
+        );
+      });
+
+      it('should still dispatch loadAllData when createSyncImportOp is false', async () => {
+        const downloadedData = { task: { ids: ['t1'] } };
+
+        await service.hydrateFromRemoteSync(downloadedData, undefined, false);
+
+        expect(mockStore.dispatch).toHaveBeenCalledWith(
+          loadAllData({
+            appDataComplete: jasmine.objectContaining({
+              task: { ids: ['t1'] },
+            }) as any,
+          }),
+        );
+      });
+
+      it('should still merge remote vector clock when createSyncImportOp is false', async () => {
+        const remoteVectorClock = { remoteClient: 100 };
+        mockVectorClockService.getCurrentVectorClock.and.resolveTo({ localClient: 5 });
+
+        await service.hydrateFromRemoteSync({ task: {} }, remoteVectorClock, false);
+
+        expect(mockOpLogStore.setVectorClock).toHaveBeenCalledWith(
+          jasmine.objectContaining({
+            localClient: 6,
+            remoteClient: 100,
+          }),
+        );
+      });
+
+      it('should still validate and repair when createSyncImportOp is false', async () => {
+        const repairedState = { task: { repaired: true } } as any;
+        mockValidateStateService.validateAndRepair.and.returnValue({
+          isValid: true,
+          wasRepaired: true,
+          repairedState,
+        });
+
+        await service.hydrateFromRemoteSync({ task: {} }, undefined, false);
+
+        expect(mockStore.dispatch).toHaveBeenCalledWith(
+          loadAllData({
+            appDataComplete: repairedState,
+          }),
+        );
+      });
     });
   });
 

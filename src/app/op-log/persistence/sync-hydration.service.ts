@@ -38,7 +38,7 @@ export class SyncHydrationService {
    * Handles hydration after a remote sync download.
    * This method:
    * 1. Merges passed mainModelData (entity models) with IndexedDB data (archive models)
-   * 2. Creates a SYNC_IMPORT operation to persist it to SUP_OPS
+   * 2. Creates a SYNC_IMPORT operation to persist it to SUP_OPS (optional)
    * 3. Saves a new state cache (snapshot) for crash safety
    * 4. Dispatches loadAllData to update NgRx
    *
@@ -47,9 +47,16 @@ export class SyncHydrationService {
    *
    * @param downloadedMainModelData - Entity models from remote meta file.
    *   These are NOT stored in IndexedDB (only archives are) so must be passed explicitly.
+   * @param remoteVectorClock - Vector clock from the remote snapshot (for clock merging).
+   * @param createSyncImportOp - Whether to create a SYNC_IMPORT operation. Set to false
+   *   for file-based sync bootstrap to avoid "clean slate" semantics that would filter
+   *   concurrent ops from other clients. Default is true for backwards compatibility
+   *   and for explicit "use local/remote" conflict resolution flows.
    */
   async hydrateFromRemoteSync(
     downloadedMainModelData?: Record<string, unknown>,
+    remoteVectorClock?: Record<string, number>,
+    createSyncImportOp: boolean = true,
   ): Promise<void> {
     OpLog.normal('SyncHydrationService: Hydrating from remote sync...');
 
@@ -79,37 +86,64 @@ export class SyncHydrationService {
       // CRITICAL: The SYNC_IMPORT's clock must include ALL known clients, not just local ones.
       // If we only use the local clock, ops from other clients will be CONCURRENT with
       // this import and get filtered out by SyncImportFilterService.
-      // We now use the state cache's vector clock (which includes synced clients),
-      // to ensure ops created AFTER this sync point are GREATER_THAN the import.
+      // We merge: local clock + state cache clock + remote snapshot clock (if available).
+      // The remote snapshot clock ensures we include knowledge from the uploading client,
+      // preventing the "mutual SYNC_IMPORT discarding" bug during provider switch scenarios.
       const localClock = await this.vectorClockService.getCurrentVectorClock();
       const stateCache = await this.opLogStore.loadStateCache();
       const stateCacheClock = stateCache?.vectorClock || {};
-      const mergedClock = mergeVectorClocks(localClock, stateCacheClock);
+      let mergedClock = mergeVectorClocks(localClock, stateCacheClock);
+
+      // Merge remote snapshot clock to ensure SYNC_IMPORT dominates remote client's ops
+      if (remoteVectorClock) {
+        mergedClock = mergeVectorClocks(mergedClock, remoteVectorClock);
+        OpLog.normal('SyncHydrationService: Merged remote snapshot vector clock', {
+          remoteClockSize: Object.keys(remoteVectorClock).length,
+        });
+      }
+
       const newClock = incrementVectorClock(mergedClock, clientId);
-      OpLog.normal('SyncHydrationService: Creating SYNC_IMPORT with merged clock', {
-        localClockSize: Object.keys(localClock).length,
-        stateCacheClockSize: Object.keys(stateCacheClock).length,
-        mergedClockSize: Object.keys(mergedClock).length,
-      });
 
-      const op: Operation = {
-        id: uuidv7(),
-        actionType: ActionType.LOAD_ALL_DATA,
-        opType: OpType.SyncImport,
-        entityType: 'ALL',
-        payload: syncedData,
-        clientId: clientId,
-        vectorClock: newClock,
-        timestamp: Date.now(),
-        schemaVersion: CURRENT_SCHEMA_VERSION,
-      };
+      let lastSeq: number;
 
-      // 4. Append operation to SUP_OPS
-      await this.opLogStore.append(op, 'remote');
-      OpLog.normal('SyncHydrationService: Persisted SYNC_IMPORT operation');
+      if (createSyncImportOp) {
+        // 3b. Create and append SYNC_IMPORT operation
+        // This is used for explicit "use local/remote" conflict resolution where we want
+        // "clean slate" semantics that discard concurrent ops from other clients.
+        OpLog.normal('SyncHydrationService: Creating SYNC_IMPORT with merged clock', {
+          localClockSize: Object.keys(localClock).length,
+          stateCacheClockSize: Object.keys(stateCacheClock).length,
+          remoteClockSize: remoteVectorClock ? Object.keys(remoteVectorClock).length : 0,
+          mergedClockSize: Object.keys(mergedClock).length,
+        });
 
-      // 5. Get the sequence number of the operation we just wrote
-      const lastSeq = await this.opLogStore.getLastSeq();
+        const op: Operation = {
+          id: uuidv7(),
+          actionType: ActionType.LOAD_ALL_DATA,
+          opType: OpType.SyncImport,
+          entityType: 'ALL',
+          payload: syncedData,
+          clientId: clientId,
+          vectorClock: newClock,
+          timestamp: Date.now(),
+          schemaVersion: CURRENT_SCHEMA_VERSION,
+        };
+
+        // 4. Append operation to SUP_OPS
+        await this.opLogStore.append(op, 'remote');
+        OpLog.normal('SyncHydrationService: Persisted SYNC_IMPORT operation');
+
+        // 5. Get the sequence number of the operation we just wrote
+        lastSeq = await this.opLogStore.getLastSeq();
+      } else {
+        // 3b-alt. Skip SYNC_IMPORT creation for file-based sync bootstrap.
+        // This avoids "clean slate" semantics so concurrent ops from other clients
+        // won't be filtered by SyncImportFilterService.
+        OpLog.normal(
+          'SyncHydrationService: Skipping SYNC_IMPORT creation (file-based bootstrap)',
+        );
+        lastSeq = await this.opLogStore.getLastSeq();
+      }
 
       // 6. Validate and repair synced data before dispatching
       // This fixes stale task references (e.g., tags/projects referencing deleted tasks)

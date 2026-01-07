@@ -119,6 +119,11 @@ test.describe('@supersync @regression Stale Clock Regression', () => {
       await importPage.importBackupFile(backupPath);
       console.log('[Stale Clock] Client A imported backup');
 
+      // Reload page after import to ensure UI reflects the imported state
+      // (bulk state updates from BACKUP_IMPORT may not trigger component re-renders)
+      await clientA.page.reload();
+      await clientA.page.waitForLoadState('networkidle');
+
       // Re-enable sync after import (import overwrites globalConfig)
       await clientA.sync.setupSuperSync(syncConfig);
 
@@ -247,6 +252,11 @@ test.describe('@supersync @regression Stale Clock Regression', () => {
       await importPage.navigateToImportPage();
       const backupPath = ImportPage.getFixturePath('test-backup.json');
       await importPage.importBackupFile(backupPath);
+
+      // Reload page after import to ensure UI reflects the imported state
+      await clientA.page.reload();
+      await clientA.page.waitForLoadState('networkidle');
+
       await clientA.sync.setupSuperSync(syncConfig);
       await waitForTask(clientA.page, 'E2E Import Test - Active Task With Subtask');
 

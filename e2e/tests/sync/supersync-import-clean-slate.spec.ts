@@ -111,6 +111,11 @@ test.describe('@supersync @cleanslate Import Clean Slate Semantics', () => {
       await importPage.importBackupFile(backupPath);
       console.log('[Clean Slate] Client A imported backup');
 
+      // Reload page after import to ensure UI reflects the imported state
+      // (bulk state updates from BACKUP_IMPORT may not trigger component re-renders)
+      await clientA.page.reload();
+      await clientA.page.waitForLoadState('networkidle');
+
       // Re-enable sync after import (import overwrites globalConfig)
       await clientA.sync.setupSuperSync(syncConfig);
 
@@ -264,6 +269,10 @@ test.describe('@supersync @cleanslate Import Clean Slate Semantics', () => {
       await importPage.importBackupFile(backupPath);
       console.log('[Late Joiner] Client A imported backup');
 
+      // Reload page after import to ensure UI reflects the imported state
+      await clientA.page.reload();
+      await clientA.page.waitForLoadState('networkidle');
+
       // Re-enable sync after import
       await clientA.sync.setupSuperSync(syncConfig);
 
@@ -393,6 +402,10 @@ test.describe('@supersync @cleanslate Import Clean Slate Semantics', () => {
       const backupPath = ImportPage.getFixturePath('test-backup.json');
       await importPage.importBackupFile(backupPath);
       console.log('[Pending Invalidation] Client A imported backup');
+
+      // Reload page after import to ensure UI reflects the imported state
+      await clientA.page.reload();
+      await clientA.page.waitForLoadState('networkidle');
 
       // Re-enable sync after import (import overwrites globalConfig)
       await clientA.sync.setupSuperSync(syncConfig);

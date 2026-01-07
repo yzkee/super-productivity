@@ -29,6 +29,7 @@ describe('OperationLogDownloadService', () => {
 
     // Mock OpLog
     spyOn(OpLog, 'warn');
+    spyOn(OpLog, 'normal');
 
     // Default mock implementations
     mockLockService.request.and.callFake(
@@ -1114,7 +1115,7 @@ describe('OperationLogDownloadService', () => {
           const result = await service.downloadRemoteOps(mockApiProvider);
 
           expect(result.needsFullStateUpload).toBeTrue();
-          expect(OpLog.warn).toHaveBeenCalledWith(
+          expect(OpLog.normal).toHaveBeenCalledWith(
             jasmine.stringContaining(
               'Server migration detected - empty server with synced ops',
             ),
@@ -1215,7 +1216,7 @@ describe('OperationLogDownloadService', () => {
           const result = await service.downloadRemoteOps(mockApiProvider);
 
           expect(result.needsFullStateUpload).toBeTrue();
-          expect(OpLog.warn).toHaveBeenCalledWith(
+          expect(OpLog.normal).toHaveBeenCalledWith(
             jasmine.stringContaining(
               'Server migration detected - empty server with synced ops',
             ),

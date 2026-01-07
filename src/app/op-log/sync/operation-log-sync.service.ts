@@ -254,32 +254,70 @@ export class OperationLogSyncService {
         'OperationLogSyncService: Received snapshotState from file-based sync. Hydrating...',
       );
 
-      // Show fresh client confirmation if this is a wholly fresh client
-      const isFreshClient = await this.isWhollyFreshClient();
-      if (isFreshClient) {
+      // Check if client has unsynced local ops that would be lost
+      const unsyncedOps = await this.opLogStore.getUnsynced();
+      const hasLocalChanges = unsyncedOps.length > 0;
+
+      if (hasLocalChanges) {
+        // Non-fresh client with local changes - ask for confirmation
         OpLog.warn(
-          'OperationLogSyncService: Fresh client detected. Requesting confirmation before accepting snapshot.',
+          `OperationLogSyncService: Client has ${unsyncedOps.length} unsynced local ops. ` +
+            'Requesting confirmation before replacing with snapshot.',
         );
 
-        const confirmed = this._showFreshClientSyncConfirmation(1); // Show as "1 snapshot"
+        const confirmed = this._showLocalDataReplaceConfirmation(unsyncedOps.length);
         if (!confirmed) {
           OpLog.normal(
-            'OperationLogSyncService: User cancelled fresh client sync. Snapshot not applied.',
+            'OperationLogSyncService: User cancelled sync. Local data preserved.',
           );
           this.snackService.open({
-            msg: T.F.SYNC.S.FRESH_CLIENT_SYNC_CANCELLED,
+            msg: T.F.SYNC.S.LOCAL_DATA_REPLACE_CANCELLED,
           });
           return { serverMigrationHandled: false, localWinOpsCreated: 0, newOpsCount: 0 };
         }
 
+        // User chose to accept remote - clear unsynced ops since they'll be replaced
+        await this.opLogStore.clearUnsyncedOps();
         OpLog.normal(
-          'OperationLogSyncService: User confirmed fresh client sync. Proceeding with snapshot.',
+          'OperationLogSyncService: User confirmed. Cleared unsynced ops and proceeding with snapshot.',
         );
+      } else {
+        // Show fresh client confirmation if this is a wholly fresh client
+        const isFreshClient = await this.isWhollyFreshClient();
+        if (isFreshClient) {
+          OpLog.warn(
+            'OperationLogSyncService: Fresh client detected. Requesting confirmation before accepting snapshot.',
+          );
+
+          const confirmed = this._showFreshClientSyncConfirmation(1); // Show as "1 snapshot"
+          if (!confirmed) {
+            OpLog.normal(
+              'OperationLogSyncService: User cancelled fresh client sync. Snapshot not applied.',
+            );
+            this.snackService.open({
+              msg: T.F.SYNC.S.FRESH_CLIENT_SYNC_CANCELLED,
+            });
+            return {
+              serverMigrationHandled: false,
+              localWinOpsCreated: 0,
+              newOpsCount: 0,
+            };
+          }
+
+          OpLog.normal(
+            'OperationLogSyncService: User confirmed fresh client sync. Proceeding with snapshot.',
+          );
+        }
       }
 
-      // Hydrate state from snapshot - this creates a SYNC_IMPORT operation and updates NgRx
+      // Hydrate state from snapshot - DON'T create SYNC_IMPORT for file-based bootstrap.
+      // Creating SYNC_IMPORT would trigger "clean slate" semantics that filter concurrent
+      // ops from other clients (via SyncImportFilterService). For normal file-based sync,
+      // we want to merge concurrent work, not discard it.
       await this.syncHydrationService.hydrateFromRemoteSync(
         result.snapshotState as Record<string, unknown>,
+        result.snapshotVectorClock,
+        false, // Don't create SYNC_IMPORT for file-based bootstrap
       );
 
       // Persist lastServerSeq after hydration
@@ -381,6 +419,24 @@ export class OperationLogSyncService {
       T.F.SYNC.D_FRESH_CLIENT_CONFIRM.MESSAGE,
       {
         count: opCount,
+      },
+    );
+    return window.confirm(`${title}\n\n${message}`);
+  }
+
+  /**
+   * Shows a confirmation dialog when local data would be replaced by remote snapshot.
+   * Used when a non-fresh client (with unsynced local ops) receives a snapshot.
+   * Uses synchronous window.confirm() to prevent race conditions.
+   */
+  private _showLocalDataReplaceConfirmation(unsyncedCount: number): boolean {
+    const title = this.translateService.instant(
+      T.F.SYNC.D_LOCAL_DATA_REPLACE_CONFIRM.TITLE,
+    );
+    const message = this.translateService.instant(
+      T.F.SYNC.D_LOCAL_DATA_REPLACE_CONFIRM.MESSAGE,
+      {
+        count: unsyncedCount,
       },
     );
     return window.confirm(`${title}\n\n${message}`);

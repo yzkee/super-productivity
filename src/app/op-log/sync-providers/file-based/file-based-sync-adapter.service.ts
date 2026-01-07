@@ -507,21 +507,30 @@ export class FileBasedSyncAdapterService {
     const isForceFromZero = sinceSeq === 0;
     const filteredOps: ServerSyncOperation[] = [];
 
+    // NOTE: We no longer filter using _processedOpIds here.
+    // The download service filters using appliedOpIds (from IndexedDB), which is
+    // the source of truth for what's actually applied. _processedOpIds was getting
+    // out of sync because ops could be "downloaded" but not applied (e.g., due to
+    // interrupted sync, app crash, or filtering by appliedOpIds in the download service).
+    //
+    // By returning ALL ops from the file, we let the download service's appliedOpIds
+    // filter decide what's truly new. This may download more data but ensures correctness.
+
+    OpLog.verbose(
+      `FileBasedSyncAdapter: Returning all ${syncData.recentOps.length} ops from file (filtering by appliedOpIds happens in download service)`,
+    );
+
     syncData.recentOps.forEach((compactOp, index) => {
-      // Filter by client if specified
+      // Filter by client if specified (excludeClient is for upload deduplication)
       if (excludeClient && compactOp.c === excludeClient) {
         return;
       }
 
-      // For force-from-zero requests, include all ops
-      // Otherwise, filter out ops we've already processed
-      if (isForceFromZero || !this._isOpProcessed(providerKey, compactOp.id)) {
-        filteredOps.push({
-          serverSeq: index + 1, // Synthetic seq for compatibility (not used for tracking)
-          op: this._compactToSyncOp(compactOp),
-          receivedAt: compactOp.t,
-        });
-      }
+      filteredOps.push({
+        serverSeq: index + 1, // Synthetic seq for compatibility (not used for tracking)
+        op: this._compactToSyncOp(compactOp),
+        receivedAt: compactOp.t,
+      });
     });
 
     // Apply limit

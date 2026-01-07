@@ -177,15 +177,20 @@ test.describe('@supersync SuperSync Encryption Password Change', () => {
 
       // Check for error state
       const hasError = await clientC.sync.hasSyncError();
-      const snackbar = clientC.page.locator('simple-snack-bar');
-      const snackbarVisible = await snackbar.isVisible().catch(() => false);
+      // App uses snack-custom component, not simple-snack-bar
+      const snackbar = clientC.page.locator(
+        'snack-custom:has-text("decrypt"), ' +
+          'snack-custom:has-text("password"), ' +
+          '.mat-mdc-snack-bar-container:has-text("decrypt"), ' +
+          '.mat-mdc-snack-bar-container:has-text("password")',
+      );
+      const snackbarVisible = await snackbar
+        .first()
+        .isVisible()
+        .catch(() => false);
 
       // Either error icon or error snackbar should be visible
-      if (!hasError && !snackbarVisible) {
-        // If no visible error, at least verify no data was synced
-        const taskCount = await clientC.page.locator('task').count();
-        console.log(`Client C has ${taskCount} tasks (should be 0 real tasks)`);
-      }
+      expect(hasError || snackbarVisible).toBe(true);
     } finally {
       if (clientA) await closeClient(clientA);
       if (clientC) await closeClient(clientC);

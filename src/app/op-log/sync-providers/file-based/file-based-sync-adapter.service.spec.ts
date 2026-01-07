@@ -447,7 +447,11 @@ describe('FileBasedSyncAdapterService', () => {
       expect(result.ops[0].op.clientId).toBe('client2');
     });
 
-    it('should filter ops by processed IDs (first download gets all, subsequent gets unprocessed)', async () => {
+    it('should return ALL ops (filtering by appliedOpIds happens in download service)', async () => {
+      // NOTE: The file-based adapter no longer filters by processedOpIds.
+      // It returns ALL ops from the file, and the download service filters
+      // using appliedOpIds (from IndexedDB) as the source of truth.
+      // This prevents sync failures when ops are downloaded but not applied.
       const syncData = createMockSyncData({
         recentOps: [
           {
@@ -492,13 +496,14 @@ describe('FileBasedSyncAdapterService', () => {
         Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
       );
 
-      // First download with sinceSeq > 0 returns all unprocessed ops (which is all 3)
+      // First download returns all 3 ops
       const result1 = await adapter.downloadOps(1);
       expect(result1.ops.length).toBe(3);
 
-      // Subsequent download returns no ops (all have been marked as processed)
+      // Subsequent download ALSO returns all 3 ops (no longer filtered by adapter)
+      // The download service's appliedOpIds filter determines what's actually new
       const result2 = await adapter.downloadOps(1);
-      expect(result2.ops.length).toBe(0);
+      expect(result2.ops.length).toBe(3);
     });
 
     it('should limit results and indicate hasMore', async () => {
