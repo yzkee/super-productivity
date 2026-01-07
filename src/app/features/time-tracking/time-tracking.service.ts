@@ -7,7 +7,7 @@ import { Store } from '@ngrx/store';
 import { selectTimeTrackingState } from './store/time-tracking.selectors';
 import { ArchiveDbAdapter } from '../../core/persistence/archive-db-adapter.service';
 import { WorkContextType, WorkStartEnd } from '../work-context/work-context.model';
-import { ImpossibleError } from '../../sync/sync-exports';
+import { ImpossibleError } from '../../op-log/sync-exports';
 import { toLegacyWorkStartEndMaps } from './to-legacy-work-start-end-maps';
 import { TimeTrackingActions } from './store/time-tracking.actions';
 import { Log } from '../../core/log';

@@ -3,7 +3,7 @@ import { createEffect } from '@ngrx/effects';
 import { ALL_ACTIONS } from '../../util/local-actions.token';
 import { concatMap, filter } from 'rxjs/operators';
 import { LockService } from '../sync/lock.service';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import {
   isPersistentAction,
   PersistentAction,
@@ -12,7 +12,7 @@ import { uuidv7 } from '../../util/uuid-v7';
 import { devError } from '../../util/dev-error';
 import { incrementVectorClock } from '../../core/util/vector-clock';
 import { MultiEntityPayload, Operation, ActionType } from '../core/operation.types';
-import { OperationLogCompactionService } from '../store/operation-log-compaction.service';
+import { OperationLogCompactionService } from '../persistence/operation-log-compaction.service';
 import { OpLog } from '../../core/log';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
@@ -23,7 +23,7 @@ import {
   LOCK_NAMES,
   MAX_COMPACTION_FAILURES,
 } from '../core/operation-log.const';
-import { CURRENT_SCHEMA_VERSION } from '../store/schema-migration.service';
+import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 import { OperationCaptureService } from './operation-capture.service';
 import { ImmediateUploadService } from '../sync/immediate-upload.service';
 import { getDeferredActions } from './operation-capture.meta-reducer';

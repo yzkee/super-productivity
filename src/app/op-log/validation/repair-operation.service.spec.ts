@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { RepairOperationService } from './repair-operation.service';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { LockService } from '../sync/lock.service';
 import { VectorClockService } from '../sync/vector-clock.service';
 import { ActionType, RepairSummary, OpType } from '../core/operation.types';
-import { CURRENT_SCHEMA_VERSION } from '../store/schema-migration.service';
+import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 import { TranslateService } from '@ngx-translate/core';
 
 describe('RepairOperationService', () => {

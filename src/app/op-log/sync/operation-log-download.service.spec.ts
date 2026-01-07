@@ -1,13 +1,13 @@
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { OperationLogDownloadService } from './operation-log-download.service';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { LockService } from './lock.service';
 import { SnackService } from '../../core/snack/snack.service';
 import {
   SyncProviderServiceInterface,
   OperationSyncCapable,
-} from '../../sync/providers/provider.interface';
-import { SyncProviderId } from '../../sync/providers/provider.const';
+} from '../sync-providers/provider.interface';
+import { SyncProviderId } from '../sync-providers/provider.const';
 import { ActionType, OpType } from '../core/operation.types';
 import { CLOCK_DRIFT_THRESHOLD_MS } from '../core/operation-log.const';
 import { OpLog } from '../../core/log';

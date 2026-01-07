@@ -21,7 +21,7 @@ import {
   SYNC_BEFORE_CLOSE_ID,
   SYNC_INITIAL_SYNC_TRIGGER,
 } from '../../imex/sync/sync.const';
-import { SyncProviderId } from '../../sync/sync-exports';
+import { SyncProviderId } from '../../op-log/sync-exports';
 import { asyncScheduler, combineLatest, EMPTY, merge, Observable, of } from 'rxjs';
 import { isOnline$ } from '../../util/is-online';
 import { SnackService } from '../../core/snack/snack.service';

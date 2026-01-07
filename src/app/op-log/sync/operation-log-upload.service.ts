@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { LockService } from './lock.service';
 import { Operation, OperationLogEntry, OpType } from '../core/operation.types';
 import { OpLog } from '../../core/log';
@@ -8,7 +8,7 @@ import { chunkArray } from '../../util/chunk-array';
 import {
   OperationSyncCapable,
   SyncOperation,
-} from '../../sync/providers/provider.interface';
+} from '../sync-providers/provider.interface';
 import { syncOpToOperation } from './operation-sync.util';
 import { OperationEncryptionService } from './operation-encryption.service';
 

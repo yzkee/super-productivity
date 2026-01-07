@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { ActionType, Operation, OpType, VectorClock } from '../core/operation.types';
 import { incrementVectorClock, mergeVectorClocks } from '../../core/util/vector-clock';
 import { OpLog } from '../../core/log';
@@ -7,7 +7,7 @@ import { ConflictResolutionService } from './conflict-resolution.service';
 import { VectorClockService } from './vector-clock.service';
 import { LockService } from './lock.service';
 import { toEntityKey } from '../util/entity-key.util';
-import { CURRENT_SCHEMA_VERSION } from '../store/schema-migration.service';
+import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 import { LOCK_NAMES } from '../core/operation-log.const';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';

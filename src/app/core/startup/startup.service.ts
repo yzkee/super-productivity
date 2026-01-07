@@ -15,7 +15,7 @@ import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
 import { IS_ELECTRON } from '../../app.constants';
 import { Log } from '../log';
 import { T } from '../../t.const';
-import { OperationLogStoreService } from '../../op-log/store/operation-log-store.service';
+import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
 import { BannerId } from '../banner/banner.model';
 import { isOnline$ } from '../../util/is-online';
 import { LS } from '../persistence/storage-keys.const';

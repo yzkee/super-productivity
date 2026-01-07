@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { OperationLogStoreService } from '../../store/operation-log-store.service';
+import { OperationLogStoreService } from '../../persistence/operation-log-store.service';
 import { VectorClockService } from '../../sync/vector-clock.service';
 import { OpType, VectorClock } from '../../core/operation.types';
-import { CURRENT_SCHEMA_VERSION } from '../../store/schema-migration.service';
+import { CURRENT_SCHEMA_VERSION } from '../../persistence/schema-migration.service';
 import { TestClient, resetTestUuidCounter } from './helpers/test-client.helper';
 import {
   createTaskOperation,

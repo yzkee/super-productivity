@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { VectorClock, EntityType } from '../core/operation.types';
 import { mergeVectorClocks } from '../../core/util/vector-clock';
 import { toEntityKey } from '../util/entity-key.util';

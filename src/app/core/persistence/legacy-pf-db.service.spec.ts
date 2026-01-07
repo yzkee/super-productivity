@@ -1,6 +1,5 @@
 import { TestBed } from '@angular/core/testing';
 import { LegacyPfDbService } from './legacy-pf-db.service';
-import * as idb from 'idb';
 
 describe('LegacyPfDbService', () => {
   let service: LegacyPfDbService;
@@ -23,12 +22,13 @@ describe('LegacyPfDbService', () => {
       close: jasmine.createSpy('close'),
     };
 
-    spyOn(idb, 'openDB').and.resolveTo(mockDb as unknown as idb.IDBPDatabase);
-
     TestBed.configureTestingModule({
       providers: [LegacyPfDbService],
     });
     service = TestBed.inject(LegacyPfDbService);
+
+    // Spy on the private _openDb method to return our mock
+    spyOn<any>(service, '_openDb').and.resolveTo(mockDb);
   });
 
   describe('load', () => {
@@ -38,7 +38,7 @@ describe('LegacyPfDbService', () => {
 
       const result = await service.load('testKey');
 
-      expect(idb.openDB).toHaveBeenCalledWith('pf', 1, jasmine.any(Object));
+      expect((service as any)._openDb).toHaveBeenCalled();
       expect(mockDb.get).toHaveBeenCalledWith('main', 'testKey');
       expect(mockDb.close).toHaveBeenCalled();
       expect(result).toEqual(mockData);
@@ -134,7 +134,7 @@ describe('LegacyPfDbService', () => {
     });
 
     it('should return false on error', async () => {
-      (idb.openDB as jasmine.Spy).and.rejectWith(new Error('DB error'));
+      ((service as any)._openDb as jasmine.Spy).and.rejectWith(new Error('DB error'));
 
       const result = await service.hasUsableEntityData();
 
@@ -161,7 +161,7 @@ describe('LegacyPfDbService', () => {
     });
 
     it('should throw on error', async () => {
-      (idb.openDB as jasmine.Spy).and.rejectWith(new Error('DB error'));
+      ((service as any)._openDb as jasmine.Spy).and.rejectWith(new Error('DB error'));
 
       await expectAsync(service.loadAllEntityData()).toBeRejectedWithError('DB error');
     });

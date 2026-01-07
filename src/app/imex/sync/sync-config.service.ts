@@ -1,10 +1,10 @@
 import { inject, Injectable } from '@angular/core';
-import { SyncProviderManager } from '../../sync/provider-manager.service';
+import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import { combineLatest, from, Observable, of } from 'rxjs';
 import { SyncConfig } from '../../features/config/global-config.model';
 import { switchMap, tap } from 'rxjs/operators';
-import { PrivateCfgByProviderId, SyncProviderId } from '../../sync/sync-exports';
+import { PrivateCfgByProviderId, SyncProviderId } from '../../op-log/sync-exports';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 import { SyncLog } from '../../core/log';
 

@@ -1,12 +1,12 @@
 import { inject, Injectable } from '@angular/core';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { LockService } from './lock.service';
 import { Operation } from '../core/operation.types';
 import { OpLog } from '../../core/log';
 import {
   OperationSyncCapable,
   SyncOperation,
-} from '../../sync/providers/provider.interface';
+} from '../sync-providers/provider.interface';
 import { syncOpToOperation } from './operation-sync.util';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
@@ -17,7 +17,7 @@ import {
   CLOCK_DRIFT_THRESHOLD_MS,
 } from '../core/operation-log.const';
 import { OperationEncryptionService } from './operation-encryption.service';
-import { DecryptError } from '../../sync/errors/sync-errors';
+import { DecryptError } from '../core/errors/sync-errors';
 import { SuperSyncStatusService } from './super-sync-status.service';
 
 /**

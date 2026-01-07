@@ -3,8 +3,8 @@ import {
   SyncProviderServiceInterface,
   OperationSyncCapable,
   SyncOperation,
-} from '../../sync/providers/provider.interface';
-import { SyncProviderId } from '../../sync/providers/provider.const';
+} from '../sync-providers/provider.interface';
+import { SyncProviderId } from '../sync-providers/provider.const';
 import { ActionType, OpType } from '../core/operation.types';
 
 describe('operation-sync utility', () => {

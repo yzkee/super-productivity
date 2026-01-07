@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { Operation, OpType } from '../core/operation.types';
 import { compareVectorClocks, VectorClockComparison } from '../../core/util/vector-clock';
 import { OpLog } from '../../core/log';

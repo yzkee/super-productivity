@@ -20,7 +20,7 @@ import { MatButton } from '@angular/material/button';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { AppDataComplete } from '../../op-log/model/model-config';
-import { BackupService } from '../../sync/backup.service';
+import { BackupService } from '../../op-log/backup/backup.service';
 import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
 import { first } from 'rxjs/operators';
 import {

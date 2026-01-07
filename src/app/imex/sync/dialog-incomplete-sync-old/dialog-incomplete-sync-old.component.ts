@@ -13,7 +13,7 @@ import { IS_ELECTRON } from '../../../app.constants';
 import { IS_ANDROID_WEB_VIEW } from '../../../util/is-android-web-view';
 import { MatIcon } from '@angular/material/icon';
 import { MatButton } from '@angular/material/button';
-import { BackupService } from '../../../sync/backup.service';
+import { BackupService } from '../../../op-log/backup/backup.service';
 import { T } from '../../../t.const';
 import { Log } from '../../../core/log';
 

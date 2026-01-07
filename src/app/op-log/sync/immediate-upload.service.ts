@@ -2,7 +2,7 @@ import { inject, Injectable, OnDestroy } from '@angular/core';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime, exhaustMap, filter } from 'rxjs/operators';
 import { isOnline } from '../../util/is-online';
-import { SyncProviderManager } from '../../sync/provider-manager.service';
+import { SyncProviderManager } from '../sync-providers/provider-manager.service';
 import { OperationLogSyncService } from './operation-log-sync.service';
 import { isOperationSyncCapable } from './operation-sync.util';
 import { OpLog } from '../../core/log';

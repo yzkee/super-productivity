@@ -9,8 +9,8 @@ import {
 } from './global-error-handler.util';
 import { saveBeforeLastErrorActionLog } from '../../util/action-logger';
 import { error } from 'electron-log/renderer';
-import { BackupService } from '../../sync/backup.service';
-import { CompleteBackup } from '../../sync/sync-exports';
+import { BackupService } from '../../op-log/backup/backup.service';
+import { CompleteBackup } from '../../op-log/sync-exports';
 import { Log } from '../log';
 
 let isErrorAlertShown = false;

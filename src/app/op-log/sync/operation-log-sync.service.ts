@@ -1,9 +1,9 @@
 import { inject, Injectable } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { VectorClock } from '../core/operation.types';
 import { OpLog } from '../../core/log';
-import { OperationSyncCapable } from '../../sync/providers/provider.interface';
+import { OperationSyncCapable } from '../sync-providers/provider.interface';
 import { OperationLogUploadService, UploadResult } from './operation-log-upload.service';
 import { OperationLogDownloadService } from './operation-log-download.service';
 import { SnackService } from '../../core/snack/snack.service';
@@ -16,7 +16,7 @@ import {
   DownloadResultForRejection,
   RejectedOpsHandlerService,
 } from './rejected-ops-handler.service';
-import { SyncHydrationService } from '../store/sync-hydration.service';
+import { SyncHydrationService } from '../persistence/sync-hydration.service';
 
 /**
  * Orchestrates synchronization of the Operation Log with remote storage.

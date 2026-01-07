@@ -9,7 +9,7 @@ import {
   TimeTrackingState,
   TTWorkContextData,
 } from '../../time-tracking/time-tracking.model';
-import { ImpossibleError } from '../../../sync/sync-exports';
+import { ImpossibleError } from '../../../op-log/sync-exports';
 import { TaskCopy } from '../../tasks/task.model';
 
 const BASE_TASK: TaskCopy = {

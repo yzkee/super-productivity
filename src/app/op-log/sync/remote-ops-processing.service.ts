@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import {
   ConflictResult,
   EntityConflict,
@@ -16,12 +16,12 @@ import {
   MAX_VERSION_SKIP,
   MIN_SUPPORTED_SCHEMA_VERSION,
   SchemaMigrationService,
-} from '../store/schema-migration.service';
+} from '../persistence/schema-migration.service';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
 import { LOCK_NAMES } from '../core/operation-log.const';
 import { LockService } from './lock.service';
-import { OperationLogCompactionService } from '../store/operation-log-compaction.service';
+import { OperationLogCompactionService } from '../persistence/operation-log-compaction.service';
 import { SyncImportFilterService } from './sync-import-filter.service';
 
 /**

@@ -1,4 +1,4 @@
-import { CompressError, DecompressError } from '../../sync/errors/sync-errors';
+import { CompressError, DecompressError } from '../core/errors/sync-errors';
 import { PFLog } from '../../core/log';
 
 /**

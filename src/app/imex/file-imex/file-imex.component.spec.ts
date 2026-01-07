@@ -11,7 +11,7 @@ import { TranslateModule } from '@ngx-translate/core';
 
 import { FileImexComponent } from './file-imex.component';
 import { SnackService } from '../../core/snack/snack.service';
-import { BackupService } from '../../sync/backup.service';
+import { BackupService } from '../../op-log/backup/backup.service';
 import { T } from '../../t.const';
 import { TODAY_TAG } from '../../features/tag/tag.const';
 import { ConfirmUrlImportDialogComponent } from '../dialog-confirm-url-import/dialog-confirm-url-import.component';

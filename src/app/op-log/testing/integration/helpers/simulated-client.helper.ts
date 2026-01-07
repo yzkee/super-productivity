@@ -4,11 +4,11 @@ import {
   OperationLogEntry,
   OpType,
 } from '../../../core/operation.types';
-import { OperationLogStoreService } from '../../../store/operation-log-store.service';
+import { OperationLogStoreService } from '../../../persistence/operation-log-store.service';
 import {
   SyncOperation,
   ServerSyncOperation,
-} from '../../../../sync/providers/provider.interface';
+} from '../../../sync-providers/provider.interface';
 import { MockSyncServer } from './mock-sync-server.helper';
 import { TestClient } from './test-client.helper';
 

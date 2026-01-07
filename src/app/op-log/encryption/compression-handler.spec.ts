@@ -1,5 +1,5 @@
 import { PFLog } from '../../core/log';
-import { DecompressError } from '../../sync/errors/sync-errors';
+import { DecompressError } from '../core/errors/sync-errors';
 import {
   compressWithGzip,
   compressWithGzipToString,

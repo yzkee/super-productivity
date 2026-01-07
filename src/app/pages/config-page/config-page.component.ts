@@ -34,10 +34,10 @@ import { ConfigSoundFormComponent } from '../../features/config/config-sound-for
 import { TranslatePipe } from '@ngx-translate/core';
 import { SYNC_FORM } from '../../features/config/form-cfgs/sync-form.const';
 import { SYNC_SAFETY_BACKUPS_FORM } from '../../features/config/form-cfgs/sync-safety-backups-form.const';
-import { SyncProviderManager } from '../../sync/provider-manager.service';
-import { map, tap } from 'rxjs/operators';
+import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
+import { map } from 'rxjs/operators';
 import { SyncConfigService } from '../../imex/sync/sync-config.service';
-import { WebdavApi } from '../../sync/providers/webdav/webdav-api';
+import { WebdavApi } from '../../op-log/sync-providers/file-based/webdav/webdav-api';
 import { AsyncPipe } from '@angular/common';
 import { PluginManagementComponent } from '../../plugins/ui/plugin-management/plugin-management.component';
 import { CollapsibleComponent } from '../../ui/collapsible/collapsible.component';
@@ -112,19 +112,17 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
   syncFormCfg$: Observable<any> = combineLatest([
     this._providerManager.currentProviderPrivateCfg$,
     this.configService.sync$,
-  ])
-    .pipe(
-      map(([currentProviderCfg, syncCfg]) => {
-        if (!currentProviderCfg) {
-          return syncCfg;
-        }
-        return {
-          ...syncCfg,
-          [currentProviderCfg.providerId]: currentProviderCfg.privateCfg,
-        };
-      }),
-    )
-    .pipe(tap((v) => Log.log('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXA', v)));
+  ]).pipe(
+    map(([currentProviderCfg, syncCfg]) => {
+      if (!currentProviderCfg) {
+        return syncCfg;
+      }
+      return {
+        ...syncCfg,
+        [currentProviderCfg.providerId]: currentProviderCfg.privateCfg,
+      };
+    }),
+  );
 
   private _subs: Subscription = new Subscription();
 

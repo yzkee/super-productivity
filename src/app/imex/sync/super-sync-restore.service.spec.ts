@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { SuperSyncRestoreService } from './super-sync-restore.service';
-import { SyncProviderManager } from '../../sync/provider-manager.service';
-import { BackupService } from '../../sync/backup.service';
+import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
+import { BackupService } from '../../op-log/backup/backup.service';
 import { SnackService } from '../../core/snack/snack.service';
-import { SyncProviderId } from '../../sync/providers/provider.const';
-import { RestorePoint } from '../../sync/providers/provider.interface';
+import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
+import { RestorePoint } from '../../op-log/sync-providers/provider.interface';
 import { T } from '../../t.const';
 
 describe('SuperSyncRestoreService', () => {

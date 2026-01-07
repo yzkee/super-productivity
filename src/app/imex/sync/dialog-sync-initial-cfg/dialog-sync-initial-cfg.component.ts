@@ -21,7 +21,7 @@ import { SyncWrapperService } from '../sync-wrapper.service';
 import { EncryptionPasswordDialogOpenerService } from '../encryption-password-dialog-opener.service';
 import { Subscription } from 'rxjs';
 import { first } from 'rxjs/operators';
-import { SyncProviderId } from '../../../sync/sync-exports';
+import { SyncProviderId } from '../../../op-log/sync-exports';
 import { SyncLog } from '../../../core/log';
 
 @Component({

@@ -4,7 +4,7 @@ import {
   DownloadCallback,
   DownloadResultForRejection,
 } from './rejected-ops-handler.service';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { SnackService } from '../../core/snack/snack.service';
 import { StaleOperationResolverService } from './stale-operation-resolver.service';
 import { Operation, OpType, ActionType } from '../core/operation.types';

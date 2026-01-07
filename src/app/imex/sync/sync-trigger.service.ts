@@ -37,7 +37,7 @@ import { Store } from '@ngrx/store';
 import { selectCurrentTaskId } from '../../features/tasks/store/task.selectors';
 import { SyncLog } from '../../core/log';
 import { SyncWrapperService } from './sync-wrapper.service';
-import { SyncProviderId } from '../../sync/sync-exports';
+import { SyncProviderId } from '../../op-log/sync-exports';
 
 const MAX_WAIT_FOR_INITIAL_SYNC = 25000;
 const USER_INTERACTION_SYNC_CHECK_THROTTLE_TIME = 15 * 60 * 10000;

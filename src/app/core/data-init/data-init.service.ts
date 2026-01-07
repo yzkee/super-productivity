@@ -5,7 +5,7 @@ import { Store } from '@ngrx/store';
 import { allDataWasLoaded } from '../../root-store/meta/all-data-was-loaded.actions';
 import { DataInitStateService } from './data-init-state.service';
 import { UserProfileService } from '../../features/user-profile/user-profile.service';
-import { OperationLogHydratorService } from '../../op-log/store/operation-log-hydrator.service';
+import { OperationLogHydratorService } from '../../op-log/persistence/operation-log-hydrator.service';
 
 @Injectable({ providedIn: 'root' })
 export class DataInitService {

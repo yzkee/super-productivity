@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { OperationLogStoreService } from '../../store/operation-log-store.service';
+import { OperationLogStoreService } from '../../persistence/operation-log-store.service';
 import { ActionType, OpType } from '../../core/operation.types';
 import { resetTestUuidCounter } from './helpers/test-client.helper';
 import { MockSyncServer } from './helpers/mock-sync-server.helper';

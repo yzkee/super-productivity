@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { TestBed } from '@angular/core/testing';
-import { OperationLogStoreService } from '../../store/operation-log-store.service';
+import { OperationLogStoreService } from '../../persistence/operation-log-store.service';
 import { ActionType, OpType, Operation } from '../../core/operation.types';
 import { resetTestUuidCounter, TestClient } from './helpers/test-client.helper';
 import { createMinimalTaskPayload } from './helpers/operation-factory.helper';
-import { CURRENT_SCHEMA_VERSION } from '../../store/schema-migration.service';
+import { CURRENT_SCHEMA_VERSION } from '../../persistence/schema-migration.service';
 import { uuidv7 } from '../../../util/uuid-v7';
 
 /**

@@ -9,7 +9,7 @@
  */
 import { INITIAL_SYNC_DELAY_MS, SYNC_INITIAL_SYNC_TRIGGER } from './sync.const';
 // Note: SyncProviderId is imported from pfapi.const to avoid pfapi-config.ts Dropbox SDK issue
-import { SyncProviderId } from '../../sync/providers/provider.const';
+import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 
 describe('SyncEffects', () => {
   describe('constants', () => {

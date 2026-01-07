@@ -9,7 +9,7 @@ import {
   VectorClock,
 } from '../core/operation.types';
 import { OperationApplierService } from '../apply/operation-applier.service';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { OpLog } from '../../core/log';
 import { toEntityKey } from '../util/entity-key.util';
 import { firstValueFrom } from 'rxjs';
@@ -29,7 +29,7 @@ import {
 } from '../../core/util/vector-clock';
 import { devError } from '../../util/dev-error';
 import { uuidv7 } from '../../util/uuid-v7';
-import { CURRENT_SCHEMA_VERSION } from '../store/schema-migration.service';
+import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
 import {
   getEntityConfig,

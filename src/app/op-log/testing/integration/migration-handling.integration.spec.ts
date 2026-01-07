@@ -1,10 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { RemoteOpsProcessingService } from '../../sync/remote-ops-processing.service';
-import { OperationLogStoreService } from '../../store/operation-log-store.service';
+import { OperationLogStoreService } from '../../persistence/operation-log-store.service';
 import {
   SchemaMigrationService,
   MAX_VERSION_SKIP,
-} from '../../store/schema-migration.service';
+} from '../../persistence/schema-migration.service';
 import { SnackService } from '../../../core/snack/snack.service';
 import { VectorClockService } from '../../sync/vector-clock.service';
 import { OperationApplierService } from '../../apply/operation-applier.service';
@@ -15,7 +15,7 @@ import { ActionType, Operation, OpType } from '../../core/operation.types';
 import { T } from '../../../t.const';
 import { resetTestUuidCounter } from './helpers/test-client.helper';
 import { LockService } from '../../sync/lock.service';
-import { OperationLogCompactionService } from '../../store/operation-log-compaction.service';
+import { OperationLogCompactionService } from '../../persistence/operation-log-compaction.service';
 import { SyncImportFilterService } from '../../sync/sync-import-filter.service';
 
 /**

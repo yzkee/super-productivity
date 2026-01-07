@@ -2,16 +2,16 @@
 import { TestBed } from '@angular/core/testing';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { ServerMigrationService } from './server-migration.service';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { VectorClockService } from './vector-clock.service';
 import { ValidateStateService } from '../validation/validate-state.service';
-import { StateSnapshotService } from '../../sync/state-snapshot.service';
+import { StateSnapshotService } from '../backup/state-snapshot.service';
 import { SnackService } from '../../core/snack/snack.service';
 import {
   SyncProviderServiceInterface,
   OperationSyncCapable,
-} from '../../sync/providers/provider.interface';
-import { SyncProviderId } from '../../sync/providers/provider.const';
+} from './providers/provider.interface';
+import { SyncProviderId } from './providers/provider.const';
 import { OpType } from '../core/operation.types';
 import { SYSTEM_TAG_IDS } from '../../features/tag/tag.const';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
@@ -93,7 +93,7 @@ describe('ServerMigrationService', () => {
       },
       project: { ids: [], entities: {} },
       tag: { ids: [], entities: {} },
-    } as any);
+    });
     clientIdProviderSpy.loadClientId.and.returnValue(Promise.resolve('test-client'));
 
     TestBed.configureTestingModule({
@@ -171,13 +171,11 @@ describe('ServerMigrationService', () => {
 
   describe('handleServerMigration', () => {
     it('should skip if state is empty (no tasks/projects/tags)', async () => {
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
-        Promise.resolve({
-          task: { ids: [], entities: {} },
-          project: { ids: [], entities: {} },
-          tag: { ids: [], entities: {} },
-        }) as any,
-      );
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
+        task: { ids: [], entities: {} },
+        project: { ids: [], entities: {} },
+        tag: { ids: [], entities: {} },
+      });
 
       await service.handleServerMigration(defaultProvider);
 
@@ -186,13 +184,11 @@ describe('ServerMigrationService', () => {
 
     it('should skip if state only has system tags', async () => {
       const systemTagIds = Array.from(SYSTEM_TAG_IDS);
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
-        Promise.resolve({
-          task: { ids: [], entities: {} },
-          project: { ids: [], entities: {} },
-          tag: { ids: systemTagIds, entities: {} },
-        }) as any,
-      );
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
+        task: { ids: [], entities: {} },
+        project: { ids: [], entities: {} },
+        tag: { ids: systemTagIds, entities: {} },
+      });
 
       await service.handleServerMigration(defaultProvider);
 
@@ -248,9 +244,7 @@ describe('ServerMigrationService', () => {
         project: { ids: [], entities: {} },
         tag: { ids: [], entities: {} },
       };
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
-        Promise.resolve(mockState) as any,
-      );
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(mockState);
       vectorClockServiceSpy.getCurrentVectorClock.and.returnValue(
         Promise.resolve({ 'test-client': 5 }),
       );
@@ -275,13 +269,11 @@ describe('ServerMigrationService', () => {
     });
 
     it('should proceed if state has tasks', async () => {
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
-        Promise.resolve({
-          task: { ids: ['task-1'], entities: { 'task-1': { id: 'task-1' } } },
-          project: { ids: [], entities: {} },
-          tag: { ids: [], entities: {} },
-        }) as any,
-      );
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
+        task: { ids: ['task-1'], entities: { 'task-1': { id: 'task-1' } } },
+        project: { ids: [], entities: {} },
+        tag: { ids: [], entities: {} },
+      });
 
       await service.handleServerMigration(defaultProvider);
 
@@ -289,13 +281,11 @@ describe('ServerMigrationService', () => {
     });
 
     it('should proceed if state has projects', async () => {
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
-        Promise.resolve({
-          task: { ids: [], entities: {} },
-          project: { ids: ['proj-1'], entities: { 'proj-1': { id: 'proj-1' } } },
-          tag: { ids: [], entities: {} },
-        }) as any,
-      );
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
+        task: { ids: [], entities: {} },
+        project: { ids: ['proj-1'], entities: { 'proj-1': { id: 'proj-1' } } },
+        tag: { ids: [], entities: {} },
+      });
 
       await service.handleServerMigration(defaultProvider);
 
@@ -303,13 +293,11 @@ describe('ServerMigrationService', () => {
     });
 
     it('should proceed if state has user-created tags', async () => {
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
-        Promise.resolve({
-          task: { ids: [], entities: {} },
-          project: { ids: [], entities: {} },
-          tag: { ids: ['user-tag-1'], entities: { 'user-tag-1': { id: 'user-tag-1' } } },
-        }) as any,
-      );
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
+        task: { ids: [], entities: {} },
+        project: { ids: [], entities: {} },
+        tag: { ids: ['user-tag-1'], entities: { 'user-tag-1': { id: 'user-tag-1' } } },
+      });
 
       await service.handleServerMigration(defaultProvider);
 
@@ -319,9 +307,7 @@ describe('ServerMigrationService', () => {
 
   describe('_isEmptyState (tested via handleServerMigration)', () => {
     it('should treat null state as empty', async () => {
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
-        Promise.resolve(null) as any,
-      );
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(null as any);
 
       await service.handleServerMigration(defaultProvider);
 
@@ -329,9 +315,7 @@ describe('ServerMigrationService', () => {
     });
 
     it('should treat undefined state as empty', async () => {
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
-        Promise.resolve(undefined) as any,
-      );
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(undefined as any);
 
       await service.handleServerMigration(defaultProvider);
 
@@ -339,9 +323,7 @@ describe('ServerMigrationService', () => {
     });
 
     it('should treat non-object state as empty', async () => {
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
-        Promise.resolve('not an object') as any,
-      );
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue('not an object' as any);
 
       await service.handleServerMigration(defaultProvider);
 
@@ -353,13 +335,11 @@ describe('ServerMigrationService', () => {
     it('should identify system tags correctly', async () => {
       for (const systemTagId of SYSTEM_TAG_IDS) {
         opLogStoreSpy.append.calls.reset();
-        stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
-          Promise.resolve({
-            task: { ids: [], entities: {} },
-            project: { ids: [], entities: {} },
-            tag: { ids: [systemTagId], entities: {} },
-          }) as any,
-        );
+        stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
+          task: { ids: [], entities: {} },
+          project: { ids: [], entities: {} },
+          tag: { ids: [systemTagId], entities: {} },
+        });
 
         await service.handleServerMigration(defaultProvider);
 
@@ -368,13 +348,11 @@ describe('ServerMigrationService', () => {
     });
 
     it('should proceed with mixed system and user tags', async () => {
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(
-        Promise.resolve({
-          task: { ids: [], entities: {} },
-          project: { ids: [], entities: {} },
-          tag: { ids: ['TODAY', 'user-custom-tag'], entities: {} },
-        }) as any,
-      );
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
+        task: { ids: [], entities: {} },
+        project: { ids: [], entities: {} },
+        tag: { ids: ['TODAY', 'user-custom-tag'], entities: {} },
+      });
 
       await service.handleServerMigration(defaultProvider);
 

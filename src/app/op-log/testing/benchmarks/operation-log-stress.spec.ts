@@ -18,7 +18,7 @@
  * due to timing dependencies on system load.
  */
 import { TestBed } from '@angular/core/testing';
-import { OperationLogStoreService } from '../../store/operation-log-store.service';
+import { OperationLogStoreService } from '../../persistence/operation-log-store.service';
 import { ActionType, Operation, OpType, EntityType } from '../../core/operation.types';
 import { uuidv7 } from '../../../util/uuid-v7';
 

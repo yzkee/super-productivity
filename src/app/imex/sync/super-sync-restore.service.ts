@@ -1,12 +1,15 @@
 import { inject, Injectable } from '@angular/core';
 import { SnackService } from '../../core/snack/snack.service';
-import { SyncProviderId } from '../../sync/providers/provider.const';
-import { SuperSyncProvider } from '../../sync/providers/super-sync/super-sync';
-import { RestoreCapable, RestorePoint } from '../../sync/providers/provider.interface';
+import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
+import { SuperSyncProvider } from '../../op-log/sync-providers/super-sync/super-sync';
+import {
+  RestoreCapable,
+  RestorePoint,
+} from '../../op-log/sync-providers/provider.interface';
 import { AppDataComplete } from '../../op-log/model/model-config';
 import { T } from '../../t.const';
-import { SyncProviderManager } from '../../sync/provider-manager.service';
-import { BackupService } from '../../sync/backup.service';
+import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
+import { BackupService } from '../../op-log/backup/backup.service';
 
 /**
  * Service for restoring state from Super Sync server history.

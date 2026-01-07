@@ -1,11 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { SyncConfigService } from './sync-config.service';
-import { SyncProviderManager } from '../../sync/provider-manager.service';
+import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import { BehaviorSubject } from 'rxjs';
 import { SyncConfig } from '../../features/config/global-config.model';
 import { LegacySyncProvider } from './legacy-sync-provider.model';
-import { SyncProviderId } from '../../sync/sync-exports';
+import { SyncProviderId } from '../../op-log/sync-exports';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 import { first } from 'rxjs/operators';
 

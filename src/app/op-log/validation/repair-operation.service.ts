@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import {
   Operation,
   OpType,
@@ -13,7 +13,7 @@ import { LockService } from '../sync/lock.service';
 import { T } from '../../t.const';
 import { OpLog } from '../../core/log';
 import { VectorClockService } from '../sync/vector-clock.service';
-import { CURRENT_SCHEMA_VERSION } from '../store/schema-migration.service';
+import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 import { devError } from '../../util/dev-error';
 import { TranslateService } from '@ngx-translate/core';
 import { LOCK_NAMES } from '../core/operation-log.const';

@@ -1,6 +1,6 @@
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { ImmediateUploadService } from './immediate-upload.service';
-import { SyncProviderManager } from '../../sync/provider-manager.service';
+import { SyncProviderManager } from '../sync-providers/provider-manager.service';
 import { OperationLogSyncService } from './operation-log-sync.service';
 import { ActionType, Operation, OpType } from '../core/operation.types';
 

@@ -8,7 +8,7 @@ import { RepairSummary } from '../core/operation.types';
 import { OpLog } from '../../core/log';
 // DISABLED: Repair system is non-functional
 // import { RepairOperationService } from './repair-operation.service';
-import { StateSnapshotService } from '../../sync/state-snapshot.service';
+import { StateSnapshotService } from '../backup/state-snapshot.service';
 // DISABLED: Repair system is non-functional
 // import { SyncService } from '../../sync/sync.service';
 // import { loadAllData } from '../../root-store/meta/load-all-data.action';

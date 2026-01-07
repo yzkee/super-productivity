@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { StaleOperationResolverService } from './stale-operation-resolver.service';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { VectorClockService } from './vector-clock.service';
 import { ConflictResolutionService } from './conflict-resolution.service';
 import { LockService } from './lock.service';

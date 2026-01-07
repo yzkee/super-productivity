@@ -6,8 +6,8 @@ import { filter, tap, withLatestFrom } from 'rxjs/operators';
 import { SyncConfig } from '../../../../features/config/global-config.model';
 import { updateGlobalConfigSection } from '../../../../features/config/store/global-config.actions';
 import { environment } from '../../../../../environments/environment';
-import { SyncProviderManager } from '../../../../sync/provider-manager.service';
-import { DropboxPrivateCfg, SyncProviderId } from '../../../../sync/sync-exports';
+import { SyncProviderManager } from '../../../../op-log/sync-providers/provider-manager.service';
+import { DropboxPrivateCfg, SyncProviderId } from '../../../../op-log/sync-exports';
 
 @Injectable()
 export class DropboxEffects {

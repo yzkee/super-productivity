@@ -1,11 +1,11 @@
 import { TestBed } from '@angular/core/testing';
 import { EncryptionPasswordChangeService } from './encryption-password-change.service';
-import { SyncProviderManager } from '../../sync/provider-manager.service';
-import { StateSnapshotService } from '../../sync/state-snapshot.service';
+import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
+import { StateSnapshotService } from '../../op-log/backup/state-snapshot.service';
 import { OperationEncryptionService } from '../../op-log/sync/operation-encryption.service';
 import { VectorClockService } from '../../op-log/sync/vector-clock.service';
 import { CLIENT_ID_PROVIDER } from '../../op-log/util/client-id.provider';
-import { SyncProviderId } from '../../sync/providers/provider.const';
+import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 
 describe('EncryptionPasswordChangeService', () => {
   let service: EncryptionPasswordChangeService;

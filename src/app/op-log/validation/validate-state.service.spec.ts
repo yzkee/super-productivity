@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideMockStore } from '@ngrx/store/testing';
 import { ValidateStateService } from './validate-state.service';
 import { RepairOperationService } from './repair-operation.service';
-import { StateSnapshotService } from '../../sync/state-snapshot.service';
+import { StateSnapshotService } from '../backup/state-snapshot.service';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 import { plannerInitialState } from '../../features/planner/store/planner.reducer';
 import { initialTimeTrackingState } from '../../features/time-tracking/store/time-tracking.reducer';

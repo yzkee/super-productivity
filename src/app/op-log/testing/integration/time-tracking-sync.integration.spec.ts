@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention, no-mixed-operators */
 import { TestBed } from '@angular/core/testing';
-import { OperationLogStoreService } from '../../store/operation-log-store.service';
+import { OperationLogStoreService } from '../../persistence/operation-log-store.service';
 import { ActionType, OpType, Operation } from '../../core/operation.types';
 import { resetTestUuidCounter, TestClient } from './helpers/test-client.helper';
 import { MockSyncServer } from './helpers/mock-sync-server.helper';

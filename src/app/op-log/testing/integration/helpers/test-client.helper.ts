@@ -6,7 +6,7 @@ import {
   ActionType,
 } from '../../../core/operation.types';
 import { mergeVectorClocks } from '../../../../core/util/vector-clock';
-import { CURRENT_SCHEMA_VERSION } from '../../../store/schema-migration.service';
+import { CURRENT_SCHEMA_VERSION } from '../../../persistence/schema-migration.service';
 
 /**
  * Counter for generating deterministic test UUIDs.

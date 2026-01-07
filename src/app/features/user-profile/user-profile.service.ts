@@ -1,10 +1,10 @@
 import { inject, Injectable, Injector, signal } from '@angular/core';
 import { DEFAULT_PROFILE_ID, ProfileMetadata, UserProfile } from './user-profile.model';
 import { UserProfileStorageService } from './user-profile-storage.service';
-import { SyncProviderManager } from '../../sync/provider-manager.service';
-import { BackupService } from '../../sync/backup.service';
+import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
+import { BackupService } from '../../op-log/backup/backup.service';
 import { SyncWrapperService } from '../../imex/sync/sync-wrapper.service';
-import { OperationLogStoreService } from '../../op-log/store/operation-log-store.service';
+import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
 import { Log } from '../../core/log';
 import { nanoid } from 'nanoid';
 import { SnackService } from '../../core/snack/snack.service';

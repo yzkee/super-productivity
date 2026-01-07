@@ -4,22 +4,22 @@ import { OperationLogSyncService } from '../../sync/operation-log-sync.service';
 import { OperationLogUploadService } from '../../sync/operation-log-upload.service';
 import { OperationLogDownloadService } from '../../sync/operation-log-download.service';
 import { OperationEncryptionService } from '../../sync/operation-encryption.service';
-import { OperationLogStoreService } from '../../store/operation-log-store.service';
+import { OperationLogStoreService } from '../../persistence/operation-log-store.service';
 import { VectorClockService } from '../../sync/vector-clock.service';
 import { OperationApplierService } from '../../apply/operation-applier.service';
 import { ConflictResolutionService } from '../../sync/conflict-resolution.service';
 import { ValidateStateService } from '../../validation/validate-state.service';
 import { RepairOperationService } from '../../validation/repair-operation.service';
-import { StateSnapshotService } from '../../../sync/state-snapshot.service';
+import { StateSnapshotService } from '../../backup/state-snapshot.service';
 import {
   SyncProviderServiceInterface,
   OperationSyncCapable,
   OpUploadResponse,
   OpDownloadResponse,
   SyncOperation,
-} from '../../../sync/providers/provider.interface';
-import { SyncProviderId } from '../../../sync/providers/provider.const';
-import { SuperSyncPrivateCfg } from '../../../sync/providers/super-sync/super-sync.model';
+} from '../../sync-providers/provider.interface';
+import { SyncProviderId } from '../../sync-providers/provider.const';
+import { SuperSyncPrivateCfg } from '../../sync-providers/super-sync/super-sync.model';
 import { provideMockStore } from '@ngrx/store/testing';
 import {
   ActionType,
@@ -39,7 +39,7 @@ import { UserInputWaitStateService } from '../../../imex/sync/user-input-wait-st
 import { SnackService } from '../../../core/snack/snack.service';
 import { resetTestUuidCounter } from './helpers/test-client.helper';
 import { LockService } from '../../sync/lock.service';
-import { SchemaMigrationService } from '../../store/schema-migration.service';
+import { SchemaMigrationService } from '../../persistence/schema-migration.service';
 import { mockDecrypt, mockEncrypt } from '../helpers/mock-encryption.helper';
 import { ENCRYPT_FN, DECRYPT_FN } from '../../encryption/encryption.token';
 import { TranslateService } from '@ngx-translate/core';
@@ -48,8 +48,8 @@ import { ServerMigrationService } from '../../sync/server-migration.service';
 import { OperationWriteFlushService } from '../../sync/operation-write-flush.service';
 import { RemoteOpsProcessingService } from '../../sync/remote-ops-processing.service';
 import { RejectedOpsHandlerService } from '../../sync/rejected-ops-handler.service';
-import { SyncHydrationService } from '../../store/sync-hydration.service';
-import { OperationLogCompactionService } from '../../store/operation-log-compaction.service';
+import { SyncHydrationService } from '../../persistence/sync-hydration.service';
+import { OperationLogCompactionService } from '../../persistence/operation-log-compaction.service';
 import { SyncImportFilterService } from '../../sync/sync-import-filter.service';
 
 // Mock Sync Provider that supports operation sync

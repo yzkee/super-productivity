@@ -1,12 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { OperationLogUploadService } from './operation-log-upload.service';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { LockService } from './lock.service';
 import {
   SyncProviderServiceInterface,
   OperationSyncCapable,
-} from '../../sync/providers/provider.interface';
-import { SyncProviderId } from '../../sync/providers/provider.const';
+} from '../sync-providers/provider.interface';
+import { SyncProviderId } from '../sync-providers/provider.const';
 import { ActionType, OpType, OperationLogEntry } from '../core/operation.types';
 import { SnackService } from '../../core/snack/snack.service';
 import { provideMockStore } from '@ngrx/store/testing';

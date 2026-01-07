@@ -12,7 +12,7 @@ import {
   timeout,
 } from 'rxjs/operators';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { SyncAlreadyInProgressError } from '../../sync/errors/sync-errors';
+import { SyncAlreadyInProgressError } from '../../op-log/core/errors/sync-errors';
 import { SyncConfig } from '../../features/config/global-config.model';
 import { TranslateService } from '@ngx-translate/core';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
@@ -30,8 +30,8 @@ import {
   SyncInvalidTimeValuesError,
   SyncProviderId,
   SyncStatus,
-} from '../../sync/sync-exports';
-import { SyncProviderManager } from '../../sync/provider-manager.service';
+} from '../../op-log/sync-exports';
+import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
 import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
 import { T } from '../../t.const';
 import { getSyncErrorStr } from './get-sync-error-str';
@@ -52,7 +52,7 @@ import { LegacySyncProvider } from './legacy-sync-provider.model';
 import { SYNC_WAIT_TIMEOUT_MS, SYNC_REINIT_DELAY_MS } from './sync.const';
 import { SuperSyncStatusService } from '../../op-log/sync/super-sync-status.service';
 import { IS_ELECTRON } from '../../app.constants';
-import { OperationLogStoreService } from '../../op-log/store/operation-log-store.service';
+import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
 
 /**
  * Converts LegacySyncProvider to SyncProviderId.

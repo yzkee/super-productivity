@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { OperationEncryptionService } from './operation-encryption.service';
-import { SyncOperation } from '../../sync/providers/provider.interface';
-import { DecryptError } from '../../sync/errors/sync-errors';
+import { SyncOperation } from '../sync-providers/provider.interface';
+import { DecryptError } from '../core/errors/sync-errors';
 import { ActionType } from '../core/operation.types';
 import { mockEncrypt, mockDecrypt } from '../testing/helpers/mock-encryption.helper';
 import { ENCRYPT_FN, DECRYPT_FN } from '../encryption/encryption.token';

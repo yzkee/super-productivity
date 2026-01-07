@@ -1,8 +1,8 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import { SyncLog } from '../../core/log';
-import { BackupService } from '../../sync/backup.service';
+import { BackupService } from '../../op-log/backup/backup.service';
 import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
-import { CompleteBackup } from '../../sync/sync-exports';
+import { CompleteBackup } from '../../op-log/sync-exports';
 import { Subject } from 'rxjs';
 import { nanoid } from 'nanoid';
 import { SnackService } from '../../core/snack/snack.service';

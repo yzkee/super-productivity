@@ -4,7 +4,7 @@ import {
   TTWorkContextSessionMap,
 } from '../../time-tracking/time-tracking.model';
 import { ArchiveTask, TaskArchive } from '../../tasks/task.model';
-import { ImpossibleError } from '../../../sync/sync-exports';
+import { ImpossibleError } from '../../../op-log/sync-exports';
 import { dirtyDeepCopy } from '../../../util/dirtyDeepCopy';
 
 const TIME_TRACKING_CATEGORIES = ['project', 'tag'] as const;

@@ -22,7 +22,7 @@ import { IssueProviderState } from '../../features/issue/issue.model';
 import { MetricState } from '../../features/metric/metric.model';
 import { GlobalConfigState } from '../../features/config/global-config.model';
 import { AppDataComplete } from '../model/model-config';
-import { ValidationResult } from '../../sync/sync.types';
+import { ValidationResult } from '../core/types/sync.types';
 import { PFLog } from '../../core/log';
 import {
   PluginMetaDataState,

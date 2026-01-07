@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { ArchiveModel } from '../../features/time-tracking/time-tracking.model';
-import { ArchiveStoreService } from '../../op-log/store/archive-store.service';
+import { ArchiveStoreService } from '../../op-log/persistence/archive-store.service';
 
 /**
  * Adapter for archive storage operations.

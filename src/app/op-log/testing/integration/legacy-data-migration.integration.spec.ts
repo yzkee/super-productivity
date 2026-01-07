@@ -1,6 +1,10 @@
 import { TestBed } from '@angular/core/testing';
-import { OperationLogMigrationService } from '../../store/operation-log-migration.service';
-import { OperationLogStoreService } from '../../store/operation-log-store.service';
+import { provideMockStore } from '@ngrx/store/testing';
+import { MatDialog } from '@angular/material/dialog';
+import { OperationLogMigrationService } from '../../persistence/operation-log-migration.service';
+import { OperationLogStoreService } from '../../persistence/operation-log-store.service';
+import { LegacyPfDbService } from '../../../core/persistence/legacy-pf-db.service';
+import { ClientIdService } from '../../../core/util/client-id.service';
 import { ActionType, OpType } from '../../core/operation.types';
 import { resetTestUuidCounter } from './helpers/test-client.helper';
 
@@ -16,10 +20,36 @@ import { resetTestUuidCounter } from './helpers/test-client.helper';
 describe('Legacy Data Migration Integration', () => {
   let migrationService: OperationLogMigrationService;
   let opLogStore: OperationLogStoreService;
+  let mockLegacyPfDb: jasmine.SpyObj<LegacyPfDbService>;
+  let mockClientIdService: jasmine.SpyObj<ClientIdService>;
+  let mockMatDialog: jasmine.SpyObj<MatDialog>;
 
   beforeEach(async () => {
+    mockLegacyPfDb = jasmine.createSpyObj('LegacyPfDbService', [
+      'hasUsableEntityData',
+      'acquireMigrationLock',
+      'releaseMigrationLock',
+      'loadAllEntityData',
+      'loadMetaModel',
+      'loadClientId',
+    ]);
+    mockClientIdService = jasmine.createSpyObj('ClientIdService', [
+      'generateNewClientId',
+    ]);
+    mockMatDialog = jasmine.createSpyObj('MatDialog', ['open']);
+
+    // Default mocks - no legacy data by default
+    mockLegacyPfDb.hasUsableEntityData.and.returnValue(Promise.resolve(false));
+
     TestBed.configureTestingModule({
-      providers: [OperationLogMigrationService, OperationLogStoreService],
+      providers: [
+        OperationLogMigrationService,
+        OperationLogStoreService,
+        provideMockStore(),
+        { provide: LegacyPfDbService, useValue: mockLegacyPfDb },
+        { provide: ClientIdService, useValue: mockClientIdService },
+        { provide: MatDialog, useValue: mockMatDialog },
+      ],
     });
 
     migrationService = TestBed.inject(OperationLogMigrationService);

@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
-import { SyncProviderManager } from '../../sync/provider-manager.service';
-import { StateSnapshotService } from '../../sync/state-snapshot.service';
+import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
+import { StateSnapshotService } from '../../op-log/backup/state-snapshot.service';
 import { OperationEncryptionService } from '../../op-log/sync/operation-encryption.service';
 import { VectorClockService } from '../../op-log/sync/vector-clock.service';
 import {
@@ -8,9 +8,9 @@ import {
   ClientIdProvider,
 } from '../../op-log/util/client-id.provider';
 import { isOperationSyncCapable } from '../../op-log/sync/operation-sync.util';
-import { SyncProviderId } from '../../sync/providers/provider.const';
-import { SuperSyncPrivateCfg } from '../../sync/providers/super-sync/super-sync.model';
-import { CURRENT_SCHEMA_VERSION } from '../../op-log/store/schema-migration.service';
+import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
+import { SuperSyncPrivateCfg } from '../../op-log/sync-providers/super-sync/super-sync.model';
+import { CURRENT_SCHEMA_VERSION } from '../../op-log/persistence/schema-migration.service';
 import { SyncLog } from '../../core/log';
 
 /**

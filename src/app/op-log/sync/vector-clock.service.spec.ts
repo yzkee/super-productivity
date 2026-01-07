@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { VectorClockService } from './vector-clock.service';
-import { OperationLogStoreService } from '../store/operation-log-store.service';
+import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import {
   ActionType,
   Operation,

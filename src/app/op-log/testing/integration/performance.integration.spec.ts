@@ -1,16 +1,16 @@
 import { TestBed } from '@angular/core/testing';
-import { OperationLogStoreService } from '../../store/operation-log-store.service';
-import { OperationLogCompactionService } from '../../store/operation-log-compaction.service';
+import { OperationLogStoreService } from '../../persistence/operation-log-store.service';
+import { OperationLogCompactionService } from '../../persistence/operation-log-compaction.service';
 import { VectorClockService } from '../../sync/vector-clock.service';
 import { OpType } from '../../core/operation.types';
-import { CURRENT_SCHEMA_VERSION } from '../../store/schema-migration.service';
+import { CURRENT_SCHEMA_VERSION } from '../../persistence/schema-migration.service';
 import { TestClient, resetTestUuidCounter } from './helpers/test-client.helper';
 import {
   createTaskOperation,
   createMinimalTaskPayload,
   createMinimalProjectPayload,
 } from './helpers/operation-factory.helper';
-import { StateSnapshotService } from '../../../sync/state-snapshot.service';
+import { StateSnapshotService } from '../../backup/state-snapshot.service';
 
 /**
  * Performance integration tests for operation log.

@@ -1,6 +1,6 @@
 import { TestBed, fakeAsync, tick, discardPeriodicTasks } from '@angular/core/testing';
 import { SyncSafetyBackupService, SyncSafetyBackup } from './sync-safety-backup.service';
-import { BackupService } from '../../sync/backup.service';
+import { BackupService } from '../../op-log/backup/backup.service';
 import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
 
 describe('SyncSafetyBackupService', () => {
