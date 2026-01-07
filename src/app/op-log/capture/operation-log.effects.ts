@@ -93,10 +93,13 @@ export class OperationLogEffects {
 
   private async writeOperation(action: PersistentAction): Promise<void> {
     if (!this.clientId) {
-      this.clientId = (await this.clientIdService.loadClientId()) ?? undefined;
+      // Load existing client ID, or generate a new one if this is first use
+      this.clientId =
+        (await this.clientIdService.loadClientId()) ??
+        (await this.clientIdService.generateNewClientId());
     }
     if (!this.clientId) {
-      throw new Error('Failed to load clientId - cannot persist operation');
+      throw new Error('Failed to load or generate clientId - cannot persist operation');
     }
     const clientId = this.clientId;
 

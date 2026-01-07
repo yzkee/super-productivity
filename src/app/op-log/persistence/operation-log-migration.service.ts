@@ -54,6 +54,10 @@ export class OperationLogMigrationService {
       return;
     }
 
+    // Check for legacy PFAPI data FIRST - we need to know this before deciding
+    // what to do with existing operations
+    const hasLegacyData = await this.legacyPfDb.hasUsableEntityData();
+
     // No snapshot exists. Check if there are any operations in the log.
     const allOps = await this.opLogStore.getOpsAfterSeq(0);
 
@@ -68,18 +72,25 @@ export class OperationLogMigrationService {
         return;
       }
 
-      // Orphan operations exist (captured before migration ran).
-      // This happens when effects dispatch actions during app init before hydration completes.
-      // We need to clear these orphan ops.
-      OpLog.warn(
-        `OperationLogMigrationService: Found ${allOps.length} orphan operations without Genesis. ` +
-          `Clearing them.`,
-      );
-      await this.opLogStore.deleteOpsWhere(() => true);
+      // Operations exist without Genesis. Behavior depends on whether legacy data exists:
+      if (hasLegacyData) {
+        // Case 1: Legacy data exists - these are orphan ops captured during app init
+        // before hydration. Clear them so migration can proceed cleanly.
+        OpLog.warn(
+          `OperationLogMigrationService: Found ${allOps.length} orphan operations. ` +
+            `Clearing them before legacy migration.`,
+        );
+        await this.opLogStore.deleteOpsWhere(() => true);
+      } else {
+        // Case 2: No legacy data - these are legitimate user operations from a fresh
+        // install. Let the hydrator replay them. No migration needed.
+        OpLog.normal(
+          `OperationLogMigrationService: Found ${allOps.length} operations (fresh install). ` +
+            `Skipping migration - hydrator will replay them.`,
+        );
+        return;
+      }
     }
-
-    // Check for legacy PFAPI data
-    const hasLegacyData = await this.legacyPfDb.hasUsableEntityData();
     if (!hasLegacyData) {
       OpLog.normal('OperationLogMigrationService: No legacy data found. Starting fresh.');
       return;

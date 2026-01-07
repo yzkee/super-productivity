@@ -3,15 +3,14 @@ import { DEFAULT_PROFILE_ID, ProfileMetadata, UserProfile } from './user-profile
 import { UserProfileStorageService } from './user-profile-storage.service';
 import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
 import { BackupService } from '../../op-log/backup/backup.service';
-import { SyncWrapperService } from '../../imex/sync/sync-wrapper.service';
 import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
 import { Log } from '../../core/log';
 import { nanoid } from 'nanoid';
 import { SnackService } from '../../core/snack/snack.service';
-import { GlobalConfigService } from '../config/global-config.service';
 import { Store } from '@ngrx/store';
 import { updateGlobalConfigSection } from '../config/store/global-config.actions';
 import { DEFAULT_GLOBAL_CONFIG } from '../config/default-global-config.const';
+import type { SyncWrapperService } from '../../imex/sync/sync-wrapper.service';
 
 /**
  * Core service for user profile management
@@ -24,12 +23,22 @@ export class UserProfileService {
   private readonly _storageService = inject(UserProfileStorageService);
   private readonly _providerManager = inject(SyncProviderManager);
   private readonly _backupService = inject(BackupService);
-  private readonly _syncWrapperService = inject(SyncWrapperService);
   private readonly _opLogStore = inject(OperationLogStoreService);
   private readonly _snackService = inject(SnackService);
   private readonly _injector = inject(Injector);
-  private readonly _globalConfigService = inject(GlobalConfigService);
   private readonly _store = inject(Store);
+
+  // Lazy-loaded to avoid circular dependency:
+  // UserProfileService → SyncWrapperService → DataInitService → UserProfileService
+  private _syncWrapperServiceCache: SyncWrapperService | null = null;
+  private get _syncWrapperService(): SyncWrapperService {
+    if (!this._syncWrapperServiceCache) {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { SyncWrapperService: SWS } = require('../../imex/sync/sync-wrapper.service');
+      this._syncWrapperServiceCache = this._injector.get(SWS);
+    }
+    return this._syncWrapperServiceCache!;
+  }
 
   readonly isInitialized = signal(false);
 
