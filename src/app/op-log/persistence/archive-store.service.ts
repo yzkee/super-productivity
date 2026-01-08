@@ -54,13 +54,28 @@ export class ArchiveStoreService {
   }
 
   /**
-   * Opens the SUP_OPS database. The database schema is managed by
-   * OperationLogStoreService, so we just open it with the same version.
+   * Opens the SUP_OPS database for archive operations.
+   *
+   * IMPORTANT: This includes an upgrade callback to ensure archive stores are created
+   * even if ArchiveStoreService opens the database before OperationLogStoreService.
+   * IndexedDB only runs ONE upgrade callback per version transition, so whichever
+   * service opens the DB first will create the stores.
    */
   private async _init(): Promise<void> {
-    // Open with same name/version as OperationLogStoreService.
-    // The upgrade callback is intentionally empty - schema is managed by the main service.
-    this._db = await openDB<ArchiveDBSchema>(DB_NAME, DB_VERSION);
+    this._db = await openDB<ArchiveDBSchema>(DB_NAME, DB_VERSION, {
+      upgrade: (db, oldVersion) => {
+        // Version 4: Add archive stores (same logic as OperationLogStoreService)
+        // This ensures stores are created even if this service opens the DB first.
+        if (oldVersion < 4) {
+          if (!db.objectStoreNames.contains(STORE_NAMES.ARCHIVE_YOUNG)) {
+            db.createObjectStore(STORE_NAMES.ARCHIVE_YOUNG, { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains(STORE_NAMES.ARCHIVE_OLD)) {
+            db.createObjectStore(STORE_NAMES.ARCHIVE_OLD, { keyPath: 'id' });
+          }
+        }
+      },
+    });
   }
 
   private get db(): IDBPDatabase<ArchiveDBSchema> {

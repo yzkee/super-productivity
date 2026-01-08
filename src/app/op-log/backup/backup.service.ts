@@ -211,14 +211,13 @@ export class BackupService {
     const archiveYoung = (data as { archiveYoung?: ArchiveModel }).archiveYoung;
     const archiveOld = (data as { archiveOld?: ArchiveModel }).archiveOld;
 
-    if (archiveYoung !== undefined) {
+    // Check for both undefined AND null since backup might have null values
+    if (archiveYoung != null) {
       await this._archiveDbAdapter.saveArchiveYoung(archiveYoung);
-      PFLog.normal('BackupService: Wrote archiveYoung to IndexedDB.');
     }
 
-    if (archiveOld !== undefined) {
+    if (archiveOld != null) {
       await this._archiveDbAdapter.saveArchiveOld(archiveOld);
-      PFLog.normal('BackupService: Wrote archiveOld to IndexedDB.');
     }
   }
 }
