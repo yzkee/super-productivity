@@ -1251,6 +1251,7 @@
         "L_ENCRYPTION_NOTES": "IMPORTANT NOTES: You will need to set the same password on your other devices <strong>BEFORE</strong> the next sync for everything to work. Please select a password that is secure. Please also note that <strong>you will NOT be able to access your data, if you forget this password. There is NO recovery possible</strong>, since only you have the key. The encryption will probably be good enough to thwart of most attackers, but <strong>there is no guarantee.</strong>",
         "L_ENCRYPTION_PASSWORD": "Encryption Password (DO NOT FORGET)",
         "L_SYNC_INTERVAL": "Sync Interval",
+        "L_MANUAL_SYNC_ONLY": "Only sync manually (disable automatic sync)",
         "L_SYNC_PROVIDER": "Sync Provider",
         "TITLE": "Sync",
         "WEB_DAV": {

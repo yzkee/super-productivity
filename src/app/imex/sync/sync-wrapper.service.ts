@@ -107,10 +107,12 @@ export class SyncWrapperService {
   );
 
   // SuperSync always uses 1 minute interval; other providers use configured value
+  // Return 0 when manual sync only is enabled to disable automatic triggers
   syncInterval$: Observable<number> = this.syncCfg$.pipe(
-    map((cfg) =>
-      cfg.syncProvider === LegacySyncProvider.SuperSync ? 60000 : cfg.syncInterval,
-    ),
+    map((cfg) => {
+      if (cfg.isManualSyncOnly) return 0;
+      return cfg.syncProvider === LegacySyncProvider.SuperSync ? 60000 : cfg.syncInterval;
+    }),
   );
 
   isEnabledAndReady$: Observable<boolean> = this._providerManager.isProviderReady$;

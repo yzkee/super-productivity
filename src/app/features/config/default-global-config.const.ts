@@ -191,6 +191,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     encryptKey: null,
     syncProvider: null,
     syncInterval: minute,
+    isManualSyncOnly: false,
 
     webDav: {
       baseUrl: null,

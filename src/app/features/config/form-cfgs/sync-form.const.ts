@@ -103,9 +103,9 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
         label: T.F.SYNC.FORM.L_SYNC_PROVIDER,
         required: true,
         options: [
+          { label: LegacySyncProvider.SuperSync, value: LegacySyncProvider.SuperSync },
           { label: LegacySyncProvider.Dropbox, value: LegacySyncProvider.Dropbox },
           { label: LegacySyncProvider.WebDAV, value: LegacySyncProvider.WebDAV },
-          { label: LegacySyncProvider.SuperSync, value: LegacySyncProvider.SuperSync },
           ...(IS_ELECTRON || IS_ANDROID_WEB_VIEW
             ? [
                 {
@@ -287,15 +287,27 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
       type: 'duration',
       // NOTE: we don't hide because model updates don't seem to work properly for this
       // hideExpression: ((model: DropboxSyncConfig) => !model.accessToken),
-      // Hide for SuperSync - always uses 1 minute interval
+      // Hide for SuperSync (uses fixed interval) and when manual sync only is enabled
       hideExpression: (m, v, field) =>
-        field?.parent?.model.syncProvider === LegacySyncProvider.SuperSync,
+        field?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
+        field?.parent?.model.isManualSyncOnly === true,
       resetOnHide: true,
       templateOptions: {
         required: true,
         isAllowSeconds: true,
         label: T.F.SYNC.FORM.L_SYNC_INTERVAL,
         description: T.G.DURATION_DESCRIPTION,
+      },
+    },
+    {
+      key: 'isManualSyncOnly',
+      type: 'checkbox',
+      // Only show for file-based providers (Dropbox, WebDAV, LocalFile)
+      hideExpression: (m, v, field) =>
+        field?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
+        field?.parent?.model.syncProvider === null,
+      templateOptions: {
+        label: T.F.SYNC.FORM.L_MANUAL_SYNC_ONLY,
       },
     },
 

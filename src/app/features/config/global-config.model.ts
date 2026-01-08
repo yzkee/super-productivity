@@ -152,6 +152,7 @@ export type SyncConfig = Readonly<{
   // TODO migrate to SyncProviderId
   syncProvider: LegacySyncProvider | null;
   syncInterval: number;
+  isManualSyncOnly?: boolean;
 
   /* NOTE: view model for form only*/
   encryptKey?: string | null;
