@@ -1265,7 +1265,9 @@
           "L_USER_NAME": "Username",
           "S_FILL_ALL_FIELDS": "Please fill in all WebDAV fields first",
           "S_TEST_FAIL": "Connection test failed: {{error}} - Target URL: {{url}}",
-          "S_TEST_SUCCESS": "Connection test successful! Target URL: {{url}}"
+          "S_TEST_SUCCESS": "Connection test successful! Target URL: {{url}}",
+          "CONDITIONAL_HEADER_WARNING_TITLE": "Reduced Sync Safety",
+          "CONDITIONAL_HEADER_WARNING_MSG": "Your WebDAV server does not support conditional headers (If-Unmodified-Since). This means Super Productivity cannot detect concurrent changes from other devices during upload.<br><br>Sync will still work, but there is a small risk of data conflicts if you make changes on multiple devices simultaneously."
         }
       },
       "S": {

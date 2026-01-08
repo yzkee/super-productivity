@@ -11,6 +11,7 @@ import {
   NoRevAPIError,
   RemoteFileNotFoundAPIError,
   TooManyRequestsAPIError,
+  UploadRevToMatchMismatchAPIError,
 } from '../../../core/errors/sync-errors';
 import { PFLog } from '../../../../core/log';
 import { SyncProviderServiceInterface } from '../../provider.interface';
@@ -200,8 +201,8 @@ export class DropboxApi {
     if (!isForceOverwrite) {
       args.mode = revToMatch
         ? { '.tag': 'update', update: revToMatch }
-        : // TODO why is update hardcoded????
-          { '.tag': 'update', update: '01630c96b4d421c00000001ce2a2770' };
+        : // Use 'add' mode for new files - will fail if file already exists
+          { '.tag': 'add' };
     }
 
     try {
@@ -489,6 +490,13 @@ export class DropboxApi {
     // Handle specific error cases
     if (responseData.error_summary?.includes('path/not_found/')) {
       throw new RemoteFileNotFoundAPIError(path, responseData);
+    }
+
+    // Handle conflict errors (rev mismatch or file exists with 'add' mode)
+    if (responseData.error_summary?.includes('path/conflict/')) {
+      throw new UploadRevToMatchMismatchAPIError(
+        `Dropbox upload conflict for ${path}: ${responseData.error_summary}`,
+      );
     }
 
     if (response.status === 401) {

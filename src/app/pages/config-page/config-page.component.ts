@@ -19,7 +19,7 @@ import {
   GlobalConfigState,
   GlobalSectionConfig,
 } from '../../features/config/global-config.model';
-import { combineLatest, Observable, Subscription } from 'rxjs';
+import { combineLatest, firstValueFrom, Observable, Subscription } from 'rxjs';
 import { ProjectCfgFormKey } from '../../features/project/project.model';
 import { T } from '../../t.const';
 import { versions } from '../../../environments/versions';
@@ -54,6 +54,8 @@ import { DialogRestorePointComponent } from '../../imex/sync/dialog-restore-poin
 import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
 import { DialogChangeEncryptionPasswordComponent } from '../../imex/sync/dialog-change-encryption-password/dialog-change-encryption-password.component';
 import { DialogSyncSafetyBackupsComponent } from '../../imex/sync/dialog-sync-safety-backups/dialog-sync-safety-backups.component';
+import { DialogConfirmComponent } from '../../ui/dialog-confirm/dialog-confirm.component';
+import { LS } from '../../core/persistence/storage-keys.const';
 
 @Component({
   selector: 'config-page',
@@ -250,6 +252,45 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
                         msg: T.F.SYNC.FORM.WEB_DAV.S_TEST_SUCCESS,
                         translateParams: { url: result.fullUrl },
                       });
+
+                      // Test conditional header support
+                      const testPath = `${webDavCfg.syncFolderPath || '/'}/.sp-header-test-${Date.now()}`;
+                      try {
+                        const supportsHeaders =
+                          await api.testConditionalHeaders(testPath);
+
+                        if (
+                          !supportsHeaders &&
+                          !localStorage.getItem(
+                            LS.WEBDAV_CONDITIONAL_HEADER_WARNING_DISMISSED,
+                          )
+                        ) {
+                          const dialogRef = this._matDialog.open(DialogConfirmComponent, {
+                            data: {
+                              title:
+                                T.F.SYNC.FORM.WEB_DAV.CONDITIONAL_HEADER_WARNING_TITLE,
+                              message:
+                                T.F.SYNC.FORM.WEB_DAV.CONDITIONAL_HEADER_WARNING_MSG,
+                              okTxt: T.G.OK,
+                              hideCancelButton: true,
+                              showDontShowAgain: true,
+                            },
+                          });
+                          const res = await firstValueFrom(dialogRef.afterClosed());
+                          if (res?.dontShowAgain) {
+                            localStorage.setItem(
+                              LS.WEBDAV_CONDITIONAL_HEADER_WARNING_DISMISSED,
+                              'true',
+                            );
+                          }
+                        }
+                      } catch (headerTestError) {
+                        // Ignore header test errors - connection test was successful
+                        Log.warn(
+                          'WebDAV conditional header test failed:',
+                          headerTestError,
+                        );
+                      }
                     } else {
                       this._snackService.open({
                         type: 'ERROR',

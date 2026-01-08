@@ -92,9 +92,23 @@ export class SyncConfigService {
   ]).pipe(
     switchMap(([syncCfg, currentProviderCfg]) => {
       // Base config with defaults
+      // Deep merge provider-specific configs to preserve defaults like superSync.baseUrl
+      // Without this, a stored config with superSync: {} would lose the default baseUrl
       const baseConfig = {
         ...DEFAULT_GLOBAL_CONFIG.sync,
         ...syncCfg,
+        superSync: {
+          ...DEFAULT_GLOBAL_CONFIG.sync.superSync,
+          ...syncCfg?.superSync,
+        },
+        webDav: {
+          ...DEFAULT_GLOBAL_CONFIG.sync.webDav,
+          ...syncCfg?.webDav,
+        },
+        localFileSync: {
+          ...DEFAULT_GLOBAL_CONFIG.sync.localFileSync,
+          ...syncCfg?.localFileSync,
+        },
       };
 
       // If no provider is active, return base config with empty encryption key

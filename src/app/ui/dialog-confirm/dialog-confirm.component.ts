@@ -10,6 +10,8 @@ import { T } from '../../t.const';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
+import { MatCheckbox } from '@angular/material/checkbox';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'dialog-confirm',
@@ -23,6 +25,8 @@ import { TranslatePipe } from '@ngx-translate/core';
     MatIcon,
     TranslatePipe,
     MatDialogTitle,
+    MatCheckbox,
+    FormsModule,
   ],
 })
 export class DialogConfirmComponent {
@@ -34,8 +38,17 @@ export class DialogConfirmComponent {
 
   readonly T: typeof T = T;
 
+  dontShowAgain = false;
+
   close(res: boolean | string | undefined): void {
-    this._matDialogRef.close(res);
+    if (this.data.showDontShowAgain) {
+      this._matDialogRef.close({
+        confirmed: res,
+        dontShowAgain: this.dontShowAgain,
+      });
+    } else {
+      this._matDialogRef.close(res);
+    }
   }
 
   focusNextButton(nextButton: MatButton): void {

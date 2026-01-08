@@ -420,6 +420,59 @@ describe('WebdavApi', () => {
       );
     });
 
+    it('should NOT send If-Unmodified-Since when expectedRev is null', async () => {
+      const mockResponse = {
+        status: 200,
+        headers: { 'last-modified': 'Thu, 01 Jan 2025 00:00:00 GMT' },
+        data: '',
+      };
+      mockHttpAdapter.request.and.returnValue(Promise.resolve(mockResponse));
+
+      await api.upload({ path: '/test.json', data: 'test', expectedRev: null });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const requestArgs = mockHttpAdapter.request.calls.mostRecent()?.args[0] as any;
+      expect(requestArgs).toBeDefined();
+      expect(requestArgs.headers['If-Unmodified-Since']).toBeUndefined();
+    });
+
+    it('should NOT send If-Unmodified-Since when expectedRev is undefined', async () => {
+      const mockResponse = {
+        status: 200,
+        headers: { 'last-modified': 'Thu, 01 Jan 2025 00:00:00 GMT' },
+        data: '',
+      };
+      mockHttpAdapter.request.and.returnValue(Promise.resolve(mockResponse));
+
+      await api.upload({ path: '/test.json', data: 'test' });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const requestArgs = mockHttpAdapter.request.calls.mostRecent()?.args[0] as any;
+      expect(requestArgs).toBeDefined();
+      expect(requestArgs.headers['If-Unmodified-Since']).toBeUndefined();
+    });
+
+    it('should NOT send If-Unmodified-Since when isForceOverwrite is true', async () => {
+      const mockResponse = {
+        status: 200,
+        headers: { 'last-modified': 'Thu, 01 Jan 2025 00:00:00 GMT' },
+        data: '',
+      };
+      mockHttpAdapter.request.and.returnValue(Promise.resolve(mockResponse));
+
+      await api.upload({
+        path: '/test.json',
+        data: 'test',
+        expectedRev: 'Thu, 01 Jan 2024 00:00:00 GMT',
+        isForceOverwrite: true,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const requestArgs = mockHttpAdapter.request.calls.mostRecent()?.args[0] as any;
+      expect(requestArgs).toBeDefined();
+      expect(requestArgs.headers['If-Unmodified-Since']).toBeUndefined();
+    });
+
     it('should handle conditional upload with date string', async () => {
       const mockResponse = {
         status: 200,
@@ -894,6 +947,195 @@ describe('WebdavApi', () => {
       mockGetCfg.and.returnValue(Promise.reject(error));
 
       await expectAsync(api.getFileMeta('/test.txt', null)).toBeRejectedWith(error);
+    });
+  });
+
+  describe('testConditionalHeaders', () => {
+    it('should return true when server returns 412 for old date', async () => {
+      let requestCount = 0;
+      mockHttpAdapter.request.and.callFake((params: any) => {
+        requestCount++;
+        if (params.method === 'PUT' && requestCount === 1) {
+          // First upload succeeds
+          return Promise.resolve({
+            status: 200,
+            headers: { 'last-modified': 'Thu, 01 Jan 2025 00:00:00 GMT' },
+            data: '',
+          });
+        }
+        if (params.method === 'PROPFIND') {
+          // getFileMeta returns lastmod
+          return Promise.resolve({
+            status: 207,
+            headers: {},
+            data: '<?xml version="1.0"?><multistatus/>',
+          });
+        }
+        if (params.method === 'PUT' && requestCount >= 2) {
+          // Second upload with old date fails with 412
+          return Promise.reject(
+            new HttpNotOkAPIError(new Response(null, { status: 412 })),
+          );
+        }
+        if (params.method === 'DELETE') {
+          // Cleanup succeeds
+          return Promise.resolve({
+            status: 204,
+            headers: {},
+            data: '',
+          });
+        }
+        return Promise.resolve({
+          status: 200,
+          headers: {},
+          data: '',
+        });
+      });
+
+      mockXmlParser.parseMultiplePropsFromXml.and.returnValue([
+        {
+          filename: 'test.txt',
+          basename: 'test.txt',
+          lastmod: 'Thu, 01 Jan 2025 00:00:00 GMT',
+          size: 100,
+          type: 'file',
+          etag: '"abc123"',
+          data: {},
+          path: '/test.txt',
+        },
+      ]);
+
+      const result = await api.testConditionalHeaders('/test-path');
+      expect(result).toBe(true);
+    });
+
+    it('should return false when server ignores If-Unmodified-Since', async () => {
+      mockHttpAdapter.request.and.callFake((params: any) => {
+        if (params.method === 'PUT') {
+          // Both uploads succeed (server ignores conditional header)
+          return Promise.resolve({
+            status: 200,
+            headers: { 'last-modified': 'Thu, 01 Jan 2025 00:00:00 GMT' },
+            data: '',
+          });
+        }
+        if (params.method === 'PROPFIND') {
+          return Promise.resolve({
+            status: 207,
+            headers: {},
+            data: '<?xml version="1.0"?><multistatus/>',
+          });
+        }
+        if (params.method === 'DELETE') {
+          return Promise.resolve({
+            status: 204,
+            headers: {},
+            data: '',
+          });
+        }
+        return Promise.resolve({
+          status: 200,
+          headers: {},
+          data: '',
+        });
+      });
+
+      mockXmlParser.parseMultiplePropsFromXml.and.returnValue([
+        {
+          filename: 'test.txt',
+          basename: 'test.txt',
+          lastmod: 'Thu, 01 Jan 2025 00:00:00 GMT',
+          size: 100,
+          type: 'file',
+          etag: '"abc123"',
+          data: {},
+          path: '/test.txt',
+        },
+      ]);
+
+      const result = await api.testConditionalHeaders('/test-path');
+      expect(result).toBe(false);
+    });
+
+    it('should return false when server does not return lastmod', async () => {
+      mockHttpAdapter.request.and.callFake((params: any) => {
+        if (params.method === 'PUT') {
+          return Promise.resolve({
+            status: 200,
+            headers: {},
+            data: '',
+          });
+        }
+        if (params.method === 'PROPFIND') {
+          return Promise.resolve({
+            status: 207,
+            headers: {},
+            data: '<?xml version="1.0"?><multistatus/>',
+          });
+        }
+        if (params.method === 'DELETE') {
+          return Promise.resolve({
+            status: 204,
+            headers: {},
+            data: '',
+          });
+        }
+        return Promise.resolve({
+          status: 200,
+          headers: {},
+          data: '',
+        });
+      });
+
+      // No lastmod in metadata
+      mockXmlParser.parseMultiplePropsFromXml.and.returnValue([
+        {
+          filename: 'test.txt',
+          basename: 'test.txt',
+          lastmod: '',
+          size: 100,
+          type: 'file',
+          etag: '"abc123"',
+          data: {},
+          path: '/test.txt',
+        },
+      ]);
+
+      const result = await api.testConditionalHeaders('/test-path');
+      expect(result).toBe(false);
+    });
+
+    it('should clean up test file even on error', async () => {
+      let deleteWasCalled = false;
+      mockHttpAdapter.request.and.callFake((params: any) => {
+        if (params.method === 'PUT') {
+          return Promise.resolve({
+            status: 200,
+            headers: { 'last-modified': 'Thu, 01 Jan 2025 00:00:00 GMT' },
+            data: '',
+          });
+        }
+        if (params.method === 'PROPFIND') {
+          // Error during metadata retrieval
+          return Promise.reject(new Error('Network error'));
+        }
+        if (params.method === 'DELETE') {
+          deleteWasCalled = true;
+          return Promise.resolve({
+            status: 204,
+            headers: {},
+            data: '',
+          });
+        }
+        return Promise.resolve({
+          status: 200,
+          headers: {},
+          data: '',
+        });
+      });
+
+      await expectAsync(api.testConditionalHeaders('/test-path')).toBeRejected();
+      expect(deleteWasCalled).toBe(true);
     });
   });
 });

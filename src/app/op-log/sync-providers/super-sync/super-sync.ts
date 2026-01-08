@@ -370,6 +370,15 @@ export class SuperSyncProvider
     }
   }
 
+  /**
+   * Sanitizes an access token by removing non-ASCII characters.
+   * This handles cases where users accidentally copy invisible characters
+   * (e.g., zero-width spaces, smart quotes) along with the token.
+   */
+  private _sanitizeToken(token: string): string {
+    return token.replace(/[^\x20-\x7E]/g, '');
+  }
+
   private async _fetchApi<T>(
     cfg: SuperSyncPrivateCfg,
     path: string,
@@ -377,10 +386,7 @@ export class SuperSyncProvider
   ): Promise<T> {
     const baseUrl = cfg.baseUrl.replace(/\/$/, '');
     const url = `${baseUrl}${path}`;
-
-    // Sanitize token - remove any non-ASCII characters that may have been
-    // accidentally copied (e.g., zero-width spaces, smart quotes)
-    const sanitizedToken = cfg.accessToken.replace(/[^\x20-\x7E]/g, '');
+    const sanitizedToken = this._sanitizeToken(cfg.accessToken);
 
     const headers = new Headers(options.headers as HeadersInit);
     headers.set('Content-Type', 'application/json');
@@ -414,10 +420,7 @@ export class SuperSyncProvider
   ): Promise<T> {
     const baseUrl = cfg.baseUrl.replace(/\/$/, '');
     const url = `${baseUrl}${path}`;
-
-    // Sanitize token - remove any non-ASCII characters that may have been
-    // accidentally copied (e.g., zero-width spaces, smart quotes)
-    const sanitizedToken = cfg.accessToken.replace(/[^\x20-\x7E]/g, '');
+    const sanitizedToken = this._sanitizeToken(cfg.accessToken);
 
     const headers = new Headers();
     headers.set('Content-Type', 'application/json');
@@ -455,10 +458,7 @@ export class SuperSyncProvider
     const base64Gzip = await compressWithGzipToString(jsonPayload);
     const baseUrl = cfg.baseUrl.replace(/\/$/, '');
     const url = `${baseUrl}${path}`;
-
-    // Sanitize token - remove any non-ASCII characters that may have been
-    // accidentally copied (e.g., zero-width spaces, smart quotes)
-    const sanitizedToken = cfg.accessToken.replace(/[^\x20-\x7E]/g, '');
+    const sanitizedToken = this._sanitizeToken(cfg.accessToken);
 
     SyncLog.debug(this.logLabel, '_fetchApiCompressedAndroid', {
       path,

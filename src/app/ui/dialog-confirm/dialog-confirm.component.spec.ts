@@ -149,4 +149,93 @@ describe('DialogConfirmComponent', () => {
       expect(iconElement).toBeFalsy();
     });
   });
+
+  describe('showDontShowAgain option', () => {
+    it('should not show checkbox when showDontShowAgain is false', async () => {
+      await createComponent({
+        title: 'Test Title',
+        message: 'Test Message',
+        showDontShowAgain: false,
+      });
+
+      const checkbox = fixture.debugElement.query(By.css('mat-checkbox'));
+      expect(checkbox).toBeFalsy();
+    });
+
+    it('should not show checkbox when showDontShowAgain is undefined', async () => {
+      await createComponent({
+        title: 'Test Title',
+        message: 'Test Message',
+      });
+
+      const checkbox = fixture.debugElement.query(By.css('mat-checkbox'));
+      expect(checkbox).toBeFalsy();
+    });
+
+    it('should show checkbox when showDontShowAgain is true', async () => {
+      await createComponent({
+        title: 'Test Title',
+        message: 'Test Message',
+        showDontShowAgain: true,
+      });
+
+      const checkbox = fixture.debugElement.query(By.css('mat-checkbox'));
+      expect(checkbox).toBeTruthy();
+    });
+
+    it('should return object with dontShowAgain state when closing with showDontShowAgain enabled', async () => {
+      await createComponent({
+        title: 'Test Title',
+        message: 'Test Message',
+        showDontShowAgain: true,
+      });
+
+      // Set the dontShowAgain state (cast to any since property added with feature)
+      (component as any).dontShowAgain = true;
+      fixture.detectChanges();
+
+      // Click confirm button
+      const confirmButton = fixture.debugElement.query(
+        By.css('button[e2e="confirmBtn"]'),
+      );
+      confirmButton.nativeElement.click();
+
+      expect(mockDialogRef.close).toHaveBeenCalledWith({
+        confirmed: true,
+        dontShowAgain: true,
+      });
+    });
+
+    it('should return object with confirmed false when canceling with showDontShowAgain enabled', async () => {
+      await createComponent({
+        title: 'Test Title',
+        message: 'Test Message',
+        showDontShowAgain: true,
+      });
+
+      // Click cancel button
+      const cancelButton = fixture.debugElement.queryAll(By.css('button'))[0];
+      cancelButton.nativeElement.click();
+
+      expect(mockDialogRef.close).toHaveBeenCalledWith({
+        confirmed: false,
+        dontShowAgain: false,
+      });
+    });
+
+    it('should return boolean directly when showDontShowAgain is false', async () => {
+      await createComponent({
+        title: 'Test Title',
+        message: 'Test Message',
+        showDontShowAgain: false,
+      });
+
+      const confirmButton = fixture.debugElement.query(
+        By.css('button[e2e="confirmBtn"]'),
+      );
+      confirmButton.nativeElement.click();
+
+      expect(mockDialogRef.close).toHaveBeenCalledWith(true);
+    });
+  });
 });

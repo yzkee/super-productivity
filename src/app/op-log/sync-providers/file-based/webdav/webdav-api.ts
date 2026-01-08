@@ -445,6 +445,76 @@ export class WebdavApi {
     }
   }
 
+  /**
+   * Tests if the WebDAV server properly supports If-Unmodified-Since conditional headers.
+   *
+   * This method:
+   * 1. Uploads a test file
+   * 2. Gets its last-modified timestamp
+   * 3. Tries to upload again with an old If-Unmodified-Since date (1 day before)
+   * 4. If the upload succeeds (when it should fail with 412), headers are NOT supported
+   * 5. If the upload fails with 412 Precondition Failed, headers ARE supported
+   *
+   * @param testPath - Path where the test file will be created (will be cleaned up)
+   * @returns true if conditional headers are properly supported, false otherwise
+   */
+  async testConditionalHeaders(testPath: string): Promise<boolean> {
+    const testContent = `test-${Date.now()}`;
+    PFLog.normal(
+      `${WebdavApi.L}.testConditionalHeaders() testing with path: ${testPath}`,
+    );
+
+    try {
+      // Step 1: Upload test file (force overwrite to ensure it gets created)
+      await this.upload({
+        path: testPath,
+        data: testContent,
+        isForceOverwrite: true,
+      });
+
+      // Step 2: Get its timestamp
+      const meta = await this.getFileMeta(testPath, null, true);
+      const currentRev = meta.lastmod;
+
+      if (!currentRev) {
+        PFLog.warn(
+          `${WebdavApi.L}.testConditionalHeaders() Server did not return lastmod - cannot test conditional headers`,
+        );
+        return false;
+      }
+
+      // Step 3: Try to upload with an OLD If-Unmodified-Since (1 day before)
+      const oldDate = new Date(new Date(currentRev).getTime() - 86400000).toUTCString();
+      try {
+        await this.upload({
+          path: testPath,
+          data: testContent + '-v2',
+          expectedRev: oldDate,
+        });
+        // Upload succeeded when it should have failed with 412
+        PFLog.warn(
+          `${WebdavApi.L}.testConditionalHeaders() Server ignored If-Unmodified-Since header - conditional headers NOT supported`,
+        );
+        return false; // Headers NOT supported
+      } catch (e) {
+        if (e instanceof RemoteFileChangedUnexpectedly) {
+          PFLog.normal(
+            `${WebdavApi.L}.testConditionalHeaders() Server properly returned 412 - conditional headers ARE supported`,
+          );
+          return true; // Headers ARE supported (got 412 as expected)
+        }
+        throw e; // Unexpected error
+      }
+    } finally {
+      // Clean up test file
+      try {
+        await this.remove(testPath);
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+  }
+
   private async _makeRequest({
     url,
     method,

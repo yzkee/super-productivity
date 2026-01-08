@@ -1,18 +1,17 @@
 import { inject, Injectable } from '@angular/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
-import { ActionType, Operation, OpType, VectorClock } from '../core/operation.types';
-import { incrementVectorClock, mergeVectorClocks } from '../../core/util/vector-clock';
+import { Operation, VectorClock } from '../core/operation.types';
+import { mergeVectorClocks } from '../../core/util/vector-clock';
 import { OpLog } from '../../core/log';
 import { ConflictResolutionService } from './conflict-resolution.service';
 import { VectorClockService } from './vector-clock.service';
 import { LockService } from './lock.service';
 import { toEntityKey } from '../util/entity-key.util';
-import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 import { LOCK_NAMES } from '../core/operation-log.const';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
-import { uuidv7 } from '../../util/uuid-v7';
 import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
+import { LWWOperationFactory } from './lww-operation-factory.service';
 
 /**
  * Resolves stale local operations that were rejected due to concurrent modification.
@@ -41,6 +40,7 @@ export class StaleOperationResolverService {
   private lockService = inject(LockService);
   private snackService = inject(SnackService);
   private clientIdProvider = inject(CLIENT_ID_PROVIDER);
+  private lwwOperationFactory = inject(LWWOperationFactory);
 
   /**
    * Resolves stale local operations by creating new LWW Update operations.
@@ -118,15 +118,12 @@ export class StaleOperationResolverService {
         const entityType = firstOp.entityType;
         const entityId = firstOp.entityId!; // Non-null - we filtered out ops without entityId above
 
-        // Start with the global clock to ensure we dominate ALL known ops
-        // Then merge in the local pending ops' clocks
-        let mergedClock: VectorClock = { ...globalClock };
-        for (const { op } of entityOps) {
-          mergedClock = mergeVectorClocks(mergedClock, op.vectorClock);
-        }
-
-        // Increment to create a clock that dominates everything
-        const newClock = incrementVectorClock(mergedClock, clientId);
+        // Start with the global clock, merge in local pending ops' clocks, and increment
+        const allClocks = [globalClock, ...entityOps.map(({ op }) => op.vectorClock)];
+        const newClock = this.lwwOperationFactory.mergeAndIncrementClocks(
+          allClocks,
+          clientId,
+        );
 
         // Get current entity state from NgRx store
         const entityState = await this.conflictResolutionService.getCurrentEntityState(
@@ -149,20 +146,14 @@ export class StaleOperationResolverService {
         const preservedTimestamp = Math.max(...entityOps.map((e) => e.op.timestamp));
 
         // Create new UPDATE op with current state and merged clock
-        // IMPORTANT: Use 'LWW Update' action type to match lwwUpdateMetaReducer pattern.
-        // This ensures the operation is properly applied on remote clients.
-        const newOp: Operation = {
-          id: uuidv7(),
-          actionType: `[${entityType}] LWW Update` as ActionType,
-          opType: OpType.Update,
+        const newOp = this.lwwOperationFactory.createLWWUpdateOp(
           entityType,
           entityId,
-          payload: entityState,
+          entityState,
           clientId,
-          vectorClock: newClock,
-          timestamp: preservedTimestamp,
-          schemaVersion: CURRENT_SCHEMA_VERSION,
-        };
+          newClock,
+          preservedTimestamp,
+        );
 
         newOpsCreated.push(newOp);
         opsToReject.push(...entityOps.map((e) => e.opId));

@@ -158,14 +158,35 @@ export class Dropbox implements SyncProviderServiceInterface<SyncProviderId.Drop
   async uploadFile(
     targetPath: string,
     dataStr: string,
-    revToMatch: string,
+    revToMatch: string | null,
     isForceOverwrite: boolean = false,
   ): Promise<{ rev: string }> {
+    let effectiveRev = revToMatch;
+
+    // If no rev provided and not force overwrite, get current rev first
+    if (!effectiveRev && !isForceOverwrite) {
+      try {
+        const current = await this.getFileRev(targetPath, '');
+        effectiveRev = current.rev;
+        PFLog.normal(
+          `${Dropbox.L}.${this.uploadFile.name}() got current rev for conditional upload: ${effectiveRev}`,
+        );
+      } catch (e) {
+        if (!(e instanceof RemoteFileNotFoundAPIError)) {
+          throw e;
+        }
+        // File doesn't exist - proceed without rev (will create new)
+        PFLog.normal(
+          `${Dropbox.L}.${this.uploadFile.name}() file does not exist, will create new`,
+        );
+      }
+    }
+
     try {
       const r = await this._api.upload({
         path: this._getPath(targetPath),
         data: dataStr,
-        revToMatch,
+        revToMatch: effectiveRev,
         isForceOverwrite,
       });
 

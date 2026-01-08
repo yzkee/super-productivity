@@ -1,7 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import {
-  ActionType,
   EntityConflict,
   EntityType,
   Operation,
@@ -23,13 +22,10 @@ import {
 import { SyncSafetyBackupService } from '../../imex/sync/sync-safety-backup.service';
 import {
   compareVectorClocks,
-  incrementVectorClock,
   mergeVectorClocks,
   VectorClockComparison,
 } from '../../core/util/vector-clock';
 import { devError } from '../../util/dev-error';
-import { uuidv7 } from '../../util/uuid-v7';
-import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
 import {
   getEntityConfig,
@@ -39,6 +35,7 @@ import {
   isArrayEntity,
 } from '../core/entity-registry';
 import { selectIssueProviderById } from '../../features/issue/store/issue-provider.selectors';
+import { LWWOperationFactory } from './lww-operation-factory.service';
 
 /**
  * Represents the result of LWW (Last-Write-Wins) conflict resolution.
@@ -88,6 +85,7 @@ export class ConflictResolutionService {
   private syncSafetyBackupService = inject(SyncSafetyBackupService);
   private clientIdProvider = inject(CLIENT_ID_PROVIDER);
   private backupTimeoutMs = inject(BACKUP_TIMEOUT_MS);
+  private lwwOperationFactory = inject(LWWOperationFactory);
 
   /**
    * Validates the current state after conflict resolution and repairs if necessary.
@@ -581,14 +579,14 @@ export class ConflictResolutionService {
     }
 
     // Merge all vector clocks (local ops + remote ops) and increment
-    let mergedClock: VectorClock = {};
-    for (const op of conflict.localOps) {
-      mergedClock = mergeVectorClocks(mergedClock, op.vectorClock);
-    }
-    for (const op of conflict.remoteOps) {
-      mergedClock = mergeVectorClocks(mergedClock, op.vectorClock);
-    }
-    const newClock = incrementVectorClock(mergedClock, clientId);
+    const allClocks = [
+      ...conflict.localOps.map((op) => op.vectorClock),
+      ...conflict.remoteOps.map((op) => op.vectorClock),
+    ];
+    const newClock = this.lwwOperationFactory.mergeAndIncrementClocks(
+      allClocks,
+      clientId,
+    );
 
     // Preserve the maximum timestamp from local ops.
     // This is critical for LWW semantics: we're creating a new op to carry the
@@ -596,25 +594,14 @@ export class ConflictResolutionService {
     // it to win. Using Date.now() would give it an unfair advantage in future conflicts.
     const preservedTimestamp = Math.max(...conflict.localOps.map((op) => op.timestamp));
 
-    // Create the update operation
-    // NOTE: LWW Update action types (e.g., '[TASK] LWW Update') are intentionally
-    // NOT in the ActionType enum. They are dynamically constructed here and matched
-    // by regex in lwwUpdateMetaReducer. This is by design - LWW ops are synthetic,
-    // created during conflict resolution to carry the winning local state to remote clients.
-    const op: Operation = {
-      id: uuidv7(),
-      actionType: `[${conflict.entityType}] LWW Update` as ActionType,
-      opType: OpType.Update,
-      entityType: conflict.entityType,
-      entityId: conflict.entityId,
-      payload: entityState,
+    return this.lwwOperationFactory.createLWWUpdateOp(
+      conflict.entityType,
+      conflict.entityId,
+      entityState,
       clientId,
-      vectorClock: newClock,
-      timestamp: preservedTimestamp,
-      schemaVersion: CURRENT_SCHEMA_VERSION,
-    };
-
-    return op;
+      newClock,
+      preservedTimestamp,
+    );
   }
 
   /**
@@ -647,8 +634,11 @@ export class ConflictResolutionService {
           );
         }
         // Standard props-based selector
-        // NgRx selector with props requires specific typing that EntityConfig's
-        // flexible selectById union type can't express precisely
+        // TYPE ASSERTION: NgRx's MemoizedSelectorWithProps requires exact generic
+        // parameter matching. EntityConfig.selectById is a union type covering
+        // adapter, map, array, and singleton patterns - TypeScript cannot narrow
+        // this to MemoizedSelectorWithProps<State, {id: string}, T>. This is a
+        // known NgRx typing limitation. Runtime behavior is correct.
         return await firstValueFrom(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           this.store.select(config.selectById as any, { id: entityId }),

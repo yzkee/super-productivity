@@ -598,4 +598,78 @@ describe('SyncConfigService', () => {
       );
     });
   });
+
+  describe('SuperSync default baseUrl preservation', () => {
+    it('should preserve default superSync.baseUrl when stored config has empty superSync object', async () => {
+      // This test verifies the fix for: "when setting up super sync for the first time, server url is empty"
+      // The bug occurred because shallow merge of {...DEFAULT_GLOBAL_CONFIG.sync, ...syncCfg}
+      // would replace DEFAULT_GLOBAL_CONFIG.sync.superSync entirely with an empty {}
+
+      // Simulate stored config with empty superSync (no baseUrl)
+      mockSyncConfig$.next({
+        ...DEFAULT_GLOBAL_CONFIG.sync,
+        isEnabled: false,
+        syncProvider: null,
+        superSync: {}, // Empty - no baseUrl
+      } as SyncConfig);
+
+      // No active provider yet
+      mockCurrentProviderPrivateCfg$.next(null);
+
+      // Get form settings
+      const formSettings = await service.syncSettingsForm$.pipe(first()).toPromise();
+
+      // The default baseUrl should be preserved from DEFAULT_GLOBAL_CONFIG
+      expect(formSettings!.superSync!.baseUrl).toBe(
+        DEFAULT_GLOBAL_CONFIG.sync.superSync!.baseUrl,
+      );
+    });
+
+    it('should use user-provided superSync.baseUrl over default', async () => {
+      const customUrl = 'https://my-custom-server.com';
+
+      // Simulate stored config with custom baseUrl
+      mockSyncConfig$.next({
+        ...DEFAULT_GLOBAL_CONFIG.sync,
+        isEnabled: true,
+        syncProvider: LegacySyncProvider.SuperSync,
+        superSync: {
+          baseUrl: customUrl,
+        },
+      } as SyncConfig);
+
+      // No active provider yet
+      mockCurrentProviderPrivateCfg$.next(null);
+
+      // Get form settings
+      const formSettings = await service.syncSettingsForm$.pipe(first()).toPromise();
+
+      // The user's custom URL should take precedence
+      expect(formSettings!.superSync!.baseUrl).toBe(customUrl);
+    });
+
+    it('should preserve default webDav and localFileSync settings with deep merge', async () => {
+      // Simulate stored config with empty provider configs
+      mockSyncConfig$.next({
+        ...DEFAULT_GLOBAL_CONFIG.sync,
+        isEnabled: false,
+        syncProvider: null,
+        webDav: {}, // Empty
+        localFileSync: {}, // Empty
+        superSync: {}, // Empty
+      } as SyncConfig);
+
+      mockCurrentProviderPrivateCfg$.next(null);
+
+      const formSettings = await service.syncSettingsForm$.pipe(first()).toPromise();
+
+      // All defaults should be preserved via deep merge
+      expect(formSettings!.superSync!.baseUrl).toBe(
+        DEFAULT_GLOBAL_CONFIG.sync.superSync!.baseUrl,
+      );
+      expect(formSettings!.webDav!.syncFolderPath).toBe(
+        DEFAULT_GLOBAL_CONFIG.sync.webDav!.syncFolderPath,
+      );
+    });
+  });
 });

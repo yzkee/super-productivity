@@ -325,9 +325,30 @@ export class SyncWrapperService {
     if (!this._c(this._translateService.instant(T.F.SYNC.C.FORCE_UPLOAD))) {
       return;
     }
-    // Op-log architecture handles conflict resolution differently
-    // This is a no-op placeholder for legacy code compatibility
-    SyncLog.log('SyncWrapperService: forceUpload called (delegated to op-log sync)');
+
+    SyncLog.log('SyncWrapperService: forceUpload called - uploading local state');
+
+    try {
+      const rawProvider = this._providerManager.getActiveProvider();
+      const syncCapableProvider =
+        await this._wrappedProvider.getOperationSyncCapable(rawProvider);
+
+      if (!syncCapableProvider) {
+        SyncLog.warn('SyncWrapperService: Cannot force upload - provider not available');
+        return;
+      }
+
+      await this._opLogSyncService.forceUploadLocalState(syncCapableProvider);
+      this._providerManager.setSyncStatus('IN_SYNC');
+      SyncLog.log('SyncWrapperService: Force upload complete');
+    } catch (error) {
+      SyncLog.err('SyncWrapperService: Force upload failed:', error);
+      const errStr = getSyncErrorStr(error);
+      this._snackService.open({
+        msg: errStr,
+        type: 'ERROR',
+      });
+    }
   }
 
   async configuredAuthForSyncProviderIfNecessary(

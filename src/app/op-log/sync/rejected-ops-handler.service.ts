@@ -7,6 +7,7 @@ import { T } from '../../t.const';
 import { MAX_REJECTED_OPS_BEFORE_WARNING } from '../core/operation-log.const';
 import { StaleOperationResolverService } from './stale-operation-resolver.service';
 import { DownloadCallback } from '../core/types/sync-results.types';
+import { handleStorageQuotaError } from './sync-error-utils';
 
 // Re-export for consumers that import from this service
 export type {
@@ -77,10 +78,7 @@ export class RejectedOpsHandlerService {
         OpLog.error(
           `RejectedOpsHandlerService: Storage quota exceeded - sync is broken!`,
         );
-        alert(
-          'Sync storage is full! Your data is NOT syncing to the server. ' +
-            'Please archive old tasks or upgrade your plan to continue syncing.',
-        );
+        handleStorageQuotaError(rejected.errorCode);
         // Don't mark as rejected - user needs to take action to fix storage
         continue;
       }
