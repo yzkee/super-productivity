@@ -359,15 +359,6 @@ export class OperationLogUploadService {
     // Uses shared utility to ensure consistent handling across the codebase.
     let state: unknown = extractFullStateFromPayload(op.payload);
 
-    // DEBUG: Log extracted state to trace payload handling
-    const stateTyped = state as Record<string, unknown> | undefined;
-    OpLog.normal('OperationLogUploadService: [DEBUG] Extracted state from payload', {
-      opType: op.opType,
-      hasProject: !!stateTyped?.project,
-      projectCount: (stateTyped?.project as any)?.ids?.length ?? 0,
-      projectIds: (stateTyped?.project as any)?.ids ?? [],
-    });
-
     // Validate the payload structure before uploading to catch bugs early.
     // This throws if the payload is malformed (e.g., missing expected keys).
     assertValidFullStatePayload(

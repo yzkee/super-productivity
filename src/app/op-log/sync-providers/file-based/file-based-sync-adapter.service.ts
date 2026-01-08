@@ -444,23 +444,6 @@ export class FileBasedSyncAdapterService {
     // Get current state from NgRx store - this keeps the snapshot up-to-date
     const currentState = await this._stateSnapshotService.getStateSnapshot();
 
-    // DEBUG: Log project data being included in sync file
-    OpLog.normal('FileBasedSyncAdapter: [DEBUG] snapshot project data', {
-      count: (currentState as any)?.project?.ids?.length ?? 0,
-      ids: (currentState as any)?.project?.ids ?? [],
-    });
-    // Also log archive project references to verify consistency
-    if (archiveYoung?.task?.ids) {
-      const archiveProjectIds = new Set(
-        (archiveYoung.task.ids as string[])
-          .map((id: string) => archiveYoung.task.entities?.[id]?.projectId)
-          .filter(Boolean),
-      );
-      OpLog.normal('FileBasedSyncAdapter: [DEBUG] archiveYoung task projectIds', {
-        uniqueProjectIds: [...archiveProjectIds],
-      });
-    }
-
     const newData: FileBasedSyncData = {
       version: FILE_BASED_SYNC_CONSTANTS.FILE_VERSION,
       syncVersion: newSyncVersion,
@@ -692,16 +675,6 @@ export class FileBasedSyncAdapterService {
       syncData = result.data;
       rev = result.rev;
 
-      // DEBUG: Log what's in the downloaded sync file
-      const stateTyped = syncData.state as Record<string, unknown> | undefined;
-      OpLog.normal('FileBasedSyncAdapter: [DEBUG] Downloaded sync file contents', {
-        hasState: !!syncData.state,
-        projectCount: (stateTyped?.project as any)?.ids?.length ?? 0,
-        projectIds: (stateTyped?.project as any)?.ids ?? [],
-        syncVersion: syncData.syncVersion,
-        recentOpsCount: syncData.recentOps?.length ?? 0,
-      });
-
       // Cache data + rev for use in _uploadOps() (avoids redundant download)
       this._setCachedSyncData(providerKey, syncData, rev);
     } catch (e) {
@@ -856,14 +829,6 @@ export class FileBasedSyncAdapterService {
     const providerKey = this._getProviderKey(provider);
 
     OpLog.normal(`FileBasedSyncAdapter: Uploading snapshot (reason=${reason})`);
-
-    // DEBUG: Log what's being uploaded in the snapshot
-    const stateTyped = state as Record<string, unknown> | undefined;
-    OpLog.normal('FileBasedSyncAdapter: [DEBUG] Snapshot state being uploaded', {
-      hasState: !!state,
-      projectCount: (stateTyped?.project as any)?.ids?.length ?? 0,
-      projectIds: (stateTyped?.project as any)?.ids ?? [],
-    });
 
     // For snapshots, we start fresh with syncVersion = 1
     const newSyncVersion = 1;
