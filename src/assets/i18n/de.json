@@ -9,6 +9,7 @@
     "CONTEXT_MENU": {
       "CHANGE_BACKGROUND": "Hintergrund ändern"
     },
+    "SKIP_SYNC_WAIT": "Warten auf Synchronisierung überspringen",
     "UPDATE_WEB_APP": "Neue Version verfügbar. Neue Version laden?"
   },
   "BL": {
@@ -97,7 +98,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "Kategorie, nach der Probleme gefiltert werden sollen (für keine leer lassen)",
         "CALDAV_PASSWORD": "Ihr CalDav-Passwort",
@@ -223,7 +223,6 @@
       "WORKED_FOR": "Sie arbeiten bereits seit"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "Host (z. B. : https://try.gitea.io)",
         "REPO_FULL_NAME": "Benutzername oder Organisationsname/Projekt",
@@ -246,11 +245,9 @@
         "STATUS": "Status",
         "SUMMARY": "Zusammenfassung",
         "WRITE_A_COMMENT": "Schreibe einen Kommentar"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "Benutzername (z. B. um Änderungen selbst herauszufiltern)",
         "INVALID_TOKEN_MESSAGE": "Kein gültiges GitHub-Token. Er muss mit \"ghp_\" beginnen.",
@@ -280,7 +277,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "Die vorab ausgefüllte Dauer enthält nicht erfasste Daten vergangener Tage.",
         "T_ALREADY_TRACKED": "Bereits erfasst",
@@ -505,7 +501,6 @@
       "DIALOG_TITLE": "Eingefügte Markdown-Liste erkannt!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "Aktivitäts-Übersichten",
         "AVG_BREAKS_PER_DAY": "Durchschn. Pausen pro Tag",
@@ -579,12 +574,27 @@
         "PLACEHOLDER_4": "Welche Aufgabe hat dir Energie gegeben? Welche hat sie geraubt?",
         "PLACEHOLDER_5": "Eine Sache zum Wiederholen. Eine Sache zum Ändern.",
         "TITLE": "Reflexionsnotiz"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Fett",
+          "BULLET_LIST": "Aufzählungsliste",
+          "CODE_BLOCK": "Codeblock",
+          "HEADING_1": "Überschrift 1",
+          "HEADING_2": "Überschrift 2",
+          "HEADING_3": "Überschrift 3",
+          "INLINE_CODE": "Inline-Code",
+          "INSERT_IMAGE": "Bild einfügen",
+          "INSERT_LINK": "Link einfügen",
+          "INSERT_TABLE": "Tabelle einfügen",
+          "ITALIC": "Kursiv",
+          "NUMBERED_LIST": "Nummerierte Liste",
+          "QUOTE": "Angebot",
+          "STRIKETHROUGH": "Durchgestrichen",
+          "TASK_LIST": "Aufgabenliste"
+        },
         "VIEW_PARSED": "Als geparsten (nicht bearbeitbaren) Markdown anzeigen",
         "VIEW_SPLIT": "Geparsten und ungeparsten Markdown-Text in geteilter Ansicht anzeigen",
         "VIEW_TEXT_ONLY": "Als ungeparsten Text anzeigen"
@@ -615,7 +625,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "Wählen Sie das Issue aus, um die verfügbaren Übergänge zu laden",
         "TRANSITION": "Übergangsbehandlung"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "Aktivität",
         "CURRENTLY_LOGGED": "Derzeit geloggte Zeit:",
@@ -762,7 +771,6 @@
       "WEEK_TITLE": "Woche {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "API-Zugriffsschlüssel",
         "HOST": "Host (z. B.: https://redmine.org)",
@@ -783,8 +791,7 @@
         "MARK_AS_CHECKED": "Markieren Sie Updates als überprüft",
         "PRIORITY": "Priorität",
         "STATUS": "Status"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "Verwerfen",
@@ -915,8 +922,6 @@
         "TITLE": "Synchronisierung konfigurieren"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "Komprimierung aktivieren (schnellere Datenübertragung)",
         "L_ENABLE_ENCRYPTION": "Ende-zu-Ende-Verschlüsselung aktivieren (experimentell) – Machen Sie Ihre Daten für Ihren Synchronisierungsanbieter unzugänglich",
         "L_ENABLE_SYNCING": "Synchronisierung aktivieren",
@@ -1179,6 +1184,7 @@
         "REMINDER_ADDED": "Geplante Aufgabe \"{{title}}\"",
         "REMINDER_DELETED": "Erinnerung für Aufgabe gelöscht",
         "REMINDER_UPDATED": "Erinnerung für Aufgabe \"{{title}}\" aktualisiert",
+        "TASK_ALREADY_EXISTS": "Aufgabe <strong>{{title}}<\\/strong> existiert bereits",
         "TASK_CREATED": "Erstellte Aufgabe \"{{taskTitle}}\""
       },
       "SELECT_OR_CREATE": "Aufgabe auswählen oder erstellen",
@@ -1587,6 +1593,7 @@
       "EN": "Englisch",
       "ES": "Español",
       "FA": "فارسی",
+      "FI": "Suomi",
       "FR": "français",
       "HR": "Hrvatski",
       "ID": "Indonesisch",
@@ -1601,6 +1608,7 @@
       "PT_BR": "Portugiesisch (Brasilien)",
       "RU": "Russisch",
       "SK": "Slowakisch",
+      "SV": "Schwedisch",
       "TIME_LOCALE": "Zeitformat Gebietsschema",
       "TIME_LOCALE_AUTO": "Systemvorgabe",
       "TIME_LOCALE_DE_DE": "Deutsch - 24 Stunden",

@@ -78,7 +78,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "문제를 필터링 할 카테고리 (없으면 비워 둡니다)",
         "CALDAV_PASSWORD": "CalDav 비밀번호",
@@ -166,7 +165,6 @@
       "WORKED_FOR": "근무처"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "호스트(예: https://try.gitea.io)",
         "REPO_FULL_NAME": "사용자 이름 또는 조직 이름/프로젝트",
@@ -189,11 +187,9 @@
         "STATUS": "상태",
         "SUMMARY": "요약",
         "WRITE_A_COMMENT": "댓글 작성"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "사용자 이름 (예 : 혼자서 변경 사항을 필터링)",
         "INVALID_TOKEN_MESSAGE": "유효한 GitHub 토큰이 아닙니다. \"ghp_\"로 시작해야 합니다.",
@@ -223,7 +219,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "미리 채워진 기간에는 지난 날짜의 추적되지 않은 데이터가 포함되어 있습니다.",
         "T_ALREADY_TRACKED": "이미 추적 중",
@@ -443,7 +438,6 @@
       "DIALOG_TITLE": "붙여 넣은 마크 다운 목록이 감지되었습니다!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "AVG_BREAKS_PER_DAY": "평균 하루에 휴식",
         "AVG_TASKS_PER_DAY_WORKED": "평균 일일 작업 수",
@@ -467,11 +461,9 @@
       },
       "FOCUS_SESSION_DIALOG": {
         "ADD_BTN": "더하다"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
         "VIEW_PARSED": "구문 분석된(편집 불가) 마크다운으로 보기",
         "VIEW_SPLIT": "분할 보기에서 구문 분석된 마크다운과 구문 분석되지 않은 마크다운 보기",
@@ -503,7 +495,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "이슈를 선택하여 사용 가능한 전환을 로드합니다.",
         "TRANSITION": "전환 처리"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "활동",
         "CURRENTLY_LOGGED": "현재 기록 된 시간 :",
@@ -630,7 +621,6 @@
       "WEEK_TITLE": " {{nr}} 주({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "API 액세스 키",
         "HOST": "호스트(예: https://redmine.org)",
@@ -651,8 +641,7 @@
         "MARK_AS_CHECKED": "업데이트를 체크된 것으로 표시",
         "PRIORITY": "우선순위",
         "STATUS": "상태"
-      },
-      "S": {}
+      }
     },
     "REMINDER": {
       "COUNTDOWN_BANNER": {
@@ -760,8 +749,6 @@
         "TITLE": "동기화 구성"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "압축 사용(데이터 전송 속도 향상)",
         "L_ENABLE_ENCRYPTION": "종단 간 암호화 사용(실험 중) - 동기화 공급자가 데이터에 액세스할 수 없도록 설정합니다.",
         "L_ENABLE_SYNCING": "동기화 활성화",

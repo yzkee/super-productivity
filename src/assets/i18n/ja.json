@@ -92,7 +92,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "問題をフィルタリングするカテゴリ（なしの場合は空のままにします）",
         "CALDAV_PASSWORD": "CalDavパスワード",
@@ -212,7 +211,6 @@
       "WORKED_FOR": "あなたが働いていたのは"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "ホスト (例:https://try.gitea.io)",
         "REPO_FULL_NAME": "ユーザー名または組織名/プロジェクト名",
@@ -235,11 +233,9 @@
         "STATUS": "ステータス",
         "SUMMARY": "概要",
         "WRITE_A_COMMENT": "コメントを書く"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "ユーザー名（例：自分で変更を除外するため）",
         "INVALID_TOKEN_MESSAGE": "有効な GitHub トークンではありません。ghp_\" で始まる必要があります。",
@@ -269,7 +265,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "プレフィルド・デュレーションには、過去数日間のトラッキングされていないデータが含まれている。",
         "T_ALREADY_TRACKED": "すでに追跡済み",
@@ -494,7 +489,6 @@
       "DIALOG_TITLE": "貼り付けられたMarkdownリストが検出されました!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "アクティビティ・ヒートマップ",
         "AVG_BREAKS_PER_DAY": "一日あたりの平均休憩回数",
@@ -570,11 +564,9 @@
         "PLACEHOLDER_4": "どの作業があなたにエネルギーを与えましたか?どちらが排水したの?",
         "PLACEHOLDER_5": "もう一度繰り返したいことがあります。変えることが一つある。",
         "TITLE": "省察のメモ"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
         "VIEW_PARSED": "解析された（編集不可能な）マークダウンとして表示する",
         "VIEW_SPLIT": "解析されたマークダウンと解析されていないマークダウンを分割表示する",
@@ -606,7 +598,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "Issueを選択して利用可能なトランジションを読み込む",
         "TRANSITION": "トランジション・ハンドリング"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "アクティビティ",
         "CURRENTLY_LOGGED": "現在記録されている時間：",
@@ -747,7 +738,6 @@
       "WEEK_TITLE": "週 {{nr}} （{{timeSpent}}）"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "APIアクセスキー",
         "HOST": "ホスト (例: https://redmine.org)",
@@ -768,8 +758,7 @@
         "MARK_AS_CHECKED": "更新をチェック済みとしてマーク",
         "PRIORITY": "優先順位",
         "STATUS": "ステータス"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "解任する",
@@ -900,8 +889,6 @@
         "TITLE": "Sync の設定"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "圧縮を有効にする（データ転送の高速化）",
         "L_ENABLE_ENCRYPTION": "エンドツーエンドの暗号化を有効にする（実験的） - 同期プロバイダがデータにアクセスできないようにする。",
         "L_ENABLE_SYNCING": "同期を有効にする",

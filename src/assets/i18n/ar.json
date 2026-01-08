@@ -92,7 +92,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "فئة من أجل تصفية المشكلات (اتركها خالية من أجل لا شيء)",
         "CALDAV_PASSWORD": "كلمة مرور ’كالداف’ الخاصة بك",
@@ -212,7 +211,6 @@
       "WORKED_FOR": "قمت بالفعل بالعمل ل"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "المضيف (على سبيل المثال: \nhttps://try.gitea.io)",
         "REPO_FULL_NAME": "اسم المستخدم أو اسم المؤسسة/المشروع",
@@ -235,11 +233,9 @@
         "STATUS": "الحالة",
         "SUMMARY": "الملخص",
         "WRITE_A_COMMENT": "أكتب تعليقا"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "اسم المستخدم (مثل تصفية التغييرات بنفسك)",
         "INVALID_TOKEN_MESSAGE": "ليست رمز GitHub صالحًا. يجب أن يبدأ بـ \"ghp_\".",
@@ -269,7 +265,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "تحتوي المدة المعبأة مسبقاً على بيانات غير مسجلة من الأيام الماضية.",
         "T_ALREADY_TRACKED": "تم تتبعها بالفعل",
@@ -494,7 +489,6 @@
       "DIALOG_TITLE": "تم اكتشاف قائمة تخفيض السعر الملصقة!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "خريطة الحرارة للنشاط",
         "AVG_BREAKS_PER_DAY": "متوسط فواصل في اليوم الواحد",
@@ -570,11 +564,9 @@
         "PLACEHOLDER_4": "أي مهمة أعطتك الطاقة؟ أي منها استنزفها؟",
         "PLACEHOLDER_5": "شيء واحد أكرره. هناك شيء واحد يجب تغييره.",
         "TITLE": "ملاحظة تأمل"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
         "VIEW_PARSED": "العرض في صورة ترميز معدل (غير قابل للتحرير)",
         "VIEW_SPLIT": "عرض العلامات المحررة وغير المحررة في طريقة عرض منقسمة",
@@ -606,7 +598,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "حدد المشكلة لتحميل الانتقالات المتاحة",
         "TRANSITION": "التعامل مع الانتقال"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "نشاط",
         "CURRENTLY_LOGGED": "الوقت المسجل حاليا:",
@@ -747,7 +738,6 @@
       "WEEK_TITLE": "الأسبوع {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "مفتاح الوصول إلى واجهة برمجة التطبيقات",
         "HOST": "المضيف \n(على سبيل المثال: https://redmine.org)",
@@ -768,8 +758,7 @@
         "MARK_AS_CHECKED": "وضع علامة تم التحقق من التحديثات",
         "PRIORITY": "الأولوية",
         "STATUS": "الحالة"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "أقال",
@@ -900,8 +889,6 @@
         "TITLE": "تكوين المزامنة"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "تمكين الضغط (نقل البيانات بشكل أسرع)",
         "L_ENABLE_ENCRYPTION": "تمكين التشفير من البداية إلى النهاية (تجريبي) - اجعل بياناتك غير قابلة للوصول إلى موفر المزامنة الخاص بك",
         "L_ENABLE_SYNCING": "تمكين المزامنة",

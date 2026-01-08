@@ -92,7 +92,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "دسته ای برای فیلتر کردن مسائل برای (خالی گذاشتن برای هیچ کس)",
         "CALDAV_PASSWORD": "رمز ورود CalDav شما",
@@ -212,7 +211,6 @@
       "WORKED_FOR": "شما کار کردید به مدت"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "میزبان (به عنوان مثال: https://try.gitea.io)",
         "REPO_FULL_NAME": "نام کاربری یا نام سازمان/پروژه",
@@ -235,11 +233,9 @@
         "STATUS": "وضعیت",
         "SUMMARY": "خلاصه",
         "WRITE_A_COMMENT": "یک کامنت بنویسید"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "نام کاربری (مثلا برای فیلتر کردن تغییراتی که خودتان انجام دادید)",
         "INVALID_TOKEN_MESSAGE": "یک توکن GitHub معتبر نیست. باید با \"ghp_\" شروع شود.",
@@ -269,7 +265,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "مدت زمان از پیش پر شده حاوی داده های پیگیری نشده روزهای گذشته است.",
         "T_ALREADY_TRACKED": "قبلا پیگیری شده است",
@@ -494,7 +489,6 @@
       "DIALOG_TITLE": "لیست Markdown چسبانده شده شناسایی شد!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "نقشه حرارتی فعالیت",
         "AVG_BREAKS_PER_DAY": "Avg. breaks per day",
@@ -570,11 +564,9 @@
         "PLACEHOLDER_4": "کدام کار به شما انرژی می داد؟ کدام یک آن را تخلیه کرد؟",
         "PLACEHOLDER_5": "یک چیز را باید تکرار کنم. یک چیز برای تغییر.",
         "TITLE": "یادداشت تأمل"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
         "VIEW_PARSED": "مشاهده به عنوان علامت گذاری تجزیه شده (غیر قابل ویرایش).",
         "VIEW_SPLIT": "مشاهده نشانه گذاری تجزیه شده و تجزیه نشده در نمای تقسیم شده",
@@ -606,7 +598,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "برای بارگیری انتقال های موجود، مسئله را انتخاب کنید",
         "TRANSITION": "انتقال"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "فعالیت",
         "CURRENTLY_LOGGED": "زمان ثبت نام در حال حاضر:",
@@ -747,7 +738,6 @@
       "WEEK_TITLE": "هفته {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "کلید دسترسی به API",
         "HOST": "(مثال: https://redmine.org) هاست",
@@ -768,8 +758,7 @@
         "MARK_AS_CHECKED": "به‌روزرسانی‌ها را علامت‌گذاری کنید",
         "PRIORITY": "اولویت",
         "STATUS": "وضعیت"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "اخراج",
@@ -900,8 +889,6 @@
         "TITLE": "پیکربندی همگام سازی"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "فشرده سازی (انتقال سریعتر داده) را فعال کنید",
         "L_ENABLE_ENCRYPTION": "رمزگذاری سرتاسر (تجربی) را فعال کنید - داده‌های خود را برای ارائه‌دهنده همگام‌سازی خود غیرقابل دسترس کنید",
         "L_ENABLE_SYNCING": "همگام سازی را فعال کنید",

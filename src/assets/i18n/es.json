@@ -9,6 +9,7 @@
     "CONTEXT_MENU": {
       "CHANGE_BACKGROUND": "Cambiar fondo"
     },
+    "SKIP_SYNC_WAIT": "Omitir espera para sincronizar",
     "UPDATE_WEB_APP": "Nueva versión disponible. ¿Cargar nueva versión?"
   },
   "BL": {
@@ -97,7 +98,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "Categoría para filtrar incidencias (dejar vacío para ninguna)",
         "CALDAV_PASSWORD": "Tu contraseña de CalDav",
@@ -170,6 +170,7 @@
       "ADD_TIME_MINUTE": "Añadir 1 minuto",
       "B": {
         "BREAK_RUNNING": "El descanso está en curso",
+        "END_SESSION": "Terminar sesión",
         "PAUSE": "Pausa",
         "POMODORO_BREAK_RUNNING": "El descanso #{{cycleNr}} está en curso",
         "POMODORO_SESSION_RUNNING": "La sesión Pomodoro #{{cycleNr}} está en curso",
@@ -215,13 +216,13 @@
       "SHORT_BREAK_TITLE": "Descanso corto - Ciclo {{cycle}}",
       "SHOW_HIDE_NOTES_AND_ATTACHMENTS": "Mostrar/ocultar notas y adjuntos de la tarea",
       "SKIP_BREAK": "Saltar descanso",
+      "START_BREAK": "Iniciar descanso",
       "START_FOCUS_SESSION": "Iniciar sesión de enfoque",
       "START_NEXT_FOCUS_SESSION": "Iniciar la siguiente sesión de enfoque",
       "SWITCH_TASK": "Cambiar tarea",
       "WORKED_FOR": "Trabajaste durante"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "Host (p. ej.: https://try.gitea.io)",
         "REPO_FULL_NAME": "Nombre de usuario o nombre de la organización/proyecto",
@@ -244,11 +245,9 @@
         "STATUS": "Estado",
         "SUMMARY": "Resumen",
         "WRITE_A_COMMENT": "Escribir un comentario"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "Nombre de usuario (p. ej., para filtrar cambios hechos por ti mismo)",
         "INVALID_TOKEN_MESSAGE": "Token de GitHub no válido. Debe comenzar con \"ghp_\".",
@@ -278,7 +277,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "La duración prellenada contiene datos no rastreados de días anteriores.",
         "T_ALREADY_TRACKED": "Ya rastreado",
@@ -503,7 +501,6 @@
       "DIALOG_TITLE": "¡Lista de Markdown pegada detectada!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "Mapa de calor de actividad",
         "AVG_BREAKS_PER_DAY": "Promedio de pausas por día",
@@ -577,12 +574,27 @@
         "PLACEHOLDER_4": "¿Qué tarea te dio energía? ¿Cuál te la drenó?",
         "PLACEHOLDER_5": "Una cosa para repetir. Una cosa para cambiar.",
         "TITLE": "Nota de Reflexión"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Negrita",
+          "BULLET_LIST": "Lista con viñetas",
+          "CODE_BLOCK": "Bloque de código",
+          "HEADING_1": "Encabezado 1",
+          "HEADING_2": "Encabezado 2",
+          "HEADING_3": "Encabezado 3",
+          "INLINE_CODE": "Código en línea",
+          "INSERT_IMAGE": "Insertar imagen",
+          "INSERT_LINK": "Insertar enlace",
+          "INSERT_TABLE": "Insertar tabla",
+          "ITALIC": "Cursiva",
+          "NUMBERED_LIST": "Lista numerada",
+          "QUOTE": "Cotización",
+          "STRIKETHROUGH": "Tachado",
+          "TASK_LIST": "Lista de tareas"
+        },
         "VIEW_PARSED": "Ver como markdown analizado (no editable)",
         "VIEW_SPLIT": "Ver markdown analizado y sin analizar en vista dividida",
         "VIEW_TEXT_ONLY": "Ver como texto sin analizar"
@@ -613,7 +625,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "Selecciona incidencia para cargar transiciones disponibles",
         "TRANSITION": "Gestión de Transición"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "Actividad",
         "CURRENTLY_LOGGED": "Tiempo registrado actualmente: ",
@@ -760,7 +771,6 @@
       "WEEK_TITLE": "Semana {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "Clave de acceso a la API",
         "HOST": "Host (por ejemplo: https://redmine.org)",
@@ -781,8 +791,7 @@
         "MARK_AS_CHECKED": "Marcar actualizaciones como revisadas",
         "PRIORITY": "Prioridad",
         "STATUS": "Estado"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "Descartar",
@@ -913,8 +922,6 @@
         "TITLE": "Configurar Sincronización"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "Habilitar Compresión (transferencia de datos más rápida)",
         "L_ENABLE_ENCRYPTION": "Habilitar cifrado de extremo a extremo (experimental) – Haz que tus datos sean inaccesibles para tu proveedor de sincronización",
         "L_ENABLE_SYNCING": "Habilitar Sincronización",
@@ -928,11 +935,16 @@
         "TITLE": "Sincronización",
         "WEB_DAV": {
           "CORS_INFO": "<strong>Hacerlo funcionar en el navegador:</strong> Para hacer que esto funcione en el navegador necesitas poner en la lista blanca a Super Productivity para solicitudes CORS en tu servidor webdav. ¡Esto puede tener implicaciones negativas de seguridad! Para nextcloud por favor <a href='https://github.com/nextcloud/server/issues/3131'>consulta este hilo para más información</a>. Un enfoque para hacer que esto funcione en el móvil es poner en la lista blanca \"https://app.super-productivity.com\" a través de la app nextcloud <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a>. ¡Úsalo bajo tu propio riesgo!</p>",
+          "D_SYNC_FOLDER_PATH": "Ruta relativa a la raíz del servidor WebDAV donde se almacenarán los archivos de sincronización (por ejemplo, '\\/super-productivity' o '\\/'). Esta NO es la ruta interna de su servidor.",
           "INFO": "Las implementaciones de WebDAV difieren mucho desafortunadamente. Se sabe que Super Productivity funciona bien con Nextcloud, <strong>pero podría no funcionar con tu proveedor</strong>.",
           "L_BASE_URL": "Url Base",
           "L_PASSWORD": "Contraseña",
           "L_SYNC_FOLDER_PATH": "Ruta de la Carpeta de Sincronización",
-          "L_USER_NAME": "Nombre de usuario"
+          "L_TEST_CONNECTION": "Probar conexión",
+          "L_USER_NAME": "Nombre de usuario",
+          "S_FILL_ALL_FIELDS": "Por favor, complete primero todos los campos de WebDAV",
+          "S_TEST_FAIL": "Prueba de conexión fallida: {{error}} - URL objetivo: {{url}}",
+          "S_TEST_SUCCESS": "¡Prueba de conexión exitosa! URL objetivo: {{url}}"
         }
       },
       "S": {
@@ -941,6 +953,9 @@
         "BTN_FORCE_OVERWRITE": "Forzar Sobrescritura",
         "ERROR_CORS": "Error de Sincronización WebDAV: Solicitud de red fallida.\n\nEsto podría ser un problema de CORS. Por favor asegúrate de:\n• Tu servidor WebDAV permite solicitudes de Origen Cruzado\n• La URL del servidor es correcta y accesible\n• Tienes una conexión a internet funcional",
         "ERROR_DATA_IS_CURRENTLY_WRITTEN": "Los datos remotos se están escribiendo actualmente",
+        "ERROR_PERMISSION": "Acceso al archivo denegado. Por favor, verifique los permisos del sistema de archivos.",
+        "ERROR_PERMISSION_FLATPAK": "Acceso al archivo denegado. Conceda permiso al sistema de archivos mediante Flatseal o use una ruta dentro de ~\\/var\\/app\\/",
+        "ERROR_PERMISSION_SNAP": "Acceso al archivo denegado. Ejecute 'snap connect super-productivity:home' o use una ruta dentro de ~\\/snap\\/super-productivity\\/common\\/",
         "INCOMPLETE_CFG": "La autenticación para sincronización falló. ¡Por favor comprueba tu Configuración!",
         "SUCCESS_DOWNLOAD": "Datos sincronizados desde remoto",
         "SUCCESS_VIA_BUTTON": "Datos sincronizados exitosamente",
@@ -948,10 +963,31 @@
       },
       "SAFETY_BACKUP": {
         "BTN_CLEAR_ALL": "Limpiar todo",
+        "BTN_CREATE_MANUAL": "Crear copia de seguridad manual",
         "BTN_DELETE": "Eliminar",
         "BTN_REFRESH": "Actualizar",
         "BTN_RESTORE": "Restaurar",
-        "LOADING": "Cargando..."
+        "CLEAR_FAILED": "Error al borrar copias de seguridad",
+        "CLEARED_SUCCESS": "Todas las copias de seguridad se borraron con éxito",
+        "CREATE_FAILED": "Error al crear copia de seguridad",
+        "CREATED_SUCCESS": "Copia de seguridad manual creada con éxito",
+        "DELETE_FAILED": "Error al eliminar copia de seguridad",
+        "DELETED_SUCCESS": "Copia de seguridad eliminada con éxito",
+        "DESCRIPTION": "Las copias de seguridad automáticas se crean antes de descargar datos desde remoto durante las operaciones de sincronización. Las copias de seguridad se organizan en 4 ranuras inteligentes: 2 más recientes, 1 primera de hoy y 1 primera de un día antes de hoy.",
+        "LAST_CHANGE_PREFIX": "Último cambio:",
+        "LOADING": "Cargando...",
+        "NO_BACKUPS": "No hay copias de seguridad de seguridad disponibles aún. Las copias de seguridad se crean automáticamente antes de las operaciones de sincronización.",
+        "REASON_BEFORE_UPDATE": "Copia de seguridad automática antes de la sincronización",
+        "REASON_MANUAL": "Copia de seguridad manual",
+        "RESTORED_SUCCESS": "Copia de seguridad restaurada con éxito",
+        "SLOT_BEFORE_TODAY": "Primera copia de seguridad antes de hoy",
+        "SLOT_RECENT": "Copia de seguridad reciente",
+        "SLOT_TODAY": "Primera copia de seguridad de hoy",
+        "TOOLTIP_CLEAR_ALL": "Eliminar todas las copias de seguridad de seguridad",
+        "TOOLTIP_CREATE_MANUAL": "Crear una copia de seguridad manual de todos tus datos",
+        "TOOLTIP_DELETE": "Eliminar esta copia de seguridad",
+        "TOOLTIP_REFRESH": "Actualizar la lista de copias de seguridad",
+        "TOOLTIP_RESTORE": "Restaurar esta copia de seguridad (reemplazará todos los datos actuales)"
       }
     },
     "TAG": {
@@ -1148,6 +1184,7 @@
         "REMINDER_ADDED": "Programada <strong>{{title}}</strong> el <strong>{{date}}</strong>",
         "REMINDER_DELETED": "Recordatorio eliminado para tarea",
         "REMINDER_UPDATED": "Recordatorio actualizado para tarea \"{{title}}\"",
+        "TASK_ALREADY_EXISTS": "La tarea <strong>{{title}}<\\/strong> ya existe",
         "TASK_CREATED": "Tarea creada \"{{taskTitle}}\""
       },
       "SELECT_OR_CREATE": "Seleccionar o crear tarea",
@@ -1475,7 +1512,12 @@
     },
     "FOCUS_MODE": {
       "HELP": "El modo Focus abre una pantalla sin distracciones para ayudarte a concentrarte en la tarea actual.",
+      "L_IS_PLAY_TICK": "Reproducir sonido de tic durante las sesiones de enfoque",
+      "L_MANUAL_BREAK_START": "Iniciar manualmente los descansos (Pomodoro)",
+      "L_PAUSE_TRACKING_DURING_BREAK": "Pausar el seguimiento de tareas durante los descansos",
       "L_SKIP_PREPARATION_SCREEN": "Saltar pantalla de preparación (estiramiento, etc.)",
+      "L_START_IN_BACKGROUND": "Iniciar sesiones de enfoque solo con banner (sin superposición)",
+      "L_SYNC_SESSION_WITH_TRACKING": "Sincronizar sesión de enfoque con seguimiento de tiempo",
       "TITLE": "Modo de concentración"
     },
     "IDLE": {
@@ -1551,6 +1593,7 @@
       "EN": "Inglés",
       "ES": "Español",
       "FA": "فارسی",
+      "FI": "Suomi",
       "FR": "Francés",
       "HR": "Croata",
       "ID": "Indonesio",
@@ -1565,6 +1608,7 @@
       "PT_BR": "Portugués (Brasil)",
       "RU": "Ruso",
       "SK": "Eslovaco",
+      "SV": "Svenska",
       "TIME_LOCALE": "Configuración regional de formato de fecha y hora",
       "TIME_LOCALE_AUTO": "Predeterminado del sistema",
       "TIME_LOCALE_DE_DE": "Alemán: 24 horas, DD.MM.AAAA",
@@ -1675,6 +1719,17 @@
       "TITLE": "Recordatorio de Descanso"
     },
     "TIME_TRACKING": {
+      "HELP": "El recordatorio de seguimiento de tiempo es un banner que aparece en caso de que olvides iniciar el seguimiento de tiempo.",
+      "L_DEFAULT_ESTIMATE": "Estimación de tiempo predeterminada para nuevas tareas",
+      "L_DEFAULT_ESTIMATE_SUB_TASKS": "Estimación de tiempo predeterminada para nuevas subtareas",
+      "L_IS_AUTO_START_NEXT_TASK": "Comenzar a rastrear la siguiente tarea al marcar la actual como completada",
+      "L_IS_NOTIFY_WHEN_TIME_ESTIMATE_EXCEEDED": "Notificar cuando se exceda la estimación de tiempo",
+      "L_IS_TRACKING_REMINDER_ENABLED": "Recordatorio de seguimiento activado",
+      "L_IS_TRACKING_REMINDER_FOCUS_WINDOW": "Enfocar la ventana de la aplicación cuando el recordatorio esté activo (solo escritorio)",
+      "L_IS_TRACKING_REMINDER_NOTIFY": "Notificar cuando se muestre el recordatorio de seguimiento de tiempo",
+      "L_IS_TRACKING_REMINDER_SHOW_ON_MOBILE": "Mostrar recordatorio de seguimiento en la aplicación móvil",
+      "L_TRACKING_INTERVAL": "Intervalo de seguimiento de tiempo (EXPERIMENTAL)",
+      "L_TRACKING_REMINDER_MIN_TIME": "Tiempo de espera antes de mostrar el banner de recordatorio de seguimiento",
       "TITLE": "Seguimiento del tiempo"
     }
   },
@@ -1764,6 +1819,7 @@
       "SYNC": "Tutorial: Configurar Sync"
     },
     "METRICS": "Métricas",
+    "NO_TASKS_TO_TRACK": "Agrega una tarea primero para comenzar a rastrear el tiempo",
     "PLANNER": "Planificador",
     "PROJECT_MENU": "Menú de Proyecto",
     "PROJECTS": "Proyectos",

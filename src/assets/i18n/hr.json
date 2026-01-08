@@ -78,7 +78,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "Kategorija za izdvajanje problema (ostavi prazno za nikoju)",
         "CALDAV_PASSWORD": "Tvoja CalDav lozinka",
@@ -166,7 +165,6 @@
       "WORKED_FOR": "Radio/la si"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "Host računalo (npr.: https://try.gitea.io)",
         "REPO_FULL_NAME": "Korisničko ime ili ime organizacije/projekta",
@@ -189,11 +187,9 @@
         "STATUS": "Stanje",
         "SUMMARY": "Sažetak",
         "WRITE_A_COMMENT": "Upiši komentar"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "Korisničko ime (npr. za izdvajanje vlastitih promjena)",
         "INVALID_TOKEN_MESSAGE": "Pa yon siy GitHub valab. Li dwe kòmanse ak \"ghp_\".",
@@ -223,7 +219,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "Unaprijed zapisano trajanje sadrži nepraćene podatke od prošlih dana.",
         "T_ALREADY_TRACKED": "Već je pračeno",
@@ -443,7 +438,6 @@
       "DIALOG_TITLE": "Lis Sot pase yo Makdown Lis detekte!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "AVG_BREAKS_PER_DAY": "Prosječni broj pauza na dan",
         "AVG_TASKS_PER_DAY_WORKED": "Prosječni broj zadataka po radnom danu",
@@ -464,11 +458,9 @@
       "EVAL_FORM": {
         "NOTES": "Bilješke za sutra",
         "PRODUCTIVITY": "Stupanj produktivnosti tvog rada?"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
         "VIEW_PARSED": "Prikaži kao obrađeni (nepromjenjiv) markdown",
         "VIEW_SPLIT": "Prikaži obrađeni i neobrađeni markdown u podijeljenom prikazu",
@@ -500,7 +492,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "Odaberi problem za učitavanje dostupnih tranzicija",
         "TRANSITION": "Baratanje tranzicijama"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "Aktivnost",
         "CURRENTLY_LOGGED": "Trenutačno zapisano vrijeme: ",
@@ -622,7 +613,6 @@
       "WEEK_TITLE": "{{nr}}. tjedan ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "Ključ za pritup API-u",
         "HOST": "Host računalo (npr.: https://redmine.org)",
@@ -643,8 +633,7 @@
         "MARK_AS_CHECKED": "Označi aktualiziranja kao provjerena",
         "PRIORITY": "Prioritet",
         "STATUS": "Stanje"
-      },
-      "S": {}
+      }
     },
     "REMINDER": {
       "COUNTDOWN_BANNER": {
@@ -751,8 +740,6 @@
         "TITLE": "Configure Sync"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "Aktiviraj komprimiranje (brži prijenos podataka)",
         "L_ENABLE_ENCRYPTION": "Pèmèt chifreman fen-a-fen (eksperimantal) - Fè done ou yo pa aksesib pou founisè senkronizasyon ou a",
         "L_ENABLE_SYNCING": "Aktiviraj sinkronizaciju",

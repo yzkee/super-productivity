@@ -9,6 +9,7 @@
     "CONTEXT_MENU": {
       "CHANGE_BACKGROUND": "Changer le fond"
     },
+    "SKIP_SYNC_WAIT": "Ignorer l'attente de synchronisation",
     "UPDATE_WEB_APP": "Une nouvelle version est disponible. Charger la nouvelle version ?"
   },
   "BL": {
@@ -97,7 +98,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "Catégorie pour laquelle filtrer les problèmes (laissez vide pour aucun)",
         "CALDAV_PASSWORD": "Votre mot de passe CalDav",
@@ -223,7 +223,6 @@
       "WORKED_FOR": "Vous avez travaillé pendant"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "Hôte (e.g.: https://try.gitea.io)",
         "REPO_FULL_NAME": "Nom d'utilisateur ou nom de l'organisation/projet",
@@ -246,11 +245,9 @@
         "STATUS": "Statut",
         "SUMMARY": "Résumé",
         "WRITE_A_COMMENT": "Écrire un commentaire"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "Nom d'utilisateur (e.g. pour filtrer vos propres modifications)",
         "INVALID_TOKEN_MESSAGE": "Le jeton GitHub n'est pas valide. Il doit commencer par \"ghp_\".",
@@ -280,7 +277,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "La durée préremplie contient des données non suivies des jours passés.",
         "T_ALREADY_TRACKED": "Déjà suivi",
@@ -505,7 +501,6 @@
       "DIALOG_TITLE": "Liste Markdown collée détectée !"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "Carte thermique d'activité",
         "AVG_BREAKS_PER_DAY": "Moy. pauses par jour",
@@ -581,12 +576,27 @@
         "PLACEHOLDER_4": "Quelle tâche vous a donné de l'énergie ? Laquelle l'a épuisée ?",
         "PLACEHOLDER_5": "Une chose à répéter. Une chose à changer.",
         "TITLE": "Note de réflexion"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Gras",
+          "BULLET_LIST": "Liste à puces",
+          "CODE_BLOCK": "Bloc de code",
+          "HEADING_1": "Titre 1",
+          "HEADING_2": "Titre 2",
+          "HEADING_3": "Titre 3",
+          "INLINE_CODE": "Code en ligne",
+          "INSERT_IMAGE": "Insérer une image",
+          "INSERT_LINK": "Insérer un lien",
+          "INSERT_TABLE": "Insérer un tableau",
+          "ITALIC": "Italique",
+          "NUMBERED_LIST": "Liste numérotée",
+          "QUOTE": "Citation",
+          "STRIKETHROUGH": "Barre",
+          "TASK_LIST": "Liste de tâches"
+        },
         "VIEW_PARSED": "Afficher comme Markdown parsé (non modifiable)",
         "VIEW_SPLIT": "Afficher les fichiers Markdown parsés et non parsés dans la vue fractionnée",
         "VIEW_TEXT_ONLY": "Afficher comme texte non parsé"
@@ -617,7 +627,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "Sélectionnez un ticket pour charger les transitions disponibles",
         "TRANSITION": "Gestion de transition"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "activité",
         "CURRENTLY_LOGGED": "Heure actuellement connectée:",
@@ -764,7 +773,6 @@
       "WEEK_TITLE": "Semaine {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "clé d'accès à l'API",
         "HOST": "Hôte (ex : https://redmine.org)",
@@ -785,8 +793,7 @@
         "MARK_AS_CHECKED": "Marquer les mises à jour comme cochées",
         "PRIORITY": "Priorité",
         "STATUS": "Statut"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "Rejeter",
@@ -917,8 +924,6 @@
         "TITLE": "Configurer la synchronisation"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "Activer la compression (transfert de données plus rapide)",
         "L_ENABLE_ENCRYPTION": "Activer le chiffrement de bout en bout (expérimental) - Rend vos données inacessibles à votre fournisseur de synchronisation",
         "L_ENABLE_SYNCING": "Activer la synchronisation",
@@ -1181,6 +1186,7 @@
         "REMINDER_ADDED": "Tâche planifiée \"{{title}}\"",
         "REMINDER_DELETED": "Rappel supprimé pour la tâche",
         "REMINDER_UPDATED": "Rappel mis à jour pour la tâche \"{{title}}\"",
+        "TASK_ALREADY_EXISTS": "La tâche <strong>{{title}}<\\/strong> existe déjà",
         "TASK_CREATED": "Tâche créée \"{{taskTitle}}\""
       },
       "SELECT_OR_CREATE": "Sélectionner ou créer une tâche",
@@ -1589,6 +1595,7 @@
       "EN": "Anglais",
       "ES": "Espagnol",
       "FA": "فارسی",
+      "FI": "Finnois",
       "FR": "Français",
       "HR": "Hrvatski",
       "ID": "Indonésien",
@@ -1603,6 +1610,7 @@
       "PT_BR": "Portugais (Brésil)",
       "RU": "Russie",
       "SK": "Slovaque",
+      "SV": "Suédois",
       "TIME_LOCALE": "Format de l'heure locale",
       "TIME_LOCALE_AUTO": "Par défaut du système",
       "TIME_LOCALE_DE_DE": "Allemand - 24 heures",

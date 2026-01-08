@@ -98,7 +98,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "Category to filter issues for (leave empty for none)",
         "CALDAV_PASSWORD": "Your CalDav password",
@@ -224,7 +223,6 @@
       "WORKED_FOR": "You worked for"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "Host (e.g.: https://try.gitea.io)",
         "REPO_FULL_NAME": "Username or Organization name/project",
@@ -247,11 +245,9 @@
         "STATUS": "Status",
         "SUMMARY": "Summary",
         "WRITE_A_COMMENT": "Write a comment"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "Username (e.g. to filter out changes by yourself)",
         "INVALID_TOKEN_MESSAGE": "Not a valid GitHub token. It must start with \"ghp_\".",
@@ -281,7 +277,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "The prefilled duration contains untracked data from past days.",
         "T_ALREADY_TRACKED": "Already Tracked",
@@ -506,7 +501,6 @@
       "DIALOG_TITLE": "Pasted Markdown List detected!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "Activity Heatmap",
         "AVG_BREAKS_PER_DAY": "Avg. breaks per day",
@@ -582,11 +576,9 @@
         "PLACEHOLDER_4": "Which task gave you energy? Which drained it?",
         "PLACEHOLDER_5": "One thing to repeat. One thing to change.",
         "TITLE": "Reflection Note"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
         "TOOLBAR": {
           "BOLD": "Bold",
@@ -635,7 +627,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "Select issue to load available transitions",
         "TRANSITION": "Transition Handling"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "Activity",
         "CURRENTLY_LOGGED": "Currently logged time: ",
@@ -782,7 +773,6 @@
       "WEEK_TITLE": "Week {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "API access key",
         "HOST": "Host (e.g.: https://redmine.org)",
@@ -803,8 +793,7 @@
         "MARK_AS_CHECKED": "Mark updates as checked",
         "PRIORITY": "Priority",
         "STATUS": "Status"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "Dismiss",
@@ -935,8 +924,6 @@
         "TITLE": "Configure Sync"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "Enable Compression (faster data transfer)",
         "L_ENABLE_ENCRYPTION": "Enable end-to-end encryption (experimental) – Make your data inaccessible for your sync provider",
         "L_ENABLE_SYNCING": "Enable Syncing",

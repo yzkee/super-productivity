@@ -9,6 +9,7 @@
     "CONTEXT_MENU": {
       "CHANGE_BACKGROUND": "Zmeniť pozadie"
     },
+    "SKIP_SYNC_WAIT": "Preskočiť čakanie na synchronizáciu",
     "UPDATE_WEB_APP": "K dispozícii je nová verzia. Načítať novú verziu?"
   },
   "BL": {
@@ -34,6 +35,11 @@
     "SEARCH_LABEL": "Vyhľadať obrázky",
     "SEARCH_PLACEHOLDER": "napr., príroda, hory, abstrakt",
     "TITLE": "Vybrať obrázok pozadia z Unsplash"
+  },
+  "DONATE_PAGE": {
+    "BUTTON_TEXT": "Darovať cez GitHub sponzorov",
+    "INTRO_1": "Super Productivity je financovaný výlučne komunitou. Neexistuje žiadne sledovanie, žiadne reklamy a žiadne zhromažďovanie údajov — vaše úlohy zostávajú na vašom zariadení.",
+    "INTRO_2": "Ak si vážite tento prístup a chcete, aby projekt zostal zdravý a vyvíjal sa, dobrovoľný príspevok je veľmi ocenený."
   },
   "F": {
     "ATTACHMENT": {
@@ -92,7 +98,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "Kategória, pre ktorú chcete filtrovať problémy (nechajte prázdne pre žiadne)",
         "CALDAV_PASSWORD": "Vaše CalDav heslo",
@@ -165,8 +170,11 @@
       "ADD_TIME_MINUTE": "Pridať 1 minútu",
       "B": {
         "BREAK_RUNNING": "Prestávka prebieha",
+        "END_SESSION": "Ukončiť reláciu",
+        "PAUSE": "Pozastaviť",
         "POMODORO_BREAK_RUNNING": "Prestávka #{{cycleNr}} prebieha",
         "POMODORO_SESSION_RUNNING": "Pomodoro relácia #{{cycleNr}} prebieha",
+        "RESUME": "Pokračovať",
         "SESSION_RUNNING": "Relácia zamerania prebieha",
         "START": "Začať",
         "TO_FOCUS_OVERLAY": "Na prekrytie zamerania"
@@ -194,6 +202,7 @@
       "POMODORO": "Pomodoro",
       "POMODORO_HINT": "Štruktúrované sprinty s plánovanými prestávkami",
       "POMODORO_SESSION_COMPLETED": "Pomodoro relácia dokončená!",
+      "POMODORO_SETTINGS": "Nastavenia Pomodoro",
       "PREP_GET_MENTALLY_READY": "Pripravte sa psychicky na sústredenie a produktivitu",
       "PREP_SIT_UPRIGHT": "Sedieť (alebo stáť) vzpriamene",
       "PREP_STRETCH": "Vykonajte mierny strečing",
@@ -207,13 +216,13 @@
       "SHORT_BREAK_TITLE": "Krátka prestávka - cyklus {{cycle}}",
       "SHOW_HIDE_NOTES_AND_ATTACHMENTS": "Zobrazenie/skrytie poznámok k úlohám a príloh",
       "SKIP_BREAK": "Preskočiť prestávku",
+      "START_BREAK": "Začať prestávku",
       "START_FOCUS_SESSION": "Začiatok Focus Session",
       "START_NEXT_FOCUS_SESSION": "Začatie ďalšieho Focus Session",
       "SWITCH_TASK": "Prepnúť úlohu",
       "WORKED_FOR": "Pracovali ste pre"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "Hostiteľ (napr.: https://try.gitea.io)",
         "REPO_FULL_NAME": "Používateľské meno alebo názov organizácie/projektu",
@@ -236,11 +245,9 @@
         "STATUS": "Stav",
         "SUMMARY": "Zhrnutie",
         "WRITE_A_COMMENT": "Napíšte komentár"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "Používateľské meno (napr. na odfiltrovanie vlastných zmien)",
         "INVALID_TOKEN_MESSAGE": "Nie je platný token GitHub. Musí začínať na \"ghp_\".",
@@ -270,7 +277,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "Predvyplnené trvanie obsahuje nesledované údaje z minulých dní.",
         "T_ALREADY_TRACKED": "Už sledované",
@@ -495,7 +501,6 @@
       "DIALOG_TITLE": "Zistený vložený zoznam Markdown!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "Tepelná mapa aktivity",
         "AVG_BREAKS_PER_DAY": "Avg. breaks per day",
@@ -571,12 +576,27 @@
         "PLACEHOLDER_4": "Ktorá úloha vám dodala energiu? Ktorá ju vyčerpala?",
         "PLACEHOLDER_5": "Jedna vec na opakovanie. Jedna vec na zmenu.",
         "TITLE": "Poznámka reflexie"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Tučné",
+          "BULLET_LIST": "Odrážkový zoznam",
+          "CODE_BLOCK": "Blok kódu",
+          "HEADING_1": "Nadpis 1",
+          "HEADING_2": "Nadpis 2",
+          "HEADING_3": "Nadpis 3",
+          "INLINE_CODE": "Inline kód",
+          "INSERT_IMAGE": "Vložiť obrázok",
+          "INSERT_LINK": "Vložiť odkaz",
+          "INSERT_TABLE": "Vložiť tabuľku",
+          "ITALIC": "Kurzíva",
+          "NUMBERED_LIST": "Číslovaný zoznam",
+          "QUOTE": "Čítať",
+          "STRIKETHROUGH": "Prečiarknuté",
+          "TASK_LIST": "Zoznam úloh"
+        },
         "VIEW_PARSED": "Zobrazenie ako sparsovaný (neupraviteľný) markdown",
         "VIEW_SPLIT": "Zobrazenie rozparsovaných a nerozparsovaných markdown v rozdelenom zobrazení",
         "VIEW_TEXT_ONLY": "Zobrazenie ako nesparsovaný text"
@@ -607,7 +627,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "Výberom problému načítate dostupné prechody",
         "TRANSITION": "Manipulácia s prechodom"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "Aktivita",
         "CURRENTLY_LOGGED": "Aktuálne zaznamenaný čas: ",
@@ -688,7 +707,10 @@
     },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
-        "CANCEL": "Zrušiť"
+        "CANCEL": "Zrušiť",
+        "MSG": "Tento projekt je dosť veľký a môže trvať chvíľu, kým sa skopíruje. Chcete pokračovať?",
+        "OK": "Kopírovať aj tak",
+        "TITLE": "Kopírovať projekt?"
       },
       "D_CREATE": {
         "CREATE": "Vytvoriť projekt",
@@ -751,7 +773,6 @@
       "WEEK_TITLE": "Týždeň {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "Prístupový kľúč API",
         "HOST": "Hostiteľ (napr.: https://redmine.org)",
@@ -772,8 +793,7 @@
         "MARK_AS_CHECKED": "Označiť aktualizácie ako skontrolované",
         "PRIORITY": "Priorita",
         "STATUS": "Stav"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "Zrušiť",
@@ -904,8 +924,6 @@
         "TITLE": "Nastaviť synchronizáciu"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "Povoliť kompresie (rýchlejší prenos údajov)",
         "L_ENABLE_ENCRYPTION": "Povolenie koncového šifrovania (experimentálne) - znemožnite poskytovateľovi synchronizácie prístup k vašim údajom",
         "L_ENABLE_SYNCING": "Povoliť synchronizáciu",
@@ -919,11 +937,16 @@
         "TITLE": "Synchronizácia",
         "WEB_DAV": {
           "CORS_INFO": "<strong>Making it work on MOBILE and in the browser:</strong> To make this work for mobile or the browser you need to whitelist Super Productivity for CORS requests for your Nextcloud instance. This can have negative security implications! Please <a href='https://github.com/nextcloud/server/issues/3131'>refer to this thread for more information</a>. One approach to make this work on mobile is whitelisting \"https://app.super-productivity.com\" via the nextcloud app <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a>. Use at your own risk!</p>",
+          "D_SYNC_FOLDER_PATH": "Cesta relatívna k koreňu WebDAV servera, kde budú uložené synchronizačné súbory (napr. ' /super-productivity' alebo ' /'). Toto NIE je interná cesta vášho servera.",
           "INFO": "Implementácie WebDAV sa bohužiaľ veľmi líšia. Super Productivity je známy tým, že dobre funguje s Nextcloud, <strong>ale nemusí fungovať s vaším poskytovateľom</strong>.",
           "L_BASE_URL": "Základná URL adresa",
           "L_PASSWORD": "Heslo",
           "L_SYNC_FOLDER_PATH": "Cesta k priečinku synchronizácie",
-          "L_USER_NAME": "Používateľské meno"
+          "L_TEST_CONNECTION": "Otestovať pripojenie",
+          "L_USER_NAME": "Používateľské meno",
+          "S_FILL_ALL_FIELDS": "Najskôr vyplňte všetky polia WebDAV",
+          "S_TEST_FAIL": "Test pripojenia zlyhal: {{error}} - Cieľová URL: {{url}}",
+          "S_TEST_SUCCESS": "Test pripojenia úspešný! Cieľová URL: {{url}}"
         }
       },
       "S": {
@@ -932,6 +955,9 @@
         "BTN_FORCE_OVERWRITE": "Vynútiť prepísanie",
         "ERROR_CORS": "Chyba synchronizácie WebDAV: Sieťová požiadavka zlyhala.\n\nMôže to byť problém s CORS. Prosím, uistite sa:\n Vaše WebDAV server umožňuje požiadavky z rôznych zdrojov\n URL servera je správna a prístupná\n Máte funkčné internetové pripojenie",
         "ERROR_DATA_IS_CURRENTLY_WRITTEN": "Vzdialené dáta sa momentálne zapisujú",
+        "ERROR_PERMISSION": "Prístup k súboru zamietnutý. Skontrolujte, prosím, oprávnenia súborového systému.",
+        "ERROR_PERMISSION_FLATPAK": "Prístup k súboru zamietnutý. Udeľte oprávnenie k súborovému systému cez Flatseal alebo použite cestu v rámci ~\\/var\\/app\\/",
+        "ERROR_PERMISSION_SNAP": "Prístup k súboru zamietnutý. Spustite 'snap connect super-productivity:home' alebo použite cestu v rámci ~\\/snap\\/super-productivity\\/common\\/",
         "INCOMPLETE_CFG": "Overenie pre synchronizáciu zlyhalo. Prosím, skontrolujte svoju konfiguráciu!",
         "SUCCESS_DOWNLOAD": "Synchronizované dáta zo vzdialeného",
         "SUCCESS_VIA_BUTTON": "Údaje boli úspešne synchronizované",
@@ -1160,6 +1186,7 @@
         "REMINDER_ADDED": "Scheduled task \"{{title}}\"",
         "REMINDER_DELETED": "Deleted reminder for task",
         "REMINDER_UPDATED": "Updated reminder for task \"{{title}}\"",
+        "TASK_ALREADY_EXISTS": "Úloha <strong>{{title}}<\\/strong> už existuje",
         "TASK_CREATED": "Created task \"{{taskTitle}}\""
       },
       "SELECT_OR_CREATE": "Select or create task",
@@ -1454,7 +1481,19 @@
   "GCF": {
     "APP_FEATURES": {
       "BOARDS": "Tabule",
-      "SCHEDULE": "Harmonogram"
+      "DONATE_PAGE": "Stránka darovania",
+      "FOCUS_MODE": "Režim zamerania",
+      "HELP": "Povoľte alebo zakážte konkrétne funkcie aplikácie v celom používateľskom rozhraní.",
+      "ISSUES_PANEL": "Panel problémov",
+      "PLANNER": "Plánovač",
+      "PROJECT_NOTES": "Poznámky k projektu",
+      "SCHEDULE": "Harmonogram",
+      "SCHEDULE_DAY_PANEL": "Panel denného rozvrhu",
+      "SYNC_BUTTON": "Tlačidlo synchronizácie",
+      "TIME_TRACKING": "Časovač na sledovanie času",
+      "TITLE": "Funkcie aplikácie",
+      "USER_PROFILES": "Používateľské profily (experimentálne)",
+      "USER_PROFILES_HINT": "Umožňuje vytvárať a prepínať medzi rôznymi používateľskými profilmi, každý s vlastnými nastaveniami, úlohami a konfiguráciami synchronizácie. Tlačidlo správy profilu sa zobrazí v pravom hornom rohu po povolení. Poznámka: Zakázanie tejto funkcie skryje používateľské rozhranie, ale zachová údaje profilu (experimentálna funkcia, bez záruk. Uistite sa, že máte zálohu)."
     },
     "AUTO_BACKUPS": {
       "HELP": "Auto save all data to your app folder in order to have it ready in case something goes wrong.",
@@ -1475,7 +1514,12 @@
     },
     "FOCUS_MODE": {
       "HELP": "Režim sústredenia otvorí obrazovku bez rozptyľovania, aby vám pomohol sústrediť sa na aktuálnu úlohu.",
+      "L_IS_PLAY_TICK": "Prehrať zvuk tikotu počas zameraných sedení",
+      "L_MANUAL_BREAK_START": "Manuálne spustiť prestávky (Pomodoro)",
+      "L_PAUSE_TRACKING_DURING_BREAK": "Pozastaviť sledovanie úloh počas prestávok",
       "L_SKIP_PREPARATION_SCREEN": "Vynechanie prípravnej obrazovky (naťahovanie atď.)",
+      "L_START_IN_BACKGROUND": "Spustiť fokusové sedenia iba s bannerom (bez prekrytia)",
+      "L_SYNC_SESSION_WITH_TRACKING": "Synchronizovať fokusové sedenie so sledovaním času",
       "TITLE": "Režim zaostrenia"
     },
     "IDLE": {
@@ -1551,6 +1595,7 @@
       "EN": "Angličtina",
       "ES": "Español",
       "FA": "فارسی",
+      "FI": "Suomi",
       "FR": "Français",
       "HR": "Hrvatski",
       "ID": "Indonézsky",
@@ -1562,8 +1607,10 @@
       "NL": "Nederlands",
       "PL": "Poľský",
       "PT": "Português",
+      "PT_BR": "Português (Brazília)",
       "RU": "Ruský",
       "SK": "Slovenská",
+      "SV": "Svenska",
       "TIME_LOCALE": "Formát času podľa lokality",
       "TIME_LOCALE_AUTO": "Predvolené systémové",
       "TIME_LOCALE_DE_DE": "Nemecký - 24-hodinový",
@@ -1592,6 +1639,7 @@
       "DARK_MODE_LIGHT": "Svetlý",
       "DARK_MODE_SYSTEM": "Systém",
       "DEFAULT_PROJECT": "Predvolený projekt, ktorý sa použije pre úlohy, ak nie je zadaný žiadny",
+      "DEFAULT_START_PAGE": "Predvolená úvodná stránka",
       "FIRST_DAY_OF_WEEK": "Prvý deň v týždni",
       "HELP": "<p><strong>Not seeing Desktop Notifications?</strong> For windows you might want to check System > Notifications & actions and check if the required notifications have been enabled.</p>",
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Automatically add today tag to worked on tasks",
@@ -1607,6 +1655,8 @@
       "IS_TRAY_SHOW_CURRENT_COUNTDOWN": "Zobraziť aktuálny odpočet v systémovej lište / stavovom menu (iba desktop mac)",
       "IS_TRAY_SHOW_CURRENT_TASK": "Show current task in the tray / status menu (desktop mac/windows only)",
       "IS_TURN_OFF_MARKDOWN": "Turn off markdown parsing for task notes",
+      "IS_USE_CUSTOM_WINDOW_TITLE_BAR": "Použiť vlastný titulkový panel (len Windows/Linux)",
+      "IS_USE_CUSTOM_WINDOW_TITLE_BAR_HINT": "Vyžaduje reštart na prejavenie zmien",
       "START_OF_NEXT_DAY": "Čas začiatku nasledujúceho dňa",
       "START_OF_NEXT_DAY_HINT": "od kedy (v hodinách) chcete počítať, že začal ďalší deň. predvolená hodnota je polnoc, čo je 0.",
       "TASK_NOTES_TPL": "Task description template",
@@ -1624,6 +1674,7 @@
     "REMINDER": {
       "COUNTDOWN_DURATION": "Zobrazenie banneru X pred skutočnou pripomienkou",
       "DEFAULT_TASK_REMIND_OPTION": "Predvolená možnosť pripomenutia vybraná pri vytváraní úloh",
+      "DISABLE_REMINDERS": "Zakázať všetky pripomienky",
       "IS_COUNTDOWN_BANNER_ENABLED": "Zobrazenie bannera s odpočítavaním pred termínom pripomenutia",
       "TITLE": "Pripomienky"
     },
@@ -1684,6 +1735,9 @@
       "TITLE": "Sledovanie času"
     }
   },
+  "GLOBAL": {
+    "COPY_SUFFIX": " (kopírovať)"
+  },
   "GLOBAL_RELATIVE_TIME": {
     "FUTURE": {
       "A_DAY": "za deň",
@@ -1714,6 +1768,8 @@
   },
   "GLOBAL_SNACK": {
     "COPY_TO_CLIPPBOARD": "Copied to clipboard",
+    "DUPLICATE_PROJECT_ERROR": "Projekt sa nepodarilo duplikovať",
+    "DUPLICATE_PROJECT_SUCCESS": "Projekt bol úspešne duplikovaný",
     "FILE_DOWNLOADED": "{{fileName}} downloaded",
     "FILE_DOWNLOADED_BTN": "Open folder",
     "NAVIGATE_TO_TASK_ERR": "Nemohol sa sústrediť na úlohu. Vymazali ste ju?",
@@ -1749,6 +1805,7 @@
     "CREATE_TAG": "Vytvoriť štítok",
     "DELETE_PROJECT": "Odstrániť projekt",
     "DELETE_TAG": "Odstrániť štítok",
+    "DONATE": "Podporte nás",
     "DUPLICATE_PROJECT": "Duplikovať",
     "ENTER_FOCUS_MODE": "Vstúpiť do režimu zamerania",
     "GO_TO_TASK_LIST": "Prejsť do zoznamu úloh",
@@ -1764,6 +1821,7 @@
       "SYNC": "Ako na to: Konfigurácia synchronizácie"
     },
     "METRICS": "Metrika",
+    "NO_TASKS_TO_TRACK": "Najprv pridajte úlohu na začatie sledovania času",
     "PLANNER": "Plánovač",
     "PROJECT_MENU": "Ponuka projektu",
     "PROJECTS": "Projekty",
@@ -1802,6 +1860,7 @@
       "MSG": "Exit the application?",
       "OK": "Exit"
     },
+    "END_OF_DAYS_RITUALS_PLACEHOLDER": "Tento priestor môžete použiť na zapísanie vlastných rituálov na konci dňa, na ktoré chcete byť upozornení.",
     "ESTIMATE_TOTAL": "Total estimate:",
     "EVALUATE_DAY": "Vyhodnoťte",
     "EXPORT_TASK_LIST": "Export Task List",

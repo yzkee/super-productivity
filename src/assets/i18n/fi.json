@@ -9,6 +9,7 @@
     "CONTEXT_MENU": {
       "CHANGE_BACKGROUND": "Vaihda taustakuva"
     },
+    "SKIP_SYNC_WAIT": "Ohita synkronoinnin odotus",
     "UPDATE_WEB_APP": "Uusi versio saatavilla. Lataa uusi versio?"
   },
   "BL": {
@@ -97,7 +98,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "Kategoria, jolla suodatetaan tehtäviä (jätä tyhjäksi, jos ei mitään)",
         "CALDAV_PASSWORD": "CalDav-salasana",
@@ -223,7 +223,6 @@
       "WORKED_FOR": "Työskentelit"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "Isäntä (esim.: https://try.gitea.io)",
         "REPO_FULL_NAME": "Käyttäjänimi tai organisaation nimi/projekti",
@@ -246,11 +245,9 @@
         "STATUS": "Tila",
         "SUMMARY": "Yhteenveto",
         "WRITE_A_COMMENT": "Kirjoita kommentti"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "Käyttäjänimi (esim. suodattaaksesi omat muutokset pois)",
         "INVALID_TOKEN_MESSAGE": "Ei kelvollinen GitHub-tunnus. Sen täytyy alkaa \"ghp_\".",
@@ -280,7 +277,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "Esitäytetty kesto sisältää seuraamattomia tietoja aiemmilta päiviltä.",
         "T_ALREADY_TRACKED": "Jo seurattu",
@@ -505,7 +501,6 @@
       "DIALOG_TITLE": "Liitettiin Markdown-lista!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "Toiminnan lämpökartta",
         "AVG_BREAKS_PER_DAY": "Keskim. taukoja päivässä",
@@ -581,12 +576,27 @@
         "PLACEHOLDER_4": "Mikä tehtävä antoi sinulle energiaa? Mikä vei sitä?",
         "PLACEHOLDER_5": "Yksi asia toistettavaksi. Yksi asia muutettavaksi.",
         "TITLE": "Pohdintamuistiinpano"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Lihavoitu",
+          "BULLET_LIST": "Luettelomerkeillä varustettu luettelo",
+          "CODE_BLOCK": "Koodilohko",
+          "HEADING_1": "Otsikko 1",
+          "HEADING_2": "Otsikko 2",
+          "HEADING_3": "Otsikko 3",
+          "INLINE_CODE": "Rivillä oleva koodi",
+          "INSERT_IMAGE": "Lisää kuva",
+          "INSERT_LINK": "Lisää linkki",
+          "INSERT_TABLE": "Lisää taulukko",
+          "ITALIC": "Kursivoitu",
+          "NUMBERED_LIST": "Numeroitu luettelo",
+          "QUOTE": "Lainaus",
+          "STRIKETHROUGH": "Yliviivaus",
+          "TASK_LIST": "Tehtäväluettelo"
+        },
         "VIEW_PARSED": "Näytä jäsennettynä (ei muokattavissa olevana) markdownina",
         "VIEW_SPLIT": "Näytä jäsennetty ja jäsentämätön markdown jaettuna näkymässä",
         "VIEW_TEXT_ONLY": "Näytä jäsentämättömänä tekstinä"
@@ -617,7 +627,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "Valitse ongelma ladataksesi saatavilla olevat siirrot",
         "TRANSITION": "Siirtokäsittely"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "Toiminta",
         "CURRENTLY_LOGGED": "Tällä hetkellä kirjattu aika: ",
@@ -764,7 +773,6 @@
       "WEEK_TITLE": "Viikko {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "API-käyttöavain",
         "HOST": "Isäntä (esim.: https://redmine.org)",
@@ -785,8 +793,7 @@
         "MARK_AS_CHECKED": "Merkitse päivitykset tarkastetuiksi",
         "PRIORITY": "Prioriteetti",
         "STATUS": "Tila"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "Hylkää",
@@ -917,8 +924,6 @@
         "TITLE": "Määritä synkronointi"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "Ota pakkaus käyttöön (nopeampi tietonsiirto)",
         "L_ENABLE_ENCRYPTION": "Ota päätepisteiden välinen salaus käyttöön (kokeellinen) – Tee tiedoistasi käyttömättömät synkronointitarjoajallesi",
         "L_ENABLE_SYNCING": "Ota synkronointi käyttöön",
@@ -1181,6 +1186,7 @@
         "REMINDER_ADDED": "Aikataulutettu <strong>{{title}}</strong> klo <strong>{{date}}</strong>",
         "REMINDER_DELETED": "Poistettiin muistutus tehtävälle",
         "REMINDER_UPDATED": "Päivitettiin muistutus tehtävälle \"{{title}}\"",
+        "TASK_ALREADY_EXISTS": "Tehtävä <strong>{{title}}<\\/strong> on jo olemassa",
         "TASK_CREATED": "Luotiin tehtävä \"{{taskTitle}}\""
       },
       "SELECT_OR_CREATE": "Valitse tai luo tehtävä",
@@ -1589,6 +1595,7 @@
       "EN": "Englanti",
       "ES": "Espanja",
       "FA": "Farsi",
+      "FI": "Suomi",
       "FR": "Ranska",
       "HR": "Kroatia",
       "ID": "Indonesia",
@@ -1603,6 +1610,7 @@
       "PT_BR": "Portugali (Brasilia)",
       "RU": "Venäjä",
       "SK": "Slovakki",
+      "SV": "Ruotsi",
       "TIME_LOCALE": "Aikamuodon maa-asetus",
       "TIME_LOCALE_AUTO": "Järjestelmän oletus",
       "TIME_LOCALE_DE_DE": "Saksa - 24-tuntinen",

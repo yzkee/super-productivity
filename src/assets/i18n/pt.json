@@ -9,6 +9,7 @@
     "CONTEXT_MENU": {
       "CHANGE_BACKGROUND": "Mudar Fundo"
     },
+    "SKIP_SYNC_WAIT": "Pular espera pela sincronização",
     "UPDATE_WEB_APP": "Nova versão disponível. Carregar nova versão?"
   },
   "BL": {
@@ -34,6 +35,11 @@
     "SEARCH_LABEL": "Pesquisar imagens",
     "SEARCH_PLACEHOLDER": "ex., natureza, montanhas, abstrato",
     "TITLE": "Selecionar Imagem de Fundo do Unsplash"
+  },
+  "DONATE_PAGE": {
+    "BUTTON_TEXT": "Doar via GitHub Sponsors",
+    "INTRO_1": "O Super Productivity é financiado inteiramente pela comunidade. Não há rastreamento, anúncios, nem recolha de dados — as suas tarefas permanecem no seu dispositivo.",
+    "INTRO_2": "Se valoriza esta abordagem e quer manter o projeto saudável e em evolução, uma doação voluntária é muito apreciada."
   },
   "F": {
     "ATTACHMENT": {
@@ -92,7 +98,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "Categoria para a qual filtrar problemas (não deixe em branco para nenhum)",
         "CALDAV_PASSWORD": "Sua senha CalDav",
@@ -165,6 +170,8 @@
       "ADD_TIME_MINUTE": "Adicionar 1 minuto",
       "B": {
         "BREAK_RUNNING": "Pausa em andamento",
+        "END_SESSION": "Terminar sessão",
+        "PAUSE": "Pausar",
         "POMODORO_BREAK_RUNNING": "Pausa #{{cycleNr}} em andamento",
         "POMODORO_SESSION_RUNNING": "Sessão Pomodoro #{{cycleNr}} em andamento",
         "RESUME": "Currículo",
@@ -195,6 +202,7 @@
       "POMODORO": "Pomodoro",
       "POMODORO_HINT": "Sprints estruturados com pausas planejadas",
       "POMODORO_SESSION_COMPLETED": "Sessão Pomodoro Concluída!",
+      "POMODORO_SETTINGS": "Configurações do Pomodoro",
       "PREP_GET_MENTALLY_READY": "Prepare-se mentalmente para focar e ser produtivo",
       "PREP_SIT_UPRIGHT": "Corrija sua postura (sentado ou em pé)",
       "PREP_STRETCH": "Faça alguns suaves alongamentos ",
@@ -208,13 +216,13 @@
       "SHORT_BREAK_TITLE": "Pausa Curta - Ciclo {{cycle}}",
       "SHOW_HIDE_NOTES_AND_ATTACHMENTS": "Mostrar/ocultar notas e anexos da tarefa",
       "SKIP_BREAK": "Pular Pausa",
+      "START_BREAK": "Iniciar Pausa",
       "START_FOCUS_SESSION": "Iniciar Sessão de Foco",
       "START_NEXT_FOCUS_SESSION": "Iniciar próxima Sessão de Foco",
       "SWITCH_TASK": "Mudar tarefa",
       "WORKED_FOR": "Você trabalhou por"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "Endereço do servidor (ex: https://try.gitea.io)",
         "REPO_FULL_NAME": "Nome do usuário ou organização/projeto",
@@ -237,11 +245,9 @@
         "STATUS": "Estado",
         "SUMMARY": "Resumo",
         "WRITE_A_COMMENT": "Escreva um comentário"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "Nome de usuário (ex.: para filtrar as alterações sozinho)",
         "INVALID_TOKEN_MESSAGE": "Não é um token válido do GitHub. Ele deve começar com \"ghp_\".",
@@ -271,7 +277,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "A duração pré-preenchida contém dados não rastreados de dias anteriores.",
         "T_ALREADY_TRACKED": "Já rastreado",
@@ -496,7 +501,6 @@
       "DIALOG_TITLE": "Lista de Markdown colada detectada!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "Mapa de Calor de Atividade",
         "AVG_BREAKS_PER_DAY": "Intervalos médios por dia",
@@ -572,12 +576,27 @@
         "PLACEHOLDER_4": "Qual tarefa lhe deu energia? Qual a esgotou?",
         "PLACEHOLDER_5": "Uma coisa para repetir. Uma coisa para mudar.",
         "TITLE": "Nota de reflexão"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Negrito",
+          "BULLET_LIST": "Lista com marcadores",
+          "CODE_BLOCK": "Bloco de código",
+          "HEADING_1": "Cabeçalho 1",
+          "HEADING_2": "Cabeçalho 2",
+          "HEADING_3": "Cabeçalho 3",
+          "INLINE_CODE": "Código inline",
+          "INSERT_IMAGE": "Inserir imagem",
+          "INSERT_LINK": "Inserir link",
+          "INSERT_TABLE": "Inserir tabela",
+          "ITALIC": "Itálico",
+          "NUMBERED_LIST": "Lista numerada",
+          "QUOTE": "Citação",
+          "STRIKETHROUGH": "Rasurado",
+          "TASK_LIST": "Lista de Tarefas"
+        },
         "VIEW_PARSED": "Ver como marcação analisada (não editável)",
         "VIEW_SPLIT": "Ver markdown analisado e não analisado em visualização dividida",
         "VIEW_TEXT_ONLY": "Ver como texto não analisado"
@@ -608,7 +627,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "Selecione uma tarefa para carregar as transições disponíveis",
         "TRANSITION": "Ativar transição"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "atividade",
         "CURRENTLY_LOGGED": "Tempo atualmente registrado:",
@@ -689,7 +707,10 @@
     },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
-        "CANCEL": "Cancelar"
+        "CANCEL": "Cancelar",
+        "MSG": "Este projeto é bastante grande e pode demorar a ser duplicado. Deseja continuar?",
+        "OK": "Duplicar na mesma",
+        "TITLE": "Duplicar projeto?"
       },
       "D_CREATE": {
         "CREATE": "Criar Projeto",
@@ -752,7 +773,6 @@
       "WEEK_TITLE": "Semana {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "Chave de acesso API",
         "HOST": "Hospedar (e.g.: https://redmine.org)",
@@ -773,8 +793,7 @@
         "MARK_AS_CHECKED": "Marcar atualizações como checadas",
         "PRIORITY": "Prioridade",
         "STATUS": "Status"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "Dispensar",
@@ -905,8 +924,6 @@
         "TITLE": "Configurar Sincronização"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "Habilitar compressão de dados (envio mais rápido)",
         "L_ENABLE_ENCRYPTION": "Habilitar criptografia ponta-a-ponta (experimental) - Torna seus dados inelegíveis ao provedor sincronizado",
         "L_ENABLE_SYNCING": "Habilitar Sincronização",
@@ -920,11 +937,16 @@
         "TITLE": "Sincronizar",
         "WEB_DAV": {
           "CORS_INFO": "<strong>Experimental !!</strong> Para fazer isso funcionar, você precisa desabilitar ou limitar o CORS para sua instância Nextcloud, o que pode ter implicações de segurança negativas! Por favor, <a href='https://github.com/nextcloud/server/issues/3131'>consulte esta discussão</a> para obter mais informações. Use por sua conta e risco!",
+          "D_SYNC_FOLDER_PATH": "Caminho relativo à raiz do servidor WebDAV onde os ficheiros de sincronização serão armazenados (ex., ' /super-productivity' ou ' /'). Este NÃO é o caminho interno do diretório do seu servidor.",
           "INFO": "As implementações WebDAV diferem muito, infelizmente. Sabe-se que o Super Productivity funciona bem com o Nextcloud, <strong>mas pode não funcionar com o seu fornecedor</strong>.",
           "L_BASE_URL": "Url Base",
           "L_PASSWORD": "Senha",
           "L_SYNC_FOLDER_PATH": "Caminho da pasta de sincronização",
-          "L_USER_NAME": "Nome de usuário"
+          "L_TEST_CONNECTION": "Testar ligação",
+          "L_USER_NAME": "Nome de usuário",
+          "S_FILL_ALL_FIELDS": "Por favor, preencha primeiro todos os campos do WebDAV",
+          "S_TEST_FAIL": "Teste de ligação falhou: {{error}} - URL de destino: {{url}}",
+          "S_TEST_SUCCESS": "Teste de ligação bem-sucedido! URL de destino: {{url}}"
         }
       },
       "S": {
@@ -933,6 +955,9 @@
         "BTN_FORCE_OVERWRITE": "Forçar substituição",
         "ERROR_CORS": "Erro de Sincronização WebDAV: Falha na solicitação de rede.\n\nIsto pode ser um problema de CORS. Por favor, assegure-se de que:\n\u001a O seu servidor WebDAV permite pedidos Cross-Origin\n\u001a O URL do servidor está correto e acessível\n\u001a Você tem uma conexão de internet funcional",
         "ERROR_DATA_IS_CURRENTLY_WRITTEN": "Dados remotos estão sendo gravados no momento",
+        "ERROR_PERMISSION": "Acesso ao ficheiro negado. Por favor, verifique as permissões do seu sistema de ficheiros.",
+        "ERROR_PERMISSION_FLATPAK": "Acesso ao ficheiro negado. Conceda permissão ao sistema de ficheiros via Flatseal ou utilize um caminho dentro de ~\\/var\\/app\\/",
+        "ERROR_PERMISSION_SNAP": "Acesso ao ficheiro negado. Execute 'snap connect super-productivity:home' ou utilize um caminho dentro de ~\\/snap\\/super-productivity\\/common\\/",
         "INCOMPLETE_CFG": "A autenticação para sincronização falhou. Por favor, verifique o seu Config!",
         "SUCCESS_DOWNLOAD": "Dados sincronizados do controle remoto",
         "SUCCESS_VIA_BUTTON": "Dados sincronizados com sucesso",
@@ -1161,6 +1186,7 @@
         "REMINDER_ADDED": "Tarefa agendada \"{{title}}\"",
         "REMINDER_DELETED": "Lembrete excluído da tarefa",
         "REMINDER_UPDATED": "Lembrete atualizado para a tarefa \"{{title}}\"",
+        "TASK_ALREADY_EXISTS": "A tarefa <strong>{{title}}<\\/strong> já existe",
         "TASK_CREATED": "Tarefa criada \"{{taskTitle}}\""
       },
       "SELECT_OR_CREATE": "Selecione ou crie tarefa",
@@ -1455,7 +1481,19 @@
   "GCF": {
     "APP_FEATURES": {
       "BOARDS": "Placas",
-      "SCHEDULE": "Agendar"
+      "DONATE_PAGE": "Página de Doações",
+      "FOCUS_MODE": "Modo de Foco",
+      "HELP": "Ative ou desative funcionalidades específicas da aplicação em toda a interface.",
+      "ISSUES_PANEL": "Painel de Problemas",
+      "PLANNER": "Planeador",
+      "PROJECT_NOTES": "Notas do Projeto",
+      "SCHEDULE": "Agendar",
+      "SCHEDULE_DAY_PANEL": "Painel de Dia Agendado",
+      "SYNC_BUTTON": "Botão de Sincronização",
+      "TIME_TRACKING": "Cronómetro para Registo de Tempo",
+      "TITLE": "Funcionalidades da Aplicação",
+      "USER_PROFILES": "Perfis de utilizador (Experimental)",
+      "USER_PROFILES_HINT": "Permite criar e alternar entre diferentes perfis de utilizador, cada um com definições, tarefas e configurações de sincronização separadas. O botão de gestão de perfis aparecerá no canto superior direito quando ativado. Nota: Desativar esta funcionalidade ocultará a interface, mas preservará os dados do perfil (Funcionalidade experimental, sem garantias. Certifique-se de ter um backup)."
     },
     "AUTO_BACKUPS": {
       "HELP": "Salve automaticamente todos os dados na pasta do aplicativo para prepará-los, caso algo dê errado.",
@@ -1476,7 +1514,12 @@
     },
     "FOCUS_MODE": {
       "HELP": "O Modo Foco abre uma tela sem distrações para ajudar você a se concentrar na sua tarefa atual.",
+      "L_IS_PLAY_TICK": "Reproduzir som de tique-taque durante sessões de foco",
+      "L_MANUAL_BREAK_START": "Iniciar pausas manualmente (Pomodoro)",
+      "L_PAUSE_TRACKING_DURING_BREAK": "Pausar o registo de tarefas durante as pausas",
       "L_SKIP_PREPARATION_SCREEN": "Pular tela de preparação (alongamento etc.)",
+      "L_START_IN_BACKGROUND": "Iniciar sessões de foco apenas com banner (sem sobreposição)",
+      "L_SYNC_SESSION_WITH_TRACKING": "Sincronizar sessão de foco com registo de tempo",
       "TITLE": "Modo de Foco"
     },
     "IDLE": {
@@ -1552,6 +1595,7 @@
       "EN": "Inglês",
       "ES": "Espanhol",
       "FA": "فارسی",
+      "FI": "Finlândia",
       "FR": "francês",
       "HR": "Hungria",
       "ID": "Indonésio",
@@ -1563,8 +1607,10 @@
       "NL": "Países Baixos",
       "PL": "Polaco",
       "PT": "Português",
+      "PT_BR": "Português (Brasil)",
       "RU": "Russo",
       "SK": "Eslovaco",
+      "SV": "Sueco",
       "TIME_LOCALE": "Local de formato de hora",
       "TIME_LOCALE_AUTO": "Padrão do sistema",
       "TIME_LOCALE_DE_DE": "Alemão - 24 horas",
@@ -1593,6 +1639,7 @@
       "DARK_MODE_LIGHT": "Luz",
       "DARK_MODE_SYSTEM": "Sistema",
       "DEFAULT_PROJECT": "Projeto padrão a ser usado para tarefas se nenhum for especificado",
+      "DEFAULT_START_PAGE": "Página inicial padrão",
       "FIRST_DAY_OF_WEEK": "Primeiro dia da semana",
       "HELP": "<p><strong>Não está vendo as notificações da área de trabalho?</strong> Para janelas, convém verificar Sistema> Notificações e ações, e verificar se as notificações necessárias foram ativadas.</p>",
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Adicionar automaticamente a tag hoje às tarefas trabalhadas",
@@ -1608,6 +1655,8 @@
       "IS_TRAY_SHOW_CURRENT_COUNTDOWN": "Mostrar contagem regressiva atual na bandeja / menu de status (apenas desktop mac)",
       "IS_TRAY_SHOW_CURRENT_TASK": "Mostra a tarefa atual na bandeja / menu de status (somente desktop)",
       "IS_TURN_OFF_MARKDOWN": "Desativar a análise de markdown para anotações",
+      "IS_USE_CUSTOM_WINDOW_TITLE_BAR": "Usar barra de título personalizada (apenas Windows/Linux)",
+      "IS_USE_CUSTOM_WINDOW_TITLE_BAR_HINT": "Requer reinício para ter efeito",
       "START_OF_NEXT_DAY": "Hora de início do dia seguinte",
       "START_OF_NEXT_DAY_HINT": "a partir de quando (em horas) você deseja contar o dia seguinte começou. o padrão é meia-noite, que é 0.",
       "TASK_NOTES_TPL": "Modelo de descrição de tarefa",
@@ -1625,6 +1674,7 @@
     "REMINDER": {
       "COUNTDOWN_DURATION": "Mostrar o banner X antes do lembrete real",
       "DEFAULT_TASK_REMIND_OPTION": "Opção padrão de lembrete selecionada ao criar tarefas",
+      "DISABLE_REMINDERS": "Desativar todos os lembretes",
       "IS_COUNTDOWN_BANNER_ENABLED": "Mostrar uma faixa de contagem decrescente antes da data de vencimento dos lembretes",
       "TITLE": "Lembretes"
     },
@@ -1685,6 +1735,9 @@
       "TITLE": "Controlo de tempo"
     }
   },
+  "GLOBAL": {
+    "COPY_SUFFIX": " (cópia)"
+  },
   "GLOBAL_RELATIVE_TIME": {
     "FUTURE": {
       "A_DAY": "em um dia",
@@ -1715,6 +1768,8 @@
   },
   "GLOBAL_SNACK": {
     "COPY_TO_CLIPPBOARD": "Copiado para a área de transferência",
+    "DUPLICATE_PROJECT_ERROR": "Não foi possível duplicar o projeto",
+    "DUPLICATE_PROJECT_SUCCESS": "Projeto duplicado com sucesso",
     "FILE_DOWNLOADED": "{{fileName}} baixado",
     "FILE_DOWNLOADED_BTN": "Pasta aberta",
     "NAVIGATE_TO_TASK_ERR": "Não foi possível focar a tarefa. Apagou-a?",
@@ -1750,6 +1805,7 @@
     "CREATE_TAG": "Criar tag",
     "DELETE_PROJECT": "Eliminar projeto",
     "DELETE_TAG": "Excluir tag",
+    "DONATE": "Apoie-nos",
     "DUPLICATE_PROJECT": "Duplicar",
     "ENTER_FOCUS_MODE": "Entrar no Modo Foco",
     "GO_TO_TASK_LIST": "Ir para a lista de tarefas",
@@ -1765,6 +1821,7 @@
       "SYNC": "Como fazer: Configurar a sincronização"
     },
     "METRICS": "Métricas",
+    "NO_TASKS_TO_TRACK": "Adicione uma tarefa primeiro para começar a rastrear o tempo",
     "PLANNER": "Planeador",
     "PROJECT_MENU": "Menu Projeto",
     "PROJECTS": "Projetos",
@@ -1803,6 +1860,7 @@
       "MSG": "Sair da aplicação?",
       "OK": "Sair"
     },
+    "END_OF_DAYS_RITUALS_PLACEHOLDER": "Pode usar este espaço para escrever os seus próprios rituais de fim de dia, dos quais quer ser lembrado.",
     "ESTIMATE_TOTAL": "Estimativa total:",
     "EVALUATE_DAY": "Avaliar",
     "EXPORT_TASK_LIST": "Exportar lista de tarefas",

@@ -9,6 +9,7 @@
     "CONTEXT_MENU": {
       "CHANGE_BACKGROUND": "Endre bakgrunn"
     },
+    "SKIP_SYNC_WAIT": "Hopp over venting på synkronisering",
     "UPDATE_WEB_APP": "Ny versjon tilgjengelig. Last inn ny versjon?"
   },
   "BL": {
@@ -97,7 +98,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "Kategori å filtrere saker etter (la stå tom for ingen)",
         "CALDAV_PASSWORD": "CalDav-passordet ditt",
@@ -223,7 +223,6 @@
       "WORKED_FOR": "Du jobbet for"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "Vert (f.eks.: https://try.gitea.io)",
         "REPO_FULL_NAME": "Brukernavn eller organisasjonsnavn/prosjekt",
@@ -246,11 +245,9 @@
         "STATUS": "Status",
         "SUMMARY": "Sammendrag",
         "WRITE_A_COMMENT": "Skriv en kommentar"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "Brukernavn (f.eks. for å filtrere ut endringer selv)",
         "INVALID_TOKEN_MESSAGE": "Ikke et gyldig GitHub-token. Det må begynne med \"ghp_\".",
@@ -280,7 +277,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "Den forhåndsutfylte varigheten inneholder ikke-sporede data fra de siste dagene.",
         "T_ALREADY_TRACKED": "Allerede sporet",
@@ -505,7 +501,6 @@
       "DIALOG_TITLE": "Innlimt Markdown-liste oppdaget!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "Aktivitetsvarmekart",
         "AVG_BREAKS_PER_DAY": "Gj.sn. pauser per dag",
@@ -581,12 +576,27 @@
         "PLACEHOLDER_4": "Hvilken oppgave ga deg energi? Hvilken tappet den?",
         "PLACEHOLDER_5": "En ting å gjenta. En ting å endre.",
         "TITLE": "Refleksjonsnotat"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Fet",
+          "BULLET_LIST": "Punktliste",
+          "CODE_BLOCK": "Kodeblokk",
+          "HEADING_1": "Overskrift 1",
+          "HEADING_2": "Overskrift 2",
+          "HEADING_3": "Overskrift 3",
+          "INLINE_CODE": "Inline-kode",
+          "INSERT_IMAGE": "Sett inn bilde",
+          "INSERT_LINK": "Sett inn lenke",
+          "INSERT_TABLE": "Sett inn tabell",
+          "ITALIC": "Kursiv",
+          "NUMBERED_LIST": "Nummerert liste",
+          "QUOTE": "Sitat",
+          "STRIKETHROUGH": "Gjennomstreking",
+          "TASK_LIST": "Oppgaveliste"
+        },
         "VIEW_PARSED": "Vis som parset (ikke-redigerbar) markdown",
         "VIEW_SPLIT": "Vis parset og uparset markdown i delt visning",
         "VIEW_TEXT_ONLY": "Vis som uparsellert tekst"
@@ -617,7 +627,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "Velg utgave for å laste inn tilgjengelige overganger",
         "TRANSITION": "Håndtering av overganger"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "Aktivitet",
         "CURRENTLY_LOGGED": "For øyeblikket logget tid:",
@@ -764,7 +773,6 @@
       "WEEK_TITLE": "Uke {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "API-tilgangsnøkkel",
         "HOST": "Vert (f.eks.: https://redmine.org)",
@@ -785,8 +793,7 @@
         "MARK_AS_CHECKED": "Merk oppdateringer som sjekket",
         "PRIORITY": "Prioritet",
         "STATUS": "Status"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "Avvis",
@@ -917,8 +924,6 @@
         "TITLE": "Konfigurer synkronisering"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "Aktiver komprimering (raskere dataoverføring)",
         "L_ENABLE_ENCRYPTION": "Aktiver ende-til-ende-kryptering (eksperimentell) - Gjør dataene dine utilgjengelige for synkroniseringsleverandøren",
         "L_ENABLE_SYNCING": "Aktiver synkronisering",
@@ -1181,6 +1186,7 @@
         "REMINDER_ADDED": "Planlagt oppgave \"{{title}}\"",
         "REMINDER_DELETED": "Slettet påminnelse for oppgaven",
         "REMINDER_UPDATED": "Oppdatert påminnelse for oppgaven \"{{title}}\"",
+        "TASK_ALREADY_EXISTS": "Oppgave <strong>{{title}}<\\/strong> finnes allerede",
         "TASK_CREATED": "Opprettet oppgaven \"{{taskTitle}}\""
       },
       "SELECT_OR_CREATE": "Velg eller opprett oppgave",
@@ -1589,6 +1595,7 @@
       "EN": "Engelsk",
       "ES": "Español",
       "FA": "فارسی",
+      "FI": "Suomi",
       "FR": "Fransk",
       "HR": "Hrvatski",
       "ID": "Indonesisk",
@@ -1603,6 +1610,7 @@
       "PT_BR": "Portugisisk (Brasil)",
       "RU": "Russisk",
       "SK": "Slovakisk",
+      "SV": "Svenska",
       "TIME_LOCALE": "Tidsformat lokalitet",
       "TIME_LOCALE_AUTO": "Systemstandard",
       "TIME_LOCALE_DE_DE": "Tysk - 24-timers",

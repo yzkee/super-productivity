@@ -9,6 +9,7 @@
     "CONTEXT_MENU": {
       "CHANGE_BACKGROUND": "Cambia sfondo"
     },
+    "SKIP_SYNC_WAIT": "Salta l'attesa per la sincronizzazione",
     "UPDATE_WEB_APP": "Una nuova versione è disponibile. Vuoi caricare la nuova versione?"
   },
   "BL": {
@@ -97,7 +98,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "Categoria per cui filtrare i problemi (lasciare vuoto per nessuno)",
         "CALDAV_PASSWORD": "La tua password CalDav",
@@ -223,7 +223,6 @@
       "WORKED_FOR": "Hai lavorato per"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "Host (es.: https://try.gitea.io)",
         "REPO_FULL_NAME": "Username o nome Organizzazione/Progetto",
@@ -246,11 +245,9 @@
         "STATUS": "Stato",
         "SUMMARY": "Riepilogo",
         "WRITE_A_COMMENT": "Scrivi un commento"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "Nome utente (es. per filtrare le modifiche fatte da te)",
         "INVALID_TOKEN_MESSAGE": "non è un token di Github valido. Deve iniziare con \"ghp_\".",
@@ -280,7 +277,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "La durata precompilata contiene dati dai giorni precedenti.",
         "T_ALREADY_TRACKED": "Già tracciato",
@@ -505,7 +501,6 @@
       "DIALOG_TITLE": "Lista Markdown incollata rilevata!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "Mappa di calore delle attività",
         "AVG_BREAKS_PER_DAY": "Media delle pause per giorno",
@@ -581,12 +576,27 @@
         "PLACEHOLDER_4": "Quale compito ti ha dato energia? Quale l'ha prosciugata?",
         "PLACEHOLDER_5": "Una cosa da ripetere. Una cosa da cambiare.",
         "TITLE": "Nota di riflessione"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Grassetto",
+          "BULLET_LIST": "Elenco puntato",
+          "CODE_BLOCK": "Blocco di codice",
+          "HEADING_1": "Intestazione 1",
+          "HEADING_2": "Intestazione 2",
+          "HEADING_3": "Intestazione 3",
+          "INLINE_CODE": "Codice in linea",
+          "INSERT_IMAGE": "Inserisci immagine",
+          "INSERT_LINK": "Inserisci link",
+          "INSERT_TABLE": "Inserisci tabella",
+          "ITALIC": "Corsivo",
+          "NUMBERED_LIST": "Elenco numerato",
+          "QUOTE": "Citazione",
+          "STRIKETHROUGH": "Barrato",
+          "TASK_LIST": "Elenco attività"
+        },
         "VIEW_PARSED": "Vedi come markdown formattato (non modificabile)",
         "VIEW_SPLIT": "Vedi markdown originale e formattato nella vista divisa",
         "VIEW_TEXT_ONLY": "Vedi come testo non formattato"
@@ -617,7 +627,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "Seleziona issue per caricare le transizioni disponibili",
         "TRANSITION": "Gestione Transizione"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "attività",
         "CURRENTLY_LOGGED": "Tempo attualmente registrato:",
@@ -764,7 +773,6 @@
       "WEEK_TITLE": "Settimana {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "Chiave di accesso API",
         "HOST": "Host (es.: https://redmine.org)",
@@ -785,8 +793,7 @@
         "MARK_AS_CHECKED": "Marca gli aggiornamenti come spuntati",
         "PRIORITY": "Priorità",
         "STATUS": "Stato"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "Chiudi",
@@ -917,8 +924,6 @@
         "TITLE": "Configurazione sincronizzazione"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "Abilita Compressione (trasferimento dati più veloce)",
         "L_ENABLE_ENCRYPTION": "Abilita cifratura end-to-end (sperimentale) - Rende i tuoi dati inaccessibili per il tuo provider di sincronizzazione",
         "L_ENABLE_SYNCING": "Abilita sincronizzazione",
@@ -1181,6 +1186,7 @@
         "REMINDER_ADDED": "Pianificata attività <strong>{{title}}</strong> alle <strong>{{date}}</strong>{{extra}}",
         "REMINDER_DELETED": "Cancellato promemoria per attività",
         "REMINDER_UPDATED": "Aggiornato promemoria per attività \"{{title}}\"",
+        "TASK_ALREADY_EXISTS": "L'attività <strong>{{title}}<\\/strong> esiste già",
         "TASK_CREATED": "Creata attività \"{{taskTitle}}\""
       },
       "SELECT_OR_CREATE": "Seleziona o crea attività",
@@ -1589,6 +1595,7 @@
       "EN": "English",
       "ES": "Español",
       "FA": "فارسی",
+      "FI": "Finlandese",
       "FR": "français",
       "HR": "Hrvatski",
       "ID": "Indonesian",
@@ -1603,6 +1610,7 @@
       "PT_BR": "Portoghese (Brasile)",
       "RU": "Русский",
       "SK": "Slovak",
+      "SV": "Svedese",
       "TIME_LOCALE": "Formato orario locale",
       "TIME_LOCALE_AUTO": "Predefinito di sistema",
       "TIME_LOCALE_DE_DE": "Tedesco - 24 ore",

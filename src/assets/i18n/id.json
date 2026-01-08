@@ -9,6 +9,7 @@
     "CONTEXT_MENU": {
       "CHANGE_BACKGROUND": "Ubah Latar Belakang"
     },
+    "SKIP_SYNC_WAIT": "Lewati menunggu sinkronisasi",
     "UPDATE_WEB_APP": "Versi baru tersedia. Muat Versi Terbaru?"
   },
   "BL": {
@@ -97,7 +98,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "Kategori untuk memfilter masalah (biarkan kosong jika tidak ada)",
         "CALDAV_PASSWORD": "Password Caldav Anda",
@@ -223,7 +223,6 @@
       "WORKED_FOR": "Anda bekerja untuk"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "Host (contoh: https://try.gitea.io)",
         "REPO_FULL_NAME": "Nama pengguna atau nama/proyek Organisasi",
@@ -246,11 +245,9 @@
         "STATUS": "Status",
         "SUMMARY": "Ringkasan",
         "WRITE_A_COMMENT": "Tulis komentar"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "Nama pengguna (misalnya untuk memfilter perubahan sendiri)",
         "INVALID_TOKEN_MESSAGE": "Bukan token GitHub yang valid. Harus dimulai dengan \"ghp_\".",
@@ -280,7 +277,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "Durasi yang telah diisi sebelumnya berisi data yang tidak terlacak dari hari-hari sebelumnya.",
         "T_ALREADY_TRACKED": "Sudah Dilacak",
@@ -505,7 +501,6 @@
       "DIALOG_TITLE": "Daftar Markdown yang disalin terdeteksi!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "Peta Panas Aktivitas",
         "AVG_BREAKS_PER_DAY": "Rata-rata istirahat per hari",
@@ -581,12 +576,27 @@
         "PLACEHOLDER_4": "Tugas mana yang memberi Anda energi? Mana yang mengurasnya?",
         "PLACEHOLDER_5": "Satu hal untuk diulang. Satu hal untuk diubah.",
         "TITLE": "Catatan Refleksi"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Tebal",
+          "BULLET_LIST": "Daftar berpoin",
+          "CODE_BLOCK": "Blok kode",
+          "HEADING_1": "Judul 1",
+          "HEADING_2": "Judul 2",
+          "HEADING_3": "Judul 3",
+          "INLINE_CODE": "Kode inline",
+          "INSERT_IMAGE": "Sisipkan gambar",
+          "INSERT_LINK": "Sisipkan tautan",
+          "INSERT_TABLE": "Sisipkan tabel",
+          "ITALIC": "Miring",
+          "NUMBERED_LIST": "Daftar bernomor",
+          "QUOTE": "Kutipan",
+          "STRIKETHROUGH": "Coret",
+          "TASK_LIST": "Daftar Tugas"
+        },
         "VIEW_PARSED": "Lihat sebagai Markdown yang diuraikan (tidak dapat diedit)",
         "VIEW_SPLIT": "Lihat Markdown yang diuraikan dan tidak diuraikan dalam tampilan terpisah",
         "VIEW_TEXT_ONLY": "Lihat sebagai teks yang belum diurai"
@@ -617,7 +627,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "Pilih masalah untuk memuat transisi yang tersedia",
         "TRANSITION": "Penanganan Transisi"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "Aktifitas",
         "CURRENTLY_LOGGED": "Waktu login saat ini: ",
@@ -764,7 +773,6 @@
       "WEEK_TITLE": "Minggu {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "Akses kunci API",
         "HOST": "Host (contoh.: https://redmine.org)",
@@ -785,8 +793,7 @@
         "MARK_AS_CHECKED": "Tandai pembaruan sebagai dicentang",
         "PRIORITY": "Prioritas",
         "STATUS": "Status"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "Tutup",
@@ -917,8 +924,6 @@
         "TITLE": "Konfigurasi Sinkronisasi"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "Aktifkan Kompresi (transfer data lebih cepat)",
         "L_ENABLE_ENCRYPTION": "Aktifkan enkripsi ujung ke ujung (eksperimental) - Membuat data Anda tidak dapat diakses oleh penyedia sinkronisasi Anda",
         "L_ENABLE_SYNCING": "Aktifkan Sinkronasi",
@@ -1181,6 +1186,7 @@
         "REMINDER_ADDED": "Tugas \"{{title}}\" terjadwal",
         "REMINDER_DELETED": "Pengingat yang dihapus untuk tugas",
         "REMINDER_UPDATED": "Pengingat yang diperbarui untuk tugas \"{{title}}\"",
+        "TASK_ALREADY_EXISTS": "Tugas <strong>{{title}}<\\/strong> sudah ada",
         "TASK_CREATED": "tugas yang dibuat \"{{taskTitle}}\""
       },
       "SELECT_OR_CREATE": "Pilih atau buat tugas",
@@ -1589,6 +1595,7 @@
       "EN": "Bahasa Inggris",
       "ES": "Español",
       "FA": "فارسی",
+      "FI": "Suomi",
       "FR": "français",
       "HR": "Hrvatski",
       "ID": "Bahasa Indonesia",
@@ -1603,6 +1610,7 @@
       "PT_BR": "Portugis (Brasil)",
       "RU": "Rusia",
       "SK": "Slowakia",
+      "SV": "Svenska",
       "TIME_LOCALE": "Format waktu lokal",
       "TIME_LOCALE_AUTO": "Default sistem",
       "TIME_LOCALE_DE_DE": "Jerman - 24 jam",

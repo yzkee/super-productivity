@@ -9,6 +9,7 @@
     "CONTEXT_MENU": {
       "CHANGE_BACKGROUND": "Achtergrond wijzigen"
     },
+    "SKIP_SYNC_WAIT": "Sla wachten op synchronisatie over",
     "UPDATE_WEB_APP": "Nieuwe versie beschikbaar. Nieuwe versie laden?"
   },
   "BL": {
@@ -97,7 +98,6 @@
       }
     },
     "CALDAV": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "CALDAV_CATEGORY_FILTER": "Categorie om problemen op te filteren (leeg laten voor geen)",
         "CALDAV_PASSWORD": "Uw CalDav-wachtwoord",
@@ -223,7 +223,6 @@
       "WORKED_FOR": "Je hebt gewerkt voor"
     },
     "GITEA": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "HOST": "Host (bijv. https://try.gitea.io)",
         "REPO_FULL_NAME": "Gebruikersnaam of Organisatie naam/project",
@@ -246,11 +245,9 @@
         "STATUS": "Status",
         "SUMMARY": "Samenvatting",
         "WRITE_A_COMMENT": "Schrijf een opmerking"
-      },
-      "S": {}
+      }
     },
     "GITHUB": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "FILTER_USER": "Gebruikersnaam (bijv. Om wijzigingen zelf uit te filteren)",
         "INVALID_TOKEN_MESSAGE": "Geen geldig GitHub token. Het moet beginnen met \"ghp_\".",
@@ -280,7 +277,6 @@
       }
     },
     "GITLAB": {
-      "DIALOG_INITIAL": {},
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "De vooraf ingevulde duur bevat niet-traceerbare gegevens van de afgelopen dagen.",
         "T_ALREADY_TRACKED": "Reeds gevolgd",
@@ -505,7 +501,6 @@
       "DIALOG_TITLE": "Geplakte Markdownlijst gedetecteerd!"
     },
     "METRIC": {
-      "BANNER": {},
       "CMP": {
         "ACTIVITY_HEATMAP": "Activiteit-heatmap",
         "AVG_BREAKS_PER_DAY": "Gem. pauzes per dag",
@@ -581,12 +576,27 @@
         "PLACEHOLDER_4": "Welke taak gaf je energie? Welke putte het uit?",
         "PLACEHOLDER_5": "Eén ding om te herhalen. Eén ding om te veranderen.",
         "TITLE": "Reflectienotitie"
-      },
-      "S": {}
+      }
     },
     "NOTE": {
-      "D_ADD": {},
       "D_FULLSCREEN": {
+        "TOOLBAR": {
+          "BOLD": "Vet",
+          "BULLET_LIST": "Opsommingstekenslijst",
+          "CODE_BLOCK": "Codeblok",
+          "HEADING_1": "Kop 1",
+          "HEADING_2": "Kop 2",
+          "HEADING_3": "Kop 3",
+          "INLINE_CODE": "Inline code",
+          "INSERT_IMAGE": "Afbeelding invoegen",
+          "INSERT_LINK": "Link invoegen",
+          "INSERT_TABLE": "Tabel invoegen",
+          "ITALIC": "Cursief",
+          "NUMBERED_LIST": "Genummerde lijst",
+          "QUOTE": "Citaat",
+          "STRIKETHROUGH": "Doorhalen",
+          "TASK_LIST": "Takenlijst"
+        },
         "VIEW_PARSED": "Weergeven als geparseerde (niet bewerkbare) markdown",
         "VIEW_SPLIT": "Geparsed en ongeparsed markdown in gesplitste weergave bekijken",
         "VIEW_TEXT_ONLY": "Weergeven als niet-uitgestuurde tekst"
@@ -617,7 +627,6 @@
         "SELECT_ISSUE_FOR_TRANSITIONS": "Selecteer kwestie om beschikbare overgangen te laden",
         "TRANSITION": "Overgangsbehandeling"
       },
-      "DIALOG_INITIAL": {},
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "Activiteit",
         "CURRENTLY_LOGGED": "Momenteel ingelogde tijd:",
@@ -764,7 +773,6 @@
       "WEEK_TITLE": "Week {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
-      "DIALOG_INITIAL": {},
       "FORM": {
         "API_KEY": "API-toegangssleutel",
         "HOST": "Host (e.g.: https://redmine.org)",
@@ -785,8 +793,7 @@
         "MARK_AS_CHECKED": "Markeer wijzigingen als gecontroleerd",
         "PRIORITY": "Prioriteit",
         "STATUS": "Status"
-      },
-      "S": {}
+      }
     },
     "REFLECTION_NOTE": {
       "ACTION_DISMISS": "AFWIJZEN",
@@ -917,8 +924,6 @@
         "TITLE": "Synchronisatie Configureren"
       },
       "FORM": {
-        "DROPBOX": {},
-        "GOOGLE": {},
         "L_ENABLE_COMPRESSION": "Compressie inschakelen (snellere data overdracht)",
         "L_ENABLE_ENCRYPTION": "End-to-end encryptie inschakelen (experiment) - Maak je data ontoegankelijk voor je sync provider",
         "L_ENABLE_SYNCING": "Schakel synchronisatie in",
@@ -1181,6 +1186,7 @@
         "REMINDER_ADDED": "Geplande taak \"{{title}}\"",
         "REMINDER_DELETED": "Herinnering voor taak verwijderd",
         "REMINDER_UPDATED": "Herinnering voor taak \"{{title}}\" bijgewerkt",
+        "TASK_ALREADY_EXISTS": "Taak <strong>{{title}}<\\/strong> bestaat al",
         "TASK_CREATED": "Taak \"{{taskTitle}}\" gemaakt"
       },
       "SELECT_OR_CREATE": "Selecteer of maak een taak",
@@ -1589,6 +1595,7 @@
       "EN": "Engels",
       "ES": "Español",
       "FA": "فارسی",
+      "FI": "Fins",
       "FR": "Frans",
       "HR": "Hrvatski",
       "ID": "Indonesisch",
@@ -1603,6 +1610,7 @@
       "PT_BR": "Portugees (Brazilië)",
       "RU": "Russisch",
       "SK": "Slowaaks",
+      "SV": "Zweeds",
       "TIME_LOCALE": "Datum- en tijdnotatie locale",
       "TIME_LOCALE_AUTO": "Systeemstandaard",
       "TIME_LOCALE_DE_DE": "Duits: 24 uur, DD.MM.JJJJ",
