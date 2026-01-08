@@ -6,6 +6,22 @@ export enum SyncProviderId {
   'SuperSync' = 'SuperSync',
 }
 
+/**
+ * Type-safe conversion from string-based sync provider value to SyncProviderId.
+ * LegacySyncProvider and SyncProviderId have identical string values but are
+ * separate types for historical reasons. This provides safe conversion with
+ * runtime validation.
+ */
+export const toSyncProviderId = (
+  value: string | null | undefined,
+): SyncProviderId | null => {
+  if (value === null || value === undefined) return null;
+  if (Object.values(SyncProviderId).includes(value as SyncProviderId)) {
+    return value as SyncProviderId;
+  }
+  return null;
+};
+
 export enum SyncStatus {
   InSync = 'InSync',
   UpdateRemote = 'UpdateRemote',

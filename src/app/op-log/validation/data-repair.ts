@@ -16,6 +16,7 @@ import { autoFixTypiaErrors } from './auto-fix-typia-errors';
 import { IValidation } from 'typia';
 import { PFLog } from '../../core/log';
 import { repairMenuTree } from './repair-menu-tree';
+import { initialTimeTrackingState } from '../../features/time-tracking/store/time-tracking.reducer';
 
 /**
  * Entity state keys that have ids/entities structure.
@@ -53,7 +54,7 @@ export const dataRepair = (
   if (!dataOut.archiveYoung) {
     dataOut.archiveYoung = {
       task: { ids: [], entities: {} },
-      timeTracking: {} as any,
+      timeTracking: initialTimeTrackingState,
       lastTimeTrackingFlush: 0,
     };
   }
@@ -63,7 +64,7 @@ export const dataRepair = (
   if (!dataOut.archiveOld) {
     dataOut.archiveOld = {
       task: { ids: [], entities: {} },
-      timeTracking: {} as any,
+      timeTracking: initialTimeTrackingState,
       lastTimeTrackingFlush: 0,
     };
   }
@@ -168,14 +169,15 @@ const _fixTaskRepeatCfgInvalidQuickSetting = (data: AppDataComplete): AppDataCom
 
 const _fixEntityStates = (data: AppDataComplete): AppDataComplete => {
   ENTITY_STATE_KEYS.forEach((key) => {
+    // TypeScript limitation: dynamic key assignment requires cast
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data[key] = _resetEntityIdsFromObjects(
       data[key] as AppBaseDataEntityLikeStates,
     ) as any;
   });
-  // TODO improve typing for helper fn _resetEntityIdsFromObjects
   data.archiveYoung.task = _resetEntityIdsFromObjects(
-    data.archiveYoung.task as any,
-  ) as any;
+    data.archiveYoung.task as TaskArchive,
+  ) as TaskArchive;
 
   return data;
 };

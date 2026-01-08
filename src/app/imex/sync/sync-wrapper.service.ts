@@ -34,6 +34,7 @@ import {
   SyncInvalidTimeValuesError,
   SyncProviderId,
   SyncStatus,
+  toSyncProviderId,
 } from '../../op-log/sync-exports';
 import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
 import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
@@ -60,23 +61,6 @@ import { OperationLogStoreService } from '../../op-log/persistence/operation-log
 import { OperationLogSyncService } from '../../op-log/sync/operation-log-sync.service';
 import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
 import { SyncSafetyBackupService } from './sync-safety-backup.service';
-
-/**
- * Converts LegacySyncProvider to SyncProviderId.
- * These enums have identical values but are different types for historical reasons.
- * This provides a type-safe conversion without unsafe double assertions.
- */
-const toSyncProviderId = (legacy: LegacySyncProvider | null): SyncProviderId | null => {
-  if (legacy === null) return null;
-  // SyncProviderId and LegacySyncProvider have identical string values
-  // Runtime check ensures safety if they ever diverge
-  const providerId = legacy as unknown;
-  if (Object.values(SyncProviderId).includes(providerId as SyncProviderId)) {
-    return providerId as SyncProviderId;
-  }
-  SyncLog.err(`Unknown sync provider: ${legacy}`);
-  return null;
-};
 
 @Injectable({
   providedIn: 'root',

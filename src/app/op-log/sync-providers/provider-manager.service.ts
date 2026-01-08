@@ -12,7 +12,7 @@ import { Store } from '@ngrx/store';
 import { selectSyncConfig } from '../../features/config/store/global-config.reducer';
 import { DataInitStateService } from '../../core/data-init/data-init-state.service';
 import { PFLog } from '../../core/log';
-import { SyncProviderId } from './provider.const';
+import { SyncProviderId, toSyncProviderId } from './provider.const';
 import { SyncProviderServiceInterface } from './provider.interface';
 import {
   EncryptAndCompressCfg,
@@ -166,9 +166,7 @@ export class SyncProviderManager {
     // Listen to sync config changes and update active provider
     this._syncConfig$.subscribe((cfg) => {
       try {
-        const newProviderId = cfg.isEnabled
-          ? (cfg.syncProvider as unknown as SyncProviderId)
-          : null;
+        const newProviderId = cfg.isEnabled ? toSyncProviderId(cfg.syncProvider) : null;
 
         this._setActiveProvider(newProviderId);
 

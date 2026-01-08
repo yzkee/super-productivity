@@ -26,6 +26,7 @@ export {
   ConflictReason,
   REMOTE_FILE_CONTENT_PREFIX,
   PRIVATE_CFG_PREFIX,
+  toSyncProviderId,
 } from './sync-providers/provider.const';
 
 // Error classes

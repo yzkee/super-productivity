@@ -61,6 +61,15 @@ interface DropboxErrorResponse {
 }
 
 /**
+ * Dropbox file write mode - determines conflict handling behavior.
+ * @see https://www.dropbox.com/developers/documentation/http/documentation#files-upload
+ */
+type DropboxWriteMode =
+  | { '.tag': 'add' }
+  | { '.tag': 'overwrite' }
+  | { '.tag': 'update'; update: string };
+
+/**
  * API class for Dropbox integration
  */
 export class DropboxApi {
@@ -182,7 +191,7 @@ export class DropboxApi {
     data: any;
     isForceOverwrite?: boolean;
   }): Promise<DropboxFileMetadata> {
-    const args = {
+    const args: { mode: DropboxWriteMode; path: string; mute: boolean } = {
       mode: { '.tag': 'overwrite' },
       path,
       mute: true,
@@ -190,7 +199,7 @@ export class DropboxApi {
 
     if (!isForceOverwrite) {
       args.mode = revToMatch
-        ? ({ '.tag': 'update', update: revToMatch } as any)
+        ? { '.tag': 'update', update: revToMatch }
         : // TODO why is update hardcoded????
           { '.tag': 'update', update: '01630c96b4d421c00000001ce2a2770' };
     }

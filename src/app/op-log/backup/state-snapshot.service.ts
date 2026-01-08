@@ -133,7 +133,9 @@ export class StateSnapshotService {
     return {
       task: {
         ...(task as object),
-        selectedTaskId: environment.production ? null : (task as any).selectedTaskId,
+        selectedTaskId: environment.production
+          ? null
+          : ((task as { selectedTaskId?: string | null })?.selectedTaskId ?? null),
         currentTaskId: null,
       },
       project,
@@ -246,7 +248,9 @@ export class StateSnapshotService {
     return {
       task: {
         ...(task as object),
-        selectedTaskId: environment.production ? null : (task as any)?.selectedTaskId,
+        selectedTaskId: environment.production
+          ? null
+          : ((task as { selectedTaskId?: string | null })?.selectedTaskId ?? null),
         currentTaskId: null,
       },
       project,

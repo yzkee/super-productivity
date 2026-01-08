@@ -136,7 +136,8 @@ export class SyncConfigService {
 
       // Add current provider config if applicable
       if (prop && currentProviderCfg.privateCfg) {
-        (result as any)[prop] = currentProviderCfg.privateCfg;
+        // TypeScript limitation: dynamic key assignment on union types requires cast
+        (result as Record<string, unknown>)[prop] = currentProviderCfg.privateCfg;
       }
 
       return of(result);
@@ -227,13 +228,14 @@ export class SyncConfigService {
     // then overlay old config to preserve existing data (like OAuth tokens),
     // then overlay user settings, and always include encryption key for data security
     // NOTE: that we need the old config here in order not to overwrite other private stuff like tokens
+    const providerCfgAsRecord = privateConfigProviderSpecific as Record<string, unknown>;
     const configWithDefaults = {
       ...PROVIDER_FIELD_DEFAULTS[providerId],
       ...oldConfig,
-      ...(privateConfigProviderSpecific as Record<string, unknown>),
+      ...providerCfgAsRecord,
       // Use provider specific key if available, otherwise fallback to root key
       encryptKey:
-        (privateConfigProviderSpecific as any)?.encryptKey || settings.encryptKey || '',
+        (providerCfgAsRecord?.encryptKey as string) || settings.encryptKey || '',
     };
 
     await this._providerManager.setProviderConfig(

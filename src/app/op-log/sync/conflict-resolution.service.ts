@@ -647,7 +647,10 @@ export class ConflictResolutionService {
           );
         }
         // Standard props-based selector
+        // NgRx selector with props requires specific typing that EntityConfig's
+        // flexible selectById union type can't express precisely
         return await firstValueFrom(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           this.store.select(config.selectById as any, { id: entityId }),
         );
       }

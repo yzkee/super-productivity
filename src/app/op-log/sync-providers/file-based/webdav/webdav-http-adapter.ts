@@ -11,8 +11,21 @@ import {
 import { WebDavHttpStatus } from './webdav.const';
 
 // Define and register our WebDAV plugin
+interface WebDavHttpPluginRequest {
+  url: string;
+  method: string;
+  headers?: Record<string, string>;
+  data?: string | null;
+}
+
+interface WebDavHttpPluginResponse {
+  status: number;
+  headers?: Record<string, string>;
+  data?: string;
+}
+
 interface WebDavHttpPlugin {
-  request(options: any): Promise<any>;
+  request(options: WebDavHttpPluginRequest): Promise<WebDavHttpPluginResponse>;
 }
 
 const WebDavHttp = registerPlugin<WebDavHttpPlugin>('WebDavHttp');
@@ -137,7 +150,7 @@ export class WebDavHttpAdapter {
     };
   }
 
-  private _convertWebDavResponse(response: any): WebDavHttpResponse {
+  private _convertWebDavResponse(response: WebDavHttpPluginResponse): WebDavHttpResponse {
     return {
       status: response.status,
       headers: response.headers || {},
