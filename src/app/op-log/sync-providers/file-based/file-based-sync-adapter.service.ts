@@ -681,8 +681,17 @@ export class FileBasedSyncAdapterService {
     const limitedOps = filteredOps.slice(0, limit);
     const hasMore = filteredOps.length > limit;
 
-    // Calculate latestSeq for the response (total ops count for reference)
-    const latestSeq = syncData.recentOps.length;
+    // Calculate latestSeq using syncVersion (NOT recentOps.length).
+    // Using recentOps.length causes a bug after snapshot upload:
+    // 1. Snapshot uploaded: recentOps=[], syncVersion=1
+    // 2. Download returns latestSeq=0 (recentOps.length)
+    // 3. setLastServerSeq(0) is called
+    // 4. Next sync: sinceSeq=0, isForceFromZero=true, snapshotState returned
+    // 5. If client has ops → conflict dialog on EVERY sync
+    //
+    // Using syncVersion ensures setLastServerSeq(1) is called, so next sync
+    // has sinceSeq=1, isForceFromZero=false, and snapshotState is NOT returned.
+    const latestSeq = syncData.syncVersion;
 
     OpLog.normal(
       `FileBasedSyncAdapter: Downloaded ${limitedOps.length} ops (new/total: ${filteredOps.length}/${latestSeq})`,
@@ -710,7 +719,7 @@ export class FileBasedSyncAdapterService {
       }
     }
 
-    return {
+    const result = {
       ops: limitedOps,
       hasMore,
       latestSeq,
@@ -723,6 +732,8 @@ export class FileBasedSyncAdapterService {
       // This allows new clients to bootstrap with complete state, not just recent ops
       ...(isForceFromZero && syncData.state ? { snapshotState: syncData.state } : {}),
     };
+
+    return result;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

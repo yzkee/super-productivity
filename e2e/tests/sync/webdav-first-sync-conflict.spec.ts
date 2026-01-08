@@ -47,6 +47,14 @@ test.describe('WebDAV First Sync Conflict', () => {
 
     // --- Client A: Create task and upload ---
     const { context: contextA, page: pageA } = await setupSyncClient(browser, url);
+
+    // Capture console logs from Client A for debugging
+    pageA.on('console', (msg) => {
+      if (msg.text().includes('DEBUG')) {
+        console.log(`[Client A Console] ${msg.text()}`);
+      }
+    });
+
     const syncPageA = new SyncPage(pageA);
     const workViewPageA = new WorkViewPage(pageA);
     await workViewPageA.waitForTaskList();
@@ -66,6 +74,13 @@ test.describe('WebDAV First Sync Conflict', () => {
     // IMPORTANT: Do NOT use setupSyncClient - we need to NOT auto-accept dialogs
     const contextB = await browser.newContext({ baseURL: url });
     const pageB = await contextB.newPage();
+
+    // Capture console logs from Client B for debugging
+    pageB.on('console', (msg) => {
+      if (msg.text().includes('DEBUG') || msg.text().includes('Marked')) {
+        console.log(`[Client B Console] ${msg.text()}`);
+      }
+    });
 
     // Don't add dialog handler here - we want the conflict dialog to appear
 

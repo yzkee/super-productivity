@@ -112,6 +112,7 @@ export class OperationLogUploadService {
       );
 
       // Upload full-state operations via snapshot endpoint
+      let syncImportUploaded = false;
       for (const entry of fullStateOps) {
         const result = await this._uploadFullStateOpAsSnapshot(
           syncProvider,
@@ -123,6 +124,10 @@ export class OperationLogUploadService {
           uploadedCount++;
           if (result.serverSeq !== undefined) {
             await syncProvider.setLastServerSeq(result.serverSeq);
+          }
+          // Track if a SYNC_IMPORT was uploaded - regular ops should be skipped
+          if (entry.op.opType === OpType.SyncImport) {
+            syncImportUploaded = true;
           }
         } else {
           // Special handling for SYNC_IMPORT_EXISTS: another client already uploaded
@@ -160,8 +165,22 @@ export class OperationLogUploadService {
         }
       }
 
-      // Skip regular ops processing if none exist
+      // Skip regular ops processing if none exist or if SYNC_IMPORT was uploaded.
+      // After SYNC_IMPORT, all regular ops are already reflected in the snapshot state,
+      // so they should be marked as synced rather than uploaded separately.
       if (regularOps.length === 0) {
+        return;
+      }
+
+      if (syncImportUploaded) {
+        // Mark all regular ops as synced - they're already included in the SYNC_IMPORT snapshot
+        const regularSeqs = regularOps.map((entry) => entry.seq);
+        await this.opLogStore.markSynced(regularSeqs);
+        uploadedCount += regularSeqs.length;
+        OpLog.normal(
+          `OperationLogUploadService: Marked ${regularSeqs.length} regular ops as synced ` +
+            `(already included in SYNC_IMPORT snapshot)`,
+        );
         return;
       }
 

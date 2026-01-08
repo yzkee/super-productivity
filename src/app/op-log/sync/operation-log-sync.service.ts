@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
-import { VectorClock } from '../core/operation.types';
+import { OpType, VectorClock } from '../core/operation.types';
 import { OpLog } from '../../core/log';
 import { OperationSyncCapable } from '../sync-providers/provider.interface';
 import { OperationLogUploadService, UploadResult } from './operation-log-upload.service';
@@ -260,19 +260,42 @@ export class OperationLogSyncService {
       const hasLocalChanges = unsyncedOps.length > 0;
 
       if (hasLocalChanges) {
-        // Non-fresh client with local changes - throw error to trigger conflict dialog in SyncWrapperService
-        // This allows the user to choose between keeping local data (upload) or remote data (download)
-        OpLog.warn(
-          `OperationLogSyncService: Client has ${unsyncedOps.length} unsynced local ops. ` +
-            'Throwing LocalDataConflictError for conflict resolution dialog.',
+        // Only throw LocalDataConflictError if unsynced ops contain meaningful user data.
+        // Fresh clients may have initial state ops (settings, etc.), but these shouldn't
+        // trigger a conflict dialog - we should just download the remote data.
+        //
+        // Meaningful user data = task/project/tag CREATE/UPDATE operations
+        // These are entities the user explicitly created/modified and would lose if overwritten.
+        const USER_ENTITY_TYPES = ['TASK', 'PROJECT', 'TAG', 'NOTE'];
+        const hasMeaningfulUserData = unsyncedOps.some(
+          (entry) =>
+            USER_ENTITY_TYPES.includes(entry.op.entityType) &&
+            (entry.op.opType === OpType.Create || entry.op.opType === OpType.Update),
         );
 
-        throw new LocalDataConflictError(
-          unsyncedOps.length,
-          result.snapshotState as Record<string, unknown>,
-          result.snapshotVectorClock,
-        );
-      } else {
+        if (hasMeaningfulUserData) {
+          // Client has meaningful user data - show conflict dialog
+          OpLog.warn(
+            `OperationLogSyncService: Client has ${unsyncedOps.length} unsynced local ops ` +
+              'with meaningful user data. Throwing LocalDataConflictError for conflict resolution dialog.',
+          );
+
+          throw new LocalDataConflictError(
+            unsyncedOps.length,
+            result.snapshotState as Record<string, unknown>,
+            result.snapshotVectorClock,
+          );
+        } else {
+          // Only system/config ops - proceed with download (don't throw)
+          OpLog.normal(
+            `OperationLogSyncService: Client has ${unsyncedOps.length} unsynced ops but no meaningful user data. ` +
+              'Proceeding with snapshot download (no conflict dialog needed).',
+          );
+        }
+      }
+
+      // Only show confirmation for wholly fresh clients without any local changes
+      if (!hasLocalChanges) {
         // Show fresh client confirmation if this is a wholly fresh client
         const isFreshClient = await this.isWhollyFreshClient();
         if (isFreshClient) {
@@ -477,6 +500,34 @@ export class OperationLogSyncService {
       OpLog.normal(
         'OperationLogSyncService: Reset vector clock to remote snapshot clock.',
       );
+    }
+
+    // FILE-BASED SYNC: Handle snapshot state from force download.
+    // When downloading from seq 0 on file-based providers, we may receive a
+    // snapshotState instead of incremental ops. This happens when the remote
+    // has a SYNC_IMPORT (full state snapshot) with empty recentOps.
+    if (result.snapshotState) {
+      OpLog.normal(
+        'OperationLogSyncService: Force download received snapshotState. Hydrating...',
+      );
+
+      // Hydrate from snapshot - DON'T create SYNC_IMPORT since we're
+      // accepting remote state, not uploading local state.
+      await this.syncHydrationService.hydrateFromRemoteSync(
+        result.snapshotState as Record<string, unknown>,
+        result.snapshotVectorClock,
+        false, // Don't create SYNC_IMPORT
+      );
+
+      // Update lastServerSeq after hydration
+      if (result.latestServerSeq !== undefined) {
+        await syncProvider.setLastServerSeq(result.latestServerSeq);
+      }
+
+      OpLog.normal(
+        'OperationLogSyncService: Force download snapshot hydration complete.',
+      );
+      return;
     }
 
     if (result.newOps.length > 0) {

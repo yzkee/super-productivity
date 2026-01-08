@@ -265,7 +265,14 @@ export class OperationLogDownloadService {
       // If we detected a gap AND the server is empty (no ops to download),
       // this indicates a server migration scenario. The client should upload
       // a full state snapshot to seed the new server with its data.
-      if (hasResetForGap && allNewOps.length === 0 && finalLatestSeq === 0) {
+      // IMPORTANT: If we received a snapshotState, the server is NOT empty - it has data
+      // in snapshot form. This happens when another client uploaded a SYNC_IMPORT.
+      if (
+        hasResetForGap &&
+        allNewOps.length === 0 &&
+        finalLatestSeq === 0 &&
+        !snapshotState
+      ) {
         needsFullStateUpload = true;
         OpLog.warn(
           'OperationLogDownloadService: Server migration detected - gap on empty server. ' +
@@ -287,7 +294,13 @@ export class OperationLogDownloadService {
         `OperationLogDownloadService: [DEBUG] Migration check - needsFullStateUpload=${needsFullStateUpload}, ` +
           `allNewOps=${allNewOps.length}, finalLatestSeq=${finalLatestSeq}, lastServerSeq=${lastServerSeq}`,
       );
-      if (!needsFullStateUpload && allNewOps.length === 0 && finalLatestSeq === 0) {
+      // IMPORTANT: If we have a snapshotState, the server is NOT empty - skip migration check
+      if (
+        !needsFullStateUpload &&
+        allNewOps.length === 0 &&
+        finalLatestSeq === 0 &&
+        !snapshotState
+      ) {
         const hasSyncedOps = await this.opLogStore.hasSyncedOps();
         OpLog.verbose(
           `OperationLogDownloadService: [DEBUG] Empty server detected, hasSyncedOps=${hasSyncedOps}`,

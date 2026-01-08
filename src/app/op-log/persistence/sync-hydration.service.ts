@@ -65,9 +65,11 @@ export class SyncHydrationService {
       // Entity models (task, tag, project, etc.) come from downloadedMainModelData
       // Archive models (archiveYoung, archiveOld) come from IndexedDB
       const dbData = await this.stateSnapshotService.getAllSyncModelDataFromStoreAsync();
+
       const mergedData = downloadedMainModelData
         ? { ...dbData, ...downloadedMainModelData }
         : dbData;
+
       const syncedData = this._stripLocalOnlySettings(mergedData);
       OpLog.normal(
         'SyncHydrationService: Loaded synced data',

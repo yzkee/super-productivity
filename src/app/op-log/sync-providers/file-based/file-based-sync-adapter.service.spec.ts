@@ -429,6 +429,7 @@ describe('FileBasedSyncAdapterService', () => {
 
     it('should return ops from sync file', async () => {
       const syncData = createMockSyncData({
+        syncVersion: 2, // syncVersion matches number of ops added
         recentOps: [
           {
             id: 'op-1',
@@ -463,6 +464,7 @@ describe('FileBasedSyncAdapterService', () => {
       const result = await adapter.downloadOps(0);
 
       expect(result.ops.length).toBe(2);
+      // latestSeq is now syncVersion, not recentOps.length
       expect(result.latestSeq).toBe(2);
     });
 
@@ -777,6 +779,91 @@ describe('FileBasedSyncAdapterService', () => {
 
       const key = mockProvider.id;
       expect(service.wouldConflict(key, 3)).toBe(false);
+    });
+  });
+
+  describe('latestSeq and snapshotState behavior', () => {
+    it('should return latestSeq based on syncVersion (not recentOps.length) to prevent repeated fresh downloads', async () => {
+      // This test ensures that after a snapshot upload (where recentOps is empty),
+      // subsequent syncs don't treat the client as "fresh" by returning latestSeq=0.
+      // If latestSeq=0, then setLastServerSeq(0) is called, and the next sync
+      // has sinceSeq=0, which triggers snapshotState on every sync - causing
+      // conflict dialogs on every change.
+
+      // Simulate state after snapshot upload: recentOps is empty, but syncVersion is 1
+      const syncData = createMockSyncData({
+        syncVersion: 1,
+        recentOps: [], // Empty after snapshot
+        state: { tasks: [] },
+      });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
+      );
+
+      const result = await adapter.downloadOps(0);
+
+      // latestSeq should be syncVersion (1), NOT recentOps.length (0)
+      // This ensures setLastServerSeq(1) is called, preventing repeated fresh downloads
+      expect(result.latestSeq).toBe(1);
+    });
+
+    it('should only return snapshotState on first download (sinceSeq=0)', async () => {
+      const syncData = createMockSyncData({
+        syncVersion: 1,
+        recentOps: [],
+        state: { tasks: [{ id: 't1' }] },
+      });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
+      );
+
+      // First download (sinceSeq=0) should include snapshotState
+      const result1 = await adapter.downloadOps(0);
+      expect(result1.snapshotState).toBeDefined();
+
+      // Subsequent download (sinceSeq=1) should NOT include snapshotState
+      const result2 = await adapter.downloadOps(1);
+      expect(result2.snapshotState).toBeUndefined();
+    });
+
+    it('should return latestSeq matching syncVersion even with multiple ops', async () => {
+      const syncData = createMockSyncData({
+        syncVersion: 5, // Higher syncVersion
+        recentOps: [
+          {
+            id: 'op-1',
+            c: 'client1',
+            a: 'HA',
+            o: 'ADD',
+            e: 'TASK',
+            d: 'task-1',
+            v: { client1: 1 },
+            t: Date.now(),
+            s: 1,
+            p: {},
+          },
+          {
+            id: 'op-2',
+            c: 'client1',
+            a: 'HA',
+            o: 'ADD',
+            e: 'TASK',
+            d: 'task-2',
+            v: { client1: 2 },
+            t: Date.now(),
+            s: 1,
+            p: {},
+          },
+        ],
+      });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
+      );
+
+      const result = await adapter.downloadOps(0);
+
+      // latestSeq should be syncVersion (5), not recentOps.length (2)
+      expect(result.latestSeq).toBe(5);
     });
   });
 
