@@ -22,7 +22,7 @@ import { SyncWrapperService } from '../sync-wrapper.service';
 import { EncryptionPasswordDialogOpenerService } from '../encryption-password-dialog-opener.service';
 import { Subscription } from 'rxjs';
 import { first } from 'rxjs/operators';
-import { SyncProviderId } from '../../../op-log/sync-exports';
+import { toSyncProviderId } from '../../../op-log/sync-exports';
 import { SyncLog } from '../../../core/log';
 import { DialogSyncSafetyBackupsComponent } from '../dialog-sync-safety-backups/dialog-sync-safety-backups.component';
 
@@ -60,7 +60,7 @@ export class DialogSyncInitialCfgComponent {
 
     // Add the "Change Encryption Password" button
     const changePasswordBtn: FormlyFieldConfig = {
-      hideExpression: (m: any) =>
+      hideExpression: (m: SyncConfig) =>
         m.syncProvider !== LegacySyncProvider.SuperSync ||
         !m.superSync?.isEncryptionEnabled,
       type: 'btn',
@@ -77,8 +77,10 @@ export class DialogSyncInitialCfgComponent {
 
     // Add the "Safety Backups" button (only for file-based providers)
     const safetyBackupsBtn: FormlyFieldConfig = {
-      hideExpression: (m: any) =>
-        !m.isEnabled || m.syncProvider === LegacySyncProvider.SuperSync,
+      hideExpression: (m: SyncConfig) =>
+        !m.isEnabled ||
+        m.syncProvider === LegacySyncProvider.SuperSync ||
+        m.syncProvider === null,
       type: 'btn',
       className: 'mt2 block',
       props: {
@@ -142,10 +144,9 @@ export class DialogSyncInitialCfgComponent {
       },
       true,
     );
-    if (this._tmpUpdatedCfg.syncProvider && this._tmpUpdatedCfg.isEnabled) {
-      this.syncWrapperService.configuredAuthForSyncProviderIfNecessary(
-        this._tmpUpdatedCfg.syncProvider as unknown as SyncProviderId,
-      );
+    const providerId = toSyncProviderId(this._tmpUpdatedCfg.syncProvider);
+    if (providerId && this._tmpUpdatedCfg.isEnabled) {
+      this.syncWrapperService.configuredAuthForSyncProviderIfNecessary(providerId);
     }
 
     this._matDialogRef.close();

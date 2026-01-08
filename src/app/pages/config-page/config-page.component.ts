@@ -328,7 +328,9 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
         },
         {
           hideExpression: (m: any) =>
-            !m.isEnabled || m.syncProvider === LegacySyncProvider.SuperSync,
+            !m.isEnabled ||
+            m.syncProvider === LegacySyncProvider.SuperSync ||
+            m.syncProvider === null,
           type: 'btn',
           className: 'mt2 block',
           templateOptions: {
