@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
+import { of } from 'rxjs';
 import { SyncHydrationService } from './sync-hydration.service';
 import { OperationLogStoreService } from './operation-log-store.service';
 import { StateSnapshotService } from '../backup/state-snapshot.service';
@@ -8,6 +9,8 @@ import { VectorClockService } from '../sync/vector-clock.service';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { ActionType, OpType } from '../core/operation.types';
+import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
+import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 
 describe('SyncHydrationService', () => {
   let service: SyncHydrationService;
@@ -18,8 +21,17 @@ describe('SyncHydrationService', () => {
   let mockVectorClockService: jasmine.SpyObj<VectorClockService>;
   let mockValidateStateService: jasmine.SpyObj<ValidateStateService>;
 
+  // Default local sync config for tests
+  const defaultLocalSyncConfig = {
+    ...DEFAULT_GLOBAL_CONFIG.sync,
+    isEnabled: true,
+    syncProvider: LegacySyncProvider.WebDAV,
+  };
+
   beforeEach(() => {
-    mockStore = jasmine.createSpyObj('Store', ['dispatch']);
+    mockStore = jasmine.createSpyObj('Store', ['dispatch', 'select']);
+    // Default: return local sync config with isEnabled: true
+    mockStore.select.and.returnValue(of(defaultLocalSyncConfig));
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', [
       'append',
       'getLastSeq',
@@ -491,6 +503,213 @@ describe('SyncHydrationService', () => {
       expect(sync['syncInterval']).toBe(300);
       expect(sync['isEnabled']).toBe(true);
       expect(sync['syncProvider']).toBeNull();
+    });
+  });
+
+  describe('local-only sync settings preservation', () => {
+    beforeEach(setupDefaultMocks);
+
+    /**
+     * Integration test: Full reload cycle
+     *
+     * This test verifies the complete bug fix by simulating:
+     * 1. User has sync enabled locally (isEnabled: true)
+     * 2. Remote sync downloads data where another client had sync disabled (isEnabled: false)
+     * 3. hydrateFromRemoteSync() saves a snapshot
+     * 4. User reloads the app
+     * 5. Hydrator loads the snapshot and passes it to reducer
+     * 6. Reducer should see isEnabled: true (preserved local setting)
+     *
+     * The bug was: snapshot was saved with remote's isEnabled: false,
+     * causing sync to appear disabled after reload.
+     */
+    it('should preserve isEnabled through full reload cycle (integration)', async () => {
+      // Setup: Local client has sync enabled with WebDAV provider
+      const localSyncConfig = {
+        ...DEFAULT_GLOBAL_CONFIG.sync,
+        isEnabled: true,
+        syncProvider: LegacySyncProvider.WebDAV,
+      };
+      mockStore.select.and.returnValue(of(localSyncConfig));
+
+      // Step 1: Remote data has sync DISABLED (simulates another client with sync off)
+      const remoteDataWithSyncDisabled = {
+        globalConfig: {
+          ...DEFAULT_GLOBAL_CONFIG,
+          sync: {
+            ...DEFAULT_GLOBAL_CONFIG.sync,
+            isEnabled: false, // Another client had sync disabled!
+            syncProvider: LegacySyncProvider.Dropbox, // Different provider too
+          },
+        },
+        task: { ids: [], entities: {} },
+      };
+
+      // Step 2: hydrateFromRemoteSync() processes the remote data
+      await service.hydrateFromRemoteSync(remoteDataWithSyncDisabled);
+
+      // Step 3: Capture the snapshot that was saved (this is what hydrator will load on reload)
+      const savedSnapshot = mockOpLogStore.saveStateCache.calls.mostRecent().args[0];
+      const snapshotState = savedSnapshot.state as Record<string, unknown>;
+      const snapshotGlobalConfig = snapshotState['globalConfig'] as Record<
+        string,
+        unknown
+      >;
+      const snapshotSync = snapshotGlobalConfig['sync'] as Record<string, unknown>;
+
+      // Step 4: Verify the snapshot has PRESERVED local settings (not remote's false)
+      expect(snapshotSync['isEnabled']).toBe(true); // Local value preserved!
+      expect(snapshotSync['syncProvider']).toBe(LegacySyncProvider.WebDAV); // Local provider preserved!
+
+      // Step 5: Simulate what happens on reload
+      // The hydrator will call store.dispatch(loadAllData({ appDataComplete: snapshotState }))
+      // With our fix, the snapshot already has correct local settings, so reducer gets correct data
+      const dispatchedAction = mockStore.dispatch.calls.mostRecent()
+        .args[0] as unknown as ReturnType<typeof loadAllData>;
+      const dispatchedSync = (
+        dispatchedAction.appDataComplete.globalConfig as Record<string, unknown>
+      )['sync'] as Record<string, unknown>;
+
+      // Final verification: The data dispatched to NgRx has correct local settings
+      expect(dispatchedSync['isEnabled']).toBe(true);
+      expect(dispatchedSync['syncProvider']).toBe(LegacySyncProvider.WebDAV);
+    });
+
+    it('should preserve local isEnabled when remote has it disabled', async () => {
+      // Local has sync enabled
+      mockStore.select.and.returnValue(
+        of({
+          ...DEFAULT_GLOBAL_CONFIG.sync,
+          isEnabled: true,
+          syncProvider: LegacySyncProvider.WebDAV,
+        }),
+      );
+
+      // Remote data has sync disabled
+      const downloadedData = {
+        globalConfig: {
+          sync: {
+            isEnabled: false, // Remote has sync disabled
+            syncProvider: 'dropbox',
+          },
+        },
+      };
+
+      await service.hydrateFromRemoteSync(downloadedData);
+
+      // Check that saved state cache has local isEnabled (true)
+      const saveCacheCall = mockOpLogStore.saveStateCache.calls.mostRecent();
+      const savedState = saveCacheCall.args[0].state as Record<string, unknown>;
+      const globalConfig = savedState['globalConfig'] as Record<string, unknown>;
+      const sync = globalConfig['sync'] as Record<string, unknown>;
+      expect(sync['isEnabled']).toBe(true);
+      expect(sync['syncProvider']).toBe(LegacySyncProvider.WebDAV);
+    });
+
+    it('should preserve local isEnabled when remote has it enabled', async () => {
+      // Local has sync disabled
+      mockStore.select.and.returnValue(
+        of({
+          ...DEFAULT_GLOBAL_CONFIG.sync,
+          isEnabled: false,
+          syncProvider: LegacySyncProvider.WebDAV,
+        }),
+      );
+
+      // Remote data has sync enabled
+      const downloadedData = {
+        globalConfig: {
+          sync: {
+            isEnabled: true, // Remote has sync enabled
+            syncProvider: 'dropbox',
+          },
+        },
+      };
+
+      await service.hydrateFromRemoteSync(downloadedData);
+
+      // Check that saved state cache has local isEnabled (false)
+      const saveCacheCall = mockOpLogStore.saveStateCache.calls.mostRecent();
+      const savedState = saveCacheCall.args[0].state as Record<string, unknown>;
+      const globalConfig = savedState['globalConfig'] as Record<string, unknown>;
+      const sync = globalConfig['sync'] as Record<string, unknown>;
+      expect(sync['isEnabled']).toBe(false);
+    });
+
+    it('should preserve local syncProvider in saved state', async () => {
+      // Local has WebDAV
+      mockStore.select.and.returnValue(
+        of({
+          ...DEFAULT_GLOBAL_CONFIG.sync,
+          isEnabled: true,
+          syncProvider: LegacySyncProvider.WebDAV,
+        }),
+      );
+
+      // Remote data has different provider (would be stripped to null anyway)
+      const downloadedData = {
+        globalConfig: {
+          sync: {
+            isEnabled: false,
+            syncProvider: LegacySyncProvider.Dropbox,
+          },
+        },
+      };
+
+      await service.hydrateFromRemoteSync(downloadedData);
+
+      // Check that dispatched data has local syncProvider
+      const dispatchCall = mockStore.dispatch.calls.mostRecent();
+      const dispatchedAction = dispatchCall.args[0] as unknown as ReturnType<
+        typeof loadAllData
+      >;
+      const globalConfig = dispatchedAction.appDataComplete.globalConfig as Record<
+        string,
+        unknown
+      >;
+      const sync = globalConfig['sync'] as Record<string, unknown>;
+      expect(sync['syncProvider']).toBe(LegacySyncProvider.WebDAV);
+      expect(sync['isEnabled']).toBe(true);
+    });
+
+    it('should preserve local settings in both snapshot and dispatch', async () => {
+      mockStore.select.and.returnValue(
+        of({
+          ...DEFAULT_GLOBAL_CONFIG.sync,
+          isEnabled: true,
+          syncProvider: LegacySyncProvider.SuperSync,
+        }),
+      );
+
+      const downloadedData = {
+        globalConfig: {
+          sync: {
+            isEnabled: false,
+            syncProvider: LegacySyncProvider.LocalFile,
+          },
+        },
+      };
+
+      await service.hydrateFromRemoteSync(downloadedData);
+
+      // Check snapshot
+      const saveCacheCall = mockOpLogStore.saveStateCache.calls.mostRecent();
+      const savedState = saveCacheCall.args[0].state as Record<string, unknown>;
+      const savedGlobalConfig = savedState['globalConfig'] as Record<string, unknown>;
+      const savedSync = savedGlobalConfig['sync'] as Record<string, unknown>;
+      expect(savedSync['isEnabled']).toBe(true);
+      expect(savedSync['syncProvider']).toBe(LegacySyncProvider.SuperSync);
+
+      // Check dispatch
+      const dispatchCall = mockStore.dispatch.calls.mostRecent();
+      const dispatchedAction = dispatchCall.args[0] as unknown as ReturnType<
+        typeof loadAllData
+      >;
+      const dispatchedGlobalConfig = dispatchedAction.appDataComplete
+        .globalConfig as Record<string, unknown>;
+      const dispatchedSync = dispatchedGlobalConfig['sync'] as Record<string, unknown>;
+      expect(dispatchedSync['isEnabled']).toBe(true);
+      expect(dispatchedSync['syncProvider']).toBe(LegacySyncProvider.SuperSync);
     });
   });
 });

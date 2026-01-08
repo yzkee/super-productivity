@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
+import { firstValueFrom } from 'rxjs';
 import { OperationLogStoreService } from './operation-log-store.service';
 import { CURRENT_SCHEMA_VERSION } from './schema-migration.service';
 import { StateSnapshotService } from '../backup/state-snapshot.service';
@@ -12,6 +13,7 @@ import { uuidv7 } from '../../util/uuid-v7';
 import { incrementVectorClock, mergeVectorClocks } from '../../core/util/vector-clock';
 import { OpLog } from '../../core/log';
 import { AppDataComplete } from '../model/model-config';
+import { selectSyncConfig } from '../../features/config/store/global-config.reducer';
 
 /**
  * Handles hydration after remote sync downloads.
@@ -61,6 +63,16 @@ export class SyncHydrationService {
     OpLog.normal('SyncHydrationService: Hydrating from remote sync...');
 
     try {
+      // 0. Capture current local-only sync settings BEFORE overwriting
+      // These settings should remain local to each client and not be overwritten by remote data.
+      // FIX: isEnabled was not being preserved, causing sync to appear disabled after reload
+      // when another client had sync disabled.
+      const currentSyncConfig = await firstValueFrom(this.store.select(selectSyncConfig));
+      const localOnlySettings = {
+        isEnabled: currentSyncConfig.isEnabled,
+        syncProvider: currentSyncConfig.syncProvider,
+      };
+
       // 1. Read archive data from IndexedDB and merge with passed entity data
       // Entity models (task, tag, project, etc.) come from downloadedMainModelData
       // Archive models (archiveYoung, archiveOld) come from IndexedDB
@@ -155,6 +167,23 @@ export class SyncHydrationService {
         // Cast to any since Record<string, unknown> doesn't directly map to AppDataComplete
         dataToLoad = validationResult.repairedState as any;
         OpLog.normal('SyncHydrationService: Repaired synced data before loading');
+      }
+
+      // 6b. Restore local-only sync settings into dataToLoad
+      // This ensures the snapshot and NgRx state have the correct local settings,
+      // not the ones from remote data. Without this, isEnabled could be set to false
+      // if another client had sync disabled, causing sync to appear disabled on reload.
+      if (dataToLoad.globalConfig?.sync) {
+        dataToLoad = {
+          ...dataToLoad,
+          globalConfig: {
+            ...dataToLoad.globalConfig,
+            sync: {
+              ...dataToLoad.globalConfig.sync,
+              ...localOnlySettings,
+            },
+          },
+        };
       }
 
       // 7. Save new state cache (snapshot) for crash safety

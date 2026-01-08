@@ -152,5 +152,120 @@ describe('GlobalConfigReducer', () => {
       expect(result.sync.syncInterval).toBe(600000);
       expect(result.sync.isCompressionEnabled).toBe(true);
     });
+
+    describe('isEnabled preservation', () => {
+      it('should use isEnabled from snapshot when not sync hydration', () => {
+        // This simulates app startup loading from snapshot (syncProvider is set, not null)
+        const oldState = initialGlobalConfigState; // isEnabled is false
+
+        const snapshotConfig: GlobalConfigState = {
+          ...initialGlobalConfigState,
+          sync: {
+            ...initialGlobalConfigState.sync,
+            syncProvider: LegacySyncProvider.SuperSync, // Not null = not sync hydration
+            isEnabled: true, // User had sync enabled
+          },
+        };
+
+        const result = globalConfigReducer(
+          oldState,
+          loadAllData({
+            appDataComplete: { globalConfig: snapshotConfig } as AppDataComplete,
+          }),
+        );
+
+        // Should use snapshot's isEnabled since it's not sync hydration
+        expect(result.sync.isEnabled).toBe(true);
+      });
+
+      it('should preserve isEnabled from oldState during sync hydration', () => {
+        // This simulates sync hydration: syncProvider is null (stripped)
+        const oldState: GlobalConfigState = {
+          ...initialGlobalConfigState,
+          sync: {
+            ...initialGlobalConfigState.sync,
+            syncProvider: LegacySyncProvider.SuperSync,
+            isEnabled: true, // User has sync enabled
+          },
+        };
+
+        const syncedConfig: GlobalConfigState = {
+          ...initialGlobalConfigState,
+          sync: {
+            ...initialGlobalConfigState.sync,
+            syncProvider: null, // Sync hydration indicator
+            isEnabled: false, // Remote client had sync disabled
+          },
+        };
+
+        const result = globalConfigReducer(
+          oldState,
+          loadAllData({
+            appDataComplete: { globalConfig: syncedConfig } as AppDataComplete,
+          }),
+        );
+
+        // isEnabled should be preserved from oldState, not overwritten by remote's false
+        expect(result.sync.isEnabled).toBe(true);
+        // syncProvider should also be preserved
+        expect(result.sync.syncProvider).toBe(LegacySyncProvider.SuperSync);
+      });
+
+      it('should preserve isEnabled=false from oldState during sync hydration', () => {
+        // User has sync disabled locally, remote has it enabled
+        const oldState: GlobalConfigState = {
+          ...initialGlobalConfigState,
+          sync: {
+            ...initialGlobalConfigState.sync,
+            syncProvider: LegacySyncProvider.SuperSync,
+            isEnabled: false, // User has sync disabled locally
+          },
+        };
+
+        const syncedConfig: GlobalConfigState = {
+          ...initialGlobalConfigState,
+          sync: {
+            ...initialGlobalConfigState.sync,
+            syncProvider: null, // Sync hydration indicator
+            isEnabled: true, // Remote client had sync enabled
+          },
+        };
+
+        const result = globalConfigReducer(
+          oldState,
+          loadAllData({
+            appDataComplete: { globalConfig: syncedConfig } as AppDataComplete,
+          }),
+        );
+
+        // isEnabled should stay false (preserved from oldState)
+        expect(result.sync.isEnabled).toBe(false);
+      });
+
+      it('should use incoming isEnabled on initial load', () => {
+        // First load: oldState is initial (syncProvider: null, isEnabled: false)
+        // Since oldState has no local settings (syncProvider: null), use incoming values
+        const oldState = initialGlobalConfigState; // syncProvider: null, isEnabled: false
+
+        const snapshotConfig: GlobalConfigState = {
+          ...initialGlobalConfigState,
+          sync: {
+            ...initialGlobalConfigState.sync,
+            syncProvider: null, // Could be null in edge cases
+            isEnabled: true, // User had sync enabled
+          },
+        };
+
+        const result = globalConfigReducer(
+          oldState,
+          loadAllData({
+            appDataComplete: { globalConfig: snapshotConfig } as AppDataComplete,
+          }),
+        );
+
+        // On initial load (no local settings), use incoming values
+        expect(result.sync.isEnabled).toBe(true);
+      });
+    });
   });
 });
