@@ -122,18 +122,27 @@ export class SyncPage extends BasePage {
 
         if (webdavVisible) {
           await webdavOption.click();
-          // Wait for dropdown to close and form to update
-          await this.page.waitForTimeout(500);
-          break;
+
+          // Wait for Formly to re-render the WebDAV form fields
+          // (hideExpression needs time to evaluate and show the fieldGroup)
+          const fieldVisible = await this.baseUrlInput
+            .waitFor({ state: 'visible', timeout: 5000 })
+            .then(() => true)
+            .catch(() => false);
+
+          if (fieldVisible) {
+            break; // Form fields are visible, we can proceed
+          }
+          // If fields didn't appear, close any open dropdown and retry
         }
       }
 
-      // Close dropdown if it opened but option not found, then retry
+      // Close dropdown and retry
       await this.page.keyboard.press('Escape');
       await this.page.waitForTimeout(500);
     }
 
-    // Wait for form fields to be visible before filling
+    // Final check - form fields should be visible now
     await this.baseUrlInput.waitFor({ state: 'visible', timeout: 10000 });
 
     // Fill in the configuration
@@ -150,6 +159,19 @@ export class SyncPage extends BasePage {
   }
 
   async triggerSync(): Promise<void> {
+    // Dismiss any open dialogs/overlays that might block the sync button
+    const overlay = this.page.locator('.cdk-overlay-backdrop');
+    if (await overlay.isVisible({ timeout: 500 }).catch(() => false)) {
+      // Try pressing Escape to close any open dialog
+      await this.page.keyboard.press('Escape');
+      await this.page.waitForTimeout(300);
+      // If overlay is still there, try clicking outside to dismiss
+      if (await overlay.isVisible({ timeout: 300 }).catch(() => false)) {
+        await overlay.click({ force: true }).catch(() => {});
+        await this.page.waitForTimeout(300);
+      }
+    }
+
     await this.syncBtn.click();
     // Wait for any sync operation to start (spinner appears or completes immediately)
     await Promise.race([

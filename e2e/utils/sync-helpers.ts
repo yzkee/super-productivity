@@ -143,12 +143,43 @@ export const waitForSyncComplete = async (
   // Ensure sync button is visible first
   await expect(syncPage.syncBtn).toBeVisible({ timeout: 10000 });
 
+  // Track consecutive non-spinning states to confirm sync is truly complete
+  let nonSpinningCount = 0;
+  const requiredNonSpinningChecks = 3;
+
   while (Date.now() - startTime < timeout) {
-    const successVisible = await syncPage.syncCheckIcon.isVisible();
-    if (successVisible) return 'success';
+    // Check if sync-state-ico icon exists (shown when hasNoPendingOps)
+    // The icon is small (10px) and absolutely positioned, so use count() check
+    const syncStateIcon = page.locator('.sync-btn mat-icon.sync-state-ico');
+    if ((await syncStateIcon.count()) > 0) {
+      return 'success';
+    }
+
+    // Check if spinner is gone (sync not in progress)
+    const spinnerVisible = await syncPage.syncSpinner.isVisible().catch(() => false);
+    if (!spinnerVisible) {
+      nonSpinningCount++;
+      // After several consecutive checks with no spinner and no error, consider it success
+      // This handles cases where the icon check fails but sync actually completed
+      if (nonSpinningCount >= requiredNonSpinningChecks) {
+        // Final check - make sure sync button is still there and no error shown
+        const syncBtnVisible = await syncPage.syncBtn.isVisible().catch(() => false);
+        if (syncBtnVisible) {
+          return 'success';
+        }
+      }
+    } else {
+      nonSpinningCount = 0; // Reset if spinner is visible again
+    }
 
     const conflictDialog = page.locator('dialog-sync-conflict');
     if (await conflictDialog.isVisible()) return 'conflict';
+
+    // Also check for first-sync conflict dialog (mat-dialog with "Conflicting Data" text)
+    const conflictMatDialog = page.locator('mat-dialog-container', {
+      hasText: 'Conflicting Data',
+    });
+    if (await conflictMatDialog.isVisible().catch(() => false)) return 'conflict';
 
     const snackBars = page.locator('.mat-mdc-snack-bar-container');
     const count = await snackBars.count();

@@ -636,10 +636,27 @@ test.describe('@webdav WebDAV Provider Switch', () => {
     await waitForStatePersistence(pageB);
     console.log('[Multi Local Ops Test] Client B: Created 2 local tasks');
 
-    // Configure sync and accept confirmation
+    // Configure sync - this triggers auto-sync which may show conflict dialog
     await syncPageB.setupWebdavSync(config);
 
-    // Dialog will be auto-accepted by test framework
+    // Handle the sync conflict dialog (Material dialog, not browser confirm)
+    // We want to keep remote data, so click "Keep remote"
+    const conflictDialog = pageB.locator('mat-dialog-container', {
+      hasText: 'Conflicting Data',
+    });
+    const conflictVisible = await conflictDialog
+      .waitFor({ state: 'visible', timeout: 10000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (conflictVisible) {
+      const keepRemoteBtn = conflictDialog.locator('button', { hasText: /Keep remote/i });
+      await keepRemoteBtn.click();
+      // Wait for dialog to close
+      await conflictDialog.waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    }
+
+    // Trigger sync if not already syncing and wait for completion
     await syncPageB.triggerSync();
     await waitForSyncComplete(pageB, syncPageB);
 
