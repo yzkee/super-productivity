@@ -297,11 +297,13 @@ export class RemoteOpsProcessingService {
       );
     }
 
-    // Store operations with pending status before applying
+    // Store operations with pending status before applying (single transaction for performance)
     // If we crash after storing but before applying, these will be retried on startup
-    for (const op of opsToApply) {
-      const seq = await this.opLogStore.append(op, 'remote', { pendingApply: true });
-      opIdToSeq.set(op.id, seq);
+    if (opsToApply.length > 0) {
+      const seqs = await this.opLogStore.appendBatch(opsToApply, 'remote', {
+        pendingApply: true,
+      });
+      opsToApply.forEach((op, i) => opIdToSeq.set(op.id, seqs[i]));
     }
 
     // Apply only NON-duplicate ops to NgRx store

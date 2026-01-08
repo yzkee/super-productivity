@@ -52,6 +52,7 @@ describe('RemoteOpsProcessingService', () => {
       'getUnsynced',
       'hasOp',
       'append',
+      'appendBatch',
       'appendWithVectorClockUpdate',
       'markApplied',
       'markFailed',
@@ -65,6 +66,10 @@ describe('RemoteOpsProcessingService', () => {
     ]);
     // By default, treat all ops as new (return them as-is)
     opLogStoreSpy.filterNewOps.and.callFake((ops: any[]) => Promise.resolve(ops));
+    // By default, appendBatch returns sequential seq numbers starting from 1
+    opLogStoreSpy.appendBatch.and.callFake((ops: any[]) =>
+      Promise.resolve(ops.map((_: any, i: number) => i + 1)),
+    );
     // By default, no full-state ops in store
     opLogStoreSpy.getLatestFullStateOp.and.returnValue(Promise.resolve(undefined));
     // By default, mergeRemoteOpClocks succeeds
@@ -309,13 +314,11 @@ describe('RemoteOpsProcessingService', () => {
       vectorClockServiceSpy.getEntityFrontier.and.returnValue(Promise.resolve(new Map()));
       vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
       opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
-      opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
 
       await service.processRemoteOps(remoteOps);
 
-      // Only op1 should be applied
-      expect(opLogStoreSpy.append).toHaveBeenCalledTimes(1);
-      expect(opLogStoreSpy.append).toHaveBeenCalledWith(remoteOps[0], 'remote', {
+      // Only op1 should be applied (appendBatch called with single-element array)
+      expect(opLogStoreSpy.appendBatch).toHaveBeenCalledWith([remoteOps[0]], 'remote', {
         pendingApply: true,
       });
     });
@@ -338,18 +341,15 @@ describe('RemoteOpsProcessingService', () => {
       vectorClockServiceSpy.getEntityFrontier.and.returnValue(Promise.resolve(new Map()));
       vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
       opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
-      opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
 
       await service.processRemoteOps(remoteOps);
 
-      // op1 and op3 should be processed, 'throws' is skipped
-      expect(opLogStoreSpy.append).toHaveBeenCalledTimes(2);
-      expect(opLogStoreSpy.append).toHaveBeenCalledWith(remoteOps[0], 'remote', {
-        pendingApply: true,
-      });
-      expect(opLogStoreSpy.append).toHaveBeenCalledWith(remoteOps[2], 'remote', {
-        pendingApply: true,
-      });
+      // op1 and op3 should be processed (appendBatch called with array of both)
+      expect(opLogStoreSpy.appendBatch).toHaveBeenCalledWith(
+        [remoteOps[0], remoteOps[2]],
+        'remote',
+        { pendingApply: true },
+      );
     });
 
     it('should return early when all ops fail migration', async () => {
@@ -395,8 +395,10 @@ describe('RemoteOpsProcessingService', () => {
       // (used for potential dependency warnings in future enhancements)
       await service.processRemoteOps(remoteOps);
 
-      // Only op1 should be applied
-      expect(opLogStoreSpy.append).toHaveBeenCalledTimes(1);
+      // Only op1 should be applied (appendBatch called with single-element array)
+      expect(opLogStoreSpy.appendBatch).toHaveBeenCalledWith([remoteOps[0]], 'remote', {
+        pendingApply: true,
+      });
     });
 
     it('should show error snackbar and abort if version is too new', async () => {
@@ -462,8 +464,10 @@ describe('RemoteOpsProcessingService', () => {
         }),
       );
 
-      // Should still process the ops (ops are applied)
-      expect(opLogStoreSpy.append).toHaveBeenCalledTimes(2);
+      // Should still process the ops (appendBatch called with both ops)
+      expect(opLogStoreSpy.appendBatch).toHaveBeenCalledWith(remoteOps, 'remote', {
+        pendingApply: true,
+      });
     });
 
     it('should not show newer version warning again in same session', async () => {
