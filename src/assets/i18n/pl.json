@@ -136,7 +136,7 @@
         "ASSIGNEE": "Osoba przypisana",
         "AT": "na",
         "ATTACHMENTS": "Załączniki",
-        "CHANGED": "Zmienione",
+        "CHANGED": "Zmieniono",
         "COMMENTS": "Komentarze",
         "COMPONENTS": "Komponenty",
         "DESCRIPTION": "Opis",
@@ -146,16 +146,16 @@
         "ON": "W",
         "RELATED": "Powiązane",
         "STATUS": "Status",
-        "STORY_POINTS": "Punkty historii",
+        "STORY_POINTS": "Wycena historyjki",
         "SUB_TASKS": "Podzadania",
         "SUMMARY": "Podsumowanie",
-        "WORKLOG": "Dziennik pracy",
+        "WORKLOG": "Rejestrze zadań",
         "WRITE_A_COMMENT": "Napisz komentarz"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: nie znaleziono kalendarza „{{calendarName}}”",
         "CALENDAR_READ_ONLY": "CalDav: kalendarz „{{calendarName}}” jest tylko do odczytu",
-        "ISSUE_NOT_FOUND": "CalDav: zadanie „{{issueId}}” wygląda na usunięte na serwerze."
+        "ISSUE_NOT_FOUND": "CalDav: zadania do wykonania „{{issueId}}” wygląda na usunięte z serwera."
       }
     },
     "CALENDARS": {
@@ -185,27 +185,27 @@
       "A_HOW": "Jak i gdzie oceniać",
       "BTN_DONT_BOTHER": "Nie zawracaj mi więcej głowy",
       "TITLE": "🙈 Proszę nam wybaczyć, ale...",
-      "TXT": "Ogromnie pomógłbyś projektowi, <strong>wystawiając mu dobrą ocenę, jeśli Ci się spodoba!</strong>"
+      "TXT": "Bardzo pomógłbyś projektowi, <strong>wystawiając mu dobrą ocenę, jeśli Ci się spodoba!</strong>"
     },
     "DOMINA_MODE": {
       "FORM": {
         "HELP": "Powtarza skonfigurowaną frazę co X podczas śledzenia czasu wykonywania zadania.",
         "L_INTERVAL": "Interwał powtarzania frazy",
         "L_TEXT": "Tekst",
-        "L_TEXT_DESCRIPTION": "Np: \"Work on ${currentTaskTitle}!\"",
+        "L_TEXT_DESCRIPTION": "Np: \"Pracuj nad ${currentTaskTitle}!\"",
         "L_VOICE": "Wybierz głos",
         "L_VOICE_DESCRIPTION": "Wybierz głos",
-        "TITLE": "Tryb Domina"
+        "TITLE": "Tryb Domeny"
       }
     },
     "DROPBOX": {
       "S": {
-        "ACCESS_TOKEN_ERROR": "Dropbox: nie udało się wygenerować tokenu dostępu (Access Token) na podstawie kodu autoryzacji",
+        "ACCESS_TOKEN_ERROR": "Dropbox: nie udało się wygenerować tokenu dostępowego (Access Token) na podstawie kodu autoryzacji",
         "ACCESS_TOKEN_GENERATED": "Dropbox: wygenerowano token dostępu (Access Token) na podstawie kodu autoryzacji",
         "AUTH_ERROR": "Dropbox: podano nieprawidłowy token dostępu",
-        "AUTH_ERROR_ACTION": "Żeton zmiany",
-        "OFFLINE": "Dropbox: nie można zsynchronizować danych, ponieważ brak połączenia z internetem",
-        "SYNC_ERROR": "Dropbox: błąd podczas synchronizacji",
+        "AUTH_ERROR_ACTION": "Zmień token",
+        "OFFLINE": "Dropbox: Nie można zsynchronizować danych, ponieważ utracono połączenia z internetem",
+        "SYNC_ERROR": "Dropbox: Wystąpił błąd podczas synchronizacji",
         "UNABLE_TO_GENERATE_PKCE_CHALLENGE": "Dropbox: Nie można wygenerować wyzwania PKCE."
       }
     },
