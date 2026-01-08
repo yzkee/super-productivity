@@ -13,7 +13,6 @@ import { UiHelperService } from '../../features/ui-helper/ui-helper.service';
 import { ChromeExtensionInterfaceService } from '../chrome-extension-interface/chrome-extension-interface.service';
 import { ProjectService } from '../../features/project/project.service';
 import { TrackingReminderService } from '../../features/tracking-reminder/tracking-reminder.service';
-import { SyncSafetyBackupService } from '../../imex/sync/sync-safety-backup.service';
 import { of } from 'rxjs';
 import { signal } from '@angular/core';
 import { LS } from '../persistence/storage-keys.const';
@@ -90,10 +89,6 @@ describe('StartupService', () => {
       'init',
     ]);
 
-    const syncSafetyBackupServiceSpy = jasmine.createSpyObj('SyncSafetyBackupService', [
-      'init',
-    ]);
-
     TestBed.configureTestingModule({
       providers: [
         StartupService,
@@ -113,7 +108,6 @@ describe('StartupService', () => {
         },
         { provide: ProjectService, useValue: projectServiceSpy },
         { provide: TrackingReminderService, useValue: trackingReminderServiceSpy },
-        { provide: SyncSafetyBackupService, useValue: syncSafetyBackupServiceSpy },
       ],
     });
 

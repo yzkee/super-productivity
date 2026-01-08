@@ -471,6 +471,9 @@ export class ArchiveOperationHandler {
    * Fixes bug where SYNC_IMPORT updated NgRx state but never persisted archive
    * data to IndexedDB on remote client, causing data loss on restart.
    *
+   * Uses rollback for atomicity - if archiveOld write fails after archiveYoung
+   * succeeds, we restore archiveYoung to its original state.
+   *
    * @localBehavior SKIP - Archive written by BackupService.importCompleteBackup()
    * @remoteBehavior Executes - Uses ArchiveDbAdapter for direct IndexedDB access
    */
@@ -482,17 +485,41 @@ export class ArchiveOperationHandler {
     const loadAllDataAction = action as unknown as ReturnType<typeof loadAllData>;
     const appDataComplete = loadAllDataAction.appDataComplete;
 
-    // Write archiveYoung if present in the import data
     const archiveYoung = (appDataComplete as { archiveYoung?: ArchiveModel })
       .archiveYoung;
+    const archiveOld = (appDataComplete as { archiveOld?: ArchiveModel }).archiveOld;
+
+    // Load original state for potential rollback
+    const originalArchiveYoung = await this._archiveDbAdapter.loadArchiveYoung();
+
+    // Write archiveYoung if present in the import data
     if (archiveYoung !== undefined) {
       await this._archiveDbAdapter.saveArchiveYoung(archiveYoung);
     }
 
     // Write archiveOld if present in the import data
-    const archiveOld = (appDataComplete as { archiveOld?: ArchiveModel }).archiveOld;
     if (archiveOld !== undefined) {
-      await this._archiveDbAdapter.saveArchiveOld(archiveOld);
+      try {
+        await this._archiveDbAdapter.saveArchiveOld(archiveOld);
+      } catch (e) {
+        // Attempt rollback: restore archiveYoung to original state
+        OpLog.err(
+          '[ArchiveOperationHandler] archiveOld write failed, attempting rollback...',
+          e,
+        );
+        try {
+          if (originalArchiveYoung !== undefined) {
+            await this._archiveDbAdapter.saveArchiveYoung(originalArchiveYoung);
+            OpLog.log('[ArchiveOperationHandler] Rollback successful');
+          }
+        } catch (rollbackErr) {
+          OpLog.err(
+            '[ArchiveOperationHandler] Rollback FAILED - archive may be inconsistent',
+            rollbackErr,
+          );
+        }
+        throw e; // Re-throw original error
+      }
     }
 
     OpLog.log(

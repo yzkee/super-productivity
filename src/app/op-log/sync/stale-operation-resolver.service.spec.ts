@@ -293,7 +293,12 @@ describe('StaleOperationResolverService', () => {
       expect(result).toBe(0);
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['op-1']);
       expect(mockOpLogStore.appendWithVectorClockUpdate).not.toHaveBeenCalled();
-      expect(mockSnackService.open).not.toHaveBeenCalled();
+      // Should notify user that local changes were discarded
+      expect(mockSnackService.open).toHaveBeenCalledOnceWith(
+        jasmine.objectContaining({
+          translateParams: { count: 1 },
+        }),
+      );
     });
 
     it('should merge snapshot vector clock when provided', async () => {

@@ -14,6 +14,8 @@ import { incrementVectorClock, mergeVectorClocks } from '../../core/util/vector-
 import { OpLog } from '../../core/log';
 import { AppDataComplete } from '../model/model-config';
 import { selectSyncConfig } from '../../features/config/store/global-config.reducer';
+import { SnackService } from '../../core/snack/snack.service';
+import { T } from '../../t.const';
 
 /**
  * Handles hydration after remote sync downloads.
@@ -35,6 +37,7 @@ export class SyncHydrationService {
   private clientIdService = inject(ClientIdService);
   private vectorClockService = inject(VectorClockService);
   private validateStateService = inject(ValidateStateService);
+  private snackService = inject(SnackService);
 
   /**
    * Handles hydration after a remote sync download.
@@ -156,6 +159,28 @@ export class SyncHydrationService {
         OpLog.normal(
           'SyncHydrationService: Skipping SYNC_IMPORT creation (file-based bootstrap)',
         );
+
+        // CRITICAL: Reject any local pending ops since they're now based on stale state.
+        // Without SYNC_IMPORT, SyncImportFilterService won't automatically filter them.
+        // These ops have stale clocks and payloads that don't match the new snapshot.
+        const unsyncedOps = await this.opLogStore.getUnsynced();
+        if (unsyncedOps.length > 0) {
+          const opIds = unsyncedOps.map((entry) => entry.op.id);
+          await this.opLogStore.markRejected(opIds);
+          OpLog.normal(
+            `SyncHydrationService: Rejected ${unsyncedOps.length} local pending op(s) ` +
+              `(stale after file-based sync snapshot)`,
+          );
+
+          // Notify user that local changes were discarded
+          this.snackService.open({
+            msg: T.F.SYNC.S.LOCAL_CHANGES_DISCARDED_SNAPSHOT,
+            translateParams: {
+              count: unsyncedOps.length,
+            },
+          });
+        }
+
         lastSeq = await this.opLogStore.getLastSeq();
       }
 

@@ -111,6 +111,7 @@ export class StaleOperationResolverService {
 
       const opsToReject: string[] = [];
       const newOpsCreated: Operation[] = [];
+      let discardedChangesCount = 0;
 
       for (const [entityKey, entityOps] of opsByEntity) {
         // Get the first op to determine entity type and ID
@@ -134,8 +135,9 @@ export class StaleOperationResolverService {
           OpLog.warn(
             `StaleOperationResolverService: Cannot create update op - entity not found: ${entityKey}`,
           );
-          // Still mark the ops as rejected
+          // Still mark the ops as rejected, but track that changes were discarded
           opsToReject.push(...entityOps.map((e) => e.opId));
+          discardedChangesCount += entityOps.length;
           continue;
         }
 
@@ -187,6 +189,16 @@ export class StaleOperationResolverService {
           translateParams: {
             localWins: newOpsCreated.length,
             remoteWins: 0,
+          },
+        });
+      }
+
+      // Notify user if local changes were discarded because entities no longer exist
+      if (discardedChangesCount > 0) {
+        this.snackService.open({
+          msg: T.F.SYNC.S.LOCAL_CHANGES_DISCARDED,
+          translateParams: {
+            count: discardedChangesCount,
           },
         });
       }

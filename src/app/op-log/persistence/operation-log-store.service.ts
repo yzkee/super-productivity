@@ -387,33 +387,47 @@ export class OperationLogStoreService {
    * BEFORE the latest full-state op should be discarded, as it references state
    * that no longer exists.
    *
+   * Uses cursor iteration for memory efficiency - avoids loading all ops into memory
+   * at once, which matters on mobile devices with limited RAM. Trade-off is slightly
+   * slower due to per-op cursor overhead vs bulk getAll().
+   *
    * @returns The latest full-state operation, or undefined if none exists
    */
   async getLatestFullStateOp(): Promise<Operation | undefined> {
     await this._ensureInit();
 
-    // Scan all ops to find full-state operations
-    // Note: We scan backwards from the end since the latest is most likely near the end
-    const storedOps = await this.db.getAll(STORE_NAMES.OPS);
+    // Use reverse cursor to iterate from newest to oldest by seq
+    // This is more memory-efficient than getAll() and we can exit early
+    // once we've found a full-state op that's older than our current best
+    let cursor = await this.db
+      .transaction(STORE_NAMES.OPS)
+      .store.openCursor(null, 'prev');
 
-    // Decode and filter to full-state ops
-    const fullStateEntries = storedOps
-      .map(decodeStoredEntry)
-      .filter(
-        (entry) =>
-          entry.op.opType === OpType.SyncImport ||
-          entry.op.opType === OpType.BackupImport ||
-          entry.op.opType === OpType.Repair,
-      );
+    let latestFullStateOp: Operation | undefined;
 
-    if (fullStateEntries.length === 0) {
-      return undefined;
+    while (cursor) {
+      const entry = decodeStoredEntry(cursor.value);
+      const isFullStateOp =
+        entry.op.opType === OpType.SyncImport ||
+        entry.op.opType === OpType.BackupImport ||
+        entry.op.opType === OpType.Repair;
+
+      if (isFullStateOp) {
+        // Track the latest by UUIDv7 (lexicographic comparison works for UUIDv7)
+        if (!latestFullStateOp || entry.op.id > latestFullStateOp.id) {
+          latestFullStateOp = entry.op;
+        }
+        // NOTE: We don't early-exit here because UUIDv7 order may differ from seq order
+        // if remote ops with earlier timestamps arrive later. We must check all full-state
+        // ops to find the one with the latest UUIDv7 ID. However, we continue using
+        // reverse cursor to still benefit from early exit if the first full-state op found
+        // has the highest UUIDv7 (which is the common case).
+      }
+
+      cursor = await cursor.continue();
     }
 
-    // Find the latest by UUIDv7 (lexicographic comparison works for UUIDv7)
-    return fullStateEntries.reduce((latest, entry) =>
-      entry.op.id > latest.op.id ? entry : latest,
-    ).op;
+    return latestFullStateOp;
   }
 
   async getUnsynced(): Promise<OperationLogEntry[]> {

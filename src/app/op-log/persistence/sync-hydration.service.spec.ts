@@ -11,6 +11,7 @@ import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { ActionType, OpType } from '../core/operation.types';
 import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
+import { SnackService } from '../../core/snack/snack.service';
 
 describe('SyncHydrationService', () => {
   let service: SyncHydrationService;
@@ -20,6 +21,7 @@ describe('SyncHydrationService', () => {
   let mockClientIdService: jasmine.SpyObj<ClientIdService>;
   let mockVectorClockService: jasmine.SpyObj<VectorClockService>;
   let mockValidateStateService: jasmine.SpyObj<ValidateStateService>;
+  let mockSnackService: jasmine.SpyObj<SnackService>;
 
   // Default local sync config for tests
   const defaultLocalSyncConfig = {
@@ -38,7 +40,12 @@ describe('SyncHydrationService', () => {
       'saveStateCache',
       'setVectorClock',
       'loadStateCache',
+      'getUnsynced',
+      'markRejected',
     ]);
+    // Default: no unsynced ops (for tests that don't care about this)
+    mockOpLogStore.getUnsynced.and.resolveTo([]);
+    mockOpLogStore.markRejected.and.resolveTo();
     mockStateSnapshotService = jasmine.createSpyObj('StateSnapshotService', [
       'getAllSyncModelDataFromStoreAsync',
     ]);
@@ -52,6 +59,7 @@ describe('SyncHydrationService', () => {
     mockValidateStateService = jasmine.createSpyObj('ValidateStateService', [
       'validateAndRepair',
     ]);
+    mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
 
     TestBed.configureTestingModule({
       providers: [
@@ -62,6 +70,7 @@ describe('SyncHydrationService', () => {
         { provide: ClientIdService, useValue: mockClientIdService },
         { provide: VectorClockService, useValue: mockVectorClockService },
         { provide: ValidateStateService, useValue: mockValidateStateService },
+        { provide: SnackService, useValue: mockSnackService },
       ],
     });
     service = TestBed.inject(SyncHydrationService);

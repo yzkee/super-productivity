@@ -414,6 +414,9 @@ export class OperationLogEffects {
    * The fresh vector clocks include all remote operations just applied, preventing
    * immediate conflicts when these operations are uploaded.
    *
+   * Includes retry logic with exponential backoff to handle transient failures
+   * (e.g., IndexedDB quota temporarily exceeded).
+   *
    * Called by OperationApplierService after sync operations are applied.
    */
   async processDeferredActions(): Promise<void> {
@@ -426,16 +429,38 @@ export class OperationLogEffects {
       `OperationLogEffects: Processing ${deferredActions.length} deferred action(s) from sync window`,
     );
 
+    const MAX_RETRIES = 3;
+    const BASE_DELAY_MS = 100;
+
     for (const action of deferredActions) {
-      try {
-        await this.writeOperation(action);
-      } catch (e) {
-        // Log error but continue processing remaining actions.
-        // Each action is independent - failure of one shouldn't block others.
-        OpLog.err('OperationLogEffects: Failed to process deferred action', {
-          actionType: action.type,
-          error: e,
-        });
+      let lastError: unknown;
+      let success = false;
+
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          await this.writeOperation(action);
+          success = true;
+          break;
+        } catch (e) {
+          lastError = e;
+          if (attempt < MAX_RETRIES - 1) {
+            // Exponential backoff: 100ms, 200ms, 400ms
+            const delay = BASE_DELAY_MS * Math.pow(2, attempt);
+            OpLog.warn(
+              `OperationLogEffects: Retrying deferred action (attempt ${attempt + 1}/${MAX_RETRIES})`,
+              { actionType: action.type, delay },
+            );
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
+        }
+      }
+
+      if (!success) {
+        // Log error after all retries exhausted, continue processing remaining actions
+        OpLog.err(
+          `OperationLogEffects: Failed to process deferred action after ${MAX_RETRIES} retries`,
+          { actionType: action.type, error: lastError },
+        );
       }
     }
   }
