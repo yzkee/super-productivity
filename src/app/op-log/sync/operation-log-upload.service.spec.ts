@@ -525,7 +525,12 @@ describe('OperationLogUploadService', () => {
           opType,
           entityType: 'ALL',
           entityId: undefined,
-          payload: { tasks: [], projects: [] },
+          payload: {
+            task: { ids: [], entities: {} },
+            project: { ids: [], entities: {} },
+            tag: { ids: [], entities: {} },
+            globalConfig: {},
+          },
           vectorClock: { [clientId]: 1 },
           timestamp: Date.now(),
           schemaVersion: 1,
@@ -781,6 +786,10 @@ describe('OperationLogUploadService', () => {
         const vectorClock: Record<string, number> = {};
         vectorClock['client-1'] = 5;
         vectorClock['client-2'] = 3;
+        const testPayload = {
+          task: { ids: [], entities: {} },
+          globalConfig: {},
+        };
         const entry: OperationLogEntry = {
           seq: 1,
           op: {
@@ -790,7 +799,7 @@ describe('OperationLogUploadService', () => {
             opType: OpType.BackupImport,
             entityType: 'ALL',
             entityId: undefined,
-            payload: { data: 'state' },
+            payload: testPayload,
             vectorClock,
             timestamp: Date.now(),
             schemaVersion: 42,
@@ -803,7 +812,7 @@ describe('OperationLogUploadService', () => {
         await service.uploadPendingOps(mockApiProvider);
 
         expect(mockApiProvider.uploadSnapshot).toHaveBeenCalledWith(
-          { data: 'state' },
+          testPayload,
           'client-1',
           'recovery',
           vectorClock,
