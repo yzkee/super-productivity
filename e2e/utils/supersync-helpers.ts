@@ -254,12 +254,20 @@ export const closeClient = async (client: SimulatedE2EClient): Promise<void> => 
       await client.context.close();
     }
   } catch (error) {
-    // Ignore errors if context is already closed
-    if (
-      error instanceof Error &&
-      !error.message.includes('Target page, context or browser has been closed')
-    ) {
-      throw error;
+    // Ignore errors if context is already closed or trace artifacts are missing
+    // ENOENT errors can occur when Playwright tries to finalize trace files
+    // for manually-created contexts (known issue with trace: 'retain-on-failure')
+    if (error instanceof Error) {
+      const ignorableErrors = [
+        'Target page, context or browser has been closed',
+        'ENOENT',
+      ];
+      const shouldIgnore = ignorableErrors.some((msg) => error.message.includes(msg));
+      if (shouldIgnore) {
+        console.warn(`[closeClient] Ignoring cleanup error: ${error.message}`);
+      } else {
+        throw error;
+      }
     }
   }
 };
