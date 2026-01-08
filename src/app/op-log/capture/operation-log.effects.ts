@@ -431,6 +431,7 @@ export class OperationLogEffects {
 
     const MAX_RETRIES = 3;
     const BASE_DELAY_MS = 100;
+    let failedCount = 0;
 
     for (const action of deferredActions) {
       let lastError: unknown;
@@ -456,12 +457,28 @@ export class OperationLogEffects {
       }
 
       if (!success) {
+        failedCount++;
         // Log error after all retries exhausted, continue processing remaining actions
         OpLog.err(
           `OperationLogEffects: Failed to process deferred action after ${MAX_RETRIES} retries`,
           { actionType: action.type, error: lastError },
         );
       }
+    }
+
+    // Show notification if any actions failed
+    if (failedCount > 0) {
+      this.snackService.open({
+        type: 'ERROR',
+        msg: T.F.SYNC.S.DEFERRED_ACTION_FAILED,
+        actionStr: T.PS.RELOAD,
+        actionFn: (): void => {
+          window.location.reload();
+        },
+        config: {
+          duration: 0, // Sticky - don't auto-dismiss critical errors
+        },
+      });
     }
   }
 }

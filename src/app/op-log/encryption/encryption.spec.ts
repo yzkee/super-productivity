@@ -1,4 +1,4 @@
-import { decrypt, encrypt } from './encryption';
+import { decrypt, encrypt, decryptWithMigration } from './encryption';
 
 describe('Encryption', () => {
   const PASSWORD = 'super_secret_password';
@@ -72,6 +72,42 @@ describe('Encryption', () => {
       const legacyEncrypted = await encryptLegacy(DATA, PASSWORD);
       const decrypted = await decrypt(legacyEncrypted, PASSWORD);
       expect(decrypted).toBe(DATA);
+    });
+
+    describe('decryptWithMigration', () => {
+      it('should return wasLegacy: false for Argon2id encrypted data', async () => {
+        const encrypted = await encrypt(DATA, PASSWORD);
+        const result = await decryptWithMigration(encrypted, PASSWORD);
+
+        expect(result.plaintext).toBe(DATA);
+        expect(result.wasLegacy).toBe(false);
+        expect(result.migratedCiphertext).toBeUndefined();
+      });
+
+      it('should return wasLegacy: true and migratedCiphertext for legacy data', async () => {
+        const legacyEncrypted = await encryptLegacy(DATA, PASSWORD);
+        const result = await decryptWithMigration(legacyEncrypted, PASSWORD);
+
+        expect(result.plaintext).toBe(DATA);
+        expect(result.wasLegacy).toBe(true);
+        expect(result.migratedCiphertext).toBeDefined();
+
+        // Verify migrated ciphertext is valid Argon2id
+        const decryptedMigrated = await decrypt(result.migratedCiphertext!, PASSWORD);
+        expect(decryptedMigrated).toBe(DATA);
+      });
+
+      it('should produce migrated ciphertext that decrypts without legacy fallback', async () => {
+        const legacyEncrypted = await encryptLegacy(DATA, PASSWORD);
+        const result = await decryptWithMigration(legacyEncrypted, PASSWORD);
+
+        // Migrated data should NOT need legacy fallback
+        const decryptResult = await decryptWithMigration(
+          result.migratedCiphertext!,
+          PASSWORD,
+        );
+        expect(decryptResult.wasLegacy).toBe(false);
+      });
     });
   });
 });

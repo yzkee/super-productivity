@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { TranslateService } from '@ngx-translate/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
-import { OpType, VectorClock } from '../core/operation.types';
+import { OpType, VectorClock, FULL_STATE_OP_TYPES } from '../core/operation.types';
 import { OpLog } from '../../core/log';
 import { OperationSyncCapable } from '../sync-providers/provider.interface';
 import { OperationLogUploadService, UploadResult } from './operation-log-upload.service';
@@ -266,12 +266,20 @@ export class OperationLogSyncService {
         //
         // Meaningful user data = task/project/tag CREATE/UPDATE operations
         // These are entities the user explicitly created/modified and would lose if overwritten.
+        // Also includes full-state ops (backup import, sync import, repair) which represent
+        // explicit user actions that should trigger conflict resolution.
         const USER_ENTITY_TYPES = ['TASK', 'PROJECT', 'TAG', 'NOTE'];
-        const hasMeaningfulUserData = unsyncedOps.some(
-          (entry) =>
+        const hasMeaningfulUserData = unsyncedOps.some((entry) => {
+          // Full-state ops are always meaningful - they represent explicit user actions
+          if (FULL_STATE_OP_TYPES.has(entry.op.opType as OpType)) {
+            return true;
+          }
+          // Regular ops: meaningful if they modify user entities
+          return (
             USER_ENTITY_TYPES.includes(entry.op.entityType) &&
-            (entry.op.opType === OpType.Create || entry.op.opType === OpType.Update),
-        );
+            (entry.op.opType === OpType.Create || entry.op.opType === OpType.Update)
+          );
+        });
 
         if (hasMeaningfulUserData) {
           // Client has meaningful user data - show conflict dialog

@@ -23,15 +23,16 @@ const ab2base64 = (buffer: ArrayBuffer): string => {
 };
 
 // LEGACY FUNCTIONS
-// PBKDF2 functions are only kept for backward compatibility
+// PBKDF2 functions are only kept for backward compatibility.
+// SECURITY NOTE: PBKDF2 with password-as-salt is cryptographically weak.
+// Use decryptWithMigration() to automatically re-encrypt legacy data with Argon2id.
 const _generateKey = async (password: string): Promise<CryptoKey> => {
   const enc = new TextEncoder();
   const passwordBuffer = enc.encode(password);
   const ops = {
     name: 'PBKDF2',
-    // TODO this is probably not very secure
-    // on the other hand: the salt is used for saving the password securely, so maybe it is not important
-    // for our specific use case? We would need to need some security expert input on this
+    // Using password as salt is insecure but kept for backward compatibility.
+    // New data uses Argon2id with random salt via encrypt().
     salt: enc.encode(password),
     iterations: 1000,
     hash: 'SHA-256',
@@ -134,5 +135,45 @@ export const decrypt = async (data: string, password: string): Promise<string> =
   } catch (e) {
     // Fallback to legacy decryption (pre-Argon2 format)
     return await decryptLegacy(data, password);
+  }
+};
+
+/**
+ * Result of decryption with migration information.
+ * When wasLegacy is true, migratedCiphertext contains the data
+ * re-encrypted with Argon2id for improved security.
+ */
+export interface DecryptResult {
+  /** The decrypted plaintext data */
+  plaintext: string;
+  /** Re-encrypted data using Argon2id. Only set if wasLegacy is true. */
+  migratedCiphertext?: string;
+  /** True if the data was encrypted with legacy PBKDF2 */
+  wasLegacy: boolean;
+}
+
+/**
+ * Decrypts data and provides migration information for legacy PBKDF2 data.
+ *
+ * When legacy data is detected:
+ * 1. Decrypts using PBKDF2 (insecure: password used as salt)
+ * 2. Re-encrypts using Argon2id (secure: random salt)
+ * 3. Returns the new ciphertext for caller to persist
+ *
+ * Callers should persist migratedCiphertext when available to complete
+ * the migration from PBKDF2 to Argon2id.
+ */
+export const decryptWithMigration = async (
+  data: string,
+  password: string,
+): Promise<DecryptResult> => {
+  try {
+    const plaintext = await decryptArgon(data, password);
+    return { plaintext, wasLegacy: false };
+  } catch (e) {
+    // Legacy PBKDF2 format - decrypt and prepare migration
+    const plaintext = await decryptLegacy(data, password);
+    const migratedCiphertext = await encrypt(plaintext, password);
+    return { plaintext, migratedCiphertext, wasLegacy: true };
   }
 };

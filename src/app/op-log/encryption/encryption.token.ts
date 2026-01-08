@@ -1,5 +1,5 @@
 import { InjectionToken } from '@angular/core';
-import { encrypt, decrypt } from './encryption';
+import { encrypt, decrypt, decryptWithMigration, DecryptResult } from './encryption';
 
 /**
  * Injection token for the encrypt function.
@@ -19,5 +19,21 @@ export const DECRYPT_FN = new InjectionToken<typeof decrypt>('DECRYPT_FN', {
   factory: () => decrypt,
 });
 
+/**
+ * Injection token for the decrypt-with-migration function.
+ * Use this when you need to handle legacy encryption migration.
+ */
+export const DECRYPT_WITH_MIGRATION_FN = new InjectionToken<typeof decryptWithMigration>(
+  'DECRYPT_WITH_MIGRATION_FN',
+  {
+    providedIn: 'root',
+    factory: () => decryptWithMigration,
+  },
+);
+
 export type EncryptFn = (data: string, password: string) => Promise<string>;
 export type DecryptFn = (data: string, password: string) => Promise<string>;
+export type DecryptWithMigrationFn = (
+  data: string,
+  password: string,
+) => Promise<DecryptResult>;

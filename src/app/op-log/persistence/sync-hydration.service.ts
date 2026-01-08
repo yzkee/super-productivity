@@ -81,9 +81,46 @@ export class SyncHydrationService {
       // Archive models (archiveYoung, archiveOld) come from IndexedDB
       const dbData = await this.stateSnapshotService.getAllSyncModelDataFromStoreAsync();
 
+      // DEBUG: Log project data before merge
+      const dbDataTyped = dbData as unknown as Record<string, unknown>;
+      const downloadedTyped = downloadedMainModelData as unknown as
+        | Record<string, unknown>
+        | undefined;
+      OpLog.normal('SyncHydrationService: [DEBUG] dbData.project.ids', {
+        count: (dbDataTyped?.project as any)?.ids?.length ?? 0,
+        ids: (dbDataTyped?.project as any)?.ids ?? [],
+      });
+      if (downloadedTyped) {
+        OpLog.normal(
+          'SyncHydrationService: [DEBUG] downloadedMainModelData.project.ids',
+          {
+            count: (downloadedTyped?.project as any)?.ids?.length ?? 0,
+            ids: (downloadedTyped?.project as any)?.ids ?? [],
+          },
+        );
+      }
+
       const mergedData = downloadedMainModelData
         ? { ...dbData, ...downloadedMainModelData }
         : dbData;
+
+      // DEBUG: Log project data after merge and archive references
+      const mergedTyped = mergedData as unknown as Record<string, unknown>;
+      OpLog.normal('SyncHydrationService: [DEBUG] mergedData.project.ids', {
+        count: (mergedTyped?.project as any)?.ids?.length ?? 0,
+        ids: (mergedTyped?.project as any)?.ids ?? [],
+      });
+      const archiveYoung = mergedTyped?.archiveYoung as any;
+      if (archiveYoung?.task?.ids) {
+        const archiveProjectIds = new Set(
+          (archiveYoung.task.ids as string[])
+            .map((id: string) => archiveYoung.task.entities?.[id]?.projectId)
+            .filter(Boolean),
+        );
+        OpLog.normal('SyncHydrationService: [DEBUG] archiveYoung task projectIds', {
+          uniqueProjectIds: [...archiveProjectIds],
+        });
+      }
 
       const syncedData = this._stripLocalOnlySettings(mergedData);
       OpLog.normal(

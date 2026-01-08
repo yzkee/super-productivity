@@ -172,6 +172,13 @@ export class BackupService {
       ? { [clientId]: 2 }
       : incrementVectorClock(currentClock, clientId);
 
+    // DEBUG: Log what's being saved in the operation payload
+    PFLog.normal('BackupService: [DEBUG] Creating BACKUP_IMPORT operation', {
+      hasProject: !!(importedData as any)?.project,
+      projectCount: (importedData as any)?.project?.ids?.length ?? 0,
+      projectIds: (importedData as any)?.project?.ids ?? [],
+    });
+
     const opId = uuidv7();
     const op: Operation = {
       id: opId,
