@@ -572,6 +572,18 @@ export class SyncWrapperService {
         });
         return 'HANDLED_ERROR';
       }
+    } catch (resolutionError) {
+      // Error during conflict resolution (forceUpload or forceDownload failed)
+      SyncLog.err(
+        'SyncWrapperService: Error during conflict resolution:',
+        resolutionError,
+      );
+      const errStr = getSyncErrorStr(resolutionError);
+      this._snackService.open({
+        msg: errStr,
+        type: 'ERROR',
+      });
+      return 'HANDLED_ERROR';
     } finally {
       stopWaiting();
     }

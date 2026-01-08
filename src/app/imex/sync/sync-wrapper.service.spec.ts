@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { BehaviorSubject, of } from 'rxjs';
 import { SyncWrapperService } from './sync-wrapper.service';
@@ -535,6 +536,137 @@ describe('SyncWrapperService', () => {
         expect(result).toBe('HANDLED_ERROR');
         expect(mockSnackService.open).toHaveBeenCalled();
       });
+
+      it('should return HANDLED_ERROR when forceUploadLocalState fails', async () => {
+        const conflictError = new LocalDataConflictError(
+          2,
+          { tasks: [] },
+          { clientB: 3 },
+        );
+        mockSyncService.downloadRemoteOps.and.returnValue(Promise.reject(conflictError));
+
+        mockMatDialog.open.and.returnValue({
+          afterClosed: () => of('USE_LOCAL'),
+        } as any);
+
+        mockSyncService.forceUploadLocalState = jasmine
+          .createSpy('forceUploadLocalState')
+          .and.rejectWith(new Error('Upload failed'));
+
+        const result = await service.sync();
+
+        expect(result).toBe('HANDLED_ERROR');
+        expect(mockSnackService.open).toHaveBeenCalledWith(
+          jasmine.objectContaining({
+            type: 'ERROR',
+          }),
+        );
+      });
+
+      it('should return HANDLED_ERROR when forceDownloadRemoteState fails', async () => {
+        const conflictError = new LocalDataConflictError(
+          2,
+          { tasks: [] },
+          { clientB: 3 },
+        );
+        mockSyncService.downloadRemoteOps.and.returnValue(Promise.reject(conflictError));
+
+        mockMatDialog.open.and.returnValue({
+          afterClosed: () => of('USE_REMOTE'),
+        } as any);
+
+        mockSyncService.forceDownloadRemoteState = jasmine
+          .createSpy('forceDownloadRemoteState')
+          .and.rejectWith(new Error('Download failed'));
+
+        const result = await service.sync();
+
+        expect(result).toBe('HANDLED_ERROR');
+        expect(mockSnackService.open).toHaveBeenCalledWith(
+          jasmine.objectContaining({
+            type: 'ERROR',
+          }),
+        );
+      });
+
+      it('should return HANDLED_ERROR when provider becomes unavailable during resolution', async () => {
+        const conflictError = new LocalDataConflictError(
+          2,
+          { tasks: [] },
+          { clientB: 3 },
+        );
+        mockSyncService.downloadRemoteOps.and.returnValue(Promise.reject(conflictError));
+
+        mockMatDialog.open.and.returnValue({
+          afterClosed: () => of('USE_LOCAL'),
+        } as any);
+
+        // First call returns provider (for initial sync), second call returns null (during resolution)
+        let callCount = 0;
+        mockWrappedProvider.getOperationSyncCapable.and.callFake(() => {
+          callCount++;
+          if (callCount === 1) {
+            return Promise.resolve(mockSyncCapableProvider);
+          }
+          return Promise.resolve(null);
+        });
+
+        const result = await service.sync();
+
+        expect(result).toBe('HANDLED_ERROR');
+      });
+
+      it('should call startWaiting before showing dialog and stop after resolution', async () => {
+        const stopWaitingSpy = jasmine.createSpy('stopWaiting');
+        mockUserInputWaitState.startWaiting.and.returnValue(stopWaitingSpy);
+
+        const conflictError = new LocalDataConflictError(
+          2,
+          { tasks: [] },
+          { clientB: 3 },
+        );
+        mockSyncService.downloadRemoteOps.and.returnValue(Promise.reject(conflictError));
+
+        mockMatDialog.open.and.returnValue({
+          afterClosed: () => of('USE_LOCAL'),
+        } as any);
+
+        mockSyncService.forceUploadLocalState = jasmine
+          .createSpy('forceUploadLocalState')
+          .and.resolveTo();
+
+        await service.sync();
+
+        expect(mockUserInputWaitState.startWaiting).toHaveBeenCalledWith(
+          'local-data-conflict',
+        );
+        expect(stopWaitingSpy).toHaveBeenCalled();
+      });
+
+      it('should call stopWaiting even when resolution fails', async () => {
+        const stopWaitingSpy = jasmine.createSpy('stopWaiting');
+        mockUserInputWaitState.startWaiting.and.returnValue(stopWaitingSpy);
+
+        const conflictError = new LocalDataConflictError(
+          2,
+          { tasks: [] },
+          { clientB: 3 },
+        );
+        mockSyncService.downloadRemoteOps.and.returnValue(Promise.reject(conflictError));
+
+        mockMatDialog.open.and.returnValue({
+          afterClosed: () => of('USE_LOCAL'),
+        } as any);
+
+        mockSyncService.forceUploadLocalState = jasmine
+          .createSpy('forceUploadLocalState')
+          .and.rejectWith(new Error('Upload failed'));
+
+        await service.sync();
+
+        // stopWaiting should be called even on error (finally block)
+        expect(stopWaitingSpy).toHaveBeenCalled();
+      });
     });
 
     it('should handle permission errors with appropriate message', async () => {
@@ -590,6 +722,115 @@ describe('SyncWrapperService', () => {
       service.syncProviderId$.subscribe((providerId) => {
         expect(providerId).toBeNull();
         done();
+      });
+    });
+  });
+
+  describe('superSyncIsConfirmedInSync$', () => {
+    let signalService: SyncWrapperService;
+    let isConfirmedSignal: ReturnType<typeof signal<boolean>>;
+    let signalConfigSubject: BehaviorSubject<any>;
+
+    const createSignalMockConfig = (
+      provider: LegacySyncProvider | null,
+    ): { sync: any } => ({
+      sync: {
+        syncProvider: provider,
+        syncInterval: 60000,
+      },
+    });
+
+    const createServiceWithSignal = (initialValue: boolean): SyncWrapperService => {
+      isConfirmedSignal = signal(initialValue);
+      signalConfigSubject = new BehaviorSubject(
+        createSignalMockConfig(LegacySyncProvider.SuperSync),
+      );
+
+      const signalMockSuperSyncStatusService = {
+        isConfirmedInSync: isConfirmedSignal,
+        markRemoteChecked: jasmine.createSpy('markRemoteChecked'),
+        clearScope: jasmine.createSpy('clearScope'),
+        updatePendingOpsStatus: jasmine.createSpy('updatePendingOpsStatus'),
+      };
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          SyncWrapperService,
+          { provide: SyncProviderManager, useValue: mockProviderManager },
+          { provide: OperationLogSyncService, useValue: mockSyncService },
+          { provide: WrappedProviderService, useValue: mockWrappedProvider },
+          { provide: OperationLogStoreService, useValue: mockOpLogStore },
+          { provide: LegacyPfDbService, useValue: mockLegacyPfDb },
+          {
+            provide: GlobalConfigService,
+            useValue: { cfg$: signalConfigSubject.asObservable() },
+          },
+          { provide: TranslateService, useValue: mockTranslateService },
+          { provide: MatDialog, useValue: mockMatDialog },
+          { provide: SnackService, useValue: mockSnackService },
+          { provide: DataInitService, useValue: mockDataInitService },
+          { provide: ReminderService, useValue: mockReminderService },
+          { provide: UserInputWaitStateService, useValue: mockUserInputWaitState },
+          { provide: SuperSyncStatusService, useValue: signalMockSuperSyncStatusService },
+        ],
+      });
+
+      return TestBed.inject(SyncWrapperService);
+    };
+
+    describe('with SuperSync provider', () => {
+      it('should return true when SuperSyncStatusService.isConfirmedInSync is true', (done) => {
+        signalService = createServiceWithSignal(true);
+        signalConfigSubject.next(createSignalMockConfig(LegacySyncProvider.SuperSync));
+
+        signalService.superSyncIsConfirmedInSync$.subscribe((isConfirmed) => {
+          expect(isConfirmed).toBe(true);
+          done();
+        });
+      });
+
+      it('should return false when SuperSyncStatusService.isConfirmedInSync is false', (done) => {
+        signalService = createServiceWithSignal(false);
+        signalConfigSubject.next(createSignalMockConfig(LegacySyncProvider.SuperSync));
+
+        signalService.superSyncIsConfirmedInSync$.subscribe((isConfirmed) => {
+          expect(isConfirmed).toBe(false);
+          done();
+        });
+      });
+    });
+
+    describe('with non-SuperSync providers (current behavior)', () => {
+      it('should return true for WebDAV regardless of status service', (done) => {
+        signalService = createServiceWithSignal(false);
+        signalConfigSubject.next(createSignalMockConfig(LegacySyncProvider.WebDAV));
+
+        signalService.superSyncIsConfirmedInSync$.subscribe((isConfirmed) => {
+          // Currently returns true regardless of status (this is the bug we'll fix)
+          expect(isConfirmed).toBe(true);
+          done();
+        });
+      });
+
+      it('should return true for Dropbox regardless of status service', (done) => {
+        signalService = createServiceWithSignal(false);
+        signalConfigSubject.next(createSignalMockConfig(LegacySyncProvider.Dropbox));
+
+        signalService.superSyncIsConfirmedInSync$.subscribe((isConfirmed) => {
+          expect(isConfirmed).toBe(true);
+          done();
+        });
+      });
+
+      it('should return true for LocalFile regardless of status service', (done) => {
+        signalService = createServiceWithSignal(false);
+        signalConfigSubject.next(createSignalMockConfig(LegacySyncProvider.LocalFile));
+
+        signalService.superSyncIsConfirmedInSync$.subscribe((isConfirmed) => {
+          expect(isConfirmed).toBe(true);
+          done();
+        });
       });
     });
   });
