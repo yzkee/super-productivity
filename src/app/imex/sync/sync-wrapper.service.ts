@@ -59,6 +59,7 @@ import { IS_ELECTRON } from '../../app.constants';
 import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
 import { OperationLogSyncService } from '../../op-log/sync/operation-log-sync.service';
 import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
+import { SyncSafetyBackupService } from './sync-safety-backup.service';
 
 /**
  * Converts LegacySyncProvider to SyncProviderId.
@@ -94,6 +95,7 @@ export class SyncWrapperService {
   private _opLogStore = inject(OperationLogStoreService);
   private _opLogSyncService = inject(OperationLogSyncService);
   private _wrappedProvider = inject(WrappedProviderService);
+  private _syncSafetyBackupService = inject(SyncSafetyBackupService);
 
   syncState$ = this._providerManager.syncStatus$;
 
@@ -210,6 +212,12 @@ export class SyncWrapperService {
 
       // Perform actual sync: download first, then upload
       SyncLog.log('SyncWrapperService: Starting op-log sync...');
+
+      // Create safety backup before pulling remote data (file-based providers only)
+      // SuperSync uses op-log conflict resolution, doesn't need safety backups
+      if (providerId !== SyncProviderId.SuperSync) {
+        await this._syncSafetyBackupService.createBackupBeforeUpdate();
+      }
 
       // 1. Download remote ops first (important for fresh clients to receive data)
       const downloadResult =

@@ -2,13 +2,11 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
-  computed,
   effect,
   inject,
   OnDestroy,
   OnInit,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import {
   GLOBAL_CONFIG_FORM_CONFIG,
@@ -33,7 +31,6 @@ import { ConfigSectionComponent } from '../../features/config/config-section/con
 import { ConfigSoundFormComponent } from '../../features/config/config-sound-form/config-sound-form.component';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SYNC_FORM } from '../../features/config/form-cfgs/sync-form.const';
-import { SYNC_SAFETY_BACKUPS_FORM } from '../../features/config/form-cfgs/sync-safety-backups-form.const';
 import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
 import { map } from 'rxjs/operators';
 import { SyncConfigService } from '../../imex/sync/sync-config.service';
@@ -56,6 +53,7 @@ import { SuperSyncRestoreService } from '../../imex/sync/super-sync-restore.serv
 import { DialogRestorePointComponent } from '../../imex/sync/dialog-restore-point/dialog-restore-point.component';
 import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
 import { DialogChangeEncryptionPasswordComponent } from '../../imex/sync/dialog-change-encryption-password/dialog-change-encryption-password.component';
+import { DialogSyncSafetyBackupsComponent } from '../../imex/sync/dialog-sync-safety-backups/dialog-sync-safety-backups.component';
 
 @Component({
   selector: 'config-page',
@@ -89,18 +87,6 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
   globalImexFormCfg: ConfigFormConfig;
   globalProductivityConfigFormCfg: ConfigFormConfig;
   globalSyncConfigFormCfg = this._buildSyncFormConfig();
-  syncSafetyBackupsSection = SYNC_SAFETY_BACKUPS_FORM;
-
-  private readonly _syncSettings = toSignal(this.syncSettingsService.syncSettingsForm$);
-  readonly showSyncSafetyBackups = computed(() => {
-    const settings = this._syncSettings();
-    if (!settings) return false;
-    return (
-      settings.isEnabled &&
-      settings.syncProvider !== null &&
-      settings.syncProvider !== LegacySyncProvider.SuperSync
-    );
-  });
 
   globalCfg?: GlobalConfigState;
 
@@ -337,6 +323,20 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
             required: false,
             onClick: () => {
               this._openChangePasswordDialog();
+            },
+          },
+        },
+        {
+          hideExpression: (m: any) =>
+            !m.isEnabled || m.syncProvider === LegacySyncProvider.SuperSync,
+          type: 'btn',
+          className: 'mt2 block',
+          templateOptions: {
+            text: T.F.SYNC.SAFETY_BACKUP.TITLE,
+            btnType: 'stroked',
+            required: false,
+            onClick: () => {
+              this._matDialog.open(DialogSyncSafetyBackupsComponent);
             },
           },
         },
