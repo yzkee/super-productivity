@@ -765,50 +765,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "Fokuspausen är över!"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "Tillbaka till arbetet!",
-      "COMP": {
-        "INTRO": "Personer med hög grad av uppskjutande beteende har oftast låg självmedkänsla. Så öva på det! Det förbättrar din självkänsla, främjar positiva känslor och kan naturligtvis hjälpa dig att övervinna uppskjutande beteende. Prova en liten övning:",
-        "L1": "Sätt dig ner en stund och sträck på dig, om du vill, lugna ner dig lite.",
-        "L2": "Försök att lyssna på tankarna och känslorna som uppstår",
-        "L3": "Reagerar du på dig själv på samma sätt som du skulle reagera på en vän?",
-        "L4": "Om svaret är nej, föreställ dig din vän i din situation. Vad skulle du säga till dem? Vad skulle du göra för dem?",
-        "OUTRO": "Fler övningar <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">finns här</a> eller på <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">google</a>.",
-        "TITLE": "Självmedkänsla"
-      },
-      "CUR": {
-        "INTRO": "Är inte uppskjutande beteende intressant? Det verkar inte vara särskilt meningsfullt att göra det, eftersom det inte alls ligger i ditt långsiktiga intresse. Men ändå gör alla det. Det hjälper mycket att utforska och få en bättre förståelse för hur det fungerar för dig personligen! Några grundläggande frågor du kan ställa dig själv kan vara:",
-        "L1": "Vilka känslor väcker din frestelse att skjuta upp saker?",
-        "L2": "Var i kroppen känner du dem?",
-        "L3": "Vad påminner de dig om?",
-        "L4": "Vad händer med tanken på att skjuta upp saker när du observerar den? Intensifieras den? Försvinner den? Orsakar den andra känslor?",
-        "L5": "Hur förändras känslorna i din kropp när du fortsätter att fokusera din medvetenhet på dem?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "En annan mycket effektiv metod är att anteckna vad som utlöste din lust att skjuta upp saker. Personligen känner jag till exempel ofta en lust att snabbt hoppa över till reddit eller min favoritnyhetssajt så fort mitt webbläsarfönster kommer i fokus. Sedan jag började skriva ner mina utlösare i ett enkelt tomt textdokument har jag blivit medveten om hur djupt rotat detta mönster var, och det har hjälpt mig att experimentera med olika motåtgärder.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Skriv ner vad som får dig att skjuta upp saker",
-        "TITLE": "Nyfikenhet"
-      },
-      "H1": "Var inte så sträng mot dig själv!",
-      "INTRO": {
-        "AVOIDING": "Att undvika uppgiften",
-        "FEAR": "Rädsla att misslyckas",
-        "STRESSED": "Stressad över att inte få saker gjorda",
-        "TITLE": "Introduktion"
-      },
-      "P1": "Först och främst: Slappna av! Alla skjuter upp saker ibland. Och om du inte gör det du borde, bör du åtminstone njuta av det!",
-      "P2": "Kom ihåg: <b>Att skjuta upp saker är ett problem med känslomässig reglering, inte ett problem med tidsplanering.</b> Det betyder att det inte hjälper att vara hård mot sig själv, det är en del av problemet. Låt det sjunka in och kolla sedan de andra flikarna här för mer hjälp.",
-      "REFRAME": {
-        "INTRO": "Tänk på vad som kan vara positivt med uppgiften trots dess brister.",
-        "TITLE": "Omformulering",
-        "TL1": "Vad kan vara intressant med det?",
-        "TL2": "Vad vinner du på att slutföra det?",
-        "TL3": "Hur kommer du att känna dig när du har slutfört det?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Dela upp uppgiften i så många små delar som möjligt.",
-        "OUTRO": "Klart? Fundera då på det. Vad skulle – rent teoretiskt – vara det första du skulle göra <i>om</i> du skulle börja arbeta med uppgiften? Fundera bara på det...",
-        "TITLE": "Dela upp den!"
-      }
-    },
     "PROJECT": {
       "D_CREATE": {
         "CREATE": "Skapa projekt",
@@ -2228,7 +2184,6 @@
     "FINISH_DAY_FOR_PROJECT": "Slutdatum för detta projekt",
     "FINISH_DAY_FOR_TAG": "Slutdag för denna tagg",
     "FINISH_DAY_TOOLTIP": "Utvärdera din dag, flytta alla avslutade uppgifter till arkivet (valfritt) och/eller planera din nästa dag.",
-    "HELP_PROCRASTINATION": "Hjälp, jag skjuter upp saker!",
     "MOVE_DONE_TO_ARCHIVE": "Flyttad till arkivet",
     "NO_DONE_TASKS": "Det finns för närvarande inga slutförda uppgifter.",
     "NO_PLANNED_TASK_ALL_DONE": "alla uppgifter utförda",

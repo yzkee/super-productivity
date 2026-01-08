@@ -778,50 +778,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "Ihre Pause ist geschafft!"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "Zurück an die Arbeit!",
-      "COMP": {
-        "INTRO": "Es ist immer eine großartige Idee, sich selbst Mitgefühl zu zeigen. Es verbessert Ihr Selbstwertgefühl, fördert positive Emotionen und kann Ihnen natürlich dabei helfen, Prokrastination zu überwinden. Probieren Sie eine kleine Übung aus:",
-        "L1": "Setzen Sie sich etwas hin und strecken Sie sich, wenn Sie möchten, beruhigen Sie sich ein wenig",
-        "L2": "Versuchen Sie, auf die aufkommenden Gedanken und Gefühle zu hören",
-        "L3": "Reagieren Sie auf sich selbst so, wie Sie auf einen Freund reagieren würden?",
-        "L4": "Wenn die Antwort nein lautet, stellen Sie sich Ihren Freund in Ihrer Situation vor. Was würden Sie ihm sagen? Was würden Sie für ihn tun?",
-        "OUTRO": "Weitere Übungen <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">finden Sie hier</a> oder auf <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">Google</a>.",
-        "TITLE": "Selbstmitgefühl"
-      },
-      "CUR": {
-        "INTRO": "Prokrastination ist interessant, nicht wahr? Es macht keinen Sinn, es zu tun. Es ist überhaupt nicht in Ihrem langfristigen Interesse. Aber dennoch macht es jeder. Viel Spaß beim Erkunden!",
-        "L1": "Welche Gefühle erregen Ihre Versuchung, etwas hinauszuschieben?",
-        "L2": "Wo fühlen Sie sie in Ihrem Körper?",
-        "L3": "Woran erinnern sie Sie?",
-        "L4": "Was passiert mit dem Gedanken des Aufschiebens, wenn Sie es beobachten? Wird es intensiver? Löst es sich auf? Lässt es andere Emotionen aufkommen?",
-        "L5": "Wie verändern sich die Empfindungen in Ihrem Körper, während Sie sich weiterhin darauf konzentrieren?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "Eine weitere sehr effektive Methode besteht darin, aufzuzeichnen, was Ihren Drang zum Prokrastinieren ausgelöst hat. Ich persönlich verspüre zum Beispiel oft den Drang, schnell zu reddit oder meiner Lieblingsnachrichtenseite zu springen, wenn mein Browserfenster in den Fokus kommt. Seitdem ich begann, meine Auslöser in einem einfachen leeren Textdokument aufzuschreiben, wurde mir bewusst, wie tief verwurzelt dieses Muster war, und es half mir, mit verschiedenen Gegenmaßnahmen zu experimentieren.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Schreiben Sie die Auslöser für Ihr Prokrastinieren auf",
-        "TITLE": "Neugierde"
-      },
-      "H1": "Seien Sie nicht so streng!",
-      "INTRO": {
-        "AVOIDING": "Die Aufgabe vermeiden",
-        "FEAR": "Angst vor dem Scheitern",
-        "STRESSED": "Gestresst darüber, Dinge nicht zu erledigen",
-        "TITLE": "Einführung"
-      },
-      "P1": "Zunächst einmal entspannen! Jeder tut es ab und zu. Und wenn Sie nicht das tun, was Sie sollten, sollten Sie es zumindest genießen! In den folgenden Abschnitten finden Sie hilfreiche Informationen.",
-      "P2": "Denken Sie daran: Prokrastination ist ein Problem der Emotionsregulation, kein Problem des Zeitmanagements.",
-      "REFRAME": {
-        "INTRO": "Überlegen Sie, was trotz allem an der Aufgabe positiv sein könnte.",
-        "TITLE": "Neuausrichtung",
-        "TL1": "Was könnte daran interessant sein?",
-        "TL2": "Was haben Sie davon, wenn Sie die Aufgabe abschließen?",
-        "TL3": "Wie werden Sie sich dabei fühlen, wenn Sie es vervollständigen?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Teilen Sie die Aufgabe in so viele kleine Teile wie möglich auf.",
-        "OUTRO": "Erledigt? Dann denke darüber nach. Was wäre - rein theoretisch - das erste, was Sie <i>tun würden, wenn Sie</i> mit der Arbeit an der Aufgabe beginnen würden? Denken Sie nur darüber nach ...",
-        "TITLE": "Teile es auf!"
-      }
-    },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
         "CANCEL": "Abbrechen",
@@ -2310,7 +2266,6 @@
     "FINISH_DAY_FOR_PROJECT": "Tag für dieses Projekt beenden",
     "FINISH_DAY_FOR_TAG": "Tag für dieses Schlüsselwort beenden",
     "FINISH_DAY_TOOLTIP": "Evaluieren Sie Ihren Tag, alle Aufgaben werden optional in das Archiv verschoben und/oder planen Sie Ihren nächsten Tag",
-    "HELP_PROCRASTINATION": "Hilfe, ich prokrastiniere!",
     "LATER_TODAY": "Heute später",
     "MOVE_DONE_TO_ARCHIVE": "Erledigte Aufgaben ins Archiv verschieben",
     "NO_DONE_TASKS": "Derzeit gibt es keine erledigten Aufgaben",

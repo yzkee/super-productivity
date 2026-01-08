@@ -18,6 +18,11 @@ const SECTIONS_TO_REMOVE = ['ANDROID', 'THEMES'];
 // Nested paths to remove (will remove the last key in the path)
 const NESTED_PATHS_TO_REMOVE = [
   ['F', 'CALDAV', 'ISSUE_CONTENT'], // Remove F.CALDAV.ISSUE_CONTENT
+  ['F', 'SAFETY_BACKUP'], // Orphan duplicate of F.SYNC.SAFETY_BACKUP
+  ['F', 'PROCRASTINATION'], // Feature never implemented
+  ['GCF', 'PAST'], // Orphan duplicate of GLOBAL_RELATIVE_TIME.PAST
+  ['GCF', 'TIMELINE'], // Settings form never implemented
+  ['WW', 'HELP_PROCRASTINATION'], // Related to unimplemented procrastination feature
 ];
 
 /**
@@ -90,9 +95,14 @@ function processJsonFiles() {
 // Main
 console.log('=== Cleaning up unused translations ===\n');
 console.log('Removing:');
-console.log('  - ANDROID.* (5 keys)');
-console.log('  - THEMES.* (17 keys)');
-console.log('  - F.CALDAV.ISSUE_CONTENT.* (12 keys)');
+console.log('  - ANDROID.* (5 keys) - code removed');
+console.log('  - THEMES.* (17 keys) - never used');
+console.log('  - F.CALDAV.ISSUE_CONTENT.* (12 keys) - never wired up');
+console.log('  - F.SAFETY_BACKUP.* (32 keys) - orphan duplicate of F.SYNC.SAFETY_BACKUP');
+console.log('  - F.PROCRASTINATION.* (32 keys) - feature never implemented');
+console.log('  - GCF.PAST.* (11 keys) - orphan duplicate of GLOBAL_RELATIVE_TIME.PAST');
+console.log('  - GCF.TIMELINE.* (10 keys) - settings form never implemented');
+console.log('  - WW.HELP_PROCRASTINATION (1 key) - related to unimplemented feature');
 console.log('');
 
 processJsonFiles();

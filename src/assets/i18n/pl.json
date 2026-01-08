@@ -774,50 +774,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "Twoja przerwa się skończyła!"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "Wróć do pracy!",
-      "COMP": {
-        "INTRO": "Osoby z wysoką skłonnością do prokrastynacji często mają niską samożyczliwość. Poćwicz ją! Poprawia poczucie własnej wartości, wzmacnia pozytywne emocje i może pomóc przezwyciężyć prokrastynację. Spróbuj krótkiego ćwiczenia:",
-        "L1": "Usiądź na chwilę i — jeśli chcesz — przeciągnij się, uspokój oddech",
-        "L2": "Spróbuj wsłuchać się w pojawiające się myśli i emocje",
-        "L3": "Czy zwracasz się do siebie tak, jak zwrócił(a)byś się do przyjaciela?",
-        "L4": "Jeśli nie — wyobraź sobie przyjaciela w Twojej sytuacji. Co byś mu powiedział(a)? Co byś dla niego zrobił(a)?",
-        "OUTRO": "Więcej ćwiczeń znajdziesz <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">tutaj</a> lub przez <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">Google</a>.",
-        "TITLE": "Samożyczliwość"
-      },
-      "CUR": {
-        "INTRO": "Prokrastynacja jest ciekawa, prawda? Nie ma sensu jej robić — w ogóle nie leży w Twoim długoterminowym interesie. A jednak każdy czasem to robi. Obserwuj i eksploruj!",
-        "L1": "Jakie uczucia wywołują w Tobie pokusę zwlekania?",
-        "L2": "Gdzie czujesz je w ciele?",
-        "L3": "Z czym Ci się kojarzą?",
-        "L4": "Co dzieje się z myślą o prokrastynacji, gdy ją obserwujesz? Nasila się? Słabnie? Wywołuje inne emocje?",
-        "L5": "Jak zmieniają się odczucia w ciele, gdy nadal skupiasz na nich uwagę?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "Inną bardzo skuteczną metodą jest zapisywanie tego, co wywołało u ciebie chęć zwlekania. Na przykład ja osobiście często mam ochotę szybko przeskoczyć na reddit lub moją ulubioną stronę z wiadomościami, gdy tylko moje okno przeglądarki znajdzie się w centrum uwagi. Odkąd zacząłem zapisywać swoje wyzwalacze w prostym, pustym dokumencie tekstowym, uświadomiłem sobie, jak zakorzeniony był ten wzorzec i pomogło mi to eksperymentować z różnymi środkami zaradczymi.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Zapisywanie czynników wywołujących prokrastynację",
-        "TITLE": "Curiosity"
-      },
-      "H1": "Daj sobie trochę luzu!",
-      "INTRO": {
-        "AVOIDING": "Unikanie zadania",
-        "FEAR": "Strach przed porażką",
-        "STRESSED": "Stres związany z brakiem realizacji zadań",
-        "TITLE": "Wprowadzenie"
-      },
-      "P1": "Po pierwsze — rozluźnij się! Każdemu zdarza się to od czasu do czasu. A jeśli i tak nie robisz tego, co trzeba, to przynajmniej spróbuj to świadomie przeżyć. Potem zajrzyj do sekcji poniżej po coś pomocnego.",
-      "P2": "Pamiętaj: prokrastynacja to problem regulacji emocji, a nie zarządzania czasem.",
-      "REFRAME": {
-        "INTRO": "Pomyśl, co może być pozytywne w tym zadaniu, mimo jego wad.",
-        "TITLE": "Reframing",
-        "TL1": "What might be interesting about it?",
-        "TL2": "Co możesz zyskać, jeśli je ukończysz?",
-        "TL3": "Jak się poczujesz, jeśli je ukończysz?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Podziel zadanie na jak najwięcej małych kroków.",
-        "OUTRO": "Gotowe? To teraz pomyśl: co byłoby — czysto teoretycznie — pierwszą rzeczą, którą byś zrobił(a), <i>gdyby</i>ś miał(a) zacząć pracę nad zadaniem? Po prostu o tym pomyśl…",
-        "TITLE": "Split it up!"
-      }
-    },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
         "CANCEL": "Anuluj"
@@ -2037,7 +1993,6 @@
     "FINISH_DAY_FOR_PROJECT": "Dzień zakończenia tego projektu",
     "FINISH_DAY_FOR_TAG": "Dzień zakończenia dla tego tagu",
     "FINISH_DAY_TOOLTIP": "Oceń swój dzień, przenieś wszystkie wykonane zadania do archiwum (opcjonalnie) i/lub zaplanuj następny dzień.",
-    "HELP_PROCRASTINATION": "Help I'm procrastinating!",
     "MOVE_DONE_TO_ARCHIVE": "Przenieś gotowe do archiwum",
     "NO_DONE_TASKS": "Obecnie nie ma żadnych wykonanych zadań",
     "NO_PLANNED_TASK_ALL_DONE": "wszystkie zadania zakończone",

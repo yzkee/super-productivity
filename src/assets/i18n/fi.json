@@ -792,50 +792,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "Keskittymistauko on ohi!"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "Takaisin työhön!",
-      "COMP": {
-        "INTRO": "Korkean vitkuttelutason omaavilla ihmisillä on yleensä alhainen itsemyötätunto. Joten harjoittele sitä! Se parantaa itsetuntoasi, edistää positiivisia tunteita ja voi auttaa sinua voittamaan vitkuttelun, tietysti. Kokeile pientä harjoitusta:",
-        "L1": "Istu hetki ja venyttele itseäsi, jos haluat, rauhoitu hieman",
-        "L2": "Yritä kuunnella herääviä ajatuksia ja tunteita",
-        "L3": "Reagoitko itseesi tavalla, jolla reagoisit ystävään?",
-        "L4": "Jos vastaus on ei, kuvittele ystäväsi tilanteessasi. Mitä sanoisit heille? Mitä tekisit heidän puolestaan?",
-        "OUTRO": "Lisää harjoituksia <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">löytyy täältä</a> tai <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">googlesta</a>.",
-        "TITLE": "Itsemyötätunto"
-      },
-      "CUR": {
-        "INTRO": "Eikö vitkuttelu ole mielenkiintoista? Sitä tekeminen ei tunnu olevan mitenkään järkevää, koska se ei ole pitkän aikavälin etusi mukainen. Mutta silti kaikki tekevät sitä. Auttaa paljon tutkia ja saada parempi ymmärrys siitä, miten se toimii sinulle henkilökohtaisesti! Joitakin peruskysymyksiä, joita voit kysyä itseltäsi, voisi olla:",
-        "L1": "Mitä tunteita herättää houkutus vitkutella?",
-        "L2": "Mistä koet ne kehossasi?",
-        "L3": "Mitä ne muistuttavat sinua?",
-        "L4": "Mitä tapahtuu vitkutteluajatukselle, kun tarkkailet sitä? Voimistuuko se? Häviääkö? Aiheuttaako muita tunteita?",
-        "L5": "Miten kehosi tuntemukset muuttuvat, kun pysyt tietoisena niistä?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "Toinen erittäin tehokas menetelmä on kirjata muistiin, mikä laukaisi vitkuttelun haluasi. Esimerkiksi minulla henkilökohtaisesti on usein halu hypätä nopeasti redditiin tai suosikkiuutissivustolleni aina, kun selainikkunani tulee keskiöön. Siitä lähtien, kun aloin kirjoittamaan laukaisijoitani muistiin tyhjään tekstitiedostoon, tulin tietoiseksi siitä, kuinka juurtunut tämä malli oli, ja se auttoi minua kokeilemaan erilaisia vastatoimia.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Vitkuttelun laukaisijoiden kirjoittaminen muistiin",
-        "TITLE": "Uteliaisuus"
-      },
-      "H1": "Anna itsellesi vähän liikkumavaraa!",
-      "INTRO": {
-        "AVOIDING": "Tehtävän välttely",
-        "FEAR": "Epäonnistumisen pelko",
-        "STRESSED": "Stressi siitä, ettei asioita saada valmiiksi",
-        "TITLE": "Johdanto"
-      },
-      "P1": "Ensinnäkin: Rentoudu! Kaikki vitkuttelevat ajoittain. Ja jos et tee mitä sinun pitäisi, sinun pitäisi ainakin nauttia siitä!",
-      "P2": "Muista: <b>Vitkuttelu on tunnesäätelyongelma, ei ajanhallintaongelma.</b> Tämä tarkoittaa, että itsensä pieksäminen ei ole ratkaisu, se on osa ongelmaa. Anna sen upota ja tarkista sitten muut välilehdet täällä saadaksesi lisäapua.",
-      "REFRAME": {
-        "INTRO": "Mieti, mikä tehtävässä saattaa olla positiivista huolimatta sen puutteista.",
-        "TITLE": "Uudelleenkehyksen luominen",
-        "TL1": "Mikä siinä saattaa olla mielenkiintoista?",
-        "TL2": "Mitä on saatavissa, jos suoritat sen loppuun?",
-        "TL3": "Miltä sinusta tuntuu, jos suoritat sen loppuun?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Jaa tehtävä niin pieniin osiin kuin pystyt.",
-        "OUTRO": "Valmis? Mieti sitten sitä. Mikä olisi – tiukasti teoreettisesti – ensimmäinen asia, jonka tekisit <i>jos</i> aloittaisit työskentelyn tehtävän parissa? Ajattele vain sitä...",
-        "TITLE": "Pilko se!"
-      }
-    },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
         "CANCEL": "Peruuta",
@@ -2324,7 +2280,6 @@
     "FINISH_DAY_FOR_PROJECT": "Lopeta päivä tälle projektille",
     "FINISH_DAY_FOR_TAG": "Lopeta päivä tälle tunnisteelle",
     "FINISH_DAY_TOOLTIP": "Arvioi päivää, siirrä kaikki valmiit tehtävät arkistoon (valinnainen) ja/tai suunnittele seuraava päivä.",
-    "HELP_PROCRASTINATION": "Apua, minä vitkuttelen!",
     "LATER_TODAY": "Myöhemmin tänään",
     "MOVE_DONE_TO_ARCHIVE": "Siirrä valmiit arkistoon",
     "NO_DONE_TASKS": "Tällä hetkellä ei ole valmiita tehtäviä",

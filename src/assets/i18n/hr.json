@@ -666,50 +666,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "Tvoja pauza je gotova!"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "Vrati se na posao!",
-      "COMP": {
-        "INTRO": "Ljudi s visokom razinom odugovlačenja obično imaju nisku razinu samosuosjećanja. Stoga vježbaj! Poboljšava osjećaj vlastite vrijednosti, potiče pozitivne emocije i naravno može pomoći u prevladavanju odugovlačenja. Isprobaj kratku vježbu:",
-        "L1": "Sjedni i rastegni se, ako želiš, smiri se",
-        "L2": "Razmotri vlatite misli i osjećaje",
-        "L3": "Odgovaraš li sebi na način na koji bi odgovorio/la prijatelju?",
-        "L4": "Ako je odgovor ne, zamisli prijatelja u tvojoj situaciji. Što bi mu rekao/la? Kako bi mu pomogao/la?",
-        "OUTRO": "Daljnje vježbe <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">možeš naći ovdje</a> ili na <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">google</a>.",
-        "TITLE": "Samosuosjećanje"
-      },
-      "CUR": {
-        "INTRO": "Odugovlačenje je zanimljivo, zar ne? Mada nema smisla. Naročito ne dugoročno. Svejedno svi to rade. Uživaj i istraži!",
-        "L1": "Koji osjećaji izazivaju tvoje iskušenje za odgađanjem?",
-        "L2": "Gdje ih osjećaš u tvom tijelu?",
-        "L3": "Na što te podsjećaju?",
-        "L4": "Što se događa tijekom pomisli o odgađanju? Pojačava li se? Raspršuje se? Izaziva druge emocije?",
-        "L5": "Kako se mijenjanju osjećaji u tvom tijelu dok se i dalje fokusiraš na njih?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "Još jedna vrlo učinkovita metoda je zapisivanje onoga što te je natjeralo da odugovlačiš. Na primjer, osobno često imam potrebu za brzim prelaskom na reddit ili moju omiljenu stranicu s vijestima kad god mi se prikaže prozor preglednika. Otkako sam počeo zapisivati svoje okidače u prazan tekstualni dokument, shvatio sam problematiku i to mi je pomoglo u eksperimentiranju s različitim protumjerama.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Zapisivanje tvojih okidače odugovlačenja",
-        "TITLE": "Znatiželja"
-      },
-      "H1": "Oslobodi se pritiska!",
-      "INTRO": {
-        "AVOIDING": "Izbjegavanje zadatka",
-        "FEAR": "Strah od neuspjeha",
-        "STRESSED": "Pod stresom zbog ne obavljanja zadataka",
-        "TITLE": "Uvod"
-      },
-      "P1": "Kao prvo, opusti se! Svatko to čini s vremena na vrijeme. A ako ne radiš ono što bi trebao/la, barem uživaj u tome! Zatim pogledaj sljedeće odjeljke za nešto korisno.",
-      "P2": "Zapampti: Odugovlačenje je emotivan problem reguliranja, a ne problem upravljanja vremena.",
-      "REFRAME": {
-        "INTRO": "Razmisli što bi moglo biti pozitivno u vezi sa zadatkom unatoč njegovim nedostacima.",
-        "TITLE": "Preispitivanje",
-        "TL1": "Što bi moglo biti zanimljivo u zadatku?",
-        "TL2": "Koja je dobit ako ga završiš?",
-        "TL3": "Kako ćeš se osjećati ako ga završiš?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Podijeli zadatak na što više moguće manje dijelove.",
-        "OUTRO": "Gotov/a? Razmisli o tome. Što bi bila – čisto teoretski – prva stvar koju bi uradio/la <i>ako</i> bi počeo/la obavljati zadatak? Jednostavno razmisli o tome …",
-        "TITLE": "Podijeli zadatak!"
-      }
-    },
     "PROJECT": {
       "D_CREATE": {
         "CREATE": "Stvori projekt",
@@ -1846,7 +1802,6 @@
     "FINISH_DAY_FOR_PROJECT": "Završi dan za ovaj projekt",
     "FINISH_DAY_FOR_TAG": "Završi dan za ovu oznaku",
     "FINISH_DAY_TOOLTIP": "Evaluiraj dan, premjesti sve obavljene zadatke u arhivu (opcionalno) i/ili planiraj sljedeći dan.",
-    "HELP_PROCRASTINATION": "Upomoć, odugovlačim!",
     "MOVE_DONE_TO_ARCHIVE": "Deplase fè achiv",
     "NO_DONE_TASKS": "Kounye a pa gen okenn travay ki fèt kounye a",
     "NO_PLANNED_TASK_ALL_DONE": "tout travay yo fè",

@@ -783,50 +783,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "Seu intervalo acabou!"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "Voltar ao trabalho!",
-      "COMP": {
-        "INTRO": "Mostrar compaixão a si mesmo é sempre uma ótima idéia. Melhora o sentimento de valor próprio, promove emoções positivas e pode ajudá-lo a superar a procrastinação, é claro. Tente fazer um pequeno exercício:",
-        "L1": "Sente-se um pouco e estique-se, se quiser, acalme-se um pouco",
-        "L2": "Tente ouvir os pensamentos e sentimentos que surgem",
-        "L3": "Você está respondendo a si mesmo de uma maneira que responderia a um amigo?",
-        "L4": "Se a resposta for não, imagine seu amigo na sua situação. O que você diria a eles? O que você faria por eles?",
-        "OUTRO": "Mais exercícios <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">can be found here</a> or on <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">google</a>.",
-        "TITLE": "Auto-compaixão"
-      },
-      "CUR": {
-        "INTRO": "A procrastinação é interessante, não é? Não faz sentido fazê-lo. Não é do seu interesse a longo prazo. Mas ainda todo mundo faz. Aprecie e explore!",
-        "L1": "Que sentimentos estão provocando sua tentação de procrastinar?",
-        "L2": "Onde você os sente em seu corpo?",
-        "L3": "O que eles lembram?",
-        "L4": "O que acontece com o pensamento de procrastinar enquanto você o observa? Ele se intensifica? Dissipa? Faz com que surjam outras emoções?",
-        "L5": "Como as sensações em seu corpo estão mudando à medida que você repousa sua consciência nelas?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "Outro método muito eficaz é registrar o que desencadeou sua vontade de procrastinar. Por exemplo, muitas vezes tenho vontade de ir rapidamente para o Reddit ou para o meu site de notícias favorito sempre que a janela do meu navegador entra em foco. Desde que comecei a escrever meus gatilhos em um simples documento de texto vazio, percebi como esse padrão estava arraigado e isso me ajudou a experimentar diferentes contra-medidas.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Anotando seus gatilhos de procrastinação",
-        "TITLE": "Curiosidade"
-      },
-      "H1": "Dê uma folga!",
-      "INTRO": {
-        "AVOIDING": "Fugindo da tarefa",
-        "FEAR": "Medo de falhar",
-        "STRESSED": "Estressado por não conseguir concluir as tarefas",
-        "TITLE": "Introdução"
-      },
-      "P1": "Antes de tudo, relaxe! Todo mundo faz isso de vez em quando. E se você não estiver fazendo o que deveria, pelo menos aproveite! Em seguida, verifique as seções abaixo para obter algo útil.",
-      "P2": "Lembre-se: a procrastinação é um problema de regulação emocional, não um problema de gerenciamento de tempo.",
-      "REFRAME": {
-        "INTRO": "Pense no que pode ser positivo sobre a tarefa.",
-        "TITLE": "Reenquadrando",
-        "TL1": "O que pode ser interessante sobre isso?",
-        "TL2": "O que você ganha se você completá-lo?",
-        "TL3": "Como você se sentirá sobre isso se concluir o processo?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Divida a tarefa em tantos pequenos pedaços quanto possível.",
-        "OUTRO": "Concluído? Então pense sobre isso. Qual seria -estritamente teórica- a primeira coisa que você faria se você começasse a trabalhar na tarefa? Pense nisso ...",
-        "TITLE": "Divida!"
-      }
-    },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
         "CANCEL": "Cancelar"
@@ -2275,7 +2231,6 @@
     "FINISH_DAY_FOR_PROJECT": "Dia de conclusão deste projeto",
     "FINISH_DAY_FOR_TAG": "Dia de conclusão para esta etiqueta",
     "FINISH_DAY_TOOLTIP": "Avalie o seu dia, mova todas as tarefas concluídas para o arquivo (opcionalmente) e/ou planeie o seu dia seguinte.",
-    "HELP_PROCRASTINATION": "Ajuda! Eu estou procrastinando!",
     "LATER_TODAY": "Mais tarde hoje",
     "MOVE_DONE_TO_ARCHIVE": "Mover concluído para arquivar",
     "NO_DONE_TASKS": "No momento, não há tarefas concluídas",

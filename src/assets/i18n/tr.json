@@ -776,50 +776,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "Molan bitti!"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "Çalışmaya geri dön!",
-      "COMP": {
-        "INTRO": "Erteleme düzeyi yüksek olan kişilerin öz-şefkati genellikle düşüktür. O halde pratik yapın! Kendinize verdiğiniz değer duygusunu geliştirir, olumlu duyguları teşvik eder ve elbette ertelemenin üstesinden gelmenize yardımcı olabilir. Biraz egzersiz yapmayı deneyin:",
-        "L1": "Biraz otur ve kendini biraz esnet, istersen biraz sakin ol",
-        "L2": "Ortaya çıkan düşünce ve duyguları dinlemeye çalışın",
-        "L3": "Kendinize bir arkadaşınıza yanıt vereceğiniz şekilde yanıt veriyor musunuz?",
-        "L4": "Cevabınız hayırsa arkadaşınızın sizin durumunuzda olduğunu hayal edin. Onlara ne söylerdin? Onlar için ne yapardın?",
-        "OUTRO": "Daha fazla <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">alıştırması burada</a> veya <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">google</a>sitesinde bulunabilir.",
-        "TITLE": "Öz Şefkat"
-      },
-      "CUR": {
-        "INTRO": "Ertelemek ilginç değil mi? Uzun vadede sizin çıkarınıza hiç uygun olmadığından, bunu yapmanın bir anlamı yok gibi görünüyor. Ama yine de herkes bunu yapıyor. Kişisel olarak sizin için nasıl çalıştığını keşfetmenize ve daha iyi anlamanıza yardımcı olur! Kendinize sormanız gereken bazı temel sorular şunlar olabilir:",
-        "L1": "Hangi duygular erteleme isteğinizi ortaya çıkarıyor?",
-        "L2": "Onları vücudunuzun neresinde hissediyorsunuz?",
-        "L3": "Size neyi hatırlatıyorlar?",
-        "L4": "Gözlemlediğinizde erteleme düşüncesine ne olur? Yoğunlaşıyor mu? Kayboluyor mu? Başka duyguların ortaya çıkmasına neden mi oluyor?",
-        "L5": "Farkındalığınızı onlara dayandırmaya devam ettikçe bedeninizdeki hisler nasıl değişiyor?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "Bir diğer çok etkili yöntem, erteleme isteğinizi neyin tetiklediğini kaydetmektir. Örneğin, ben şahsen tarayıcı pencerem odaklandığında genellikle hemen reddit'e veya en sevdiğim haber sitesine gitme isteği duyuyorum. Tetikleyicilerimi basit, boş bir metin belgesine yazmaya başladığımdan beri, bu kalıbın ne kadar yerleşik olduğunu fark ettim ve farklı karşı önlemler denememe yardımcı oldu.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Erteleme tetikleyicilerinizi yazmak",
-        "TITLE": "Merak"
-      },
-      "H1": "Kendini biraz rahat bırak!",
-      "INTRO": {
-        "AVOIDING": "Görevden kaçınmak",
-        "FEAR": "Başarısızlık korkusu",
-        "STRESSED": "İşleri tamamlayamama konusunda stresli",
-        "TITLE": "Giriş"
-      },
-      "P1": "Her şeyden önce: Rahatlayın! Herkes arada bir erteler. Ve eğer yapmanız gerekeni yapmıyorsanız, en azından bundan keyif almalısınız!",
-      "P2": "Unutmayın: <b>Erteleme bir zaman yönetimi sorunu değil, bir duygu düzenleme sorunudur.</b> Bu, kendinizi hırpalamanın çözüm olmadığı, sorunun bir parçası olduğu anlamına gelir. Bunu iyice anlayın ve daha fazla yardım için buradaki diğer sekmeleri kontrol edin.",
-      "REFRAME": {
-        "INTRO": "Kusurlarına rağmen görevle ilgili neyin olumlu olabileceğini düşünün.",
-        "TITLE": "Yeniden Çerçeveleme",
-        "TL1": "Bunda ilginç olan ne olabilir?",
-        "TL2": "Tamamlarsan ne kazanacaksın?",
-        "TL3": "Tamamlarsan nasıl hissedeceksin?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Görevi, olabildiğince küçük parçalara bölün.",
-        "OUTRO": "Yaptın? O zaman bir düşün. Eğer görev üzerinde çalışmaya başlasaydınız, kesinlikle teorik olarak yapacağınız ilk şey ne olurdu? Bunun hakkında düşün...",
-        "TITLE": "Ayır!"
-      }
-    },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
         "TITLE": "Projeyi kopyala?",
@@ -2295,7 +2251,6 @@
     "FINISH_DAY_FOR_PROJECT": "Günü bu proje için bitir",
     "FINISH_DAY_FOR_TAG": "Günü bu etiket için bitir",
     "FINISH_DAY_TOOLTIP": "Gününüzü değerlendirin, yapılan tüm görevleri arşive taşıyın (isteğe bağlı olarak) ve/veya bir sonraki gününüzü planlayın.",
-    "HELP_PROCRASTINATION": "Erteliyorum yardım et!",
     "LATER_TODAY": "Bugün Daha Sonra",
     "MOVE_DONE_TO_ARCHIVE": "Arşive taşıma işlemi tamamlandı",
     "NO_DONE_TASKS": "Şu anda yapılmış bir görev yok",

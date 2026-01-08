@@ -516,50 +516,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "Vaše přestávka skončila!"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "Zpět do práce!",
-      "COMP": {
-        "INTRO": "Lidé s vysokou mírou odkládání obvykle mají nízkou sebeúctu. Takže ji praktikujte! Zlepšuje váš pocit vlastní hodnoty, podporuje pozitivní emoce a může vám pomoci překonat odkládání, samozřejmě. Vyzkoušejte malý cvičební program:",
-        "L1": "Posaďte se na chvíli a protáhněte se, pokud chcete, trochu se uklidněte",
-        "L2": "Zkuste poslouchat myšlenky a pocity, které vznikají",
-        "L3": "Reagujete na sebe tak, jak byste reagovali na přítele?",
-        "L4": "Pokud je odpověď ne, představte si svého přítele ve své situaci. Co byste jim řekli? Co byste pro ně udělali?",
-        "OUTRO": "Další cvičení <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">najdete zde</a> nebo na <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">google</a>.",
-        "TITLE": "Sebelítost"
-      },
-      "CUR": {
-        "INTRO": "Není odkládání zajímavé? Nezdá se, že by mělo smysl to dělat, protože to vůbec není ve vašem dlouhodobém zájmu. Ale přesto to dělá každý. Pomáhá hodně zkoumat a lépe porozumět, jak to pro vás osobně funguje! Několik základních otázek, které byste si měli položit, může být:",
-        "L1": "Jaké pocity vyvolává vaše pokušení odkládat?",
-        "L2": "Kde je ve vašem těle cítíte?",
-        "L3": "Na co vás připomínají?",
-        "L4": "Co se děje s myšlenkou na odkládání, když ji pozorujete? Zesiluje se? Zaniká? Vyvolává další emoce?",
-        "L5": "Jak se mění pocity ve vašem těle, když na ně pokračujete v pozorování?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "Další velmi účinnou metodou je zaznamenat, co spustilo vaši touhu odkládat. Například já osobně často pociťuji touhu rychle přejít na reddit nebo svou oblíbenou zpravodajskou stránku, kdykoliv se můj prohlížeč dostane do popředí. Od té doby, co jsem začal zaznamenávat své spouštěče v jednoduchém prázdném textovém dokumentu, uvědomil jsem si, jak pevně zakořeněný byl tento vzor, a pomohl mi experimentovat s různými opatřeními.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Zapsání spouštěčů vašeho odkládání",
-        "TITLE": "Zvědavost"
-      },
-      "H1": "Dejte si pokoj!",
-      "INTRO": {
-        "AVOIDING": "Vyhnout se úkolu",
-        "FEAR": "Strach ze selhání",
-        "STRESSED": "Stresovaný z toho, že se nedaří věci dokončit",
-        "TITLE": "Úvod"
-      },
-      "P1": "Za prvé: uklidněte se! Každý odkládá občas. A pokud neděláte to, co byste měli, měli byste to aspoň užít!",
-      "P2": "Pamatujte: <b>Odkládání je problém s regulací emocí, ne problém s řízením času.</b> To znamená, že sebitloukání není řešením, je to součást problému. Nechte si to zapadnout a pak se podívejte na další karty zde pro další pomoc.",
-      "REFRAME": {
-        "INTRO": "Přemýšlejte o tom, co by mohlo být pozitivního na úkolu navzdory jeho nedostatkům.",
-        "TITLE": "Přeformulování",
-        "TL1": "Co by na tom mohlo být zajímavé?",
-        "TL2": "Co získáte, pokud to dokončíte?",
-        "TL3": "Jak se budete k tomu cítit, pokud to dokončíte?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Rozdělte úkol na co nejvíce malých částí, jak jen to půjde.",
-        "OUTRO": "Hotovo? Pak o tom přemýšlejte. Jak by to bylo – striktně teoreticky – první věc, kterou byste udělali <i>pokud</i> byste začali pracovat na úkolu? Jen o tom přemýšlejte...",
-        "TITLE": "Rozdělte to!"
-      }
-    },
     "PROJECT": {
       "D_CREATE": {
         "CREATE": "Vytvořit projekt",
@@ -1398,7 +1354,6 @@
     "FINISH_DAY_FOR_PROJECT": "Ukončit den pro tento projekt",
     "FINISH_DAY_FOR_TAG": "Ukončit den pro tento štítek",
     "FINISH_DAY_TOOLTIP": "Zhodnoťte svůj den, přesuňte všechny hotové úkoly do archivu (volitelně) a/nebo naplánujte svůj další den.",
-    "HELP_PROCRASTINATION": "Pomoc, prokrastinuji!",
     "NO_PLANNED_TASKS": "Žádné naplánované úkoly",
     "READY_TO_WORK": "Připraven k práci!",
     "RESET_BREAK_TIMER": "Resetovat bez přerušení časovače",

@@ -793,50 +793,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "La tua pausa è finita!"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "Torna al lavoro!",
-      "COMP": {
-        "INTRO": "Le persone con alti livelli di procrastinazione di solito hanno una bassa auto-compassione. Quindi praticala! Migliora il tuo senso di autostima, favorisce emozioni positive e può aiutarti a superare la procrastinazione. Prova un piccolo esercizio:",
-        "L1": "Siediti e fai un po' di stretching, se ne hai voglia, rilassati un po'",
-        "L2": "Prova ad ascoltare i tuoi pensieri e le emozioni che ne scaturiscono",
-        "L3": "Rispondi a te stesso nello stesso modo in cui risponderesti ad un amico?",
-        "L4": "Se la risposta è no, immagina un tuo amico nella tua situazione. Cosa gli diresti? Cosa faresti per loro?",
-        "OUTRO": "Altri esercizi <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">li trovi qui</a> oppure su <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">google</a>.",
-        "TITLE": "Auto compassione"
-      },
-      "CUR": {
-        "INTRO": "La procastinazione è interessante, non credi? Non ha senso procastinare. Non nel tuo interesse a lungo termine. Ma tutti continuano a farlo. Divertiti ed esplora!",
-        "L1": "Che sensazioni ti suscita la tentazione di procastinare?",
-        "L2": "In che punto del tuo corpo le senti?",
-        "L3": "Cosa ti fanno venire in mente?",
-        "L4": "Cosa succede al pensiero di procastinare se lo osservi? Si intensifica? Svanisce? Suscita altre emozioni?",
-        "L5": "Come mutano le emozioni nel tuo corpo mentre continui a posare la tua consapevolezza su di esse?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "Un altro metodo molto efficace è quello di registrare ciò che ha scatenato l'impulso a procrastinare. Per esempio, io ho spesso l'impulso di saltare rapidamente su Reddit o sul mio sito di notizie preferito ogni volta che la finestra del mio browser viene messa a fuoco. Da quando ho iniziato a scrivere i miei fattori scatenanti in un semplice documento di testo vuoto, mi sono reso conto di quanto fosse radicato questo schema e mi ha aiutato a sperimentare diverse contromisure.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Scrivi i fattori scatenanti della tua procrastinazione",
-        "TITLE": "Curiosità"
-      },
-      "H1": "Ritagliati una pausa!",
-      "INTRO": {
-        "AVOIDING": "Evita l'attività",
-        "FEAR": "Paura di non farcela",
-        "STRESSED": "Stressato abbastanza da non riuscire a fare le cose",
-        "TITLE": "Introduzione"
-      },
-      "P1": "Prima di tutto rilassati! Tutti ne hanno bisogno ogni tanto. E se non stai facendo quello che dovresti fare, dovresti almeno godertelo! Nelle sezioni sottostanti troverai risorse utili.",
-      "P2": "Ricorda: <b>La procastinazione è un problema di regolazione delle emozioni, non un problema di gestione del tempo.</b> Questo significa che rimproverarti non è la soluzione, ma parte del problema. Lascia che questo concetto ti entri in testa e poi controlla le altre schede qui per ulteriore aiuto.",
-      "REFRAME": {
-        "INTRO": "Pensa a ciò che potrebbe essere positivo riguardo l'attività, nonostante tutto.",
-        "TITLE": "Ricontestualizzazione",
-        "TL1": "Cosa di essa potrebbe essere interessante?",
-        "TL2": "Cosa ci guadagni a completarla?",
-        "TL3": "Come ti sentirai se la completi?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Dividi l'attività in quanti più piccoli pezzi riesci.",
-        "OUTRO": "Fatto? Poi pensa. Quale potrebbe essere – teoricamente parlando – la prima cosa che faresti <i>se</i> se dovessi iniziare a lavorare sull'attività? Pensaci...",
-        "TITLE": "Dividila in pezzi!"
-      }
-    },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
         "CANCEL": "Annulla",
@@ -2326,7 +2282,6 @@
     "FINISH_DAY_FOR_PROJECT": "Termina giorno per questo progetto",
     "FINISH_DAY_FOR_TAG": "Termina giorno per questo tag",
     "FINISH_DAY_TOOLTIP": "Valuta la tua giornata, sposta tutte le attività fatte in archivio (opzionale) e/o pianifica la tua prossima giornata.",
-    "HELP_PROCRASTINATION": "Aiuto sto procastinando!",
     "LATER_TODAY": "Più tardi oggi",
     "MOVE_DONE_TO_ARCHIVE": "Sposta attività completate in archivio",
     "NO_DONE_TASKS": "Non c'è alcuna attività completata",

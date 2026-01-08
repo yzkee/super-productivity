@@ -793,50 +793,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "Votre pause est terminée !"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "Au travail !",
-      "COMP": {
-        "INTRO": "Faire preuve d'indulgence est toujours une bonne idée. Ça améliore l'estime de soi, favorise les émotions positives et peut vous aider à surmonter la procrastination, bien sûr. Essayez un petit exercice:",
-        "L1": "Asseyez-vous quelques instants et étirez-vous, en d'autres termes, détendez-vous",
-        "L2": "Essayez d'écouter les pensées et les sentiments qui émergent",
-        "L3": "Agissez-vous avec vous-même de la même manière que vous agiriez avec un ami ?",
-        "L4": "Si la réponse est non, imaginez votre ami dans votre situation. Que lui diriez-vous? Que feriez-vous pour eux ?",
-        "OUTRO": "Vous trouverez plus d'exercices <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">ici</a> ou sur <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">google</a>.",
-        "TITLE": "Indulgence avec soi-même"
-      },
-      "CUR": {
-        "INTRO": "La procrastination est intéressante, n'est-ce pas? Cela n'a pas de sens de le faire. Pas du tout dans votre intérêt à long terme. Mais tout le monde le fait quand même. Profitez et explorez!",
-        "L1": "Quels sentiments suscitent votre tentation de procrastiner?",
-        "L2": "Où les sens-tu dans ton corps?",
-        "L3": "Qu'est-ce qu'ils vous rappellent?",
-        "L4": "Qu'advient-il de l'envie de procrastiner quand vous l'observez? Ça l'intensifie? La dissipe? Ça cause d'autres émotions?",
-        "L5": "Comment les sensations dans votre corps changent-elles pendant que vous continuez à concentrer votre conscience sur elles?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "Une autre méthode très efficace consiste à noter ce qui a déclenché votre envie de procrastiner. Par exemple, j'ai souvent envie d'aller rapidement sur Reddit ou sur mon site d'actualités préféré dès que la fenêtre de mon navigateur apparaît. Depuis que j'ai commencé à noter mes déclencheurs dans un simple document texte vide, j'ai pris conscience de l'enracinement de ce pattern et cela m'a aidé à expérimenter différentes contre-mesures.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Notez vos déclencheurs de procrastination",
-        "TITLE": "Curiosité"
-      },
-      "H1": "Prenez du temps!",
-      "INTRO": {
-        "AVOIDING": "Éviter la tâche",
-        "FEAR": "Peur de l'échec",
-        "STRESSED": "Stressé de ne pas terminer le travail",
-        "TITLE": "Introduction"
-      },
-      "P1": "Tout d'abord détendez-vous! Tout le monde le fait de temps en temps. Et si vous ne faites pas ce que vous devriez, vous devriez au moins en profiter! Ensuite, consultez les sections ci-dessous pour quelque chose d'utile.",
-      "P2": "Rappelez-vous: la procrastination est un problème de régulation des émotions, pas un problème de gestion du temps.",
-      "REFRAME": {
-        "INTRO": "Pensez à ce qui pourrait être positif à propos de la tâche malgré elle.",
-        "TITLE": "Recadrage",
-        "TL1": "Qu'est-ce qui pourrait être intéressant?",
-        "TL2": "Quel est l'avantage de la compléter?",
-        "TL3": "Comment vous sentirez-vous si vous la complétez?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Divisez la tâche en autant de petits morceaux que vous pouvez.",
-        "OUTRO": "Terminé? Alors réfléchis-y. Quelle serait - strictement théorique - la première chose que vous feriez <i>si</i> vous commenciez à travailler sur la tâche? Pensez-y bien ...",
-        "TITLE": "Découpez-la!"
-      }
-    },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
         "CANCEL": "Annuler",
@@ -2326,7 +2282,6 @@
     "FINISH_DAY_FOR_PROJECT": "Finir la journée pour ce Projet",
     "FINISH_DAY_FOR_TAG": "Finir la journée pour cette Balise",
     "FINISH_DAY_TOOLTIP": "Évaluer votre journée, archiver toutes les tâches finies (optionnel) et/ou planifier la prochaine journée.",
-    "HELP_PROCRASTINATION": "A l'aide je procrastine !",
     "LATER_TODAY": "Plus tard aujourd'hui",
     "MOVE_DONE_TO_ARCHIVE": "Déplacer les tâches terminées vers l'archive",
     "NO_DONE_TASKS": "Il n'y a actuellement aucune tâche terminée",

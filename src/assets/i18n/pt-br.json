@@ -783,50 +783,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "Seu intervalo acabou!"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "De volta ao trabalho!",
-      "COMP": {
-        "INTRO": "Pessoas com altos níveis de procrastinação geralmente têm baixa autocompaixão. Então pratique! Isso melhora seu sentimento de autoestima, promove emoções positivas e pode ajudar você a superar a procrastinação, é claro. Tente um pequeno exercício:",
-        "L1": "Sente-se um pouco e alongue-se, se quiser, acalme-se um pouco",
-        "L2": "Tente ouvir os pensamentos e sentimentos que surgem",
-        "L3": "Você está respondendo a si mesmo da mesma forma que responderia a um amigo?",
-        "L4": "Se a resposta for não, imagine seu amigo na sua situação. O que você diria a ele? O que você faria por ele?",
-        "OUTRO": "Mais exercícios <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">podem ser encontrados aqui</a> ou no <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">Google</a> .",
-        "TITLE": "Autocompaixão"
-      },
-      "CUR": {
-        "INTRO": "A procrastinação não é interessante? Não parece fazer sentido algum fazê-la, já que não é do seu interesse a longo prazo. Mas ainda assim todo mundo faz. Ajuda muito a explorar e obter um melhor entendimento sobre como funciona para você pessoalmente! Algumas perguntas básicas para se fazer podem ser:",
-        "L1": "Que sentimentos estão provocando sua tentação de procrastinar?",
-        "L2": "Onde você os sente no seu corpo?",
-        "L3": "O que elas lembram você?",
-        "L4": "O que acontece com o pensamento de procrastinar conforme você o observa? Ele se intensifica? Dissipa? Faz com que outras emoções surjam?",
-        "L5": "Como as sensações em seu corpo estão mudando à medida que você continua a concentrar sua atenção nelas?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "Outro método muito eficaz é registrar o que desencadeou sua vontade de procrastinar. Por exemplo, eu pessoalmente frequentemente tenho a vontade de pular rapidamente para o Reddit ou meu site de notícias favorito sempre que a janela do meu navegador entra em foco. Desde que comecei a escrever meus gatilhos em um simples documento de texto vazio, tomei consciência de quão arraigado esse padrão era e isso me ajudou a experimentar diferentes contramedidas.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Anote seus gatilhos de procrastinação",
-        "TITLE": "Curiosidade"
-      },
-      "H1": "Dê uma folga para você mesmo!",
-      "INTRO": {
-        "AVOIDING": "Evitando a tarefa",
-        "FEAR": "Medo do fracasso",
-        "STRESSED": "Estressado por não conseguir fazer as coisas",
-        "TITLE": "Introdução"
-      },
-      "P1": "Primeiro de tudo: Relaxe! Todo mundo procrastina de vez em quando. E se você não está fazendo o que deveria, você deveria pelo menos aproveitar!",
-      "P2": "Lembre-se: <b>a procrastinação é um problema de regulação emocional, não um problema de gerenciamento de tempo.</b> Isso significa que se culpar não é a solução, é parte do problema. Deixe isso penetrar e então confira as outras abas aqui para mais ajuda.",
-      "REFRAME": {
-        "INTRO": "Pense no que pode haver de positivo na tarefa, apesar de suas falhas.",
-        "TITLE": "Reenquadramento",
-        "TL1": "O que pode ser interessante nisso?",
-        "TL2": "O que você ganha se concluí-lo?",
-        "TL3": "Como você se sentirá se concluí-lo?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Divida a tarefa em quantas partes pequenas você puder.",
-        "OUTRO": "Pronto? Então pense nisso. Qual seria – estritamente teórica – a primeira coisa que você faria <i>se</i> começasse a trabalhar na tarefa? Pense nisso...",
-        "TITLE": "Divida!"
-      }
-    },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
         "CANCEL": "Cancelar"
@@ -2273,7 +2229,6 @@
     "FINISH_DAY_FOR_PROJECT": "Dia de conclusão deste projeto",
     "FINISH_DAY_FOR_TAG": "Dia de término para esta etiqueta",
     "FINISH_DAY_TOOLTIP": "Avalie seu dia, mova todas as tarefas concluídas para o arquivo (opcionalmente) e/ou planeje seu dia seguinte.",
-    "HELP_PROCRASTINATION": "Socorro, estou procrastinando!",
     "LATER_TODAY": "Mais tarde Hoje",
     "MOVE_DONE_TO_ARCHIVE": "Mover concluídas para o arquivo",
     "NO_DONE_TASKS": "Atualmente não há tarefas concluídas",

@@ -793,50 +793,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "Je pauze is voorbij!"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "Terug aan het werk!",
-      "COMP": {
-        "INTRO": "Medeleven tonen is altijd een goed idee. Het verbetert je gevoel van eigenwaarde, bevordert positieve emoties en kan je natuurlijk helpen om uitstelgedrag te overwinnen. Probeer een kleine oefening:",
-        "L1": "Ga even zitten en strek jezelf uit, als je wilt, kalmeer een beetje",
-        "L2": "Luister naar de gedachten en gevoelens die opkomen",
-        "L3": "Reageer je op jezelf zoals je zou reageren op een vriend?",
-        "L4": "Als het antwoord nee is, stel je je vriend dan voor in jouw situatie. Wat zou je tegen ze zeggen? Wat zou je voor ze doen?",
-        "OUTRO": "Meer oefeningen <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">vind je hier</a> of op <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">google</a>.",
-        "TITLE": "Zelfcompassie"
-      },
-      "CUR": {
-        "INTRO": "Uitstel is interessant, nietwaar? Het heeft geen zin om het te doen. Helemaal niet in uw langetermijnbelang. Maar toch doet iedereen het. Geniet en ontdek!",
-        "L1": "Welke gevoelens lokken je verleiding uit om uit te stellen?",
-        "L2": "Waar voel je ze in je lichaam?",
-        "L3": "Waar herinneren ze je aan?",
-        "L4": "Wat gebeurt er met de gedachte van uitstellen terwijl je het observeert? Wordt het intenser? Dissiperen? Veroorzaken andere emoties?",
-        "L5": "Hoe veranderen de sensaties in je lichaam terwijl je je bewustzijn erop blijft richten?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "Een andere zeer effectieve methode is om op te nemen wat je drang tot uitstel veroorzaakt. Zelf heb ik bijvoorbeeld vaak de neiging om snel naar reddit of mijn favoriete nieuwssite te springen zodra mijn browservenster in beeld komt. Toen ik begon met het opschrijven van mijn triggers in een eenvoudig leeg tekstdocument, werd ik me ervan bewust hoe ingesleten dit patroon was en het hielp me om te experimenteren met verschillende tegenmaatregelen.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Je uitstelgedrag triggers opschrijven",
-        "TITLE": "Nieuwsgierigheid"
-      },
-      "H1": "Geef jezelf wat ruimte!",
-      "INTRO": {
-        "AVOIDING": "De taak onwijken",
-        "FEAR": "Bang voor falen",
-        "STRESSED": "Gestrest omdat je dingen niet gedaan krijgt",
-        "TITLE": "Introductie"
-      },
-      "P1": "Ontspan allereerst! Iedereen doet het af en toe. En als je niet doet wat je moet doen, moet je er in ieder geval van genieten! Bekijk dan de onderstaande secties voor iets nuttigs.",
-      "P2": "Onthoud: uitstelgedrag is een probleem met emotieregulatie, geen tijdmanagementprobleem.",
-      "REFRAME": {
-        "INTRO": "Denk na over wat positief kan zijn aan de taak, ondanks haar taak.",
-        "TITLE": "Opnieuw inlijsten",
-        "TL1": "Wat is er interessant aan?",
-        "TL2": "Wat is er te winnen als je het voltooit?",
-        "TL3": "Wat vind je ervan als je het voltooit?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Verdeel de taak in zoveel mogelijk kleine stukjes.",
-        "OUTRO": "Gedaan? Denk er dan over na. Wat zou - strikt theoretisch - het eerste zijn dat u zou doen <i>als</i> u aan de taak zou gaan werken? Denk er gewoon over na...",
-        "TITLE": "Verdeel het!"
-      }
-    },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
         "CANCEL": "Annuleren",
@@ -2326,7 +2282,6 @@
     "FINISH_DAY_FOR_PROJECT": "Einddatum voor dit project",
     "FINISH_DAY_FOR_TAG": "Einddatum voor deze tag",
     "FINISH_DAY_TOOLTIP": "Evalueer je dag, verplaats alle uitgevoerde taken naar het archief (optioneel) en/of plan je volgende dag.",
-    "HELP_PROCRASTINATION": "Help, ik stel het uit!",
     "LATER_TODAY": "Later vandaag",
     "MOVE_DONE_TO_ARCHIVE": "Verplaatsing gedaan naar archief",
     "NO_DONE_TASKS": "Er zijn momenteel geen voltooide taken",

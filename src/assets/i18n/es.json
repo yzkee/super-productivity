@@ -774,50 +774,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "¡Tu descanso ha terminado!"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "¡De vuelta al trabajo!",
-      "COMP": {
-        "INTRO": "Las personas con altos niveles de procrastinación suelen tener baja autocompasión. ¡Así que practícala! Mejora tu sentimiento de autoestima, fomenta emociones positivas y puede ayudarte a superar la procrastinación, por supuesto. Prueba un pequeño ejercicio:",
-        "L1": "Siéntate un momento y estírate, si quieres, cálmate un poco",
-        "L2": "Intenta escuchar los pensamientos y sentimientos que surgen",
-        "L3": "¿Te estás respondiendo a ti mismo de una manera en que responderías a un amigo?",
-        "L4": "Si la respuesta es no, imagina a tu amigo en tu situación. ¿Qué le dirías? ¿Qué harías por él?",
-        "OUTRO": "Más ejercicios <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">se pueden encontrar aquí</a> o en <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">google</a>.",
-        "TITLE": "Autocompasión"
-      },
-      "CUR": {
-        "INTRO": "¿No es interesante la procrastinación? No parece tener ningún sentido hacerlo, ya que no es en absoluto de tu interés a largo plazo. Pero aun así todo el mundo lo hace. ¡Ayuda mucho explorar y obtener una mejor comprensión de cómo funciona para ti personalmente! Algunas preguntas básicas para hacerte podrían ser:",
-        "L1": "¿Qué sentimientos están provocando tu tentación de procrastinar?",
-        "L2": "¿Dónde los sientes en tu cuerpo?",
-        "L3": "¿A qué te recuerdan?",
-        "L4": "¿Qué pasa con el pensamiento de procrastinar mientras lo observas? ¿Se intensifica? ¿Se disipa? ¿Hace surgir otras emociones?",
-        "L5": "¿Cómo cambian las sensaciones en tu cuerpo a medida que continúas descansando tu conciencia en ellas?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "Otro método muy efectivo es registrar qué desencadenó tu necesidad de procrastinar. Por ejemplo, yo personalmente a menudo tengo la necesidad de saltar rápidamente a reddit o a mi sitio de noticias favorito cada vez que la ventana de mi navegador entra en foco. Desde que comencé a escribir mis desencadenantes en un documento de texto simple vacío, me volví consciente de cuán arraigado estaba este patrón y me ayudó a experimentar con diferentes contramedidas.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Escribir tus desencadenantes de procrastinación",
-        "TITLE": "Curiosidad"
-      },
-      "H1": "¡No seas tan duro contigo mismo!",
-      "INTRO": {
-        "AVOIDING": "Evitando la tarea",
-        "FEAR": "Miedo al fracaso",
-        "STRESSED": "Estresado por no hacer las cosas",
-        "TITLE": "Intro"
-      },
-      "P1": "Primero de todo: ¡Relájate! Todo el mundo procrastina de vez en cuando. Y si no estás haciendo lo que deberías, ¡al menos deberías disfrutarlo!",
-      "P2": "Recuerda: <b>La procrastinación es un problema de regulación emocional, no un problema de gestión del tiempo.</b> Esto significa que castigarte no es la solución, es parte del problema. Deja que eso asiente y luego revisa las otras pestañas aquí para obtener más ayuda.",
-      "REFRAME": {
-        "INTRO": "Piensa en qué podría ser positivo sobre la tarea a pesar de sus defectos.",
-        "TITLE": "Reenfoque",
-        "TL1": "¿Qué podría ser interesante sobre ella?",
-        "TL2": "¿Qué hay para ganar si la completas?",
-        "TL3": "¿Cómo te sentirás al respecto si la completas?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Divide la tarea en tantos fragmentos pequeños como puedas.",
-        "OUTRO": "¿Hecho? Entonces piénsalo. ¿Cuál sería – estrictamente teórico – la primera cosa que harías <i>si</i> fueras a empezar a trabajar en la tarea? Solo piénsalo...",
-        "TITLE": "¡Divídela!"
-      }
-    },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
         "CANCEL": "Cancelar",
@@ -940,40 +896,6 @@
       },
       "S_ACTIVE_TASK_DUE": "¡La tarea en la que estás trabajando ha vencido!<br/> ({{title}})",
       "S_REMINDER_ERR": "Error de la interfaz de recordatorios"
-    },
-    "SAFETY_BACKUP": {
-      "BACKUP_NOT_FOUND": "No se encontró la copia de seguridad con ID {{backupId}}",
-      "BTN_CLEAR_ALL": "Borrar todo",
-      "BTN_CREATE_MANUAL": "Crear copia manual",
-      "BTN_DELETE": "Eliminar",
-      "BTN_REFRESH": "Actualizar",
-      "BTN_RESTORE": "Restaurar",
-      "CLEAR_FAILED": "Error al borrar las copias de seguridad",
-      "CLEARED_SUCCESS": "Todas las copias de seguridad borradas con éxito",
-      "CREATE_FAILED": "Error al crear la copia de seguridad",
-      "CREATED_SUCCESS": "Copia de seguridad manual creada con éxito",
-      "DELETE_FAILED": "Error al eliminar la copia de seguridad",
-      "DELETED_SUCCESS": "Copia de seguridad eliminada con éxito",
-      "DESCRIPTION": "Las copias de seguridad automáticas se crean antes de descargar datos remotos durante las operaciones de sincronización. Las copias se organizan en 4 espacios inteligentes: 2 más recientes, 1 primera de hoy y 1 primera de un día anterior a hoy.",
-      "INVALID_ID_ERROR": "ID de copia de seguridad generado inválido",
-      "LAST_CHANGE_PREFIX": "Último cambio:",
-      "LOADING": "Cargando...",
-      "NO_BACKUPS": "Aún no hay copias de seguridad disponibles. Las copias se crean automáticamente antes de las operaciones de sincronización.",
-      "REASON_BEFORE_UPDATE": "Copia automática antes de sincronizar",
-      "REASON_MANUAL": "Copia manual",
-      "RESTORE_CONFIRM_MSG": "¿Estás seguro de que quieres restaurar la copia de seguridad de {{timestamp}}?\n\n¡Esto REEMPLAZARÁ COMPLETAMENTE todos tus datos actuales!\n\nRazón: {{reason}}\n\nHaz clic en Aceptar para proceder o Cancelar para abortar.",
-      "RESTORE_CONFIRM_TITLE": "Restaurar copia de seguridad",
-      "RESTORE_FAILED": "Error al restaurar la copia de seguridad: {{error}}",
-      "RESTORED_SUCCESS": "Copia de seguridad restaurada con éxito",
-      "SLOT_BEFORE_TODAY": "Primera copia anterior a hoy",
-      "SLOT_RECENT": "Copia reciente",
-      "SLOT_TODAY": "Primera copia de hoy",
-      "TITLE": "Copias de seguridad de sincronización",
-      "TOOLTIP_CLEAR_ALL": "Eliminar todas las copias de seguridad",
-      "TOOLTIP_CREATE_MANUAL": "Crear una copia de seguridad manual de todos tus datos",
-      "TOOLTIP_DELETE": "Eliminar esta copia de seguridad",
-      "TOOLTIP_REFRESH": "Actualizar la lista de copias de seguridad",
-      "TOOLTIP_RESTORE": "Restaurar esta copia (reemplazará todos los datos actuales)"
     },
     "SCHEDULE": {
       "CONTINUED": "continuado",
@@ -1893,19 +1815,6 @@
       "THEME_SELECT_LABEL": "Seleccionar Tema",
       "TITLE": "Ajustes Varios"
     },
-    "PAST": {
-      "A_DAY": "hace un día",
-      "A_MINUTE": "hace un minuto",
-      "A_MONTH": "hace un mes",
-      "A_YEAR": "hace un año",
-      "AN_HOUR": "hace una hora",
-      "DAYS": "hace {{count}} días",
-      "FEW_SECONDS": "hace unos segundos",
-      "HOURS": "hace {{count}} horas",
-      "MINUTES": "hace {{count}} minutos",
-      "MONTHS": "hace {{count}} meses",
-      "YEARS": "hace {{count}} años"
-    },
     "POMODORO": {
       "BREAK_DURATION": "Duración de descansos cortos",
       "CYCLES_BEFORE_LONGER_BREAK": "Iniciar descanso más largo después de X sesiones de trabajo",
@@ -1965,18 +1874,6 @@
     },
     "TIME_TRACKING": {
       "TITLE": "Seguimiento del tiempo"
-    },
-    "TIMELINE": {
-      "CAL_PROVIDERS": "Proveedores de calendario (experimental y opcional)",
-      "CAL_PROVIDERS_ADD": "Añadir fuente ical",
-      "CAL_PROVIDERS_INFO": "Opcionalmente puedes configurar la línea de tiempo para cargar y mostrar datos de iCal (p. ej. <a href=\"https://support.google.com/calendar/answer/37648?hl=en#zippy=%2Csync-your-google-calendar-view-edit%2Cget-your-calendar-view-only\">Google Calendar</a>).",
-      "HELP": "La característica de línea de tiempo debería proporcionarte una visión general rápida sobre cómo se desarrollan tus tareas planificadas a lo largo del tiempo. Puedes encontrarla en el menú de la izquierda bajo <a href='#/timeline'>'Línea de tiempo'</a>. ",
-      "L_CAL_PATH": "Url/Ruta de archivo para calendario ICAL (opcional)",
-      "L_IS_WORK_START_END_ENABLED": "Limitar flujo de tareas no programadas a horas de trabajo específicas",
-      "L_WORK_END": "Fin del Día de Trabajo",
-      "L_WORK_START": "Inicio del Día de Trabajo",
-      "TITLE": "Línea de tiempo",
-      "WORK_START_END_DESCRIPTION": "p. ej. 17:00"
     }
   },
   "GLOBAL": {
@@ -2310,7 +2207,6 @@
     "FINISH_DAY_FOR_PROJECT": "Finalizar Día para este Proyecto",
     "FINISH_DAY_FOR_TAG": "Finalizar Día para esta Etiqueta",
     "FINISH_DAY_TOOLTIP": "Evalúa tu día, mueve todas las tareas hechas al archivo (opcionalmente) y/o planifica tu próximo día.",
-    "HELP_PROCRASTINATION": "¡Ayuda, estoy procrastinando!",
     "LATER_TODAY": "Más Tarde Hoy",
     "MOVE_DONE_TO_ARCHIVE": "Mover hechas al archivo",
     "NO_DONE_TASKS": "Actualmente no hay tareas hechas",

@@ -793,50 +793,6 @@
     "POMODORO": {
       "BREAK_IS_DONE": "Pausen din er ferdig!"
     },
-    "PROCRASTINATION": {
-      "BACK_TO_WORK": "Tilbake til arbeid!",
-      "COMP": {
-        "INTRO": "Å vise deg selv litt medfølelse er alltid en god idé. Det forbedrer følelsen av egenverd, fremmer positive følelser og kan selvfølgelig hjelpe deg med å overvinne utsettelse. Prøv en liten øvelse:",
-        "L1": "Sett deg litt og strekk deg, hvis du vil, ro deg litt ned",
-        "L2": "Prøv å lytte til tankene og følelsene som oppstår",
-        "L3": "Svarer du på deg selv på en måte som du vil svare på en venn?",
-        "L4": "Hvis svaret er nei, forestill deg vennen din i din situasjon. Hva vil du si til dem? Hva ville du gjøre for dem?",
-        "OUTRO": "Flere øvelser <a target=\"_blank\" href=\"https://drsoph.com/blog/2018/9/17/3-exercises-in-self-compassion\" target=\"_blank\">finner du her</a> eller på <a target=\"_blank\" href=\"https://www.google.com/search?q=self+compassion+exercises&oq=self+compassion+excers&aqs=chrome.1.69i57j0l5.4303j0j7&sourceid=chrome&ie=UTF-8\" target=\"_blank\">google</a> .",
-        "TITLE": "Selvmedfølelse"
-      },
-      "CUR": {
-        "INTRO": "Utsettelse er interessant, ikke sant? Det gir ikke mening å gjøre det. Ikke i din langsiktige interesse i det hele tatt. Men fortsatt gjør alle det. Kos deg og utforsk!",
-        "L1": "Hvilke følelser vekker fristelsen din til å utsette?",
-        "L2": "Hvor føler du dem i kroppen din?",
-        "L3": "Hva minner de deg om?",
-        "L4": "Hva skjer med tanken på å utsette mens du observerer det? Forsterker det seg? Forsvinne? Får andre følelser til å oppstå?",
-        "L5": "Hvordan skifter følelsene i kroppen din når du fortsetter å hvile bevisstheten din på dem?",
-        "PROCRASTINATION_TRIGGERS_TEXT": "En annen veldig effektiv metode er å registrere hva som utløste trangen til å utsette ting. For eksempel har jeg personlig ofte lyst til å hoppe til reddit eller favorittnyhetssiden min så snart nettleservinduet kommer i fokus. Da jeg begynte å skrive ned det som utløste trangen i et tomt tekstdokument, ble jeg klar over hvor inngrodd dette mønsteret var, og det hjalp meg til å eksperimentere med ulike mottiltak.",
-        "PROCRASTINATION_TRIGGERS_TITLE": "Skriv ned hva som utløser prokrastineringen din",
-        "TITLE": "Nysgjerrighet"
-      },
-      "H1": "Slapp av litt!",
-      "INTRO": {
-        "AVOIDING": "Unngå oppgaven",
-        "FEAR": "Frykt for å mislykkes",
-        "STRESSED": "Stresset over å ikke få ting gjort",
-        "TITLE": "Intro"
-      },
-      "P1": "Først av alt slapp av! Alle gjør det en gang i blant. Og hvis du ikke gjør det du burde, bør du i det minste nyte det! Ta en titt på delene nedenfor for å finne noe nyttig.",
-      "P2": "Husk: Utsettelse er et følelsesreguleringsproblem, ikke et tidsstyringsproblem.",
-      "REFRAME": {
-        "INTRO": "Tenk på hva som kan være positivt med oppgaven til tross for manglene.",
-        "TITLE": "Omramning",
-        "TL1": "Hva kan være interessant med det?",
-        "TL2": "Hva kan du tjene hvis du fullfører det?",
-        "TL3": "Hvordan vil du ha det med det hvis du fullfører det?"
-      },
-      "SPLIT_UP": {
-        "INTRO": "Del oppgaven i så mange små biter du kan.",
-        "OUTRO": "Ferdig? Tenk så på det. Hva ville være - strengt teoretisk - det første du ville gjort <i>hvis</i> du skulle begynne å jobbe med oppgaven? Bare tenk på det...",
-        "TITLE": "Del den opp!"
-      }
-    },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
         "CANCEL": "Avbryt",
@@ -2326,7 +2282,6 @@
     "FINISH_DAY_FOR_PROJECT": "Sluttdag for dette prosjektet",
     "FINISH_DAY_FOR_TAG": "Sluttdag for denne taggen",
     "FINISH_DAY_TOOLTIP": "Evaluer dagen, flytt alle utførte oppgaver til arkivet (valgfritt) og/eller planlegg neste dag.",
-    "HELP_PROCRASTINATION": "Hjelp jeg utsetter!",
     "LATER_TODAY": "Senere i dag",
     "MOVE_DONE_TO_ARCHIVE": "Flytt ferdig til arkiv",
     "NO_DONE_TASKS": "Det er for øyeblikket ingen utførte oppgaver",
