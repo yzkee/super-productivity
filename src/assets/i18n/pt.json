@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "Por favor, revise e decida o que fazer.",
-      "SYNC_CONFLICT_TITLE": "Houve um conflito de sincronização"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "Aplicativo sendo executado em segundo plano para permitir a sincronização, se ativado",
-      "NO_ACTIVE_TASKS": "Nenhuma tarefa ativa",
-      "SYNCING": "Sincronizando"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Ignorar",
@@ -126,26 +115,6 @@
       "FORM_SECTION": {
         "HELP": "<p>Aqui você pode configurar SuperProductivity para listar CalDav todos incompletos para um projeto específico no painel de criação de tarefas na visualização de planejamento diário. Eles serão listados como sugestões e fornecerão um link para a tarefa, bem como mais informações sobre ela.</p> <p>Além disso, você pode adicionar e sincronizar automaticamente todas as tarefas não concluídas com a lista de pendências de suas tarefas.</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Atribuído",
-        "AT": "Em",
-        "ATTACHMENTS": "Anexos",
-        "CHANGED": "mudou",
-        "COMMENTS": "Comentários",
-        "COMPONENTS": "Componentes",
-        "DESCRIPTION": "Descrição",
-        "LABELS": "Categorias",
-        "LIST_OF_CHANGES": "Lista de alterações",
-        "MARK_AS_CHECKED": "Marcar atualizações como marcadas",
-        "ON": "Em",
-        "RELATED": "Relacionado",
-        "STATUS": "Status",
-        "STORY_POINTS": "Pontos de História",
-        "SUB_TASKS": "Subtarefas",
-        "SUMMARY": "Resumo",
-        "WORKLOG": "Registo de Trabalho",
-        "WRITE_A_COMMENT": "Escrever um comentário"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: Calendário \"{{calendarName}}\" não encontrado",
@@ -2265,24 +2234,6 @@
     "SCHEDULED_TASKS": "Tarefas Agendadas",
     "SCHEDULED_TASKS_WITH_TIME": "Tarefas programadas com lembrete",
     "START_TASK": "Iniciar tarefa agora e remover lembrete"
-  },
-  "THEMES": {
-    "amber": "Âmbar",
-    "blue": "Azul",
-    "blue-grey": "Azul acinzentado",
-    "cyan": "Ciano",
-    "deep-orange": "Laranja profundo",
-    "deep-purple": "Roxo profundo",
-    "green": "Verde",
-    "indigo": "Índigo",
-    "light-blue": "Azul claro",
-    "light-green": "Verde claro",
-    "lime": "Lima",
-    "pink": "Rosa",
-    "purple": "Roxa",
-    "SELECT_THEME": "Selecionar Tema",
-    "teal": "Azul petróleo",
-    "yellow": "Amarelo"
   },
   "USER_PROFILES": {
     "ACTIVE": "Ativo",

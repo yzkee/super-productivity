@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "Tarkista ja päätä mitä tehdä.",
-      "SYNC_CONFLICT_TITLE": "Synkronointivirhe tapahtui"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "Sovellus käynnissä taustalla mahdollistaen synkronoinnin, jos käytössä",
-      "NO_ACTIVE_TASKS": "Ei aktiivisia tehtäviä",
-      "SYNCING": "Synkronoidaan"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Ohita",
@@ -131,26 +120,6 @@
       "FORM_SECTION": {
         "HELP": "<p>Tässä voit määrittää SuperProductivityn listamaan keskeneräiset CalDav-tehtävät tietyn projektin osalta tehtävänluontipaneelissa päivittäisessä suunnittelinäkymässä. Ne listataan ehdotuksina ja tarjoavat linkin tehtävään sekä lisätietoja siitä.</p> <p>Lisäksi voit automaattisesti lisätä ja synkronoida kaikki keskeneräiset tehtävät taakkaputkeesi.</p><p>Jotta se toimisi nextcloudissa verkkosovelluksessa, sinun on ehkä sallittava \"https://app.super-productivity.com\" nextcloud-sovelluksen <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a> kautta.</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Vastuuhenkilö",
-        "AT": "klo",
-        "ATTACHMENTS": "Liitteet",
-        "CHANGED": "muutettu",
-        "COMMENTS": "Kommentit",
-        "COMPONENTS": "Komponentit",
-        "DESCRIPTION": "Kuvaus",
-        "LABELS": "Kategoriat",
-        "LIST_OF_CHANGES": "Muutoslista",
-        "MARK_AS_CHECKED": "Merkitse päivitykset tarkastetuiksi",
-        "ON": "päivänä",
-        "RELATED": "Liittyvät",
-        "STATUS": "Tila",
-        "STORY_POINTS": "Story Pointit",
-        "SUB_TASKS": "Alitehtävät",
-        "SUMMARY": "Yhteenveto",
-        "WORKLOG": "Työloki",
-        "WRITE_A_COMMENT": "Kirjoita kommentti"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: Kalenteria \"{{calendarName}}\" ei löytynyt",
@@ -2314,24 +2283,6 @@
     "SCHEDULED_TASKS": "Aikataulutetut tehtävät",
     "SCHEDULED_TASKS_WITH_TIME": "Aikataulutetut tehtävät aloitusajalla",
     "START_TASK": "Aloita tehtävä ja poista muistutus"
-  },
-  "THEMES": {
-    "amber": "meripihka",
-    "blue": "sininen",
-    "blue-grey": "siniharmaa",
-    "cyan": "syaani",
-    "deep-orange": "tumma oranssi",
-    "deep-purple": "tumma violetti",
-    "green": "vihreä",
-    "indigo": "indigo",
-    "light-blue": "vaaleansininen",
-    "light-green": "vaaleanvihreä",
-    "lime": "lime",
-    "pink": "vaaleanpunainen",
-    "purple": "violetti",
-    "SELECT_THEME": "Valitse teema",
-    "teal": "sinivihreä",
-    "yellow": "keltainen"
   },
   "USER_PROFILES": {
     "ACTIVE": "Aktiivinen",

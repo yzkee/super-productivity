@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "Vennligst sjekk og avgjør hva du skal gjøre.",
-      "SYNC_CONFLICT_TITLE": "En synkroniseringskonflikt oppstod"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "Appen kjører i bakgrunnen for å muliggjøre synkronisering hvis aktivert",
-      "NO_ACTIVE_TASKS": "Ingen aktive oppgaver",
-      "SYNCING": "Synkronisering"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Overse",
@@ -131,26 +120,6 @@
       "FORM_SECTION": {
         "HELP": "<p>Her kan du konfigurere SuperProductivity til å liste ufullførte CalDav-oppgaver for et spesifikt prosjekt i opprettingspanelet for oppgaver i den daglige planleggingsvisningen. De vil bli listet som forslag og vil gi en lenke til oppgaven samt mer informasjon om den.<\\/p> <p>I tillegg kan du automatisk legge til og synkronisere alle ufullførte oppgaver til oppgavelisten din.<\\/p><p>For at det skal fungere for Nextcloud i nettappen, må du kanskje hviteliste \"https:\\/\\/app.super-productivity.com\" via Nextcloud-appen <a href='https:\\/\\/apps.nextcloud.com\\/apps\\/webapppassword'>webapppassword<a>.<\\/p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Tildelt",
-        "AT": "på",
-        "ATTACHMENTS": "Vedlegg",
-        "CHANGED": "endret",
-        "COMMENTS": "Kommentarer",
-        "COMPONENTS": "Komponenter",
-        "DESCRIPTION": "Beskrivelse",
-        "LABELS": "Kategorier",
-        "LIST_OF_CHANGES": "Liste over endringer",
-        "MARK_AS_CHECKED": "Merk oppdateringer som sjekket",
-        "ON": "på",
-        "RELATED": "Relatert",
-        "STATUS": "Status",
-        "STORY_POINTS": "Story Points",
-        "SUB_TASKS": "Deloppgaver",
-        "SUMMARY": "Sammendrag",
-        "WORKLOG": "Arbeidslogg",
-        "WRITE_A_COMMENT": "Skriv en kommentar"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: Kalender \"{{calendarName}}\" ikke funnet",
@@ -2316,24 +2285,6 @@
     "SCHEDULED_TASKS": "Planlagte oppgaver",
     "SCHEDULED_TASKS_WITH_TIME": "Planlagte oppgaver med påminnelse",
     "START_TASK": "Start oppgaven og fjern påminnelsen"
-  },
-  "THEMES": {
-    "amber": "rav",
-    "blue": "blå",
-    "blue-grey": "blågrå",
-    "cyan": "turkis",
-    "deep-orange": "dyp oransje",
-    "deep-purple": "mørk lilla",
-    "green": "grønn",
-    "indigo": "indigo",
-    "light-blue": "lyseblå",
-    "light-green": "lysegrønn",
-    "lime": "kalk",
-    "pink": "rosa",
-    "purple": "lilla",
-    "SELECT_THEME": "Velg Tema",
-    "teal": "blågrønn",
-    "yellow": "gul"
   },
   "USER_PROFILES": {
     "ACTIVE": "Aktiv",

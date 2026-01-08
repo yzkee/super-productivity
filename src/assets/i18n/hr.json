@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "Provjeri i odluči što uraditi.",
-      "SYNC_CONFLICT_TITLE": "Dogodila se greška u sinkronizaciji"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "Program radi u pozadini kako bi se omogućila sinkronizacija, ukoliko je aktivirana",
-      "NO_ACTIVE_TASKS": "Nema aktivnih zadataka",
-      "SYNCING": "Sinkronizacija u tijeku"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Zanemari",
@@ -111,26 +100,6 @@
       "FORM_SECTION": {
         "HELP": "<p>Ovdje možeš konfigurirati Super Productivity za prikaz popisa nezavršenih CalDav zadataka za određeni projekt na ploči za stvaranje zadataka u prikazu dnevnog planiranja. U popisu će se ti zadaci navesti kao prijedlozi s poveznicom na zadatak te s daljnjim informacija o zadatku.</p> <p>Osim toga, sve nezavršene zadatke možeš automatski dodati u odlagalište zadataka i sinkronizirati ih.</p><p>Da bi to za nextcloud radilo na mobilnom uređaju i webu, možda ćeš morati staviti „https://app.super-productivity.com” na popis dopuštenih putem nextcloud programa <a href='https://apps.nextcloud. com/apps/webapppassword'>webapppassword<a>.</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Devwa",
-        "AT": "alèz",
-        "ATTACHMENTS": "Atachman",
-        "CHANGED": "Chanje",
-        "COMMENTS": "Kòmantè",
-        "COMPONENTS": "Eleman",
-        "DESCRIPTION": "Opis",
-        "LABELS": "Kategorije",
-        "LIST_OF_CHANGES": "Lis chanjman yo",
-        "MARK_AS_CHECKED": "Označi aktualiziranja kao provjerena",
-        "ON": "Sou",
-        "RELATED": "Fanmi",
-        "STATUS": "Stanje",
-        "STORY_POINTS": "Pwen istwa",
-        "SUB_TASKS": "Subtasks",
-        "SUMMARY": "Sažetak",
-        "WORKLOG": "Travay",
-        "WRITE_A_COMMENT": "Ekri yon kòmantè"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: Kalendar „{{calendarName}}” nije pronađen",
@@ -1836,24 +1805,6 @@
     "SCHEDULED_TASKS": "Terminirani zadaci",
     "SCHEDULED_TASKS_WITH_TIME": "Travay pwograme ak rapèl",
     "START_TASK": "Započni zadatak i ukloni podsjetnika"
-  },
-  "THEMES": {
-    "amber": "jantar",
-    "blue": "plava",
-    "blue-grey": "plavosiva",
-    "cyan": "cijan",
-    "deep-orange": "tamnonarančasta",
-    "deep-purple": "tamnoljubičasta",
-    "green": "zelena",
-    "indigo": "indigo",
-    "light-blue": "svjetloplava",
-    "light-green": "svjetlozelena",
-    "lime": "limunasta",
-    "pink": "ružičasta",
-    "purple": "ljubičasta",
-    "SELECT_THEME": "Odaberi temu",
-    "teal": "plavozelena",
-    "yellow": "žuta"
   },
   "USER_PROFILES": {
     "ACTIVE": "Aktivan",

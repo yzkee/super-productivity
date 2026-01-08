@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "الرجاء التحقق و اختيار ما العمل",
-      "SYNC_CONFLICT_TITLE": "حدث تعارض في المزامنة"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "التطبيق يعمل في الخلفية للسماح بالمزامنة إذا كانت مفعلة",
-      "NO_ACTIVE_TASKS": "ليس هناك مهمات نشطة",
-      "SYNCING": "المزامنة جارية"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "تجاهل",
@@ -126,26 +115,6 @@
       "FORM_SECTION": {
         "HELP": "<p>\nهنا يمكنك تهيئة الإنتاجية الفائقة لإدراج مهام كالداف غير المكتملة لمشروع معين في لوحة إنشاء المهام في عرض التخطيط اليومي. سيتم إدراجها كاقتراحات وستوفر رابطًا للمهمة بالإضافة إلى مزيد من المعلومات عنها. \n</p>\n<p>\n.بالإضافة إلى ذلك، يمكنك إضافة جميع المهام غير المكتملة ومزامنتها تلقائيًا إلى المهام المتراكمة لديك \n</p>\n<p><a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a>.</p>",
         "TITLE": "كالداف"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "المحال",
-        "AT": "في",
-        "ATTACHMENTS": "المرفقات",
-        "CHANGED": "تغيير",
-        "COMMENTS": "التعليقات",
-        "COMPONENTS": "مكونات",
-        "DESCRIPTION": "وصف",
-        "LABELS": "الاقسام",
-        "LIST_OF_CHANGES": "قائمة التغييرات",
-        "MARK_AS_CHECKED": "وضع علامة على التحديثات على أنها محددة",
-        "ON": "على",
-        "RELATED": "ذات الصله",
-        "STATUS": "الحالة",
-        "STORY_POINTS": "نقاط القصة",
-        "SUB_TASKS": "الفرعيه",
-        "SUMMARY": "ملخص",
-        "WORKLOG": "سجل العمل",
-        "WRITE_A_COMMENT": "اكتب تعليقا"
       },
       "S": {
         "CALENDAR_NOT_FOUND": " كالداف : التقويم غير موجود\n\"{{calendarName}}\" ",
@@ -2254,24 +2223,6 @@
     "SCHEDULED_TASKS": "المهام المجدولة",
     "SCHEDULED_TASKS_WITH_TIME": "المهام المجدولة مع التذكير",
     "START_TASK": "بدء المهمة الآن وإزالة تذكير"
-  },
-  "THEMES": {
-    "amber": "كهرمان",
-    "blue": "أزرق",
-    "blue-grey": "رمادي مزرق",
-    "cyan": "ازرق سماوي",
-    "deep-orange": "برتقالي غامق",
-    "deep-purple": "أرجواني غامق",
-    "green": "أخضر",
-    "indigo": "نيلي",
-    "light-blue": "أزرق فاتح",
-    "light-green": "اخضر فاتح",
-    "lime": "ليمي",
-    "pink": "زهري",
-    "purple": "أرجواني",
-    "SELECT_THEME": "اختر مظهر",
-    "teal": "شرشيري",
-    "yellow": "الأصفر"
   },
   "USER_PROFILES": {
     "ACTIVE": "نشط",

@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "Por favor, verifique e decida o que fazer.",
-      "SYNC_CONFLICT_TITLE": "Ocorreu um conflito de sincronização"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "Aplicativo em execução em segundo plano para permitir a sincronização, se habilitado",
-      "NO_ACTIVE_TASKS": "Nenhuma tarefa ativa",
-      "SYNCING": "Sincronizando"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Ignorar",
@@ -126,26 +115,6 @@
       "FORM_SECTION": {
         "HELP": "<p>Aqui você pode configurar o SuperProductivity para listar todos os CalDav não concluídos para um projeto específico no painel de criação de tarefas na visualização de planejamento diário. Eles serão listados como sugestões e fornecerão um link para o todo, bem como mais informações sobre ele.</p><p> Além disso, você pode adicionar e sincronizar automaticamente todas as tarefas não concluídas nas suas pendências.</p><p> Para que funcione no nextcloud no webapp, talvez seja necessário colocar \"https://app.super-productivity.com\" na lista de permissões por meio do <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword</a> do aplicativo nextcloud <a>.</a>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Responsável",
-        "AT": "Em",
-        "ATTACHMENTS": "Anexos",
-        "CHANGED": "alterado",
-        "COMMENTS": "Comentários",
-        "COMPONENTS": "Componentes",
-        "DESCRIPTION": "Descrição",
-        "LABELS": "Categorias",
-        "LIST_OF_CHANGES": "Lista de alterações",
-        "MARK_AS_CHECKED": "Marcar atualizações como verificadas",
-        "ON": "Em",
-        "RELATED": "Relacionado",
-        "STATUS": "Status",
-        "STORY_POINTS": "Pontos de História",
-        "SUB_TASKS": "Subtarefas",
-        "SUMMARY": "Resumo",
-        "WORKLOG": "Registro de Trabalho",
-        "WRITE_A_COMMENT": "Escrever um comentário"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: Calendário \" {{calendarName}}\" não encontrado",
@@ -2263,24 +2232,6 @@
     "SCHEDULED_TASKS": "Tarefas agendadas",
     "SCHEDULED_TASKS_WITH_TIME": "Tarefas agendadas com lembrete",
     "START_TASK": "Iniciar tarefa e remover lembrete"
-  },
-  "THEMES": {
-    "amber": "âmbar",
-    "blue": "azul",
-    "blue-grey": "azul acinzentado",
-    "cyan": "ciano",
-    "deep-orange": "laranja escuro",
-    "deep-purple": "roxo profundo",
-    "green": "verde",
-    "indigo": "índigo",
-    "light-blue": "azul claro",
-    "light-green": "verde claro",
-    "lime": "limão",
-    "pink": "rosa",
-    "purple": "roxo",
-    "SELECT_THEME": "Selecione o tema",
-    "teal": "verde-azulado",
-    "yellow": "amarelo"
   },
   "USER_PROFILES": {
     "ACTIVE": "Ativo",

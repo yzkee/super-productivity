@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "Verifica e scegli come procedere.",
-      "SYNC_CONFLICT_TITLE": "Conflitto durante la sincronizzazione"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "App in esecuzione in background per permettere la sincronizzazione se attiva",
-      "NO_ACTIVE_TASKS": "Nessuna attività in corso",
-      "SYNCING": "Sincronizzazione in corso"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Ignora",
@@ -131,26 +120,6 @@
       "FORM_SECTION": {
         "HELP": "<p>Qui puoi configurare SuperProductivity per elencare le cose da fare CalDav non completate per un progetto specifico nel pannello di creazione dell'attività nella visualizzazione della pianificazione giornaliera. Verranno elencati come suggerimenti e forniranno un collegamento alla cosa da fare, nonché ulteriori informazioni a riguardo.</p> <p>Inoltre, è possibile aggiungere e sincronizzare automaticamente tutte le attività non completate tra le arretrate.</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Assegnatario",
-        "AT": "a",
-        "ATTACHMENTS": "Allegati",
-        "CHANGED": "modificato",
-        "COMMENTS": "Commenti",
-        "COMPONENTS": "Componenti",
-        "DESCRIPTION": "Descrizione",
-        "LABELS": "Categorie",
-        "LIST_OF_CHANGES": "Elenco delle modifiche",
-        "MARK_AS_CHECKED": "Contrassegna gli aggiornamenti come controllati",
-        "ON": "su",
-        "RELATED": "Correlato",
-        "STATUS": "Stato",
-        "STORY_POINTS": "Punti storia",
-        "SUB_TASKS": "Sotto-attività",
-        "SUMMARY": "Sommario",
-        "WORKLOG": "Registro di lavoro",
-        "WRITE_A_COMMENT": "Scrivi un commento"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: calendario \"{{calendarName}}\" non trovato",
@@ -2316,24 +2285,6 @@
     "SCHEDULED_TASKS": "Attività pianificate",
     "SCHEDULED_TASKS_WITH_TIME": "Attività pianificate con promemoria",
     "START_TASK": "Inizia l'attività ora e rimuovi promemoria"
-  },
-  "THEMES": {
-    "amber": "ambra",
-    "blue": "blu",
-    "blue-grey": "blu-grigio",
-    "cyan": "ciano",
-    "deep-orange": "arancio-intenso",
-    "deep-purple": "viola-intenso",
-    "green": "verde",
-    "indigo": "indaco",
-    "light-blue": "azzurro",
-    "light-green": "verde-chiaro",
-    "lime": "lime",
-    "pink": "rosa",
-    "purple": "viola",
-    "SELECT_THEME": "Seleziona tema",
-    "teal": "verde acqua",
-    "yellow": "giallo"
   },
   "USER_PROFILES": {
     "ACTIVE": "Attivo",

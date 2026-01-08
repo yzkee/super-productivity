@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "Veuillez vérifier et décider quoi faire.",
-      "SYNC_CONFLICT_TITLE": "Un conflit de synchronisation s'est produit"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "Application exécutée en arrière-plan pour permettre la synchronisation si elle est activée",
-      "NO_ACTIVE_TASKS": "Aucune tâche active",
-      "SYNCING": "Synchronisation"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Ignorer",
@@ -131,26 +120,6 @@
       "FORM_SECTION": {
         "HELP": "<p>Ici, vous pouvez configurer SuperProductivity pour répertorier les tâches CalDav inachevées pour un projet spécifique dans le panneau de création de tâches de la vue de planification quotidienne. Ils seront listés comme des suggestions et fourniront un lien vers le todo ainsi que plus d'informations à ce sujet.</p> <p>En outre, vous pouvez automatiquement ajouter et synchroniser toutes les tâches inachevées dans votre backlog de tâches.</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Bénéficiaire",
-        "AT": "À",
-        "ATTACHMENTS": "Pièces jointes",
-        "CHANGED": "Modifié",
-        "COMMENTS": "Commentaires",
-        "COMPONENTS": "Composants",
-        "DESCRIPTION": "La description",
-        "LABELS": "catégories",
-        "LIST_OF_CHANGES": "Liste des changements",
-        "MARK_AS_CHECKED": "Marquer les mises à jour comme cochées",
-        "ON": "sur",
-        "RELATED": "Lié",
-        "STATUS": "Statut",
-        "STORY_POINTS": "Points d'histoire",
-        "SUB_TASKS": "Sous-tâches",
-        "SUMMARY": "Résumé",
-        "WORKLOG": "Journal de travail",
-        "WRITE_A_COMMENT": "Écrire un commentaire"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: calendrier \"{{calendarName}}\" introuvable",
@@ -2316,24 +2285,6 @@
     "SCHEDULED_TASKS": "Tâches programmées",
     "SCHEDULED_TASKS_WITH_TIME": "Planifier les tâches avec rappel",
     "START_TASK": "Démarrer la tâche maintenant et supprimer le rappel"
-  },
-  "THEMES": {
-    "amber": "ambre",
-    "blue": "Bleu",
-    "blue-grey": "Bleu gris",
-    "cyan": "Cyan",
-    "deep-orange": "orange foncé",
-    "deep-purple": "Violet foncé",
-    "green": "Vert",
-    "indigo": "Indigo",
-    "light-blue": "Bleu clair",
-    "light-green": "Vert clair",
-    "lime": "Vert citron",
-    "pink": "rose",
-    "purple": "Violet",
-    "SELECT_THEME": "Sélectionner un thème",
-    "teal": "Turquoise",
-    "yellow": "Jaune"
   },
   "USER_PROFILES": {
     "ACTIVE": "Actif",

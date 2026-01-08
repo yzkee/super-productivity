@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "Lütfen kontrol edin ve ne yapacağınıza karar verin.",
-      "SYNC_CONFLICT_TITLE": "Bir senkronizasyon çakışması oldu."
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "Eğer etkinse, senkronizasyonu kabul etmek için arka planda çalışır.",
-      "NO_ACTIVE_TASKS": "Aktif görevler yok",
-      "SYNCING": "Senkronize ediliyor"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Yoksay",
@@ -131,26 +120,6 @@
       "FORM_SECTION": {
         "HELP": "<p>Burada, SuperProductivity'yi günlük planlama görünümündeki görev oluşturma panelinde belirli bir proje için tamamlanmamış CalDav yapılacak işleri listeleyecek şekilde yapılandırabilirsiniz. Öneriler olarak listelenecekler ve yapılacaklar için bir bağlantı ve bununla ilgili daha fazla bilgi sağlayacaklar.</p> <p>Ek olarak, tamamlanmamış tüm görevleri görev biriktirme listesine otomatik olarak ekleyebilir ve senkronize edebilirsiniz.</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Atanan",
-        "AT": "üzerinde",
-        "ATTACHMENTS": "Ekler",
-        "CHANGED": "değiştirildi",
-        "COMMENTS": "Yorumlar",
-        "COMPONENTS": "Bileşenler",
-        "DESCRIPTION": "Açıklama",
-        "LABELS": "Kategoriler",
-        "LIST_OF_CHANGES": "Değişiklikler listesi",
-        "MARK_AS_CHECKED": "Güncellemeleri işaretlendi olarak işaretle",
-        "ON": "üzerinde",
-        "RELATED": "İlgili",
-        "STATUS": "Durum",
-        "STORY_POINTS": "Hikaye Puanları",
-        "SUB_TASKS": "Alt Görevler",
-        "SUMMARY": "Özet",
-        "WORKLOG": "Çalışma kaydı",
-        "WRITE_A_COMMENT": "Bir yorum yaz"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: \"{{calendarName}}\" takvimi bulunamadı",
@@ -2285,24 +2254,6 @@
     "SCHEDULED_TASKS": "Zamanlanmış görevler",
     "SCHEDULED_TASKS_WITH_TIME": "Hatırlatıcılı zamanlanmış görevler",
     "START_TASK": "Görevi şimdi başlat ve anımsatıcıyı kaldır"
-  },
-  "THEMES": {
-    "amber": "kehribar",
-    "blue": "mavi",
-    "blue-grey": "Mavi-gri",
-    "cyan": "camgöbeği",
-    "deep-orange": "koyu turuncu",
-    "deep-purple": "koyu mor",
-    "green": "yeşil",
-    "indigo": "çivit mavisi",
-    "light-blue": "açık mavi",
-    "light-green": "açık yeşil",
-    "lime": "kireç yeşili",
-    "pink": "pembe",
-    "purple": "mor",
-    "SELECT_THEME": "Tema seçin",
-    "teal": "turkuaz",
-    "yellow": "sarı"
   },
   "USER_PROFILES": {
     "ACTIVE": "Aktif",

@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "لطفا بررسی کنید و تصمیم بگیرید که چه کاری انجام دهید.",
-      "SYNC_CONFLICT_TITLE": "یک تضاد همگام سازی رخ داد"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "برنامه در حال اجرا در پس زمینه برای امکان همگام سازی در صورت فعال بودن",
-      "NO_ACTIVE_TASKS": "بدون کار فعال",
-      "SYNCING": "در حال همگام سازی"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "نادیده گرفتن",
@@ -126,26 +115,6 @@
       "FORM_SECTION": {
         "HELP": "<p>در اینجا می توانید SuperProductivity را پیکربندی کنید تا لیست های انجام نشده CalDav را برای یک پروژه خاص در صفحه ایجاد کار در نمای برنامه ریزی روزانه لیست کنید. آنها به عنوان پیشنهادها لیست می شوند و پیوندی به این کار و همچنین اطلاعات بیشتر در مورد آن را ارائه می دهند.</p> <p>علاوه بر این شما می توانید به طور خودکار تمام موارد خاتمه یافته ناقص را به پرونده کار خود اضافه و همگام سازی کنید.</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "وکیل",
-        "AT": "در",
-        "ATTACHMENTS": "پیوست",
-        "CHANGED": "تغییر",
-        "COMMENTS": "نظرات",
-        "COMPONENTS": "قطعات",
-        "DESCRIPTION": "شرح",
-        "LABELS": "دسته بندی ها",
-        "LIST_OF_CHANGES": "لیست تغییرات",
-        "MARK_AS_CHECKED": "به روزرسانی ها را به عنوان علامت گذاری شده علامت گذاری کنید",
-        "ON": "در",
-        "RELATED": "مربوط",
-        "STATUS": "وضعیت",
-        "STORY_POINTS": "نکات داستانی",
-        "SUB_TASKS": "وظایف فرعی",
-        "SUMMARY": "خلاصه",
-        "WORKLOG": "گزارش کار",
-        "WRITE_A_COMMENT": "نظر بنویسید"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: تقویم \"{{calendarName}}\" یافت نشد",
@@ -2254,24 +2223,6 @@
     "SCHEDULED_TASKS": "وظایف برنامه ریزی شده",
     "SCHEDULED_TASKS_WITH_TIME": "کارهای برنامه ریزی شده با یادآوری",
     "START_TASK": "Start task now and remove reminder"
-  },
-  "THEMES": {
-    "amber": "کهربایی",
-    "blue": "آبی",
-    "blue-grey": "آبی خاکستری",
-    "cyan": "فیروزه ای",
-    "deep-orange": "نارنجی تیره",
-    "deep-purple": "بنفش پررنگ",
-    "green": "سبز",
-    "indigo": "نیلی",
-    "light-blue": "آبی روشن",
-    "light-green": "سبز روشن",
-    "lime": "لیمویی",
-    "pink": "صورتی",
-    "purple": "بنفش",
-    "SELECT_THEME": "انتخاب قالب",
-    "teal": "teal",
-    "yellow": "زرد"
   },
   "USER_PROFILES": {
     "ACTIVE": "فعال",

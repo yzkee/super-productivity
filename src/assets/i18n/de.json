@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "Bitte nachsehen und entscheiden, was zu tun ist",
-      "SYNC_CONFLICT_TITLE": "Ein Synchronisationskonflikt ist aufgetreten"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "App läuft im Hintergrund, um Synchronisation zu ermöglichen, wenn aktiviert",
-      "NO_ACTIVE_TASKS": "Keine aktiven Aufgaben",
-      "SYNCING": "Synchronisierung"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Ignorieren",
@@ -131,26 +120,6 @@
       "FORM_SECTION": {
         "HELP": "<p>Hier können Sie SuperProductivity so konfigurieren, dass unvollständige CalDav-Aufgaben für ein bestimmtes Projekt im Aufgabenerstellungsfenster in der täglichen Planungsansicht aufgelistet werden. Sie werden als Vorschläge aufgeführt und enthalten einen Link zur Aufgabe sowie weitere Informationen dazu.</p> <p>Außerdem können Sie automatisch alle nicht abgeschlossenen Aufgaben zu Ihrem Aufgaben-Backlog hinzufügen und synchronisieren.</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Zuständiger",
-        "AT": "Bei",
-        "ATTACHMENTS": "Anhänge",
-        "CHANGED": "Geändert",
-        "COMMENTS": "Kommentare",
-        "COMPONENTS": "Komponenten",
-        "DESCRIPTION": "Beschreibung",
-        "LABELS": "Kategorien",
-        "LIST_OF_CHANGES": "Liste der Änderungen",
-        "MARK_AS_CHECKED": "Updates als erledigt markieren",
-        "ON": "auf",
-        "RELATED": "Verwandt",
-        "STATUS": "Status",
-        "STORY_POINTS": "Story-Punkte",
-        "SUB_TASKS": "Unteraufgaben",
-        "SUMMARY": "Zusammenfassung",
-        "WORKLOG": "Arbeitsprotokoll",
-        "WRITE_A_COMMENT": "Einen Kommentar schreiben"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: Kalender \"{{calendarName}}\" nicht gefunden",
@@ -2300,24 +2269,6 @@
     "SCHEDULED_TASKS": "Geplante Aufgaben",
     "SCHEDULED_TASKS_WITH_TIME": "Geplante Aufgaben mit Erinnerung",
     "START_TASK": "Aufgabe jetzt starten und Erinnerung entfernen"
-  },
-  "THEMES": {
-    "amber": "Bernstein",
-    "blue": "Blau",
-    "blue-grey": "Blau-Grau",
-    "cyan": "Cyan",
-    "deep-orange": "Tief-Orange",
-    "deep-purple": "Dunkellila",
-    "green": "Grün",
-    "indigo": "Indigo",
-    "light-blue": "Hellblau",
-    "light-green": "Hellgrün",
-    "lime": "Limette",
-    "pink": "Rosa",
-    "purple": "Lila",
-    "SELECT_THEME": "Farbschema wählen",
-    "teal": "Blaugrün",
-    "yellow": "Gelb"
   },
   "USER_PROFILES": {
     "ACTIVE": "Aktiv",

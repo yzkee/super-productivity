@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "確認して何をするか決めてください。",
-      "SYNC_CONFLICT_TITLE": "同期の競合が発生しました"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "同期を有効にするためにバックグラウンドで実行されているアプリ",
-      "NO_ACTIVE_TASKS": "アクティブなタスクなし",
-      "SYNCING": "同期中"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "無視する",
@@ -126,26 +115,6 @@
       "FORM_SECTION": {
         "HELP": "<p>ここでは、SuperProductivityを構成して、特定のプロジェクトの未完了のCalDavタスクを日次計画ビューのタスク作成パネルに一覧表示できます。それらは提案としてリストされ、todoへのリンクとそれに関する詳細情報を提供します。</p> <p>さらに、未完了のすべてのToDoをタスクバックログに自動的に追加して同期することができます。</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "担当者",
-        "AT": "で",
-        "ATTACHMENTS": "添付 ファイル",
-        "CHANGED": "変更",
-        "COMMENTS": "コメント",
-        "COMPONENTS": "コンポーネント",
-        "DESCRIPTION": "説明",
-        "LABELS": "カテゴリー",
-        "LIST_OF_CHANGES": "変更点の一覧",
-        "MARK_AS_CHECKED": "更新をチェック済みとしてマーク",
-        "ON": "オン",
-        "RELATED": "関連",
-        "STATUS": "状態",
-        "STORY_POINTS": "ストーリーポイント",
-        "SUB_TASKS": "サブタスク",
-        "SUMMARY": "概要",
-        "WORKLOG": "ワークログ",
-        "WRITE_A_COMMENT": "コメントを書く"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav：カレンダー \"{{calendarName}}\"が見つかりません",
@@ -2242,24 +2211,6 @@
     "SCHEDULED_TASKS": "スケジュールされたタスク",
     "SCHEDULED_TASKS_WITH_TIME": "リマインダー付きスケジュールタスク",
     "START_TASK": "今すぐタスクを開始してリマインダーを削除"
-  },
-  "THEMES": {
-    "amber": "アンバー",
-    "blue": "青",
-    "blue-grey": "ブルーグレー",
-    "cyan": "シアン",
-    "deep-orange": "濃いオレンジ",
-    "deep-purple": "濃い紫",
-    "green": "緑",
-    "indigo": "インディゴ",
-    "light-blue": "ライトブルー",
-    "light-green": "薄緑",
-    "lime": "ライム",
-    "pink": "ピンク",
-    "purple": "紫",
-    "SELECT_THEME": "テーマを選択",
-    "teal": "ティール",
-    "yellow": "黄"
   },
   "USER_PROFILES": {
     "ACTIVE": "アクティブ",

@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "Skontrolujte to a rozhodnite sa, čo máte robiť.",
-      "SYNC_CONFLICT_TITLE": "Vyskytol sa konflikt synchronizácie"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "Aplikácia beží na pozadí, aby sa umožnila synchronizácia, ak je povolená",
-      "NO_ACTIVE_TASKS": "Žiadne aktívne úlohy",
-      "SYNCING": "Synchronizácia"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Ignorovať",
@@ -126,26 +115,6 @@
       "FORM_SECTION": {
         "HELP": "<p>Here you can configure SuperProductivity to list uncompleted CalDav todos for a specific project in the task creation panel in the daily planning view. They will be listed as suggestions and will provide a link to the todo as well as more information about it.</p> <p>In addition you can automatically add and sync all uncompleted todos to your task backlog.</p><p>To make it work for nextcloud on mobile and web, you might need to whitelist \"https://app.super-productivity.com\" via the nextcloud app <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a>.</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Priradený",
-        "AT": "Na",
-        "ATTACHMENTS": "Prílohy",
-        "CHANGED": "Zmenené",
-        "COMMENTS": "Komentáre",
-        "COMPONENTS": "Komponenty",
-        "DESCRIPTION": "Popis",
-        "LABELS": "Kategórie",
-        "LIST_OF_CHANGES": "Zoznam zmien",
-        "MARK_AS_CHECKED": "Označiť aktualizácie ako skontrolované",
-        "ON": "Na",
-        "RELATED": "Súvisiace",
-        "STATUS": "Stav",
-        "STORY_POINTS": "Príbehové body",
-        "SUB_TASKS": "Podúlohy",
-        "SUMMARY": "Súhrn",
-        "WORKLOG": "Pracovný denník",
-        "WRITE_A_COMMENT": "Napísať komentár"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: Kalendár \"{{calendarName}}\" nebol nájdený",
@@ -2264,24 +2233,6 @@
     "SCHEDULED_TASKS": "Scheduled tasks",
     "SCHEDULED_TASKS_WITH_TIME": "Naplánované úlohy s pripomienkou",
     "START_TASK": "Start task and remove reminder"
-  },
-  "THEMES": {
-    "amber": "jantárová",
-    "blue": "modrá",
-    "blue-grey": "blue-grey",
-    "cyan": "tyrkysová",
-    "deep-orange": "tmavooranžová",
-    "deep-purple": "tmavofialová",
-    "green": "zelená",
-    "indigo": "indigová",
-    "light-blue": "svetlomodrá",
-    "light-green": "svetlozelená",
-    "lime": "lime",
-    "pink": "ružová",
-    "purple": "fialová",
-    "SELECT_THEME": "Vyberte tému",
-    "teal": "teal",
-    "yellow": "žltá"
   },
   "USER_PROFILES": {
     "ACTIVE": "Aktívny",

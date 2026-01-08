@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "Vänligen kontrollera den och avgör vad du ska göra.",
-      "SYNC_CONFLICT_TITLE": "En synkroniseringskonflikt uppstod"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "Appen kör i bakgrunden för att möjliggöra synkronisering om sådan är aktiverad",
-      "NO_ACTIVE_TASKS": "Inga aktiva uppgifter",
-      "SYNCING": "Synkronisering"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Ignorera",
@@ -126,26 +115,6 @@
       "FORM_SECTION": {
         "HELP": "<p>Här kan du konfigurera SuperProductivity till att lista icke slutförda CalDav-uppgifter för ett specifikt projekt på panelen för uppgiftsskapande i den dagliga planeringsvyn. De kommer att listas som förslag och kommer att länka till uppgiften samt mer information om den.</p> <p>Dessutom kan du automatiskt lägga till och synkronisera alla icke slutförda uppgifter med din lista med eftersläpande uppgifter.</p><p>För att det ska fungera med Nextcloud i webbappen kan du behöva vitlista \"https://app.super-productivity.com\" via Nextcloud-appen <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a>.</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Mottagare",
-        "AT": "vid",
-        "ATTACHMENTS": "Bilagor",
-        "CHANGED": "ändrad",
-        "COMMENTS": "Kommentarer",
-        "COMPONENTS": "Komponenter",
-        "DESCRIPTION": "Beskrivning",
-        "LABELS": "Kategorier",
-        "LIST_OF_CHANGES": "Lista över ändringar",
-        "MARK_AS_CHECKED": "Markera uppdateringar som avbockade",
-        "ON": "på",
-        "RELATED": "Relaterad",
-        "STATUS": "Status",
-        "STORY_POINTS": "Berättelsepoäng",
-        "SUB_TASKS": "Deluppgifter",
-        "SUMMARY": "Sammanfattning",
-        "WORKLOG": "arbetsloggen",
-        "WRITE_A_COMMENT": "Skriv en kommentar"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: Kunde inte hitta kalendern \"{{calendarName}}\"",
@@ -2235,24 +2204,6 @@
     "SCHEDULED_TASKS": "Schemalagda uppgifter",
     "SCHEDULED_TASKS_WITH_TIME": "Schemalagda uppgifter med starttid",
     "START_TASK": "Starta uppgift och ta bort påminnelse"
-  },
-  "THEMES": {
-    "amber": "bärnsten",
-    "blue": "blått",
-    "blue-grey": "blågrått",
-    "cyan": "cyan",
-    "deep-orange": "djup orange",
-    "deep-purple": "mörklila",
-    "green": "grönt",
-    "indigo": "indigo",
-    "light-blue": "ljusblått",
-    "light-green": "ljusgrönt",
-    "lime": "lime",
-    "pink": "rosa",
-    "purple": "lila",
-    "SELECT_THEME": "Välj färgtema",
-    "teal": "kricka",
-    "yellow": "gult"
   },
   "V": {
     "E_1TO10": "Ange ett värde mellan 1 och 10",

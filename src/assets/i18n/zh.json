@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "请检查并决定如何处理。",
-      "SYNC_CONFLICT_TITLE": "发生同步冲突"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "应用正在后台运行，以便在启用同步时进行同步",
-      "NO_ACTIVE_TASKS": "没有活跃任务",
-      "SYNCING": "正在同步"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "忽略",
@@ -131,26 +120,6 @@
       "FORM_SECTION": {
         "HELP": "<p>在这里，您可以将 SuperProductivity 配置为在每日规划视图的任务创建看板中列出特定项目的未完成 CalDav 待办事项。它们将列为建议，并提供指向待办事项的链接以及有关它的更多信息。</p> <p>此外，您还可以自动添加并同步所有未完成的待办事项到您的任务待办事项列表。</p><p>要在网页应用中为 nextcloud 启用此功能，您可能需要通过 nextcloud 应用 <a href='https://apps.nextcloud.com/apps/webapppassword '>webapppassword<a> 将 \"https://app.super-productivity.com \" 加入白名单。</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "负责人",
-        "AT": "在",
-        "ATTACHMENTS": "附件",
-        "CHANGED": "已更改",
-        "COMMENTS": "评论",
-        "COMPONENTS": "组件",
-        "DESCRIPTION": "描述",
-        "LABELS": "类别",
-        "LIST_OF_CHANGES": "更改列表",
-        "MARK_AS_CHECKED": "将更新标记为已检查",
-        "ON": "在",
-        "RELATED": "相关",
-        "STATUS": "状态",
-        "STORY_POINTS": "故事点",
-        "SUB_TASKS": "子任务",
-        "SUMMARY": "摘要",
-        "WORKLOG": "工作日志",
-        "WRITE_A_COMMENT": "写评论"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: 找不到日历 \"{{calendarName}}\"",
@@ -1762,10 +1731,9 @@
     "FOCUS_MODE": {
       "HELP": "专注模式打开一个无干扰的屏幕，以帮助您专注于当前任务。",
       "L_ALWAYS_OPEN_FOCUS_MODE": "始终在跟踪时打开专注模式",
-      "L_SKIP_PREPARATION_SCREEN": "跳过准备屏幕（拉伸等）",
+      "L_SKIP_PREPARATION_SCREEN": "跳过准备界面（火箭动画）",
       "L_IS_PLAY_TICK": "专注时播放滴答声",
       "L_PAUSE_TRACKING_DURING_BREAK": "休息期间暂停任务跟踪",
-      "L_SKIP_PREPARATION_SCREEN": "跳过准备界面（火箭动画）",
       "L_START_IN_BACKGROUND": "仅以横幅开始专注时段（无覆盖层）",
       "TITLE": "专注模式"
     },
@@ -2291,24 +2259,6 @@
     "SCHEDULED_TASKS": "计划任务",
     "SCHEDULED_TASKS_WITH_TIME": "有开始时间的计划任务",
     "START_TASK": "开始任务并移除提醒"
-  },
-  "THEMES": {
-    "amber": "琥珀色",
-    "blue": "蓝色",
-    "blue-grey": "蓝灰色",
-    "cyan": "青色",
-    "deep-orange": "深橙色",
-    "deep-purple": "深紫色",
-    "green": "绿色",
-    "indigo": "靛蓝色",
-    "light-blue": "浅蓝色",
-    "light-green": "浅绿色",
-    "lime": "酸橙色",
-    "pink": "粉色",
-    "purple": "紫色",
-    "SELECT_THEME": "选择主题",
-    "teal": "蓝绿色",
-    "yellow": "黄色"
   },
   "USER_PROFILES": {
     "ACTIVE": "当前使用",

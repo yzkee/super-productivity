@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "확인 후 조치 방법을 결정하세요.",
-      "SYNC_CONFLICT_TITLE": "동기화 충돌이 발생했습니다."
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "앱이 백그라운드에서 실행되어 동기화를 허용하는 경우 활성화된 경우",
-      "NO_ACTIVE_TASKS": "활성 작업 없음",
-      "SYNCING": "동기화"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "무시",
@@ -111,26 +100,6 @@
       "FORM_SECTION": {
         "HELP": "<p>여기에서 일일 계획 보기의 작업 생성 패널에서 특정 프로젝트에 대해 완료되지 않은 CalDav 할 일을 나열하도록 SuperProductivity를 구성할 수 있습니다. 제안 사항으로 나열되며 할 일에 대한 링크와 이에 대한 추가 정보를 제공합니다.</p> <p>또한 완료되지 않은 모든 할 일을 작업 백로그에 자동으로 추가하고 동기화할 수 있습니다.</p><p>모바일 및 웹의 nextcloud에서 작동하도록 하려면 nextcloud 앱 <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a>를 통해 \"https://app.super-productivity.com\"을 허용 목록에 추가해야 할 수 있습니다.</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "담당자",
-        "AT": "에",
-        "ATTACHMENTS": "첨부 파일",
-        "CHANGED": "변경",
-        "COMMENTS": "코멘트",
-        "COMPONENTS": "구성 요소",
-        "DESCRIPTION": "기술",
-        "LABELS": "카테고리",
-        "LIST_OF_CHANGES": "변경 사항 목록",
-        "MARK_AS_CHECKED": "체크 된대로 업데이트 표시",
-        "ON": "에",
-        "RELATED": "관련",
-        "STATUS": "상태",
-        "STORY_POINTS": "스토리 포인트",
-        "SUB_TASKS": "하위",
-        "SUMMARY": "개요",
-        "WORKLOG": "작업 로그",
-        "WRITE_A_COMMENT": "덧글 써"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav : 캘린더 \"{{calendarName}}\"을 (를) 찾을 수 없음",
@@ -1871,24 +1840,6 @@
     "SCHEDULED_TASKS": "예약된 작업",
     "SCHEDULED_TASKS_WITH_TIME": "미리 알림이 있는 예약된 작업",
     "START_TASK": "지금 작업을 시작하고 알림 제거"
-  },
-  "THEMES": {
-    "amber": "호박색",
-    "blue": "푸른",
-    "blue-grey": "청회색",
-    "cyan": "시안 색",
-    "deep-orange": "진한 오렌지",
-    "deep-purple": "딥 퍼플",
-    "green": "녹색",
-    "indigo": "남빛",
-    "light-blue": "하늘색",
-    "light-green": "연한 초록색",
-    "lime": "라임",
-    "pink": "담홍색",
-    "purple": "자주색",
-    "SELECT_THEME": "주제 선택",
-    "teal": "물오리",
-    "yellow": "노랑"
   },
   "USER_PROFILES": {
     "ACTIVE": "활성",

@@ -1,15 +1,4 @@
 {
-  "ANDROID": {
-    "NOTIFICATIONS": {
-      "SYNC_CONFLICT_MSG": "Graag controleren en kijken wat te doen",
-      "SYNC_CONFLICT_TITLE": "Een synchronisatieconflict is opgetreden"
-    },
-    "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "App draait op de achtergrond om synchronisatie mogelijk te maken als dit is ingeschakeld",
-      "NO_ACTIVE_TASKS": "Geen actieve taken",
-      "SYNCING": "Synchroniseren"
-    }
-  },
   "APP": {
     "B_INSTALL": {
       "IGNORE": "Negeren",
@@ -131,26 +120,6 @@
       "FORM_SECTION": {
         "HELP": "<p>Hier kunt u SuperProductivity configureren om niet-voltooide CalDav-taken voor een specifiek project weer te geven in het taakaanmaakpaneel in de dagelijkse planningsweergave. Ze worden vermeld als suggesties en bieden een link naar de taak en meer informatie erover.</p> <p>Bovendien kunt u automatisch alle niet-voltooide taken toevoegen aan en synchroniseren met uw backlog.</p>",
         "TITLE": "CalDav"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Toegewezen persoon",
-        "AT": "Bij",
-        "ATTACHMENTS": "Bijlagen",
-        "CHANGED": "Gewijzigd",
-        "COMMENTS": "Reacties",
-        "COMPONENTS": "Componenten",
-        "DESCRIPTION": "Omschrijving",
-        "LABELS": "Categorieën",
-        "LIST_OF_CHANGES": "Lijst van wijzigingen",
-        "MARK_AS_CHECKED": "Markeer updates als aangevinkt",
-        "ON": "op",
-        "RELATED": "Gerelateerd",
-        "STATUS": "Status",
-        "STORY_POINTS": "Story Points",
-        "SUB_TASKS": "Subtaken",
-        "SUMMARY": "Samenvatting",
-        "WORKLOG": "Werklog",
-        "WRITE_A_COMMENT": "Schrijf een opmerking"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: agenda \"{{calendarName}}\" niet gevonden",
@@ -2316,24 +2285,6 @@
     "SCHEDULED_TASKS": "Geplande taken",
     "SCHEDULED_TASKS_WITH_TIME": "Geplande taken met herinnering",
     "START_TASK": "Start de taak nu en verwijder de herinnering"
-  },
-  "THEMES": {
-    "amber": "amber",
-    "blue": "blauw",
-    "blue-grey": "blauw grijs",
-    "cyan": "cyaan",
-    "deep-orange": "diep oranje",
-    "deep-purple": "donker paars",
-    "green": "groen",
-    "indigo": "indigo",
-    "light-blue": "lichtblauw",
-    "light-green": "licht groen",
-    "lime": "limoen",
-    "pink": "roze",
-    "purple": "Purper",
-    "SELECT_THEME": "Selecteer thema",
-    "teal": "groenblauw",
-    "yellow": "geel"
   },
   "USER_PROFILES": {
     "ACTIVE": "Actief",

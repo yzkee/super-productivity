@@ -20,7 +20,8 @@
     "CONTEXT_MENU": {
       "CHANGE_BACKGROUND": "Zmień tło"
     },
-    "UPDATE_MAIN_MODEL": "Super Productivity posiada ważną aktualizację! Wymagana jest migracja danych do nowej wersji, aktualizacja spowoduje że starsze wersje aplikacji nie będą mogły ich używać.",    "UPDATE_MAIN_MODEL_NO_UPDATE": "Nie wybrano aktualizacji modelu. Pamiętaj, że jeśli nie chcesz przeprowadzać aktualizacji modelu, musisz wrócić do poprzedniej wersji aplikacji.",
+    "UPDATE_MAIN_MODEL": "Super Productivity posiada ważną aktualizację! Wymagana jest migracja danych do nowej wersji, aktualizacja spowoduje że starsze wersje aplikacji nie będą mogły ich używać.",
+    "UPDATE_MAIN_MODEL_NO_UPDATE": "Nie wybrano aktualizacji modelu. Pamiętaj, że jeśli nie chcesz przeprowadzać aktualizacji modelu, musisz wrócić do poprzedniej wersji aplikacji.",
     "UPDATE_MAIN_MODEL_NO_UPDATE": "Nie wybrano aktualizacji modelu. Pamiętaj, że jeśli nie chcesz przeprowadzać aktualizacji modelu, musisz powrócić do poprzedniej wersji.",
     "UPDATE_WEB_APP": "Dostępna jest nowa wersja. Czy chcesz są załadować?"
   },
@@ -53,7 +54,7 @@
     "SEARCH_PLACEHOLDER": "np. natura, góry, abstrakcja",
     "TITLE": "Wybierz obraz tła z serwisu Unsplash"
   },
-    "DONATE_PAGE": {
+  "DONATE_PAGE": {
     "BUTTON_TEXT": "Przekaż darowiznę za pośrednictwem funkcji sponsorów na GitHub",
     "INTRO_1": "Super Produktywność jest w całości finansowana przez społeczność. Nie ma śledzenia, nie ma reklam ani nie gromadzi danych — Twoje dane pozostają na Twoim urządzeniu.",
     "INTRO_2": "Jeśli doceniach i popierasz takie podejście i chcesz, aby projekt był dalej rozwijany oraz żeby ewoluował, bardzo doceniamy twoje wsparcie."
@@ -1995,24 +1996,6 @@
     "SCHEDULED_TASKS": "Zaplanowane zadania",
     "SCHEDULED_TASKS_WITH_TIME": "Zaplanowane zadania z przypomnieniem",
     "START_TASK": "Ropoczni zadanie i wyłącz przypomnienie"
-  },
-  "THEMES": {
-    "amber": "amber",
-    "blue": "blue",
-    "blue-grey": "blue-grey",
-    "cyan": "cyan",
-    "deep-orange": "deep-orange",
-    "deep-purple": "deep-purple",
-    "green": "green",
-    "indigo": "indigo",
-    "light-blue": "light-blue",
-    "light-green": "light-green",
-    "lime": "lime",
-    "pink": "pink",
-    "purple": "purple",
-    "SELECT_THEME": "Select Theme",
-    "teal": "teal",
-    "yellow": "yellow"
   },
   "USER_PROFILES": {
     "ACTIVE": "Aktywny",
