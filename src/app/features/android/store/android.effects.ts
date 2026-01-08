@@ -23,9 +23,11 @@ export class AndroidEffects {
   private _snackService = inject(SnackService);
   private _taskService = inject(TaskService);
   private _taskAttachmentService = inject(TaskAttachmentService);
-  // Single-shot guard so we don’t spam the user with duplicate warnings.
+  // Single-shot guard so we don't spam the user with duplicate warnings.
   private _hasShownNotificationWarning = false;
   private _hasCheckedExactAlarm = false;
+  // Track scheduled reminder IDs to cancel removed ones
+  private _scheduledReminderIds = new Set<string>();
 
   askPermissionsIfNotGiven$ =
     IS_ANDROID_WEB_VIEW &&
@@ -64,7 +66,24 @@ export class AndroidEffects {
           switchMap(() => this._reminderService.reminders$),
           tap(async (reminders) => {
             try {
+              const currentReminderIds = new Set(
+                (reminders || []).map((r) => r.relatedId),
+              );
+
+              // Cancel reminders that are no longer in the list
+              for (const previousId of this._scheduledReminderIds) {
+                if (!currentReminderIds.has(previousId)) {
+                  const notificationId = generateNotificationId(previousId);
+                  DroidLog.log('AndroidEffects: cancelling removed reminder', {
+                    relatedId: previousId,
+                    notificationId,
+                  });
+                  androidInterface.cancelNativeReminder?.(notificationId);
+                }
+              }
+
               if (!reminders || reminders.length === 0) {
+                this._scheduledReminderIds.clear();
                 return;
               }
               DroidLog.log('AndroidEffects: scheduling reminders natively', {
@@ -100,6 +119,9 @@ export class AndroidEffects {
                   scheduleAt,
                 );
               }
+
+              // Update tracked IDs
+              this._scheduledReminderIds = currentReminderIds;
 
               DroidLog.log('AndroidEffects: scheduled native reminders', {
                 reminderCount: reminders.length,
@@ -139,6 +161,43 @@ export class AndroidEffects {
               type: 'SUCCESS',
               msg: 'Task created from share',
             });
+          }),
+        ),
+      { dispatch: false },
+    );
+
+  // Process tasks queued from the home screen widget
+  processWidgetTasks$ =
+    IS_ANDROID_WEB_VIEW &&
+    createEffect(
+      () =>
+        androidInterface.onResume$.pipe(
+          tap(() => {
+            const queueJson = androidInterface.getWidgetTaskQueue?.();
+            if (!queueJson) {
+              return;
+            }
+
+            try {
+              const queue = JSON.parse(queueJson);
+              const tasks = queue.tasks || [];
+
+              for (const widgetTask of tasks) {
+                this._taskService.add(widgetTask.title);
+              }
+
+              if (tasks.length > 0) {
+                this._snackService.open({
+                  type: 'SUCCESS',
+                  msg:
+                    tasks.length === 1
+                      ? 'Task added from widget'
+                      : `${tasks.length} tasks added from widget`,
+                });
+              }
+            } catch (e) {
+              DroidLog.err('Failed to process widget tasks', e);
+            }
           }),
         ),
       { dispatch: false },

@@ -29,6 +29,7 @@ import {
   selectIsFocusModeEnabled,
   selectPomodoroConfig,
 } from '../../config/store/global-config.reducer';
+import { FocusModeConfig } from '../../config/global-config.model';
 import { updateGlobalConfigSection } from '../../config/store/global-config.actions';
 import { FocusModeMode, FocusScreen, TimerState } from '../focus-mode.model';
 import { BannerService } from '../../../core/banner/banner.service';
@@ -87,11 +88,17 @@ export class FocusModeEffects {
                 this.store.select(selectors.selectTimer),
                 this.store.select(selectors.selectMode),
                 this.store.select(selectors.selectCurrentScreen),
+                this.store.select(selectors.selectPausedTaskId),
               ),
-              switchMap(([_taskId, timer, mode, currentScreen]) => {
+              switchMap(([_taskId, timer, mode, currentScreen, pausedTaskId]) => {
                 // If session is paused (purpose is 'work' but not running), resume it
                 if (timer.purpose === 'work' && !timer.isRunning) {
                   return of(actions.unPauseFocusSession());
+                }
+                // If break is active (running or paused), skip it to sync with tracking
+                // This fixes bug #5875: pressing time tracking button during break
+                if (timer.purpose === 'break') {
+                  return of(actions.skipBreak({ pausedTaskId }));
                 }
                 // If no session active, start a new one (only from Main screen)
                 if (timer.purpose === null && currentScreen === FocusScreen.Main) {
@@ -246,8 +253,36 @@ export class FocusModeEffects {
     { dispatch: false },
   );
 
-  // Handle session completion
-  sessionComplete$ = createEffect(() =>
+  // Session completion effects - split into separate concerns for better maintainability
+
+  // Effect 1: Increment cycle for Pomodoro mode
+  incrementCycleOnSessionComplete$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(actions.completeFocusSession),
+      withLatestFrom(this.store.select(selectors.selectMode)),
+      filter(([_, mode]) => mode === FocusModeMode.Pomodoro),
+      map(() => actions.incrementCycle()),
+    ),
+  );
+
+  // Effect 2: Stop tracking on manual session end (bug #5875 fix)
+  stopTrackingOnManualEnd$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(actions.completeFocusSession),
+      withLatestFrom(
+        this.store.select(selectFocusModeConfig),
+        this.taskService.currentTaskId$,
+      ),
+      filter(
+        ([action, config, taskId]) =>
+          !!action.isManual && !!config?.isSyncSessionWithTracking && !!taskId,
+      ),
+      map(() => unsetCurrentTask()),
+    ),
+  );
+
+  // Effect 3: Auto-start break after session completion
+  autoStartBreakOnSessionComplete$ = createEffect(() =>
     this.actions$.pipe(
       ofType(actions.completeFocusSession),
       withLatestFrom(
@@ -256,99 +291,106 @@ export class FocusModeEffects {
         this.store.select(selectFocusModeConfig),
         this.taskService.currentTaskId$,
       ),
-      switchMap(([action, mode, cycle, focusModeConfig, currentTaskId]) => {
+      filter(([_, mode, __, config]) => {
         const strategy = this.strategyFactory.getStrategy(mode);
-        const actionsToDispatch: any[] = [];
+        return strategy.shouldStartBreakAfterSession && !config?.isManualBreakStart;
+      }),
+      switchMap(([_, mode, cycle, config, currentTaskId]) => {
+        const strategy = this.strategyFactory.getStrategy(mode);
+        const breakInfo = strategy.getBreakDuration(cycle);
+        const shouldPauseTracking = config?.isPauseTrackingDuringBreak && currentTaskId;
+        const actionsArr: any[] = [];
 
-        // Show notification (sound + window focus)
-        this._notifyUser();
-
-        // For Pomodoro mode, always increment cycle after session completion
-        if (mode === FocusModeMode.Pomodoro) {
-          actionsToDispatch.push(actions.incrementCycle());
+        // Pause tracking during break if configured
+        if (shouldPauseTracking) {
+          actionsArr.push(unsetCurrentTask());
         }
 
-        // Check if we should start a break - only for automatic completions
-        // Manual completions should stay on SessionDone screen
-        if (!action.isManual && strategy.shouldStartBreakAfterSession) {
-          // Pause task tracking during break if enabled
-          const shouldPauseTracking =
-            focusModeConfig?.isPauseTrackingDuringBreak && currentTaskId;
-          if (shouldPauseTracking) {
-            actionsToDispatch.push(unsetCurrentTask());
-          }
-
-          // Get break duration from strategy
-          const breakInfo = strategy.getBreakDuration(cycle);
-          if (breakInfo) {
-            actionsToDispatch.push(
-              actions.startBreak({
-                duration: breakInfo.duration,
-                isLongBreak: breakInfo.isLong,
-                pausedTaskId: shouldPauseTracking ? currentTaskId : undefined,
-              }),
-            );
-          } else {
-            // Fallback if no break info (shouldn't happen for Pomodoro)
-            actionsToDispatch.push(
-              actions.startBreak({
-                pausedTaskId: shouldPauseTracking ? currentTaskId : undefined,
-              }),
-            );
-          }
+        // Start break with appropriate duration
+        if (breakInfo) {
+          actionsArr.push(
+            actions.startBreak({
+              duration: breakInfo.duration,
+              isLongBreak: breakInfo.isLong,
+              pausedTaskId: shouldPauseTracking ? currentTaskId : undefined,
+            }),
+          );
+        } else {
+          // Fallback if no break info
+          actionsArr.push(
+            actions.startBreak({
+              pausedTaskId: shouldPauseTracking ? currentTaskId : undefined,
+            }),
+          );
         }
 
-        return actionsToDispatch.length > 0 ? of(...actionsToDispatch) : EMPTY;
+        return of(...actionsArr);
       }),
     ),
   );
 
-  // Handle break completion
-  breakComplete$ = createEffect(() =>
+  // Effect 4: Notification side effect (non-dispatching)
+  notifyOnSessionComplete$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(actions.completeFocusSession),
+        tap(() => this._notifyUser()),
+      ),
+    { dispatch: false },
+  );
+
+  // Break completion effects - split into separate concerns for better maintainability
+  // Note: pausedTaskId is passed in action payload to avoid race condition
+  // (reducer clears pausedTaskId before effect reads state)
+
+  // Effect 1: Resume tracking after break
+  resumeTrackingOnBreakComplete$ = createEffect(() =>
     this.actions$.pipe(
       ofType(actions.completeBreak),
-      withLatestFrom(
-        this.store.select(selectors.selectMode),
-        this.store.select(selectors.selectPausedTaskId),
-      ),
-      switchMap(([_, mode, pausedTaskId]) => {
+      filter((action) => !!action.pausedTaskId),
+      map((action) => setCurrentTask({ id: action.pausedTaskId! })),
+    ),
+  );
+
+  // Effect 2: Auto-start next session after break
+  autoStartSessionOnBreakComplete$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(actions.completeBreak),
+      withLatestFrom(this.store.select(selectors.selectMode)),
+      filter(([_, mode]) => {
         const strategy = this.strategyFactory.getStrategy(mode);
-        const actionsToDispatch: any[] = [];
-
-        // Show notification (sound + window focus)
-        this._notifyUser();
-
-        // Resume task tracking if we paused it during break
-        if (pausedTaskId) {
-          actionsToDispatch.push(setCurrentTask({ id: pausedTaskId }));
-        }
-
-        // Auto-start next session if configured
-        if (strategy.shouldAutoStartNextSession) {
-          const duration = strategy.initialSessionDuration;
-          actionsToDispatch.push(actions.startFocusSession({ duration }));
-        }
-
-        return actionsToDispatch.length > 0 ? of(...actionsToDispatch) : EMPTY;
+        return strategy.shouldAutoStartNextSession;
+      }),
+      map(([_, mode]) => {
+        const strategy = this.strategyFactory.getStrategy(mode);
+        return actions.startFocusSession({ duration: strategy.initialSessionDuration });
       }),
     ),
+  );
+
+  // Effect 3: Notification side effect (non-dispatching)
+  notifyOnBreakComplete$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(actions.completeBreak),
+        tap(() => this._notifyUser()),
+      ),
+    { dispatch: false },
   );
 
   // Handle skip break
+  // Note: pausedTaskId is passed in action payload to avoid race condition
   skipBreak$ = createEffect(() =>
     this.actions$.pipe(
       ofType(actions.skipBreak),
-      withLatestFrom(
-        this.store.select(selectors.selectMode),
-        this.store.select(selectors.selectPausedTaskId),
-      ),
-      switchMap(([_, mode, pausedTaskId]) => {
+      withLatestFrom(this.store.select(selectors.selectMode)),
+      switchMap(([action, mode]) => {
         const strategy = this.strategyFactory.getStrategy(mode);
         const actionsToDispatch: any[] = [];
 
         // Resume task tracking if we paused it during break
-        if (pausedTaskId) {
-          actionsToDispatch.push(setCurrentTask({ id: pausedTaskId }));
+        if (action.pausedTaskId) {
+          actionsToDispatch.push(setCurrentTask({ id: action.pausedTaskId }));
         }
 
         // Auto-start next session if configured
@@ -648,6 +690,7 @@ export class FocusModeEffects {
                       isOnBreak,
                       isSessionCompleted,
                       isBreakTimeUp,
+                      focusModeConfig,
                     )
                   : this._getTextButtonActions(isSessionCompleted)),
               });
@@ -689,6 +732,7 @@ export class FocusModeEffects {
     isOnBreak: boolean,
     isSessionCompleted: boolean,
     isBreakTimeUp: boolean,
+    focusModeConfig: FocusModeConfig | undefined,
   ): Pick<Banner, 'action' | 'action2' | 'action3'> {
     const isPaused = !timer.isRunning && timer.purpose !== null;
 
@@ -701,18 +745,71 @@ export class FocusModeEffects {
           label: T.F.FOCUS_MODE.B.START,
           icon: 'play_arrow',
           fn: () => {
-            // Start a new session using the current mode's strategy
-            this.store
-              .select(selectors.selectMode)
-              .pipe(take(1))
-              .subscribe((mode) => {
-                const strategy = this.strategyFactory.getStrategy(mode);
-                this.store.dispatch(
-                  actions.startFocusSession({
-                    duration: strategy.initialSessionDuration,
-                  }),
-                );
-              });
+            // When starting from break completion, first properly complete/skip the break
+            // to resume task tracking and clean up state
+            if (isBreakTimeUp) {
+              combineLatest([
+                this.store.select(selectors.selectMode),
+                this.store.select(selectors.selectPausedTaskId),
+              ])
+                .pipe(take(1))
+                .subscribe(([mode, pausedTaskId]) => {
+                  const strategy = this.strategyFactory.getStrategy(mode);
+                  // Skip break (with pausedTaskId to resume tracking)
+                  this.store.dispatch(actions.skipBreak({ pausedTaskId }));
+                  // Only manually start session if strategy doesn't auto-start
+                  // (Pomodoro auto-starts via skipBreak$ effect)
+                  if (!strategy.shouldAutoStartNextSession) {
+                    this.store.dispatch(
+                      actions.startFocusSession({
+                        duration: strategy.initialSessionDuration,
+                      }),
+                    );
+                  }
+                });
+            } else {
+              // Session completed - check if we should start a break or new session
+              combineLatest([
+                this.store.select(selectors.selectMode),
+                this.store.select(selectors.selectCurrentCycle),
+              ])
+                .pipe(take(1))
+                .subscribe(([mode, cycle]) => {
+                  const strategy = this.strategyFactory.getStrategy(mode);
+
+                  // If manual break start is enabled and mode supports breaks, start a break
+                  if (
+                    focusModeConfig?.isManualBreakStart &&
+                    strategy.shouldStartBreakAfterSession
+                  ) {
+                    const breakInfo = strategy.getBreakDuration(cycle ?? 1);
+                    if (breakInfo) {
+                      const currentTaskId = this.taskService.currentTaskId();
+                      const shouldPauseTracking =
+                        focusModeConfig?.isPauseTrackingDuringBreak && currentTaskId;
+
+                      if (shouldPauseTracking) {
+                        this.store.dispatch(unsetCurrentTask());
+                      }
+
+                      this.store.dispatch(
+                        actions.startBreak({
+                          duration: breakInfo.duration,
+                          isLongBreak: breakInfo.isLong,
+                          pausedTaskId: shouldPauseTracking ? currentTaskId : undefined,
+                        }),
+                      );
+                    }
+                  } else {
+                    // Otherwise start a new session
+                    this.store.dispatch(
+                      actions.startFocusSession({
+                        duration: strategy.initialSessionDuration,
+                      }),
+                    );
+                  }
+                });
+            }
           },
         }
       : {
@@ -732,10 +829,22 @@ export class FocusModeEffects {
         };
 
     // End session button - complete for work, skip for break (while running)
-    // Hide when session is completed, break time is up, or during active break
-    const endAction =
-      shouldShowStartButton || isOnBreak
-        ? undefined
+    // Hide when session is completed or break time is up (Start button takes priority)
+    const endAction = shouldShowStartButton
+      ? undefined
+      : isOnBreak
+        ? {
+            label: T.F.FOCUS_MODE.SKIP_BREAK,
+            icon: 'skip_next',
+            fn: () => {
+              this.store
+                .select(selectors.selectPausedTaskId)
+                .pipe(take(1))
+                .subscribe((pausedTaskId) => {
+                  this.store.dispatch(actions.skipBreak({ pausedTaskId }));
+                });
+            },
+          }
         : {
             label: T.F.FOCUS_MODE.B.END_SESSION,
             icon: 'done_all',

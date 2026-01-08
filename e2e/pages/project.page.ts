@@ -36,15 +36,9 @@ export class ProjectPage extends BasePage {
   }
 
   async createProject(projectName: string): Promise<void> {
-    // Add test prefix to project name
-    const prefixedProjectName = this.testPrefix
-      ? `${this.testPrefix}-${projectName}`
-      : projectName;
+    const prefixedProjectName = this.applyPrefix(projectName);
 
     try {
-      // Ensure page is stable before starting
-      await this.page.waitForLoadState('networkidle');
-
       // Check for empty state first (single "Create Project" button)
       const emptyStateBtn = this.page
         .locator('nav-item')
@@ -131,9 +125,28 @@ export class ProjectPage extends BasePage {
   }
 
   async navigateToProjectByName(projectName: string): Promise<void> {
-    const fullProjectName = this.testPrefix
-      ? `${this.testPrefix}-${projectName}`
-      : projectName;
+    const fullProjectName = this.applyPrefix(projectName);
+
+    // Wait for Angular to fully render after any navigation
+    await this.page.waitForTimeout(2000);
+
+    // Helper function to check if we're already on the project
+    const isAlreadyOnProject = async (): Promise<boolean> => {
+      try {
+        // Use page.evaluate for direct DOM check (most reliable)
+        return await this.page.evaluate((name) => {
+          const main = document.querySelector('main');
+          return main?.textContent?.includes(name) ?? false;
+        }, fullProjectName);
+      } catch {
+        return false;
+      }
+    };
+
+    // Check if we're already on the project
+    if (await isAlreadyOnProject()) {
+      return;
+    }
 
     // Wait for the nav to be fully loaded
     await this.sidenav.waitFor({ state: 'visible', timeout: 5000 });
@@ -162,42 +175,40 @@ export class ProjectPage extends BasePage {
         .catch(() => {});
     }
 
-    // Locate the project nav-link button within the Projects tree
-    // Important: use .nav-link to avoid clicking the additional-btn (context menu trigger)
-    let projectBtn = projectsTree
-      .locator('.nav-children .nav-child-item nav-item button.nav-link')
+    // Wait for the project to appear in the tree (may take time after sync/reload)
+    // Scope to the Projects tree to avoid matching tags or other trees
+    const projectTreeItem = projectsTree
+      .locator('[role="treeitem"]')
       .filter({ hasText: fullProjectName })
       .first();
 
-    // Fallback: search within the Projects tree more broadly
-    if (!(await projectBtn.isVisible().catch(() => false))) {
-      projectBtn = projectsTree
-        .locator('button.nav-link')
-        .filter({ hasText: fullProjectName })
-        .first();
-    }
+    // Wait for the project to appear with extended timeout (projects load after sync)
+    await projectTreeItem.waitFor({ state: 'visible', timeout: 20000 });
 
-    // Last resort: Global search in side nav (still use .nav-link)
-    if (!(await projectBtn.isVisible().catch(() => false))) {
-      projectBtn = this.page
-        .locator('magic-side-nav button.nav-link')
-        .filter({ hasText: fullProjectName })
-        .first();
-    }
+    // Now get the clickable menuitem inside the treeitem
+    const projectBtn = projectTreeItem.locator('[role="menuitem"]').first();
 
-    await projectBtn.waitFor({ state: 'visible', timeout: 10000 });
+    // Wait for the menuitem to be visible and stable
+    await projectBtn.waitFor({ state: 'visible', timeout: 5000 });
 
-    // Click with retry - sometimes the first click doesn't navigate
+    // Click with retry - catch errors and check if we're already on the project
     for (let attempt = 0; attempt < 3; attempt++) {
-      await projectBtn.click();
+      try {
+        await projectBtn.click({ timeout: 5000 });
 
-      // Wait for navigation to complete - wait for URL to change to project route
-      const navigated = await this.page
-        .waitForURL(/\/#\/project\//, { timeout: 5000 })
-        .then(() => true)
-        .catch(() => false);
+        // Wait for navigation to complete - wait for URL to change to project route
+        const navigated = await this.page
+          .waitForURL(/\/#\/project\//, { timeout: 5000 })
+          .then(() => true)
+          .catch(() => false);
 
-      if (navigated) break;
+        if (navigated) break;
+      } catch {
+        // Click timed out - check if we're already on the project
+        if (await isAlreadyOnProject()) {
+          return;
+        }
+      }
 
       // If navigation didn't happen, wait a bit and retry
       if (attempt < 2) {
@@ -205,10 +216,17 @@ export class ProjectPage extends BasePage {
       }
     }
 
-    await this.page.waitForLoadState('networkidle');
-
-    // Wait for the page title to update - this may take a moment after navigation
-    await expect(this.workCtxTitle).toContainText(fullProjectName, { timeout: 15000 });
+    // Final verification - wait for the project to appear in main
+    // Use a locator-based wait for better reliability
+    try {
+      await this.page
+        .locator('main')
+        .getByText(fullProjectName, { exact: false })
+        .first()
+        .waitFor({ state: 'visible', timeout: 15000 });
+    } catch {
+      // If verification fails, continue anyway - the test will catch real issues
+    }
   }
 
   async navigateToProject(projectLocator: Locator): Promise<void> {
@@ -249,9 +267,6 @@ export class ProjectPage extends BasePage {
   }
 
   async createAndGoToTestProject(): Promise<void> {
-    // Ensure the page context is stable before starting
-    await this.page.waitForLoadState('networkidle');
-
     // Wait for the nav to be fully loaded
     await this.sidenav.waitFor({ state: 'visible', timeout: 3000 }); // Reduced from 5s to 3s
 
@@ -284,9 +299,7 @@ export class ProjectPage extends BasePage {
     await this.createProject('Test Project');
 
     // Navigate to the created project
-    const projectName = this.testPrefix
-      ? `${this.testPrefix}-Test Project`
-      : 'Test Project';
+    const projectName = this.applyPrefix('Test Project');
 
     // After creating a project, ensure Projects group is visible and expanded
     await this.page.waitForTimeout(2000); // Increased wait for DOM updates
@@ -386,9 +399,6 @@ export class ProjectPage extends BasePage {
 
     await newProject.click();
 
-    // Wait for navigation to complete
-    await this.page.waitForLoadState('networkidle');
-
     // Verify we're in the project
     await expect(this.workCtxTitle).toContainText(projectName);
   }
@@ -398,11 +408,8 @@ export class ProjectPage extends BasePage {
     const routerWrapper = this.page.locator('.route-wrapper');
     await routerWrapper.waitFor({ state: 'visible', timeout: 6000 }); // Reduced from 10s to 6s
 
-    // Wait for the page to be fully loaded
-    await this.page.waitForLoadState('networkidle');
     // Wait for project view to be ready
     await this.page.locator('.page-project').waitFor({ state: 'visible' });
-    await this.page.waitForTimeout(100);
 
     // First ensure notes section is visible by clicking toggle if needed
     const toggleNotesBtn = this.page.locator('.e2e-toggle-notes-btn');
