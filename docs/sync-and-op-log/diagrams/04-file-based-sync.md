@@ -328,79 +328,168 @@ flowchart TD
     style Dialog fill:#fff3e0,stroke:#e65100,stroke-width:2px
 ```
 
-## Complete System Flow
+## Master Architecture Diagram
 
 ```mermaid
-flowchart TB
-    subgraph UserActions["User Actions"]
-        Create["Create"]
-        Update["Update"]
-        Delete["Delete"]
-        Archive["Archive"]
-    end
+graph TB
+    %% Styles
+    classDef client fill:#fff,stroke:#333,stroke-width:2px,color:black;
+    classDef provider fill:#e3f2fd,stroke:#1565c0,stroke-width:2px,color:black;
+    classDef storage fill:#fff3e0,stroke:#e65100,stroke-width:2px,color:black;
+    classDef conflict fill:#ffebee,stroke:#c62828,stroke-width:2px,color:black;
+    classDef success fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:black;
 
-    subgraph StateLayer["State Management"]
-        NgRx["NgRx Store"]
-        Reducers["Reducers"]
-        MetaReducers["Meta-Reducers"]
-    end
+    %% CLIENT SIDE
+    subgraph Client["CLIENT (Angular)"]
+        direction TB
 
-    subgraph OpLogLayer["Operation Log"]
-        Capture["Capture<br/>(meta-reducer)"]
-        OpStore["SUP_OPS<br/>IndexedDB"]
-        VectorClock["Vector Clock"]
-    end
-
-    subgraph SyncLayer["Sync Layer"]
-        SyncOrch["OperationLogSyncService"]
-
-        subgraph Adapters["Adapters"]
-            FileAdapter["FileBasedSyncAdapter"]
-            ApiAdapter["SuperSync API"]
+        subgraph SyncLoop["Sync Loop"]
+            Scheduler((Scheduler)) -->|Interval| SyncService["OperationLogSyncService"]
+            SyncService -->|1. Get lastSeq| LocalMeta["SUP_OPS IndexedDB"]
         end
 
-        ConflictRes["Conflict Resolution<br/>(LWW)"]
+        subgraph DownloadFlow["Download Flow"]
+            SyncService -->|"2. downloadOps(sinceSeq)"| Adapter
+            Adapter -->|Response| VersionCheck{syncVersion<br/>Changed?}
+            VersionCheck -- "Yes (reset)" --> GapDetect{Gap Detected?}
+            VersionCheck -- "No change" --> FilterOps
+            GapDetect -- "Yes + No Ops" --> SnapshotCheck{Has Snapshot<br/>State?}
+            GapDetect -- "Yes + Has Ops" --> FilterOps
+            SnapshotCheck -- Yes --> LocalDataCheck{Has Local<br/>Unsynced Ops?}
+            SnapshotCheck -- No --> FilterOps
+            LocalDataCheck -- Yes --> ConflictDialog["Show Conflict Dialog"]:::conflict
+            LocalDataCheck -- No --> FreshCheck{Fresh Client?}
+            FreshCheck -- Yes --> ConfirmDialog["Confirmation Dialog"]
+            FreshCheck -- No --> HydrateSnapshot["Hydrate from Snapshot"]:::success
+            ConfirmDialog -- Confirmed --> HydrateSnapshot
+            ConfirmDialog -- Cancelled --> SkipSync[Skip]
+            ConflictDialog -- "Use Local" --> CreateSyncImport["Create SYNC_IMPORT"]
+            ConflictDialog -- "Use Remote" --> HydrateSnapshot
+            FilterOps["Filter ops by sinceSeq"]
+        end
+
+        subgraph ConflictMgmt["Conflict Management (LWW Auto-Resolution)"]
+            FilterOps --> ConflictDet{{"Compare<br/>Vector Clocks"}}:::conflict
+            ConflictDet -- Sequential --> ApplyRemote
+            ConflictDet -- Concurrent --> LWWCheck{{"LWW: Compare<br/>Timestamps"}}:::conflict
+
+            LWWCheck -- "Remote newer<br/>or tie" --> MarkRejected["Mark Local Rejected"]:::conflict
+            LWWCheck -- "Local newer" --> LocalWins["Create Update Op<br/>with local state"]:::conflict
+            LocalWins --> RejectBoth["Mark both rejected"]
+            RejectBoth --> CreateNewOp["New op syncs to remote"]
+            MarkRejected --> ApplyRemote
+        end
+
+        subgraph Application["Application & Validation"]
+            ApplyRemote -->|Dispatch| NgRx["NgRx Store"]
+            HydrateSnapshot -->|"Hydrate full state"| NgRx
+            NgRx --> UpdateSeq["setLastServerSeq()"]
+            UpdateSeq --> SyncDone((Done))
+        end
+
+        subgraph UploadFlow["Upload Flow"]
+            LocalMeta -->|Get Unsynced| PendingOps["Pending Ops"]
+            PendingOps --> ClassifyOp{Op Type?}
+
+            ClassifyOp -- "SYNC_IMPORT<br/>BACKUP_IMPORT" --> UploadSnapshot["Upload as Snapshot<br/>(full state in file)"]
+            ClassifyOp -- "CRT/UPD/DEL" --> MergeOps["Merge into recentOps"]
+
+            MergeOps --> BuildState["Build state snapshot<br/>from NgRx"]
+            BuildState --> IncrVersion["syncVersion++"]
+            IncrVersion --> UploadFile["Upload sync-data.json"]
+            UploadSnapshot --> UploadFile
+
+            UploadFile --> CheckPiggyback{Piggybacked<br/>Ops Found?}
+            CheckPiggyback -- Yes --> ProcessPiggyback["Process Piggybacked Ops<br/>(→ Conflict Detection)"]
+            ProcessPiggyback --> ConflictDet
+            CheckPiggyback -- No --> MarkSynced["Mark Ops Synced"]:::success
+        end
     end
 
-    subgraph Providers["Providers"]
-        WD["WebDAV"]
-        DB["Dropbox"]
-        LF["LocalFile"]
-        SS["SuperSync Server"]
+    %% FILE PROVIDER LAYER
+    subgraph ProviderLayer["FILE PROVIDER LAYER"]
+        direction TB
+
+        subgraph Adapter["FileBasedSyncAdapter"]
+            DownloadOp["downloadOps()<br/>━━━━━━━━━━━━━━━<br/>• Download file<br/>• Filter by sinceSeq<br/>• Detect version changes<br/>• Return snapshotState if gap"]:::provider
+            UploadOp["uploadOps()<br/>━━━━━━━━━━━━━━━<br/>• Download current file<br/>• Merge ops + state<br/>• Increment syncVersion<br/>• Upload merged file<br/>• Return piggybacked ops"]:::provider
+            SeqTracking["Sequence Tracking<br/>━━━━━━━━━━━━━━━<br/>• _expectedSyncVersions<br/>• _localSeqCounters<br/>• _syncDataCache"]:::provider
+        end
+
+        subgraph Providers["File Providers"]
+            WebDAV["WebDAV<br/>━━━━━━━━━━━━<br/>downloadFile()<br/>uploadFile()"]:::provider
+            Dropbox["Dropbox<br/>━━━━━━━━━━━━<br/>downloadFile()<br/>uploadFile()"]:::provider
+            LocalFile["LocalFile<br/>━━━━━━━━━━━━<br/>downloadFile()<br/>uploadFile()"]:::provider
+        end
     end
 
-    subgraph Storage["Remote Storage"]
-        SyncFile["sync-data.json"]
-        ServerDB["PostgreSQL"]
+    %% REMOTE STORAGE
+    subgraph Remote["REMOTE STORAGE"]
+        direction TB
+
+        SyncFile[("sync-data.json<br/>━━━━━━━━━━━━━━━━━━━<br/>📋 version: 2<br/>📋 syncVersion: N<br/>📋 clientId<br/>━━━━━━━━━━━━━━━━━━━<br/>🕐 vectorClock<br/>━━━━━━━━━━━━━━━━━━━<br/>📦 state (full snapshot)<br/>━━━━━━━━━━━━━━━━━━━<br/>📁 archiveYoung<br/>📁 archiveOld<br/>━━━━━━━━━━━━━━━━━━━<br/>📝 recentOps[0..200]")]:::storage
     end
 
-    UserActions --> NgRx
-    NgRx --> Reducers
-    Reducers --> MetaReducers
-    MetaReducers --> Capture
-    Capture --> OpStore
-    Capture --> VectorClock
+    %% CONNECTIONS
+    Adapter --> WebDAV
+    Adapter --> Dropbox
+    Adapter --> LocalFile
 
-    OpStore --> SyncOrch
-    VectorClock --> SyncOrch
-    SyncOrch --> FileAdapter
-    SyncOrch --> ApiAdapter
-    SyncOrch --> ConflictRes
+    WebDAV --> SyncFile
+    Dropbox --> SyncFile
+    LocalFile --> SyncFile
 
-    FileAdapter --> WD
-    FileAdapter --> DB
-    FileAdapter --> LF
-    ApiAdapter --> SS
+    CreateSyncImport --> UploadSnapshot
 
-    WD --> SyncFile
-    DB --> SyncFile
-    LF --> SyncFile
-    SS --> ServerDB
-
-    style SyncFile fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style FileAdapter fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    style OpStore fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    %% Subgraph styles
+    style DownloadFlow fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style ConflictMgmt fill:#ffebee,stroke:#c62828,stroke-width:2px
+    style UploadFlow fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style Application fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    style ProviderLayer fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style Remote fill:#fff3e0,stroke:#e65100,stroke-width:2px
 ```
+
+## Quick Reference Tables
+
+### File Operations
+
+| Operation | Method               | Purpose              | Key Steps                                                                          |
+| --------- | -------------------- | -------------------- | ---------------------------------------------------------------------------------- |
+| Download  | `downloadOps()`      | Get remote changes   | Download file → Filter by sinceSeq → Detect gaps → Return ops or snapshot          |
+| Upload    | `uploadOps()`        | Push local changes   | Download current → Merge ops → Increment syncVersion → Upload → Return piggybacked |
+| Get Seq   | `getLastServerSeq()` | Get processed seq    | Read from `_localSeqCounters` map                                                  |
+| Set Seq   | `setLastServerSeq()` | Update processed seq | Write to `_localSeqCounters` + persist                                             |
+
+### sync-data.json Structure
+
+| Field           | Type                 | Purpose                                              |
+| --------------- | -------------------- | ---------------------------------------------------- |
+| `version`       | `2`                  | File format version                                  |
+| `syncVersion`   | `number`             | Content-based lock counter (incremented each upload) |
+| `schemaVersion` | `number`             | App data schema version (for migrations)             |
+| `clientId`      | `string`             | Last client to modify file                           |
+| `lastModified`  | `number`             | Timestamp of last modification                       |
+| `vectorClock`   | `VectorClock`        | Causal ordering of all operations                    |
+| `state`         | `AppDataComplete`    | Full application state snapshot                      |
+| `archiveYoung`  | `ArchiveModel?`      | Tasks archived < 21 days                             |
+| `archiveOld`    | `ArchiveModel?`      | Tasks archived > 21 days                             |
+| `recentOps`     | `CompactOperation[]` | Last 200 operations (for conflict detection)         |
+| `checksum`      | `string?`            | SHA-256 of uncompressed state                        |
+
+### Key Implementation Details
+
+| Feature                 | Implementation                                                               |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| **Optimistic Locking**  | `syncVersion` counter - no server ETags needed                               |
+| **Gap Detection**       | syncVersion reset or snapshot replacement triggers re-download from seq=0    |
+| **Piggybacking**        | On upload, ops from other clients (seq > lastProcessed) returned as `newOps` |
+| **First-Sync Conflict** | Local unsynced ops + remote snapshot → show conflict dialog                  |
+| **Fresh Client Safety** | Confirmation dialog before accepting first remote data                       |
+| **LWW Conflicts**       | Concurrent vector clocks → compare timestamps → later wins                   |
+| **Snapshot Bootstrap**  | Gap detected + has snapshot → hydrate full state (skip ops)                  |
+| **Cache Optimization**  | Downloaded sync data cached to avoid redundant download before upload        |
+| **Archive Sync**        | Archive data embedded in file; `ArchiveOperationHandler` writes to IndexedDB |
 
 ## Key Points
 
