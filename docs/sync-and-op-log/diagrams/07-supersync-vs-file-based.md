@@ -5,69 +5,200 @@
 
 This document compares the two sync provider architectures: SuperSync (server-based) and File-Based (WebDAV/Dropbox/LocalFile).
 
-## High-Level Architecture Comparison
+## Side-by-Side Architecture
 
 ```mermaid
-flowchart TB
-    subgraph Client["Client Application"]
-        NgRx["NgRx Store"]
-        OpLog["Operation Log<br/>(SUP_OPS IndexedDB)"]
-        SyncService["OperationLogSyncService"]
+graph TB
+    subgraph Title[" "]
+        direction LR
+        T1["<b>SUPERSYNC</b><br/>Server-Based"]
+        T2["<b>FILE-BASED</b><br/>File-Based"]
     end
 
-    subgraph SuperSyncPath["SuperSync Path"]
-        SSAdapter["SuperSyncProvider"]
-        SSApi["REST API"]
-        SSPG["PostgreSQL"]
+    subgraph SS["SuperSync Architecture"]
+        direction TB
+
+        SS_Client["CLIENT"]
+        SS_Upload["Upload: POST /ops<br/>━━━━━━━━━━━━━━━<br/>Send ops array<br/>Server assigns seq"]
+        SS_Download["Download: GET /ops<br/>━━━━━━━━━━━━━━━<br/>Query since lastSeq<br/>Returns only new ops"]
+        SS_Server["SERVER<br/>━━━━━━━━━━━━━━━<br/>Validates sequence<br/>Detects gaps<br/>Returns 409 on conflict"]
+        SS_DB[("PostgreSQL<br/>━━━━━━━━━━━━━━━<br/>operations table<br/>All ops forever<br/>Server-assigned seq")]
+
+        SS_Client --> SS_Upload
+        SS_Client --> SS_Download
+        SS_Upload --> SS_Server
+        SS_Download --> SS_Server
+        SS_Server --> SS_DB
     end
 
-    subgraph FileBasedPath["File-Based Path"]
-        FBAdapter["FileBasedSyncAdapter"]
+    subgraph FB["File-Based Architecture"]
+        direction TB
 
-        subgraph Providers["File Providers"]
-            WebDAV["WebDAV"]
-            Dropbox["Dropbox"]
-            LocalFile["LocalFile"]
-        end
+        FB_Client["CLIENT"]
+        FB_Upload["Upload: uploadFile()<br/>━━━━━━━━━━━━━━━<br/>Download first<br/>Merge + increment ver<br/>Upload entire file"]
+        FB_Download["Download: downloadFile()<br/>━━━━━━━━━━━━━━━<br/>Get entire file<br/>Filter ops locally<br/>Detect version changes"]
+        FB_Provider["FILE PROVIDER<br/>━━━━━━━━━━━━━━━<br/>WebDAV/Dropbox/Local<br/>Simple file operations<br/>No server logic"]
+        FB_File[("sync-data.json<br/>━━━━━━━━━━━━━━━<br/>Full state snapshot<br/>Last 200 ops<br/>Client-managed ver")]
 
-        SyncFile["sync-data.json"]
+        FB_Client --> FB_Upload
+        FB_Client --> FB_Download
+        FB_Upload --> FB_Provider
+        FB_Download --> FB_Provider
+        FB_Provider --> FB_File
     end
 
-    NgRx --> OpLog
-    OpLog --> SyncService
-
-    SyncService --> SSAdapter
-    SyncService --> FBAdapter
-
-    SSAdapter --> SSApi
-    SSApi --> SSPG
-
-    FBAdapter --> WebDAV
-    FBAdapter --> Dropbox
-    FBAdapter --> LocalFile
-
-    WebDAV --> SyncFile
-    Dropbox --> SyncFile
-    LocalFile --> SyncFile
-
-    style SuperSyncPath fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-    style FileBasedPath fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    style Client fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    style SS fill:#e3f2fd,stroke:#1565c0,stroke-width:3px
+    style FB fill:#fff3e0,stroke:#e65100,stroke-width:3px
+    style SS_DB fill:#c8e6c9,stroke:#2e7d32,stroke-width:2px
+    style FB_File fill:#ffe0b2,stroke:#e65100,stroke-width:2px
+    style Title fill:none,stroke:none
 ```
 
-## Feature Comparison
+## Key Conceptual Differences
 
-| Feature                | SuperSync                 | File-Based                        |
-| ---------------------- | ------------------------- | --------------------------------- |
-| **Storage**            | PostgreSQL database       | Single JSON file                  |
-| **Operations**         | Stored individually       | Buffered (last 200)               |
-| **State Snapshot**     | Not stored (derived)      | Included in sync file             |
-| **Archive Data**       | Via operation replay      | Embedded in sync file             |
-| **Conflict Detection** | Server sequence numbers   | syncVersion counter               |
-| **Gap Detection**      | Server validates sequence | Client-side via lastSeq           |
-| **Concurrency**        | Server handles locks      | Optimistic locking + piggybacking |
-| **Bandwidth**          | Delta ops only            | Full state + recent ops           |
-| **Late Joiners**       | Full replay from server   | State snapshot in file            |
+```mermaid
+graph LR
+    subgraph Concept["KEY DIFFERENCE"]
+        direction TB
+        C1["Where is the<br/><b>source of truth</b>?"]
+        C2["Who manages<br/><b>sequence numbers</b>?"]
+        C3["How are<br/><b>conflicts detected</b>?"]
+        C4["What gets<br/><b>transferred</b>?"]
+        C5["How do<br/><b>late joiners</b> sync?"]
+    end
+
+    subgraph SSAnswer["SuperSync"]
+        direction TB
+        A1["Server's PostgreSQL<br/>database"]
+        A2["Server assigns<br/>serverSeq on insert"]
+        A3["Server returns 409<br/>with missing ops"]
+        A4["Only the ops<br/>that changed"]
+        A5["Replay all ops<br/>from server"]
+    end
+
+    subgraph FBAnswer["File-Based"]
+        direction TB
+        B1["The sync file<br/>(sync-data.json)"]
+        B2["Client increments<br/>syncVersion locally"]
+        B3["Client detects<br/>version mismatch"]
+        B4["Entire file<br/>(state + ops)"]
+        B5["Get state snapshot<br/>from file"]
+    end
+
+    C1 --> A1
+    C1 --> B1
+    C2 --> A2
+    C2 --> B2
+    C3 --> A3
+    C3 --> B3
+    C4 --> A4
+    C4 --> B4
+    C5 --> A5
+    C5 --> B5
+
+    style Concept fill:#f5f5f5,stroke:#333,stroke-width:2px
+    style SSAnswer fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
+    style FBAnswer fill:#fff3e0,stroke:#e65100,stroke-width:2px
+```
+
+## Detailed Feature Comparison
+
+| Aspect                   | SuperSync                     | File-Based                      | Winner     |
+| ------------------------ | ----------------------------- | ------------------------------- | ---------- |
+| **Bandwidth Efficiency** | Only transfers changed ops    | Transfers entire file each sync | SuperSync  |
+| **Setup Complexity**     | Requires account + server     | Use existing cloud storage      | File-Based |
+| **Offline Duration**     | Unlimited (server stores all) | Limited (only 200 ops retained) | SuperSync  |
+| **Self-Hosting**         | Need to run server            | Just need file storage          | File-Based |
+| **Late Joiner Speed**    | Slow (replay all ops)         | Fast (load snapshot)            | File-Based |
+| **Conflict Handling**    | Server-authoritative          | Client-side piggybacking        | Tie        |
+| **Real-time Sync**       | Yes (polling/webhooks)        | No (periodic sync)              | SuperSync  |
+| **Data Recovery**        | Full op history available     | Limited to snapshot + 200 ops   | SuperSync  |
+
+## Trade-offs Visualization
+
+```mermaid
+graph TB
+    subgraph Tradeoffs["TRADE-OFFS AT A GLANCE"]
+        direction TB
+
+        subgraph Bandwidth["Bandwidth"]
+            SS_BW["SuperSync: ✅ LOW<br/>Only delta ops transferred"]
+            FB_BW["File-Based: ⚠️ HIGH<br/>Full file each time"]
+        end
+
+        subgraph Setup["Setup Effort"]
+            SS_Setup["SuperSync: ⚠️ HIGH<br/>Account + server needed"]
+            FB_Setup["File-Based: ✅ LOW<br/>Use existing storage"]
+        end
+
+        subgraph History["Operation History"]
+            SS_Hist["SuperSync: ✅ FULL<br/>All ops stored forever"]
+            FB_Hist["File-Based: ⚠️ LIMITED<br/>Only last 200 ops"]
+        end
+
+        subgraph LateJoin["Late Joiner Experience"]
+            SS_Late["SuperSync: ⚠️ SLOW<br/>Must replay all ops"]
+            FB_Late["File-Based: ✅ FAST<br/>Just load snapshot"]
+        end
+
+        subgraph Complexity["Client Complexity"]
+            SS_Comp["SuperSync: ✅ SIMPLE<br/>Server handles sequences"]
+            FB_Comp["File-Based: ⚠️ COMPLEX<br/>Client manages versions"]
+        end
+    end
+
+    style SS_BW fill:#c8e6c9,stroke:#2e7d32
+    style FB_BW fill:#ffecb3,stroke:#ffa000
+    style SS_Setup fill:#ffecb3,stroke:#ffa000
+    style FB_Setup fill:#c8e6c9,stroke:#2e7d32
+    style SS_Hist fill:#c8e6c9,stroke:#2e7d32
+    style FB_Hist fill:#ffecb3,stroke:#ffa000
+    style SS_Late fill:#ffecb3,stroke:#ffa000
+    style FB_Late fill:#c8e6c9,stroke:#2e7d32
+    style SS_Comp fill:#c8e6c9,stroke:#2e7d32
+    style FB_Comp fill:#ffecb3,stroke:#ffa000
+```
+
+## Concurrent Edit Scenario Comparison
+
+```mermaid
+sequenceDiagram
+    participant A as Client A
+    participant B as Client B
+    participant SS as SuperSync Server
+    participant File as sync-data.json
+
+    Note over A,File: ═══ SUPERSYNC: Server Detects Gap ═══
+
+    rect rgb(227, 242, 253)
+        A->>SS: POST /ops [op1, op2]
+        SS->>SS: Assign seq 10, 11
+        SS-->>A: OK {seqs: [10, 11]}
+
+        B->>SS: POST /ops [op3] (lastKnown: 9)
+        SS->>SS: Gap! Client missing 10, 11
+        SS-->>B: 409 Conflict {missing: [op1, op2]}
+        B->>B: Process missing ops first
+        B->>SS: POST /ops [op3] (lastKnown: 11)
+        SS-->>B: OK {seqs: [12]}
+    end
+
+    Note over A,File: ═══ FILE-BASED: Piggybacking ═══
+
+    rect rgb(255, 243, 224)
+        A->>File: Download (v=5)
+        A->>A: Merge ops, set v=6
+        A->>File: Upload (v=6)
+
+        B->>File: Download (v=5, expects v=5)
+        Note over B: Version changed! (now v=6)
+        B->>B: Find A's ops in file (piggybacked)
+        B->>B: Merge A's ops + own ops
+        B->>B: Set v=7
+        B->>File: Upload (v=7)
+        B->>B: Process piggybacked ops locally
+    end
+```
 
 ## Data Storage Comparison
 
