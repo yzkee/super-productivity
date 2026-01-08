@@ -142,7 +142,8 @@ describe('SyncWrapperService', () => {
     mockUserInputWaitState.startWaiting.and.returnValue(() => {});
 
     mockSuperSyncStatusService = jasmine.createSpyObj('SuperSyncStatusService', [], {
-      isConfirmedInSync: { value: false },
+      isConfirmedInSync: signal(false),
+      hasNoPendingOps: signal(false),
     });
 
     TestBed.configureTestingModule({
@@ -748,6 +749,7 @@ describe('SyncWrapperService', () => {
 
       const signalMockSuperSyncStatusService = {
         isConfirmedInSync: isConfirmedSignal,
+        hasNoPendingOps: signal(true), // When isConfirmedInSync is true, hasNoPendingOps is also true
         markRemoteChecked: jasmine.createSpy('markRemoteChecked'),
         clearScope: jasmine.createSpy('clearScope'),
         updatePendingOpsStatus: jasmine.createSpy('updatePendingOpsStatus'),
@@ -801,20 +803,39 @@ describe('SyncWrapperService', () => {
       });
     });
 
-    describe('with non-SuperSync providers (current behavior)', () => {
-      it('should return true for WebDAV regardless of status service', (done) => {
+    describe('with file-based providers', () => {
+      it('should return false for WebDAV when status service returns false', (done) => {
         signalService = createServiceWithSignal(false);
         signalConfigSubject.next(createSignalMockConfig(LegacySyncProvider.WebDAV));
 
         signalService.superSyncIsConfirmedInSync$.subscribe((isConfirmed) => {
-          // Currently returns true regardless of status (this is the bug we'll fix)
+          expect(isConfirmed).toBe(false);
+          done();
+        });
+      });
+
+      it('should return true for WebDAV when status service returns true', (done) => {
+        signalService = createServiceWithSignal(true);
+        signalConfigSubject.next(createSignalMockConfig(LegacySyncProvider.WebDAV));
+
+        signalService.superSyncIsConfirmedInSync$.subscribe((isConfirmed) => {
           expect(isConfirmed).toBe(true);
           done();
         });
       });
 
-      it('should return true for Dropbox regardless of status service', (done) => {
+      it('should return false for Dropbox when status service returns false', (done) => {
         signalService = createServiceWithSignal(false);
+        signalConfigSubject.next(createSignalMockConfig(LegacySyncProvider.Dropbox));
+
+        signalService.superSyncIsConfirmedInSync$.subscribe((isConfirmed) => {
+          expect(isConfirmed).toBe(false);
+          done();
+        });
+      });
+
+      it('should return true for Dropbox when status service returns true', (done) => {
+        signalService = createServiceWithSignal(true);
         signalConfigSubject.next(createSignalMockConfig(LegacySyncProvider.Dropbox));
 
         signalService.superSyncIsConfirmedInSync$.subscribe((isConfirmed) => {
@@ -823,14 +844,86 @@ describe('SyncWrapperService', () => {
         });
       });
 
-      it('should return true for LocalFile regardless of status service', (done) => {
+      it('should return false for LocalFile when status service returns false', (done) => {
         signalService = createServiceWithSignal(false);
+        signalConfigSubject.next(createSignalMockConfig(LegacySyncProvider.LocalFile));
+
+        signalService.superSyncIsConfirmedInSync$.subscribe((isConfirmed) => {
+          expect(isConfirmed).toBe(false);
+          done();
+        });
+      });
+
+      it('should return true for LocalFile when status service returns true', (done) => {
+        signalService = createServiceWithSignal(true);
         signalConfigSubject.next(createSignalMockConfig(LegacySyncProvider.LocalFile));
 
         signalService.superSyncIsConfirmedInSync$.subscribe((isConfirmed) => {
           expect(isConfirmed).toBe(true);
           done();
         });
+      });
+    });
+  });
+
+  describe('hasNoPendingOps$', () => {
+    let signalService: SyncWrapperService;
+    let hasNoPendingOpsSignal: ReturnType<typeof signal<boolean>>;
+
+    const createServiceWithPendingOpsSignal = (
+      hasNoPendingOps: boolean,
+    ): SyncWrapperService => {
+      hasNoPendingOpsSignal = signal(hasNoPendingOps);
+
+      const signalMockSuperSyncStatusService = {
+        isConfirmedInSync: signal(false),
+        hasNoPendingOps: hasNoPendingOpsSignal,
+        markRemoteChecked: jasmine.createSpy('markRemoteChecked'),
+        clearScope: jasmine.createSpy('clearScope'),
+        updatePendingOpsStatus: jasmine.createSpy('updatePendingOpsStatus'),
+      };
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          SyncWrapperService,
+          { provide: SyncProviderManager, useValue: mockProviderManager },
+          { provide: OperationLogSyncService, useValue: mockSyncService },
+          { provide: WrappedProviderService, useValue: mockWrappedProvider },
+          { provide: OperationLogStoreService, useValue: mockOpLogStore },
+          { provide: LegacyPfDbService, useValue: mockLegacyPfDb },
+          {
+            provide: GlobalConfigService,
+            useValue: { cfg$: configSubject.asObservable() },
+          },
+          { provide: TranslateService, useValue: mockTranslateService },
+          { provide: MatDialog, useValue: mockMatDialog },
+          { provide: SnackService, useValue: mockSnackService },
+          { provide: DataInitService, useValue: mockDataInitService },
+          { provide: ReminderService, useValue: mockReminderService },
+          { provide: UserInputWaitStateService, useValue: mockUserInputWaitState },
+          { provide: SuperSyncStatusService, useValue: signalMockSuperSyncStatusService },
+        ],
+      });
+
+      return TestBed.inject(SyncWrapperService);
+    };
+
+    it('should return true when hasNoPendingOps signal is true', (done) => {
+      signalService = createServiceWithPendingOpsSignal(true);
+
+      signalService.hasNoPendingOps$.subscribe((hasNoPending) => {
+        expect(hasNoPending).toBe(true);
+        done();
+      });
+    });
+
+    it('should return false when hasNoPendingOps signal is false', (done) => {
+      signalService = createServiceWithPendingOpsSignal(false);
+
+      signalService.hasNoPendingOps$.subscribe((hasNoPending) => {
+        expect(hasNoPending).toBe(false);
+        done();
       });
     });
   });

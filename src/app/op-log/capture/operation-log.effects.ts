@@ -28,6 +28,7 @@ import { OperationCaptureService } from './operation-capture.service';
 import { ImmediateUploadService } from '../sync/immediate-upload.service';
 import { getDeferredActions } from './operation-capture.meta-reducer';
 import { ClientIdService } from '../../core/util/client-id.service';
+import { SuperSyncStatusService } from '../sync/super-sync-status.service';
 
 /**
  * NgRx Effects for persisting application state changes as operations to the
@@ -61,6 +62,7 @@ export class OperationLogEffects {
   private snackService = inject(SnackService);
   private operationCaptureService = inject(OperationCaptureService);
   private immediateUploadService = inject(ImmediateUploadService);
+  private superSyncStatusService = inject(SuperSyncStatusService);
 
   /**
    * Effect that persists local user actions to the operation log.
@@ -231,6 +233,9 @@ export class OperationLogEffects {
         // reducing disk I/O by ~50% on mobile devices.
         // The op.vectorClock already contains the incremented clock (from newClock above).
         await this.opLogStore.appendWithVectorClockUpdate(op, 'local');
+
+        // Mark that we have pending ops (not yet uploaded) for UI indicator
+        this.superSyncStatusService.updatePendingOpsStatus(true);
 
         // Track write count for high-volume debugging
         this.writeCount++;

@@ -54,7 +54,7 @@
             } @else {
               <mat-icon [class.spin]="isSyncInProgress()">sync</mat-icon>
             }
-            @if (syncState() === 'IN_SYNC') {
+            @if (hasNoPendingOps()) {
               @if (superSyncIsConfirmedInSync()) {
                 <mat-icon class="sync-state-ico">done_all</mat-icon>
               } @else {

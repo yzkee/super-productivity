@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { BehaviorSubject, combineLatest, firstValueFrom, Observable, of } from 'rxjs';
+import { BehaviorSubject, firstValueFrom, Observable, of } from 'rxjs';
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import {
   distinctUntilChanged,
@@ -118,23 +118,21 @@ export class SyncWrapperService {
   isSyncInProgress$ = this._isSyncInProgress$.asObservable();
 
   /**
-   * Observable for UI: true when Super Sync is confirmed fully in sync
-   * (no pending ops AND remote recently checked).
-   * For non-Super Sync providers, always returns true (shows single checkmark).
+   * Observable for UI: true when all local changes have been uploaded.
+   * Used for all sync providers to show the single checkmark indicator.
    */
-  superSyncIsConfirmedInSync$: Observable<boolean> = combineLatest([
-    this.syncProviderId$,
-    toObservable(this._superSyncStatusService.isConfirmedInSync),
-  ]).pipe(
-    map(([providerId, isConfirmed]) => {
-      if (providerId !== SyncProviderId.SuperSync) {
-        return true; // Non-Super Sync always shows single checkmark
-      }
-      return isConfirmed;
-    }),
-    distinctUntilChanged(),
-    shareReplay(1),
-  );
+  hasNoPendingOps$: Observable<boolean> = toObservable(
+    this._superSyncStatusService.hasNoPendingOps,
+  ).pipe(distinctUntilChanged(), shareReplay(1));
+
+  /**
+   * Observable for UI: true when sync is confirmed fully in sync
+   * (no pending ops AND remote recently checked within 1 minute).
+   * Used for all sync providers to show the double checkmark indicator.
+   */
+  superSyncIsConfirmedInSync$: Observable<boolean> = toObservable(
+    this._superSyncStatusService.isConfirmedInSync,
+  ).pipe(distinctUntilChanged(), shareReplay(1));
 
   isSyncInProgressSync(): boolean {
     return this._isSyncInProgress$.getValue();

@@ -141,6 +141,9 @@ export class MainHeaderComponent implements OnDestroy {
   syncIsEnabledAndReady = toSignal(this.syncWrapperService.isEnabledAndReady$);
   syncState = toSignal(this.syncWrapperService.syncState$);
   isSyncInProgress = toSignal(this.syncWrapperService.isSyncInProgress$);
+  hasNoPendingOps = toSignal(this.syncWrapperService.hasNoPendingOps$, {
+    initialValue: false,
+  });
   superSyncIsConfirmedInSync = toSignal(
     this.syncWrapperService.superSyncIsConfirmedInSync$,
     { initialValue: false },
