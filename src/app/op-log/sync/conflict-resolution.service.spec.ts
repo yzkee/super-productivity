@@ -7,8 +7,6 @@ import { SnackService } from '../../core/snack/snack.service';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { of } from 'rxjs';
 import { ActionType, EntityConflict, OpType, Operation } from '../core/operation.types';
-import { SyncSafetyBackupService } from '../../imex/sync/sync-safety-backup.service';
-import { BACKUP_TIMEOUT_MS } from '../core/operation-log.const';
 
 describe('ConflictResolutionService', () => {
   let service: ConflictResolutionService;
@@ -17,7 +15,6 @@ describe('ConflictResolutionService', () => {
   let mockOpLogStore: jasmine.SpyObj<OperationLogStoreService>;
   let mockSnackService: jasmine.SpyObj<SnackService>;
   let mockValidateStateService: jasmine.SpyObj<ValidateStateService>;
-  let mockSyncSafetyBackupService: jasmine.SpyObj<SyncSafetyBackupService>;
 
   const createMockOp = (id: string, clientId: string): Operation => ({
     id,
@@ -58,11 +55,6 @@ describe('ConflictResolutionService', () => {
       'validateAndRepairCurrentState',
     ]);
 
-    mockSyncSafetyBackupService = jasmine.createSpyObj('SyncSafetyBackupService', [
-      'createBackup',
-    ]);
-    mockSyncSafetyBackupService.createBackup.and.resolveTo(undefined);
-
     TestBed.configureTestingModule({
       providers: [
         ConflictResolutionService,
@@ -71,9 +63,6 @@ describe('ConflictResolutionService', () => {
         { provide: OperationLogStoreService, useValue: mockOpLogStore },
         { provide: SnackService, useValue: mockSnackService },
         { provide: ValidateStateService, useValue: mockValidateStateService },
-        { provide: SyncSafetyBackupService, useValue: mockSyncSafetyBackupService },
-        // Use a short timeout for tests to speed them up
-        { provide: BACKUP_TIMEOUT_MS, useValue: 50 },
       ],
     });
     service = TestBed.inject(ConflictResolutionService);
@@ -528,51 +517,6 @@ describe('ConflictResolutionService', () => {
         jasmine.objectContaining({ id: 'non-conflict-1' }),
         'remote',
         jasmine.any(Object),
-      );
-    });
-
-    it('should create safety backup before resolution', async () => {
-      const now = Date.now();
-      const conflicts: EntityConflict[] = [
-        createConflict(
-          'task-1',
-          [createOpWithTimestamp('local-1', 'client-a', now - 1000)],
-          [createOpWithTimestamp('remote-1', 'client-b', now)],
-        ),
-      ];
-
-      mockOperationApplier.applyOperations.and.resolveTo({
-        appliedOps: conflicts[0].remoteOps,
-      });
-
-      await service.autoResolveConflictsLWW(conflicts);
-
-      expect(mockSyncSafetyBackupService.createBackup).toHaveBeenCalled();
-    });
-
-    it('should continue even if backup creation fails', async () => {
-      const now = Date.now();
-      const conflicts: EntityConflict[] = [
-        createConflict(
-          'task-1',
-          [createOpWithTimestamp('local-1', 'client-a', now - 1000)],
-          [createOpWithTimestamp('remote-1', 'client-b', now)],
-        ),
-      ];
-
-      mockSyncSafetyBackupService.createBackup.and.rejectWith(new Error('Backup failed'));
-      mockOperationApplier.applyOperations.and.resolveTo({
-        appliedOps: conflicts[0].remoteOps,
-      });
-
-      // Should not throw
-      await expectAsync(service.autoResolveConflictsLWW(conflicts)).toBeResolved();
-
-      // Error snack should be shown for backup failure
-      expect(mockSnackService.open).toHaveBeenCalledWith(
-        jasmine.objectContaining({
-          type: 'ERROR',
-        }),
       );
     });
 
@@ -1073,38 +1017,6 @@ describe('ConflictResolutionService', () => {
           jasmine.any(Object),
         );
         expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['local-reminder']);
-      });
-
-      it('should show error snack but continue when backup creation fails', async () => {
-        const now = Date.now();
-        const conflicts: EntityConflict[] = [
-          createConflict(
-            'task-1',
-            [createOpWithTimestamp('local-1', 'client-a', now - 1000)],
-            [createOpWithTimestamp('remote-1', 'client-b', now)],
-          ),
-        ];
-
-        // Simulate backup failure
-        mockSyncSafetyBackupService.createBackup.and.rejectWith(new Error('Disk full'));
-        mockOperationApplier.applyOperations.and.resolveTo({
-          appliedOps: conflicts[0].remoteOps,
-        });
-
-        await service.autoResolveConflictsLWW(conflicts);
-
-        // Should show error for backup failure
-        expect(mockSnackService.open).toHaveBeenCalledWith(
-          jasmine.objectContaining({ type: 'ERROR' }),
-        );
-
-        // But resolution should still proceed
-        expect(mockOpLogStore.append).toHaveBeenCalledWith(
-          jasmine.objectContaining({ id: 'remote-1' }),
-          'remote',
-          jasmine.any(Object),
-        );
-        expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['local-1']);
       });
 
       it('should handle mixed entity types in conflicts batch', async () => {
@@ -1709,58 +1621,6 @@ describe('ConflictResolutionService', () => {
 
       // Both want to delete - auto-resolve to local (could be either, outcome is same)
       expect(callSuggestResolution(localOps, remoteOps)).toBe('local');
-    });
-  });
-
-  describe('backup timeout', () => {
-    it('should continue with sync if backup times out', async () => {
-      const warnSpy = spyOn(console, 'warn');
-
-      // Make backup hang indefinitely
-      mockSyncSafetyBackupService.createBackup.and.returnValue(
-        new Promise(() => {
-          /* never resolves */
-        }),
-      );
-
-      const conflicts: EntityConflict[] = [
-        {
-          entityType: 'TASK',
-          entityId: 'task-1',
-          localOps: [createMockOp('local-1', 'client-a')],
-          remoteOps: [createMockOp('remote-1', 'client-b')],
-          suggestedResolution: 'remote',
-        },
-      ];
-
-      // Set up necessary mocks for the rest of the flow
-      mockOpLogStore.hasOp.and.resolveTo(false);
-      mockOpLogStore.append.and.resolveTo(1);
-      mockOpLogStore.markApplied.and.resolveTo(undefined);
-      mockOpLogStore.markRejected.and.resolveTo(undefined);
-      mockOperationApplier.applyOperations.and.resolveTo({
-        appliedOps: [conflicts[0].remoteOps[0]],
-      });
-
-      // This should complete within timeout (50ms from BACKUP_TIMEOUT_MS provider)
-      const resultPromise = service.autoResolveConflictsLWW(conflicts);
-
-      // Wait for the result - should complete due to backup timeout
-      const result = await resultPromise;
-
-      // Sync should have continued despite backup timeout
-      expect(result).toBeDefined();
-
-      // Should have logged timeout warning
-      const warnCalls = warnSpy.calls.allArgs();
-      // OpLog.warn calls console.warn with prefix '[ol]' as first arg, message as second
-      const hasTimeoutWarning = warnCalls.some((args) =>
-        args.some((arg) => typeof arg === 'string' && arg.includes('timed out')),
-      );
-      expect(hasTimeoutWarning).toBe(true);
-
-      // Should have shown error snack
-      expect(mockSnackService.open).toHaveBeenCalled();
     });
   });
 

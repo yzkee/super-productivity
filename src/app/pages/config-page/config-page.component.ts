@@ -53,7 +53,6 @@ import { SuperSyncRestoreService } from '../../imex/sync/super-sync-restore.serv
 import { DialogRestorePointComponent } from '../../imex/sync/dialog-restore-point/dialog-restore-point.component';
 import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
 import { DialogChangeEncryptionPasswordComponent } from '../../imex/sync/dialog-change-encryption-password/dialog-change-encryption-password.component';
-import { DialogSyncSafetyBackupsComponent } from '../../imex/sync/dialog-sync-safety-backups/dialog-sync-safety-backups.component';
 import { DialogConfirmComponent } from '../../ui/dialog-confirm/dialog-confirm.component';
 import { LS } from '../../core/persistence/storage-keys.const';
 
@@ -364,22 +363,6 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
             required: false,
             onClick: () => {
               this._openChangePasswordDialog();
-            },
-          },
-        },
-        {
-          hideExpression: (m: any) =>
-            !m.isEnabled ||
-            m.syncProvider === LegacySyncProvider.SuperSync ||
-            m.syncProvider === null,
-          type: 'btn',
-          className: 'mt2 block',
-          templateOptions: {
-            text: T.F.SYNC.SAFETY_BACKUP.TITLE,
-            btnType: 'stroked',
-            required: false,
-            onClick: () => {
-              this._matDialog.open(DialogSyncSafetyBackupsComponent);
             },
           },
         },

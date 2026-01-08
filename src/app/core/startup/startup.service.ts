@@ -27,7 +27,6 @@ import { IPC } from '../../../../electron/shared-with-frontend/ipc-events.const'
 import { IpcRendererEvent } from 'electron';
 import { environment } from '../../../environments/environment';
 import { TrackingReminderService } from '../../features/tracking-reminder/tracking-reminder.service';
-import { SyncSafetyBackupService } from '../../imex/sync/sync-safety-backup.service';
 
 const w = window as Window & { productivityTips?: string[][]; randomIndex?: number };
 
@@ -56,9 +55,6 @@ export class StartupService {
   private _opLogStore = inject(OperationLogStoreService);
 
   constructor() {
-    // needs to be injected somewhere to initialize
-    inject(SyncSafetyBackupService);
-
     // Initialize electron error handler in an effect
     if (IS_ELECTRON) {
       effect(() => {

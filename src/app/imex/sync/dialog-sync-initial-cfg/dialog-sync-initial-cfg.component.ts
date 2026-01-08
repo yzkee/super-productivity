@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import {
-  MatDialog,
   MatDialogActions,
   MatDialogContent,
   MatDialogRef,
@@ -24,7 +23,6 @@ import { Subscription } from 'rxjs';
 import { first } from 'rxjs/operators';
 import { toSyncProviderId } from '../../../op-log/sync-exports';
 import { SyncLog } from '../../../core/log';
-import { DialogSyncSafetyBackupsComponent } from '../dialog-sync-safety-backups/dialog-sync-safety-backups.component';
 
 @Component({
   selector: 'dialog-sync-initial-cfg',
@@ -46,7 +44,6 @@ export class DialogSyncInitialCfgComponent {
   syncConfigService = inject(SyncConfigService);
   syncWrapperService = inject(SyncWrapperService);
   private _encryptionPasswordDialogOpener = inject(EncryptionPasswordDialogOpenerService);
-  private _matDialog = inject(MatDialog);
 
   T = T;
   isWasEnabled = signal(false);
@@ -75,24 +72,7 @@ export class DialogSyncInitialCfgComponent {
       },
     };
 
-    // Add the "Safety Backups" button (only for file-based providers)
-    const safetyBackupsBtn: FormlyFieldConfig = {
-      hideExpression: (m: SyncConfig) =>
-        !m.isEnabled ||
-        m.syncProvider === LegacySyncProvider.SuperSync ||
-        m.syncProvider === null,
-      type: 'btn',
-      className: 'mt2 block',
-      props: {
-        text: T.F.SYNC.SAFETY_BACKUP.TITLE,
-        btnType: 'stroked',
-        onClick: () => {
-          this._matDialog.open(DialogSyncSafetyBackupsComponent);
-        },
-      },
-    };
-
-    return [...baseFields, changePasswordBtn, safetyBackupsBtn];
+    return [...baseFields, changePasswordBtn];
   }
   _tmpUpdatedCfg: SyncConfig = {
     isEnabled: true,

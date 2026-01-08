@@ -15,11 +15,7 @@ import { firstValueFrom } from 'rxjs';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
 import { ValidateStateService } from '../validation/validate-state.service';
-import {
-  BACKUP_TIMEOUT_MS,
-  MAX_CONFLICT_RETRY_ATTEMPTS,
-} from '../core/operation-log.const';
-import { SyncSafetyBackupService } from '../../imex/sync/sync-safety-backup.service';
+import { MAX_CONFLICT_RETRY_ATTEMPTS } from '../core/operation-log.const';
 import {
   compareVectorClocks,
   mergeVectorClocks,
@@ -82,9 +78,7 @@ export class ConflictResolutionService {
   private opLogStore = inject(OperationLogStoreService);
   private snackService = inject(SnackService);
   private validateStateService = inject(ValidateStateService);
-  private syncSafetyBackupService = inject(SyncSafetyBackupService);
   private clientIdProvider = inject(CLIENT_ID_PROVIDER);
-  private backupTimeoutMs = inject(BACKUP_TIMEOUT_MS);
   private lwwOperationFactory = inject(LWWOperationFactory);
 
   /**
@@ -268,35 +262,6 @@ export class ConflictResolutionService {
     OpLog.normal(
       `ConflictResolutionService: Auto-resolving ${conflicts.length} conflict(s) using LWW`,
     );
-
-    // SAFETY: Create backup before conflict resolution (with timeout to prevent indefinite stall)
-    try {
-      const backupPromise = this.syncSafetyBackupService.createBackup();
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error('Backup creation timed out')),
-          this.backupTimeoutMs,
-        ),
-      );
-      await Promise.race([backupPromise, timeoutPromise]);
-      OpLog.normal(
-        'ConflictResolutionService: Safety backup created before LWW resolution',
-      );
-    } catch (backupErr) {
-      const isTimeout =
-        backupErr instanceof Error && backupErr.message === 'Backup creation timed out';
-      if (isTimeout) {
-        OpLog.warn(
-          `ConflictResolutionService: Safety backup timed out after ${this.backupTimeoutMs}ms, continuing with sync`,
-        );
-      } else {
-        OpLog.err('ConflictResolutionService: Failed to create safety backup', backupErr);
-      }
-      this.snackService.open({
-        type: 'ERROR',
-        msg: T.F.SYNC.SAFETY_BACKUP.CREATE_FAILED_SYNC_CONTINUES,
-      });
-    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // STEP 1: Resolve each conflict using LWW
