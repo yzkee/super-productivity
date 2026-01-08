@@ -20,6 +20,8 @@ import {
   AllModelConfig,
 } from '../model/model-config';
 import { CompleteBackup } from '../core/types/sync.types';
+import { ArchiveDbAdapter } from '../../core/persistence/archive-db-adapter.service';
+import { ArchiveModel } from '../../features/archive/archive.model';
 
 /**
  * Service for handling backup import and export operations.
@@ -40,6 +42,7 @@ export class BackupService {
   private _opLogStore = inject(OperationLogStoreService);
   private _vectorClockService = inject(VectorClockService);
   private _clientIdService = inject(ClientIdService);
+  private _archiveDbAdapter = inject(ArchiveDbAdapter);
 
   /**
    * Loads a complete backup of all application data.
@@ -113,6 +116,11 @@ export class BackupService {
 
       // 4. Dispatch to NgRx
       this._store.dispatch(loadAllData({ appDataComplete: validatedData }));
+
+      // 5. Write archive data to IndexedDB
+      // ArchiveOperationHandler._handleLoadAllData() skips local imports (isRemote=false),
+      // so we must write archive data here for local backup imports.
+      await this._writeArchivesToIndexedDB(validatedData);
 
       this._imexViewService.setDataImportInProgress(false);
 
@@ -190,5 +198,27 @@ export class BackupService {
     });
 
     PFLog.normal('BackupService: Import persisted to operation log.');
+  }
+
+  /**
+   * Writes archive data from the imported backup to IndexedDB.
+   *
+   * This is necessary because ArchiveOperationHandler._handleLoadAllData() only
+   * processes remote operations (isRemote=true). For local backup imports, the
+   * archive data would otherwise never be persisted to IndexedDB.
+   */
+  private async _writeArchivesToIndexedDB(data: AppDataComplete): Promise<void> {
+    const archiveYoung = (data as { archiveYoung?: ArchiveModel }).archiveYoung;
+    const archiveOld = (data as { archiveOld?: ArchiveModel }).archiveOld;
+
+    if (archiveYoung !== undefined) {
+      await this._archiveDbAdapter.saveArchiveYoung(archiveYoung);
+      PFLog.normal('BackupService: Wrote archiveYoung to IndexedDB.');
+    }
+
+    if (archiveOld !== undefined) {
+      await this._archiveDbAdapter.saveArchiveOld(archiveOld);
+      PFLog.normal('BackupService: Wrote archiveOld to IndexedDB.');
+    }
   }
 }

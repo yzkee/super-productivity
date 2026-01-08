@@ -471,12 +471,12 @@ export class ArchiveOperationHandler {
    * Fixes bug where SYNC_IMPORT updated NgRx state but never persisted archive
    * data to IndexedDB on remote client, causing data loss on restart.
    *
-   * @localBehavior SKIP - Archive written by local backup import flow
+   * @localBehavior SKIP - Archive written by BackupService.importCompleteBackup()
    * @remoteBehavior Executes - Uses ArchiveDbAdapter for direct IndexedDB access
    */
   private async _handleLoadAllData(action: PersistentAction): Promise<void> {
     if (!action.meta?.isRemote) {
-      return; // Local: already written by local backup import flow
+      return; // Local: archive written by BackupService._writeArchivesToIndexedDB()
     }
 
     const loadAllDataAction = action as unknown as ReturnType<typeof loadAllData>;
