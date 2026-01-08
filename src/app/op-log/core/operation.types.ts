@@ -191,6 +191,100 @@ export interface RepairPayload {
 }
 
 // =============================================================================
+// FULL-STATE OPERATION PAYLOADS
+// =============================================================================
+
+/**
+ * OpTypes that contain full application state in their payload.
+ * Used for type guards and validation.
+ */
+export const FULL_STATE_OP_TYPES = new Set<OpType>([
+  OpType.SyncImport,
+  OpType.BackupImport,
+  OpType.Repair,
+]);
+
+/**
+ * Type guard to check if an operation is a full-state operation.
+ */
+export const isFullStateOpType = (opType: OpType | string): boolean =>
+  FULL_STATE_OP_TYPES.has(opType as OpType);
+
+/**
+ * Legacy wrapper format for full-state payloads.
+ * Some older code wrapped the state in { appDataComplete: ... }.
+ * New code should use unwrapped format directly.
+ */
+export interface WrappedFullStatePayload {
+  appDataComplete: Record<string, unknown>;
+}
+
+/**
+ * Type guard to check if a payload is in the wrapped format.
+ */
+export const isWrappedFullStatePayload = (
+  payload: unknown,
+): payload is WrappedFullStatePayload =>
+  typeof payload === 'object' &&
+  payload !== null &&
+  'appDataComplete' in payload &&
+  typeof (payload as WrappedFullStatePayload).appDataComplete === 'object' &&
+  (payload as WrappedFullStatePayload).appDataComplete !== null;
+
+/**
+ * Extracts the raw application state from a full-state operation payload.
+ * Handles both wrapped ({ appDataComplete: ... }) and unwrapped formats.
+ *
+ * IMPORTANT: This should be used when uploading snapshots to ensure
+ * consistent format in sync files.
+ *
+ * @param payload - The operation payload (wrapped or unwrapped)
+ * @returns The raw application state
+ */
+export const extractFullStateFromPayload = (
+  payload: unknown,
+): Record<string, unknown> => {
+  if (isWrappedFullStatePayload(payload)) {
+    return payload.appDataComplete;
+  }
+  // Unwrapped format - payload IS the state
+  return payload as Record<string, unknown>;
+};
+
+/**
+ * Validates that a full-state payload has the expected structure.
+ * Throws an error if the payload is malformed.
+ *
+ * @param payload - The payload to validate
+ * @param context - Description of where this is being called from (for error messages)
+ * @throws Error if payload is not a valid full-state payload
+ */
+export const assertValidFullStatePayload: (
+  payload: unknown,
+  context: string,
+) => asserts payload is Record<string, unknown> = (payload, context) => {
+  const state = extractFullStateFromPayload(payload);
+
+  if (typeof state !== 'object' || state === null) {
+    throw new Error(
+      `[${context}] Invalid full-state payload: expected object, got ${typeof state}`,
+    );
+  }
+
+  // Check for expected top-level properties (not exhaustive, just key ones)
+  const expectedKeys = ['task', 'project', 'tag', 'globalConfig'];
+  const hasExpectedKeys = expectedKeys.some((key) => key in state);
+
+  if (!hasExpectedKeys) {
+    const actualKeys = Object.keys(state).slice(0, 5).join(', ');
+    throw new Error(
+      `[${context}] Invalid full-state payload: missing expected keys. ` +
+        `Expected some of [${expectedKeys.join(', ')}], got [${actualKeys}...]`,
+    );
+  }
+};
+
+// =============================================================================
 // MULTI-ENTITY OPERATIONS
 // =============================================================================
 

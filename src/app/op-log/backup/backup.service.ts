@@ -179,7 +179,7 @@ export class BackupService {
       opType: OpType.SyncImport,
       entityType: 'ALL',
       entityId: opId,
-      payload: { appDataComplete: importedData },
+      payload: importedData,
       clientId,
       vectorClock: newClock,
       timestamp: Date.now(),

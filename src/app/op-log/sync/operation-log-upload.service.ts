@@ -1,7 +1,14 @@
 import { inject, Injectable } from '@angular/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { LockService } from './lock.service';
-import { Operation, OperationLogEntry, OpType } from '../core/operation.types';
+import {
+  Operation,
+  OperationLogEntry,
+  OpType,
+  FULL_STATE_OP_TYPES,
+  extractFullStateFromPayload,
+  assertValidFullStatePayload,
+} from '../core/operation.types';
 import { OpLog } from '../../core/log';
 import { LOCK_NAMES } from '../core/operation-log.const';
 import { chunkArray } from '../../util/chunk-array';
@@ -24,16 +31,6 @@ export type {
   UploadResult,
   UploadOptions,
 } from '../core/types/sync-results.types';
-
-/**
- * Operation types that contain full application state and should use
- * the snapshot endpoint instead of the regular ops endpoint.
- */
-const FULL_STATE_OP_TYPES = new Set([
-  OpType.SyncImport,
-  OpType.BackupImport,
-  OpType.Repair,
-]);
 
 /**
  * Handles uploading local pending operations to remote storage.
@@ -358,8 +355,17 @@ export class OperationLogUploadService {
       `OperationLogUploadService: Uploading ${op.opType} operation via snapshot endpoint`,
     );
 
-    // The payload for full-state ops IS the complete state
-    let state = op.payload;
+    // Extract state from payload, handling both wrapped and unwrapped formats.
+    // Uses shared utility to ensure consistent handling across the codebase.
+    let state: unknown = extractFullStateFromPayload(op.payload);
+
+    // Validate the payload structure before uploading to catch bugs early.
+    // This throws if the payload is malformed (e.g., missing expected keys).
+    assertValidFullStatePayload(
+      state,
+      'OperationLogUploadService._uploadFullStateOpAsSnapshot',
+    );
+
     const isPayloadEncrypted = !!encryptKey;
 
     // If encryption is enabled, encrypt the state
