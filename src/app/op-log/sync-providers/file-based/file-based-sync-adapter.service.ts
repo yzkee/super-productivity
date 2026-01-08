@@ -700,8 +700,15 @@ export class FileBasedSyncAdapterService {
     // no recent ops AND has a snapshot state, another client uploaded a fresh snapshot.
     // This happens when "Use Local" is chosen in conflict resolution - the snapshot replaces
     // all previous ops but syncVersion may not decrease (could stay at 1).
+    //
+    // IMPORTANT: If sinceSeq === syncData.syncVersion, there's no replacement - we're in sync.
+    // This happens after WE upload a snapshot (sinceSeq=1, syncVersion=1). Only trigger
+    // replacement detection when sinceSeq doesn't match syncVersion (another client uploaded).
     const snapshotReplacement =
-      sinceSeq > 0 && syncData.recentOps.length === 0 && !!syncData.state;
+      sinceSeq > 0 &&
+      sinceSeq !== syncData.syncVersion &&
+      syncData.recentOps.length === 0 &&
+      !!syncData.state;
 
     const needsGapDetection = versionWasReset || snapshotReplacement;
 
@@ -867,8 +874,11 @@ export class FileBasedSyncAdapterService {
     // Reset local state
     this._expectedSyncVersions.set(providerKey, newSyncVersion);
     this._localSeqCounters.set(providerKey, newSyncVersion);
+    this._persistState();
 
-    OpLog.normal('FileBasedSyncAdapter: Snapshot upload complete');
+    OpLog.warn(
+      `FileBasedSyncAdapter: Snapshot upload complete. Set localSeqCounter[${providerKey}]=${newSyncVersion}`,
+    );
 
     return {
       accepted: true,
