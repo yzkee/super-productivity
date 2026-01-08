@@ -613,4 +613,57 @@ export class ProjectPage extends BasePage {
     // Hover over the notes area like in Nightwatch
     await notesWrapper.hover({ position: { x: 10, y: 50 } });
   }
+
+  /**
+   * Deletes a project via the sidebar context menu
+   */
+  async deleteProject(projectName: string): Promise<void> {
+    const fullProjectName = this.applyPrefix(projectName);
+
+    // Get the Projects nav-list-tree container
+    const projectsTree = this.page
+      .locator('nav-list-tree')
+      .filter({ hasText: 'Projects' });
+
+    // Ensure Projects group is expanded
+    const projectsGroupBtn = projectsTree
+      .locator('.g-multi-btn-wrapper nav-item button')
+      .first();
+    await projectsGroupBtn.waitFor({ state: 'visible', timeout: 5000 });
+
+    const isExpanded = await projectsGroupBtn.getAttribute('aria-expanded');
+    if (isExpanded !== 'true') {
+      await projectsGroupBtn.click();
+      await this.page.waitForTimeout(500);
+    }
+
+    // Find the project in the sidebar
+    const projectTreeItem = projectsTree
+      .locator('[role="treeitem"]')
+      .filter({ hasText: fullProjectName })
+      .first();
+    await projectTreeItem.waitFor({ state: 'visible', timeout: 5000 });
+
+    // Right-click to open context menu
+    await projectTreeItem.click({ button: 'right' });
+
+    // Click delete option - look for "Delete" text
+    const deleteBtn = this.page
+      .locator('.mat-mdc-menu-content button')
+      .filter({ hasText: /delete/i })
+      .first();
+    await deleteBtn.waitFor({ state: 'visible', timeout: 3000 });
+    await deleteBtn.click();
+
+    // Handle confirmation dialog
+    const confirmDialog = this.page.locator('dialog-confirm');
+    await confirmDialog.waitFor({ state: 'visible', timeout: 3000 });
+    // Click "Ok" button to confirm deletion
+    const confirmBtn = confirmDialog.locator('button').filter({ hasText: /ok/i });
+    await confirmBtn.click();
+    await confirmDialog.waitFor({ state: 'hidden', timeout: 3000 });
+
+    // Wait for project to be removed from sidebar
+    await projectTreeItem.waitFor({ state: 'hidden', timeout: 5000 });
+  }
 }
