@@ -113,6 +113,12 @@ describe('FileBasedSyncAdapterService', () => {
     ...overrides,
   });
 
+  afterEach(() => {
+    // Reset TestBed to ensure fresh service instance for each test
+    // This is critical because FileBasedSyncAdapterService caches state in memory
+    TestBed.resetTestingModule();
+  });
+
   beforeEach(() => {
     mockArchiveDbAdapter = jasmine.createSpyObj('ArchiveDbAdapter', [
       'loadArchiveYoung',
@@ -155,6 +161,7 @@ describe('FileBasedSyncAdapterService', () => {
     mockProvider.id = SyncProviderId.WebDAV;
 
     // Clear localStorage to prevent state leaking between tests
+    // Note: Must clear both old keys (for migration code path) and new atomic key
     localStorage.removeItem(
       FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'versions',
     );
@@ -163,6 +170,9 @@ describe('FileBasedSyncAdapterService', () => {
     );
     localStorage.removeItem(
       FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'processedOps',
+    );
+    localStorage.removeItem(
+      FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
     );
 
     adapter = service.createAdapter(mockProvider, mockCfg, mockEncryptKey);
@@ -673,7 +683,7 @@ describe('FileBasedSyncAdapterService', () => {
       );
     });
 
-    it('should reset local seq counter after snapshot', async () => {
+    it('should set seq counter to syncVersion after snapshot upload', async () => {
       mockProvider.downloadFile.and.throwError(
         new RemoteFileNotFoundAPIError('sync-data.json'),
       );
@@ -682,12 +692,13 @@ describe('FileBasedSyncAdapterService', () => {
       // First set a seq value
       await adapter.setLastServerSeq(100);
 
-      // Upload snapshot
+      // Upload snapshot (syncVersion becomes 1)
       await adapter.uploadSnapshot({}, 'client1', 'initial', { client1: 1 }, 1);
 
-      // Seq should be reset
+      // Seq should match syncVersion (1), not reset to 0
+      // This prevents repeated conflict dialogs after USE_LOCAL resolution
       const seq = await adapter.getLastServerSeq();
-      expect(seq).toBe(0);
+      expect(seq).toBe(1);
     });
   });
 
@@ -998,6 +1009,88 @@ describe('FileBasedSyncAdapterService', () => {
         );
         expect(mockArchiveDbAdapter.saveArchiveOld).not.toHaveBeenCalled();
       });
+    });
+  });
+
+  describe('conflict prevention after snapshot upload', () => {
+    it('should not return snapshotState on download after snapshot upload', async () => {
+      // Setup: Simulate that a snapshot was just uploaded
+      // The sync file has syncVersion=1, state exists, recentOps is empty
+      const snapshotData = createMockSyncData({
+        syncVersion: 1,
+        state: { tasks: [{ id: 't1' }] },
+        recentOps: [],
+      });
+
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(snapshotData), rev: 'rev-1' }),
+      );
+      mockProvider.uploadFile.and.returnValue(Promise.resolve({ rev: 'rev-2' }));
+
+      // Act: Upload a snapshot (simulates USE_LOCAL conflict resolution)
+      await adapter.uploadSnapshot({}, 'client1', 'initial', { client1: 1 }, 1);
+
+      // Verify: lastServerSeq should be 1 (not 0)
+      const lastSeq = await adapter.getLastServerSeq();
+      expect(lastSeq).toBe(1);
+
+      // Act: Download with the stored seq (simulates next sync cycle)
+      const downloadResult = await adapter.downloadOps(lastSeq);
+
+      // Verify: snapshotState should NOT be returned (because sinceSeq > 0)
+      // If snapshotState were returned, it would trigger LocalDataConflictError
+      expect(downloadResult.snapshotState).toBeUndefined();
+    });
+
+    it('should prevent repeated conflict dialogs after USE_LOCAL resolution', async () => {
+      // This test simulates the exact bug scenario:
+      // 1. Snapshot is uploaded (USE_LOCAL resolution)
+      // 2. User makes a change (new op pending)
+      // 3. Next download should NOT return snapshotState
+
+      const snapshotData = createMockSyncData({
+        syncVersion: 1,
+        state: { tasks: [] },
+        recentOps: [],
+      });
+
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(snapshotData), rev: 'rev-1' }),
+      );
+      mockProvider.uploadFile.and.returnValue(Promise.resolve({ rev: 'rev-2' }));
+
+      // Step 1: Upload snapshot (simulates USE_LOCAL)
+      await adapter.uploadSnapshot({}, 'client1', 'initial', { client1: 1 }, 1);
+
+      // Step 2: Verify seq is set correctly to syncVersion
+      const seqAfterUpload = await adapter.getLastServerSeq();
+      expect(seqAfterUpload).toBe(1);
+
+      // Step 3: Simulate next download (should NOT trigger conflict)
+      const result = await adapter.downloadOps(seqAfterUpload);
+
+      // snapshotState should be undefined - this is the key assertion
+      // If this is defined, it would trigger LocalDataConflictError
+      expect(result.snapshotState).toBeUndefined();
+      expect(result.ops).toEqual([]); // No new ops
+    });
+
+    it('should return snapshotState only on fresh download (sinceSeq=0)', async () => {
+      // This verifies that snapshotState IS returned when expected
+      const snapshotData = createMockSyncData({
+        syncVersion: 1,
+        state: { tasks: [{ id: 't1' }] },
+        recentOps: [],
+      });
+
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(snapshotData), rev: 'rev-1' }),
+      );
+
+      // Fresh download (sinceSeq=0) should return snapshotState
+      const result = await adapter.downloadOps(0);
+
+      expect(result.snapshotState).toEqual({ tasks: [{ id: 't1' }] });
     });
   });
 });

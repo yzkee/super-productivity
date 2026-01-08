@@ -866,13 +866,13 @@ export class FileBasedSyncAdapterService {
 
     // Reset local state
     this._expectedSyncVersions.set(providerKey, newSyncVersion);
-    this._localSeqCounters.set(providerKey, 0);
+    this._localSeqCounters.set(providerKey, newSyncVersion);
 
     OpLog.normal('FileBasedSyncAdapter: Snapshot upload complete');
 
     return {
       accepted: true,
-      serverSeq: 0,
+      serverSeq: newSyncVersion,
     };
   }
 
