@@ -11,7 +11,10 @@ import {
   FileBasedSyncData,
   SyncDataCorruptedError,
 } from './file-based-sync.types';
-import { RemoteFileNotFoundAPIError } from '../../core/errors/sync-errors';
+import {
+  RemoteFileNotFoundAPIError,
+  UploadRevToMatchMismatchAPIError,
+} from '../../core/errors/sync-errors';
 import { EncryptAndCompressCfg } from '../../core/types/sync.types';
 import { getSyncFilePrefix } from '../../util/sync-file-prefix';
 import { ArchiveDbAdapter } from '../../../core/persistence/archive-db-adapter.service';
@@ -204,11 +207,12 @@ describe('FileBasedSyncAdapterService', () => {
       const result = await adapter.uploadOps([], 'client1');
 
       // Should still create the sync file with current state
+      // Uses conditional upload (isForceOverwrite: false) with null rev for new file
       expect(mockProvider.uploadFile).toHaveBeenCalledWith(
         FILE_BASED_SYNC_CONSTANTS.SYNC_FILE,
         jasmine.any(String),
         null,
-        true,
+        false, // Conditional upload - provider handles null rev for new file creation
       );
       expect(result.results).toEqual([]);
     });
@@ -224,11 +228,12 @@ describe('FileBasedSyncAdapterService', () => {
 
       expect(result.results.length).toBe(1);
       expect(result.results[0].accepted).toBe(true);
+      // Uses conditional upload with null rev for new file
       expect(mockProvider.uploadFile).toHaveBeenCalledWith(
         FILE_BASED_SYNC_CONSTANTS.SYNC_FILE,
         jasmine.any(String),
         null,
-        true,
+        false, // Conditional upload - provider handles null rev for new file creation
       );
     });
 
@@ -283,52 +288,6 @@ describe('FileBasedSyncAdapterService', () => {
       expect(result.newOps![0].op.id).toBe('other-op');
     });
 
-    it('should create backup before uploading', async () => {
-      // First download to set expected version
-      const syncData = createMockSyncData({ syncVersion: 1 });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
-      );
-      await adapter.downloadOps(0); // Sets expected version to 1
-
-      mockProvider.uploadFile.and.returnValue(Promise.resolve({ rev: 'rev-2' }));
-
-      const op = createMockSyncOp();
-      await adapter.uploadOps([op], 'client1');
-
-      expect(mockProvider.uploadFile).toHaveBeenCalledWith(
-        FILE_BASED_SYNC_CONSTANTS.BACKUP_FILE,
-        jasmine.any(String),
-        null,
-        true,
-      );
-    });
-
-    it('should continue even if backup fails', async () => {
-      // First download to set expected version
-      const syncData = createMockSyncData({ syncVersion: 1 });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
-      );
-      await adapter.downloadOps(0); // Sets expected version to 1
-
-      // First upload (backup) fails, second (main) succeeds
-      let uploadCalls = 0;
-      mockProvider.uploadFile.and.callFake(() => {
-        uploadCalls++;
-        if (uploadCalls === 1) {
-          return Promise.reject(new Error('Backup failed'));
-        }
-        return Promise.resolve({ rev: 'rev-2' });
-      });
-
-      const op = createMockSyncOp();
-      const result = await adapter.uploadOps([op], 'client1');
-
-      // Should still succeed
-      expect(result.results[0].accepted).toBe(true);
-    });
-
     it('should merge vector clocks from all ops', async () => {
       mockProvider.downloadFile.and.throwError(
         new RemoteFileNotFoundAPIError('sync-data.json'),
@@ -353,6 +312,105 @@ describe('FileBasedSyncAdapterService', () => {
 
       const uploadedData = parseWithPrefix(uploadedDataStr);
       expect(uploadedData.vectorClock).toEqual({ client1: 3, client2: 2, client3: 1 });
+    });
+
+    it('should use cached data from downloadOps when uploading (avoids redundant download)', async () => {
+      const syncData = createMockSyncData({ syncVersion: 1 });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
+      );
+      mockProvider.uploadFile.and.returnValue(Promise.resolve({ rev: 'rev-2' }));
+
+      // First, download to populate cache
+      await adapter.downloadOps(0);
+
+      // Reset download spy call count
+      mockProvider.downloadFile.calls.reset();
+
+      // Upload should use cached data, not download again
+      const op = createMockSyncOp();
+      await adapter.uploadOps([op], 'client1');
+
+      // Download should NOT be called again during upload (cache hit)
+      expect(mockProvider.downloadFile).not.toHaveBeenCalled();
+    });
+
+    it('should use conditional upload with revToMatch from cache', async () => {
+      const syncData = createMockSyncData({ syncVersion: 1 });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-123' }),
+      );
+      mockProvider.uploadFile.and.returnValue(Promise.resolve({ rev: 'rev-124' }));
+
+      // Download to populate cache
+      await adapter.downloadOps(0);
+      mockProvider.downloadFile.calls.reset();
+
+      // Upload should pass revToMatch parameter
+      const op = createMockSyncOp();
+      await adapter.uploadOps([op], 'client1');
+
+      // Verify upload was called with revToMatch (cached rev)
+      expect(mockProvider.uploadFile).toHaveBeenCalledWith(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_FILE,
+        jasmine.any(String),
+        'rev-123', // revToMatch from cached download
+        false,
+      );
+    });
+
+    it('should retry upload once when UploadRevToMatchMismatchAPIError occurs', async () => {
+      const syncData = createMockSyncData({ syncVersion: 1 });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
+      );
+
+      // First upload fails with rev mismatch, second succeeds
+      let uploadCalls = 0;
+      mockProvider.uploadFile.and.callFake(() => {
+        uploadCalls++;
+        if (uploadCalls === 1) {
+          return Promise.reject(new UploadRevToMatchMismatchAPIError('Rev mismatch'));
+        }
+        return Promise.resolve({ rev: 'rev-3' });
+      });
+
+      // Download to populate cache
+      await adapter.downloadOps(0);
+
+      const op = createMockSyncOp();
+      const result = await adapter.uploadOps([op], 'client1');
+
+      // Should succeed after retry
+      expect(result.results[0].accepted).toBe(true);
+      // Upload was called twice (initial + retry)
+      expect(uploadCalls).toBe(2);
+      // Download was called twice (initial cache + re-download on retry)
+      expect(mockProvider.downloadFile).toHaveBeenCalledTimes(2);
+    });
+
+    it('should clear cache after successful upload', async () => {
+      const syncData = createMockSyncData({ syncVersion: 1 });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
+      );
+      mockProvider.uploadFile.and.returnValue(Promise.resolve({ rev: 'rev-2' }));
+
+      // Download to populate cache
+      await adapter.downloadOps(0);
+
+      // Upload (should clear cache)
+      const op = createMockSyncOp();
+      await adapter.uploadOps([op], 'client1');
+
+      mockProvider.downloadFile.calls.reset();
+
+      // Another upload should re-download since cache was cleared
+      const op2 = createMockSyncOp({ id: 'op-2' });
+      await adapter.uploadOps([op2], 'client1');
+
+      // Download should be called because cache was cleared after first upload
+      expect(mockProvider.downloadFile).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -589,20 +647,27 @@ describe('FileBasedSyncAdapterService', () => {
       expect(uploadedData.recentOps).toEqual([]); // Fresh start
     });
 
-    it('should backup existing file before snapshot upload', async () => {
-      const existingData = createMockSyncData();
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(existingData), rev: 'rev-1' }),
+    it('should upload snapshot directly without backup (snapshots replace state completely)', async () => {
+      mockProvider.downloadFile.and.throwError(
+        new RemoteFileNotFoundAPIError('sync-data.json'),
       );
-      mockProvider.uploadFile.and.returnValue(Promise.resolve({ rev: 'rev-2' }));
+      mockProvider.uploadFile.and.returnValue(Promise.resolve({ rev: 'rev-1' }));
 
       await adapter.uploadSnapshot({}, 'client1', 'recovery', { client1: 1 }, 1);
 
+      // Should upload to main sync file with force overwrite (no backup created)
       expect(mockProvider.uploadFile).toHaveBeenCalledWith(
-        FILE_BASED_SYNC_CONSTANTS.BACKUP_FILE,
+        FILE_BASED_SYNC_CONSTANTS.SYNC_FILE,
         jasmine.any(String),
         null,
-        true,
+        true, // Force overwrite - snapshots replace state completely
+      );
+      // Should NOT create backup file
+      expect(mockProvider.uploadFile).not.toHaveBeenCalledWith(
+        FILE_BASED_SYNC_CONSTANTS.BACKUP_FILE,
+        jasmine.any(String),
+        jasmine.anything(),
+        jasmine.anything(),
       );
     });
 

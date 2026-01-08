@@ -12,7 +12,10 @@ import {
   timeout,
 } from 'rxjs/operators';
 import { toObservable } from '@angular/core/rxjs-interop';
-import { SyncAlreadyInProgressError } from '../../op-log/core/errors/sync-errors';
+import {
+  SyncAlreadyInProgressError,
+  LocalDataConflictError,
+} from '../../op-log/core/errors/sync-errors';
 import { SyncConfig } from '../../features/config/global-config.model';
 import { TranslateService } from '@ngx-translate/core';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
@@ -21,6 +24,7 @@ import {
   AuthFailSPError,
   CanNotMigrateMajorDownError,
   ConflictData,
+  ConflictReason,
   DecryptError,
   DecryptNoPasswordError,
   LockPresentError,
@@ -299,6 +303,10 @@ export class SyncWrapperService {
         // Silently ignore concurrent sync attempts (using proper error class)
         SyncLog.log('Sync already in progress, skipping concurrent sync attempt');
         return 'HANDLED_ERROR';
+      } else if (error instanceof LocalDataConflictError) {
+        // File-based sync: Local data exists and remote snapshot would overwrite it
+        // Show conflict dialog to let user choose between local and remote data
+        return this._handleLocalDataConflict(error);
       } else if (this._isPermissionError(error)) {
         this._snackService.open({
           msg: this._getPermissionErrorMessage(),
@@ -476,6 +484,97 @@ export class SyncWrapperService {
           this._forceUpload();
         }
       });
+  }
+
+  /**
+   * Handles LocalDataConflictError by showing a conflict resolution dialog.
+   * This occurs when file-based sync (Dropbox, WebDAV) detects local unsynced
+   * changes that would be lost if the remote snapshot is applied.
+   *
+   * User can choose:
+   * - USE_LOCAL: Upload local data, overwriting remote (uses forceUploadLocalState)
+   * - USE_REMOTE: Download remote data, discarding local (uses forceDownloadRemoteState)
+   */
+  private async _handleLocalDataConflict(
+    error: LocalDataConflictError,
+  ): Promise<SyncStatus | 'HANDLED_ERROR'> {
+    // Signal that we're waiting for user input (prevents sync timeout)
+    const stopWaiting = this._userInputWaitState.startWaiting('local-data-conflict');
+
+    try {
+      // Build ConflictData for the dialog
+      const vcEntry = await this._opLogStore.getVectorClockEntry();
+      const localClock = vcEntry?.clock;
+      const localLastUpdate = vcEntry?.lastUpdate || Date.now();
+
+      const conflictData: ConflictData = {
+        reason: ConflictReason.NoLastSync,
+        remote: {
+          lastUpdate: Date.now(), // Remote snapshot doesn't have a timestamp, use now
+          lastUpdateAction: 'Remote data',
+          revMap: {},
+          crossModelVersion: 1,
+          mainModelData: error.remoteSnapshotState,
+          isFullData: true,
+          vectorClock: error.remoteVectorClock,
+        },
+        local: {
+          lastUpdate: localLastUpdate,
+          lastUpdateAction: `${error.unsyncedCount} local changes pending`,
+          revMap: {},
+          crossModelVersion: 1,
+          lastSyncedUpdate: null,
+          metaRev: null,
+          vectorClock: localClock,
+          lastSyncedVectorClock: null,
+        },
+      };
+
+      SyncLog.log(
+        `SyncWrapperService: Showing conflict dialog for ${error.unsyncedCount} local changes vs remote snapshot`,
+      );
+
+      const resolution = await firstValueFrom(this._openConflictDialog$(conflictData));
+
+      // Get sync provider for the resolution operation
+      const rawProvider = this._providerManager.getActiveProvider();
+      const syncCapableProvider =
+        await this._wrappedProvider.getOperationSyncCapable(rawProvider);
+
+      if (!syncCapableProvider) {
+        SyncLog.err(
+          'SyncWrapperService: Cannot resolve conflict - provider not available',
+        );
+        return 'HANDLED_ERROR';
+      }
+
+      if (resolution === 'USE_LOCAL') {
+        // User chose to keep local data and upload it to remote
+        SyncLog.log(
+          'SyncWrapperService: User chose USE_LOCAL - uploading local state to overwrite remote',
+        );
+        await this._opLogSyncService.forceUploadLocalState(syncCapableProvider);
+        this._providerManager.setSyncStatus('IN_SYNC');
+        return SyncStatus.InSync;
+      } else if (resolution === 'USE_REMOTE') {
+        // User chose to discard local data and download remote
+        SyncLog.log(
+          'SyncWrapperService: User chose USE_REMOTE - downloading remote state, discarding local',
+        );
+        await this._opLogSyncService.forceDownloadRemoteState(syncCapableProvider);
+        this._providerManager.setSyncStatus('IN_SYNC');
+        return SyncStatus.InSync;
+      } else {
+        // User cancelled the dialog
+        SyncLog.log('SyncWrapperService: User cancelled first sync conflict dialog');
+        this._snackService.open({
+          msg: T.F.SYNC.S.LOCAL_DATA_REPLACE_CANCELLED,
+        });
+        return 'HANDLED_ERROR';
+      }
+    } finally {
+      stopWaiting();
+    }
   }
 
   private async _reInitAppAfterDataModelChange(

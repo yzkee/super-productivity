@@ -250,6 +250,23 @@ export class NoSyncProviderSetError extends Error {
   override name = 'NoSyncProviderSetError';
 }
 
+/**
+ * Thrown when file-based sync detects local unsynced changes that would be
+ * lost if remote snapshot is applied. Caught by SyncWrapperService to show
+ * conflict resolution dialog.
+ */
+export class LocalDataConflictError extends Error {
+  override name = 'LocalDataConflictError';
+
+  constructor(
+    public readonly unsyncedCount: number,
+    public readonly remoteSnapshotState: Record<string, unknown>,
+    public readonly remoteVectorClock?: Record<string, number>,
+  ) {
+    super(`Local data conflict: ${unsyncedCount} unsynced changes would be lost`);
+  }
+}
+
 export class SyncAlreadyInProgressError extends Error {
   override name = 'SyncAlreadyInProgressError';
 

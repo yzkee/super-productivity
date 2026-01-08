@@ -106,6 +106,7 @@ export class ServerMigrationService {
    *
    * ## Process
    * 1. Double-check server is still empty (in case another client just uploaded)
+   *    - Unless skipServerEmptyCheck is true (for force upload scenarios)
    * 2. Get current state from NgRx store
    * 3. Skip if state is empty (nothing to migrate)
    * 4. Validate and repair state (prevent propagating corruption)
@@ -123,17 +124,26 @@ export class ServerMigrationService {
    * compares operations, all pre-import ops are LESS_THAN the import.
    *
    * @param syncProvider - The sync provider to use for double-check
+   * @param options - Optional configuration
+   * @param options.skipServerEmptyCheck - If true, creates SYNC_IMPORT even if server has data.
+   *   Used for "USE_LOCAL" conflict resolution to force overwrite remote with local state.
    */
-  async handleServerMigration(syncProvider: OperationSyncCapable): Promise<void> {
+  async handleServerMigration(
+    syncProvider: OperationSyncCapable,
+    options?: { skipServerEmptyCheck?: boolean },
+  ): Promise<void> {
     // Double-check server is still empty (in case another client just uploaded)
     // This is called inside the upload lock, but network timing could still race
-    const freshCheck = await syncProvider.downloadOps(0, undefined, 1);
-    if (freshCheck.latestSeq !== 0) {
-      OpLog.warn(
-        'ServerMigrationService: Server no longer empty, aborting SYNC_IMPORT. ' +
-          'Another client may have just uploaded.',
-      );
-      return;
+    // Skip this check when forcing upload (conflict resolution "USE_LOCAL")
+    if (!options?.skipServerEmptyCheck) {
+      const freshCheck = await syncProvider.downloadOps(0, undefined, 1);
+      if (freshCheck.latestSeq !== 0) {
+        OpLog.warn(
+          'ServerMigrationService: Server no longer empty, aborting SYNC_IMPORT. ' +
+            'Another client may have just uploaded.',
+        );
+        return;
+      }
     }
 
     OpLog.warn(

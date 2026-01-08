@@ -140,7 +140,7 @@ describe('OperationLogMigrationService', () => {
         expect(mockOpLogStore.deleteOpsWhere).not.toHaveBeenCalled();
       });
 
-      it('should clear orphan operations and check for legacy data', async () => {
+      it('should clear orphan operations when legacy data exists', async () => {
         mockOpLogStore.getOpsAfterSeq.and.resolveTo([
           {
             seq: 1,
@@ -176,15 +176,48 @@ describe('OperationLogMigrationService', () => {
           },
         ]);
         mockOpLogStore.deleteOpsWhere.and.resolveTo();
-        mockLegacyPfDb.hasUsableEntityData.and.resolveTo(false);
+        // Legacy data exists - orphan ops should be cleared before migration
+        mockLegacyPfDb.hasUsableEntityData.and.resolveTo(true);
+        // Lock acquisition fails - prevents migration from proceeding (test focuses on clearing)
+        mockLegacyPfDb.acquireMigrationLock.and.resolveTo(false);
 
         await service.checkAndMigrate();
 
         expect(OpLog.warn).toHaveBeenCalledWith(
-          jasmine.stringContaining('Found 2 orphan operations without Genesis'),
+          jasmine.stringContaining('Found 2 orphan operations'),
         );
         expect(mockOpLogStore.deleteOpsWhere).toHaveBeenCalled();
         expect(mockLegacyPfDb.hasUsableEntityData).toHaveBeenCalled();
+      });
+
+      it('should NOT clear orphan operations when no legacy data exists (fresh install)', async () => {
+        mockOpLogStore.getOpsAfterSeq.and.resolveTo([
+          {
+            seq: 1,
+            op: {
+              id: 'orphan-op-1',
+              entityType: 'TASK',
+              actionType: '[Task] Update Task' as ActionType,
+              opType: OpType.Update,
+              clientId: 'client1',
+              vectorClock: { client1: 1 },
+              timestamp: Date.now(),
+              payload: { id: 't1', title: 'Test' },
+              schemaVersion: 1,
+            },
+            appliedAt: Date.now(),
+            source: 'local',
+          },
+        ]);
+        // No legacy data - orphan ops are kept (fresh install scenario)
+        mockLegacyPfDb.hasUsableEntityData.and.resolveTo(false);
+
+        await service.checkAndMigrate();
+
+        expect(OpLog.normal).toHaveBeenCalledWith(
+          jasmine.stringContaining('fresh install'),
+        );
+        expect(mockOpLogStore.deleteOpsWhere).not.toHaveBeenCalled();
       });
     });
 

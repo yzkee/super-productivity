@@ -8,6 +8,7 @@ import { OperationLogUploadService, UploadResult } from './operation-log-upload.
 import { OperationLogDownloadService } from './operation-log-download.service';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
+import { LocalDataConflictError } from '../core/errors/sync-errors';
 import { SuperSyncStatusService } from './super-sync-status.service';
 import { ServerMigrationService } from './server-migration.service';
 import { OperationWriteFlushService } from './operation-write-flush.service';
@@ -259,27 +260,17 @@ export class OperationLogSyncService {
       const hasLocalChanges = unsyncedOps.length > 0;
 
       if (hasLocalChanges) {
-        // Non-fresh client with local changes - ask for confirmation
+        // Non-fresh client with local changes - throw error to trigger conflict dialog in SyncWrapperService
+        // This allows the user to choose between keeping local data (upload) or remote data (download)
         OpLog.warn(
           `OperationLogSyncService: Client has ${unsyncedOps.length} unsynced local ops. ` +
-            'Requesting confirmation before replacing with snapshot.',
+            'Throwing LocalDataConflictError for conflict resolution dialog.',
         );
 
-        const confirmed = this._showLocalDataReplaceConfirmation(unsyncedOps.length);
-        if (!confirmed) {
-          OpLog.normal(
-            'OperationLogSyncService: User cancelled sync. Local data preserved.',
-          );
-          this.snackService.open({
-            msg: T.F.SYNC.S.LOCAL_DATA_REPLACE_CANCELLED,
-          });
-          return { serverMigrationHandled: false, localWinOpsCreated: 0, newOpsCount: 0 };
-        }
-
-        // User chose to accept remote - clear unsynced ops since they'll be replaced
-        await this.opLogStore.clearUnsyncedOps();
-        OpLog.normal(
-          'OperationLogSyncService: User confirmed. Cleared unsynced ops and proceeding with snapshot.',
+        throw new LocalDataConflictError(
+          unsyncedOps.length,
+          result.snapshotState as Record<string, unknown>,
+          result.snapshotVectorClock,
         );
       } else {
         // Show fresh client confirmation if this is a wholly fresh client
@@ -425,24 +416,6 @@ export class OperationLogSyncService {
   }
 
   /**
-   * Shows a confirmation dialog when local data would be replaced by remote snapshot.
-   * Used when a non-fresh client (with unsynced local ops) receives a snapshot.
-   * Uses synchronous window.confirm() to prevent race conditions.
-   */
-  private _showLocalDataReplaceConfirmation(unsyncedCount: number): boolean {
-    const title = this.translateService.instant(
-      T.F.SYNC.D_LOCAL_DATA_REPLACE_CONFIRM.TITLE,
-    );
-    const message = this.translateService.instant(
-      T.F.SYNC.D_LOCAL_DATA_REPLACE_CONFIRM.MESSAGE,
-      {
-        count: unsyncedCount,
-      },
-    );
-    return window.confirm(`${title}\n\n${message}`);
-  }
-
-  /**
    * Force upload local state as a SYNC_IMPORT, replacing all remote data.
    * This is used when user explicitly chooses "USE_LOCAL" in conflict resolution.
    *
@@ -457,7 +430,10 @@ export class OperationLogSyncService {
     );
 
     // Create SYNC_IMPORT with current local state
-    await this.serverMigrationService.handleServerMigration(syncProvider);
+    // Pass skipServerEmptyCheck=true because we're forcing upload even if server has data
+    await this.serverMigrationService.handleServerMigration(syncProvider, {
+      skipServerEmptyCheck: true,
+    });
 
     // Upload the SYNC_IMPORT (and any pending ops)
     await this.uploadPendingOps(syncProvider);

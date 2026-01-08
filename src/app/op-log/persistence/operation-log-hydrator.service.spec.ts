@@ -1147,6 +1147,7 @@ describe('OperationLogHydratorService', () => {
 
       expect(mockSyncHydrationService.hydrateFromRemoteSync).toHaveBeenCalledWith(
         downloadedData,
+        undefined,
       );
     });
 
@@ -1154,6 +1155,7 @@ describe('OperationLogHydratorService', () => {
       await service.hydrateFromRemoteSync();
 
       expect(mockSyncHydrationService.hydrateFromRemoteSync).toHaveBeenCalledWith(
+        undefined,
         undefined,
       );
     });

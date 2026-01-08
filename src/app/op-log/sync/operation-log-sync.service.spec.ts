@@ -20,8 +20,15 @@ import { RejectedOpsHandlerService } from './rejected-ops-handler.service';
 import { OperationWriteFlushService } from './operation-write-flush.service';
 import { SuperSyncStatusService } from './super-sync-status.service';
 import { provideMockStore } from '@ngrx/store/testing';
-import { ActionType, Operation, OpType } from '../core/operation.types';
+import {
+  ActionType,
+  Operation,
+  OperationLogEntry,
+  OpType,
+} from '../core/operation.types';
 import { TranslateService } from '@ngx-translate/core';
+import { LocalDataConflictError } from '../core/errors/sync-errors';
+import { SyncHydrationService } from '../persistence/sync-hydration.service';
 
 describe('OperationLogSyncService', () => {
   let service: OperationLogSyncService;
@@ -157,6 +164,12 @@ describe('OperationLogSyncService', () => {
         { provide: RejectedOpsHandlerService, useValue: rejectedOpsHandlerServiceSpy },
         { provide: OperationWriteFlushService, useValue: writeFlushServiceSpy },
         { provide: SuperSyncStatusService, useValue: superSyncStatusServiceSpy },
+        {
+          provide: SyncHydrationService,
+          useValue: jasmine.createSpyObj('SyncHydrationService', [
+            'hydrateFromRemoteSync',
+          ]),
+        },
       ],
     });
 
@@ -676,6 +689,159 @@ describe('OperationLogSyncService', () => {
           expect(setLastServerSeqSpy).toHaveBeenCalledWith(100);
         });
       });
+
+      describe('LocalDataConflictError for file-based sync', () => {
+        it('should throw LocalDataConflictError when client has unsynced ops and receives snapshotState', async () => {
+          // Mock unsynced local ops as OperationLogEntry
+          const unsyncedEntry: OperationLogEntry = {
+            seq: 1,
+            op: {
+              id: 'local-op-1',
+              clientId: 'client-A',
+              actionType: 'test' as ActionType,
+              opType: OpType.Update,
+              entityType: 'TASK',
+              entityId: 'task-1',
+              payload: { title: 'Local Title' },
+              vectorClock: { clientA: 1 },
+              timestamp: Date.now(),
+              schemaVersion: 1,
+            },
+            appliedAt: Date.now(),
+            source: 'local',
+          };
+          opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([unsyncedEntry]));
+
+          // Mock download service returning snapshotState (file-based sync scenario)
+          downloadServiceSpy.downloadRemoteOps.and.returnValue(
+            Promise.resolve({
+              newOps: [],
+              hasMore: false,
+              latestSeq: 0,
+              needsFullStateUpload: false,
+              success: true,
+              failedFileCount: 0,
+              snapshotState: { tasks: [{ id: 'remote-task' }] }, // Remote snapshot
+              snapshotVectorClock: { clientB: 5 },
+            }),
+          );
+
+          const mockProvider = {
+            isReady: () => Promise.resolve(true),
+            supportsOperationSync: true,
+          } as any;
+
+          // Should throw LocalDataConflictError
+          await expectAsync(service.downloadRemoteOps(mockProvider)).toBeRejectedWith(
+            jasmine.any(LocalDataConflictError),
+          );
+        });
+
+        it('should include correct context in LocalDataConflictError', async () => {
+          const unsyncedEntries: OperationLogEntry[] = [
+            {
+              seq: 1,
+              op: {
+                id: 'local-op-1',
+                clientId: 'client-A',
+                actionType: 'test' as ActionType,
+                opType: OpType.Update,
+                entityType: 'TASK',
+                entityId: 'task-1',
+                payload: {},
+                vectorClock: { clientA: 1 },
+                timestamp: Date.now(),
+                schemaVersion: 1,
+              },
+              appliedAt: Date.now(),
+              source: 'local',
+            },
+            {
+              seq: 2,
+              op: {
+                id: 'local-op-2',
+                clientId: 'client-A',
+                actionType: 'test' as ActionType,
+                opType: OpType.Create,
+                entityType: 'TASK',
+                entityId: 'task-2',
+                payload: {},
+                vectorClock: { clientA: 2 },
+                timestamp: Date.now(),
+                schemaVersion: 1,
+              },
+              appliedAt: Date.now(),
+              source: 'local',
+            },
+          ];
+          opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve(unsyncedEntries));
+
+          const remoteSnapshot = { tasks: [{ id: 'remote-task' }] };
+          const remoteVectorClock = { clientB: 5, clientC: 3 };
+
+          downloadServiceSpy.downloadRemoteOps.and.returnValue(
+            Promise.resolve({
+              newOps: [],
+              hasMore: false,
+              latestSeq: 0,
+              needsFullStateUpload: false,
+              success: true,
+              failedFileCount: 0,
+              snapshotState: remoteSnapshot,
+              snapshotVectorClock: remoteVectorClock,
+            }),
+          );
+
+          const mockProvider = {
+            isReady: () => Promise.resolve(true),
+            supportsOperationSync: true,
+          } as any;
+
+          try {
+            await service.downloadRemoteOps(mockProvider);
+            fail('Expected LocalDataConflictError to be thrown');
+          } catch (error) {
+            expect(error).toBeInstanceOf(LocalDataConflictError);
+            const conflictError = error as LocalDataConflictError;
+            expect(conflictError.unsyncedCount).toBe(2);
+            expect(conflictError.remoteSnapshotState).toEqual(remoteSnapshot);
+            expect(conflictError.remoteVectorClock).toEqual(remoteVectorClock);
+          }
+        });
+
+        it('should NOT throw LocalDataConflictError when client has no unsynced ops', async () => {
+          // No unsynced ops
+          opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
+
+          const syncHydrationServiceSpy = TestBed.inject(
+            SyncHydrationService,
+          ) as jasmine.SpyObj<SyncHydrationService>;
+          syncHydrationServiceSpy.hydrateFromRemoteSync.and.resolveTo();
+
+          downloadServiceSpy.downloadRemoteOps.and.returnValue(
+            Promise.resolve({
+              newOps: [],
+              hasMore: false,
+              latestSeq: 0,
+              needsFullStateUpload: false,
+              success: true,
+              failedFileCount: 0,
+              snapshotState: { tasks: [] },
+              snapshotVectorClock: { clientB: 5 },
+            }),
+          );
+
+          const mockProvider = {
+            isReady: () => Promise.resolve(true),
+            supportsOperationSync: true,
+            setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+          } as any;
+
+          // Should NOT throw - should hydrate from snapshot instead
+          await expectAsync(service.downloadRemoteOps(mockProvider)).toBeResolved();
+          expect(syncHydrationServiceSpy.hydrateFromRemoteSync).toHaveBeenCalled();
+        });
+      });
     });
   });
 
@@ -713,6 +879,7 @@ describe('OperationLogSyncService', () => {
 
       expect(serverMigrationServiceSpy.handleServerMigration).toHaveBeenCalledWith(
         mockProvider,
+        { skipServerEmptyCheck: true }, // Force upload skips the server empty check
       );
     });
 

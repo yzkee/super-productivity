@@ -20,7 +20,10 @@ import {
   SyncProviderId,
   SyncStatus,
 } from '../../op-log/sync-exports';
-import { SyncAlreadyInProgressError } from '../../op-log/core/errors/sync-errors';
+import {
+  SyncAlreadyInProgressError,
+  LocalDataConflictError,
+} from '../../op-log/core/errors/sync-errors';
 import { LegacySyncProvider } from './legacy-sync-provider.model';
 
 describe('SyncWrapperService', () => {
@@ -127,9 +130,15 @@ describe('SyncWrapperService', () => {
     ]);
     mockReminderService = jasmine.createSpyObj('ReminderService', ['reloadFromDatabase']);
 
-    mockUserInputWaitState = jasmine.createSpyObj('UserInputWaitStateService', [], {
-      isWaitingForUserInput$: of(false),
-    });
+    mockUserInputWaitState = jasmine.createSpyObj(
+      'UserInputWaitStateService',
+      ['startWaiting'],
+      {
+        isWaitingForUserInput$: of(false),
+      },
+    );
+    // startWaiting returns a stopWaiting function
+    mockUserInputWaitState.startWaiting.and.returnValue(() => {});
 
     mockSuperSyncStatusService = jasmine.createSpyObj('SuperSyncStatusService', [], {
       isConfirmedInSync: { value: false },
@@ -425,6 +434,107 @@ describe('SyncWrapperService', () => {
       expect(result).toBe('HANDLED_ERROR');
       // Should NOT show snack for this error
       expect(mockSnackService.open).not.toHaveBeenCalled();
+    });
+
+    describe('LocalDataConflictError handling', () => {
+      beforeEach(() => {
+        mockOpLogStore.getVectorClockEntry.and.returnValue(
+          Promise.resolve({
+            clock: { clientA: 5 },
+            lastUpdate: Date.now(),
+          }),
+        );
+      });
+
+      it('should catch LocalDataConflictError and open conflict dialog', async () => {
+        const conflictError = new LocalDataConflictError(
+          3, // unsyncedCount
+          { tasks: [{ id: 'remote-task' }] }, // remoteSnapshotState
+          { clientB: 5 }, // remoteVectorClock
+        );
+        mockSyncService.downloadRemoteOps.and.returnValue(Promise.reject(conflictError));
+
+        // Mock dialog to return USE_LOCAL
+        mockMatDialog.open.and.returnValue({
+          afterClosed: () => of('USE_LOCAL'),
+        } as any);
+
+        mockSyncService.forceUploadLocalState = jasmine
+          .createSpy('forceUploadLocalState')
+          .and.resolveTo();
+
+        await service.sync();
+
+        // Should open conflict dialog
+        expect(mockMatDialog.open).toHaveBeenCalled();
+      });
+
+      it('should call forceUploadLocalState when user chooses USE_LOCAL', async () => {
+        const conflictError = new LocalDataConflictError(
+          2,
+          { tasks: [] },
+          { clientB: 3 },
+        );
+        mockSyncService.downloadRemoteOps.and.returnValue(Promise.reject(conflictError));
+
+        mockMatDialog.open.and.returnValue({
+          afterClosed: () => of('USE_LOCAL'),
+        } as any);
+
+        mockSyncService.forceUploadLocalState = jasmine
+          .createSpy('forceUploadLocalState')
+          .and.resolveTo();
+
+        const result = await service.sync();
+
+        expect(mockSyncService.forceUploadLocalState).toHaveBeenCalledWith(
+          mockSyncCapableProvider,
+        );
+        expect(result).toBe(SyncStatus.InSync);
+      });
+
+      it('should call forceDownloadRemoteState when user chooses USE_REMOTE', async () => {
+        const conflictError = new LocalDataConflictError(
+          2,
+          { tasks: [] },
+          { clientB: 3 },
+        );
+        mockSyncService.downloadRemoteOps.and.returnValue(Promise.reject(conflictError));
+
+        mockMatDialog.open.and.returnValue({
+          afterClosed: () => of('USE_REMOTE'),
+        } as any);
+
+        mockSyncService.forceDownloadRemoteState = jasmine
+          .createSpy('forceDownloadRemoteState')
+          .and.resolveTo();
+
+        const result = await service.sync();
+
+        expect(mockSyncService.forceDownloadRemoteState).toHaveBeenCalledWith(
+          mockSyncCapableProvider,
+        );
+        expect(result).toBe(SyncStatus.InSync);
+      });
+
+      it('should return HANDLED_ERROR when user cancels conflict dialog', async () => {
+        const conflictError = new LocalDataConflictError(
+          2,
+          { tasks: [] },
+          { clientB: 3 },
+        );
+        mockSyncService.downloadRemoteOps.and.returnValue(Promise.reject(conflictError));
+
+        // User cancels dialog (returns undefined)
+        mockMatDialog.open.and.returnValue({
+          afterClosed: () => of(undefined),
+        } as any);
+
+        const result = await service.sync();
+
+        expect(result).toBe('HANDLED_ERROR');
+        expect(mockSnackService.open).toHaveBeenCalled();
+      });
     });
 
     it('should handle permission errors with appropriate message', async () => {

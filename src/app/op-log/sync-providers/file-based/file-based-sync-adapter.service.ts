@@ -613,6 +613,20 @@ export class FileBasedSyncAdapterService {
       throw e;
     }
 
+    // Detect syncVersion reset (e.g., another client uploaded a snapshot).
+    // When syncVersion resets to a lower value, we need to signal this to trigger
+    // a re-download from seq 0 so the caller can get the snapshotState.
+    const previousExpectedVersion = this._expectedSyncVersions.get(providerKey) ?? 0;
+    const versionWasReset =
+      previousExpectedVersion > 0 && syncData.syncVersion < previousExpectedVersion;
+
+    if (versionWasReset) {
+      OpLog.warn(
+        `FileBasedSyncAdapter: Sync version reset detected (${previousExpectedVersion} → ${syncData.syncVersion}). ` +
+          'Another client may have uploaded a snapshot. Signaling gap detection.',
+      );
+    }
+
     // Update expected version for next upload
     this._expectedSyncVersions.set(providerKey, syncData.syncVersion);
 
@@ -689,6 +703,10 @@ export class FileBasedSyncAdapterService {
       hasMore,
       latestSeq,
       snapshotVectorClock: syncData.vectorClock,
+      // Signal gap detection when sync version was reset (another client uploaded snapshot).
+      // This triggers the download service to re-download from seq 0, which will include
+      // the snapshotState for proper state replacement.
+      gapDetected: versionWasReset,
       // Include full state snapshot for fresh downloads (sinceSeq === 0)
       // This allows new clients to bootstrap with complete state, not just recent ops
       ...(isForceFromZero && syncData.state ? { snapshotState: syncData.state } : {}),
