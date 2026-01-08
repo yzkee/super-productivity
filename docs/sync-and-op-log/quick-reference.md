@@ -649,70 +649,68 @@ End-to-end encryption ensures the server never sees plaintext data.
 
 ---
 
-## Area 12: Legacy PFAPI Bridge (File-Based Sync)
+## Area 12: Unified File-Based Sync
 
-PFAPI provides file-based sync for WebDAV, Dropbox, and LocalFile providers.
+All sync providers (WebDAV, Dropbox, LocalFile, SuperSync) now use the unified operation log system.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                   SYNC PROVIDER ARCHITECTURE                    │
+│                   UNIFIED SYNC ARCHITECTURE                      │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐   │
-│  │                   SyncService                            │   │
+│  │              OperationLogSyncService                     │   │
 │  └─────────────────────────────────────────────────────────┘   │
 │                            │                                    │
 │              ┌─────────────┴─────────────┐                     │
 │              ▼                           ▼                      │
 │  ┌────────────────────┐     ┌────────────────────────────────┐ │
-│  │  FILE-BASED SYNC   │     │  OPERATION-BASED SYNC          │ │
-│  │  (Legacy PFAPI)    │     │  (SuperSync)                   │ │
+│  │ FileBasedSyncAdapter│     │  SuperSyncProvider             │ │
+│  │ (OperationSyncable) │     │  (OperationSyncable)           │ │
 │  │                    │     │                                │ │
-│  │  ├─ getFileRev()   │     │  ├─ uploadOps()                │ │
-│  │  ├─ downloadFile() │     │  ├─ downloadOps()              │ │
-│  │  ├─ uploadFile()   │     │  └─ uploadSnapshot()           │ │
-│  │  └─ removeFile()   │     │                                │ │
+│  │  ├─ uploadOps()    │     │  ├─ uploadOps()                │ │
+│  │  ├─ downloadOps()  │     │  ├─ downloadOps()              │ │
+│  │  └─ uploadSnapshot │     │  └─ uploadSnapshot()           │ │
 │  └────────────────────┘     └────────────────────────────────┘ │
 │              │                           │                      │
 │  ┌───────┬───┴───┬──────────┐           │                      │
 │  ▼       ▼       ▼          ▼           ▼                      │
-│ WebDAV Dropbox LocalFile  ...     SuperSyncProvider            │
+│ WebDAV Dropbox LocalFile  ...     SuperSync Server             │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**File-Based Sync Model:**
+**File-Based Sync Model (Unified):**
 
 ```
 Remote Storage (WebDAV/Dropbox folder):
 
 /superProductivity/
-├── meta.json           ← Global metadata + vector clock
-├── task.json           ← Task entity state
-├── project.json        ← Project entity state
-├── tag.json            ← Tag entity state
-├── globalConfig.json   ← Global configuration
-└── ...                 ← Other model files
+├── sync-data.json      ← Single file with:
+│                         • Full state snapshot
+│                         • Recent ops buffer (200)
+│                         • Vector clock
+│                         • Archive data
+└── sync-data.json.bak  ← Backup of previous version
 ```
 
-**SuperSync vs PFAPI Comparison:**
+**All Providers Now Use Same Interface:**
 
-| Aspect        | PFAPI (File)      | SuperSync (Ops)       |
-| ------------- | ----------------- | --------------------- |
-| Granularity   | Whole model files | Individual operations |
-| Conflict Unit | Entire model      | Single entity         |
-| Resolution    | User choice       | Automatic (LWW)       |
-| Bandwidth     | High (full state) | Low (deltas only)     |
-| History       | None              | Full op log           |
+| Aspect        | File-Based (WebDAV/Dropbox/LocalFile) | SuperSync             |
+| ------------- | ------------------------------------- | --------------------- |
+| Granularity   | Individual operations                 | Individual operations |
+| Conflict Unit | Single entity                         | Single entity         |
+| Resolution    | Automatic (LWW)                       | Automatic (LWW)       |
+| Storage       | Single sync-data.json                 | PostgreSQL            |
+| History       | Recent 200 ops                        | Full op log           |
 
 **Key Files:**
 
-- `sync-provider.interface.ts` - Provider interfaces
-- `sync.service.ts` - Main sync orchestration
-- `model-sync.service.ts` - Model file upload/download
-- `providers/webdav/webdav.ts` - WebDAV implementation
-- `providers/dropbox/dropbox.ts` - Dropbox implementation
-- `providers/super-sync/super-sync.ts` - Operation-based provider
+- `op-log/sync-providers/file-based/file-based-sync-adapter.service.ts` - File-based adapter
+- `op-log/sync-providers/file-based/file-based-sync.types.ts` - Types for sync-data.json
+- `op-log/sync-providers/super-sync/super-sync.ts` - SuperSync provider
+- `op-log/sync/operation-log-sync.service.ts` - Main sync orchestration
+- `op-log/persistence/pfapi-migration.service.ts` - Legacy PFAPI migration
 
 ---
 

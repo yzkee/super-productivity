@@ -1,40 +1,30 @@
-# Unified Op-Log Sync Architecture Diagrams
+# File-Based Sync Architecture
 
-**Status:** Implemented (Phase 4 Testing Complete)
-**Related:** [Implementation Plan](../ai/file-based-oplog-sync-implementation-plan.md)
+**Last Updated:** January 2026
+**Status:** Implemented
 
-This document contains Mermaid diagrams explaining the unified operation-log sync architecture for file-based providers (WebDAV, Dropbox, LocalFile).
+This document contains diagrams explaining the unified operation-log sync architecture for file-based providers (WebDAV, Dropbox, LocalFile).
 
-## Table of Contents
+## Overview
 
-1. [Remote Storage Structure](#1-remote-storage-structure) - What gets stored on providers
-2. [Architecture Overview](#2-architecture-overview) - System components and flow
-3. [TypeScript Types](#3-typescript-types) - Data structure definitions
-4. [Sync Flow](#4-sync-flow-content-based-optimistic-locking) - Upload/download sequence
-5. [Conflict Resolution](#5-conflict-resolution-two-clients-syncing-simultaneously) - How conflicts are handled
-6. [Migration Flow](#6-migration-flow-pfapi-to-op-log) - PFAPI to op-log migration
-7. [Archive Data Flow](#7-archive-data-flow-via-op-log) - How archive operations sync
-8. [FlushYoungToOld](#8-flushyoungtoold-operation) - Archive compaction
-9. [Complete System Flow](#9-complete-system-flow) - End-to-end overview
+File-based sync uses a single `sync-data.json` file that contains:
 
----
-
-## 1. Remote Storage Structure
-
-Shows what data is stored on file-based sync providers (WebDAV, Dropbox, LocalFile).
+- Full application state snapshot
+- Recent operations buffer (last 200 ops)
+- Vector clock for conflict detection
+- Archive data for late-joining clients
 
 ```mermaid
 flowchart TB
     subgraph Remote["Remote Storage (WebDAV/Dropbox/LocalFile)"]
         subgraph Folder["/superProductivity/"]
             SyncFile["sync-data.json<br/>━━━━━━━━━━━━━━━━━━━<br/>Encrypted + Compressed"]
-            BackupFile["sync-data.json.bak<br/>━━━━━━━━━━━━━━━━━━━<br/>Previous version"]
         end
     end
 
     subgraph Contents["sync-data.json Contents"]
         direction TB
-        Meta["📋 Metadata<br/>• version: 2<br/>• syncVersion: N (locking)<br/>• schemaVersion<br/>• lastModified<br/>• checksum"]
+        Meta["📋 Metadata<br/>• version: 2<br/>• syncVersion: N (locking)<br/>• schemaVersion<br/>• lastModified<br/>• clientId<br/>• checksum"]
 
         VClock["🕐 Vector Clock<br/>• {clientA: 42, clientB: 17}<br/>• Tracks causality"]
 
@@ -46,7 +36,6 @@ flowchart TB
     end
 
     SyncFile --> Contents
-    SyncFile -.->|"Replaced on<br/>successful upload"| BackupFile
 
     style SyncFile fill:#fff3e0,stroke:#e65100,stroke-width:2px
     style State fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
@@ -54,21 +43,19 @@ flowchart TB
     style Ops fill:#e1f5fe,stroke:#01579b,stroke-width:2px
 ```
 
-**Why single file instead of separate snapshot + ops files?**
+### Why Single File Instead of Separate Snapshot + Ops Files?
 
-| Single File (chosen)           | Two Files (considered)         |
-| ------------------------------ | ------------------------------ |
-| ✅ Atomic: all or nothing      | ❌ Partial upload risk         |
-| ✅ One version to track        | ❌ Version coordination        |
-| ✅ Simple conflict resolution  | ❌ Two places to handle        |
-| ✅ Easy recovery               | ❌ Inconsistent state possible |
-| ❌ Upload full state each time | ✅ Often just ops              |
+| Single File (chosen)        | Two Files (considered)      |
+| --------------------------- | --------------------------- |
+| Atomic: all or nothing      | Partial upload risk         |
+| One version to track        | Version coordination        |
+| Simple conflict resolution  | Two places to handle        |
+| Easy recovery               | Inconsistent state possible |
+| Upload full state each time | Often just ops              |
 
 The bandwidth cost is acceptable: state compresses well (~90%), and sync is infrequent.
 
----
-
-## 2. Architecture Overview
+## Architecture Overview
 
 Shows how `FileBasedSyncAdapter` integrates into the existing op-log system, implementing `OperationSyncCapable` using file operations.
 
@@ -99,7 +86,6 @@ flowchart TB
 
     subgraph RemoteStorage["Remote Storage"]
         SyncFile["sync-data.json<br/>━━━━━━━━━━━━━━━<br/>• syncVersion<br/>• state snapshot<br/>• recentOps (200)<br/>• vectorClock"]
-        Backup["sync-data.json.bak"]
     end
 
     NgRx --> OpLogEffects
@@ -118,18 +104,13 @@ flowchart TB
     WebDAV --> SyncFile
     Dropbox --> SyncFile
     LocalFile --> SyncFile
-    SyncFile -.-> Backup
 
     style FileAdapter fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     style SyncFile fill:#fff3e0,stroke:#e65100,stroke-width:2px
     style OpLogStore fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
 ```
 
----
-
-## 3. TypeScript Types
-
-The TypeScript interfaces for the sync data structures.
+## TypeScript Types
 
 ```mermaid
 classDiagram
@@ -138,8 +119,8 @@ classDiagram
         +number syncVersion
         +number schemaVersion
         +VectorClock vectorClock
-        +number lastSeq
         +number lastModified
+        +string clientId
         +AppDataComplete state
         +ArchiveModel archiveYoung
         +ArchiveModel archiveOld
@@ -189,14 +170,7 @@ classDiagram
     CompactOperation --> VectorClock : vectorClock
 ```
 
-**Key files:**
-
-- Types: `src/app/op-log/sync/providers/file-based/file-based-sync.types.ts`
-- Adapter: `src/app/op-log/sync/providers/file-based/file-based-sync-adapter.service.ts`
-
----
-
-## 4. Sync Flow (Content-Based Optimistic Locking with Piggybacking)
+## Sync Flow (Content-Based Optimistic Locking with Piggybacking)
 
 ```mermaid
 sequenceDiagram
@@ -240,7 +214,6 @@ sequenceDiagram
     Adapter->>Adapter: Set syncVersion = M+1
     Adapter->>Adapter: Find piggybacked ops<br/>(ops from other clients we haven't seen)
 
-    Adapter->>Provider: uploadFile("sync-data.json.bak", currentData)
     Adapter->>Provider: uploadFile("sync-data.json", newData)
     Provider->>Remote: PUT
     Remote-->>Provider: Success
@@ -253,7 +226,7 @@ sequenceDiagram
     end
 ```
 
-**Key Insight: Piggybacking**
+### Key Insight: Piggybacking
 
 Instead of throwing an error on version mismatch, the adapter:
 
@@ -263,9 +236,7 @@ Instead of throwing an error on version mismatch, the adapter:
 
 This ensures no ops are missed, even when clients sync concurrently.
 
----
-
-## 5. Conflict Resolution (Two Clients Syncing Simultaneously)
+## Conflict Resolution (Two Clients Syncing Simultaneously)
 
 ```mermaid
 sequenceDiagram
@@ -318,7 +289,7 @@ sequenceDiagram
     A->>A: Apply TaskY → both clients have both tasks
 ```
 
-**How Piggybacking Resolves Conflicts:**
+### How Piggybacking Resolves Conflicts
 
 | Step                         | What Happens                                                |
 | ---------------------------- | ----------------------------------------------------------- |
@@ -333,172 +304,31 @@ sequenceDiagram
 
 If both A and B modified the same task, the piggybacked ops flow through `ConflictResolutionService` which uses vector clocks and timestamps to determine the winner.
 
----
+## First-Sync Conflict Handling
 
-## 6. Migration Flow (PFAPI to Op-Log)
-
-```mermaid
-flowchart TB
-    Start["App starts with<br/>new version"]
-
-    CheckRemote{"Check remote<br/>storage"}
-
-    subgraph Detection["Detection Phase"]
-        HasPfapi{"Has PFAPI files?<br/>(meta.json, task.json, etc.)"}
-        HasOpLog{"Has sync-data.json?"}
-        IsEmpty{"Remote empty?"}
-    end
-
-    subgraph MigrationPath["Migration Path"]
-        AcquireLock["Write migration.lock<br/>(clientId:timestamp)"]
-        CheckLock{"Lock exists<br/>from other client?"}
-        StaleLock{"Lock > 5 min old?"}
-        WaitRetry["Wait & retry"]
-
-        DownloadPfapi["Download all PFAPI<br/>model files"]
-        AssembleState["Assemble into<br/>AppDataComplete"]
-        CreateImport["Create SYNC_IMPORT<br/>operation"]
-        BuildSync["Build sync-data.json"]
-        UploadSync["Upload sync-data.json"]
-        BackupPfapi["Rename PFAPI files<br/>to .migrated"]
-        ReleaseLock["Delete migration.lock"]
-    end
-
-    subgraph FreshPath["Fresh Start Path"]
-        LocalState["Get local NgRx state"]
-        CreateInitial["Build initial<br/>sync-data.json"]
-        UploadInitial["Upload sync-data.json"]
-    end
-
-    subgraph AlreadyMigrated["Already Migrated"]
-        NormalSync["Continue normal<br/>op-log sync"]
-    end
-
-    Start --> CheckRemote
-    CheckRemote --> HasPfapi
-    CheckRemote --> HasOpLog
-    CheckRemote --> IsEmpty
-
-    HasOpLog -->|Yes| NormalSync
-    HasPfapi -->|Yes| AcquireLock
-    IsEmpty -->|Yes| LocalState
-
-    AcquireLock --> CheckLock
-    CheckLock -->|Yes| StaleLock
-    CheckLock -->|No| DownloadPfapi
-    StaleLock -->|Yes| DownloadPfapi
-    StaleLock -->|No| WaitRetry
-    WaitRetry --> AcquireLock
-
-    DownloadPfapi --> AssembleState
-    AssembleState --> CreateImport
-    CreateImport --> BuildSync
-    BuildSync --> UploadSync
-    UploadSync --> BackupPfapi
-    BackupPfapi --> ReleaseLock
-    ReleaseLock --> NormalSync
-
-    LocalState --> CreateInitial
-    CreateInitial --> UploadInitial
-    UploadInitial --> NormalSync
-
-    style AcquireLock fill:#fff9c4,stroke:#f57f17,stroke-width:2px
-    style CreateImport fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
-    style NormalSync fill:#e3f2fd,stroke:#1565c0,stroke-width:2px
-```
-
----
-
-## 7. Archive Data Flow via Op-Log
-
-Archive operations sync via the operation log. `ArchiveOperationHandler` writes archive data to IndexedDB on both local and remote clients.
+When a client with local data syncs for the first time to a remote that already has data, a conflict dialog is shown:
 
 ```mermaid
-sequenceDiagram
-    participant User as User
-    participant Store as NgRx Store
-    participant LocalHandler as ArchiveOperationHandler<br/>(LOCAL_ACTIONS)
-    participant Archive as Archive IndexedDB
-    participant OpLog as SUP_OPS
-    participant Sync as sync-data.json
-    participant Remote as Remote Client
-    participant RemoteHandler as ArchiveOperationHandler<br/>(via OperationApplier)
+flowchart TD
+    Start[First sync attempt] --> Download[Download sync-data.json]
+    Download --> HasLocal{Has local data?}
+    HasLocal -->|No| Apply[Apply remote state]
+    HasLocal -->|Yes| HasRemote{Remote has data?}
+    HasRemote -->|No| Upload[Upload local state]
+    HasRemote -->|Yes| Dialog[Show conflict dialog]
 
-    Note over User,RemoteHandler: ═══ LOCAL CLIENT ═══
+    Dialog --> UseLocal[User chooses: Use Local]
+    Dialog --> UseRemote[User chooses: Use Remote]
 
-    User->>Store: Archive completed tasks
-    Store->>Store: Dispatch moveToArchive
+    UseLocal --> CreateImport[Create SYNC_IMPORT<br/>with local state]
+    CreateImport --> UploadImport[Upload to remote]
 
-    par State update
-        Store->>Store: Reducer removes from active
-    and Archive write (local)
-        Store->>LocalHandler: LOCAL_ACTIONS stream
-        LocalHandler->>Archive: Write to archiveYoung
-    and Operation capture
-        Store->>OpLog: Append moveToArchive op
-    end
+    UseRemote --> ApplyRemote[Apply remote state<br/>Discard local]
 
-    Note over User,RemoteHandler: ═══ SYNC ═══
-
-    OpLog->>Sync: Upload ops
-
-    Note over User,RemoteHandler: ═══ REMOTE CLIENT ═══
-
-    Remote->>Sync: Download ops
-    Remote->>Remote: OperationApplierService
-    Remote->>Store: Dispatch moveToArchive<br/>(isRemote: true)
-
-    Note right of Store: LOCAL_ACTIONS filtered<br/>(effect skipped)
-
-    Remote->>RemoteHandler: Explicit call
-    RemoteHandler->>Archive: Write to archiveYoung
+    style Dialog fill:#fff3e0,stroke:#e65100,stroke-width:2px
 ```
 
----
-
-## 8. FlushYoungToOld Operation
-
-The `flushYoungToOld` operation moves old tasks from `archiveYoung` to `archiveOld`. Using the same timestamp ensures deterministic results on all clients.
-
-```mermaid
-flowchart LR
-    subgraph Local["Local Client"]
-        Trigger["Trigger:<br/>lastFlush > 14 days"]
-        Action["Dispatch flushYoungToOld<br/>(timestamp: T)"]
-        LocalSort["sortTimeTracking...<br/>(cutoff: T - 21 days)"]
-        LocalYoung["archiveYoung"]
-        LocalOld["archiveOld"]
-    end
-
-    subgraph Sync["Sync"]
-        SyncFile["sync-data.json"]
-    end
-
-    subgraph Remote["Remote Client"]
-        RemoteApply["Apply flushYoungToOld"]
-        RemoteSort["sortTimeTracking...<br/>(same cutoff!)"]
-        RemoteYoung["archiveYoung"]
-        RemoteOld["archiveOld"]
-    end
-
-    Trigger --> Action
-    Action --> LocalSort
-    LocalSort --> LocalYoung
-    LocalSort --> LocalOld
-    Action --> SyncFile
-    SyncFile --> RemoteApply
-    RemoteApply --> RemoteSort
-    RemoteSort --> RemoteYoung
-    RemoteSort --> RemoteOld
-
-    Note["Using same timestamp<br/>= deterministic results"]
-
-    style Note fill:#fff9c4,stroke:#f57f17
-```
-
----
-
-## 9. Complete System Flow
+## Complete System Flow
 
 ```mermaid
 flowchart TB
@@ -572,8 +402,6 @@ flowchart TB
     style OpStore fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
 ```
 
----
-
 ## Key Points
 
 1. **Single Sync File**: All data in `sync-data.json` - state snapshot + recent ops + vector clock
@@ -583,14 +411,12 @@ flowchart TB
    - `_expectedSyncVersions`: Tracks file's syncVersion (for version mismatch detection)
    - `_localSeqCounters`: Tracks ops we've processed (updated via `setLastServerSeq`)
 5. **Archive via Op-Log**: Archive operations sync; `ArchiveOperationHandler` writes data
-6. **Migration Lock**: Prevents concurrent PFAPI → op-log migration
-7. **Deterministic Replay**: Same operation + same timestamp = same result everywhere
+6. **Deterministic Replay**: Same operation + same timestamp = same result everywhere
 
 ## Implementation Files
 
-| File                                      | Purpose                        |
-| ----------------------------------------- | ------------------------------ |
-| `file-based-sync-adapter.service.ts`      | Main adapter (~600 LOC)        |
-| `file-based-sync.types.ts`                | TypeScript types and constants |
-| `pfapi-migration.service.ts`              | PFAPI → op-log migration       |
-| `file-based-sync-adapter.service.spec.ts` | 26 unit tests                  |
+| File                                                                               | Purpose                        |
+| ---------------------------------------------------------------------------------- | ------------------------------ |
+| `src/app/op-log/sync-providers/file-based/file-based-sync-adapter.service.ts`      | Main adapter (~800 LOC)        |
+| `src/app/op-log/sync-providers/file-based/file-based-sync.types.ts`                | TypeScript types and constants |
+| `src/app/op-log/sync-providers/file-based/file-based-sync-adapter.service.spec.ts` | Unit tests                     |

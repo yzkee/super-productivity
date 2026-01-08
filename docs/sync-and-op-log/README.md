@@ -1,54 +1,50 @@
 # Operation Log Documentation
 
-**Last Updated:** December 2025
+**Last Updated:** January 2026
 
-This directory contains the architectural documentation for Super Productivity's Operation Log system - an event-sourced persistence and synchronization layer.
+This directory contains the architectural documentation for Super Productivity's Operation Log system - an event-sourced persistence and synchronization layer that handles ALL sync providers (SuperSync, WebDAV, Dropbox, LocalFile).
 
 ## Quick Start
 
-| If you want to...                   | Read this                                                                            |
-| ----------------------------------- | ------------------------------------------------------------------------------------ |
-| Understand the overall architecture | [operation-log-architecture.md](./operation-log-architecture.md)                     |
-| See visual diagrams                 | [operation-log-architecture-diagrams.md](./operation-log-architecture-diagrams.md)   |
-| Learn the design rules              | [operation-rules.md](./operation-rules.md)                                           |
-| Understand file-based sync          | [hybrid-manifest-architecture.md](./long-term-plans/hybrid-manifest-architecture.md) |
-| Understand SuperSync encryption     | [supersync-encryption-architecture.md](./supersync-encryption-architecture.md)       |
-| Understand legacy PFAPI sync        | [pfapi-sync-persistence-architecture.md](./pfapi-sync-persistence-architecture.md)   |
+| If you want to...                   | Read this                                                                      |
+| ----------------------------------- | ------------------------------------------------------------------------------ |
+| Understand the overall architecture | [operation-log-architecture.md](./operation-log-architecture.md)               |
+| See visual diagrams                 | [diagrams/](./diagrams/) (split by topic)                                      |
+| Learn the design rules              | [operation-rules.md](./operation-rules.md)                                     |
+| Understand file-based sync          | [diagrams/04-file-based-sync.md](./diagrams/04-file-based-sync.md)             |
+| Understand SuperSync encryption     | [supersync-encryption-architecture.md](./supersync-encryption-architecture.md) |
 
 ## Documentation Overview
 
 ### Core Documentation
 
-| Document                                                                           | Description                                                                                                                                                                            | Status    |
-| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| [operation-log-architecture.md](./operation-log-architecture.md)                   | Comprehensive architecture reference covering Parts A-F: Local Persistence, Legacy Sync Bridge, Server Sync, Validation & Repair, Smart Archive Handling, and Atomic State Consistency | ✅ Active |
-| [operation-log-architecture-diagrams.md](./operation-log-architecture-diagrams.md) | Mermaid diagrams visualizing data flows, sync protocols, and state management                                                                                                          | ✅ Active |
-| [operation-rules.md](./operation-rules.md)                                         | Design rules and guidelines for the operation log store and operations                                                                                                                 | ✅ Active |
+| Document                                                         | Description                                                                                                                                                                         | Status |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| [operation-log-architecture.md](./operation-log-architecture.md) | Comprehensive architecture reference covering Parts A-F: Local Persistence, File-Based Sync, Server Sync, Validation & Repair, Smart Archive Handling, and Atomic State Consistency | Active |
+| [diagrams/](./diagrams/)                                         | Mermaid diagrams split by topic (local persistence, server sync, file-based sync, etc.)                                                                                             | Active |
+| [operation-rules.md](./operation-rules.md)                       | Design rules and guidelines for the operation log store and operations                                                                                                              | Active |
 
 ### Sync Architecture
 
-| Document                                                                             | Description                                                                                  | Status         |
-| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | -------------- |
-| [hybrid-manifest-architecture.md](./long-term-plans/hybrid-manifest-architecture.md) | File-based sync optimization using embedded operations buffer and snapshots (WebDAV/Dropbox) | ✅ Implemented |
-| [supersync-encryption-architecture.md](./supersync-encryption-architecture.md)       | End-to-end encryption for SuperSync (AES-256-GCM + Argon2id)                                 | ✅ Implemented |
-| [pfapi-sync-persistence-architecture.md](./pfapi-sync-persistence-architecture.md)   | Legacy PFAPI sync system that coexists with operation log                                    | ✅ Active      |
+| Document                                                                       | Description                                                           | Status      |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------- | ----------- |
+| [diagrams/04-file-based-sync.md](./diagrams/04-file-based-sync.md)             | File-based sync with single sync-data.json (WebDAV/Dropbox/LocalFile) | Implemented |
+| [diagrams/02-server-sync.md](./diagrams/02-server-sync.md)                     | SuperSync server sync architecture                                    | Implemented |
+| [supersync-encryption-architecture.md](./supersync-encryption-architecture.md) | End-to-end encryption for SuperSync (AES-256-GCM + Argon2id)          | Implemented |
 
-### Planning & Proposals
+### Historical / Completed Plans
 
-| Document                                                                                       | Description                                              | Status                    |
-| ---------------------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------- |
-| [replace-pfapi-with-oplog-plan.md](./long-term-plans/replace-pfapi-with-oplog-plan.md)         | Plan to unify sync by replacing PFAPI with operation log | 📋 Planned                |
-| [e2e-encryption-plan.md](./long-term-plans/e2e-encryption-plan.md)                             | Original E2EE design (see supersync-encryption for impl) | ✅ Implemented (Dec 2025) |
-| [operation-payload-optimization-discussion.md](./operation-payload-optimization-discussion.md) | Discussion on payload optimization strategies            | 📋 Historical             |
+| Document                                                                               | Description                                              | Status                 |
+| -------------------------------------------------------------------------------------- | -------------------------------------------------------- | ---------------------- |
+| [replace-pfapi-with-oplog-plan.md](./long-term-plans/replace-pfapi-with-oplog-plan.md) | Plan to unify sync by replacing PFAPI with operation log | Completed (Jan 2026)   |
+| [e2e-encryption-plan.md](./long-term-plans/e2e-encryption-plan.md)                     | Original E2EE design (see supersync-encryption for impl) | Implemented (Dec 2025) |
 
 ## Architecture at a Glance
 
-The Operation Log system serves four distinct purposes:
+The Operation Log system is the **single sync system** for all providers:
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│                        User Action                                  │
-└────────────────────────────────────────────────────────────────────┘
+                         User Action
                               │
                               ▼
                          NgRx Store
@@ -59,20 +55,28 @@ The Operation Log system serves four distinct purposes:
     OpLogEffects              │             Other Effects
           │                   │
           ├──► SUP_OPS ◄──────┘
-          │    (Local Persistence - Part A)
+          │    (Local Persistence - IndexedDB)
           │
-          └──► META_MODEL vector clock
-               (Legacy Sync Bridge - Part B)
-
-          PFAPI reads from NgRx for sync (not from op-log)
+          └──► Sync Providers
+               ├── SuperSync (operation-based, real-time)
+               ├── WebDAV (file-based, single-file snapshot)
+               ├── Dropbox (file-based, single-file snapshot)
+               └── LocalFile (file-based, single-file snapshot)
 ```
 
-### The Four Parts
+### Sync Provider Types
+
+| Provider Type    | Providers                  | How It Works                                                  |
+| ---------------- | -------------------------- | ------------------------------------------------------------- |
+| **Server-based** | SuperSync                  | Individual operations uploaded/downloaded via HTTP API        |
+| **File-based**   | WebDAV, Dropbox, LocalFile | Single `sync-data.json` file with state snapshot + recent ops |
+
+### The Core Parts
 
 | Part                       | Purpose                     | Description                                                                   |
 | -------------------------- | --------------------------- | ----------------------------------------------------------------------------- |
 | **A. Local Persistence**   | Fast writes, crash recovery | Operations stored in IndexedDB (`SUP_OPS`), with snapshots for fast hydration |
-| **B. Legacy Sync Bridge**  | PFAPI compatibility         | Updates vector clocks so WebDAV/Dropbox sync continues to work                |
+| **B. File-Based Sync**     | WebDAV/Dropbox/LocalFile    | Single-file sync with state snapshot and embedded operations buffer           |
 | **C. Server Sync**         | Operation-based sync        | Upload/download individual operations via SuperSync server                    |
 | **D. Validation & Repair** | Data integrity              | Checkpoint validation with automatic repair and REPAIR operations             |
 
@@ -111,6 +115,34 @@ private _actions$ = inject(LOCAL_ACTIONS); // Excludes remote operations
 
 This prevents duplicate side effects when syncing operations from other clients.
 
+## Key Files
+
+### Sync Providers
+
+```
+src/app/op-log/sync-providers/
+├── super-sync/                     # SuperSync server provider
+├── file-based/                     # File-based providers
+│   ├── file-based-sync-adapter.service.ts  # Unified adapter for file providers
+│   ├── file-based-sync.types.ts    # FileBasedSyncData types
+│   ├── webdav/                     # WebDAV provider
+│   ├── dropbox/                    # Dropbox provider
+│   └── local-file/                 # Local file sync provider
+├── provider-manager.service.ts     # Provider activation/management
+├── wrapped-provider.service.ts     # Provider wrapper with encryption
+└── credential-store.service.ts     # OAuth/credential storage
+```
+
+### Core Operation Log
+
+```
+src/app/op-log/
+├── core/                           # Core types and operations
+├── persistence/                    # IndexedDB storage
+├── sync/                           # Sync orchestration
+└── validation/                     # Data validation and repair
+```
+
 ## Related Documentation
 
 | Location                                                         | Content                               |
@@ -121,14 +153,15 @@ This prevents duplicate side effects when syncing operations from other clients.
 
 ## Implementation Status
 
-| Component                    | Status                                              |
-| ---------------------------- | --------------------------------------------------- |
-| Local Persistence (Part A)   | ✅ Complete                                         |
-| Legacy Sync Bridge (Part B)  | ✅ Complete                                         |
-| Server Sync (Part C)         | ✅ Complete (single-version)                        |
-| Validation & Repair (Part D) | ✅ Complete                                         |
-| End-to-End Encryption        | ✅ Complete (AES-256-GCM + Argon2id)                |
-| Cross-version Sync (A.7.11)  | 📋 Documented (not yet implemented)                 |
-| Schema Migrations            | ✅ Infrastructure ready (no migrations defined yet) |
+| Component                    | Status                                           |
+| ---------------------------- | ------------------------------------------------ |
+| Local Persistence (Part A)   | Complete                                         |
+| File-Based Sync (Part B)     | Complete (WebDAV, Dropbox, LocalFile)            |
+| Server Sync (Part C)         | Complete (SuperSync)                             |
+| Validation & Repair (Part D) | Complete                                         |
+| End-to-End Encryption        | Complete (AES-256-GCM + Argon2id)                |
+| PFAPI Elimination            | Complete (Jan 2026)                              |
+| Cross-version Sync (A.7.11)  | Documented (not yet implemented)                 |
+| Schema Migrations            | Infrastructure ready (no migrations defined yet) |
 
 See [operation-log-architecture.md#implementation-status](./operation-log-architecture.md#implementation-status) for detailed status.

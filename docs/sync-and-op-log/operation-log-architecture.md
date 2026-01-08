@@ -2,7 +2,10 @@
 
 **Status:** Parts A, B, C, D Complete (single-version; cross-version sync A.7.11 documented, not implemented)
 **Branch:** `feat/operation-logs`
-**Last Updated:** January 2, 2026
+**Last Updated:** January 8, 2026
+
+> **Note:** As of January 2026, the legacy PFAPI system has been completely eliminated.
+> All sync providers (SuperSync, WebDAV, Dropbox, LocalFile) now use the unified operation log system.
 
 ---
 
@@ -49,12 +52,13 @@ This is efficient and precise.
   - _Conflict:_ If Device B _also_ made a change and is at "Version 2", it knows "Wait, we both changed Version 1 at the same time!" -> **Conflict Detected**.
 - **Resolution:** The user is shown a dialog to pick the winner. The loser isn't deleted; it's marked as "Rejected" in the log but kept for history.
 
-**B. "Legacy Sync" (Dropbox, WebDAV, Local File)**
-This is a compatibility bridge.
+**B. "File-Based Sync" (Dropbox, WebDAV, Local File)**
+This uses a single-file approach with embedded operations.
 
-- The Operation Log itself doesn't sync files. Instead, when it saves an operation, it secretly "ticks" a version number in the legacy database.
-- The legacy sync system (PFAPI) sees this tick, realizes "Local data has changed," and triggers its standard "Upload Everything" process.
-- This ensures the new architecture works seamlessly with your existing sync providers without breaking them.
+- File-based providers sync a single `sync-data.json` file containing: full state snapshot + recent operations buffer
+- When syncing, the system downloads the remote file, merges any new operations, and uploads the combined state
+- Conflict detection uses vector clocks - if two clients sync concurrently, the "piggybacking" mechanism ensures no operations are lost
+- This provides entity-level conflict resolution (vs old model-level "last write wins")
 
 ### 4. Safety & Self-Healing
 
@@ -77,18 +81,18 @@ If we kept every operation forever, the database would grow huge.
 
 The Operation Log serves **four distinct purposes**:
 
-| Purpose                    | Description                                   | Status                        |
-| -------------------------- | --------------------------------------------- | ----------------------------- |
-| **A. Local Persistence**   | Fast writes, crash recovery, event sourcing   | Complete ✅                   |
-| **B. Legacy Sync Bridge**  | Vector clock updates for PFAPI sync detection | Complete ✅                   |
-| **C. Server Sync**         | Upload/download individual operations         | Complete ✅ (single-version)¹ |
-| **D. Validation & Repair** | Prevent corruption, auto-repair invalid state | Complete ✅                   |
+| Purpose                    | Description                                       | Status                        |
+| -------------------------- | ------------------------------------------------- | ----------------------------- |
+| **A. Local Persistence**   | Fast writes, crash recovery, event sourcing       | Complete ✅                   |
+| **B. File-Based Sync**     | Single-file sync for WebDAV/Dropbox/LocalFile     | Complete ✅                   |
+| **C. Server Sync**         | Upload/download individual operations (SuperSync) | Complete ✅ (single-version)¹ |
+| **D. Validation & Repair** | Prevent corruption, auto-repair invalid state     | Complete ✅                   |
 
 > ¹ **Cross-version sync limitation**: Part C is complete for clients on the same schema version. Cross-version sync (A.7.11) is not yet implemented—see [A.7.11 Conflict-Aware Migration](#a711-conflict-aware-migration-strategy) for guardrails.
 
 > **✅ Migration Ready**: Migration safety (A.7.12), tail ops consistency (A.7.13), and unified migration interface (A.7.15) are now implemented. The system is ready for schema migrations when `CURRENT_SCHEMA_VERSION > 1`.
 
-This document is structured around these four purposes. Most complexity lives in **Part A** (local persistence). **Part B** is a thin bridge to PFAPI. **Part C** handles operation-based sync with servers. **Part D** integrates validation and automatic repair.
+This document is structured around these four purposes. Most complexity lives in **Part A** (local persistence). **Part B** handles file-based sync via the `FileBasedSyncAdapter`. **Part C** handles operation-based sync with SuperSync server. **Part D** integrates validation and automatic repair.
 
 ```
 ┌───────────────────────────────────────────────────────────────────┐
@@ -105,10 +109,9 @@ This document is structured around these four purposes. Most complexity lives in
          ├──► SUP_OPS ◄──────┘
          │    (Local Persistence - Part A)
          │
-         └──► META_MODEL vector clock
-              (Legacy Sync Bridge - Part B)
-
-         PFAPI reads from NgRx for sync (not from op-log)
+         └──► Sync Providers
+              ├── SuperSync (Part C - operation-based)
+              └── WebDAV/Dropbox/LocalFile (Part B - file-based)
 ```
 
 ---
@@ -146,27 +149,27 @@ interface StateCache {
 }
 ```
 
-### Relationship to 'pf' Database
+### IndexedDB Structure
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         IndexedDB                                    │
-├────────────────────────────────┬────────────────────────────────────┤
-│      'pf' database             │      'SUP_OPS' database            │
-│      (PFAPI Metadata)          │      (Operation Log)               │
-│                                │                                    │
-│  ┌──────────────────────┐      │  ┌──────────────────────┐          │
-│  │ META_MODEL           │◄─────┼──│ ops (event log)      │          │
-│  │ - vectorClock        │      │  │ state_cache          │          │
-│  │ - revMap             │      │  └──────────────────────┘          │
-│  │ - lastSyncedUpdate   │      │                                    │
-│  └──────────────────────┘      │  ALL model data persisted here     │
-│                                │                                    │
-│  Model tables NOT used         │                                    │
-└────────────────────────────────┴────────────────────────────────────┘
+├─────────────────────────────────────────────────────────────────────┤
+│      'SUP_OPS' database (Operation Log)                             │
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────┐       │
+│  │ ops (event log)      - Append-only operation log         │       │
+│  │ state_cache          - Periodic state snapshots          │       │
+│  │ meta                 - Vector clocks, sync state         │       │
+│  │ archive_young        - Recent archived tasks             │       │
+│  │ archive_old          - Old archived tasks                │       │
+│  └──────────────────────────────────────────────────────────┘       │
+│                                                                      │
+│  ALL model data persisted here                                       │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Key insight:** The `pf` database is only for PFAPI sync metadata. All model data (task, project, tag, etc.) is persisted in SUP_OPS.
+**Key insight:** All application data is persisted in the `SUP_OPS` database via the operation log system.
 
 ## A.2 Write Path
 
@@ -309,16 +312,16 @@ Two optimizations speed up hydration:
 
 ### Genesis Migration
 
-On first startup (SUP_OPS empty):
+On first startup (SUP_OPS empty), the system initializes with default state:
 
 ```typescript
 async createGenesisSnapshot(): Promise<void> {
-  // Load ALL models from legacy pf database
-  const allModels = await this.pfapiService.pf.getAllSyncModelData();
+  // Initialize with default state or migrate from legacy if present
+  const initialState = await this.getInitialState();
 
   // Create initial snapshot
   await this.opLogStore.saveStateCache({
-    state: allModels,
+    state: initialState,
     lastAppliedOpSeq: 0,
     vectorClock: {},
     compactedAt: Date.now(),
@@ -326,6 +329,8 @@ async createGenesisSnapshot(): Promise<void> {
   });
 }
 ```
+
+For users upgrading from legacy formats, `ServerMigrationService` handles the migration during first sync.
 
 ## A.4 Compaction
 
@@ -537,13 +542,13 @@ async hydrateStore(): Promise<void> {
 }
 
 private async attemptRecovery(): Promise<void> {
-  // 1. Try legacy database
-  const legacyData = await this.pfapi.getAllSyncModelDataFromModelCtrls();
-  if (legacyData && this.hasData(legacyData)) {
-    await this.recoverFromLegacyData(legacyData);
+  // 1. Try backup from state cache
+  const backupState = await this.tryLoadBackupSnapshot();
+  if (backupState) {
+    await this.recoverFromBackup(backupState);
     return;
   }
-  // 2. Try remote sync
+  // 2. Try remote sync (triggers ServerMigrationService if needed)
   // 3. Show error to user
 }
 ```
@@ -760,19 +765,20 @@ interface SchemaMigration {
 
 **Version Mismatch Handling:** Remote data too new → prompt user to update app. Remote data too old → show error, may need manual intervention.
 
-### A.7.10 Relationship with Legacy PFAPI Migrations (CROSS_MODEL_MIGRATION)
+### A.7.10 Legacy Data Migration
 
-The application contains a legacy migration system (`CROSS_MODEL_MIGRATION` in `src/app/pfapi/migrate/cross-model-migrations.ts`) used by the old persistence layer.
+> **Note:** The legacy PFAPI system has been removed (January 2026). This section documents historical migration paths.
 
-**Do we keep it?**
-Yes, for now. The **Genesis Migration** (A.3) relies on `pfapi` services to load the initial state from the legacy database. This loading process executes `CROSS_MODEL_MIGRATION`s to ensure the legacy data is in a consistent state before it is imported into the Operation Log.
+For users upgrading from older versions (pre-operation-log), the `ServerMigrationService` handles migration:
 
-**Should we remove it?**
-No, not yet. It provides the bridge from older versions of the app to the Operation Log version. However:
+1. On first sync, it detects legacy remote data format
+2. Downloads the full state from the legacy format
+3. Creates a `SYNC_IMPORT` operation with the imported state
+4. Uploads the new format to the sync provider
 
-1.  **No new migrations** should be added to `CROSS_MODEL_MIGRATION`.
-2.  All future schema changes should use the **Schema Migration** system (A.7) described above.
-3.  Once the Operation Log is fully established and legacy data is considered obsolete (e.g., after several major versions), the legacy migration code can be removed.
+**Key file:** `src/app/op-log/sync/server-migration.service.ts`
+
+All future schema changes should use the **Schema Migration** system (A.7) described above.
 
 ### A.7.6 Implemented Safety Features
 
@@ -1001,105 +1007,107 @@ Before releasing any migration:
 
 ---
 
-# Part B: Legacy Sync Bridge
+# Part B: File-Based Sync
 
-The operation log does **NOT** participate in legacy sync protocol. PFAPI handles all sync logic for WebDAV, Dropbox, and LocalFile providers.
+File-based sync providers (WebDAV, Dropbox, LocalFile) use a single-file approach via the `FileBasedSyncAdapter`.
 
-However, the op-log must **bridge** to PFAPI by updating `META_MODEL.vectorClock` so PFAPI can detect local changes.
-
-## B.1 How Legacy Sync Works
+## B.1 How File-Based Sync Works
 
 ```
 Sync Triggered (WebDAV/Dropbox/LocalFile)
     │
     ▼
-PFAPI compares local vs remote vector clocks
+FileBasedSyncAdapter.downloadOps()
     │
-    └──► META_MODEL.vectorClock vs remote __meta.vectorClock
+    └──► Downloads sync-data.json from remote
               │
-              └──► If different: local changes exist
+              ├──► Contains: state snapshot + recent ops buffer
+              │
+              └──► Compares vector clocks for conflict detection
                         │
                         ▼
-                   PFAPI.getAllSyncModelData()
+                   Process new ops, merge state
                         │
                         ▼
-                   PfapiStoreDelegateService
+                   FileBasedSyncAdapter.uploadOps()
                         │
-                        └──► Read ALL models from NgRx via selectors
-                                  │
-                                  ▼
-                             Upload to provider
+                        └──► Upload merged state + ops
 ```
 
-**Key point:** PFAPI reads current state from NgRx, NOT from the operation log. The op-log is invisible to sync.
+**Key file:** `src/app/op-log/sync-providers/file-based/file-based-sync-adapter.service.ts`
 
-## B.2 Vector Clock Bridge
-
-When `OperationLogEffects` writes an operation, it must also update META_MODEL:
+## B.2 FileBasedSyncData Format
 
 ```typescript
-private async writeOperation(op: Operation): Promise<void> {
-  // 1. Write to SUP_OPS (Part A)
-  await this.opLogStore.appendOperation(op);
+interface FileBasedSyncData {
+  version: 2;
+  schemaVersion: number;
+  vectorClock: VectorClock;
+  syncVersion: number; // Content-based optimistic locking
+  lastSeq: number;
+  lastModified: number;
 
-  // 2. Bridge to PFAPI (Part B) - Update META_MODEL vector clock
-  // Skip if sync is in progress (database locked) - the op is already safe in SUP_OPS
-  if (!this.pfapiService.pf.isSyncInProgress) {
-    await this.pfapiService.pf.metaModel.incrementVectorClockForLocalChange(this.clientId);
-  }
+  // Full state snapshot (~95% of file size)
+  state: AppDataComplete;
 
-  // 3. Broadcast to other tabs (Part A)
-  this.multiTabCoordinator.broadcastOperation(op);
+  // Recent operations for conflict detection (last 200, ~5% of file)
+  recentOps: CompactOperation[];
+
+  // Checksum for integrity verification
+  checksum?: string;
 }
 ```
 
-This ensures:
+## B.3 Piggybacking Mechanism
 
-- PFAPI can detect "there are local changes to sync"
-- Legacy sync providers work unchanged
-- No changes needed to PFAPI sync protocol
-- **No lock errors during sync** - META_MODEL update is skipped when sync is in progress (op is still safely persisted in SUP_OPS)
+When two clients sync concurrently, the adapter uses "piggybacking" to ensure no operations are lost:
 
-## B.3 Sync Download Persistence
-
-When PFAPI downloads remote data, the hydrator persists it to SUP_OPS:
+1. Client A uploads state (syncVersion 1 → 2)
+2. Client B tries to upload, detects version mismatch
+3. Client B downloads A's changes, finds ops it hasn't seen
+4. Client B merges A's ops into its state, uploads (syncVersion 2 → 3)
+5. Both clients end up with all operations
 
 ```typescript
-async hydrateFromRemoteSync(): Promise<void> {
-  // 1. Read synced data from 'pf' database
-  const syncedData = await this.pfapiService.pf.getAllSyncModelDataFromModelCtrls();
+// In FileBasedSyncAdapter.uploadOps()
+const remote = await this._downloadRemoteData(provider);
+if (remote && remote.syncVersion !== expectedSyncVersion) {
+  // Another client synced - find ops we haven't processed
+  const newOps = remote.recentOps.filter((op) => op.seq > lastProcessedSeq);
+  // Return these as "piggybacked" ops for the caller to process
+  return { localOps, newOps };
+}
+```
 
-  // 2. Create SYNC_IMPORT operation
+## B.4 Sync Download Persistence
+
+When remote data is downloaded, the sync system creates a SYNC_IMPORT operation:
+
+```typescript
+async hydrateFromRemoteSync(downloadedMainModelData?: Record<string, unknown>): Promise<void> {
+  // 1. Create SYNC_IMPORT operation with downloaded state
   const op: Operation = {
     id: uuidv7(),
     opType: 'SYNC_IMPORT',
     entityType: 'ALL',
-    payload: syncedData,
+    payload: downloadedMainModelData,
     // ...
   };
   await this.opLogStore.append(op, 'remote');
 
-  // 3. Force snapshot for crash safety
+  // 2. Force snapshot for crash safety
   await this.opLogStore.saveStateCache({
-    state: syncedData,
+    state: downloadedMainModelData,
     lastAppliedOpSeq: lastSeq,
     // ...
   });
 
-  // 4. Dispatch to NgRx
-  this.store.dispatch(loadAllData({ appDataComplete: syncedData }));
+  // 3. Dispatch to NgRx
+  this.store.dispatch(loadAllData({ appDataComplete: downloadedMainModelData }));
 }
 ```
 
 ### loadAllData Variants
-
-```typescript
-interface LoadAllDataMeta {
-  isHydration?: boolean; // From SUP_OPS startup - skip logging
-  isRemoteSync?: boolean; // From sync download - create import op
-  isBackupImport?: boolean; // From file import - create import op
-}
-```
 
 | Source               | Create Op?          | Force Snapshot? |
 | -------------------- | ------------------- | --------------- |
@@ -1107,82 +1115,31 @@ interface LoadAllDataMeta {
 | Remote sync download | Yes (SYNC_IMPORT)   | Yes             |
 | Backup file import   | Yes (BACKUP_IMPORT) | Yes             |
 
-## B.4 PfapiStoreDelegateService
+## B.5 Archive Data Handling
 
-This service reads ALL sync models from NgRx for PFAPI:
-
-```typescript
-@Injectable({ providedIn: 'root' })
-export class PfapiStoreDelegateService {
-  getAllSyncModelDataFromStore(): Promise<AllSyncModels> {
-    return firstValueFrom(
-      combineLatest([
-        this._store.select(selectTaskFeatureState),
-        this._store.select(selectProjectFeatureState),
-        this._store.select(selectTagFeatureState),
-        this._store.select(selectConfigFeatureState),
-        this._store.select(selectNoteFeatureState),
-        this._store.select(selectIssueProviderState),
-        this._store.select(selectPlannerState),
-        this._store.select(selectBoardsState),
-        this._store.select(selectMetricFeatureState),
-        this._store.select(selectSimpleCounterFeatureState),
-        this._store.select(selectTaskRepeatCfgFeatureState),
-        this._store.select(selectMenuTreeState),
-        this._store.select(selectTimeTrackingState),
-        this._store.select(selectPluginUserDataFeatureState),
-        this._store.select(selectPluginMetadataFeatureState),
-        this._store.select(selectReminderFeatureState),
-        this._store.select(selectArchiveYoungFeatureState),
-        this._store.select(selectArchiveOldFeatureState),
-      ]).pipe(first(), map(/* combine into AllSyncModels */)),
-    );
-  }
-}
-```
-
-All sync models are now in NgRx - no hybrid persistence.
-
-## B.5 Archive Data (Direct PFAPI Pattern)
-
-Archive data (`archiveYoung`, `archiveOld`) bypasses the NgRx store and operation log entirely.
-This is intentional for performance and to bound operation log size.
+Archive data (`archiveYoung`, `archiveOld`) is included in the state snapshot for file-based sync.
+Archives are written directly to IndexedDB via `ArchiveDbAdapter` (bypassing the operation log for performance).
 
 ### Why Archives Bypass Operation Log
 
 1. **Size**: Archived tasks can grow to tens of thousands of entries over years
 2. **Frequency**: Archive updates are rare (only when archiving tasks or flushing old data)
-3. **Sync needs**: Archives still need to sync via PFAPI, but don't need operation-level granularity
+3. **Sync needs**: Archives sync as part of the state snapshot, but don't need operation-level granularity
 
-### Data Flow for Archive Operations
+### Archive Write Path
 
 ```
 Archive Operation (e.g., archiving a completed task)
     │
-    ├──► 1. Update archive directly via ModelCtrl.save()
-    │         └──► isUpdateRevAndLastUpdate: true
-    │                   └──► Increments META_MODEL.vectorClock
-    │                   └──► PFAPI sync detects change
+    ├──► 1. Update archive directly via ArchiveDbAdapter
     │
-    └──► 2. (No operation log entry - by design)
+    └──► 2. On next sync, archive is included in state snapshot
 ```
 
-### Services Using Direct PFAPI Pattern
+**Key files:**
 
-| Service               | Purpose                    | Why Direct PFAPI    |
-| --------------------- | -------------------------- | ------------------- |
-| `TaskArchiveService`  | CRUD for archived tasks    | Size, low frequency |
-| `ArchiveService`      | Archive/unarchive tasks    | Size, low frequency |
-| `TimeTrackingService` | Flush time data to archive | Size, low frequency |
-| `PluginEffects`       | Plugin metadata/data       | Isolated feature    |
-
-### Key Rule
-
-When modifying archive or plugin data directly via PFAPI:
-
-- **Always use `{ isUpdateRevAndLastUpdate: true }`**
-- This ensures PFAPI sync detects the change
-- Without it, changes won't sync to other devices
+- `src/app/op-log/archive/archive-db-adapter.service.ts`
+- `src/app/op-log/archive/archive-operation-handler.service.ts`
 
 ---
 
@@ -1190,14 +1147,15 @@ When modifying archive or plugin data directly via PFAPI:
 
 For server-based sync, the operation log IS the sync mechanism. Individual operations are uploaded/downloaded rather than full state snapshots.
 
-## C.1 How Server Sync Differs
+## C.1 How Server Sync Differs from File-Based
 
-| Aspect              | Legacy Sync (Part B) | Server Sync (Part C)  |
-| ------------------- | -------------------- | --------------------- |
-| What syncs          | Full state snapshot  | Individual operations |
-| Conflict detection  | File-level LWW       | Entity-level          |
-| Op-log role         | Not involved         | IS the sync           |
-| `syncedAt` tracking | Not needed           | Required              |
+| Aspect              | File-Based Sync (Part B)     | Server Sync (Part C)  |
+| ------------------- | ---------------------------- | --------------------- |
+| What syncs          | State snapshot + recent ops  | Individual operations |
+| Conflict detection  | Vector clock on snapshot     | Entity-level per-op   |
+| Transport           | Single file (sync-data.json) | HTTP API              |
+| Op-log role         | Builds snapshot from ops     | IS the sync           |
+| `syncedAt` tracking | Not needed                   | Required              |
 
 ## C.2 Operation Sync Protocol
 
@@ -1556,7 +1514,7 @@ See [operation-log-architecture-diagrams.md](./operation-log-architecture-diagra
 
 # Part D: Data Validation & Repair
 
-The operation log integrates with PFAPI's validation and repair system to prevent data corruption and automatically recover from invalid states.
+The operation log includes comprehensive validation and automatic repair to prevent data corruption and recover from invalid states.
 
 ## D.1 Validation Architecture
 
@@ -1571,7 +1529,7 @@ Four validation checkpoints ensure data integrity throughout the operation lifec
 
 ## D.2 REPAIR Operation Type
 
-When validation fails at checkpoints B, C, or D, the system attempts automatic repair using PFAPI's `dataRepair()` function. If repair succeeds, a REPAIR operation is created:
+When validation fails at checkpoints B, C, or D, the system attempts automatic repair using the `dataRepair()` function. If repair succeeds, a REPAIR operation is created:
 
 ```typescript
 enum OpType {
@@ -1683,7 +1641,7 @@ This catches:
 
 ## D.6 ValidateStateService
 
-Wraps PFAPI's validation and repair functionality:
+Wraps validation and repair functionality using Typia and cross-model validation:
 
 ```typescript
 @Injectable({ providedIn: 'root' })
@@ -2226,7 +2184,7 @@ When adding new entities or relationships:
 - State validation during hydration (Checkpoints B & C - Typia + cross-model validation)
 - Post-sync validation (Checkpoint D - validation after applying remote ops)
 - REPAIR operation type (auto-repair with full state + repair summary)
-- ValidateStateService (wraps PFAPI validation + repair)
+- ValidateStateService (wraps Typia validation + data repair)
 - RepairOperationService (creates REPAIR ops, user notification)
 - User notification on repair (snackbar with issue count)
 
@@ -2322,9 +2280,19 @@ src/app/features/work-context/store/
 ├── work-context-meta.actions.ts          # Move actions (moveTaskInTodayList, etc.)
 └── work-context-meta.helper.ts           # Anchor-based positioning helpers
 
-src/app/pfapi/
-├── pfapi-store-delegate.service.ts       # Reads NgRx for sync (Part B)
-└── pfapi.service.ts                      # Sync orchestration
+src/app/op-log/sync-providers/
+├── super-sync/                           # SuperSync server provider
+│   ├── super-sync.ts                     # Server-based sync implementation
+│   └── super-sync.model.ts               # SuperSync types
+├── file-based/                           # File-based providers (Part B)
+│   ├── file-based-sync-adapter.service.ts  # Unified adapter for file providers
+│   ├── file-based-sync.types.ts          # FileBasedSyncData types
+│   ├── webdav/                           # WebDAV provider
+│   ├── dropbox/                          # Dropbox provider
+│   └── local-file/                       # Local file sync provider
+├── provider-manager.service.ts           # Provider activation/management
+├── wrapped-provider.service.ts           # Provider wrapper with encryption
+└── credential-store.service.ts           # OAuth/credential storage
 
 e2e/
 ├── tests/sync/supersync.spec.ts          # E2E SuperSync tests (Playwright)
@@ -2336,8 +2304,8 @@ e2e/
 
 # References
 
-- [PFAPI Architecture](./pfapi-sync-persistence-architecture.md) - Legacy sync system
 - [Operation Rules](./operation-rules.md) - Payload and validation rules
 - [SuperSync Encryption](./supersync-encryption-architecture.md) - End-to-end encryption implementation
 - [Hybrid Manifest Architecture](./long-term-plans/hybrid-manifest-architecture.md) - File-based sync optimization
 - [Vector Clocks](./vector-clocks.md) - Vector clock implementation details
+- [File-Based Sync Implementation](../ai/file-based-oplog-sync-implementation-plan.md) - Historical implementation plan

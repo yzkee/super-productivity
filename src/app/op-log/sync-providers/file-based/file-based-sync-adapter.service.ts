@@ -620,9 +620,21 @@ export class FileBasedSyncAdapterService {
     const versionWasReset =
       previousExpectedVersion > 0 && syncData.syncVersion < previousExpectedVersion;
 
-    if (versionWasReset) {
+    // Also detect snapshot replacement: if client expected ops (sinceSeq > 0) but file has
+    // no recent ops AND has a snapshot state, another client uploaded a fresh snapshot.
+    // This happens when "Use Local" is chosen in conflict resolution - the snapshot replaces
+    // all previous ops but syncVersion may not decrease (could stay at 1).
+    const snapshotReplacement =
+      sinceSeq > 0 && syncData.recentOps.length === 0 && !!syncData.state;
+
+    const needsGapDetection = versionWasReset || snapshotReplacement;
+
+    if (needsGapDetection) {
+      const reason = versionWasReset
+        ? `sync version reset (${previousExpectedVersion} → ${syncData.syncVersion})`
+        : `snapshot replacement (expected ops from seq ${sinceSeq}, but recentOps is empty)`;
       OpLog.warn(
-        `FileBasedSyncAdapter: Sync version reset detected (${previousExpectedVersion} → ${syncData.syncVersion}). ` +
+        `FileBasedSyncAdapter: Gap detected - ${reason}. ` +
           'Another client may have uploaded a snapshot. Signaling gap detection.',
       );
     }
@@ -703,10 +715,10 @@ export class FileBasedSyncAdapterService {
       hasMore,
       latestSeq,
       snapshotVectorClock: syncData.vectorClock,
-      // Signal gap detection when sync version was reset (another client uploaded snapshot).
+      // Signal gap detection when sync version was reset or snapshot was replaced.
       // This triggers the download service to re-download from seq 0, which will include
       // the snapshotState for proper state replacement.
-      gapDetected: versionWasReset,
+      gapDetected: needsGapDetection,
       // Include full state snapshot for fresh downloads (sinceSeq === 0)
       // This allows new clients to bootstrap with complete state, not just recent ops
       ...(isForceFromZero && syncData.state ? { snapshotState: syncData.state } : {}),

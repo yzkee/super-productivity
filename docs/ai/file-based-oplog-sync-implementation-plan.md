@@ -1,22 +1,32 @@
 # Implementation Plan: Unified Op-Log Sync for File-Based Providers
 
-## Goal
+> **STATUS: COMPLETED (January 2026)**
+>
+> This plan has been fully implemented. PFAPI has been completely eliminated.
+> All sync providers now use the unified operation log system.
+>
+> **Current Implementation:**
+>
+> - File-based adapter: `src/app/op-log/sync-providers/file-based/file-based-sync-adapter.service.ts`
+> - Sync providers: `src/app/op-log/sync-providers/`
+
+## Original Goal
 
 Replace PFAPI's model-per-file sync with operation-log sync for ALL providers (WebDAV, Dropbox, LocalFile), enabling full PFAPI deprecation and reducing codebase complexity.
 
-## Background
+## Background (Historical)
 
-**Current State:**
+**State Before Implementation:**
 
 - PFAPI (~13,200 LOC): Model-level sync for WebDAV/Dropbox/LocalFile
 - Op-Log (~23,000 LOC, 85% generic): Operation-level sync for SuperSync only
 - Two parallel systems with duplicate concepts
 
-**Target State:**
+**Final State (Achieved):**
 
 - Single op-log sync system for ALL providers
 - File-based providers use simplified single-file approach
-- PFAPI reduced to transport-only layer
+- PFAPI completely deleted (~83 files, 2.0 MB removed)
 
 ---
 
