@@ -189,7 +189,7 @@ export class DropboxApi {
   }: {
     path: string;
     revToMatch?: string | null;
-    data: any;
+    data: string | Record<string, unknown>;
     isForceOverwrite?: boolean;
   }): Promise<DropboxFileMetadata> {
     const args: { mode: DropboxWriteMode; path: string; mute: boolean } = {

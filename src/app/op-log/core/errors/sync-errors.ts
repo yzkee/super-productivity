@@ -1,5 +1,4 @@
 import { IValidation } from 'typia';
-import { AllModelData } from '../types/sync.types';
 import { PFLog } from '../../../core/log';
 
 /**
@@ -421,7 +420,7 @@ export class ModelValidationError extends Error {
   constructor(params: {
     id: string;
     data: unknown;
-    validationResult?: IValidation<any>;
+    validationResult?: IValidation<unknown>;
     e?: unknown;
   }) {
     super('ModelValidationError');
@@ -451,7 +450,7 @@ export class DataValidationFailedError extends Error {
   override name = 'DataValidationFailedError';
   additionalLog?: string;
 
-  constructor(validationResult: IValidation<AllModelData<any>>) {
+  constructor(validationResult: IValidation<unknown>) {
     super('DataValidationFailedError');
     PFLog.log('validation result: ', validationResult);
 

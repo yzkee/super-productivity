@@ -2,7 +2,10 @@ import { devError } from '../../util/dev-error';
 import { environment } from '../../../environments/environment';
 import { AppDataComplete } from '../model/model-config';
 import { PFLog } from '../../core/log';
-import { MenuTreeKind } from '../../features/menu-tree/store/menu-tree.model';
+import {
+  MenuTreeKind,
+  MenuTreeTreeNode,
+} from '../../features/menu-tree/store/menu-tree.model';
 import { TODAY_TAG } from '../../features/tag/tag.const';
 
 // WARNING: Module-level mutable state. This is not ideal because:
@@ -481,7 +484,7 @@ const validateMenuTree = (
 ): boolean => {
   // Recursive function to validate tree nodes
   const validateTreeNodes = (
-    nodes: any[],
+    nodes: MenuTreeTreeNode[],
     treeType: 'projectTree' | 'tagTree',
   ): boolean => {
     for (const node of nodes) {

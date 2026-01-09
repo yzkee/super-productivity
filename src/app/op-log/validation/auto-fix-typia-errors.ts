@@ -117,24 +117,37 @@ const parsePath = (path: string): (string | number)[] => {
   return keys;
 };
 
-const getValueByPath = <T, R = any>(obj: T, path: (string | number)[]): R | undefined =>
-  path.reduce<any>((acc, key) => acc?.[key], obj);
+/**
+ * Gets a value by dynamic path. Returns unknown since path is runtime-determined.
+ * Callers must use type guards or assertions based on validation context.
+ */
+const getValueByPath = (obj: unknown, path: (string | number)[]): unknown =>
+  path.reduce<unknown>((acc, key) => {
+    if (acc === null || acc === undefined) return undefined;
+    if (typeof acc !== 'object') return undefined;
+    return (acc as Record<string | number, unknown>)[key];
+  }, obj);
 
-const setValueByPath = <T extends object>(
-  obj: T,
+/**
+ * Sets a value by dynamic path. This is inherently untyped since paths
+ * come from Typia validation errors at runtime.
+ */
+const setValueByPath = (
+  obj: Record<string, unknown>,
   path: (string | number)[],
-  value: any,
+  value: unknown,
 ): void => {
   if (!Array.isArray(path) || path.length === 0) return;
   PFLog.err('Auto-fixing error =>', path, value);
 
-  let current: any = obj;
+  let current: Record<string | number, unknown> = obj;
   for (let i = 0; i < path.length - 1; i++) {
     const key = path[i];
-    if (!(key in current) || typeof current[key] !== 'object' || current[key] === null) {
+    const next = current[key];
+    if (next === null || next === undefined || typeof next !== 'object') {
       current[key] = typeof path[i + 1] === 'number' ? [] : {};
     }
-    current = current[key];
+    current = current[key] as Record<string | number, unknown>;
   }
 
   current[path[path.length - 1]] = value;

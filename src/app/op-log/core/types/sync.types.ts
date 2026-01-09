@@ -21,7 +21,7 @@ type JSONPrimitive = string | number | boolean | null;
 type Serializable = JSONPrimitive | SerializableObject | SerializableArray;
 
 interface SerializableObject {
-  [key: string]: any;
+  [key: string]: Serializable | undefined;
 }
 
 type SerializableArray = Array<Serializable>;
@@ -42,7 +42,8 @@ export interface ModelCfg<T extends ModelBase> {
   cacheOnLoad?: boolean;
 
   validate?: <R>(data: R | T) => IValidation<R | T>;
-  repair?: <R>(data: R | unknown | any) => T;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  repair?: (data: any) => T; // any is intentional: repair handles malformed data
 
   defaultData?: T;
 }

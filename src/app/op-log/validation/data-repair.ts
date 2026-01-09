@@ -167,13 +167,27 @@ const _fixTaskRepeatCfgInvalidQuickSetting = (data: AppDataComplete): AppDataCom
   return data;
 };
 
+/**
+ * Type-safe helper to reset entity IDs for a specific key.
+ * Uses Object.assign to avoid TypeScript's dynamic key assignment limitation.
+ */
+const _resetEntityStateForKey = (
+  data: AppDataComplete,
+  key: keyof AppDataCompleteLegacy,
+): void => {
+  const currentState = data[key as keyof AppDataComplete];
+  if (currentState && typeof currentState === 'object' && 'entities' in currentState) {
+    const resetState = _resetEntityIdsFromObjects(
+      currentState as AppBaseDataEntityLikeStates,
+    );
+    // Use Object.assign to mutate in place, avoiding dynamic key assignment issues
+    Object.assign(currentState, resetState);
+  }
+};
+
 const _fixEntityStates = (data: AppDataComplete): AppDataComplete => {
   ENTITY_STATE_KEYS.forEach((key) => {
-    // TypeScript limitation: dynamic key assignment requires cast
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    data[key] = _resetEntityIdsFromObjects(
-      data[key] as AppBaseDataEntityLikeStates,
-    ) as any;
+    _resetEntityStateForKey(data, key);
   });
   data.archiveYoung.task = _resetEntityIdsFromObjects(
     data.archiveYoung.task as TaskArchive,
