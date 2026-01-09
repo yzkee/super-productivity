@@ -29,6 +29,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
   misc: {
     isConfirmBeforeExit: false,
     isConfirmBeforeExitWithoutFinishDay: true,
+    isConfirmBeforeTaskDelete: true,
     isAutMarkParentAsDone: false,
     isTurnOffMarkdown: false,
     isAutoAddWorkedOnToToday: true,
