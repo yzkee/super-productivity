@@ -109,6 +109,13 @@
       "FORM_SECTION": {
         "HELP": "<p>Here you can configure SuperProductivity to list uncompleted CalDav todos for a specific project in the task creation panel in the daily planning view. They will be listed as suggestions and will provide a link to the todo as well as more information about it.</p> <p>In addition you can automatically add and sync all uncompleted todos to your task backlog.</p><p>To make it work for nextcloud in the webapp, you might need to whitelist \"https://app.super-productivity.com\" via the nextcloud app <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a>.</p>"
       },
+      "ISSUE_CONTENT": {
+        "DESCRIPTION": "Description",
+        "LABELS": "Labels",
+        "MARK_AS_CHECKED": "Mark as checked",
+        "STATUS": "Status",
+        "SUMMARY": "Summary"
+      },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: Calendar \"{{calendarName}}\" not found",
         "CALENDAR_READ_ONLY": "CalDav: Calendar \"{{calendarName}}\" is readonly",
@@ -1513,6 +1520,7 @@
         "DAYS_WORKED": "Days, worked:",
         "MONTH_WORKED": "Month worked:",
         "REPEATING_TASK": "Repeating task",
+        "RESTORE_TASK_FROM_ARCHIVE": "Restore task from archive",
         "TASKS": "Tasks",
         "TOTAL_TIME": "Time spent total:",
         "WEEK_NR": "Week {{nr}}",
@@ -1629,6 +1637,7 @@
     "OVERDUE": "Overdue",
     "REMOVE": "Remove",
     "SAVE": "Save",
+    "SHARE": "Share",
     "SUBMIT": "Submit",
     "TITLE": "Title",
     "TODAY_TAG_TITLE": "Today",
