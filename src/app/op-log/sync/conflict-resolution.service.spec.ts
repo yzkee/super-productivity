@@ -41,6 +41,7 @@ describe('ConflictResolutionService', () => {
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', [
       'hasOp',
       'append',
+      'appendBatch',
       'appendWithVectorClockUpdate',
       'markApplied',
       'markRejected',
@@ -72,7 +73,11 @@ describe('ConflictResolutionService', () => {
     mockValidateStateService.validateAndRepairCurrentState.and.resolveTo(true);
     mockOpLogStore.getUnsyncedByEntity.and.resolveTo(new Map());
     // By default, treat all ops as new (return them as-is)
-    mockOpLogStore.filterNewOps.and.callFake((ops: any[]) => Promise.resolve(ops));
+    mockOpLogStore.filterNewOps.and.callFake((ops: Operation[]) => Promise.resolve(ops));
+    // By default, appendBatch returns sequential seq numbers starting from 1
+    mockOpLogStore.appendBatch.and.callFake((ops: Operation[]) =>
+      Promise.resolve(ops.map((_, i) => i + 1)),
+    );
   });
 
   it('should be created', () => {
@@ -369,9 +374,9 @@ describe('ConflictResolutionService', () => {
 
       await service.autoResolveConflictsLWW(conflicts);
 
-      // Remote ops should be appended
-      expect(mockOpLogStore.append).toHaveBeenCalledWith(
-        jasmine.objectContaining({ id: 'remote-1' }),
+      // Remote ops should be appended via batch
+      expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+        [jasmine.objectContaining({ id: 'remote-1' })],
         'remote',
         jasmine.any(Object),
       );
@@ -395,9 +400,9 @@ describe('ConflictResolutionService', () => {
 
       // Both local and remote ops should be rejected
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['local-1']);
-      // Remote ops need to be appended first, then rejected
-      expect(mockOpLogStore.append).toHaveBeenCalledWith(
-        jasmine.objectContaining({ id: 'remote-1' }),
+      // Remote ops need to be appended first (via batch), then rejected
+      expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+        [jasmine.objectContaining({ id: 'remote-1' })],
         'remote',
       );
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['remote-1']);
@@ -421,9 +426,9 @@ describe('ConflictResolutionService', () => {
 
       await service.autoResolveConflictsLWW(conflicts);
 
-      // Remote wins on tie - should apply remote ops
-      expect(mockOpLogStore.append).toHaveBeenCalledWith(
-        jasmine.objectContaining({ id: 'remote-1' }),
+      // Remote wins on tie - should apply remote ops via batch
+      expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+        [jasmine.objectContaining({ id: 'remote-1' })],
         'remote',
         jasmine.any(Object),
       );
@@ -468,17 +473,17 @@ describe('ConflictResolutionService', () => {
 
       await service.autoResolveConflictsLWW(conflicts);
 
-      // First conflict: remote wins (newer timestamp)
-      expect(mockOpLogStore.append).toHaveBeenCalledWith(
-        jasmine.objectContaining({ id: 'remote-1' }),
+      // First conflict: remote wins (newer timestamp) - goes to pendingApply batch
+      expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+        jasmine.arrayContaining([jasmine.objectContaining({ id: 'remote-1' })]),
         'remote',
         jasmine.any(Object),
       );
 
       // Second conflict: local wins (newer timestamp)
-      // Remote op should be appended then rejected
-      expect(mockOpLogStore.append).toHaveBeenCalledWith(
-        jasmine.objectContaining({ id: 'remote-2' }),
+      // Remote op should be appended (via batch) then rejected
+      expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+        jasmine.arrayContaining([jasmine.objectContaining({ id: 'remote-2' })]),
         'remote',
       );
 
@@ -512,9 +517,9 @@ describe('ConflictResolutionService', () => {
 
       await service.autoResolveConflictsLWW(conflicts, nonConflicting);
 
-      // Non-conflicting op should also be appended
-      expect(mockOpLogStore.append).toHaveBeenCalledWith(
-        jasmine.objectContaining({ id: 'non-conflict-1' }),
+      // Non-conflicting op should also be appended (via batch with the remote-wins ops)
+      expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+        jasmine.arrayContaining([jasmine.objectContaining({ id: 'non-conflict-1' })]),
         'remote',
         jasmine.any(Object),
       );
@@ -523,7 +528,7 @@ describe('ConflictResolutionService', () => {
     it('should return early if no conflicts and no non-conflicting ops', async () => {
       await service.autoResolveConflictsLWW([]);
 
-      expect(mockOpLogStore.append).not.toHaveBeenCalled();
+      expect(mockOpLogStore.appendBatch).not.toHaveBeenCalled();
       expect(mockSnackService.open).not.toHaveBeenCalled();
     });
 
@@ -592,8 +597,8 @@ describe('ConflictResolutionService', () => {
         await expectAsync(service.autoResolveConflictsLWW(conflicts)).toBeResolved();
 
         // Remote should win (any timestamp > -Infinity)
-        expect(mockOpLogStore.append).toHaveBeenCalledWith(
-          jasmine.objectContaining({ id: 'remote-1' }),
+        expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+          jasmine.arrayContaining([jasmine.objectContaining({ id: 'remote-1' })]),
           'remote',
           jasmine.any(Object),
         );
@@ -702,8 +707,10 @@ describe('ConflictResolutionService', () => {
         await service.autoResolveConflictsLWW(conflicts);
 
         // Remote UPDATE wins (newer timestamp) - entity should be restored
-        expect(mockOpLogStore.append).toHaveBeenCalledWith(
-          jasmine.objectContaining({ id: 'remote-upd', opType: OpType.Update }),
+        expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+          jasmine.arrayContaining([
+            jasmine.objectContaining({ id: 'remote-upd', opType: OpType.Update }),
+          ]),
           'remote',
           jasmine.any(Object),
         );
@@ -742,8 +749,10 @@ describe('ConflictResolutionService', () => {
         await service.autoResolveConflictsLWW(conflicts);
 
         // Remote CREATE wins (newer timestamp)
-        expect(mockOpLogStore.append).toHaveBeenCalledWith(
-          jasmine.objectContaining({ id: 'remote-create', opType: OpType.Create }),
+        expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+          jasmine.arrayContaining([
+            jasmine.objectContaining({ id: 'remote-create', opType: OpType.Create }),
+          ]),
           'remote',
           jasmine.any(Object),
         );
@@ -814,8 +823,10 @@ describe('ConflictResolutionService', () => {
         await service.autoResolveConflictsLWW(conflicts);
 
         // Remote BATCH wins (newer timestamp)
-        expect(mockOpLogStore.append).toHaveBeenCalledWith(
-          jasmine.objectContaining({ id: 'remote-batch', opType: OpType.Batch }),
+        expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+          jasmine.arrayContaining([
+            jasmine.objectContaining({ id: 'remote-batch', opType: OpType.Batch }),
+          ]),
           'remote',
           jasmine.any(Object),
         );
@@ -913,8 +924,8 @@ describe('ConflictResolutionService', () => {
         await service.autoResolveConflictsLWW(conflicts);
 
         // Remote wins (newer timestamp)
-        expect(mockOpLogStore.append).toHaveBeenCalledWith(
-          jasmine.objectContaining({ id: 'remote-planner' }),
+        expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+          jasmine.arrayContaining([jasmine.objectContaining({ id: 'remote-planner' })]),
           'remote',
           jasmine.any(Object),
         );
@@ -1011,8 +1022,8 @@ describe('ConflictResolutionService', () => {
         await service.autoResolveConflictsLWW(conflicts);
 
         // Remote wins (newer timestamp)
-        expect(mockOpLogStore.append).toHaveBeenCalledWith(
-          jasmine.objectContaining({ id: 'remote-reminder' }),
+        expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+          jasmine.arrayContaining([jasmine.objectContaining({ id: 'remote-reminder' })]),
           'remote',
           jasmine.any(Object),
         );
@@ -1075,16 +1086,13 @@ describe('ConflictResolutionService', () => {
 
         await service.autoResolveConflictsLWW(conflicts);
 
-        // Task: remote wins (newer)
-        expect(mockOpLogStore.append).toHaveBeenCalledWith(
-          jasmine.objectContaining({ id: 'remote-task' }),
-          'remote',
-          jasmine.any(Object),
-        );
-
-        // Tag: remote wins (tie goes to remote)
-        expect(mockOpLogStore.append).toHaveBeenCalledWith(
-          jasmine.objectContaining({ id: 'remote-tag' }),
+        // Task: remote wins (newer), Tag: remote wins (tie goes to remote)
+        // Both are appended in a single batch
+        expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+          jasmine.arrayContaining([
+            jasmine.objectContaining({ id: 'remote-task' }),
+            jasmine.objectContaining({ id: 'remote-tag' }),
+          ]),
           'remote',
           jasmine.any(Object),
         );
@@ -1677,8 +1685,8 @@ describe('ConflictResolutionService', () => {
       // Remote wins because its timestamp is newer (even if unrealistic)
       await service.autoResolveConflictsLWW(conflicts);
 
-      expect(mockOpLogStore.append).toHaveBeenCalledWith(
-        jasmine.objectContaining({ id: 'remote-1' }),
+      expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+        jasmine.arrayContaining([jasmine.objectContaining({ id: 'remote-1' })]),
         'remote',
         jasmine.any(Object),
       );
@@ -1786,8 +1794,8 @@ describe('ConflictResolutionService', () => {
       await service.autoResolveConflictsLWW(conflicts);
 
       // Remote should win on tie
-      expect(mockOpLogStore.append).toHaveBeenCalledWith(
-        jasmine.objectContaining({ id: 'remote-1' }),
+      expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+        jasmine.arrayContaining([jasmine.objectContaining({ id: 'remote-1' })]),
         'remote',
         jasmine.any(Object),
       );

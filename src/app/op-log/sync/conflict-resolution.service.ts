@@ -278,31 +278,21 @@ export class ConflictResolutionService {
     const remoteOpsToReject: string[] = [];
     const newLocalWinOps: Operation[] = [];
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Collect all remote ops and categorize by resolution type
+    // ─────────────────────────────────────────────────────────────────────────
+    const remoteWinsOps: Operation[] = [];
+    const localWinsRemoteOps: Operation[] = [];
+
     for (const resolution of resolutions) {
       if (resolution.winner === 'remote') {
         remoteWinsCount++;
-        // Remote wins: apply remote ops, reject local ops
-        for (const op of resolution.conflict.remoteOps) {
-          if (await this.opLogStore.hasOp(op.id)) {
-            OpLog.verbose(
-              `ConflictResolutionService: Skipping duplicate op (LWW remote): ${op.id}`,
-            );
-            continue;
-          }
-          const seq = await this.opLogStore.append(op, 'remote', { pendingApply: true });
-          allStoredOps.push({ id: op.id, seq });
-          allOpsToApply.push(op);
-        }
+        remoteWinsOps.push(...resolution.conflict.remoteOps);
         localOpsToReject.push(...resolution.conflict.localOps.map((op) => op.id));
       } else {
         localWinsCount++;
-        // Local wins: reject both local AND remote ops, create new update op
         localOpsToReject.push(...resolution.conflict.localOps.map((op) => op.id));
-        for (const op of resolution.conflict.remoteOps) {
-          if (!(await this.opLogStore.hasOp(op.id))) {
-            await this.opLogStore.append(op, 'remote');
-          }
-        }
+        localWinsRemoteOps.push(...resolution.conflict.remoteOps);
         remoteOpsToReject.push(...resolution.conflict.remoteOps.map((op) => op.id));
 
         // Store the new update op (will be uploaded on next sync)
@@ -313,6 +303,39 @@ export class ConflictResolutionService {
               `${resolution.conflict.entityType}:${resolution.conflict.entityId}`,
           );
         }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Batch process remote-wins ops: filter duplicates and append in batch
+    // ─────────────────────────────────────────────────────────────────────────
+    if (remoteWinsOps.length > 0) {
+      const newRemoteWinsOps = await this.opLogStore.filterNewOps(remoteWinsOps);
+      const skippedCount = remoteWinsOps.length - newRemoteWinsOps.length;
+      if (skippedCount > 0) {
+        OpLog.verbose(
+          `ConflictResolutionService: Skipping ${skippedCount} duplicate ops (LWW remote)`,
+        );
+      }
+      if (newRemoteWinsOps.length > 0) {
+        const seqs = await this.opLogStore.appendBatch(newRemoteWinsOps, 'remote', {
+          pendingApply: true,
+        });
+        for (let i = 0; i < newRemoteWinsOps.length; i++) {
+          allStoredOps.push({ id: newRemoteWinsOps[i].id, seq: seqs[i] });
+          allOpsToApply.push(newRemoteWinsOps[i]);
+        }
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Batch process local-wins remote ops: filter duplicates and append in batch
+    // ─────────────────────────────────────────────────────────────────────────
+    if (localWinsRemoteOps.length > 0) {
+      const newLocalWinsRemoteOps =
+        await this.opLogStore.filterNewOps(localWinsRemoteOps);
+      if (newLocalWinsRemoteOps.length > 0) {
+        await this.opLogStore.appendBatch(newLocalWinsRemoteOps, 'remote');
       }
     }
 
@@ -350,10 +373,14 @@ export class ConflictResolutionService {
     // STEP 3: Add non-conflicting remote ops to the batch
     // ─────────────────────────────────────────────────────────────────────────
     const newNonConflictingOps = await this.opLogStore.filterNewOps(nonConflictingOps);
-    for (const op of newNonConflictingOps) {
-      const seq = await this.opLogStore.append(op, 'remote', { pendingApply: true });
-      allStoredOps.push({ id: op.id, seq });
-      allOpsToApply.push(op);
+    if (newNonConflictingOps.length > 0) {
+      const seqs = await this.opLogStore.appendBatch(newNonConflictingOps, 'remote', {
+        pendingApply: true,
+      });
+      for (let i = 0; i < newNonConflictingOps.length; i++) {
+        allStoredOps.push({ id: newNonConflictingOps[i].id, seq: seqs[i] });
+        allOpsToApply.push(newNonConflictingOps[i]);
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
