@@ -89,9 +89,9 @@ test.describe('Task CRUD Operations', () => {
     await page.locator('.mat-mdc-menu-item').filter({ hasText: 'Delete' }).click();
 
     // Handle confirmation dialog if present
-    const dialog = page.locator('dialog-confirm');
-    if (await dialog.isVisible()) {
-      await dialog.locator('button[type=submit]').click();
+    const confirmBtn = page.locator('[e2e="confirmBtn"]');
+    if (await confirmBtn.isVisible()) {
+      await confirmBtn.click();
     }
 
     // Verify task is deleted
