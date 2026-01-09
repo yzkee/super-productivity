@@ -85,6 +85,27 @@ export const autoFixTypiaErrors = (
         const orderValue = orderIndex >= 0 ? orderIndex : 0;
         setValueByPath(data, keys, orderValue);
         PFLog.err(`Fixed: ${path} from null to ${orderValue} for taskRepeatCfg order`);
+      } else if (
+        keys[0] === 'metric' &&
+        keys[1] === 'entities' &&
+        keys.length === 4 &&
+        ['obstructions', 'improvements', 'improvementsTomorrow'].includes(
+          keys[3] as string,
+        ) &&
+        error.expected.includes('Array<string>')
+      ) {
+        // Fix deprecated metric array fields (obstructions, improvements, improvementsTomorrow)
+        // These fields are marked "TODO remove" and will be removed in future
+        setValueByPath(data, keys, []);
+        PFLog.err(`Fixed: ${path} to empty array for deprecated metric field`);
+      } else if (
+        keys[0] === 'improvement' &&
+        keys[1] === 'hiddenImprovementBannerItems' &&
+        error.expected.includes('Array<string>')
+      ) {
+        // Fix improvement.hiddenImprovementBannerItems (deprecated)
+        setValueByPath(data, keys, []);
+        PFLog.err(`Fixed: ${path} to empty array for deprecated improvement field`);
       }
     }
   });
