@@ -168,6 +168,7 @@ export type ReminderConfig = Readonly<{
   countdownDuration: number;
   defaultTaskRemindOption?: TaskReminderOptionId;
   disableReminders?: boolean;
+  isFocusWindow?: boolean;
 }>;
 
 export type TrackingReminderConfigOld = Readonly<{

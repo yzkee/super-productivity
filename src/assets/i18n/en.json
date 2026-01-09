@@ -1681,6 +1681,7 @@
       "DEFAULT_TASK_REMIND_OPTION": "Default remind option selected when creating tasks",
       "DISABLE_REMINDERS": "Disable all reminders",
       "IS_COUNTDOWN_BANNER_ENABLED": "Show countdown banner before reminders are due",
+      "IS_FOCUS_WINDOW": "Focus application window when reminder is triggered",
       "TITLE": "Reminders"
     },
     "SCHEDULE": {
