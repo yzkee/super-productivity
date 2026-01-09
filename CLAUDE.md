@@ -62,7 +62,7 @@ npm run test:file <filepath>
 
     ```bash
     # Start the server first
-    docker compose -f docker-compose.yaml -f docker-compose.e2e.yaml up -d supersync && \
+    docker compose -f docker-compose.yaml -f docker-compose.supersync.yaml up -d supersync && \
     until curl -s http://localhost:1901/health > /dev/null 2>&1; do sleep 1; done && \
     echo 'Server ready!'
 
@@ -70,7 +70,7 @@ npm run test:file <filepath>
     npx playwright test --config e2e/playwright.config.ts --grep @supersync --reporter=line
 
     # Stop server when done
-    docker compose -f docker-compose.yaml -f docker-compose.e2e.yaml down supersync
+    docker compose -f docker-compose.yaml -f docker-compose.supersync.yaml down supersync
     ```
 
 - Linting: `npm run lint` - ESLint for TypeScript, Stylelint for SCSS

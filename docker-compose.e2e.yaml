@@ -1,10 +1,7 @@
 # Docker Compose override for E2E tests
-# Uses port 1901 so tests can run while dev server uses 1900
+# Note: For supersync tests, use both files: -f docker-compose.yaml -f docker-compose.e2e.yaml
+# This file is standalone for app/webdav tests only
 services:
-  supersync:
-    ports: !override
-      - '1901:1900'
-
   # Angular development server for E2E tests
   app:
     build:
