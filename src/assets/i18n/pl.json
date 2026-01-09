@@ -2,30 +2,30 @@
   "ANDROID": {
     "NOTIFICATIONS": {
       "SYNC_CONFLICT_MSG": "Sprawdź i zdecyduj, co zrobić.",
-      "SYNC_CONFLICT_TITLE": "Wystąpił konflikt synchronizacji"
+      "SYNC_CONFLICT_TITLE": "Wystąpił konflikt z synchronizacją"
     },
     "PERMANENT_NOTIFICATION_MSGS": {
-      "INITIAL": "Aplikacja działająca w tle, aby umożliwić synchronizację, jeśli jest włączona",
+      "INITIAL": "Aplikacja działa w tle, aby umożliwić synchronizację o ile jest włączona",
       "NO_ACTIVE_TASKS": "Brak aktywnych zadań",
-      "SYNCING": "Synchronizacja"
+      "SYNCING": "Synchronizuję"
     }
   },
   "APP": {
     "B_INSTALL": {
-      "IGNORE": "Zignoruj",
-      "INSTALL": "Instaluj",
-      "MSG": "Czy chcesz zinstalować Super Productivity jako PWA?"
+      "IGNORE": "Ignoruj",
+      "INSTALL": "Zainstaluj",
+      "MSG": "Czy chcesz zinstalować Super Productivity jako aplikację PWA?"
     },
     "B_OFFLINE": "Zostałeś odłączony od internetu. Synchronizacja nie będzie działać.",
     "CONTEXT_MENU": {
       "CHANGE_BACKGROUND": "Zmień tło"
     },
-    "UPDATE_MAIN_MODEL": "Super Productivity posiada ważną aktualizację! Wymagana jest migracja danych, która spowoduje że starsze wersje aplikacji nie będą mogły ich używać.",
-    "UPDATE_MAIN_MODEL_NO_UPDATE": "Nie wybrano aktualizacji modelu. Pamiętaj, że jeśli nie chcesz przeprowadzać aktualizacji modelu, musisz wrócić do poprzedniej wersji aplikacji.",
-    "UPDATE_WEB_APP": "Nowa wersja dostępna. Załadować ją?"
+    "UPDATE_MAIN_MODEL": "Super Productivity posiada ważną aktualizację! Wymagana jest migracja danych do nowej wersji, aktualizacja spowoduje że starsze wersje aplikacji nie będą mogły ich używać.",    "UPDATE_MAIN_MODEL_NO_UPDATE": "Nie wybrano aktualizacji modelu. Pamiętaj, że jeśli nie chcesz przeprowadzać aktualizacji modelu, musisz wrócić do poprzedniej wersji aplikacji.",
+    "UPDATE_MAIN_MODEL_NO_UPDATE": "Nie wybrano aktualizacji modelu. Pamiętaj, że jeśli nie chcesz przeprowadzać aktualizacji modelu, musisz powrócić do poprzedniej wersji.",
+    "UPDATE_WEB_APP": "Dostępna jest nowa wersja. Czy chcesz są załadować?"
   },
   "BL": {
-    "NO_TASKS": "Backlog nie zawiera zadań"
+    "NO_TASKS": "Obecnie nie ma żadnych zadań w Twoim rejestrze zadań"
   },
   "BN": {
     "SHOW_ISSUE_PANEL": "Pokaż panel problemów",
@@ -33,14 +33,14 @@
     "SHOW_TASK_VIEW_CUSTOMIZER_PANEL": "Pokaż panel filtrów/grupowania/sortowania"
   },
   "CONFIRM": {
-    "AUTO_FIX": "Twoje dane są popsute. Czy chcesz je automatycznie naprawić? Może wystąpić utrata danych.",
-    "RELOAD_AFTER_IDB_ERROR": "Nie można uzyskać dostępu do bazy danych :( Możliwe przyczyny to aktualizacja aplikacji w tle lub mało miejsca na dysku. Jeśli zainstalowałeś aplikację na Linuksie jako snap, chcesz również włączyć świadomość odświeżania \"snap set core experimental.refresh-app-awareness=true\", dopóki nie naprawią tego problemu po swojej stronie. Naciśnij OK, aby ponownie załadować aplikację (może wymagać ręcznego ponownego uruchomienia aplikacji na niektórych platformach).",
-    "RESTORE_FILE_BACKUP": "Wygląda na to, że aplikacja nie posiada danych, ale istnieje kopia zapasowa w \"{{dir}}\". Czy chcesz ją odzyskać z {{from}}?",
-    "RESTORE_FILE_BACKUP_ANDROID": "Wygląda na to, że NIE MA DANYCH, ale dostępna jest kopia zapasowa. Czy chcesz ją załadować?",
-    "RESTORE_STRAY_BACKUP": "Ostatnia synchronizacja zawiera błąd. Czy chcesz odtworzyć ostatnią kopię zapasową?"
+    "AUTO_FIX": "Twoje dane są uszkodzone (\"{{validityError}}\"). Czy chcesz dokonać automatycznek naprawy? To działanie może spowodować utratę danych.",
+    "RELOAD_AFTER_IDB_ERROR": "Nie można uzyskać dostępu do bazy danych :( Możliwe przyczyny to aktualizacja aplikacji w tle lub mało miejsca na dysku. Jeśli zainstalowałeś aplikację na systemie Linux za pomocą 'snap', musisz włączyć odświeżania poświadczeń 'snap set core experimental.refresh-app-awareness=true', dopóki ten problem nie zostanie naprawiony po stronie developera. Naciśnij OK, aby ponownie załadować aplikację (może wymagać ręcznego ponownego uruchomienia aplikacji na niektórych platformach).",
+    "RESTORE_FILE_BACKUP": "Wygląda na to, że aplikacja nie posiada żadnych danych, ale istnieje kopia zapasowa w \"{{dir}}\". Czy chcesz przywrócić kopię z {{from}}?",
+    "RESTORE_FILE_BACKUP_ANDROID": "Wygląda na to, że w aplikacji NIE MA ŻADNYCH DANYCH, ale dostępna jest kopia zapasowa. Czy chcesz ją przywrócić?",
+    "RESTORE_STRAY_BACKUP": "Podczas ostatniej synchronizacja wystąpił błąd. Czy chcesz odtworzyć ostatnią kopię zapasową?"
   },
   "DATETIME_SCHEDULE": {
-    "LATER_TODAY": "Później dzisiaj",
+    "LATER_TODAY": "Dzisiaj - Później",
     "NEXT_WEEK": "Następny tydzień",
     "PLACEHOLDER": "Proszę wybrać datę",
     "PRESS_ENTER_AGAIN": "Naciśnij enter aby zapisać",
@@ -48,26 +48,31 @@
   },
   "DIALOG_UNSPLASH_PICKER": {
     "BY": "Przez",
-    "NO_RESULTS": "Nie znaleziono obrazów. Spróbuj innego hasła.",
+    "NO_RESULTS": "Nie znaleziono obrazów. Spróbuj ponownie.",
     "SEARCH_LABEL": "Szukaj obrazów",
     "SEARCH_PLACEHOLDER": "np. natura, góry, abstrakcja",
-    "TITLE": "Wybierz obraz tła z Unsplash"
+    "TITLE": "Wybierz obraz tła z serwisu Unsplash"
+  },
+    "DONATE_PAGE": {
+    "BUTTON_TEXT": "Przekaż darowiznę za pośrednictwem funkcji sponsorów na GitHub",
+    "INTRO_1": "Super Produktywność jest w całości finansowana przez społeczność. Nie ma śledzenia, nie ma reklam ani nie gromadzi danych — Twoje dane pozostają na Twoim urządzeniu.",
+    "INTRO_2": "Jeśli doceniach i popierasz takie podejście i chcesz, aby projekt był dalej rozwijany oraz żeby ewoluował, bardzo doceniamy twoje wsparcie."
   },
   "F": {
     "ATTACHMENT": {
       "DIALOG_EDIT": {
-        "ADD_ATTACHMENT": "Dodaj Załącznik",
-        "EDIT_ATTACHMENT": "Edytuj Załącznik",
+        "ADD_ATTACHMENT": "Dodaj załącznik",
+        "EDIT_ATTACHMENT": "Edytuj załącznik",
         "LABELS": {
           "FILE": "Ścieżka do pliku",
           "IMG": "Zdjęcie",
-          "LINK": "URL"
+          "LINK": "Adres URL"
         },
         "SELECT_TYPE": "Wybierz typ",
         "TYPES": {
-          "FILE": "Plik (otwiera domyślną aplikację)",
-          "IMG": "Zdjęcie (otwiera się jako thumbnail)",
-          "LINK": "Link (otwiera się w nowej karcie)"
+          "FILE": "Plik (otwiera domyślną aplikację systemu)",
+          "IMG": "Zdjęcie (pokazuje się jako miniaturka)",
+          "LINK": "Link (otwiera się w nowej karcie przeglądarki)"
         }
       }
     },
@@ -76,21 +81,21 @@
         "DONE": "Gotowe",
         "EISENHAUER_MATRIX": "Macierz Eisenhowera",
         "IMPORTANT": "Ważne",
-        "IN_PROGRESS": "W trakcie realizacji",
+        "IN_PROGRESS": "W trakcie",
         "KANBAN": "Kanban",
-        "NOT_URGENT_IMPORTANT": "Niepilne i Ważne",
+        "NOT_URGENT_IMPORTANT": "Niepilne ale Ważne",
         "NOT_URGENT_NOT_IMPORTANT": "Niepilne i Nieważne",
         "TO_DO": "Do zrobienia",
         "URGENT": "Pilne",
         "URGENT_IMPORTANT": "Pilne i Ważne",
-        "URGENT_NOT_IMPORTANT": "Pilne i Nieważne"
+        "URGENT_NOT_IMPORTANT": "Pilne ale Nieważne"
       },
       "FORM": {
         "ADD_NEW_PANEL": "Dodaj nowy panel",
         "BACKLOG_TASK_FILTER_ALL": "Wszystkie",
-        "BACKLOG_TASK_FILTER_NO_BACKLOG": "Wykluczać",
-        "BACKLOG_TASK_FILTER_ONLY_BACKLOG": "Tylko zaległości",
-        "BACKLOG_TASK_FILTER_TYPE": "Zadania listy prac",
+        "BACKLOG_TASK_FILTER_NO_BACKLOG": "Wyklucz",
+        "BACKLOG_TASK_FILTER_ONLY_BACKLOG": "Tylko rejestrze zadań",
+        "BACKLOG_TASK_FILTER_TYPE": "Zadania z rejestru zadań",
         "COLUMNS": "Kolumny",
         "TAGS_EXCLUDED": "Wykluczone tagi",
         "TAGS_REQUIRED": "Wymagane tagi",
@@ -103,12 +108,12 @@
         "ADD_NEW_BOARD": "Dodaj nową tablicę",
         "CONFIRM_DELETE": "Czy na pewno chcesz usunąć tę tablicę?",
         "CREATE_NEW_TAG_BTN": "Utwórz tag",
-        "CREATE_NEW_TAG_MSG": "1 nowy tag musi zostać utworzony, aby ta tablica działała",
+        "CREATE_NEW_TAG_MSG": "Musisz stworzyć przynajmniej jeden nowy tag, aby ta tablica działała",
         "CREATE_NEW_TAGS_BTN": "Utwórz tagi",
         "CREATE_NEW_TAGS_MSG": "{{nr}} nowe tagi muszą zostać utworzone, aby ta tablica działała",
         "EDIT_BOARD": "Edytuj tablicę",
         "NO_PANELS_BTN": "Skonfiguruj tablicę",
-        "NO_PANELS_MSG": "Ta tablica nie ma skonfigurowanych paneli. Dodaj do niej kilka paneli."
+        "NO_PANELS_MSG": "Ta tablica nie ma skonfigurowanych paneli. Dodaj kilka paneli."
       }
     },
     "CALDAV": {
@@ -116,12 +121,12 @@
         "TITLE": "Ustawienia synchronizacji kalendarza (CalDav) dla projektu"
       },
       "FORM": {
-        "CALDAV_CATEGORY_FILTER": "Kategoria do filtrowania zadań CalDav dla (zostaw puste dla żadnego)",
+        "CALDAV_CATEGORY_FILTER": "Kategoria do filtrowania zadań dla (zostaw puste jeżeli brak)",
         "CALDAV_PASSWORD": "Twoje hasło CalDav",
         "CALDAV_RESOURCE": "Nazwa zasobu CalDav do synchronizacji (kalendarz)",
         "CALDAV_URL": "CalDav URL (podstawowy URL)",
         "CALDAV_USER": "Twój użytkownik CalDav",
-        "IS_TRANSITION_ISSUES_ENABLED": "Automatycznie wypełniaj zadania CalDav po zakończeniu zadania"
+        "IS_TRANSITION_ISSUES_ENABLED": "Automatycznie zakończ zadania CalDav po wykonaniu zadania"
       },
       "FORM_SECTION": {
         "HELP": "<p>Tutaj możesz skonfigurować Super Productivity tak, aby w panelu tworzenia zadań w widoku planowania dziennego wyświetlał listę niewykonanych zadań CalDav dla wybranego projektu. Będą one pokazywane jako sugestie i będą zawierały link do zadania oraz dodatkowe informacje.</p><p>Możesz też automatycznie dodać i synchronizować wszystkie niewykonane zadania do zaległości.</p>",
@@ -131,7 +136,7 @@
         "ASSIGNEE": "Osoba przypisana",
         "AT": "na",
         "ATTACHMENTS": "Załączniki",
-        "CHANGED": "Zmienione",
+        "CHANGED": "Zmieniono",
         "COMMENTS": "Komentarze",
         "COMPONENTS": "Komponenty",
         "DESCRIPTION": "Opis",
@@ -141,16 +146,16 @@
         "ON": "W",
         "RELATED": "Powiązane",
         "STATUS": "Status",
-        "STORY_POINTS": "Punkty historii",
+        "STORY_POINTS": "Wycena historyjki",
         "SUB_TASKS": "Podzadania",
         "SUMMARY": "Podsumowanie",
-        "WORKLOG": "Dziennik pracy",
+        "WORKLOG": "Rejestrze zadań",
         "WRITE_A_COMMENT": "Napisz komentarz"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: nie znaleziono kalendarza „{{calendarName}}”",
         "CALENDAR_READ_ONLY": "CalDav: kalendarz „{{calendarName}}” jest tylko do odczytu",
-        "ISSUE_NOT_FOUND": "CalDav: zadanie „{{issueId}}” wygląda na usunięte na serwerze."
+        "ISSUE_NOT_FOUND": "CalDav: zadania do wykonania „{{issueId}}” wygląda na usunięte z serwera."
       }
     },
     "CALENDARS": {
@@ -180,27 +185,27 @@
       "A_HOW": "Jak i gdzie oceniać",
       "BTN_DONT_BOTHER": "Nie zawracaj mi więcej głowy",
       "TITLE": "🙈 Proszę nam wybaczyć, ale...",
-      "TXT": "Ogromnie pomógłbyś projektowi, <strong>wystawiając mu dobrą ocenę, jeśli Ci się spodoba!</strong>"
+      "TXT": "Bardzo pomógłbyś projektowi, <strong>wystawiając mu dobrą ocenę, jeśli Ci się spodoba!</strong>"
     },
     "DOMINA_MODE": {
       "FORM": {
         "HELP": "Powtarza skonfigurowaną frazę co X podczas śledzenia czasu wykonywania zadania.",
         "L_INTERVAL": "Interwał powtarzania frazy",
         "L_TEXT": "Tekst",
-        "L_TEXT_DESCRIPTION": "Np: \"Work on ${currentTaskTitle}!\"",
+        "L_TEXT_DESCRIPTION": "Np: \"Pracuj nad ${currentTaskTitle}!\"",
         "L_VOICE": "Wybierz głos",
         "L_VOICE_DESCRIPTION": "Wybierz głos",
-        "TITLE": "Tryb Domina"
+        "TITLE": "Tryb Domeny"
       }
     },
     "DROPBOX": {
       "S": {
-        "ACCESS_TOKEN_ERROR": "Dropbox: nie udało się wygenerować tokenu dostępu (Access Token) na podstawie kodu autoryzacji",
+        "ACCESS_TOKEN_ERROR": "Dropbox: nie udało się wygenerować tokenu dostępowego (Access Token) na podstawie kodu autoryzacji",
         "ACCESS_TOKEN_GENERATED": "Dropbox: wygenerowano token dostępu (Access Token) na podstawie kodu autoryzacji",
         "AUTH_ERROR": "Dropbox: podano nieprawidłowy token dostępu",
-        "AUTH_ERROR_ACTION": "Żeton zmiany",
-        "OFFLINE": "Dropbox: nie można zsynchronizować danych, ponieważ brak połączenia z internetem",
-        "SYNC_ERROR": "Dropbox: błąd podczas synchronizacji",
+        "AUTH_ERROR_ACTION": "Zmień token",
+        "OFFLINE": "Dropbox: Nie można zsynchronizować danych, ponieważ utracono połączenia z internetem",
+        "SYNC_ERROR": "Dropbox: Wystąpił błąd podczas synchronizacji",
         "UNABLE_TO_GENERATE_PKCE_CHALLENGE": "Dropbox: Nie można wygenerować wyzwania PKCE."
       }
     },
