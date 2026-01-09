@@ -377,4 +377,167 @@ test.describe('WebDAV First Sync Conflict', () => {
     await contextA.close();
     await contextB.close();
   });
+
+  /**
+   * Test for gap detection when another client uploads a snapshot replacement.
+   *
+   * This tests the scenario from unit tests:
+   * - "should detect snapshot replacement when recentOps is empty"
+   * - "should detect gap when syncVersion resets"
+   *
+   * Scenario:
+   * 1. Client A sets up sync, creates task, uploads
+   * 2. Client B sets up sync (no local data), downloads A's data - becomes synced client
+   * 3. Client B creates a local task (not yet synced)
+   * 4. Client C connects with its own local data → conflict → chooses USE_LOCAL → uploads snapshot
+   * 5. Client B syncs → should detect gap (snapshot replacement) → shows conflict dialog
+   *
+   * This verifies that an ALREADY SYNCING client correctly detects when another
+   * client has replaced all data with a snapshot, potentially causing data loss
+   * for Client B's unsynced changes.
+   */
+  test('should show conflict dialog when another client uploads snapshot replacement', async ({
+    browser,
+    baseURL,
+    request,
+  }) => {
+    test.slow();
+    const SYNC_FOLDER_NAME = generateSyncFolderName('e2e-snapshot-replacement');
+    await createSyncFolder(request, SYNC_FOLDER_NAME);
+    const WEBDAV_CONFIG = {
+      ...WEBDAV_CONFIG_TEMPLATE,
+      syncFolderPath: `/${SYNC_FOLDER_NAME}`,
+    };
+    const url = baseURL || 'http://localhost:4242';
+
+    // --- Client A: Create initial data and upload ---
+    const { context: contextA, page: pageA } = await setupSyncClient(browser, url);
+    const syncPageA = new SyncPage(pageA);
+    const workViewPageA = new WorkViewPage(pageA);
+    await workViewPageA.waitForTaskList();
+
+    await syncPageA.setupWebdavSync(WEBDAV_CONFIG);
+    const taskA = 'Initial Task from A - ' + Date.now();
+    await workViewPageA.addTask(taskA);
+    await waitForStatePersistence(pageA);
+    await syncPageA.triggerSync();
+    await waitForSyncComplete(pageA, syncPageA);
+    console.log('[Test] Client A uploaded initial task');
+
+    // --- Client B: Connect WITHOUT local data (no conflict), becomes synced client ---
+    const { context: contextB, page: pageB } = await setupSyncClient(browser, url);
+    const syncPageB = new SyncPage(pageB);
+    const workViewPageB = new WorkViewPage(pageB);
+    await workViewPageB.waitForTaskList();
+
+    // Setup sync - should download A's data without conflict (no local data)
+    await syncPageB.setupWebdavSync(WEBDAV_CONFIG);
+    await waitForSyncComplete(pageB, syncPageB, 30000);
+    console.log('[Test] Client B connected and downloaded A data (no conflict)');
+
+    // Verify Client B has A's task
+    await expect(pageB.locator('task', { hasText: taskA })).toBeVisible({
+      timeout: 5000,
+    });
+    console.log('[Test] Client B verified it has A task');
+
+    // --- Client B creates a local task (NOT synced yet) ---
+    const taskB = 'Unsynced Task from B - ' + Date.now();
+    await workViewPageB.addTask(taskB);
+    await waitForStatePersistence(pageB);
+    console.log('[Test] Client B created local task (not synced)');
+
+    // --- Client C: Connect with its own local data → conflict → USE_LOCAL ---
+    // This simulates another client uploading a snapshot that replaces all data
+    const contextC = await browser.newContext({ baseURL: url });
+    const pageC = await contextC.newPage();
+
+    await pageC.goto('/');
+    await waitForAppReady(pageC);
+    await dismissTourIfVisible(pageC);
+
+    const syncPageC = new SyncPage(pageC);
+    const workViewPageC = new WorkViewPage(pageC);
+    await workViewPageC.waitForTaskList();
+
+    // Create local task BEFORE setting up sync
+    const taskC = 'Replacement Task from C - ' + Date.now();
+    await workViewPageC.addTask(taskC);
+    await waitForStatePersistence(pageC);
+    console.log('[Test] Client C created local task');
+
+    // Setup sync - triggers conflict with remote data
+    await syncPageC.setupWebdavSync(WEBDAV_CONFIG);
+    console.log('[Test] Client C set up sync, waiting for conflict dialog...');
+
+    // Wait for conflict dialog and resolve with USE_LOCAL (uploads snapshot)
+    const conflictDialogC = pageC.locator('mat-dialog-container', {
+      hasText: 'Conflicting Data',
+    });
+    await expect(conflictDialogC).toBeVisible({ timeout: 30000 });
+    console.log('[Test] Client C conflict dialog appeared');
+
+    const useLocalBtnC = conflictDialogC.locator('button', { hasText: /Keep local/i });
+    await useLocalBtnC.click();
+    console.log('[Test] Client C clicked Use Local (uploads snapshot)');
+
+    // Handle potential confirmation dialog
+    const confirmDialogC = pageC.locator('dialog-confirm');
+    try {
+      await confirmDialogC.waitFor({ state: 'visible', timeout: 3000 });
+      await confirmDialogC
+        .locator('button[color="warn"], button:has-text("OK")')
+        .first()
+        .click();
+    } catch {
+      // Confirmation might not appear
+    }
+
+    await waitForSyncComplete(pageC, syncPageC, 30000);
+    console.log('[Test] Client C sync completed (snapshot uploaded)');
+
+    // --- KEY TEST: Client B syncs and should detect gap/snapshot replacement ---
+    // Client B has unsynced local changes (taskB) and the remote data was replaced
+    // by Client C's snapshot. Client B should detect this gap and show conflict dialog.
+    await syncPageB.triggerSync();
+    console.log('[Test] Client B triggered sync, waiting for conflict dialog...');
+
+    // Wait for conflict dialog on Client B
+    const conflictDialogB = pageB.locator('mat-dialog-container', {
+      hasText: 'Conflicting Data',
+    });
+    await expect(conflictDialogB).toBeVisible({ timeout: 30000 });
+    console.log(
+      '[Test] SUCCESS: Client B detected snapshot replacement and showed conflict dialog',
+    );
+
+    // Resolve with USE_LOCAL to keep B's data
+    const useLocalBtnB = conflictDialogB.locator('button', { hasText: /Keep local/i });
+    await useLocalBtnB.click();
+
+    // Handle potential confirmation dialog
+    const confirmDialogB = pageB.locator('dialog-confirm');
+    try {
+      await confirmDialogB.waitFor({ state: 'visible', timeout: 3000 });
+      await confirmDialogB
+        .locator('button[color="warn"], button:has-text("OK")')
+        .first()
+        .click();
+    } catch {
+      // Confirmation might not appear
+    }
+
+    await waitForSyncComplete(pageB, syncPageB, 30000);
+    console.log('[Test] Client B resolved conflict');
+
+    // Verify Client B kept its local task
+    await expect(pageB.locator('task', { hasText: taskB })).toBeVisible({
+      timeout: 5000,
+    });
+    console.log('[Test] Verified Client B kept its local task');
+
+    await contextA.close();
+    await contextB.close();
+    await contextC.close();
+  });
 });
