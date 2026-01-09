@@ -194,8 +194,6 @@ test.describe.serial('@supersync SuperSync Server Migration', () => {
       // Client B joins
       clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
       await clientB.sync.setupSuperSync(syncConfig2);
-      // Add settling time before sync
-      await clientB.page.waitForTimeout(500);
       await clientB.sync.syncAndWait();
 
       // Verify Client B has BOTH tasks

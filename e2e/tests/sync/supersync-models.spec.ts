@@ -497,59 +497,54 @@ test.describe('@supersync SuperSync Models', () => {
       console.log('[BulkTag] Client B sees the tag');
 
       // 5. Client A deletes the tag
-      // Navigate to tag settings to delete it
+      // Navigate to Today view to ensure sidebar is visible
       await clientA.page.goto('/#/tag/TODAY/work');
       await clientA.page.waitForLoadState('networkidle');
 
-      const tagsTreeA = clientA.page
-        .locator('nav-list-tree')
-        .filter({ hasText: 'Tags' })
-        .first();
-      await tagsTreeA.waitFor({ state: 'visible' });
+      // Use toPass() to make tag deletion more robust
+      await expect(async () => {
+        const tagsTreeA = clientA.page
+          .locator('nav-list-tree')
+          .filter({ hasText: 'Tags' })
+          .first();
+        await tagsTreeA.waitFor({ state: 'visible', timeout: 3000 });
 
-      // Find the tag nav item and right-click to get context menu
-      const groupNavItemA = tagsTreeA.locator('nav-item').first();
-      const expandBtnA = groupNavItemA
-        .locator('button.expand-btn, button.arrow-btn')
-        .first();
-      if (await expandBtnA.isVisible()) {
+        // Expand Tags section if collapsed - click directly on the nav-item row
+        const groupNavItemA = tagsTreeA.locator('nav-item').first();
+        const expandBtnA = groupNavItemA.locator('button').first();
         const isExpanded = await expandBtnA.getAttribute('aria-expanded');
         if (isExpanded !== 'true') {
           await groupNavItemA.click();
-          await clientA.page.waitForTimeout(500);
+          await clientA.page.waitForTimeout(300);
         }
-      }
 
-      const tagNavItem = tagsTreeA
-        .locator('nav-item')
-        .filter({ hasText: tagName })
-        .first();
-      await tagNavItem.waitFor({ state: 'visible' });
+        // Find the specific tag and right-click
+        const tagNavItem = tagsTreeA
+          .locator('nav-item')
+          .filter({ hasText: tagName })
+          .first();
+        await tagNavItem.waitFor({ state: 'visible', timeout: 3000 });
+        await tagNavItem.click({ button: 'right' });
 
-      // Right-click on tag to get context menu
-      await tagNavItem.click({ button: 'right' });
-      await clientA.page.waitForTimeout(300);
+        // Click delete option in context menu
+        const deleteBtn = clientA.page
+          .locator('.mat-mdc-menu-panel button, .mat-mdc-menu-content button')
+          .filter({ hasText: /delete/i })
+          .first();
+        await deleteBtn.waitFor({ state: 'visible', timeout: 3000 });
+        await deleteBtn.click();
 
-      // Find and click delete option
-      const deleteBtn = clientA.page
-        .locator('.mat-mdc-menu-panel button')
-        .filter({ hasText: /delete/i })
-        .first();
-      await deleteBtn.waitFor({ state: 'visible', timeout: 5000 });
-      await deleteBtn.click();
-
-      // Confirm deletion if there's a dialog
-      const confirmBtn = clientA.page
-        .locator('mat-dialog-container button')
-        .filter({ hasText: /delete|confirm|yes/i })
-        .first();
-      try {
+        // Handle confirmation dialog
+        const confirmBtn = clientA.page
+          .locator('dialog-confirm button, mat-dialog-container button')
+          .filter({ hasText: /ok|delete|confirm|yes/i })
+          .first();
         await confirmBtn.waitFor({ state: 'visible', timeout: 3000 });
         await confirmBtn.click();
-        await clientA.page.waitForTimeout(500);
-      } catch {
-        // No confirmation dialog, that's fine
-      }
+
+        // Wait for tag to disappear from sidebar
+        await tagNavItem.waitFor({ state: 'hidden', timeout: 5000 });
+      }).toPass({ timeout: 30000, intervals: [1000, 2000, 3000, 5000] });
 
       console.log('[BulkTag] Tag deleted on Client A');
 
