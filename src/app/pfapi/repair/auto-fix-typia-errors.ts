@@ -29,7 +29,7 @@ export const autoFixTypiaErrors = (
       } else if (keys[0] === 'globalConfig') {
         const defaultValue = getValueByPath(DEFAULT_GLOBAL_CONFIG, keys.slice(1));
         setValueByPath(data, keys, defaultValue);
-        alert(
+        PFLog.warn(
           `Warning: ${path} had an invalid value and was set to default: ${defaultValue}`,
         );
       } else if (error.expected.includes('undefined') && value === null) {
@@ -138,7 +138,11 @@ const parsePath = (path: string): (string | number)[] => {
   return keys;
 };
 
-const getValueByPath = <T, R = any>(obj: T, path: (string | number)[]): R | undefined =>
+const getValueByPath = <T, R = unknown>(
+  obj: T,
+  path: (string | number)[],
+): R | undefined =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   path.reduce<any>((acc, key) => acc?.[key], obj);
 
 const setValueByPath = <T extends object>(

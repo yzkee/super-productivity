@@ -290,7 +290,7 @@ export class TaskContextMenuInnerComponent implements AfterViewInit {
     }
 
     const isConfirmBeforeTaskDelete =
-      this._globalConfigService.cfg()?.misc?.isConfirmBeforeTaskDelete;
+      this._globalConfigService.cfg()?.misc?.isConfirmBeforeTaskDelete ?? true;
 
     if (isConfirmBeforeTaskDelete) {
       this._matDialog
@@ -302,6 +302,7 @@ export class TaskContextMenuInnerComponent implements AfterViewInit {
           },
         })
         .afterClosed()
+        .pipe(takeUntil(this._destroy$))
         .subscribe(async (isConfirm) => {
           if (isConfirm) {
             await this._performDelete();
@@ -313,9 +314,9 @@ export class TaskContextMenuInnerComponent implements AfterViewInit {
   }
 
   private async _performDelete(): Promise<void> {
+    this._isTaskDeleteTriggered = true;
     const taskWithSubTasks = await this._getTaskWithSubtasks();
     this._taskService.remove(taskWithSubTasks);
-    this._isTaskDeleteTriggered = true;
   }
 
   startTask(): void {

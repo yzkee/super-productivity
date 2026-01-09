@@ -1,5 +1,5 @@
 import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
-import { Component, NO_ERRORS_SCHEMA } from '@angular/core';
+import { Component, input, NO_ERRORS_SCHEMA } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogModule, MatDialogRef } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule } from '@ngx-translate/core';
@@ -23,7 +23,9 @@ import { RepeatTaskHeatmapComponent } from '../repeat-task-heatmap/repeat-task-h
   template: '',
   standalone: true,
 })
-class MockRepeatTaskHeatmapComponent {}
+class MockRepeatTaskHeatmapComponent {
+  repeatCfgId = input.required<string>();
+}
 
 describe('DialogEditTaskRepeatCfgComponent', () => {
   let mockDialogRef: jasmine.SpyObj<MatDialogRef<DialogEditTaskRepeatCfgComponent>>;

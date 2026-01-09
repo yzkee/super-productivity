@@ -195,6 +195,7 @@ export class RepeatTaskHeatmapComponent {
   ): HeatmapData {
     const weeks: WeekData[] = [];
     const monthLabels: string[] = [];
+    const monthNames = this._dateAdapter.getMonthNames('short');
     let currentMonth = -1;
 
     // Find the first day (based on firstDayOfWeek setting) before or on the start date
@@ -219,37 +220,9 @@ export class RepeatTaskHeatmapComponent {
 
           const month = currentDate.getMonth();
           if (month !== currentMonth && currentDate.getDate() <= 7 && weekCount > 0) {
-            const monthNames = [
-              'Jan',
-              'Feb',
-              'Mar',
-              'Apr',
-              'May',
-              'Jun',
-              'Jul',
-              'Aug',
-              'Sep',
-              'Oct',
-              'Nov',
-              'Dec',
-            ];
             monthLabels.push(monthNames[month]);
             currentMonth = month;
           } else if (monthLabels.length === 0 && weekCount === 0) {
-            const monthNames = [
-              'Jan',
-              'Feb',
-              'Mar',
-              'Apr',
-              'May',
-              'Jun',
-              'Jul',
-              'Aug',
-              'Sep',
-              'Oct',
-              'Nov',
-              'Dec',
-            ];
             monthLabels.push(monthNames[month]);
             currentMonth = month;
           }
