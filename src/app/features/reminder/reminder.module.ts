@@ -81,7 +81,7 @@ export class ReminderModule {
         ),
       )
       .subscribe((reminders: Reminder[]) => {
-        if (IS_ELECTRON && this._globalConfigService.cfg?.reminder?.isFocusWindow) {
+        if (IS_ELECTRON && this._globalConfigService.cfg()?.reminder?.isFocusWindow) {
           this._uiHelperService.focusApp();
         }
 
