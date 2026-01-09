@@ -24,6 +24,7 @@ export type MiscConfig = Readonly<{
   isAutMarkParentAsDone: boolean;
   isConfirmBeforeExit: boolean;
   isConfirmBeforeExitWithoutFinishDay: boolean;
+  isConfirmBeforeTaskDelete?: boolean;
   isTurnOffMarkdown: boolean;
   isAutoAddWorkedOnToToday: boolean;
   isMinimizeToTray: boolean;
@@ -178,6 +179,7 @@ export type ReminderConfig = Readonly<{
   countdownDuration: number;
   defaultTaskRemindOption?: TaskReminderOptionId;
   disableReminders?: boolean;
+  isFocusWindow?: boolean;
 }>;
 
 export type TrackingReminderConfigOld = Readonly<{

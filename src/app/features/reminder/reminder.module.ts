@@ -27,6 +27,7 @@ import { T } from 'src/app/t.const';
 import { TaskWithReminderData } from '../tasks/task.model';
 import { Store } from '@ngrx/store';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
+import { GlobalConfigService } from '../config/global-config.service';
 
 @NgModule({
   declarations: [],
@@ -42,6 +43,7 @@ export class ReminderModule {
   private readonly _taskService = inject(TaskService);
   private readonly _syncTriggerService = inject(SyncTriggerService);
   private readonly _store = inject(Store);
+  private readonly _globalConfigService = inject(GlobalConfigService);
 
   constructor() {
     // Initialize reminder service (runs migration in background)
@@ -80,7 +82,7 @@ export class ReminderModule {
         ),
       )
       .subscribe((reminders: TaskWithReminderData[]) => {
-        if (IS_ELECTRON) {
+        if (IS_ELECTRON && this._globalConfigService.cfg()?.reminder?.isFocusWindow) {
           this._uiHelperService.focusApp();
         }
 
