@@ -6,11 +6,11 @@ import {
 } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { waitForAppReady } from './waits';
-import { dismissTourIfVisible } from './tour-helpers';
+import { dismissTourIfVisible, dismissWelcomeDialog } from './tour-helpers';
 import type { SyncPage } from '../pages/sync.page';
 
-// Re-export tour helper for convenience
-export { dismissTourIfVisible };
+// Re-export tour helpers for convenience
+export { dismissTourIfVisible, dismissWelcomeDialog };
 
 /**
  * WebDAV configuration interface
