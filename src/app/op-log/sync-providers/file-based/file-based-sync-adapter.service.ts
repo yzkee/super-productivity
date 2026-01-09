@@ -701,14 +701,19 @@ export class FileBasedSyncAdapterService {
     // This happens when "Use Local" is chosen in conflict resolution - the snapshot replaces
     // all previous ops but syncVersion may not decrease (could stay at 1).
     //
-    // IMPORTANT: If sinceSeq === syncData.syncVersion, there's no replacement - we're in sync.
-    // This happens after WE upload a snapshot (sinceSeq=1, syncVersion=1). Only trigger
-    // replacement detection when sinceSeq doesn't match syncVersion (another client uploaded).
+    // Detection strategy depends on whether we know the downloading client's ID:
+    // - If excludeClient is provided: use clientId comparison (more accurate)
+    // - If excludeClient is undefined: fall back to syncVersion comparison
+    //
+    // The clientId check prevents false positives when we just uploaded a snapshot ourselves.
+    // The syncVersion check works when sinceSeq doesn't match syncVersion (another client changed it).
     const snapshotReplacement =
       sinceSeq > 0 &&
-      sinceSeq !== syncData.syncVersion &&
       syncData.recentOps.length === 0 &&
-      !!syncData.state;
+      !!syncData.state &&
+      (excludeClient !== undefined
+        ? syncData.clientId !== excludeClient
+        : sinceSeq !== syncData.syncVersion);
 
     const needsGapDetection = versionWasReset || snapshotReplacement;
 
