@@ -1,3 +1,10 @@
+## [16.9.2](https://github.com/super-productivity/super-productivity/compare/v16.9.0...v16.9.2) (2026-01-09)
+
+### Bug Fixes
+
+- **e2e:** handle task deletion confirmation dialog in WebDAV sync test ([9c7549a](https://github.com/super-productivity/super-productivity/commit/9c7549af409df7a4ab91031c940f3fc78b35ad86))
+- resolve build failures from missing translations and unused imports ([dae5caa](https://github.com/super-productivity/super-productivity/commit/dae5caa6ff1f38c90ac99982563bc212c8b291c0))
+
 ## [16.9.1](https://github.com/super-productivity/super-productivity/compare/v16.9.0...v16.9.1) (2026-01-09)
 
 ### Bug Fixes
