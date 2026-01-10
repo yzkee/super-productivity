@@ -392,6 +392,41 @@ describe('SyncWrapperService', () => {
 
       expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalled();
     });
+
+    it('should set ERROR and return HANDLED_ERROR when upload has rejected ops', async () => {
+      mockSyncService.uploadPendingOps.and.returnValue(
+        Promise.resolve({
+          uploadedCount: 0,
+          rejectedCount: 1,
+          piggybackedOps: [],
+          rejectedOps: [{ opId: 'test-op', error: 'Payload too complex (max depth 50)' }],
+          localWinOpsCreated: 0,
+        }),
+      );
+
+      const result = await service.sync();
+
+      expect(result).toBe('HANDLED_ERROR');
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+      expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalledWith('IN_SYNC');
+    });
+
+    it('should set ERROR for non-payload rejected ops', async () => {
+      mockSyncService.uploadPendingOps.and.returnValue(
+        Promise.resolve({
+          uploadedCount: 0,
+          rejectedCount: 1,
+          piggybackedOps: [],
+          rejectedOps: [{ opId: 'test-op', error: 'Some other rejection' }],
+          localWinOpsCreated: 0,
+        }),
+      );
+
+      const result = await service.sync();
+
+      expect(result).toBe('HANDLED_ERROR');
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+    });
   });
 
   describe('Error handling', () => {

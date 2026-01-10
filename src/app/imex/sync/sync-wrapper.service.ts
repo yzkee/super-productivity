@@ -238,11 +238,9 @@ export class SyncWrapperService {
             'SyncWrapperService: Upload rejected - payload too large/complex',
             uploadResult.rejectedOps,
           );
-          this._providerManager.setSyncStatus('SYNC_ERROR');
-          this._snackService.open({
-            msg: T.F.SYNC.S.ERROR_PAYLOAD_TOO_LARGE,
-            type: 'ERROR',
-          });
+          this._providerManager.setSyncStatus('ERROR');
+          // Use alert for maximum visibility - this is a critical error
+          alert(this._translateService.instant(T.F.SYNC.S.ERROR_PAYLOAD_TOO_LARGE));
           return 'HANDLED_ERROR';
         }
 
@@ -251,7 +249,7 @@ export class SyncWrapperService {
           'SyncWrapperService: Upload had rejected operations, not marking as IN_SYNC',
           uploadResult.rejectedOps,
         );
-        this._providerManager.setSyncStatus('SYNC_ERROR');
+        this._providerManager.setSyncStatus('ERROR');
         return 'HANDLED_ERROR';
       }
 
