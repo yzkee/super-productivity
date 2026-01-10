@@ -7,7 +7,7 @@ import {
 import { T } from '../../../t.const';
 import { EMPTY_SIMPLE_COUNTER } from '../../simple-counter/simple-counter.const';
 import { nanoid } from 'nanoid';
-import { FormlyFieldConfig } from '@ngx-formly/core/lib/models/fieldconfig';
+import { FormlyFieldConfig } from '@ngx-formly/core';
 
 export const SIMPLE_COUNTER_FORM: ConfigFormSection<SimpleCounterConfig> = {
   title: T.F.SIMPLE_COUNTER.FORM.TITLE,

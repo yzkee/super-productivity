@@ -1,6 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { IDBPDatabase } from 'idb/build';
-import { DBSchema, openDB } from 'idb';
+import { DBSchema, IDBPDatabase, openDB } from 'idb';
 import { DBAdapter } from './db-adapter.model';
 import { Log } from '../log';
 

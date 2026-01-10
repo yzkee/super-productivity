@@ -1,6 +1,6 @@
 import { AppBaseData } from '../../imex/sync/sync.model';
 import { Action } from '@ngrx/store';
-import { ActionReducer } from '@ngrx/store/src/models';
+import { ActionReducer } from '@ngrx/store';
 
 export interface PersistenceLegacyBaseModel<T> {
   appDataKey: keyof AppBaseData;

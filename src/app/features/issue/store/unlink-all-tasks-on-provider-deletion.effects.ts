@@ -5,7 +5,7 @@ import { TaskCopy } from '../../tasks/task.model';
 import { IssueProviderActions } from './issue-provider.actions';
 import { first, tap } from 'rxjs/operators';
 import { Observable } from 'rxjs';
-import { Update } from '@ngrx/entity/src/models';
+import { Update } from '@ngrx/entity';
 import { Store } from '@ngrx/store';
 import { __updateMultipleTaskSimple } from '../../tasks/store/task.actions';
 import { TaskArchiveService } from '../../time-tracking/task-archive.service';

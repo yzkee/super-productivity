@@ -1,5 +1,4 @@
-import { IDBPDatabase } from 'idb/build';
-import { DBSchema, openDB } from 'idb';
+import { DBSchema, IDBPDatabase, openDB } from 'idb';
 import { DatabaseAdapter } from './database-adapter.model';
 import { MiniObservable } from '../util/mini-observable';
 import { PFLog } from '../../../core/log';

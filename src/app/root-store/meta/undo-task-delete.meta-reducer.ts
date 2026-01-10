@@ -11,7 +11,7 @@ import { TASK_FEATURE_NAME } from '../../features/tasks/store/task.reducer';
 import { TAG_FEATURE_NAME, tagAdapter } from '../../features/tag/store/tag.reducer';
 import { taskAdapter } from '../../features/tasks/store/task.adapter';
 import { Project } from '../../features/project/project.model';
-import { Action, ActionReducer } from '@ngrx/store/src/models';
+import { Action, ActionReducer } from '@ngrx/store';
 import { TODAY_TAG } from '../../features/tag/tag.const';
 import { Log } from '../../core/log';
 
