@@ -735,5 +735,190 @@ describe('SyncImportFilterService', () => {
         expect(result.invalidatedOps.length).toBe(0);
       });
     });
+
+    describe('filteringImport return field', () => {
+      it('should return filteringImport when ops are filtered by SYNC_IMPORT in batch', async () => {
+        const syncImportOp = createOp({
+          id: '019afd68-0050-7000-0000-000000000000',
+          opType: OpType.SyncImport,
+          clientId: 'client-A',
+          entityType: 'ALL',
+          vectorClock: { clientA: 5 },
+        });
+        const filteredOp = createOp({
+          id: '019afd68-0001-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'client-B',
+          vectorClock: { clientB: 2 }, // CONCURRENT - no knowledge of import
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([
+          filteredOp,
+          syncImportOp,
+        ]);
+
+        expect(result.filteringImport).toBeDefined();
+        expect(result.filteringImport!.id).toBe('019afd68-0050-7000-0000-000000000000');
+        expect(result.filteringImport!.opType).toBe(OpType.SyncImport);
+        expect(result.invalidatedOps.length).toBe(1);
+      });
+
+      it('should return filteringImport when ops are filtered by stored SYNC_IMPORT', async () => {
+        const storedImport: Operation = {
+          id: '019afd68-0050-7000-0000-000000000000',
+          actionType: '[SP_ALL] Load(import) all data' as ActionType,
+          opType: OpType.SyncImport,
+          entityType: 'ALL',
+          entityId: 'import-1',
+          payload: { appDataComplete: {} },
+          clientId: 'client-A',
+          vectorClock: { clientA: 5 },
+          timestamp: Date.now(),
+          schemaVersion: 1,
+        };
+
+        opLogStoreSpy.getLatestFullStateOp.and.returnValue(Promise.resolve(storedImport));
+
+        const filteredOps: Operation[] = [
+          createOp({
+            id: '019afd60-0001-7000-0000-000000000000',
+            opType: OpType.Update,
+            clientId: 'client-B',
+            vectorClock: { clientB: 2 }, // CONCURRENT
+          }),
+        ];
+
+        const result = await service.filterOpsInvalidatedBySyncImport(filteredOps);
+
+        expect(result.filteringImport).toBeDefined();
+        expect(result.filteringImport!.id).toBe(storedImport.id);
+        expect(result.filteringImport!.clientId).toBe('client-A');
+        expect(result.invalidatedOps.length).toBe(1);
+        expect(result.validOps.length).toBe(0);
+      });
+
+      it('should return undefined filteringImport when no import exists', async () => {
+        const ops: Operation[] = [
+          createOp({ id: '019afd68-0001-7000-0000-000000000000', opType: OpType.Update }),
+          createOp({ id: '019afd68-0002-7000-0000-000000000000', opType: OpType.Create }),
+        ];
+
+        const result = await service.filterOpsInvalidatedBySyncImport(ops);
+
+        expect(result.filteringImport).toBeUndefined();
+        expect(result.validOps.length).toBe(2);
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
+      it('should return filteringImport even when no ops are actually filtered (all valid)', async () => {
+        const syncImportOp = createOp({
+          id: '019afd68-0050-7000-0000-000000000000',
+          opType: OpType.SyncImport,
+          clientId: 'client-A',
+          entityType: 'ALL',
+          vectorClock: { clientA: 5 },
+        });
+        const validOp = createOp({
+          id: '019afd68-0100-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'client-B',
+          vectorClock: { clientA: 5, clientB: 1 }, // GREATER_THAN - has knowledge of import
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([
+          syncImportOp,
+          validOp,
+        ]);
+
+        // filteringImport is set because import exists, even though no ops were filtered
+        expect(result.filteringImport).toBeDefined();
+        expect(result.filteringImport!.id).toBe('019afd68-0050-7000-0000-000000000000');
+        expect(result.validOps.length).toBe(2);
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
+      it('should return the LATEST import when multiple imports exist in batch', async () => {
+        const ops: Operation[] = [
+          createOp({
+            id: '019afd68-0010-7000-0000-000000000000',
+            opType: OpType.SyncImport,
+            clientId: 'client-A',
+            entityType: 'ALL',
+            vectorClock: { clientA: 1 },
+          }),
+          createOp({
+            id: '019afd68-0050-7000-0000-000000000000', // Later UUIDv7 = latest
+            opType: OpType.SyncImport,
+            clientId: 'client-B',
+            entityType: 'ALL',
+            vectorClock: { clientB: 1 },
+          }),
+        ];
+
+        const result = await service.filterOpsInvalidatedBySyncImport(ops);
+
+        // Should return the latest import (by UUIDv7)
+        expect(result.filteringImport).toBeDefined();
+        expect(result.filteringImport!.id).toBe('019afd68-0050-7000-0000-000000000000');
+        expect(result.filteringImport!.clientId).toBe('client-B');
+      });
+
+      it('should return stored import when it is newer than batch import', async () => {
+        const storedImport: Operation = {
+          id: '019afd68-0100-7000-0000-000000000000', // Newer than batch import
+          actionType: '[SP_ALL] Load(import) all data' as ActionType,
+          opType: OpType.SyncImport,
+          entityType: 'ALL',
+          entityId: 'import-1',
+          payload: { appDataComplete: {} },
+          clientId: 'client-A',
+          vectorClock: { clientA: 10 },
+          timestamp: Date.now(),
+          schemaVersion: 1,
+        };
+
+        opLogStoreSpy.getLatestFullStateOp.and.returnValue(Promise.resolve(storedImport));
+
+        const batchImport = createOp({
+          id: '019afd68-0050-7000-0000-000000000000', // Older than stored
+          opType: OpType.SyncImport,
+          clientId: 'client-B',
+          entityType: 'ALL',
+          vectorClock: { clientB: 1 },
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([batchImport]);
+
+        // Should return stored import (newer by UUIDv7)
+        expect(result.filteringImport).toBeDefined();
+        expect(result.filteringImport!.id).toBe(storedImport.id);
+        expect(result.filteringImport!.clientId).toBe('client-A');
+      });
+
+      it('should return filteringImport for BACKUP_IMPORT as well', async () => {
+        const backupImportOp = createOp({
+          id: '019afd68-0050-7000-0000-000000000000',
+          opType: OpType.BackupImport,
+          clientId: 'client-A',
+          entityType: 'ALL',
+          vectorClock: { clientA: 5 },
+        });
+        const filteredOp = createOp({
+          id: '019afd68-0001-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'client-B',
+          vectorClock: { clientB: 2 }, // CONCURRENT
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([
+          filteredOp,
+          backupImportOp,
+        ]);
+
+        expect(result.filteringImport).toBeDefined();
+        expect(result.filteringImport!.opType).toBe(OpType.BackupImport);
+        expect(result.invalidatedOps.length).toBe(1);
+      });
+    });
   });
 });

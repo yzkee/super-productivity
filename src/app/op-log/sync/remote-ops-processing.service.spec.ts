@@ -364,7 +364,11 @@ describe('RemoteOpsProcessingService', () => {
 
       // Should not proceed to conflict detection or application
       expect(opLogStoreSpy.getUnsynced).not.toHaveBeenCalled();
-      expect(result).toEqual({ localWinOpsCreated: 0 });
+      expect(result).toEqual({
+        localWinOpsCreated: 0,
+        allOpsFilteredBySyncImport: false,
+        filteredOpCount: 0,
+      });
     });
 
     it('should track dropped entity IDs from failed migrations for dependency warnings', async () => {
@@ -435,7 +439,11 @@ describe('RemoteOpsProcessingService', () => {
 
       // Should not proceed to apply ops
       expect(opLogStoreSpy.getUnsynced).not.toHaveBeenCalled();
-      expect(result).toEqual({ localWinOpsCreated: 0 });
+      expect(result).toEqual({
+        localWinOpsCreated: 0,
+        allOpsFilteredBySyncImport: false,
+        filteredOpCount: 0,
+      });
     });
 
     it('should show warning once per session when receiving ops from newer version', async () => {
@@ -591,6 +599,185 @@ describe('RemoteOpsProcessingService', () => {
       await service.processRemoteOps([backupImportOp]);
 
       expect(service.detectConflicts).not.toHaveBeenCalled();
+    });
+
+    describe('SYNC_IMPORT filter metadata return fields', () => {
+      const createFullOp = (partial: Partial<Operation>): Operation => ({
+        id: 'op-1',
+        actionType: '[Test] Action' as ActionType,
+        opType: OpType.Update,
+        entityType: 'TASK',
+        entityId: 'entity-1',
+        payload: {},
+        clientId: 'client-1',
+        vectorClock: { client1: 1 },
+        timestamp: Date.now(),
+        schemaVersion: 1,
+        ...partial,
+      });
+
+      it('should return allOpsFilteredBySyncImport=true and correct count when all ops are filtered', async () => {
+        const syncImportOp = createFullOp({
+          id: '019afd68-0050-7000-0000-000000000000',
+          opType: OpType.SyncImport,
+          clientId: 'client-A',
+          entityType: 'ALL',
+          vectorClock: { clientA: 5 },
+        });
+
+        // Store has the SYNC_IMPORT
+        opLogStoreSpy.getLatestFullStateOp.and.returnValue(Promise.resolve(syncImportOp));
+
+        // Configure filter service to return all ops as invalidated
+        syncImportFilterServiceSpy.filterOpsInvalidatedBySyncImport.and.returnValue(
+          Promise.resolve({
+            validOps: [],
+            invalidatedOps: [
+              createFullOp({ id: 'filtered-1' }),
+              createFullOp({ id: 'filtered-2' }),
+              createFullOp({ id: 'filtered-3' }),
+            ],
+            filteringImport: syncImportOp,
+          }),
+        );
+
+        const remoteOps = [
+          createFullOp({ id: 'op-1', vectorClock: { clientB: 1 } }),
+          createFullOp({ id: 'op-2', vectorClock: { clientB: 2 } }),
+          createFullOp({ id: 'op-3', vectorClock: { clientB: 3 } }),
+        ];
+
+        const result = await service.processRemoteOps(remoteOps);
+
+        expect(result.allOpsFilteredBySyncImport).toBeTrue();
+        expect(result.filteredOpCount).toBe(3);
+        expect(result.filteringImport).toBeDefined();
+        expect(result.filteringImport!.id).toBe(syncImportOp.id);
+        expect(result.localWinOpsCreated).toBe(0);
+      });
+
+      it('should return allOpsFilteredBySyncImport=false when some ops pass filter', async () => {
+        const syncImportOp = createFullOp({
+          id: '019afd68-0050-7000-0000-000000000000',
+          opType: OpType.SyncImport,
+          clientId: 'client-A',
+          entityType: 'ALL',
+          vectorClock: { clientA: 5 },
+        });
+
+        const validOp = createFullOp({
+          id: 'valid-op',
+          vectorClock: { clientA: 5, clientB: 1 }, // GREATER_THAN import
+        });
+
+        // Some ops are valid, some filtered
+        syncImportFilterServiceSpy.filterOpsInvalidatedBySyncImport.and.returnValue(
+          Promise.resolve({
+            validOps: [validOp],
+            invalidatedOps: [createFullOp({ id: 'filtered-1' })],
+            filteringImport: syncImportOp,
+          }),
+        );
+
+        // Setup for applying the valid op
+        opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
+        opLogStoreSpy.getUnsyncedByEntity.and.returnValue(Promise.resolve(new Map()));
+        vectorClockServiceSpy.getEntityFrontier.and.returnValue(
+          Promise.resolve(new Map()),
+        );
+        vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
+        opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
+        opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
+        operationApplierServiceSpy.applyOperations.and.returnValue(
+          Promise.resolve({ appliedOps: [validOp] }),
+        );
+
+        const remoteOps = [
+          createFullOp({ id: 'op-1', vectorClock: { clientB: 1 } }),
+          createFullOp({ id: 'op-2', vectorClock: { clientA: 5, clientB: 2 } }),
+        ];
+
+        const result = await service.processRemoteOps(remoteOps);
+
+        // Some ops passed, so allOpsFilteredBySyncImport is false
+        expect(result.allOpsFilteredBySyncImport).toBeFalse();
+        expect(result.filteredOpCount).toBe(0);
+        expect(result.localWinOpsCreated).toBe(0);
+      });
+
+      it('should return allOpsFilteredBySyncImport=false when no import exists', async () => {
+        // No filtering by sync import (default mock behavior)
+        syncImportFilterServiceSpy.filterOpsInvalidatedBySyncImport.and.returnValue(
+          Promise.resolve({
+            validOps: [createFullOp({ id: 'op-1' })],
+            invalidatedOps: [],
+          }),
+        );
+
+        // Setup for applying ops
+        opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
+        opLogStoreSpy.getUnsyncedByEntity.and.returnValue(Promise.resolve(new Map()));
+        vectorClockServiceSpy.getEntityFrontier.and.returnValue(
+          Promise.resolve(new Map()),
+        );
+        vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
+        opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
+        opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
+        operationApplierServiceSpy.applyOperations.and.returnValue(
+          Promise.resolve({ appliedOps: [] }),
+        );
+
+        const result = await service.processRemoteOps([createFullOp({ id: 'op-1' })]);
+
+        expect(result.allOpsFilteredBySyncImport).toBeFalse();
+        expect(result.filteredOpCount).toBe(0);
+        expect(result.filteringImport).toBeUndefined();
+      });
+
+      it('should return correct metadata when migration drops all ops', async () => {
+        schemaMigrationServiceSpy.migrateOperation.and.returnValue(null);
+
+        const result = await service.processRemoteOps([
+          createFullOp({ id: 'op-1' }),
+          createFullOp({ id: 'op-2' }),
+        ]);
+
+        // Migration dropped all ops, not SYNC_IMPORT filtering
+        expect(result.allOpsFilteredBySyncImport).toBeFalse();
+        expect(result.filteredOpCount).toBe(0);
+        expect(result.filteringImport).toBeUndefined();
+        expect(result.localWinOpsCreated).toBe(0);
+      });
+
+      it('should return filteringImport with full operation details', async () => {
+        const syncImportOp: Operation = {
+          id: '019afd68-0050-7000-0000-000000000000',
+          actionType: '[SP_ALL] Load(import) all data' as ActionType,
+          opType: OpType.SyncImport,
+          entityType: 'ALL',
+          entityId: 'import-1',
+          payload: { appDataComplete: {} },
+          clientId: 'client-A',
+          vectorClock: { clientA: 5 },
+          timestamp: 1704067200000,
+          schemaVersion: 1,
+        };
+
+        syncImportFilterServiceSpy.filterOpsInvalidatedBySyncImport.and.returnValue(
+          Promise.resolve({
+            validOps: [],
+            invalidatedOps: [createFullOp({ id: 'filtered-1' })],
+            filteringImport: syncImportOp,
+          }),
+        );
+
+        const result = await service.processRemoteOps([createFullOp({ id: 'op-1' })]);
+
+        expect(result.filteringImport).toBeDefined();
+        expect(result.filteringImport!.clientId).toBe('client-A');
+        expect(result.filteringImport!.timestamp).toBe(1704067200000);
+        expect(result.filteringImport!.vectorClock).toEqual({ clientA: 5 });
+      });
     });
   });
 

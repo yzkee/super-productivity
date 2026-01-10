@@ -63,11 +63,12 @@ export class SyncImportFilterService {
    * another client arrive after we already downloaded the import.
    *
    * @param ops - Operations to filter (already migrated)
-   * @returns Object with `validOps` and `invalidatedOps` arrays
+   * @returns Object with `validOps`, `invalidatedOps`, and optionally `filteringImport`
    */
   async filterOpsInvalidatedBySyncImport(ops: Operation[]): Promise<{
     validOps: Operation[];
     invalidatedOps: Operation[];
+    filteringImport?: Operation;
   }> {
     // Find full state import operations (SYNC_IMPORT, BACKUP_IMPORT, or REPAIR) in current batch
     const fullStateImportsInBatch = ops.filter(
@@ -150,6 +151,6 @@ export class SyncImportFilterService {
       }
     }
 
-    return { validOps, invalidatedOps };
+    return { validOps, invalidatedOps, filteringImport: latestImport };
   }
 }

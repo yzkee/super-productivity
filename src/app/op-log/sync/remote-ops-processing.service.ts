@@ -69,11 +69,14 @@ export class RemoteOpsProcessingService {
    * 6. **Validation** - Checkpoint D: validate and repair state
    *
    * @param remoteOps - Operations received from remote storage
-   * @returns Object indicating how many local-win ops were created during LWW resolution
+   * @returns Object with processing results including filter metadata
    */
-  async processRemoteOps(
-    remoteOps: Operation[],
-  ): Promise<{ localWinOpsCreated: number }> {
+  async processRemoteOps(remoteOps: Operation[]): Promise<{
+    localWinOpsCreated: number;
+    allOpsFilteredBySyncImport: boolean;
+    filteredOpCount: number;
+    filteringImport?: Operation;
+  }> {
     // ─────────────────────────────────────────────────────────────────────────
     // STEP 1: Schema Migration (Receiver-Side)
     // Migrate ops from older schema versions to current version.
@@ -98,7 +101,11 @@ export class RemoteOpsProcessingService {
           actionFn: () =>
             window.open('https://super-productivity.com/download', '_blank'),
         });
-        return { localWinOpsCreated: 0 };
+        return {
+          localWinOpsCreated: 0,
+          allOpsFilteredBySyncImport: false,
+          filteredOpCount: 0,
+        };
       }
 
       // Check if remote op is too new (exceeds supported skip)
@@ -149,7 +156,11 @@ export class RemoteOpsProcessingService {
         actionStr: T.PS.UPDATE_APP,
         actionFn: () => window.open('https://super-productivity.com/download', '_blank'),
       });
-      return { localWinOpsCreated: 0 };
+      return {
+        localWinOpsCreated: 0,
+        allOpsFilteredBySyncImport: false,
+        filteredOpCount: 0,
+      };
     }
 
     if (migratedOps.length === 0) {
@@ -158,7 +169,11 @@ export class RemoteOpsProcessingService {
           'RemoteOpsProcessingService: All remote ops were dropped during migration.',
         );
       }
-      return { localWinOpsCreated: 0 };
+      return {
+        localWinOpsCreated: 0,
+        allOpsFilteredBySyncImport: false,
+        filteredOpCount: 0,
+      };
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -167,7 +182,7 @@ export class RemoteOpsProcessingService {
     // import reference entities that were wiped. These must be discarded.
     // This also checks the LOCAL STORE for imports downloaded in previous sync cycles.
     // ─────────────────────────────────────────────────────────────────────────
-    const { validOps, invalidatedOps } =
+    const { validOps, invalidatedOps, filteringImport } =
       await this.syncImportFilterService.filterOpsInvalidatedBySyncImport(migratedOps);
 
     if (invalidatedOps.length > 0) {
@@ -185,7 +200,12 @@ export class RemoteOpsProcessingService {
       OpLog.normal(
         'RemoteOpsProcessingService: No valid ops to process after SYNC_IMPORT filtering.',
       );
-      return { localWinOpsCreated: 0 };
+      return {
+        localWinOpsCreated: 0,
+        allOpsFilteredBySyncImport: invalidatedOps.length > 0,
+        filteredOpCount: invalidatedOps.length,
+        filteringImport,
+      };
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -207,7 +227,11 @@ export class RemoteOpsProcessingService {
       // to restore all clients to a specific point in time.
 
       await this.validateAfterSync();
-      return { localWinOpsCreated: 0 };
+      return {
+        localWinOpsCreated: 0,
+        allOpsFilteredBySyncImport: false,
+        filteredOpCount: 0,
+      };
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -224,7 +248,7 @@ export class RemoteOpsProcessingService {
     // Without this, a race condition exists where a write could start after
     // reading the frontier but before conflict resolution/application completes,
     // causing the new write to be based on stale state.
-    let result!: { localWinOpsCreated: number };
+    let localWinOpsCreated = 0;
     await this.lockService.request(LOCK_NAMES.OPERATION_LOG, async () => {
       const appliedFrontierByEntity = await this.vectorClockService.getEntityFrontier();
       const conflictResult = await this.detectConflicts(
@@ -246,10 +270,11 @@ export class RemoteOpsProcessingService {
         );
         // Auto-resolve conflicts using Last-Write-Wins strategy
         // Piggyback non-conflicting ops so they're applied with resolved conflicts
-        result = await this.conflictResolutionService.autoResolveConflictsLWW(
+        const lwwResult = await this.conflictResolutionService.autoResolveConflictsLWW(
           conflicts,
           nonConflicting,
         );
+        localWinOpsCreated = lwwResult.localWinOpsCreated;
         return;
       }
 
@@ -260,9 +285,12 @@ export class RemoteOpsProcessingService {
         await this.applyNonConflictingOps(nonConflicting, true);
         await this.validateAfterSync(true); // Inside sp_op_log lock
       }
-      result = { localWinOpsCreated: 0 };
     });
-    return result;
+    return {
+      localWinOpsCreated,
+      allOpsFilteredBySyncImport: false,
+      filteredOpCount: 0,
+    };
   }
 
   /**

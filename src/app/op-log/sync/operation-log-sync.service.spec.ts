@@ -63,6 +63,8 @@ describe('OperationLogSyncService', () => {
     ]);
     remoteOpsProcessingServiceSpy.processRemoteOps.and.resolveTo({
       localWinOpsCreated: 0,
+      allOpsFilteredBySyncImport: false,
+      filteredOpCount: 0,
     });
 
     rejectedOpsHandlerServiceSpy = jasmine.createSpyObj('RejectedOpsHandlerService', [
@@ -266,6 +268,8 @@ describe('OperationLogSyncService', () => {
         // Mock remoteOpsProcessingService to return 2 local-win ops
         remoteOpsProcessingServiceSpy.processRemoteOps.and.resolveTo({
           localWinOpsCreated: 2,
+          allOpsFilteredBySyncImport: false,
+          filteredOpCount: 0,
         });
 
         const mockProvider = {
@@ -390,6 +394,8 @@ describe('OperationLogSyncService', () => {
           // processRemoteOps returns 2 local-win ops
           remoteOpsProcessingServiceSpy.processRemoteOps.and.resolveTo({
             localWinOpsCreated: 2,
+            allOpsFilteredBySyncImport: false,
+            filteredOpCount: 0,
           });
 
           // handleRejectedOps returns 3 merged ops created
@@ -511,6 +517,8 @@ describe('OperationLogSyncService', () => {
         // Mock remoteOpsProcessingService to return 1 local-win op
         remoteOpsProcessingServiceSpy.processRemoteOps.and.resolveTo({
           localWinOpsCreated: 1,
+          allOpsFilteredBySyncImport: false,
+          filteredOpCount: 0,
         });
 
         const mockProvider = {
@@ -581,7 +589,11 @@ describe('OperationLogSyncService', () => {
           const callOrder: string[] = [];
           remoteOpsProcessingServiceSpy.processRemoteOps.and.callFake(async () => {
             callOrder.push('processRemoteOps');
-            return { localWinOpsCreated: 0 };
+            return {
+              localWinOpsCreated: 0,
+              allOpsFilteredBySyncImport: false,
+              filteredOpCount: 0,
+            };
           });
 
           const setLastServerSeqSpy = jasmine

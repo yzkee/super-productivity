@@ -224,6 +224,37 @@ export class SyncWrapperService {
         await this._opLogSyncService.uploadPendingOps(syncCapableProvider);
       }
 
+      // 4. Check for rejected full-state ops - this is a critical failure that should
+      // NOT be reported as "in sync" to the user
+      if (uploadResult?.rejectedCount && uploadResult.rejectedCount > 0) {
+        const hasPayloadError = uploadResult.rejectedOps?.some(
+          (r) =>
+            r.error?.includes('Payload too complex') ||
+            r.error?.includes('Payload too large'),
+        );
+
+        if (hasPayloadError) {
+          SyncLog.err(
+            'SyncWrapperService: Upload rejected - payload too large/complex',
+            uploadResult.rejectedOps,
+          );
+          this._providerManager.setSyncStatus('SYNC_ERROR');
+          this._snackService.open({
+            msg: T.F.SYNC.S.ERROR_PAYLOAD_TOO_LARGE,
+            type: 'ERROR',
+          });
+          return 'HANDLED_ERROR';
+        }
+
+        // Other rejections - still shouldn't claim success
+        SyncLog.err(
+          'SyncWrapperService: Upload had rejected operations, not marking as IN_SYNC',
+          uploadResult.rejectedOps,
+        );
+        this._providerManager.setSyncStatus('SYNC_ERROR');
+        return 'HANDLED_ERROR';
+      }
+
       // Mark as in-sync for all providers after successful sync
       // This indicates the sync operation completed successfully
       this._providerManager.setSyncStatus('IN_SYNC');

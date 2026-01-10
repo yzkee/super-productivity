@@ -18,6 +18,7 @@ import {
   RejectedOpsHandlerService,
 } from './rejected-ops-handler.service';
 import { SyncHydrationService } from '../persistence/sync-hydration.service';
+import { SyncImportConflictDialogService } from './sync-import-conflict-dialog.service';
 
 /**
  * Orchestrates synchronization of the Operation Log with remote storage.
@@ -99,6 +100,7 @@ export class OperationLogSyncService {
   private remoteOpsProcessingService = inject(RemoteOpsProcessingService);
   private rejectedOpsHandlerService = inject(RejectedOpsHandlerService);
   private syncHydrationService = inject(SyncHydrationService);
+  private syncImportConflictDialogService = inject(SyncImportConflictDialogService);
 
   /**
    * Checks if this client is "wholly fresh" - meaning it has never synced before
@@ -408,6 +410,57 @@ export class OperationLogSyncService {
     const processResult = await this.remoteOpsProcessingService.processRemoteOps(
       result.newOps,
     );
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Handle SYNC_IMPORT conflict: all remote ops filtered by local import
+    // This happens when user imports/restores data locally, and other devices
+    // have been creating changes without knowledge of that import.
+    // ─────────────────────────────────────────────────────────────────────────
+    if (processResult.allOpsFilteredBySyncImport && processResult.filteredOpCount > 0) {
+      OpLog.warn(
+        `OperationLogSyncService: All ${processResult.filteredOpCount} remote ops filtered by local SYNC_IMPORT. ` +
+          `Showing conflict resolution dialog.`,
+      );
+
+      const resolution = await this.syncImportConflictDialogService.showConflictDialog({
+        filteredOpCount: processResult.filteredOpCount,
+        localImportTimestamp: processResult.filteringImport?.timestamp ?? Date.now(),
+        localImportClientId: processResult.filteringImport?.clientId ?? 'unknown',
+      });
+
+      switch (resolution) {
+        case 'USE_LOCAL':
+          OpLog.normal(
+            'OperationLogSyncService: User chose USE_LOCAL. Force uploading local state.',
+          );
+          await this.forceUploadLocalState(syncProvider);
+          return {
+            serverMigrationHandled: false,
+            localWinOpsCreated: 0,
+            newOpsCount: 0,
+          };
+        case 'USE_REMOTE':
+          OpLog.normal(
+            'OperationLogSyncService: User chose USE_REMOTE. Force downloading remote state.',
+          );
+          await this.forceDownloadRemoteState(syncProvider);
+          return {
+            serverMigrationHandled: false,
+            localWinOpsCreated: 0,
+            newOpsCount: 0,
+          };
+        case 'CANCEL':
+        default:
+          OpLog.normal(
+            'OperationLogSyncService: User cancelled sync import conflict resolution.',
+          );
+          return {
+            serverMigrationHandled: false,
+            localWinOpsCreated: 0,
+            newOpsCount: 0,
+          };
+      }
+    }
 
     // IMPORTANT: Persist lastServerSeq AFTER ops are stored in IndexedDB.
     // This ensures localStorage and IndexedDB stay in sync. If we crash before this point,

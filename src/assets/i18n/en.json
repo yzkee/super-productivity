@@ -938,6 +938,15 @@
         "OK": "Download Remote Data",
         "TITLE": "Initial Sync"
       },
+      "D_SYNC_IMPORT_CONFLICT": {
+        "TITLE": "Sync Conflict Detected",
+        "MESSAGE": "Your local data was imported/restored, but the server has {{filteredOpCount}} changes from other devices.",
+        "EXPLANATION": "These changes were made without knowledge of your import and cannot be automatically merged.",
+        "IMPORT_DATE": "Import date",
+        "FILTERED_CHANGES": "Filtered changes",
+        "USE_LOCAL": "Use My Data",
+        "USE_REMOTE": "Use Server Data"
+      },
       "D_LOCAL_DATA_REPLACE_CONFIRM": {
         "MESSAGE": "You have {{count}} unsynced local changes that will be replaced by remote data. Do you want to continue?",
         "TITLE": "Replace Local Data?"
