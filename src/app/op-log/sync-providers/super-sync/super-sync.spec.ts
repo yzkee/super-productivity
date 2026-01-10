@@ -8,11 +8,19 @@ import {
 } from '../../core/errors/sync-errors';
 import { SyncOperation } from '../provider.interface';
 
-// Helper to decompress gzip Uint8Array to string
-const decompressGzip = async (compressed: Uint8Array): Promise<string> => {
+// Helper to convert Blob to Uint8Array
+const blobToUint8Array = async (blob: Blob): Promise<Uint8Array> => {
+  const arrayBuffer = await blob.arrayBuffer();
+  return new Uint8Array(arrayBuffer);
+};
+
+// Helper to decompress gzip Uint8Array or Blob to string
+const decompressGzip = async (compressed: Uint8Array | Blob): Promise<string> => {
+  const bytes =
+    compressed instanceof Blob ? await blobToUint8Array(compressed) : compressed;
   const stream = new DecompressionStream('gzip');
   const writer = stream.writable.getWriter();
-  writer.write(compressed as BufferSource);
+  writer.write(bytes as BufferSource);
   writer.close();
   const decompressed = await new Response(stream.readable).arrayBuffer();
   return new TextDecoder().decode(decompressed);
@@ -992,18 +1000,19 @@ describe('SuperSyncProvider', () => {
       await provider.uploadSnapshot({ data: 'test' }, 'client-1', 'initial', {}, 1);
 
       const body = fetchSpy.calls.mostRecent().args[1].body;
-      expect(body).toBeInstanceOf(Uint8Array);
-      // Verify gzip magic number
-      expect(body[0]).toBe(0x1f);
-      expect(body[1]).toBe(0x8b);
+      expect(body).toBeInstanceOf(Blob);
+      // Convert Blob to Uint8Array to verify gzip magic number
+      const bytes = await blobToUint8Array(body);
+      expect(bytes[0]).toBe(0x1f);
+      expect(bytes[1]).toBe(0x8b);
     });
 
     it('should include all required fields in payload', async () => {
       mockPrivateCfgStore.load.and.returnValue(Promise.resolve(testConfig));
 
-      let capturedBody: Uint8Array | null = null;
+      let capturedBody: Blob | null = null;
       fetchSpy.and.callFake(async (_url: string, options: RequestInit) => {
-        capturedBody = options.body as Uint8Array;
+        capturedBody = options.body as Blob;
         return {
           ok: true,
           json: () => Promise.resolve({ accepted: true }),
@@ -1017,12 +1026,7 @@ describe('SuperSyncProvider', () => {
 
       // Decompress and verify payload
       expect(capturedBody).not.toBeNull();
-      const stream = new DecompressionStream('gzip');
-      const writer = stream.writable.getWriter();
-      writer.write(capturedBody! as BufferSource);
-      writer.close();
-      const decompressed = await new Response(stream.readable).arrayBuffer();
-      const payload = JSON.parse(new TextDecoder().decode(decompressed));
+      const payload = JSON.parse(await decompressGzip(capturedBody!));
 
       expect(payload.state).toEqual(state);
       expect(payload.clientId).toBe('client-1');
@@ -1082,13 +1086,8 @@ describe('SuperSyncProvider', () => {
         await provider.uploadSnapshot({}, 'client-1', reason, {}, 1);
 
         // Verify the reason was included in the compressed payload
-        const body = fetchSpy.calls.mostRecent().args[1].body as Uint8Array;
-        const stream = new DecompressionStream('gzip');
-        const writer = stream.writable.getWriter();
-        writer.write(body as BufferSource);
-        writer.close();
-        const decompressed = await new Response(stream.readable).arrayBuffer();
-        const payload = JSON.parse(new TextDecoder().decode(decompressed));
+        const body = fetchSpy.calls.mostRecent().args[1].body as Blob;
+        const payload = JSON.parse(await decompressGzip(body));
 
         expect(payload.reason).toBe(reason);
       }
@@ -1097,9 +1096,9 @@ describe('SuperSyncProvider', () => {
     it('should compress large payloads effectively', async () => {
       mockPrivateCfgStore.load.and.returnValue(Promise.resolve(testConfig));
 
-      let capturedBody: Uint8Array | null = null;
+      let capturedBody: Blob | null = null;
       fetchSpy.and.callFake(async (_url: string, options: RequestInit) => {
-        capturedBody = options.body as Uint8Array;
+        capturedBody = options.body as Blob;
         return {
           ok: true,
           json: () => Promise.resolve({ accepted: true }),
@@ -1127,7 +1126,7 @@ describe('SuperSyncProvider', () => {
 
       expect(capturedBody).not.toBeNull();
       // Compressed should be significantly smaller
-      expect(capturedBody!.length).toBeLessThan(originalSize * 0.5);
+      expect(capturedBody!.size).toBeLessThan(originalSize * 0.5);
     });
   });
 

@@ -72,7 +72,7 @@ describe('plannerSharedMetaReducer', () => {
         },
       };
       const task = createMockTask({ id: 'task1' });
-      const action = createTransferTaskAction(task, todayStr, 0, '2026-01-10', todayStr);
+      const action = createTransferTaskAction(task, todayStr, 0, '2099-12-31', todayStr);
 
       metaReducer(testState, action);
       const resultState = mockReducer.calls.mostRecent().args[0];
@@ -80,7 +80,7 @@ describe('plannerSharedMetaReducer', () => {
       // task1 should be removed from planner.days[today]
       expect(resultState.planner.days[todayStr]).toEqual(['task2']);
       // task1 should be added to the new day
-      expect(resultState.planner.days['2026-01-10']).toContain('task1');
+      expect(resultState.planner.days['2099-12-31']).toContain('task1');
     });
 
     it('should update task.dueDay when transferring from today to different day', () => {
@@ -111,14 +111,14 @@ describe('plannerSharedMetaReducer', () => {
       const testState = createStateWithExistingTasks([], [], [], ['task1']);
       // Do NOT set up planner.days[today] - it doesn't exist
       const task = createMockTask({ id: 'task1' });
-      const action = createTransferTaskAction(task, todayStr, 0, '2026-01-10', todayStr);
+      const action = createTransferTaskAction(task, todayStr, 0, '2099-12-31', todayStr);
 
       // Should not throw
       expect(() => metaReducer(testState, action)).not.toThrow();
 
       const resultState = mockReducer.calls.mostRecent().args[0];
       // Task should be added to the new day
-      expect(resultState.planner.days['2026-01-10']).toContain('task1');
+      expect(resultState.planner.days['2099-12-31']).toContain('task1');
     });
 
     it('should handle transfer from today when task is not in planner.days[today]', () => {
@@ -130,7 +130,7 @@ describe('plannerSharedMetaReducer', () => {
         days: { [todayStr]: ['other-task'] },
       };
       const task = createMockTask({ id: 'task1' });
-      const action = createTransferTaskAction(task, todayStr, 0, '2026-01-10', todayStr);
+      const action = createTransferTaskAction(task, todayStr, 0, '2099-12-31', todayStr);
 
       // Should not throw
       expect(() => metaReducer(testState, action)).not.toThrow();
@@ -139,7 +139,7 @@ describe('plannerSharedMetaReducer', () => {
       // other-task should remain in today
       expect(resultState.planner.days[todayStr]).toEqual(['other-task']);
       // Task should be added to the new day
-      expect(resultState.planner.days['2026-01-10']).toContain('task1');
+      expect(resultState.planner.days['2099-12-31']).toContain('task1');
     });
 
     it('should add task to Today tag when moving from different day to today', () => {
