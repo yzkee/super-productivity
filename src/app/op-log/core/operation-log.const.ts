@@ -4,6 +4,30 @@ import { InjectionToken } from '@angular/core';
  * Configuration constants for the Operation Log system.
  * Centralizes all tunable parameters for easier maintenance and documentation.
  *
+ * ## System Limits Summary
+ *
+ * | Limit | Value | Constant | Notes |
+ * |-------|-------|----------|-------|
+ * | Vector clock clients | 8 | MAX_VECTOR_CLOCK_SIZE | Pruning keeps most active clients |
+ * | Client ID length | ≥5 chars | (vector-clock.ts) | Throws error if shorter |
+ * | Vector clock counter | MAX_SAFE_INTEGER-1000 | (vector-clock.ts) | Requires SYNC_IMPORT on overflow |
+ * | Ops per upload batch | 25 | MAX_OPS_PER_UPLOAD_REQUEST | Reduced from 100 to avoid 413 errors |
+ * | Download page size | 500 | DOWNLOAD_PAGE_SIZE | Operations per download request |
+ * | Max download iterations | 1000 | MAX_DOWNLOAD_ITERATIONS | Server bug protection (500K ops max) |
+ * | Max ops in memory | 50,000 | MAX_DOWNLOAD_OPS_IN_MEMORY | Prevents OOM during sync |
+ * | Compaction threshold | 500 | COMPACTION_THRESHOLD | Triggers automatic compaction |
+ * | Compaction timeout | 25s | COMPACTION_TIMEOUT_MS | Aborts to prevent lock expiration |
+ * | Retention window | 7 days | COMPACTION_RETENTION_MS | Normal compaction |
+ * | Emergency retention | 1 day | EMERGENCY_COMPACTION_RETENTION_MS | When quota exceeded |
+ * | Clock drift warning | 5 min | CLOCK_DRIFT_THRESHOLD_MS | Warns user once per session |
+ * | Max conflict retries | 5 | MAX_CONFLICT_RETRY_ATTEMPTS | Then marked as rejected |
+ * | Post-sync cooldown | 2s | POST_SYNC_COOLDOWN_MS | Suppresses selector effects |
+ *
+ * ## Known Scalability Notes
+ *
+ * - Bulk hydration (bulk-hydration.meta-reducer.ts): Synchronous loop not tested at 10K+ scale
+ * - Compaction deleteOpsWhere: O(N) cursor scan, could be slow with large logs
+ *
  * ## Related Timing Constants in Other Files
  *
  * **Sync Configuration** (`src/app/imex/sync/sync.const.ts`):
@@ -164,6 +188,31 @@ export const RETRY_DELAY_BASE_MS = new InjectionToken<number>('RETRY_DELAY_BASE_
   providedIn: 'root',
   factory: () => DOWNLOAD_RETRY_BASE_DELAY_MS,
 });
+
+/**
+ * Maximum number of operations per upload request to the sync server.
+ * Reduced from 100 to avoid 413 (Payload Too Large) errors with encrypted payloads.
+ */
+export const MAX_OPS_PER_UPLOAD_REQUEST = 25;
+
+/**
+ * Number of operations to request per download page from the sync server.
+ * Server returns up to this many operations per request with hasMore indicator.
+ */
+export const DOWNLOAD_PAGE_SIZE = 500;
+
+/**
+ * Maximum number of clients to track in a vector clock.
+ * When exceeded, pruning keeps the most active clients (highest counter values).
+ * The current client is always preserved regardless of activity level.
+ */
+export const MAX_VECTOR_CLOCK_SIZE = 8;
+
+/**
+ * Minimum length for client IDs in vector clocks.
+ * Short IDs are rejected to prevent accidental collisions.
+ */
+export const MIN_CLIENT_ID_LENGTH = 5;
 
 /**
  * Duration in milliseconds to suppress selector-based effects after sync completes.

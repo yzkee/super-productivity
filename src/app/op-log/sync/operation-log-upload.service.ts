@@ -10,7 +10,7 @@ import {
   assertValidFullStatePayload,
 } from '../core/operation.types';
 import { OpLog } from '../../core/log';
-import { LOCK_NAMES } from '../core/operation-log.const';
+import { LOCK_NAMES, MAX_OPS_PER_UPLOAD_REQUEST } from '../core/operation-log.const';
 import { chunkArray } from '../../util/chunk-array';
 import {
   OperationSyncCapable,
@@ -193,10 +193,9 @@ export class OperationLogUploadService {
         syncOps = await this.encryptionService.encryptOperations(syncOps, encryptKey);
       }
 
-      // Upload in batches (reduced from 100 to avoid 413 Payload Too Large errors)
-      const MAX_OPS_PER_REQUEST = 25;
-      const chunks = chunkArray(syncOps, MAX_OPS_PER_REQUEST);
-      const correspondingEntries = chunkArray(regularOps, MAX_OPS_PER_REQUEST);
+      // Upload in batches to avoid 413 Payload Too Large errors
+      const chunks = chunkArray(syncOps, MAX_OPS_PER_UPLOAD_REQUEST);
+      const correspondingEntries = chunkArray(regularOps, MAX_OPS_PER_UPLOAD_REQUEST);
 
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];

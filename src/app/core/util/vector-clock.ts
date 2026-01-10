@@ -4,6 +4,10 @@ import {
   compareVectorClocks as sharedCompareVectorClocks,
   mergeVectorClocks as sharedMergeVectorClocks,
 } from '@sp/shared-schema';
+import {
+  MAX_VECTOR_CLOCK_SIZE,
+  MIN_CLIENT_ID_LENGTH,
+} from '../../op-log/core/operation-log.const';
 
 /**
  * Vector Clock implementation for distributed synchronization
@@ -161,7 +165,11 @@ export const incrementVectorClock = (
   clock: VectorClock | null | undefined,
   clientId: string,
 ): VectorClock => {
-  if (!clientId || typeof clientId !== 'string' || clientId.length < 5) {
+  if (
+    !clientId ||
+    typeof clientId !== 'string' ||
+    clientId.length < MIN_CLIENT_ID_LENGTH
+  ) {
     PFLog.critical('incrementVectorClock: Invalid clientId', {
       clientId,
       type: typeof clientId,
@@ -287,8 +295,7 @@ export const hasVectorClockChanges = (
   return false;
 };
 
-// Maximum number of clients to track in a vector clock
-const MAX_VECTOR_CLOCK_SIZE = 8;
+// MAX_VECTOR_CLOCK_SIZE imported from operation-log.const.ts
 
 /**
  * Metrics for vector clock operations
