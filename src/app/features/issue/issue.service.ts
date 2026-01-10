@@ -58,6 +58,7 @@ import { getDbDateStr } from '../../util/get-db-date-str';
 import { TODAY_TAG } from '../tag/tag.const';
 import typia from 'typia';
 import { GlobalProgressBarService } from '../../core-ui/global-progress-bar/global-progress-bar.service';
+import { NavigateToTaskService } from '../../core-ui/navigate-to-task/navigate-to-task.service';
 
 @Injectable({
   providedIn: 'root',
@@ -83,6 +84,7 @@ export class IssueService {
   private _calendarIntegrationService = inject(CalendarIntegrationService);
   private _store = inject(Store);
   private _globalProgressBarService = inject(GlobalProgressBarService);
+  private _navigateToTaskService = inject(NavigateToTaskService);
 
   ISSUE_SERVICE_MAP: { [key: string]: IssueServiceInterface } = {
     [GITLAB_TYPE]: this._gitlabCommonInterfacesService,
@@ -660,6 +662,19 @@ export class IssueService {
           ico: 'arrow_upward',
           msg: T.F.TASK.S.FOUND_MOVE_FROM_BACKLOG,
           translateParams: { title: res.task.title },
+        });
+        return true;
+      } else if (issueType === ICAL_TYPE) {
+        // For calendar events, don't move to today - just show snackbar with navigation
+        const taskId = res.task.id;
+        this._snackService.open({
+          ico: 'info',
+          msg: T.F.TASK.S.TASK_ALREADY_EXISTS,
+          translateParams: { title: res.task.title },
+          actionStr: T.F.TASK.S.GO_TO_TASK,
+          actionFn: () => {
+            this._navigateToTaskService.navigate(taskId, false);
+          },
         });
         return true;
       } else {

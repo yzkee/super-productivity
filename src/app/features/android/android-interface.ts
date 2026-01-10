@@ -55,8 +55,10 @@ export interface AndroidInterface {
   ): void;
   stopFocusModeService?(): void;
   updateFocusModeService?(
+    title: string,
     remainingMs: number,
     isPaused: boolean,
+    isBreak: boolean,
     taskTitle: string | null,
   ): void;
 
@@ -70,6 +72,9 @@ export interface AndroidInterface {
     triggerAtMs: number,
   ): void;
   cancelNativeReminder?(notificationId: number): void;
+
+  // Widget task queue - get queued tasks from home screen widget
+  getWidgetTaskQueue?(): string | null;
 
   // added here only
   onResume$: Subject<void>;
@@ -92,6 +97,9 @@ export interface AndroidInterface {
   onFocusResume$: Subject<void>;
   onFocusSkip$: Subject<void>;
   onFocusComplete$: Subject<void>;
+
+  // Focus mode timer completion (native service detected timer reached 0)
+  onFocusModeTimerComplete$: Subject<boolean>; // boolean indicates isBreak
 }
 
 // setInterval(() => {
@@ -113,6 +121,7 @@ if (IS_ANDROID_WEB_VIEW) {
   androidInterface.onFocusResume$ = new Subject();
   androidInterface.onFocusSkip$ = new Subject();
   androidInterface.onFocusComplete$ = new Subject();
+  androidInterface.onFocusModeTimerComplete$ = new Subject();
   androidInterface.onShareWithAttachment$ = new ReplaySubject(1);
   androidInterface.isKeyboardShown$ = new BehaviorSubject(false);
 

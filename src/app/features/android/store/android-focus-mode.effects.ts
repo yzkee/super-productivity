@@ -8,6 +8,7 @@ import {
   selectIsBreakActive,
   selectIsLongBreak,
   selectMode,
+  selectPausedTaskId,
   selectTimeRemaining,
   selectTimer,
 } from '../../focus-mode/store/focus-mode.selectors';
@@ -16,10 +17,12 @@ import { selectCurrentTask, selectCurrentTaskId } from '../../tasks/store/task.s
 import { combineLatest } from 'rxjs';
 import { FocusModeMode, TimerState } from '../../focus-mode/focus-mode.model';
 import { DroidLog } from '../../../core/log';
+import { SnackService } from '../../../core/snack/snack.service';
 
 @Injectable()
 export class AndroidFocusModeEffects {
   private _store = inject(Store);
+  private _snackService = inject(SnackService);
 
   // Start/stop focus mode notification when timer state changes
   syncFocusModeToNotification$ =
@@ -76,30 +79,46 @@ export class AndroidFocusModeEffects {
                   isBreak: isBreakActive,
                   isPaused: !timer.isRunning,
                 });
-                androidInterface.startFocusModeService?.(
-                  title,
-                  timer.duration,
-                  remainingMs,
-                  isBreakActive,
-                  !timer.isRunning,
-                  taskTitle,
+                this._safeNativeCall(
+                  () =>
+                    androidInterface.startFocusModeService?.(
+                      title,
+                      timer.duration,
+                      remainingMs,
+                      isBreakActive,
+                      !timer.isRunning,
+                      taskTitle,
+                    ),
+                  'Failed to start focus mode notification',
+                  true,
                 );
               } else if (this._hasStateChanged(prev?.timer, timer, taskTitle, curr)) {
                 // Only update if something significant changed
                 DroidLog.log('AndroidFocusModeEffects: Updating focus mode service', {
+                  title,
                   remaining: remainingMs,
                   isPaused: !timer.isRunning,
+                  isBreak: isBreakActive,
                 });
-                androidInterface.updateFocusModeService?.(
-                  remainingMs,
-                  !timer.isRunning,
-                  taskTitle,
+                this._safeNativeCall(
+                  () =>
+                    androidInterface.updateFocusModeService?.(
+                      title,
+                      remainingMs,
+                      !timer.isRunning,
+                      isBreakActive,
+                      taskTitle,
+                    ),
+                  'Failed to update focus mode service',
                 );
               }
             } else if (wasFocusModeActive && !isFocusModeActive) {
               // Focus mode ended, stop the service
               DroidLog.log('AndroidFocusModeEffects: Stopping focus mode service');
-              androidInterface.stopFocusModeService?.();
+              this._safeNativeCall(
+                () => androidInterface.stopFocusModeService?.(),
+                'Failed to stop focus mode service',
+              );
             }
           }),
         ),
@@ -133,7 +152,8 @@ export class AndroidFocusModeEffects {
     createEffect(() =>
       androidInterface.onFocusSkip$.pipe(
         tap(() => DroidLog.log('AndroidFocusModeEffects: Skip action received')),
-        map(() => focusModeActions.skipBreak()),
+        withLatestFrom(this._store.select(selectPausedTaskId)),
+        map(([_, pausedTaskId]) => focusModeActions.skipBreak({ pausedTaskId })),
       ),
     );
 
@@ -145,6 +165,40 @@ export class AndroidFocusModeEffects {
         map(() => focusModeActions.completeFocusSession({ isManual: true })),
       ),
     );
+
+  // Handle native timer completion (when native service detects timer reached 0 in background)
+  handleNativeTimerComplete$ =
+    IS_ANDROID_WEB_VIEW &&
+    createEffect(() =>
+      androidInterface.onFocusModeTimerComplete$.pipe(
+        tap((isBreak) =>
+          DroidLog.log(
+            'AndroidFocusModeEffects: Native timer complete received, isBreak=' + isBreak,
+          ),
+        ),
+        withLatestFrom(this._store.select(selectPausedTaskId)),
+        map(([isBreak, pausedTaskId]) => {
+          if (isBreak) {
+            // Break timer completed, skip the break (go back to work)
+            return focusModeActions.skipBreak({ pausedTaskId });
+          } else {
+            // Work session completed
+            return focusModeActions.completeFocusSession({ isManual: false });
+          }
+        }),
+      ),
+    );
+
+  private _safeNativeCall(fn: () => void, errorMsg: string, showSnackbar = false): void {
+    try {
+      fn();
+    } catch (e) {
+      DroidLog.err(errorMsg, e);
+      if (showSnackbar) {
+        this._snackService.open({ msg: errorMsg, type: 'ERROR' });
+      }
+    }
+  }
 
   private _getNotificationTitle(
     mode: FocusModeMode,
