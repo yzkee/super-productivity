@@ -47,8 +47,7 @@ export interface AppArchiveFileData {
 }
 
 export interface AppBaseData
-  extends AppBaseWithoutLastSyncModelChange,
-    AppArchiveFileData {}
+  extends AppBaseWithoutLastSyncModelChange, AppArchiveFileData {}
 
 export interface LocalSyncMetaForProvider {
   lastSync: number;

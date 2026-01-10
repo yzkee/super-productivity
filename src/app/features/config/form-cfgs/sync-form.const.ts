@@ -1,4 +1,4 @@
-/* eslint-disable max-len, @typescript-eslint/naming-convention */
+/* eslint-disable @typescript-eslint/naming-convention */
 import { T } from '../../../t.const';
 import { ConfigFormSection, SyncConfig } from '../global-config.model';
 import { LegacySyncProvider } from '../../../imex/sync/legacy-sync-provider.model';

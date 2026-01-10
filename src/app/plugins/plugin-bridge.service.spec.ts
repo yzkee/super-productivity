@@ -1,5 +1,5 @@
 // TODO: Fix plugin tests after stabilizing task model changes
-/* eslint-disable */
+
 /*
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';

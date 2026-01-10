@@ -15,7 +15,7 @@ import { DEFAULT_SIMPLE_COUNTERS } from '../simple-counter.const';
 import { arrayToDictionary } from '../../../util/array-to-dictionary';
 import { loadAllData } from '../../../root-store/meta/load-all-data.action';
 import { updateAllInDictionary } from '../../../util/update-all-in-dictionary';
-import { Update } from '@ngrx/entity/src/models';
+import { Update } from '@ngrx/entity';
 import {
   addSimpleCounter,
   decreaseSimpleCounterCounterToday,

@@ -149,7 +149,7 @@ describe('PluginBridgeService.setCounter()', () => {
 
       expect(store.dispatch).toHaveBeenCalled();
       const call = store.dispatch.calls.mostRecent();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const action = call.args[0] as any;
       expect(action.type).toBe('[SimpleCounter] Upsert SimpleCounter');
       expect(action.simpleCounter.id).toBe('new-counter');
@@ -166,7 +166,7 @@ describe('PluginBridgeService.setCounter()', () => {
 
       expect(store.dispatch).toHaveBeenCalled();
       const call = store.dispatch.calls.mostRecent();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const action = call.args[0] as any;
       expect(action.type).toBe('[SimpleCounter] Upsert SimpleCounter');
       expect(action.simpleCounter.id).toBe('zero-counter');
@@ -177,7 +177,7 @@ describe('PluginBridgeService.setCounter()', () => {
       await service.setCounter('full-counter', 5);
 
       const call = store.dispatch.calls.mostRecent();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const action = call.args[0] as any;
       const counter = action.simpleCounter;
 
@@ -201,7 +201,7 @@ describe('PluginBridgeService.setCounter()', () => {
 
       expect(store.dispatch).toHaveBeenCalled();
       const call = store.dispatch.calls.mostRecent();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const action = call.args[0] as any;
       expect(action.type).toBe('[SimpleCounter] Update SimpleCounter');
       expect(action.simpleCounter.id).toBe('existing-counter');
@@ -223,7 +223,7 @@ describe('PluginBridgeService.setCounter()', () => {
 
       expect(store.dispatch).toHaveBeenCalled();
       const call = store.dispatch.calls.mostRecent();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const action = call.args[0] as any;
       const countOnDay = action.simpleCounter.changes.countOnDay;
       expect(countOnDay['2024-01-01']).toBe(5);
@@ -241,7 +241,7 @@ describe('PluginBridgeService.setCounter()', () => {
 
       expect(store.dispatch).toHaveBeenCalled();
       const call = store.dispatch.calls.mostRecent();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const action = call.args[0] as any;
       expect(action.simpleCounter.changes.countOnDay[today]).toBe(100);
     });
@@ -253,7 +253,7 @@ describe('PluginBridgeService.setCounter()', () => {
       await service.setCounter('check-action', 1);
 
       const call = store.dispatch.calls.mostRecent();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       const action = call.args[0] as any;
       expect(action.type).toBe('[SimpleCounter] Update SimpleCounter');
     });

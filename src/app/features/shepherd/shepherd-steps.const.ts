@@ -739,7 +739,7 @@ export const SHEPHERD_STEPS = (
     },
     {
       title: 'Moving around',
-      // eslint-disable-next-line max-len
+
       text: `<p>When a task is focused you can navigate to other tasks by pressing the arrow keys <kbd>↑</kbd> and <kbd>↓</kbd>.</p>`,
       when: {
         show: () => taskService.focusFirstTaskIfVisible(),

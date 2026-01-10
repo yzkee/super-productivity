@@ -11,8 +11,6 @@ import {
 } from '../../../core/errors/sync-errors';
 import { WebDavHttpHeader, WebDavHttpMethod, WebDavHttpStatus } from './webdav.const';
 
-/* eslint-disable @typescript-eslint/naming-convention */
-
 export class WebdavApi {
   private static readonly L = 'WebdavApi';
   private xmlParser: WebdavXmlParser;

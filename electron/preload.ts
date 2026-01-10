@@ -16,7 +16,6 @@ const _invoke: (channel: IPCEventValue, ...args: unknown[]) => Promise<unknown> 
   ...args
 ) => ipcRenderer.invoke(channel, ...args);
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ea: ElectronAPI = {
   on: (
     channel: string,

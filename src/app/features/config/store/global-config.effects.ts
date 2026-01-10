@@ -107,7 +107,6 @@ export class GlobalConfigEffects {
             sectionCfg && typeof (sectionCfg as MiscConfig).startOfNextDay === 'number',
         ),
         tap(({ sectionKey, sectionCfg }) => {
-          // eslint-disable-next-line
           this._dateService.setStartOfNextDayDiff((sectionCfg as any)['startOfNextDay']);
         }),
       ),

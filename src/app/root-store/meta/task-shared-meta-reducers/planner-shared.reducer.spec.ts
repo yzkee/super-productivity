@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type,@typescript-eslint/naming-convention */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { plannerSharedMetaReducer } from './planner-shared.reducer';
 import { RootState } from '../../root-state';
 import { Task } from '../../../features/tasks/task.model';

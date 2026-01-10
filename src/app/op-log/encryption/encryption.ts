@@ -88,10 +88,13 @@ const _deriveKeyArgon = async (
     outputType: 'binary',
   });
 
-  return window.crypto.subtle.importKey('raw', derivedBytes, { name: ALGORITHM }, false, [
-    'encrypt',
-    'decrypt',
-  ]);
+  return window.crypto.subtle.importKey(
+    'raw',
+    derivedBytes.buffer as ArrayBuffer,
+    { name: ALGORITHM },
+    false,
+    ['encrypt', 'decrypt'],
+  );
 };
 
 const decryptArgon = async (data: string, password: string): Promise<string> => {
