@@ -28,7 +28,6 @@ export class GlobalErrorHandler implements ErrorHandler {
       return;
     }
 
-    // eslint-disable-next-line
     let simpleStack = '';
     if (
       err &&

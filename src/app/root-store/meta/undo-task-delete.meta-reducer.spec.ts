@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type,@typescript-eslint/naming-convention */
 import { undoTaskDeleteMetaReducer } from './undo-task-delete.meta-reducer';
 import { TaskSharedActions } from './task-shared.actions';
 import { undoDeleteTask } from '../../features/tasks/store/task.actions';

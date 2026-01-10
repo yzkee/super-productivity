@@ -151,4 +151,180 @@ describe('InlineMarkdownComponent', () => {
       expect(component.changed.emit).toHaveBeenCalledWith(changedValue);
     });
   });
+
+  describe('_handleCheckboxClick', () => {
+    let mockPreviewEl: { element: { nativeElement: HTMLElement } };
+
+    beforeEach(() => {
+      mockPreviewEl = {
+        element: {
+          nativeElement: document.createElement('div'),
+        },
+      };
+      spyOn(component, 'previewEl').and.returnValue(mockPreviewEl as any);
+      spyOn(component.changed, 'emit');
+    });
+
+    it('should toggle first checkbox in simple checklist', () => {
+      // Arrange
+      component.model = '- [ ] Task 1\n- [ ] Task 2';
+      fixture.detectChanges();
+
+      // Create mock checkbox wrappers
+      const wrapper1 = document.createElement('li');
+      wrapper1.className = 'checkbox-wrapper';
+      wrapper1.innerHTML =
+        '<span class="checkbox material-icons">check_box_outline_blank</span>Task 1';
+
+      const wrapper2 = document.createElement('li');
+      wrapper2.className = 'checkbox-wrapper';
+      wrapper2.innerHTML =
+        '<span class="checkbox material-icons">check_box_outline_blank</span>Task 2';
+
+      mockPreviewEl.element.nativeElement.appendChild(wrapper1);
+      mockPreviewEl.element.nativeElement.appendChild(wrapper2);
+
+      // Act
+      component['_handleCheckboxClick'](wrapper1);
+
+      // Assert
+      expect(component.changed.emit).toHaveBeenCalledWith('- [x] Task 1\n- [ ] Task 2');
+    });
+
+    it('should toggle checkbox after blank line', () => {
+      // Arrange - this is the bug scenario from issue #5950
+      component.model = '- [ ] Task 1\n\n- [ ] Task 2';
+      fixture.detectChanges();
+
+      // Create mock checkbox wrappers (blank line doesn't create a wrapper)
+      const wrapper1 = document.createElement('li');
+      wrapper1.className = 'checkbox-wrapper';
+      wrapper1.innerHTML =
+        '<span class="checkbox material-icons">check_box_outline_blank</span>Task 1';
+
+      const wrapper2 = document.createElement('li');
+      wrapper2.className = 'checkbox-wrapper';
+      wrapper2.innerHTML =
+        '<span class="checkbox material-icons">check_box_outline_blank</span>Task 2';
+
+      mockPreviewEl.element.nativeElement.appendChild(wrapper1);
+      mockPreviewEl.element.nativeElement.appendChild(wrapper2);
+
+      // Act - click the second checkbox (Task 2)
+      component['_handleCheckboxClick'](wrapper2);
+
+      // Assert - Task 2 should be toggled, not Task 1
+      expect(component.changed.emit).toHaveBeenCalledWith('- [ ] Task 1\n\n- [x] Task 2');
+    });
+
+    it('should toggle checkbox with multiple blank lines', () => {
+      // Arrange
+      component.model = '- [ ] Task 1\n\n\n- [ ] Task 2\n\n- [ ] Task 3';
+      fixture.detectChanges();
+
+      const wrapper1 = document.createElement('li');
+      wrapper1.className = 'checkbox-wrapper';
+      wrapper1.innerHTML =
+        '<span class="checkbox material-icons">check_box_outline_blank</span>Task 1';
+
+      const wrapper2 = document.createElement('li');
+      wrapper2.className = 'checkbox-wrapper';
+      wrapper2.innerHTML =
+        '<span class="checkbox material-icons">check_box_outline_blank</span>Task 2';
+
+      const wrapper3 = document.createElement('li');
+      wrapper3.className = 'checkbox-wrapper';
+      wrapper3.innerHTML =
+        '<span class="checkbox material-icons">check_box_outline_blank</span>Task 3';
+
+      mockPreviewEl.element.nativeElement.appendChild(wrapper1);
+      mockPreviewEl.element.nativeElement.appendChild(wrapper2);
+      mockPreviewEl.element.nativeElement.appendChild(wrapper3);
+
+      // Act - click the third checkbox (Task 3)
+      component['_handleCheckboxClick'](wrapper3);
+
+      // Assert
+      expect(component.changed.emit).toHaveBeenCalledWith(
+        '- [ ] Task 1\n\n\n- [ ] Task 2\n\n- [x] Task 3',
+      );
+    });
+
+    it('should uncheck a checked checkbox', () => {
+      // Arrange
+      component.model = '- [x] Task 1\n- [ ] Task 2';
+      fixture.detectChanges();
+
+      const wrapper1 = document.createElement('li');
+      wrapper1.className = 'checkbox-wrapper';
+      wrapper1.innerHTML = '<span class="checkbox material-icons">check_box</span>Task 1';
+
+      const wrapper2 = document.createElement('li');
+      wrapper2.className = 'checkbox-wrapper';
+      wrapper2.innerHTML =
+        '<span class="checkbox material-icons">check_box_outline_blank</span>Task 2';
+
+      mockPreviewEl.element.nativeElement.appendChild(wrapper1);
+      mockPreviewEl.element.nativeElement.appendChild(wrapper2);
+
+      // Act
+      component['_handleCheckboxClick'](wrapper1);
+
+      // Assert
+      expect(component.changed.emit).toHaveBeenCalledWith('- [ ] Task 1\n- [ ] Task 2');
+    });
+  });
+
+  describe('clickPreview with loose lists (blank lines)', () => {
+    let mockPreviewEl: { element: { nativeElement: HTMLElement } };
+
+    beforeEach(() => {
+      mockPreviewEl = {
+        element: {
+          nativeElement: document.createElement('div'),
+        },
+      };
+      spyOn(component, 'previewEl').and.returnValue(mockPreviewEl as any);
+      spyOn(component.changed, 'emit');
+    });
+
+    it('should handle checkbox click when checkbox is wrapped in <p> tag (loose list)', () => {
+      // Arrange - simulates loose list HTML: <li class="checkbox-wrapper"><p><span class="checkbox">...</span>Task</p></li>
+      component.model = '- [ ] Task 1\n\n- [ ] Task 2';
+      fixture.detectChanges();
+
+      // Build DOM structure for loose list (with <p> wrapper)
+      const wrapper1 = document.createElement('li');
+      wrapper1.className = 'checkbox-wrapper undone';
+      const p1 = document.createElement('p');
+      const checkbox1 = document.createElement('span');
+      checkbox1.className = 'checkbox material-icons';
+      checkbox1.textContent = 'check_box_outline_blank';
+      p1.appendChild(checkbox1);
+      p1.appendChild(document.createTextNode('Task 1'));
+      wrapper1.appendChild(p1);
+
+      const wrapper2 = document.createElement('li');
+      wrapper2.className = 'checkbox-wrapper undone';
+      const p2 = document.createElement('p');
+      const checkbox2 = document.createElement('span');
+      checkbox2.className = 'checkbox material-icons';
+      checkbox2.textContent = 'check_box_outline_blank';
+      p2.appendChild(checkbox2);
+      p2.appendChild(document.createTextNode('Task 2'));
+      wrapper2.appendChild(p2);
+
+      mockPreviewEl.element.nativeElement.appendChild(wrapper1);
+      mockPreviewEl.element.nativeElement.appendChild(wrapper2);
+
+      // Act - simulate clicking the second checkbox
+      const mockEvent = {
+        target: checkbox2,
+      } as unknown as MouseEvent;
+      component.clickPreview(mockEvent);
+
+      // Assert - Task 2 should be toggled
+      expect(component.changed.emit).toHaveBeenCalledWith('- [ ] Task 1\n\n- [x] Task 2');
+    });
+  });
 });

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type,@typescript-eslint/naming-convention */
 import { tagSharedMetaReducer } from './tag-shared.reducer';
 import { TaskSharedActions } from '../task-shared.actions';
 import { RootState } from '../../root-state';

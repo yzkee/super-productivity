@@ -141,9 +141,7 @@ const parsePath = (path: string): (string | number)[] => {
 const getValueByPath = <T, R = unknown>(
   obj: T,
   path: (string | number)[],
-): R | undefined =>
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  path.reduce<any>((acc, key) => acc?.[key], obj);
+): R | undefined => path.reduce<any>((acc, key) => acc?.[key], obj);
 
 const setValueByPath = <T extends object>(
   obj: T,

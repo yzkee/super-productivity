@@ -1,4 +1,3 @@
-/* eslint-disable max-len */
 import { ConfigFormSection } from '../global-config.model';
 
 export const SYNC_SAFETY_BACKUPS_FORM: ConfigFormSection<{ [key: string]: any }> = {

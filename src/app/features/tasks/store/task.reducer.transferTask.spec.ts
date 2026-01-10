@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/naming-convention,@typescript-eslint/explicit-function-return-type */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { Task, TaskState } from '../task.model';
 import { initialTaskState, taskReducer } from './task.reducer';
 import { PlannerActions } from '../../planner/store/planner.actions';

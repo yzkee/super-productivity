@@ -70,7 +70,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isTimedFullScreenBlocker: false,
     timedFullScreenBlockerDuration: 8000,
     isFocusWindow: false,
-    /* eslint-disable-next-line */
+
     takeABreakMessage:
       'You have been working for ${duration} without one. Go away from the computer! Take a short walk! Makes you more productive in the long run!',
     takeABreakMinWorkingTime: 60 * minute,
