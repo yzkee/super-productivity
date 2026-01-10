@@ -567,6 +567,7 @@ describe('PluginBridgeService', () => {
 });
 */
 
+/* eslint-disable @typescript-eslint/naming-convention */
 // Active tests for setCounter fix (issue #5812)
 import { TestBed } from '@angular/core/testing';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';

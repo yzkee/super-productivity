@@ -80,7 +80,6 @@ export class GlobalConfigEffects {
   // Intentional: UI config should apply from any source, dispatch: false
   applyLanguageFromState$ = createEffect(
     () =>
-      // eslint-disable-next-line local-rules/require-hydration-guard
       this._store.select(selectLocalizationConfig).pipe(
         map((config) => config.lng),
         distinctUntilChanged(),

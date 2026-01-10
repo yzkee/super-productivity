@@ -33,7 +33,7 @@ export class UserProfileService {
   private _syncWrapperServiceCache: SyncWrapperService | null = null;
   private get _syncWrapperService(): SyncWrapperService {
     if (!this._syncWrapperServiceCache) {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { SyncWrapperService: SWS } = require('../../imex/sync/sync-wrapper.service');
       this._syncWrapperServiceCache = this._injector.get(SWS);
     }

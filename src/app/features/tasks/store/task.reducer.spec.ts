@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import { Task, TaskState } from '../task.model';
 import { initialTaskState, taskReducer } from './task.reducer';
 import * as fromActions from './task.actions';

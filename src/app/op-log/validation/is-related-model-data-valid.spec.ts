@@ -12,7 +12,7 @@ describe('isRelatedModelDataValid', () => {
     spyOn(PFLog, 'warn');
     spyOn(PFLog, 'err');
     spyOn(PFLog, 'critical');
-    /* eslint-disable @typescript-eslint/no-var-requires */
+    /* eslint-disable @typescript-eslint/no-require-imports */
     // Reset modules to allow re-importing with mocks
     // @ts-ignore
     delete require.cache[require.resolve('../../util/dev-error')];
@@ -33,7 +33,7 @@ describe('isRelatedModelDataValid', () => {
     // @ts-ignore
     isRelatedModelDataValid =
       require('./is-related-model-data-valid').isRelatedModelDataValid;
-    /* eslint-enable @typescript-eslint/no-var-requires */
+    /* eslint-enable @typescript-eslint/no-require-imports */
   });
 
   it('should handle null data gracefully', () => {
