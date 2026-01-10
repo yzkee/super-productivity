@@ -18,7 +18,6 @@ import { Action } from '@ngrx/store';
  * );
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const filterLocalAction = <T extends Action>(): OperatorFunction<T, T> =>
   filter((action: T) => !(action as any).meta?.isRemote);
 
@@ -39,6 +38,5 @@ export const filterLocalAction = <T extends Action>(): OperatorFunction<T, T> =>
  * );
  * ```
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const filterRemoteAction = <T extends Action>(): OperatorFunction<T, T> =>
   filter((action: T) => !!(action as any).meta?.isRemote);

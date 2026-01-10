@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import { OperationCaptureService } from '../../capture/operation-capture.service';
 import {
   PersistentAction,

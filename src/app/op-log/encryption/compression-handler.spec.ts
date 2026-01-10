@@ -126,7 +126,7 @@ describe('compression-handler', () => {
       // Decompress using DecompressionStream (same API used by server-side Node.js zlib)
       const stream = new DecompressionStream('gzip');
       const writer = stream.writable.getWriter();
-      writer.write(compressed);
+      writer.write(compressed as BufferSource);
       writer.close();
       const decompressed = await new Response(stream.readable).arrayBuffer();
       const decoded = new TextDecoder().decode(decompressed);

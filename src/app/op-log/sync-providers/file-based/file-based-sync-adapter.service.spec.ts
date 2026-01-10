@@ -136,7 +136,6 @@ describe('FileBasedSyncAdapterService', () => {
     mockStateSnapshotService = jasmine.createSpyObj('StateSnapshotService', [
       'getStateSnapshot',
     ]);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockStateSnapshotService.getStateSnapshot.and.returnValue({
       tasks: [],
       projects: [],

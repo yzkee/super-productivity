@@ -14,7 +14,6 @@ export interface PersistentActionMeta {
 export interface PersistentAction extends Action {
   type: string; // Standard NgRx action type
   meta: PersistentActionMeta;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   [key: string]: any; // Dynamic payload properties (NgRx action payloads)
 }
 

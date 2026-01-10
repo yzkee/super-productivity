@@ -322,7 +322,6 @@ export class OperationLogStoreService {
     let storedEntries: StoredOperationLogEntry[];
     try {
       // Type assertion needed for compound index key - idb's types don't fully support this
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       storedEntries = await this.db.getAllFromIndex(
         STORE_NAMES.OPS,
         OPS_INDEXES.BY_SOURCE_AND_STATUS,
@@ -621,7 +620,6 @@ export class OperationLogStoreService {
     let storedEntries: StoredOperationLogEntry[];
     try {
       // Type assertion needed for compound index key - idb's types don't fully support this
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       storedEntries = await this.db.getAllFromIndex(
         STORE_NAMES.OPS,
         OPS_INDEXES.BY_SOURCE_AND_STATUS,

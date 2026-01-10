@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import { createAction } from '@ngrx/store';
 import { BoardCfg, BoardPanelCfg } from '../boards.model';
 import { PersistentActionMeta } from '../../../op-log/core/persistent-action.interface';

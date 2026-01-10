@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type,@typescript-eslint/naming-convention */
 import {
   undoTaskDeleteMetaReducer,
   getLastDeletePayload,

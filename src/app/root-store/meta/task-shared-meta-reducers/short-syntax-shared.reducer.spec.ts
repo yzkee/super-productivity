@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type,@typescript-eslint/naming-convention */
 import { shortSyntaxSharedMetaReducer } from './short-syntax-shared.reducer';
 import { RootState } from '../../root-state';
 import { Task } from '../../../features/tasks/task.model';

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
-
 import { ActionType } from '../../../../op-log/core/action-types.enum';
 
 /**

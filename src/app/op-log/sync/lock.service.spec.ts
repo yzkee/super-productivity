@@ -584,7 +584,6 @@ describe('LockService', () => {
     it('should pass callback to navigator.locks.request', async () => {
       let callbackExecutedInLock = false;
       const locksSpy = spyOn(navigator.locks, 'request').and.callFake(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         async (_name: string, callback: any) => {
           callbackExecutedInLock = true;
           return callback(null);

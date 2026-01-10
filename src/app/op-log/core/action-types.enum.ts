@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
-
 /**
  * CRITICAL: These string values are IMMUTABLE.
  *

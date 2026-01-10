@@ -430,7 +430,6 @@ describe('WebdavApi', () => {
 
       await api.upload({ path: '/test.json', data: 'test', expectedRev: null });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const requestArgs = mockHttpAdapter.request.calls.mostRecent()?.args[0] as any;
       expect(requestArgs).toBeDefined();
       expect(requestArgs.headers['If-Unmodified-Since']).toBeUndefined();
@@ -446,7 +445,6 @@ describe('WebdavApi', () => {
 
       await api.upload({ path: '/test.json', data: 'test' });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const requestArgs = mockHttpAdapter.request.calls.mostRecent()?.args[0] as any;
       expect(requestArgs).toBeDefined();
       expect(requestArgs.headers['If-Unmodified-Since']).toBeUndefined();
@@ -467,7 +465,6 @@ describe('WebdavApi', () => {
         isForceOverwrite: true,
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const requestArgs = mockHttpAdapter.request.calls.mostRecent()?.args[0] as any;
       expect(requestArgs).toBeDefined();
       expect(requestArgs.headers['If-Unmodified-Since']).toBeUndefined();

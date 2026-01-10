@@ -12,7 +12,7 @@ import { SyncOperation } from '../provider.interface';
 const decompressGzip = async (compressed: Uint8Array): Promise<string> => {
   const stream = new DecompressionStream('gzip');
   const writer = stream.writable.getWriter();
-  writer.write(compressed);
+  writer.write(compressed as BufferSource);
   writer.close();
   const decompressed = await new Response(stream.readable).arrayBuffer();
   return new TextDecoder().decode(decompressed);
@@ -1019,7 +1019,7 @@ describe('SuperSyncProvider', () => {
       expect(capturedBody).not.toBeNull();
       const stream = new DecompressionStream('gzip');
       const writer = stream.writable.getWriter();
-      writer.write(capturedBody!);
+      writer.write(capturedBody! as BufferSource);
       writer.close();
       const decompressed = await new Response(stream.readable).arrayBuffer();
       const payload = JSON.parse(new TextDecoder().decode(decompressed));
@@ -1085,7 +1085,7 @@ describe('SuperSyncProvider', () => {
         const body = fetchSpy.calls.mostRecent().args[1].body as Uint8Array;
         const stream = new DecompressionStream('gzip');
         const writer = stream.writable.getWriter();
-        writer.write(body);
+        writer.write(body as BufferSource);
         writer.close();
         const decompressed = await new Response(stream.readable).arrayBuffer();
         const payload = JSON.parse(new TextDecoder().decode(decompressed));

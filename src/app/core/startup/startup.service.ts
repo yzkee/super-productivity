@@ -37,9 +37,7 @@ const DEFERRED_INIT_DELAY_MS = 1000;
   providedIn: 'root',
 })
 export class StartupService {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private _imexMetaService = inject(ImexViewService);
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private _translateService = inject(TranslateService);
   private _localBackupService = inject(LocalBackupService);
   private _globalConfigService = inject(GlobalConfigService);

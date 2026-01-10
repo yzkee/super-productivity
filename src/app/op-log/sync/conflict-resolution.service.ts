@@ -632,7 +632,6 @@ export class ConflictResolutionService {
         // this to MemoizedSelectorWithProps<State, {id: string}, T>. This is a
         // known NgRx typing limitation. Runtime behavior is correct.
         return await firstValueFrom(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           this.store.select(config.selectById as any, { id: entityId }),
         );
       }

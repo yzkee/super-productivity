@@ -42,7 +42,6 @@ export interface ModelCfg<T extends ModelBase> {
   cacheOnLoad?: boolean;
 
   validate?: <R>(data: R | T) => IValidation<R | T>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   repair?: (data: any) => T; // any is intentional: repair handles malformed data
 
   defaultData?: T;
