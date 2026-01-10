@@ -401,13 +401,11 @@ When encryption is enabled on one client:
 ## Testing Strategy
 
 1. **Unit tests** for `OperationEncryptionService`
-
    - Encrypt/decrypt round-trips with various payload types
    - Non-encrypted ops pass through unchanged
    - Wrong password throws DecryptError
 
 2. **Integration tests** for upload/download
-
    - Encrypted operations sync correctly
    - Mixed encrypted/unencrypted history works
    - Piggybacked operations decrypt correctly

@@ -912,19 +912,16 @@ Remote Op (v1)          Local Op (v2)
 When deploying a schema migration:
 
 1. **Release new version with migration code**
-
    - Add migration to `MIGRATIONS` array
    - Bump `CURRENT_SCHEMA_VERSION`
    - Migration handles both state and operations
 
 2. **Graceful degradation period**
-
    - Old clients continue working (they don't know about new schema)
    - New clients migrate incoming old ops seamlessly
    - Mixed-version sync works via receiver-side migration
 
 3. **Monitoring** (future)
-
    - Track `op.schemaVersion` distribution in server logs
    - Alert if many clients are > 2 versions behind
 
@@ -988,13 +985,11 @@ export const MIGRATIONS: SchemaMigration[] = [
 Before releasing any migration:
 
 1. **Unit tests** in `schema-migration.service.spec.ts`:
-
    - State migration correctness
    - Operation migration correctness
    - Null return for dropped operations
 
 2. **Integration tests** in `cross-version-sync.integration.spec.ts`:
-
    - Client A (v1) syncs with Client B (v2)
    - Both clients converge to same state
    - No data loss during migration
@@ -1729,19 +1724,16 @@ When IndexedDB storage quota is exceeded, the system handles it gracefully:
 **Implementation** (see `operation-log.effects.ts`):
 
 1. **Error Detection**: Catches `QuotaExceededError` including browser variants:
-
    - Standard: `DOMException` with name `QuotaExceededError`
    - Firefox: `NS_ERROR_DOM_QUOTA_REACHED`
    - Safari (legacy): Error code 22
 
 2. **Emergency Compaction**: Triggers `emergencyCompact()` with shorter retention:
-
    - Normal retention: 7 days (`COMPACTION_RETENTION_MS`)
    - Emergency retention: 24 hours (`EMERGENCY_COMPACTION_RETENTION_MS`)
    - Only deletes ops that have been synced (`syncedAt` set)
 
 3. **Circuit Breaker**: Flag `isHandlingQuotaExceeded` prevents infinite retry loops:
-
    - If quota exceeded during retry attempt, aborts immediately
    - Shows error to user instead of looping forever
 

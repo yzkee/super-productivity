@@ -507,12 +507,10 @@ All phases have been implemented as of December 2025:
 ### ✅ Phase 1: Core Infrastructure (Complete)
 
 1.  **Types** (`operation.types.ts`):
-
     - `HybridManifest`, `SnapshotReference`, `OperationFileReference` interfaces defined
     - Backward compatibility maintained with existing `OperationLogManifest`
 
 2.  **Manifest Handling** (`operation-log-manifest.service.ts`):
-
     - `loadManifest()` handles v1 and v2 formats
     - Automatic v1 to v2 migration on first write
     - Buffer/overflow logic in upload services
@@ -524,7 +522,6 @@ All phases have been implemented as of December 2025:
 ### ✅ Phase 2: Snapshot Support (Complete)
 
 4.  **Snapshot Operations** (in `operation-log-upload.service.ts` and `operation-log-download.service.ts`):
-
     - Snapshot generation with current state serialization
     - Upload with retry logic
     - Download + validate + apply
@@ -536,7 +533,6 @@ All phases have been implemented as of December 2025:
 ### ✅ Phase 3: Robustness (Complete)
 
 6.  **Concurrency Control**:
-
     - Provider-specific revision checking (Dropbox rev, WebDAV ETag)
     - Retry-on-conflict logic implemented
 
