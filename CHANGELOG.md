@@ -1,3 +1,9 @@
+## [16.9.4](https://github.com/super-productivity/super-productivity/compare/v16.9.3...v16.9.4) (2026-01-10)
+
+### Bug Fixes
+
+- **ci:** update references for repo migration to super-productivity org ([9b7b01d](https://github.com/super-productivity/super-productivity/commit/9b7b01d24a282a96f36e644101681cc695656f0d))
+
 ## [16.9.3](https://github.com/super-productivity/super-productivity/compare/v16.9.2...v16.9.3) (2026-01-10)
 
 ### Bug Fixes
