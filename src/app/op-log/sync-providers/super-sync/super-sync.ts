@@ -430,7 +430,7 @@ export class SuperSyncProvider
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: compressedBody,
+      body: new Blob([compressedBody as BlobPart]),
     });
 
     if (!response.ok) {
