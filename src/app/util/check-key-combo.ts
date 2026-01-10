@@ -6,6 +6,14 @@ export interface NavigatorKeyboard {
   getLayoutMap: () => Promise<Map<string, string>>;
 }
 
+/**
+ * A Map where keys are string representations of key codes,
+ * and values are the corresponding characters or symbols for this layout.
+ *
+ * See https://developer.mozilla.org/en-US/docs/Web/API/KeyboardLayoutMap#browser_compatibility
+ */
+export type KeyboardLayout = Map<string, string>;
+
 // Just an alias for better readability
 export const KEYS = {
   PLUS: {
@@ -18,10 +26,26 @@ export const KEYS = {
   },
 } as const;
 
+/** Saved user keyboard layout */
+export const userKbLayout: KeyboardLayout = new Map();
+
+/** Try to save user kayboard layout mapping - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardLayoutMap */
+export const saveUserKbLayout = async (): Promise<void> => {
+  // If browser doesn't support keyboard API https://developer.mozilla.org/en-US/docs/Web/API/KeyboardLayoutMap
+  if (!('keyboard' in navigator)) return;
+
+  const keyboard = navigator.keyboard as NavigatorKeyboard;
+  const kbLayout = await keyboard.getLayoutMap();
+  userKbLayout.clear();
+  kbLayout.forEach((value, key) => userKbLayout.set(key, value));
+};
+
 /**
- * Prepares key code (`event.code` from the keyboard event) so that it can be recognized in `checkKeyCombo()` func
+ * Prepares key code (`event.code` from the keyboard event) so that it can be recognized in `checkKeyCombo()` func.
  *
- * Removes special prefixes and mapping certain key codes to their corresponding characters
+ * Tries to use user keyboard layout if possible.
+ *
+ * Removes special prefixes and mapping certain key codes to their corresponding characters.
  *
  * @param code - The key code string to normalize (e.g., "KeyA", "Digit1", "Minus", "Equal").
  * @returns The normalized string representation of the key code (e.g., "A", "1", "-", "+").
@@ -43,7 +67,7 @@ export const KEYS = {
  * prepareKeyCode("Equal"); // Returns "+"
  * prepareKeyCode("+"); // Returns "+"
  */
-export const prepareKeyCode = async (code: KeyboardEvent['code']): Promise<string> => {
+export const prepareKeyCode = (code: KeyboardEvent['code']): string => {
   const rules: { codeMapping: Record<string, string>; replaces: Record<string, string> } =
     {
       codeMapping: {
@@ -57,11 +81,8 @@ export const prepareKeyCode = async (code: KeyboardEvent['code']): Promise<strin
     };
 
   // Try to use user kayboard layout mapping - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardLayoutMap
-  if (!rules.codeMapping[code] && 'keyboard' in navigator) {
-    const keyboard = navigator.keyboard as NavigatorKeyboard;
-    // TODO if the `layout` variable was stored somewhere in the app as a global variable, then we could make this function synchronous
-    const layout = await keyboard.getLayoutMap();
-    const foundKey = layout.get(code);
+  if (!rules.codeMapping[code] && userKbLayout.size) {
+    const foundKey = userKbLayout.get(code);
     if (foundKey) code = foundKey.toUpperCase();
   }
 
@@ -92,16 +113,16 @@ export const prepareKeyCode = async (code: KeyboardEvent['code']): Promise<strin
  * // Suppose Shift and A are pressed
  * checkKeyCombo(event, "Ctrl+A"); // Returns false
  */
-export const checkKeyCombo = async (
+export const checkKeyCombo = (
   ev: KeyboardEvent,
   comboToTest: string | null | undefined,
-): Promise<boolean> => {
+): boolean => {
   // NOTE: comboToTest can sometimes be undefined
   if (!comboToTest) return false;
 
   // Convert to lowercase for better compatibility
   comboToTest = comboToTest.toLowerCase();
-  const pressedKey = (await prepareKeyCode(ev.code)).toLowerCase();
+  const pressedKey = prepareKeyCode(ev.code).toLowerCase();
 
   // Status of all modifiers that should be checked
   const modifiersStatus: Record<string, boolean> = {

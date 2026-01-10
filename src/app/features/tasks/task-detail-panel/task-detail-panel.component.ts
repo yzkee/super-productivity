@@ -153,7 +153,7 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
     if (!cfg) throw new Error('No config service available');
 
     const keys = cfg.keyboard;
-    if (await checkKeyCombo(ev, keys.taskToggleDetailPanelOpen)) this.collapseParent();
+    if (checkKeyCombo(ev, keys.taskToggleDetailPanelOpen)) this.collapseParent();
   }
 
   // Parent task data

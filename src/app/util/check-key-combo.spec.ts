@@ -1,12 +1,10 @@
-import { checkKeyCombo, KEYS, prepareKeyCode } from './check-key-combo';
-
-/**
- * A Map where keys are string representations of key codes,
- * and values are the corresponding characters or symbols for this layout.
- *
- * See https://developer.mozilla.org/en-US/docs/Web/API/KeyboardLayoutMap#browser_compatibility
- */
-type KeyboardLayout = Map<string, string>;
+import {
+  checkKeyCombo,
+  KeyboardLayout,
+  KEYS,
+  prepareKeyCode,
+  saveUserKbLayout,
+} from './check-key-combo';
 
 const MOCK_LAYOUTS = {
   QWERTZ_DE: new Map([
@@ -161,7 +159,7 @@ const MOCK_LAYOUTS = {
 /**
  * Overrides the keyboard layout for testing so that the `navigator.keyboard.getLayoutMap` method returns the provided layout
  */
-const overrideLayout = (layout: KeyboardLayout): void => {
+const overrideLayout = async (layout: KeyboardLayout): Promise<void> => {
   Object.defineProperty(window, 'navigator', {
     value: {
       keyboard: {
@@ -169,19 +167,24 @@ const overrideLayout = (layout: KeyboardLayout): void => {
       },
     },
   });
+
+  await saveUserKbLayout();
 };
 
 /**
  * Runs the given expectation with each specified keyboard layout
  */
-const withLayouts = (expectation: () => void, layouts: KeyboardLayout[]): void => {
-  layouts.forEach((layout) => {
-    overrideLayout(layout);
+const withLayouts = async (
+  expectation: () => void,
+  layouts: KeyboardLayout[],
+): Promise<void> => {
+  for (const layout of layouts) {
+    await overrideLayout(layout);
     expectation();
-  });
+  }
 };
 
-describe('checkKeyCombo', () => {
+describe('checkKeyCombo', async () => {
   it('should return a true if specified key combination are pressed', async () => {
     const ev: Partial<KeyboardEvent> = {
       code: 'KeyA',
@@ -189,8 +192,8 @@ describe('checkKeyCombo', () => {
       shiftKey: true,
     };
 
-    withLayouts(async () => {
-      expect(await checkKeyCombo(ev as any, 'Ctrl+Shift+A')).toBe(true);
+    await withLayouts(() => {
+      expect(checkKeyCombo(ev as any, 'Ctrl+Shift+A')).toBe(true);
     }, MOCK_LAYOUTS.all);
   });
 
@@ -202,25 +205,19 @@ describe('checkKeyCombo', () => {
     };
     const comboToCheck = 'Ctrl+Shift+A';
 
-    withLayouts(async () => {
-      expect(await checkKeyCombo({ ...ev, ctrlKey: false } as any, comboToCheck)).toBe(
-        false,
-      );
-      expect(await checkKeyCombo({ ...ev, shiftKey: false } as any, comboToCheck)).toBe(
-        false,
-      );
-      expect(await checkKeyCombo({ ...ev, code: 'KeyB' } as any, comboToCheck)).toBe(
-        false,
-      );
+    await withLayouts(() => {
+      expect(checkKeyCombo({ ...ev, ctrlKey: false } as any, comboToCheck)).toBe(false);
+      expect(checkKeyCombo({ ...ev, shiftKey: false } as any, comboToCheck)).toBe(false);
+      expect(checkKeyCombo({ ...ev, code: 'KeyB' } as any, comboToCheck)).toBe(false);
     }, MOCK_LAYOUTS.all);
   });
 
   it('should return a false if any additional modifiers are pressed', async () => {
     const ev: Partial<KeyboardEvent> = { code: 'KeyF', shiftKey: true };
 
-    withLayouts(async () => {
-      expect(await checkKeyCombo({ ...ev } as any, 'F')).toBe(false);
-      expect(await checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Shift+F')).toBe(false);
+    await withLayouts(() => {
+      expect(checkKeyCombo({ ...ev } as any, 'F')).toBe(false);
+      expect(checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Shift+F')).toBe(false);
     }, MOCK_LAYOUTS.all);
   });
 
@@ -231,71 +228,71 @@ describe('checkKeyCombo', () => {
       shiftKey: true,
     };
 
-    withLayouts(async () => {
-      expect(await checkKeyCombo(ev as any, undefined)).toBe(false);
+    await withLayouts(() => {
+      expect(checkKeyCombo(ev as any, undefined)).toBe(false);
     }, MOCK_LAYOUTS.all);
   });
 
   it('should correctly identify the "Y" key in QWERTY and QWERTZ layouts', async () => {
-    withLayouts(async () => {
+    await withLayouts(() => {
       const ev: Partial<KeyboardEvent> = { code: 'KeyY' };
-      expect(await prepareKeyCode(ev as any)).toBe('Y');
+      expect(prepareKeyCode(ev.code!)).toBe('Y');
     }, [MOCK_LAYOUTS.QWERTY_EN, MOCK_LAYOUTS.QWERTY_RU]);
 
-    withLayouts(async () => {
+    await withLayouts(() => {
       const ev: Partial<KeyboardEvent> = { code: 'KeyZ' };
-      expect(await prepareKeyCode(ev as any)).toBe('Y');
+      expect(prepareKeyCode(ev.code!)).toBe('Y');
     }, [MOCK_LAYOUTS.QWERTZ_DE]);
   });
 
   it('should correctly identify the "+" key', async () => {
-    withLayouts(async () => {
+    await withLayouts(() => {
       const ev: Partial<KeyboardEvent> = { code: KEYS.PLUS.code };
 
-      expect(await prepareKeyCode(ev as any)).toBe('+');
-      expect(await checkKeyCombo(ev as any, '+')).toBe(true);
-      expect(await checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Ctrl++')).toBe(true);
+      expect(prepareKeyCode(ev.code!)).toBe('+');
+      expect(checkKeyCombo(ev as any, '+')).toBe(true);
+      expect(checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Ctrl++')).toBe(true);
     }, [MOCK_LAYOUTS.QWERTY_EN]);
 
-    withLayouts(async () => {
+    await withLayouts(() => {
       const ev: Partial<KeyboardEvent> = { code: KEYS.PLUS.code };
 
-      expect(await prepareKeyCode(ev as any)).toBe('+');
-      expect(await checkKeyCombo(ev as any, '+')).toBe(true);
-      expect(await checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Ctrl++')).toBe(true);
+      expect(prepareKeyCode(ev.code!)).toBe('+');
+      expect(checkKeyCombo(ev as any, '+')).toBe(true);
+      expect(checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Ctrl++')).toBe(true);
     }, [MOCK_LAYOUTS.QWERTY_RU]);
 
-    withLayouts(async () => {
+    await withLayouts(() => {
       const ev: Partial<KeyboardEvent> = { code: 'BracketRight' };
 
-      expect(await prepareKeyCode(ev as any)).toBe('+');
-      expect(await checkKeyCombo(ev as any, '+')).toBe(true);
-      expect(await checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Ctrl++')).toBe(true);
+      expect(prepareKeyCode(ev.code!)).toBe('+');
+      expect(checkKeyCombo(ev as any, '+')).toBe(true);
+      expect(checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Ctrl++')).toBe(true);
     }, [MOCK_LAYOUTS.QWERTZ_DE]);
   });
 
   it('should correctly identify the "-" key', async () => {
-    withLayouts(async () => {
+    await withLayouts(() => {
       const ev: Partial<KeyboardEvent> = { code: KEYS.MINUS.code };
 
-      expect(await checkKeyCombo(ev as any, '-')).toBe(true);
-      expect(await checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Ctrl+-')).toBe(true);
+      expect(checkKeyCombo(ev as any, '-')).toBe(true);
+      expect(checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Ctrl+-')).toBe(true);
     }, [MOCK_LAYOUTS.QWERTY_EN, MOCK_LAYOUTS.QWERTY_RU]);
 
-    withLayouts(async () => {
+    await withLayouts(() => {
       const ev: Partial<KeyboardEvent> = { code: 'Slash' };
 
-      expect(await checkKeyCombo(ev as any, '-')).toBe(true);
-      expect(await checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Ctrl+-')).toBe(true);
+      expect(checkKeyCombo(ev as any, '-')).toBe(true);
+      expect(checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Ctrl+-')).toBe(true);
     }, [MOCK_LAYOUTS.QWERTZ_DE]);
   });
 
   it('should correctly identify digit keys', async () => {
     const ev: Partial<KeyboardEvent> = { code: 'Digit0' };
 
-    withLayouts(async () => {
-      expect(await checkKeyCombo(ev as any, '0')).toBe(true);
-      expect(await checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Ctrl+0')).toBe(true);
+    await withLayouts(() => {
+      expect(checkKeyCombo(ev as any, '0')).toBe(true);
+      expect(checkKeyCombo({ ...ev, ctrlKey: true } as any, 'Ctrl+0')).toBe(true);
     }, MOCK_LAYOUTS.all);
   });
 });
