@@ -144,7 +144,7 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
   private _task$ = toObservable(this.task);
 
   @HostListener('keydown', ['$event'])
-  async onKeydown(ev: KeyboardEvent): Promise<void> {
+  onKeydown(ev: KeyboardEvent): void {
     // Skip handling inside input elements
     const target = ev.target as HTMLElement;
     if (isInputElement(target)) return;

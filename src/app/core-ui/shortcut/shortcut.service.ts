@@ -203,7 +203,7 @@ export class ShortcutService {
     }
 
     // Handle task-specific shortcuts
-    if (await this._taskShortcutService.handleTaskShortcuts(ev)) {
+    if (this._taskShortcutService.handleTaskShortcuts(ev)) {
       return;
     }
 
