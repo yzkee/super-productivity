@@ -128,6 +128,17 @@ The app uses NgRx (Redux pattern) for state management. Key state slices:
 11. **Event Loop Yield After Bulk Dispatches**: When applying many operations to NgRx in rapid succession (e.g., during sync replay), add `await new Promise(resolve => setTimeout(resolve, 0))` after the dispatch loop. `store.dispatch()` is non-blocking and returns immediately. Without yielding, 50+ rapid dispatches can overwhelm the store and cause state updates to be lost. See `OperationApplierService.applyOperations()` for the reference implementation.
 12. **SYNC_IMPORT Semantics**: `SYNC_IMPORT` (and `BACKUP_IMPORT`) operations represent a **complete fresh start** - they replace the entire application state. All operations without knowledge of the import (CONCURRENT or LESS_THAN by vector clock) are dropped for all clients. See `SyncImportFilterService.filterOpsInvalidatedBySyncImport()`. This is correct behavior: the import is an explicit user action to restore to a specific state, and concurrent work is intentionally discarded.
 
+## Git Commit Messages
+
+Use Angular commit message format: `type(scope): description`
+
+- **Types**: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`
+- **Scope**: Optional, e.g., `tasks`, `projects`, `sync`
+- **Examples**:
+  - `feat(tasks): add recurring task support`
+  - `fix(sync): handle network timeout gracefully`
+  - `refactor(projects): simplify project selector logic`
+
 ## 🚫 Anti-Patterns → Do This Instead
 
 | Avoid                                | Do Instead                                                                          |

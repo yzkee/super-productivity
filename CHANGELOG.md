@@ -1,3 +1,25 @@
+## [16.9.4](https://github.com/super-productivity/super-productivity/compare/v16.9.3...v16.9.4) (2026-01-10)
+
+### Bug Fixes
+
+- **ci:** update references for repo migration to super-productivity org ([9b7b01d](https://github.com/super-productivity/super-productivity/commit/9b7b01d24a282a96f36e644101681cc695656f0d))
+
+## [16.9.3](https://github.com/super-productivity/super-productivity/compare/v16.9.2...v16.9.3) (2026-01-10)
+
+### Bug Fixes
+
+- **calendar:** display proper error messages instead of [object Object] ([3b14a04](https://github.com/super-productivity/super-productivity/commit/3b14a049342d4bcfd96cc08b9dd0233bc0c839c4)), closes [#5870](https://github.com/super-productivity/super-productivity/issues/5870)
+- **e2e:** fix keyboard shortcut delete test and reduce sync test flakiness ([52bf171](https://github.com/super-productivity/super-productivity/commit/52bf171ec43057a8d77cd94ee3068eb49c1a46e8))
+- **schedule:** maintain visibility during task overlap on schedule ([#5887](https://github.com/super-productivity/super-productivity/issues/5887)) ([28c92cf](https://github.com/super-productivity/super-productivity/commit/28c92cf9447dca06adbafed2fc6b6e763156b32e))
+- **tasks:** add subscription cleanup to delete confirmation dialog ([adbea06](https://github.com/super-productivity/super-productivity/commit/adbea068da5b57865398b4477f16cc6ef8d73637))
+
+## [16.9.2](https://github.com/super-productivity/super-productivity/compare/v16.9.0...v16.9.2) (2026-01-09)
+
+### Bug Fixes
+
+- **e2e:** handle task deletion confirmation dialog in WebDAV sync test ([9c7549a](https://github.com/super-productivity/super-productivity/commit/9c7549af409df7a4ab91031c940f3fc78b35ad86))
+- resolve build failures from missing translations and unused imports ([dae5caa](https://github.com/super-productivity/super-productivity/commit/dae5caa6ff1f38c90ac99982563bc212c8b291c0))
+
 ## [16.9.1](https://github.com/super-productivity/super-productivity/compare/v16.9.0...v16.9.1) (2026-01-09)
 
 ### Bug Fixes
