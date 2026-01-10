@@ -1,4 +1,5 @@
 import { Injectable, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { SnackParams } from './snack.model';
 import { Observable, Subject } from 'rxjs';
@@ -27,7 +28,7 @@ export class SnackService {
     const _onWorkContextChange$: Observable<unknown> = this._actions$.pipe(
       ofType(setActiveWorkContext),
     );
-    _onWorkContextChange$.subscribe(() => {
+    _onWorkContextChange$.pipe(takeUntilDestroyed()).subscribe(() => {
       this.close();
     });
   }
