@@ -3,13 +3,26 @@ import { MarkedOptions, MarkedRenderer } from 'ngx-markdown';
 export const markedOptionsFactory = (): MarkedOptions => {
   const renderer = new MarkedRenderer();
 
-  renderer.checkbox = ({ checked }) =>
+  renderer.checkbox = ({ checked }: { checked: boolean }) =>
     `<span class="checkbox material-icons">${checked ? 'check_box' : 'check_box_outline_blank'}</span>`;
 
-  renderer.listitem = ({ text }) =>
-    text.includes('checkbox')
-      ? `<li class="checkbox-wrapper ${text.includes('check_box_outline_blank') ? 'undone' : 'done'}">${text}</li>`
-      : `<li>${text}</li>`;
+  renderer.listitem = ({
+    text,
+    task,
+    checked,
+  }: {
+    text: string;
+    task: boolean;
+    checked?: boolean;
+  }) => {
+    // In marked v17, task list items need to manually prepend the checkbox
+    if (task) {
+      const isChecked = checked === true;
+      const checkboxHtml = `<span class="checkbox material-icons">${isChecked ? 'check_box' : 'check_box_outline_blank'}</span>`;
+      return `<li class="checkbox-wrapper ${isChecked ? 'done' : 'undone'}">${checkboxHtml}${text}</li>`;
+    }
+    return `<li>${text}</li>`;
+  };
 
   renderer.link = ({ href, title, text }) =>
     `<a target="_blank" href="${href}" title="${title || ''}">${text}</a>`;
