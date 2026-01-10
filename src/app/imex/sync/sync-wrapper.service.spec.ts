@@ -393,13 +393,31 @@ describe('SyncWrapperService', () => {
       expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalled();
     });
 
-    it('should set ERROR and return HANDLED_ERROR when upload has rejected ops', async () => {
+    it('should set ERROR and return HANDLED_ERROR when upload has rejected ops with "Payload too complex"', async () => {
       mockSyncService.uploadPendingOps.and.returnValue(
         Promise.resolve({
           uploadedCount: 0,
           rejectedCount: 1,
           piggybackedOps: [],
           rejectedOps: [{ opId: 'test-op', error: 'Payload too complex (max depth 50)' }],
+          localWinOpsCreated: 0,
+        }),
+      );
+
+      const result = await service.sync();
+
+      expect(result).toBe('HANDLED_ERROR');
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+      expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalledWith('IN_SYNC');
+    });
+
+    it('should set ERROR and return HANDLED_ERROR when upload has rejected ops with "Payload too large"', async () => {
+      mockSyncService.uploadPendingOps.and.returnValue(
+        Promise.resolve({
+          uploadedCount: 0,
+          rejectedCount: 1,
+          piggybackedOps: [],
+          rejectedOps: [{ opId: 'test-op', error: 'Payload too large' }],
           localWinOpsCreated: 0,
         }),
       );
@@ -426,6 +444,69 @@ describe('SyncWrapperService', () => {
 
       expect(result).toBe('HANDLED_ERROR');
       expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+    });
+
+    it('should set IN_SYNC when some ops uploaded and none rejected', async () => {
+      mockSyncService.uploadPendingOps.and.returnValue(
+        Promise.resolve({
+          uploadedCount: 5,
+          rejectedCount: 0,
+          piggybackedOps: [],
+          rejectedOps: [],
+          localWinOpsCreated: 0,
+        }),
+      );
+
+      const result = await service.sync();
+
+      expect(result).toBe(SyncStatus.InSync);
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('IN_SYNC');
+    });
+
+    it('should set ERROR when multiple ops rejected', async () => {
+      mockSyncService.uploadPendingOps.and.returnValue(
+        Promise.resolve({
+          uploadedCount: 3,
+          rejectedCount: 2,
+          piggybackedOps: [],
+          rejectedOps: [
+            { opId: 'op1', error: 'Conflict' },
+            { opId: 'op2', error: 'Validation failed' },
+          ],
+          localWinOpsCreated: 0,
+        }),
+      );
+
+      const result = await service.sync();
+
+      expect(result).toBe('HANDLED_ERROR');
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+    });
+
+    it('should set IN_SYNC when uploadResult is null (fresh client)', async () => {
+      mockSyncService.uploadPendingOps.and.returnValue(Promise.resolve(null));
+
+      const result = await service.sync();
+
+      expect(result).toBe(SyncStatus.InSync);
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('IN_SYNC');
+    });
+
+    it('should set IN_SYNC when rejectedCount is 0 even with empty rejectedOps array', async () => {
+      mockSyncService.uploadPendingOps.and.returnValue(
+        Promise.resolve({
+          uploadedCount: 0,
+          rejectedCount: 0,
+          piggybackedOps: [],
+          rejectedOps: [],
+          localWinOpsCreated: 0,
+        }),
+      );
+
+      const result = await service.sync();
+
+      expect(result).toBe(SyncStatus.InSync);
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('IN_SYNC');
     });
   });
 

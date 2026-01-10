@@ -75,8 +75,7 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
       console.log('[Conflict Dialog] Phase 2: Client B imports backup');
 
       clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-      await clientB.sync.setupSuperSync(syncConfig);
-      // DO NOT sync before import - B doesn't know about A's task
+      // DO NOT setup sync before import - we want B to have no knowledge of server state
 
       // Navigate to import page
       const importPage = new ImportPage(clientB.page);
@@ -91,14 +90,14 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
       await clientB.page.reload();
       await clientB.page.waitForLoadState('networkidle');
 
-      // Re-enable sync after import (import overwrites globalConfig)
+      // NOW setup sync - B has local SYNC_IMPORT but no knowledge of server ops
       await clientB.sync.setupSuperSync(syncConfig);
 
       // ============ PHASE 3: Client B Syncs (Should See Dialog) ============
       console.log('[Conflict Dialog] Phase 3: Client B syncs (should see dialog)');
 
       // Trigger sync - this should cause the dialog to appear
-      await clientB.page.locator('button.trigger-sync-button').click();
+      await clientB.sync.triggerSync();
 
       // Wait for the conflict dialog to appear
       const dialog = clientB.page.locator('mat-dialog-container');
@@ -173,7 +172,7 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
       console.log('[USE_LOCAL] Phase 2: Client B imports backup');
 
       clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-      await clientB.sync.setupSuperSync(syncConfig);
+      // DO NOT setup sync before import
 
       const importPage = new ImportPage(clientB.page);
       await importPage.navigateToImportPage();
@@ -183,12 +182,13 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
 
       await clientB.page.reload();
       await clientB.page.waitForLoadState('networkidle');
+      // Setup sync AFTER import
       await clientB.sync.setupSuperSync(syncConfig);
 
       // ============ PHASE 3: Client B Syncs and Chooses USE_LOCAL ============
       console.log('[USE_LOCAL] Phase 3: Client B syncs and chooses USE_LOCAL');
 
-      await clientB.page.locator('button.trigger-sync-button').click();
+      await clientB.sync.triggerSync();
 
       const dialog = clientB.page.locator('mat-dialog-container');
       await expect(dialog).toBeVisible({ timeout: 10000 });
@@ -276,7 +276,7 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
       console.log('[USE_REMOTE] Phase 2: Client B imports backup');
 
       clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-      await clientB.sync.setupSuperSync(syncConfig);
+      // DO NOT setup sync before import
 
       const importPage = new ImportPage(clientB.page);
       await importPage.navigateToImportPage();
@@ -286,12 +286,13 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
 
       await clientB.page.reload();
       await clientB.page.waitForLoadState('networkidle');
+      // Setup sync AFTER import
       await clientB.sync.setupSuperSync(syncConfig);
 
       // ============ PHASE 3: Client B Syncs and Chooses USE_REMOTE ============
       console.log('[USE_REMOTE] Phase 3: Client B syncs and chooses USE_REMOTE');
 
-      await clientB.page.locator('button.trigger-sync-button').click();
+      await clientB.sync.triggerSync();
 
       const dialog = clientB.page.locator('mat-dialog-container');
       await expect(dialog).toBeVisible({ timeout: 10000 });
@@ -366,7 +367,7 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
       console.log('[CANCEL] Phase 2: Client B imports backup');
 
       clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-      await clientB.sync.setupSuperSync(syncConfig);
+      // DO NOT setup sync before import
 
       const importPage = new ImportPage(clientB.page);
       await importPage.navigateToImportPage();
@@ -376,12 +377,13 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
 
       await clientB.page.reload();
       await clientB.page.waitForLoadState('networkidle');
+      // Setup sync AFTER import
       await clientB.sync.setupSuperSync(syncConfig);
 
       // ============ PHASE 3: Client B Syncs and Chooses CANCEL ============
       console.log('[CANCEL] Phase 3: Client B syncs and chooses CANCEL');
 
-      await clientB.page.locator('button.trigger-sync-button').click();
+      await clientB.sync.triggerSync();
 
       const dialog = clientB.page.locator('mat-dialog-container');
       await expect(dialog).toBeVisible({ timeout: 10000 });
