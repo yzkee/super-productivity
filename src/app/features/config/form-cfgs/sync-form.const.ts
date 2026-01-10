@@ -103,7 +103,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
         label: T.F.SYNC.FORM.L_SYNC_PROVIDER,
         required: true,
         options: [
-          { label: LegacySyncProvider.SuperSync, value: LegacySyncProvider.SuperSync },
+          { label: 'SuperSync (Beta)', value: LegacySyncProvider.SuperSync },
           { label: LegacySyncProvider.Dropbox, value: LegacySyncProvider.Dropbox },
           { label: LegacySyncProvider.WebDAV, value: LegacySyncProvider.WebDAV },
           ...(IS_ELECTRON || IS_ANDROID_WEB_VIEW

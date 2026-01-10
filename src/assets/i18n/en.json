@@ -992,7 +992,7 @@
           "L_SYNC_FOLDER_PATH": "Sync folder path"
         },
         "SUPER_SYNC": {
-          "INFO_TEXT": "SuperSync keeps your tasks synchronized across all your devices in real-time. Your data is stored securely on the sync server.",
+          "INFO_TEXT": "SuperSync keeps your tasks synchronized across all your devices in real-time. Your data is stored securely on the sync server. Note: SuperSync is currently in Beta.",
           "L_SERVER_URL": "Server URL",
           "SERVER_URL_DESCRIPTION": "Leave as-is for the official server, or enter a custom server URL",
           "LOGIN_INSTRUCTIONS": "Click the button below to open the server login page. After logging in, copy your access token and paste it here.",
