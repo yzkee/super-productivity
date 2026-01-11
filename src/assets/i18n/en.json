@@ -710,7 +710,7 @@
       }
     },
     "POMODORO": {
-      "BREAK_IS_DONE": "Focus break is over!"
+      "BREAK_IS_DONE": "Break is over!"
     },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {

@@ -21,7 +21,7 @@ import { TaskService } from '../../tasks/task.service';
 import { playSound } from '../../../util/play-sound';
 import { IS_ELECTRON } from '../../../app.constants';
 import { setCurrentTask, unsetCurrentTask } from '../../tasks/store/task.actions';
-import { selectTaskById } from '../../tasks/store/task.selectors';
+import { selectLastCurrentTask, selectTaskById } from '../../tasks/store/task.selectors';
 import { openIdleDialog } from '../../idle/store/idle.actions';
 import { LS } from '../../../core/persistence/storage-keys.const';
 import {
@@ -114,9 +114,10 @@ export class FocusModeEffects {
     ),
   );
 
-  // Sync: When tracking stops → pause focus session
+  // Sync: When tracking stops → pause focus session (both work and break)
   // Uses pairwise to capture the previous task ID before it's lost
   // Only triggers when focus mode feature is enabled
+  // Bug #5954 fix: Also pause breaks when tracking stops
   syncTrackingStopToSession$ = createEffect(() =>
     this.taskService.currentTaskId$.pipe(
       pairwise(),
@@ -129,7 +130,7 @@ export class FocusModeEffects {
         ([[prevTaskId, currTaskId], cfg, timer, isFocusModeEnabled]) =>
           isFocusModeEnabled &&
           !!cfg?.isSyncSessionWithTracking &&
-          timer.purpose === 'work' &&
+          (timer.purpose === 'work' || timer.purpose === 'break') &&
           timer.isRunning &&
           !!prevTaskId &&
           !currTaskId, // Was tracking (prevTaskId exists) and now stopped (currTaskId is null)
@@ -188,6 +189,7 @@ export class FocusModeEffects {
 
   // Sync: When focus session starts → start tracking (if not already tracking)
   // Checks that the paused task still exists before starting tracking
+  // Bug #5954 fix: Falls back to lastCurrentTask if no pausedTaskId (e.g., after app restart)
   syncSessionStartToTracking$ = createEffect(() =>
     this.actions$.pipe(
       ofType(actions.startFocusSession),
@@ -195,17 +197,26 @@ export class FocusModeEffects {
         this.store.select(selectFocusModeConfig),
         this.store.select(selectors.selectPausedTaskId),
         this.taskService.currentTaskId$,
+        this.store.select(selectLastCurrentTask),
       ),
       filter(
-        ([_action, cfg, pausedTaskId, currentTaskId]) =>
-          !!cfg?.isSyncSessionWithTracking && !currentTaskId && !!pausedTaskId,
+        ([_action, cfg, pausedTaskId, currentTaskId, lastCurrentTask]) =>
+          !!cfg?.isSyncSessionWithTracking &&
+          !currentTaskId &&
+          (!!pausedTaskId || !!lastCurrentTask),
       ),
-      switchMap(([_action, _cfg, pausedTaskId]) =>
-        this.store.select(selectTaskById, { id: pausedTaskId! }).pipe(
+      switchMap(([_action, _cfg, pausedTaskId, _currentTaskId, lastCurrentTask]) => {
+        // Prefer pausedTaskId, fall back to lastCurrentTask
+        const taskIdToResume = pausedTaskId || lastCurrentTask?.id;
+        if (!taskIdToResume) return EMPTY;
+
+        return this.store.select(selectTaskById, { id: taskIdToResume }).pipe(
           take(1),
-          map((task) => (task ? setCurrentTask({ id: pausedTaskId! }) : null)),
-        ),
-      ),
+          map((task) =>
+            task && !task.isDone ? setCurrentTask({ id: taskIdToResume }) : null,
+          ),
+        );
+      }),
       filter((action): action is ReturnType<typeof setCurrentTask> => action !== null),
     ),
   );
@@ -266,6 +277,7 @@ export class FocusModeEffects {
   );
 
   // Effect 2: Stop tracking on manual session end (bug #5875 fix)
+  // Bug #5954 fix: Only stop tracking if isPauseTrackingDuringBreak is enabled
   stopTrackingOnManualEnd$ = createEffect(() =>
     this.actions$.pipe(
       ofType(actions.completeFocusSession),
@@ -275,7 +287,10 @@ export class FocusModeEffects {
       ),
       filter(
         ([action, config, taskId]) =>
-          !!action.isManual && !!config?.isSyncSessionWithTracking && !!taskId,
+          !!action.isManual &&
+          !!config?.isSyncSessionWithTracking &&
+          !!config?.isPauseTrackingDuringBreak &&
+          !!taskId,
       ),
       map(() => unsetCurrentTask()),
     ),
@@ -337,6 +352,32 @@ export class FocusModeEffects {
         tap(() => this._notifyUser()),
       ),
     { dispatch: false },
+  );
+
+  // Effect 5: Store pausedTaskId when session completes with manual break start
+  // Bug #5954 fix: Ensures task can be resumed when break is skipped/completed
+  storePausedTaskOnManualBreakSession$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(actions.completeFocusSession),
+      withLatestFrom(
+        this.store.select(selectors.selectMode),
+        this.store.select(selectFocusModeConfig),
+        this.taskService.currentTaskId$,
+      ),
+      filter(([_, mode, config, currentTaskId]) => {
+        const strategy = this.strategyFactory.getStrategy(mode);
+        // Only when manual break is enabled, pause tracking is enabled, and there's a current task
+        return (
+          strategy.shouldStartBreakAfterSession &&
+          !!config?.isManualBreakStart &&
+          !!config?.isPauseTrackingDuringBreak &&
+          !!currentTaskId
+        );
+      }),
+      map(([_, _mode, _config, currentTaskId]) =>
+        actions.setPausedTaskId({ pausedTaskId: currentTaskId }),
+      ),
+    ),
   );
 
   // Break completion effects - split into separate concerns for better maintainability
@@ -672,8 +713,12 @@ export class FocusModeEffects {
                   : this.store.select(selectors.selectProgress);
               }
 
+              // Bug #5954 fix: For breaks, use cycle - 1 since cycle is incremented on session complete
+              // This ensures "Break #1" shows after "Session #1" instead of "Break #2"
               const translateParams =
-                mode === FocusModeMode.Pomodoro ? { cycleNr: cycle || 1 } : undefined;
+                mode === FocusModeMode.Pomodoro
+                  ? { cycleNr: isOnBreak ? Math.max(1, (cycle || 1) - 1) : cycle || 1 }
+                  : undefined;
 
               this.bannerService.open({
                 id: BannerId.FocusMode,
