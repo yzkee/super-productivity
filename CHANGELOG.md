@@ -1,3 +1,10 @@
+# [17.0.0-RC.1](https://github.com/super-productivity/super-productivity/compare/v17.0.0-RC.0...v17.0.0-RC.1) (2026-01-11)
+
+### Bug Fixes
+
+- **build:** add shared-schema to prepare script for CI builds ([9d77aa2](https://github.com/super-productivity/super-productivity/commit/9d77aa2d3fccc7e14c3238911258f795f3510aef))
+- **test:** fix CI test failures on Windows and macOS ([b987fec](https://github.com/super-productivity/super-productivity/commit/b987fecb7c722edbe510b6eea51277290db1a845))
+
 # [17.0.0-RC.0](https://github.com/super-productivity/super-productivity/compare/v16.9.4...v17.0.0-RC.0) (2026-01-11)
 
 ### Bug Fixes
