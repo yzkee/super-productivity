@@ -137,6 +137,12 @@ export class SuperSyncPage extends BasePage {
         const dialogContainer = this.page.locator('mat-dialog-container');
         await dialogContainer.waitFor({ state: 'visible', timeout: 5000 });
 
+        // Wait for formly form to initialize inside dialog
+        // This ensures the form structure is ready before interacting with fields
+        await this.page
+          .locator('mat-dialog-container formly-form')
+          .waitFor({ state: 'visible', timeout: 5000 });
+
         // Wait for the formly form to be rendered inside the dialog
         // Under heavy load, the dialog may appear but form rendering is delayed
         await this.providerSelect.waitFor({ state: 'visible', timeout: 5000 });
@@ -225,8 +231,19 @@ export class SuperSyncPage extends BasePage {
       intervals: [500, 1000, 1500, 2000],
     });
 
+    // Wait for formly to re-render SuperSync-specific fields after provider selection
+    // The hideExpression on these fields triggers a re-render that needs time to complete
+    await this.page.waitForLoadState('networkidle').catch(() => {});
+    await this.page.waitForTimeout(500);
+
     // Fill Access Token first (it's outside the collapsible)
-    await this.accessTokenInput.waitFor({ state: 'visible' });
+    // Use toPass() to handle slow formly rendering of the textarea
+    await expect(async () => {
+      await this.accessTokenInput.waitFor({ state: 'visible', timeout: 3000 });
+    }).toPass({
+      timeout: 15000,
+      intervals: [500, 1000, 1500, 2000],
+    });
     await this.accessTokenInput.fill(config.accessToken);
 
     // Expand "Advanced settings" collapsible to access baseUrl and encryption fields

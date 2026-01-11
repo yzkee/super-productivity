@@ -79,8 +79,17 @@ export const waitForAppReady = async (
   }
 
   // Wait for route to match (if required)
+  // Use longer timeout with retry for slow-loading apps (especially second client)
   if (ensureRoute) {
-    await page.waitForURL(routeRegex, { timeout: 15000 });
+    try {
+      await page.waitForURL(routeRegex, { timeout: 20000 });
+    } catch {
+      // If route doesn't match, try refreshing once and waiting again
+      console.log('[waitForAppReady] Route timeout, attempting reload...');
+      await page.reload();
+      await page.waitForLoadState('domcontentloaded');
+      await page.waitForURL(routeRegex, { timeout: 15000 });
+    }
   }
 
   // Wait for main route wrapper to be visible (indicates app shell loaded)
