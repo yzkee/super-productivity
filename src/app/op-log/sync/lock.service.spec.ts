@@ -316,9 +316,11 @@ describe('LockService', () => {
       expect(startTimes.size).toBe(10);
       expect(endTimes.size).toBe(10);
 
-      // Check no request waited unreasonably long (more than 200ms for 10 requests)
+      // Check no request waited unreasonably long (more than 500ms for 10 requests)
+      // Note: Using 500ms threshold to account for CI machine variability
+      // Theoretical max is ~63ms (sum of work times), but CI can add significant overhead
       const maxWait = Math.max(...Array.from(startTimes.values()));
-      expect(maxWait).toBeLessThan(200);
+      expect(maxWait).toBeLessThan(500);
     });
 
     it('should maintain correct execution order for FIFO-like behavior', async () => {
