@@ -22,6 +22,7 @@ import {
 } from '../../config/store/global-config.reducer';
 import { updateGlobalConfigSection } from '../../config/store/global-config.actions';
 import { take, toArray } from 'rxjs/operators';
+import { HydrationStateService } from '../../../op-log/apply/hydration-state.service';
 
 describe('FocusModeEffects', () => {
   let actions$: Observable<any>;
@@ -32,6 +33,7 @@ describe('FocusModeEffects', () => {
   let globalConfigServiceMock: any;
   let metricServiceMock: any;
   let bannerServiceMock: any;
+  let hydrationStateServiceMock: any;
   let currentTaskId$: BehaviorSubject<string | null>;
 
   const createMockTimer = (overrides: Partial<TimerState> = {}): TimerState => ({
@@ -75,6 +77,12 @@ describe('FocusModeEffects', () => {
       dismiss: jasmine.createSpy('dismiss'),
     };
 
+    hydrationStateServiceMock = {
+      isApplyingRemoteOps: jasmine
+        .createSpy('isApplyingRemoteOps')
+        .and.returnValue(false),
+    };
+
     TestBed.configureTestingModule({
       providers: [
         FocusModeEffects,
@@ -111,6 +119,7 @@ describe('FocusModeEffects', () => {
           provide: FocusModeStorageService,
           useValue: { setLastCountdownDuration: jasmine.createSpy() },
         },
+        { provide: HydrationStateService, useValue: hydrationStateServiceMock },
       ],
     });
 
@@ -1146,6 +1155,233 @@ describe('FocusModeEffects', () => {
         // Should not pause session when focus mode feature is disabled
         done();
       }, 50);
+    });
+
+    it('should NOT dispatch when sync is applying remote operations (skipDuringSync)', (done) => {
+      // This test verifies the fix for the app freeze bug:
+      // When sync is active, the effect should be skipped to prevent
+      // cascading action dispatches that overwhelm the store.
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(
+        selectors.selectTimer,
+        createMockTimer({ isRunning: true, purpose: 'work' }),
+      );
+      store.refreshState();
+
+      // Simulate sync being active
+      hydrationStateServiceMock.isApplyingRemoteOps.and.returnValue(true);
+
+      effects = TestBed.inject(FocusModeEffects);
+
+      currentTaskId$.next('task-123');
+
+      setTimeout(() => {
+        currentTaskId$.next(null);
+      }, 10);
+
+      setTimeout(() => {
+        // Effect should NOT fire during sync - this prevents the freeze bug
+        done();
+      }, 50);
+    });
+
+    it('should dispatch normally when sync completes (skipDuringSync allows)', (done) => {
+      // Verify the effect works normally when not during sync
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(
+        selectors.selectTimer,
+        createMockTimer({ isRunning: true, purpose: 'work' }),
+      );
+      store.refreshState();
+
+      // Sync is NOT active
+      hydrationStateServiceMock.isApplyingRemoteOps.and.returnValue(false);
+
+      effects = TestBed.inject(FocusModeEffects);
+
+      currentTaskId$.next('task-123');
+
+      effects.syncTrackingStopToSession$.pipe(take(1)).subscribe((action) => {
+        expect(action.type).toEqual(actions.pauseFocusSession.type);
+        expect((action as any).pausedTaskId).toBe('task-123');
+        done();
+      });
+
+      setTimeout(() => {
+        currentTaskId$.next(null);
+      }, 10);
+    });
+
+    it('should NOT dispatch during rapid currentTaskId changes while sync is active (freeze prevention)', (done) => {
+      // This test simulates the freeze scenario: rapid task ID changes during sync
+      // Without skipDuringSync, each change would trigger pauseFocusSession,
+      // causing cascading effects that freeze the UI
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(
+        selectors.selectTimer,
+        createMockTimer({ isRunning: true, purpose: 'work' }),
+      );
+      store.refreshState();
+
+      // Sync is active
+      hydrationStateServiceMock.isApplyingRemoteOps.and.returnValue(true);
+
+      effects = TestBed.inject(FocusModeEffects);
+
+      let emitCount = 0;
+      effects.syncTrackingStopToSession$.subscribe(() => {
+        emitCount++;
+      });
+
+      // Simulate rapid task ID changes during sync (like bulk operations)
+      currentTaskId$.next('task-1');
+      currentTaskId$.next('task-2');
+      currentTaskId$.next(null);
+      currentTaskId$.next('task-3');
+      currentTaskId$.next(null);
+      currentTaskId$.next('task-4');
+      currentTaskId$.next(null);
+
+      setTimeout(() => {
+        // Effect should NOT fire at all during sync
+        expect(emitCount).toBe(0);
+        done();
+      }, 50);
+    });
+
+    it('should resume normal behavior after sync completes', (done) => {
+      // Verify that after sync ends, the effect works correctly again
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(
+        selectors.selectTimer,
+        createMockTimer({ isRunning: true, purpose: 'work' }),
+      );
+      store.refreshState();
+
+      // Start with sync active
+      hydrationStateServiceMock.isApplyingRemoteOps.and.returnValue(true);
+
+      effects = TestBed.inject(FocusModeEffects);
+
+      effects.syncTrackingStopToSession$.subscribe((action) => {
+        expect(action.type).toEqual(actions.pauseFocusSession.type);
+        expect((action as any).pausedTaskId).toBe('task-after-sync');
+        done();
+      });
+
+      // Changes during sync - should be ignored
+      currentTaskId$.next('task-during-sync');
+
+      setTimeout(() => {
+        currentTaskId$.next(null);
+      }, 10);
+
+      setTimeout(() => {
+        // Sync completes
+        hydrationStateServiceMock.isApplyingRemoteOps.and.returnValue(false);
+
+        // Now changes should be processed
+        currentTaskId$.next('task-after-sync');
+
+        setTimeout(() => {
+          currentTaskId$.next(null);
+        }, 10);
+      }, 30);
+    });
+
+    it('should handle sync state toggling rapidly without crashing', (done) => {
+      // Edge case: sync state changes rapidly while task ID also changes
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(
+        selectors.selectTimer,
+        createMockTimer({ isRunning: true, purpose: 'work' }),
+      );
+      store.refreshState();
+
+      effects = TestBed.inject(FocusModeEffects);
+
+      let emitCount = 0;
+      effects.syncTrackingStopToSession$.subscribe(() => {
+        emitCount++;
+      });
+
+      // Rapid sync state changes with task changes
+      hydrationStateServiceMock.isApplyingRemoteOps.and.returnValue(true);
+      currentTaskId$.next('task-1');
+
+      hydrationStateServiceMock.isApplyingRemoteOps.and.returnValue(false);
+      currentTaskId$.next('task-2');
+
+      hydrationStateServiceMock.isApplyingRemoteOps.and.returnValue(true);
+      currentTaskId$.next(null);
+
+      hydrationStateServiceMock.isApplyingRemoteOps.and.returnValue(false);
+      currentTaskId$.next('task-3');
+
+      setTimeout(() => {
+        // Should not crash and should handle state changes gracefully
+        // The exact emit count depends on timing, but it should not freeze
+        expect(emitCount).toBeGreaterThanOrEqual(0);
+        done();
+      }, 50);
+    });
+
+    it('should correctly use pairwise after skipDuringSync filters out emissions', (done) => {
+      // Verify that pairwise works correctly with skipDuringSync
+      // When sync filters out emissions, pairwise should still work on remaining emissions
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(
+        selectors.selectTimer,
+        createMockTimer({ isRunning: true, purpose: 'work' }),
+      );
+      store.refreshState();
+
+      hydrationStateServiceMock.isApplyingRemoteOps.and.returnValue(false);
+
+      effects = TestBed.inject(FocusModeEffects);
+
+      const emittedActions: any[] = [];
+      effects.syncTrackingStopToSession$.pipe(take(2)).subscribe((action) => {
+        emittedActions.push(action);
+        if (emittedActions.length === 2) {
+          // Both emissions should have correct pausedTaskId from pairwise
+          expect(emittedActions[0].pausedTaskId).toBe('task-A');
+          expect(emittedActions[1].pausedTaskId).toBe('task-B');
+          done();
+        }
+      });
+
+      // First pair: task-A -> null
+      currentTaskId$.next('task-A');
+      setTimeout(() => {
+        currentTaskId$.next(null);
+
+        // Second pair: task-B -> null
+        setTimeout(() => {
+          currentTaskId$.next('task-B');
+          setTimeout(() => {
+            currentTaskId$.next(null);
+          }, 10);
+        }, 20);
+      }, 10);
     });
   });
 

@@ -1,7 +1,9 @@
 import { inject, Injectable } from '@angular/core';
-import { Actions, createEffect, ofType } from '@ngrx/effects';
+import { createEffect, ofType } from '@ngrx/effects';
+import { LOCAL_ACTIONS } from '../../../util/local-actions.token';
 import { Store } from '@ngrx/store';
 import { combineLatest, EMPTY, of } from 'rxjs';
+import { skipWhileApplyingRemoteOps } from '../../../util/skip-during-sync.operator';
 import {
   distinctUntilChanged,
   filter,
@@ -43,7 +45,7 @@ const TICK_SOUND = 'tick.mp3';
 
 @Injectable()
 export class FocusModeEffects {
-  private actions$ = inject(Actions);
+  private actions$ = inject(LOCAL_ACTIONS);
   private store = inject(Store);
   private strategyFactory = inject(FocusModeStrategyFactory);
   private globalConfigService = inject(GlobalConfigService);
@@ -60,9 +62,11 @@ export class FocusModeEffects {
       this.store.select(selectFocusModeConfig),
       this.store.select(selectIsFocusModeEnabled),
     ]).pipe(
+      skipWhileApplyingRemoteOps(),
       switchMap(([cfg, isFocusModeEnabled]) =>
         isFocusModeEnabled && cfg?.isSyncSessionWithTracking && !cfg?.isStartInBackground
           ? this.taskService.currentTaskId$.pipe(
+              // currentTaskId$ is local UI state (not synced), so distinctUntilChanged is sufficient
               distinctUntilChanged(),
               filter((id) => !!id),
               map(() => actions.showFocusOverlay()),
@@ -79,9 +83,12 @@ export class FocusModeEffects {
       this.store.select(selectFocusModeConfig),
       this.store.select(selectIsFocusModeEnabled),
     ]).pipe(
+      // Outer guard: skip config changes during sync
+      skipWhileApplyingRemoteOps(),
       switchMap(([cfg, isFocusModeEnabled]) =>
         isFocusModeEnabled && cfg?.isSyncSessionWithTracking
           ? this.taskService.currentTaskId$.pipe(
+              // currentTaskId$ is local UI state (not synced), so distinctUntilChanged is sufficient
               distinctUntilChanged(),
               filter((taskId) => !!taskId),
               withLatestFrom(
@@ -120,6 +127,10 @@ export class FocusModeEffects {
   // Bug #5954 fix: Also pause breaks when tracking stops
   syncTrackingStopToSession$ = createEffect(() =>
     this.taskService.currentTaskId$.pipe(
+      // CRITICAL: Prevent cascading dispatches during sync that cause app freeze.
+      // Without this, rapid currentTaskId changes from remote ops trigger pairwise()
+      // which dispatches pauseFocusSession repeatedly, overwhelming the store.
+      skipWhileApplyingRemoteOps(),
       pairwise(),
       withLatestFrom(
         this.store.select(selectFocusModeConfig),
@@ -225,6 +236,7 @@ export class FocusModeEffects {
   // Only triggers when timer STOPS (isRunning becomes false) with elapsed >= duration
   detectSessionCompletion$ = createEffect(() =>
     this.store.select(selectors.selectTimer).pipe(
+      skipWhileApplyingRemoteOps(),
       withLatestFrom(this.store.select(selectors.selectMode)),
       // Only consider emissions where timer just stopped running
       distinctUntilChanged(
@@ -246,6 +258,7 @@ export class FocusModeEffects {
   detectBreakTimeUp$ = createEffect(
     () =>
       this.store.select(selectors.selectTimer).pipe(
+        skipWhileApplyingRemoteOps(),
         filter(
           (timer) =>
             timer.purpose === 'break' &&

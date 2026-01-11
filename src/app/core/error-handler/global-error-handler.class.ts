@@ -9,8 +9,8 @@ import {
 } from './global-error-handler.util';
 import { saveBeforeLastErrorActionLog } from '../../util/action-logger';
 import { error } from 'electron-log/renderer';
-import { PfapiService } from '../../pfapi/pfapi.service';
-import { CompleteBackup } from '../../pfapi/api';
+import { BackupService } from '../../op-log/backup/backup.service';
+import { CompleteBackup } from '../../op-log/sync-exports';
 import { Log } from '../log';
 
 let isErrorAlertShown = false;
@@ -79,7 +79,7 @@ export class GlobalErrorHandler implements ErrorHandler {
 
   private async _getUserData(): Promise<CompleteBackup<any> | undefined> {
     try {
-      return await this.injector.get(PfapiService).pf.loadCompleteBackup(true);
+      return await this.injector.get(BackupService).loadCompleteBackup(true);
     } catch (e) {
       Log.err('Cannot load user data for error modal');
       Log.err(e);

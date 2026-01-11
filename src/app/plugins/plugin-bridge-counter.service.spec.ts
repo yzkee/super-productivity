@@ -18,7 +18,7 @@ import { WorkContextService } from '../features/work-context/work-context.servic
 import { PluginHooksService } from './plugin-hooks';
 import { PluginUserPersistenceService } from './plugin-user-persistence.service';
 import { PluginConfigService } from './plugin-config.service';
-import { TaskArchiveService } from '../features/time-tracking/task-archive.service';
+import { TaskArchiveService } from '../features/archive/task-archive.service';
 import { TranslateService } from '@ngx-translate/core';
 import { SyncWrapperService } from '../imex/sync/sync-wrapper.service';
 import { Injector } from '@angular/core';
