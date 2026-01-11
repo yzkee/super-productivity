@@ -90,9 +90,22 @@ export class SuperSyncPage extends BasePage {
     // Only handles 'confirm' dialogs to avoid conflicts with test handlers that may handle 'alert' dialogs
     this.page.on('dialog', async (dialog) => {
       if (dialog.type() === 'confirm') {
-        console.log(
-          `[SuperSyncPage] Auto-accepting confirm dialog: "${dialog.message()}"`,
+        const message = dialog.message();
+        // Validate this is the expected fresh client sync confirmation
+        const expectedPatterns = [/fresh/i, /remote/i, /sync/i, /operations/i];
+        const isExpectedDialog = expectedPatterns.some((pattern) =>
+          pattern.test(message),
         );
+
+        if (!isExpectedDialog) {
+          console.error(`[SuperSyncPage] Unexpected confirm dialog: "${message}"`);
+          throw new Error(
+            `Unexpected confirm dialog message: "${message}". ` +
+              `Expected fresh client sync confirmation.`,
+          );
+        }
+
+        console.log(`[SuperSyncPage] Auto-accepting confirm dialog: "${message}"`);
         await dialog.accept();
       }
     });

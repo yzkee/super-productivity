@@ -108,7 +108,20 @@ export const setupSyncClient = async (
   // This handles the window.confirm() call in OperationLogSyncService._showFreshClientSyncConfirmation
   page.on('dialog', async (dialog) => {
     if (dialog.type() === 'confirm') {
-      console.log(`Auto-accepting confirm dialog: ${dialog.message()}`);
+      const message = dialog.message();
+      // Validate this is the expected fresh client sync confirmation
+      const expectedPatterns = [/fresh/i, /remote/i, /sync/i, /operations/i];
+      const isExpectedDialog = expectedPatterns.some((pattern) => pattern.test(message));
+
+      if (!isExpectedDialog) {
+        console.error(`[E2E] Unexpected confirm dialog: "${message}"`);
+        throw new Error(
+          `Unexpected confirm dialog message: "${message}". ` +
+            `Expected fresh client sync confirmation.`,
+        );
+      }
+
+      console.log(`Auto-accepting confirm dialog: ${message}`);
       await dialog.accept();
     }
   });

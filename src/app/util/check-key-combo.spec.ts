@@ -191,8 +191,8 @@ const withLayouts = async (
 };
 
 describe('checkKeyCombo', () => {
-  afterAll(() => {
-    // Restore original navigator to prevent test pollution
+  afterEach(() => {
+    // Restore original navigator after EACH test to prevent pollution
     Object.defineProperty(window, 'navigator', {
       value: originalNavigator,
       configurable: true,
