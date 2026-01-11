@@ -67,6 +67,10 @@ snap:
   autoStart: true
   base: core22
   confinement: strict
+  environment:
+    # Fix for issue #4920: Isolate fontconfig cache to prevent GTK dialog rendering issues
+    # https://github.com/super-productivity/super-productivity/issues/4920
+    FC_CACHEDIR: $SNAP_USER_DATA/.cache/fontconfig
   plugs:
     - default
     - password-manager-service
