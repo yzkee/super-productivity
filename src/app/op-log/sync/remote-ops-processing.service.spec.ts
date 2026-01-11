@@ -182,7 +182,12 @@ describe('RemoteOpsProcessingService', () => {
     ]);
     // Default: return all ops as valid (no filtering)
     syncImportFilterServiceSpy.filterOpsInvalidatedBySyncImport.and.callFake(
-      (ops: any[]) => Promise.resolve({ validOps: ops, invalidatedOps: [] }),
+      (ops: any[]) =>
+        Promise.resolve({
+          validOps: ops,
+          invalidatedOps: [],
+          isLocalUnsyncedImport: false,
+        }),
     );
 
     TestBed.configureTestingModule({
@@ -368,6 +373,7 @@ describe('RemoteOpsProcessingService', () => {
         localWinOpsCreated: 0,
         allOpsFilteredBySyncImport: false,
         filteredOpCount: 0,
+        isLocalUnsyncedImport: false,
       });
     });
 
@@ -443,6 +449,7 @@ describe('RemoteOpsProcessingService', () => {
         localWinOpsCreated: 0,
         allOpsFilteredBySyncImport: false,
         filteredOpCount: 0,
+        isLocalUnsyncedImport: false,
       });
     });
 
@@ -638,6 +645,7 @@ describe('RemoteOpsProcessingService', () => {
               createFullOp({ id: 'filtered-3' }),
             ],
             filteringImport: syncImportOp,
+            isLocalUnsyncedImport: false,
           }),
         );
 
@@ -676,6 +684,7 @@ describe('RemoteOpsProcessingService', () => {
             validOps: [validOp],
             invalidatedOps: [createFullOp({ id: 'filtered-1' })],
             filteringImport: syncImportOp,
+            isLocalUnsyncedImport: false,
           }),
         );
 
@@ -711,6 +720,7 @@ describe('RemoteOpsProcessingService', () => {
           Promise.resolve({
             validOps: [createFullOp({ id: 'op-1' })],
             invalidatedOps: [],
+            isLocalUnsyncedImport: false,
           }),
         );
 
@@ -768,6 +778,7 @@ describe('RemoteOpsProcessingService', () => {
             validOps: [],
             invalidatedOps: [createFullOp({ id: 'filtered-1' })],
             filteringImport: syncImportOp,
+            isLocalUnsyncedImport: false,
           }),
         );
 

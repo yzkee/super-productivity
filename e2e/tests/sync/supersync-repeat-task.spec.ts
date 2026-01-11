@@ -5,6 +5,7 @@ import {
   createSimulatedClient,
   closeClient,
   waitForTask,
+  deleteTask,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 import { expectTaskVisible } from '../../utils/supersync-assertions';
@@ -224,24 +225,11 @@ test.describe('@supersync SuperSync Repeatable Task Sync', () => {
       await clientB.page.waitForTimeout(1000);
       await expectTaskVisible(clientB, taskName, 10000);
 
-      // 3. Client A deletes the task
-      const taskOnA = clientA.page.locator(`task:has-text("${taskName}")`).first();
-      await taskOnA.click({ button: 'right' });
-      await clientA.page.waitForTimeout(300);
-
-      // Click delete in context menu
-      const deleteBtn = clientA.page
-        .locator('.mat-mdc-menu-item')
-        .filter({ hasText: 'Delete' });
-      await deleteBtn.click();
-
-      // Handle confirmation dialog if present
-      const confirmDialog = clientA.page.locator('dialog-confirm');
-      if (await confirmDialog.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await confirmDialog.locator('button[type=submit]').click();
-      }
+      // 3. Client A deletes the task using reliable keyboard shortcut
+      await deleteTask(clientA, taskName);
 
       // Verify task is gone from Client A
+      const taskOnA = clientA.page.locator(`task:has-text("${taskName}")`).first();
       await expect(taskOnA).not.toBeVisible({ timeout: 5000 });
 
       // Client A syncs the deletion

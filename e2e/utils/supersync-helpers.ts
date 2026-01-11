@@ -251,16 +251,30 @@ export const closeClient = async (client: SimulatedE2EClient): Promise<void> => 
   try {
     // Check if page is still open before trying to close context
     if (!client.page.isClosed()) {
-      await client.context.close();
+      // Add timeout wrapper to prevent cleanup from blocking test completion.
+      // context.close() can hang waiting for trace files to be written.
+      const closePromise = client.context.close();
+      const timeoutPromise = new Promise<void>((_, reject) =>
+        setTimeout(() => reject(new Error('Cleanup timeout')), 5000),
+      );
+      await Promise.race([closePromise, timeoutPromise]);
     }
   } catch (error) {
-    // Ignore errors if context is already closed or trace artifacts are missing
-    // ENOENT errors can occur when Playwright tries to finalize trace files
-    // for manually-created contexts (known issue with trace: 'retain-on-failure')
+    // Ignore errors if context is already closed or trace artifacts are missing.
+    // Common scenarios:
+    // - Test timeout: Playwright force-closes contexts, cleanup gets "Protocol error"
+    // - ENOENT: Trace file finalization fails for manually-created contexts
+    // - Context already closed: Race between test timeout and cleanup
+    // - Cleanup timeout: context.close() hung waiting for trace artifacts
     if (error instanceof Error) {
       const ignorableErrors = [
         'Target page, context or browser has been closed',
         'ENOENT',
+        'Protocol error',
+        'Target.disposeBrowserContext',
+        'Failed to find context',
+        'End of central directory record signature not found',
+        'Cleanup timeout',
       ];
       const shouldIgnore = ignorableErrors.some((msg) => error.message.includes(msg));
       if (shouldIgnore) {

@@ -63,12 +63,14 @@ export class SyncImportFilterService {
    * another client arrive after we already downloaded the import.
    *
    * @param ops - Operations to filter (already migrated)
-   * @returns Object with `validOps`, `invalidatedOps`, and optionally `filteringImport`
+   * @returns Object with `validOps`, `invalidatedOps`, optionally `filteringImport`,
+   *          and `isLocalUnsyncedImport` indicating if dialog should be shown
    */
   async filterOpsInvalidatedBySyncImport(ops: Operation[]): Promise<{
     validOps: Operation[];
     invalidatedOps: Operation[];
     filteringImport?: Operation;
+    isLocalUnsyncedImport: boolean;
   }> {
     // Find full state import operations (SYNC_IMPORT, BACKUP_IMPORT, or REPAIR) in current batch
     const fullStateImportsInBatch = ops.filter(
@@ -79,10 +81,14 @@ export class SyncImportFilterService {
     );
 
     // Check local store for previously downloaded import
-    const storedImport = await this.opLogStore.getLatestFullStateOp();
+    // Use getLatestFullStateOpEntry to get metadata (source, syncedAt)
+    const storedEntry = await this.opLogStore.getLatestFullStateOpEntry();
+    const storedImport = storedEntry?.op;
 
     // Determine the latest import (from batch or store)
+    // Also track whether we're using the stored entry (needed for isLocalUnsyncedImport check)
     let latestImport: Operation | undefined;
+    let usingStoredEntry = false;
 
     if (fullStateImportsInBatch.length > 0) {
       // Find the latest in the current batch
@@ -92,18 +98,40 @@ export class SyncImportFilterService {
       // Compare with stored import (if any)
       if (storedImport && storedImport.id > latestInBatch.id) {
         latestImport = storedImport;
+        usingStoredEntry = true;
       } else {
         latestImport = latestInBatch;
+        usingStoredEntry = false;
       }
     } else if (storedImport) {
       // No import in batch, but we have one from a previous sync
       latestImport = storedImport;
+      usingStoredEntry = true;
     }
 
     // No imports found anywhere = no filtering needed
     if (!latestImport) {
-      return { validOps: ops, invalidatedOps: [] };
+      return { validOps: ops, invalidatedOps: [], isLocalUnsyncedImport: false };
     }
+
+    // Determine if the filtering import is a local unsynced import.
+    // This is used to decide whether to show the conflict dialog.
+    //
+    // isLocalUnsyncedImport is TRUE only when:
+    // 1. We're using the stored entry (not a batch import)
+    // 2. The stored entry was created locally (source='local')
+    // 3. It hasn't been synced yet (no syncedAt)
+    //
+    // When true, the dialog SHOULD show - user must choose between their local
+    // import and the remote data being filtered.
+    //
+    // When false (batch import, remote stored import, or synced local import),
+    // the dialog should NOT show - old ops are silently discarded.
+    const isLocalUnsyncedImport =
+      usingStoredEntry &&
+      !!storedEntry &&
+      storedEntry.source === 'local' &&
+      !storedEntry.syncedAt;
 
     OpLog.normal(
       `SyncImportFilterService: Filtering ops against SYNC_IMPORT from client ${latestImport.clientId} (op: ${latestImport.id})`,
@@ -151,6 +179,11 @@ export class SyncImportFilterService {
       }
     }
 
-    return { validOps, invalidatedOps, filteringImport: latestImport };
+    return {
+      validOps,
+      invalidatedOps,
+      filteringImport: latestImport,
+      isLocalUnsyncedImport,
+    };
   }
 }

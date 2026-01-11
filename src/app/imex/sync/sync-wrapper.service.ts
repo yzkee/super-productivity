@@ -204,6 +204,14 @@ export class SyncWrapperService {
         `SyncWrapperService: Download complete. newOps=${downloadResult.newOpsCount}, migration=${downloadResult.serverMigrationHandled}`,
       );
 
+      // If user cancelled the sync import conflict dialog, skip upload entirely.
+      // This keeps the local state unchanged and doesn't push it to the server.
+      if (downloadResult.cancelled) {
+        SyncLog.log('SyncWrapperService: Sync cancelled by user. Skipping upload phase.');
+        this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
+        return SyncStatus.NotConfigured;
+      }
+
       // 2. Upload pending local ops
       const uploadResult =
         await this._opLogSyncService.uploadPendingOps(syncCapableProvider);

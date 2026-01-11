@@ -50,7 +50,9 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
     browser,
     baseURL,
     testRunId,
-  }) => {
+  }, testInfo) => {
+    // Multi-client import tests need extra time for sync operations
+    testInfo.setTimeout(120000);
     const uniqueId = Date.now();
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
@@ -91,17 +93,18 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
       await clientB.page.waitForLoadState('networkidle');
 
       // NOW setup sync - B has local SYNC_IMPORT but no knowledge of server ops
-      await clientB.sync.setupSuperSync(syncConfig);
+      // Use waitForInitialSync=false so we can manually observe the dialog
+      await clientB.sync.setupSuperSync(syncConfig, false);
 
       // ============ PHASE 3: Client B Syncs (Should See Dialog) ============
       console.log('[Conflict Dialog] Phase 3: Client B syncs (should see dialog)');
 
-      // Trigger sync - this should cause the dialog to appear
+      // Trigger sync - this should cause the sync import conflict dialog to appear
       await clientB.sync.triggerSync();
 
-      // Wait for the conflict dialog to appear
-      const dialog = clientB.page.locator('mat-dialog-container');
-      await expect(dialog).toBeVisible({ timeout: 10000 });
+      // Wait for the sync import conflict dialog to appear
+      const dialog = clientB.page.locator('dialog-sync-import-conflict');
+      await expect(dialog).toBeVisible({ timeout: 15000 });
       console.log('[Conflict Dialog] Dialog appeared');
 
       // Verify dialog title
@@ -148,7 +151,9 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
     browser,
     baseURL,
     testRunId,
-  }) => {
+  }, testInfo) => {
+    // Multi-client import tests need extra time for sync operations
+    testInfo.setTimeout(120000);
     const uniqueId = Date.now();
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
@@ -182,16 +187,16 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
 
       await clientB.page.reload();
       await clientB.page.waitForLoadState('networkidle');
-      // Setup sync AFTER import
-      await clientB.sync.setupSuperSync(syncConfig);
+      // Setup sync AFTER import, but don't wait for initial sync so we can handle the dialog
+      await clientB.sync.setupSuperSync(syncConfig, false);
 
       // ============ PHASE 3: Client B Syncs and Chooses USE_LOCAL ============
       console.log('[USE_LOCAL] Phase 3: Client B syncs and chooses USE_LOCAL');
 
-      await clientB.sync.triggerSync();
-
-      const dialog = clientB.page.locator('mat-dialog-container');
-      await expect(dialog).toBeVisible({ timeout: 10000 });
+      // The auto-sync after enabling will trigger the conflict dialog
+      // Use specific locator for the sync import conflict dialog
+      const dialog = clientB.page.locator('dialog-sync-import-conflict');
+      await expect(dialog).toBeVisible({ timeout: 15000 });
 
       // Click "Use My Data" button
       const useLocalButton = dialog.getByRole('button', { name: /my data/i });
@@ -252,7 +257,9 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
     browser,
     baseURL,
     testRunId,
-  }) => {
+  }, testInfo) => {
+    // USE_REMOTE involves downloading server state, which takes longer
+    testInfo.setTimeout(180000);
     const uniqueId = Date.now();
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
@@ -286,16 +293,16 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
 
       await clientB.page.reload();
       await clientB.page.waitForLoadState('networkidle');
-      // Setup sync AFTER import
-      await clientB.sync.setupSuperSync(syncConfig);
+      // Setup sync AFTER import, but don't wait for initial sync so we can handle the dialog
+      await clientB.sync.setupSuperSync(syncConfig, false);
 
       // ============ PHASE 3: Client B Syncs and Chooses USE_REMOTE ============
       console.log('[USE_REMOTE] Phase 3: Client B syncs and chooses USE_REMOTE');
 
-      await clientB.sync.triggerSync();
-
-      const dialog = clientB.page.locator('mat-dialog-container');
-      await expect(dialog).toBeVisible({ timeout: 10000 });
+      // The auto-sync after enabling will trigger the conflict dialog
+      // Use specific locator for the sync import conflict dialog
+      const dialog = clientB.page.locator('dialog-sync-import-conflict');
+      await expect(dialog).toBeVisible({ timeout: 15000 });
 
       // Click "Use Server Data" button
       const useRemoteButton = dialog.getByRole('button', { name: /server/i });
@@ -343,7 +350,9 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
     browser,
     baseURL,
     testRunId,
-  }) => {
+  }, testInfo) => {
+    // CANCEL test verifies both clients, needs extra time
+    testInfo.setTimeout(180000);
     const uniqueId = Date.now();
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
@@ -377,16 +386,16 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
 
       await clientB.page.reload();
       await clientB.page.waitForLoadState('networkidle');
-      // Setup sync AFTER import
-      await clientB.sync.setupSuperSync(syncConfig);
+      // Setup sync AFTER import, but don't wait for initial sync so we can handle the dialog
+      await clientB.sync.setupSuperSync(syncConfig, false);
 
       // ============ PHASE 3: Client B Syncs and Chooses CANCEL ============
       console.log('[CANCEL] Phase 3: Client B syncs and chooses CANCEL');
 
-      await clientB.sync.triggerSync();
-
-      const dialog = clientB.page.locator('mat-dialog-container');
-      await expect(dialog).toBeVisible({ timeout: 10000 });
+      // The auto-sync after enabling will trigger the conflict dialog
+      // Use specific locator for the sync import conflict dialog
+      const dialog = clientB.page.locator('dialog-sync-import-conflict');
+      await expect(dialog).toBeVisible({ timeout: 15000 });
 
       // Click "Cancel" button
       const cancelButton = dialog.getByRole('button', { name: /cancel/i });

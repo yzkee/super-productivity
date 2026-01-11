@@ -76,6 +76,7 @@ export class RemoteOpsProcessingService {
     allOpsFilteredBySyncImport: boolean;
     filteredOpCount: number;
     filteringImport?: Operation;
+    isLocalUnsyncedImport: boolean;
   }> {
     // ─────────────────────────────────────────────────────────────────────────
     // STEP 1: Schema Migration (Receiver-Side)
@@ -105,6 +106,7 @@ export class RemoteOpsProcessingService {
           localWinOpsCreated: 0,
           allOpsFilteredBySyncImport: false,
           filteredOpCount: 0,
+          isLocalUnsyncedImport: false,
         };
       }
 
@@ -160,6 +162,7 @@ export class RemoteOpsProcessingService {
         localWinOpsCreated: 0,
         allOpsFilteredBySyncImport: false,
         filteredOpCount: 0,
+        isLocalUnsyncedImport: false,
       };
     }
 
@@ -173,6 +176,7 @@ export class RemoteOpsProcessingService {
         localWinOpsCreated: 0,
         allOpsFilteredBySyncImport: false,
         filteredOpCount: 0,
+        isLocalUnsyncedImport: false,
       };
     }
 
@@ -182,7 +186,7 @@ export class RemoteOpsProcessingService {
     // import reference entities that were wiped. These must be discarded.
     // This also checks the LOCAL STORE for imports downloaded in previous sync cycles.
     // ─────────────────────────────────────────────────────────────────────────
-    const { validOps, invalidatedOps, filteringImport } =
+    const { validOps, invalidatedOps, filteringImport, isLocalUnsyncedImport } =
       await this.syncImportFilterService.filterOpsInvalidatedBySyncImport(migratedOps);
 
     if (invalidatedOps.length > 0) {
@@ -205,6 +209,7 @@ export class RemoteOpsProcessingService {
         allOpsFilteredBySyncImport: invalidatedOps.length > 0,
         filteredOpCount: invalidatedOps.length,
         filteringImport,
+        isLocalUnsyncedImport,
       };
     }
 
@@ -231,6 +236,7 @@ export class RemoteOpsProcessingService {
         localWinOpsCreated: 0,
         allOpsFilteredBySyncImport: false,
         filteredOpCount: 0,
+        isLocalUnsyncedImport: false,
       };
     }
 
@@ -290,6 +296,7 @@ export class RemoteOpsProcessingService {
       localWinOpsCreated,
       allOpsFilteredBySyncImport: false,
       filteredOpCount: 0,
+      isLocalUnsyncedImport: false,
     };
   }
 

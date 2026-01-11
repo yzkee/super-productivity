@@ -6,6 +6,7 @@ import {
   closeClient,
   waitForTask,
   createProjectReliably,
+  deleteTask,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 
@@ -266,46 +267,9 @@ test.describe('@supersync SuperSync Edge Cases', () => {
       // Wait for done animation to complete
       await clientA.page.waitForTimeout(500);
 
-      // 5. Delete Task 2 with retry logic for context menu
-      let deleteSuccess = false;
-      for (let attempt = 0; attempt < 3 && !deleteSuccess; attempt++) {
-        try {
-          const taskLocator2 = clientA.page
-            .locator(`task:not(.ng-animating):has-text("${task2}")`)
-            .first();
-          await taskLocator2.waitFor({ state: 'visible', timeout: 5000 });
-          await taskLocator2.click({ button: 'right' });
-
-          const deleteMenuItem = clientA.page
-            .locator('.mat-mdc-menu-item')
-            .filter({ hasText: 'Delete' });
-          await deleteMenuItem.waitFor({ state: 'visible', timeout: 3000 });
-          await deleteMenuItem.click();
-
-          // Handle confirmation dialog
-          const dialog = clientA.page.locator('dialog-confirm');
-          try {
-            await dialog.waitFor({ state: 'visible', timeout: 2000 });
-            await dialog.locator('button[type=submit]').click();
-            await dialog.waitFor({ state: 'hidden', timeout: 5000 });
-          } catch {
-            // Dialog may not appear for all delete operations
-          }
-
-          // Verify task is deleted
-          await expect(taskLocator2).not.toBeVisible({ timeout: 5000 });
-          deleteSuccess = true;
-        } catch (e) {
-          console.log(`[BurstTest] Delete attempt ${attempt + 1} failed, retrying...`);
-          // Close any open menus
-          await clientA.page.keyboard.press('Escape');
-          await clientA.page.waitForTimeout(300);
-        }
-      }
-
-      if (!deleteSuccess) {
-        throw new Error('Failed to delete task after 3 attempts');
-      }
+      // 5. Delete Task 2 using reliable keyboard shortcut
+      await deleteTask(clientA, task2);
+      console.log('[BurstTest] Task 2 deleted');
 
       // 6. Client A syncs (burst)
       await clientA.sync.syncAndWait();
@@ -571,19 +535,9 @@ test.describe('@supersync SuperSync Edge Cases', () => {
 
       // 3. Concurrent changes
 
-      // Client A: Delete the task
+      // Client A: Delete the task using reliable keyboard shortcut
+      await deleteTask(clientA, taskName);
       const taskLocatorA = clientA.page.locator(`task:has-text("${taskName}")`);
-      await taskLocatorA.click({ button: 'right' });
-      await clientA.page
-        .locator('.mat-mdc-menu-item')
-        .filter({ hasText: 'Delete' })
-        .click();
-
-      // Handle confirmation dialog if present
-      const dialogA = clientA.page.locator('dialog-confirm');
-      if (await dialogA.isVisible({ timeout: 2000 }).catch(() => false)) {
-        await dialogA.locator('button[type=submit]').click();
-      }
       await expect(taskLocatorA).not.toBeVisible();
 
       // Client B: Mark as done (concurrent with deletion)
@@ -670,23 +624,13 @@ test.describe('@supersync SuperSync Edge Cases', () => {
       await waitForTask(clientA.page, taskName);
       await waitForTask(clientB.page, taskName);
 
-      // 3. Client A deletes the task
+      // 3. Client A deletes the task using keyboard shortcut (triggers undo snackbar)
+      await deleteTask(clientA, taskName);
+
+      // Verify task is deleted locally
       const taskLocatorA = clientA.page
         .locator(`task:not(.ng-animating):has-text("${taskName}")`)
         .first();
-      await taskLocatorA.click({ button: 'right' });
-      await clientA.page
-        .locator('.mat-mdc-menu-item')
-        .filter({ hasText: 'Delete' })
-        .click();
-
-      // Handle confirmation dialog if present
-      const dialog = clientA.page.locator('dialog-confirm');
-      if (await dialog.isVisible()) {
-        await dialog.locator('button[type=submit]').click();
-      }
-
-      // Verify task is deleted locally
       await expect(taskLocatorA).not.toBeVisible({ timeout: 5000 });
 
       // 4. Client A clicks Undo (snackbar should be visible)

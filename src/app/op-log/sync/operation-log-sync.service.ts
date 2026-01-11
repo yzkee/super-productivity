@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core';
+import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { OpType, VectorClock, FULL_STATE_OP_TYPES } from '../core/operation.types';
@@ -19,6 +20,8 @@ import {
 } from './rejected-ops-handler.service';
 import { SyncHydrationService } from '../persistence/sync-hydration.service';
 import { SyncImportConflictDialogService } from './sync-import-conflict-dialog.service';
+import { getDefaultMainModelData } from '../model/model-config';
+import { loadAllData } from '../../root-store/meta/load-all-data.action';
 
 /**
  * Orchestrates synchronization of the Operation Log with remote storage.
@@ -87,6 +90,7 @@ import { SyncImportConflictDialogService } from './sync-import-conflict-dialog.s
   providedIn: 'root',
 })
 export class OperationLogSyncService {
+  private store = inject(Store);
   private opLogStore = inject(OperationLogStoreService);
   private uploadService = inject(OperationLogUploadService);
   private downloadService = inject(OperationLogDownloadService);
@@ -233,6 +237,7 @@ export class OperationLogSyncService {
     newOpsCount: number;
     allOpClocks?: VectorClock[];
     snapshotVectorClock?: VectorClock;
+    cancelled?: boolean;
   }> {
     const result = await this.downloadService.downloadRemoteOps(syncProvider, options);
 
@@ -415,11 +420,22 @@ export class OperationLogSyncService {
     // Handle SYNC_IMPORT conflict: all remote ops filtered by local import
     // This happens when user imports/restores data locally, and other devices
     // have been creating changes without knowledge of that import.
+    //
+    // IMPORTANT: We only show the dialog when isLocalUnsyncedImport is true.
+    // This means the filtering import is a LOCAL import that hasn't been synced yet.
+    // If the import is from another client (remote) or already synced, we silently
+    // discard the old ops - no user choice is needed because the import was already
+    // accepted. This prevents the dialog from showing multiple times when old ops
+    // arrive after a remote import was already applied.
     // ─────────────────────────────────────────────────────────────────────────
-    if (processResult.allOpsFilteredBySyncImport && processResult.filteredOpCount > 0) {
+    if (
+      processResult.allOpsFilteredBySyncImport &&
+      processResult.filteredOpCount > 0 &&
+      processResult.isLocalUnsyncedImport
+    ) {
       OpLog.warn(
         `OperationLogSyncService: All ${processResult.filteredOpCount} remote ops filtered by local SYNC_IMPORT. ` +
-          `Showing conflict resolution dialog.`,
+          `Showing conflict resolution dialog (local unsynced import detected).`,
       );
 
       const resolution = await this.syncImportConflictDialogService.showConflictDialog({
@@ -458,8 +474,20 @@ export class OperationLogSyncService {
             serverMigrationHandled: false,
             localWinOpsCreated: 0,
             newOpsCount: 0,
+            cancelled: true,
           };
       }
+    } else if (
+      processResult.allOpsFilteredBySyncImport &&
+      processResult.filteredOpCount > 0
+    ) {
+      // Ops were filtered but it's NOT a local unsynced import (remote or already synced).
+      // This is expected behavior - old ops from before a previously-accepted import are
+      // silently discarded. No dialog needed.
+      OpLog.normal(
+        `OperationLogSyncService: ${processResult.filteredOpCount} remote ops silently filtered by ` +
+          `already-accepted SYNC_IMPORT (not showing dialog - import was remote or already synced).`,
+      );
     }
 
     // IMPORTANT: Persist lastServerSeq AFTER ops are stored in IndexedDB.
@@ -539,8 +567,18 @@ export class OperationLogSyncService {
    */
   async forceDownloadRemoteState(syncProvider: OperationSyncCapable): Promise<void> {
     OpLog.warn(
-      'OperationLogSyncService: Force downloading remote state - clearing local unsynced ops.',
+      'OperationLogSyncService: Force downloading remote state - clearing local import and unsynced ops.',
     );
+
+    // IMPORTANT: Clear local full-state ops (SYNC_IMPORT, BACKUP_IMPORT, REPAIR)
+    // This is critical - if the user chose USE_REMOTE, we must not filter incoming
+    // ops against the local import that we're discarding.
+    const clearedFullStateOps = await this.opLogStore.clearFullStateOps();
+    if (clearedFullStateOps > 0) {
+      OpLog.normal(
+        `OperationLogSyncService: Cleared ${clearedFullStateOps} local full-state op(s).`,
+      );
+    }
 
     // Clear all unsynced local ops - we're replacing them with remote state
     await this.opLogStore.clearUnsyncedOps();
@@ -592,6 +630,31 @@ export class OperationLogSyncService {
     }
 
     if (result.newOps.length > 0) {
+      // Check if there's a full-state op in the batch (SYNC_IMPORT would replace state)
+      const hasFullStateOp = result.newOps.some((op) =>
+        FULL_STATE_OP_TYPES.has(op.opType),
+      );
+
+      // If no full-state op, we need to reset state before applying incremental ops.
+      // This is because USE_REMOTE should REPLACE local state with remote state,
+      // not merge remote ops into existing local state.
+      if (!hasFullStateOp) {
+        OpLog.normal(
+          'OperationLogSyncService: No full-state op in remote. Resetting state before applying incremental ops.',
+        );
+        // Reset to default/empty state so incremental ops build fresh state
+        const defaultData = getDefaultMainModelData();
+        this.store.dispatch(
+          loadAllData({
+            appDataComplete: defaultData as Parameters<
+              typeof loadAllData
+            >[0]['appDataComplete'],
+          }),
+        );
+        // Brief yield to let NgRx process the state reset
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+
       // Process all remote ops (no confirmation needed - user already chose USE_REMOTE)
       await this.remoteOpsProcessingService.processRemoteOps(result.newOps);
 

@@ -5,6 +5,7 @@ import {
   createSimulatedClient,
   closeClient,
   waitForTask,
+  deleteTask,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 
@@ -1322,24 +1323,8 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       await waitForTask(clientB.page, taskName);
       console.log('[DeleteRace] Both clients have the task');
 
-      // 3. Client A deletes the task
-      const taskLocatorA = clientA.page
-        .locator(`task:not(.ng-animating):has-text("${taskName}")`)
-        .first();
-      await taskLocatorA.click({ button: 'right' });
-      await clientA.page.waitForTimeout(300);
-
-      // Wait for menu to be fully visible
-      await clientA.page
-        .locator('.mat-mdc-menu-panel')
-        .waitFor({ state: 'visible', timeout: 5000 });
-
-      const deleteBtn = clientA.page
-        .locator('.mat-mdc-menu-item')
-        .filter({ hasText: 'Delete' });
-      await deleteBtn.waitFor({ state: 'visible', timeout: 5000 });
-      await deleteBtn.click();
-      await clientA.page.waitForTimeout(500);
+      // 3. Client A deletes the task using reliable keyboard shortcut
+      await deleteTask(clientA, taskName);
       console.log('[DeleteRace] Client A deleted task');
 
       // 4. Client B updates the task (with later timestamp)
@@ -1442,23 +1427,8 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       await waitForTask(clientB.page, taskName);
       console.log('[TodayDeleteRace] Both clients have the task');
 
-      // 3. Client A deletes the task
-      const taskLocatorA = clientA.page
-        .locator(`task:not(.ng-animating):has-text("${taskName}")`)
-        .first();
-      await taskLocatorA.click({ button: 'right' });
-      await clientA.page.waitForTimeout(300);
-
-      await clientA.page
-        .locator('.mat-mdc-menu-panel')
-        .waitFor({ state: 'visible', timeout: 5000 });
-
-      const deleteBtn = clientA.page
-        .locator('.mat-mdc-menu-item')
-        .filter({ hasText: 'Delete' });
-      await deleteBtn.waitFor({ state: 'visible', timeout: 5000 });
-      await deleteBtn.click();
-      await clientA.page.waitForTimeout(500);
+      // 3. Client A deletes the task using reliable keyboard shortcut
+      await deleteTask(clientA, taskName);
       console.log('[TodayDeleteRace] Client A deleted task');
 
       // 4. Client B updates the task (with later timestamp)
@@ -1839,46 +1809,39 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
         .first();
       await parentLocatorA.waitFor({ state: 'visible', timeout: 5000 });
 
-      // Scroll it into view and wait for any animations
+      // Delete the parent task via context menu (more reliable for tasks with subtasks)
       await parentLocatorA.scrollIntoViewIfNeeded();
       await clientA.page.waitForTimeout(200);
 
-      // Open context menu with retry logic
-      let menuOpened = false;
-      for (let attempt = 0; attempt < 3 && !menuOpened; attempt++) {
-        // Click on the task title area specifically
-        await parentLocatorA.locator('task-title').first().click({ button: 'right' });
-        await clientA.page.waitForTimeout(500);
+      // Open context menu on the task title area
+      await parentLocatorA.locator('task-title').first().click({ button: 'right' });
+      await clientA.page.waitForTimeout(300);
 
-        try {
-          await clientA.page
-            .locator('.mat-mdc-menu-panel')
-            .waitFor({ state: 'visible', timeout: 3000 });
-          menuOpened = true;
-        } catch {
-          // Menu didn't open, escape any partial state and retry
-          await clientA.page.keyboard.press('Escape');
-          await clientA.page.waitForTimeout(300);
-        }
-      }
-
-      if (!menuOpened) {
-        throw new Error('Failed to open context menu on parent task');
-      }
-
+      // Wait for context menu and click delete
+      const menuPanel = clientA.page.locator('.mat-mdc-menu-panel');
+      await menuPanel.waitFor({ state: 'visible', timeout: 5000 });
       const deleteBtn = clientA.page
         .locator('.mat-mdc-menu-item')
         .filter({ hasText: 'Delete' });
       await deleteBtn.waitFor({ state: 'visible', timeout: 5000 });
       await deleteBtn.click();
-      await clientA.page.waitForTimeout(500);
+      await clientA.page.waitForTimeout(300);
+
+      // Handle confirmation dialog if it appears
+      const confirmBtn = clientA.page.locator(
+        'mat-dialog-actions button:has-text("Delete")',
+      );
+      if (await confirmBtn.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await confirmBtn.click();
+      }
+
       console.log('[OrphanSubtask] Client A deleted parent task');
 
-      // Verify parent (and subtask) are gone on Client A
-      const parentGoneA = await clientA.page
-        .locator(`task:has-text("${parentName}")`)
-        .count();
-      expect(parentGoneA).toBe(0);
+      // Wait for parent task to be removed from DOM (animations may take time)
+      const parentLocatorForCheck = clientA.page.locator(
+        `task:has-text("${parentName}")`,
+      );
+      await parentLocatorForCheck.waitFor({ state: 'hidden', timeout: 5000 });
       console.log('[OrphanSubtask] Parent and subtasks gone from Client A');
 
       // 4. Wait for timestamp gap (ensures B's edit is later)

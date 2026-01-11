@@ -30,6 +30,10 @@ export class SuperSyncPage extends BasePage {
   readonly conflictDialog: Locator;
   readonly conflictUseRemoteBtn: Locator;
   readonly conflictApplyBtn: Locator;
+  /** Sync import conflict dialog - appears when SYNC_IMPORT filters remote ops */
+  readonly syncImportConflictDialog: Locator;
+  readonly syncImportUseLocalBtn: Locator;
+  readonly syncImportUseRemoteBtn: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -59,13 +63,36 @@ export class SuperSyncPage extends BasePage {
     this.conflictApplyBtn = page.locator(
       'dialog-conflict-resolution button:has-text("Apply")',
     );
+    // Sync import conflict dialog elements
+    this.syncImportConflictDialog = page.locator('dialog-sync-import-conflict');
+    this.syncImportUseLocalBtn = page.locator(
+      'dialog-sync-import-conflict button:has-text("Use My Data")',
+    );
+    this.syncImportUseRemoteBtn = page.locator(
+      'dialog-sync-import-conflict button:has-text("Use Server Data")',
+    );
   }
 
   /**
    * Configure SuperSync with server URL and access token.
    * Uses right-click to open settings dialog (works even when sync is already configured).
+   *
+   * @param config - SuperSync configuration
+   * @param waitForInitialSync - If true (default), waits for the automatic initial sync to complete
+   *                            and handles dialogs. Set to false when you want to manually handle
+   *                            dialogs (e.g., to test specific dialog behaviors).
    */
-  async setupSuperSync(config: SuperSyncConfig): Promise<void> {
+  async setupSuperSync(
+    config: SuperSyncConfig,
+    waitForInitialSync = true,
+  ): Promise<void> {
+    // Auto-accept native browser dialogs (window.confirm used for fresh client sync confirmation)
+    // This handler accepts any native dialog that appears during sync setup
+    this.page.on('dialog', async (dialog) => {
+      console.log(`[SuperSyncPage] Auto-accepting native dialog: "${dialog.message()}"`);
+      await dialog.accept();
+    });
+
     // Wait for sync button to be ready first
     // The sync button depends on globalConfig being loaded (isSyncIconEnabled),
     // which can take time after initial app load. Use longer timeout and retry.
@@ -289,14 +316,16 @@ export class SuperSyncPage extends BasePage {
       .catch(() => {});
 
     // Check if sync starts automatically (it should if enabled)
-    try {
-      await this.syncSpinner.waitFor({ state: 'visible', timeout: 5000 });
-      console.log(
-        '[SuperSyncPage] Initial sync started automatically, waiting for completion...',
-      );
-      await this.waitForSyncComplete();
-    } catch (e) {
-      // No auto-sync, that's fine
+    if (waitForInitialSync) {
+      try {
+        await this.syncSpinner.waitFor({ state: 'visible', timeout: 5000 });
+        console.log(
+          '[SuperSyncPage] Initial sync started automatically, waiting for completion...',
+        );
+        await this.waitForSyncComplete();
+      } catch (e) {
+        // No auto-sync, that's fine
+      }
     }
   }
 
@@ -395,6 +424,22 @@ export class SuperSyncPage extends BasePage {
         // Wait for dialog to close
         await this.conflictDialog
           .waitFor({ state: 'hidden', timeout: 5000 })
+          .catch(() => {});
+        await this.page.waitForTimeout(500);
+        stableCount = 0;
+        continue;
+      }
+
+      // Check if sync import conflict dialog appeared
+      // This dialog appears when a SYNC_IMPORT filters all remote ops
+      if (await this.syncImportConflictDialog.isVisible()) {
+        console.log(
+          '[SuperSyncPage] Sync import conflict dialog detected, using local...',
+        );
+        await this.syncImportUseLocalBtn.click();
+        // Wait for dialog to close
+        await this.syncImportConflictDialog
+          .waitFor({ state: 'hidden', timeout: 10000 })
           .catch(() => {});
         await this.page.waitForTimeout(500);
         stableCount = 0;

@@ -429,6 +429,96 @@ export class OperationLogStoreService {
     return latestFullStateOp;
   }
 
+  /**
+   * Finds the latest full-state operation (SYNC_IMPORT, BACKUP_IMPORT, or REPAIR)
+   * in the local operation log, including its entry metadata.
+   *
+   * This extended version returns the full OperationLogEntry, which includes:
+   * - `source`: 'local' or 'remote' (was this import created locally or downloaded?)
+   * - `syncedAt`: timestamp when the op was synced (undefined if not yet synced)
+   *
+   * These fields are needed to determine if the import requires user confirmation:
+   * - Local unsynced imports (source='local', no syncedAt) → show dialog
+   * - Remote/synced imports → silently filter old ops (already accepted)
+   *
+   * @returns The latest full-state operation entry, or undefined if none exists
+   */
+  async getLatestFullStateOpEntry(): Promise<OperationLogEntry | undefined> {
+    await this._ensureInit();
+
+    let cursor = await this.db
+      .transaction(STORE_NAMES.OPS)
+      .store.openCursor(null, 'prev');
+
+    let latestEntry: OperationLogEntry | undefined;
+
+    while (cursor) {
+      const entry = decodeStoredEntry(cursor.value);
+      const isFullStateOp =
+        entry.op.opType === OpType.SyncImport ||
+        entry.op.opType === OpType.BackupImport ||
+        entry.op.opType === OpType.Repair;
+
+      if (isFullStateOp) {
+        // Track the latest by UUIDv7 (lexicographic comparison works for UUIDv7)
+        if (!latestEntry || entry.op.id > latestEntry.op.id) {
+          latestEntry = entry;
+        }
+      }
+
+      cursor = await cursor.continue();
+    }
+
+    return latestEntry;
+  }
+
+  /**
+   * Deletes all full-state operations (SYNC_IMPORT, BACKUP_IMPORT, REPAIR) from the local store.
+   *
+   * This is used when force-downloading remote state (USE_REMOTE in conflict resolution).
+   * The local import operation must be removed so that incoming remote ops aren't filtered
+   * against it.
+   *
+   * @returns Number of operations deleted
+   */
+  async clearFullStateOps(): Promise<number> {
+    await this._ensureInit();
+
+    const opsToDelete: string[] = [];
+
+    // Find all full-state ops
+    let cursor = await this.db.transaction(STORE_NAMES.OPS).store.openCursor();
+
+    while (cursor) {
+      const entry = decodeStoredEntry(cursor.value);
+      const isFullStateOp =
+        entry.op.opType === OpType.SyncImport ||
+        entry.op.opType === OpType.BackupImport ||
+        entry.op.opType === OpType.Repair;
+
+      if (isFullStateOp) {
+        opsToDelete.push(entry.op.id);
+      }
+
+      cursor = await cursor.continue();
+    }
+
+    // Delete them in a write transaction
+    if (opsToDelete.length > 0) {
+      const tx = this.db.transaction(STORE_NAMES.OPS, 'readwrite');
+      for (const id of opsToDelete) {
+        await tx.store
+          .index(OPS_INDEXES.BY_ID)
+          .openCursor(id)
+          .then((c) => c?.delete());
+      }
+      await tx.done;
+      this._invalidateUnsyncedCache();
+    }
+
+    return opsToDelete.length;
+  }
+
   async getUnsynced(): Promise<OperationLogEntry[]> {
     await this._ensureInit();
 

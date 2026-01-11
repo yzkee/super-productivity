@@ -191,6 +191,23 @@ export const MODEL_CONFIGS: AllModelConfig = {
   },
 } as const;
 
+/**
+ * Creates a default/empty main model data object using the defaultData from MODEL_CONFIGS.
+ * This is used for USE_REMOTE sync resolution to reset local state before applying remote ops.
+ *
+ * Only includes models that have isMainFileModel: true, as these are the ones
+ * stored in the main sync file and need to be reset.
+ */
+export const getDefaultMainModelData = (): Partial<AppDataComplete> => {
+  const result: Partial<AppDataComplete> = {};
+  for (const [key, config] of Object.entries(MODEL_CONFIGS)) {
+    if (config.isMainFileModel) {
+      (result as Record<string, unknown>)[key] = config.defaultData;
+    }
+  }
+  return result;
+};
+
 export const fileSyncElectron = new LocalFileSyncElectron();
 export const fileSyncDroid = new LocalFileSyncAndroid();
 

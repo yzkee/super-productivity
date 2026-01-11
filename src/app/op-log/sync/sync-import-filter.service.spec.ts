@@ -1,7 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { SyncImportFilterService } from './sync-import-filter.service';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
-import { ActionType, Operation, OpType } from '../core/operation.types';
+import {
+  ActionType,
+  Operation,
+  OperationLogEntry,
+  OpType,
+} from '../core/operation.types';
 
 describe('SyncImportFilterService', () => {
   let service: SyncImportFilterService;
@@ -25,9 +30,11 @@ describe('SyncImportFilterService', () => {
   beforeEach(() => {
     opLogStoreSpy = jasmine.createSpyObj('OperationLogStoreService', [
       'getLatestFullStateOp',
+      'getLatestFullStateOpEntry',
     ]);
     // By default, no full-state ops in store
     opLogStoreSpy.getLatestFullStateOp.and.returnValue(Promise.resolve(undefined));
+    opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(Promise.resolve(undefined));
 
     TestBed.configureTestingModule({
       providers: [
@@ -267,8 +274,15 @@ describe('SyncImportFilterService', () => {
         schemaVersion: 1,
       };
 
-      opLogStoreSpy.getLatestFullStateOp.and.returnValue(
-        Promise.resolve(existingSyncImport),
+      // Return as an entry (remote + synced = already accepted import)
+      opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+        Promise.resolve({
+          seq: 1,
+          op: existingSyncImport,
+          source: 'remote',
+          syncedAt: Date.now(),
+          appliedAt: Date.now(),
+        }),
       );
 
       // These are OLD ops from Client A, created BEFORE the import
@@ -306,7 +320,7 @@ describe('SyncImportFilterService', () => {
       // These ops have no knowledge of the import, so they're invalidated.
       expect(result.validOps.length).toBe(0);
       expect(result.invalidatedOps.length).toBe(2);
-      expect(opLogStoreSpy.getLatestFullStateOp).toHaveBeenCalled();
+      expect(opLogStoreSpy.getLatestFullStateOpEntry).toHaveBeenCalled();
     });
 
     it('should keep post-import ops when SYNC_IMPORT was downloaded in a PREVIOUS sync cycle', async () => {
@@ -323,8 +337,15 @@ describe('SyncImportFilterService', () => {
         schemaVersion: 1,
       };
 
-      opLogStoreSpy.getLatestFullStateOp.and.returnValue(
-        Promise.resolve(existingSyncImport),
+      // Return as an entry (remote + synced = already accepted import)
+      opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+        Promise.resolve({
+          seq: 1,
+          op: existingSyncImport,
+          source: 'remote',
+          syncedAt: Date.now(),
+          appliedAt: Date.now(),
+        }),
       );
 
       // These ops are created AFTER the import - client A saw the import (includes clientB: 1)
@@ -601,8 +622,15 @@ describe('SyncImportFilterService', () => {
           schemaVersion: 1,
         };
 
-        opLogStoreSpy.getLatestFullStateOp.and.returnValue(
-          Promise.resolve(existingSyncImport),
+        // Return as an entry (remote + synced = already accepted import)
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: existingSyncImport,
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
         );
 
         // Op created AFTER merging import's clock - includes clientA: 1
@@ -650,8 +678,15 @@ describe('SyncImportFilterService', () => {
           schemaVersion: 1,
         };
 
-        opLogStoreSpy.getLatestFullStateOp.and.returnValue(
-          Promise.resolve(existingSyncImport),
+        // Return as an entry (remote + synced = already accepted import)
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: existingSyncImport,
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
         );
 
         // Op from a client that was UNKNOWN to the import
@@ -697,8 +732,15 @@ describe('SyncImportFilterService', () => {
           schemaVersion: 1,
         };
 
-        opLogStoreSpy.getLatestFullStateOp.and.returnValue(
-          Promise.resolve(existingSyncImport),
+        // Return as an entry (remote + synced = already accepted import)
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: existingSyncImport,
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
         );
 
         const opsFromMultipleClients: Operation[] = [
@@ -777,7 +819,16 @@ describe('SyncImportFilterService', () => {
           schemaVersion: 1,
         };
 
-        opLogStoreSpy.getLatestFullStateOp.and.returnValue(Promise.resolve(storedImport));
+        // Return as an entry (remote + synced = already accepted import)
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: storedImport,
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
 
         const filteredOps: Operation[] = [
           createOp({
@@ -877,7 +928,16 @@ describe('SyncImportFilterService', () => {
           schemaVersion: 1,
         };
 
-        opLogStoreSpy.getLatestFullStateOp.and.returnValue(Promise.resolve(storedImport));
+        // Return as an entry (remote + synced = already accepted import)
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: storedImport,
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
 
         const batchImport = createOp({
           id: '019afd68-0050-7000-0000-000000000000', // Older than stored
@@ -918,6 +978,180 @@ describe('SyncImportFilterService', () => {
         expect(result.filteringImport).toBeDefined();
         expect(result.filteringImport!.opType).toBe(OpType.BackupImport);
         expect(result.invalidatedOps.length).toBe(1);
+      });
+    });
+
+    describe('isLocalUnsyncedImport flag', () => {
+      // Helper to create OperationLogEntry
+      const createEntry = (
+        op: Operation,
+        source: 'local' | 'remote',
+        syncedAt?: number,
+      ): OperationLogEntry => ({
+        seq: 1,
+        op,
+        source,
+        syncedAt,
+        appliedAt: Date.now(),
+      });
+
+      it('should set isLocalUnsyncedImport=false when no import exists', async () => {
+        const ops: Operation[] = [
+          createOp({ id: '019afd68-0001-7000-0000-000000000000', opType: OpType.Update }),
+        ];
+
+        const result = await service.filterOpsInvalidatedBySyncImport(ops);
+
+        expect(result.isLocalUnsyncedImport).toBe(false);
+      });
+
+      it('should set isLocalUnsyncedImport=false when filtering import is in the batch (remote)', async () => {
+        // When a SYNC_IMPORT comes in the batch, it's being downloaded from remote
+        // so it's not a local unsynced import
+        const syncImportOp = createOp({
+          id: '019afd68-0050-7000-0000-000000000000',
+          opType: OpType.SyncImport,
+          clientId: 'client-B',
+          entityType: 'ALL',
+          vectorClock: { clientB: 1 },
+        });
+        const oldOp = createOp({
+          id: '019afd68-0001-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'client-A',
+          vectorClock: { clientA: 1 }, // CONCURRENT with import
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([
+          oldOp,
+          syncImportOp,
+        ]);
+
+        expect(result.isLocalUnsyncedImport).toBe(false);
+        expect(result.invalidatedOps.length).toBe(1);
+      });
+
+      it('should set isLocalUnsyncedImport=true when stored import is local and unsynced', async () => {
+        const storedImportOp = createOp({
+          id: '019afd68-0050-7000-0000-000000000000',
+          opType: OpType.BackupImport,
+          clientId: 'client-A',
+          entityType: 'ALL',
+          vectorClock: { clientA: 1 },
+        });
+        const storedEntry = createEntry(storedImportOp, 'local', undefined); // No syncedAt
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve(storedEntry),
+        );
+
+        // Incoming op that will be filtered
+        const oldOp = createOp({
+          id: '019afd68-0001-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'client-B',
+          vectorClock: { clientB: 1 }, // CONCURRENT with import
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([oldOp]);
+
+        expect(result.isLocalUnsyncedImport).toBe(true);
+        expect(result.invalidatedOps.length).toBe(1);
+      });
+
+      it('should set isLocalUnsyncedImport=false when stored import is local but already synced', async () => {
+        const storedImportOp = createOp({
+          id: '019afd68-0050-7000-0000-000000000000',
+          opType: OpType.SyncImport,
+          clientId: 'client-A',
+          entityType: 'ALL',
+          vectorClock: { clientA: 1 },
+        });
+        const storedEntry = createEntry(storedImportOp, 'local', Date.now()); // Has syncedAt
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve(storedEntry),
+        );
+
+        const oldOp = createOp({
+          id: '019afd68-0001-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'client-B',
+          vectorClock: { clientB: 1 }, // CONCURRENT with import
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([oldOp]);
+
+        expect(result.isLocalUnsyncedImport).toBe(false);
+        expect(result.invalidatedOps.length).toBe(1);
+      });
+
+      it('should set isLocalUnsyncedImport=false when stored import is remote', async () => {
+        const storedImportOp = createOp({
+          id: '019afd68-0050-7000-0000-000000000000',
+          opType: OpType.SyncImport,
+          clientId: 'client-B',
+          entityType: 'ALL',
+          vectorClock: { clientB: 1 },
+        });
+        const storedEntry = createEntry(storedImportOp, 'remote', Date.now());
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve(storedEntry),
+        );
+
+        const oldOp = createOp({
+          id: '019afd68-0001-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'client-C',
+          vectorClock: { clientC: 1 }, // CONCURRENT with import
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([oldOp]);
+
+        expect(result.isLocalUnsyncedImport).toBe(false);
+        expect(result.invalidatedOps.length).toBe(1);
+      });
+
+      it('should prefer batch import over stored import when determining isLocalUnsyncedImport', async () => {
+        // Even if there's a local unsynced import in the store, if a newer import
+        // is in the batch, it's not a local unsynced import scenario
+        const storedImportOp = createOp({
+          id: '019afd68-0040-7000-0000-000000000000', // Older ID
+          opType: OpType.BackupImport,
+          clientId: 'client-A',
+          entityType: 'ALL',
+          vectorClock: { clientA: 1 },
+        });
+        const storedEntry = createEntry(storedImportOp, 'local', undefined);
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve(storedEntry),
+        );
+
+        // Newer SYNC_IMPORT in the batch
+        const batchImport = createOp({
+          id: '019afd68-0050-7000-0000-000000000000', // Newer ID
+          opType: OpType.SyncImport,
+          clientId: 'client-B',
+          entityType: 'ALL',
+          vectorClock: { clientA: 1, clientB: 1 },
+        });
+        const oldOp = createOp({
+          id: '019afd68-0001-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'client-C',
+          vectorClock: { clientC: 1 },
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([
+          oldOp,
+          batchImport,
+        ]);
+
+        // Batch import is used (newer), so isLocalUnsyncedImport is false
+        expect(result.isLocalUnsyncedImport).toBe(false);
+        expect(result.filteringImport!.id).toBe('019afd68-0050-7000-0000-000000000000');
       });
     });
   });

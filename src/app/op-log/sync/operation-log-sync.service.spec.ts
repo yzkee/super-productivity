@@ -49,8 +49,10 @@ describe('OperationLogSyncService', () => {
       'getOpById',
       'markRejected',
       'setVectorClock',
+      'clearFullStateOps',
     ]);
     opLogStoreSpy.setVectorClock.and.resolveTo();
+    opLogStoreSpy.clearFullStateOps.and.resolveTo();
     serverMigrationServiceSpy = jasmine.createSpyObj('ServerMigrationService', [
       'checkAndHandleMigration',
       'handleServerMigration',
@@ -65,6 +67,7 @@ describe('OperationLogSyncService', () => {
       localWinOpsCreated: 0,
       allOpsFilteredBySyncImport: false,
       filteredOpCount: 0,
+      isLocalUnsyncedImport: false,
     });
 
     rejectedOpsHandlerServiceSpy = jasmine.createSpyObj('RejectedOpsHandlerService', [
@@ -270,6 +273,7 @@ describe('OperationLogSyncService', () => {
           localWinOpsCreated: 2,
           allOpsFilteredBySyncImport: false,
           filteredOpCount: 0,
+          isLocalUnsyncedImport: false,
         });
 
         const mockProvider = {
@@ -396,6 +400,7 @@ describe('OperationLogSyncService', () => {
             localWinOpsCreated: 2,
             allOpsFilteredBySyncImport: false,
             filteredOpCount: 0,
+            isLocalUnsyncedImport: false,
           });
 
           // handleRejectedOps returns 3 merged ops created
@@ -519,6 +524,7 @@ describe('OperationLogSyncService', () => {
           localWinOpsCreated: 1,
           allOpsFilteredBySyncImport: false,
           filteredOpCount: 0,
+          isLocalUnsyncedImport: false,
         });
 
         const mockProvider = {
@@ -593,6 +599,7 @@ describe('OperationLogSyncService', () => {
               localWinOpsCreated: 0,
               allOpsFilteredBySyncImport: false,
               filteredOpCount: 0,
+              isLocalUnsyncedImport: false,
             };
           });
 
