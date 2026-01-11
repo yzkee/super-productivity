@@ -598,12 +598,15 @@ test.describe('@supersync Network Failure Recovery', () => {
       clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
       await clientA.sync.setupSuperSync(syncConfig);
 
-      // Set up dialog handler to dismiss any alerts BEFORE setting up route
+      // Set up dialog handler to dismiss alert dialogs BEFORE setting up route
+      // Only handles 'alert' dialogs - 'confirm' dialogs are handled by SuperSyncPage
       let alertShown = false;
       clientA.page.on('dialog', async (dialog) => {
-        console.log(`[Test] Alert shown: ${dialog.message()}`);
-        alertShown = true;
-        await dialog.accept();
+        if (dialog.type() === 'alert') {
+          console.log(`[Test] Alert shown: ${dialog.message()}`);
+          alertShown = true;
+          await dialog.accept();
+        }
       });
 
       // Wait for initial sync to complete so we have a baseline

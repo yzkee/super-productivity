@@ -86,11 +86,15 @@ export class SuperSyncPage extends BasePage {
     config: SuperSyncConfig,
     waitForInitialSync = true,
   ): Promise<void> {
-    // Auto-accept native browser dialogs (window.confirm used for fresh client sync confirmation)
-    // This handler accepts any native dialog that appears during sync setup
+    // Auto-accept native browser confirm dialogs (window.confirm used for fresh client sync confirmation)
+    // Only handles 'confirm' dialogs to avoid conflicts with test handlers that may handle 'alert' dialogs
     this.page.on('dialog', async (dialog) => {
-      console.log(`[SuperSyncPage] Auto-accepting native dialog: "${dialog.message()}"`);
-      await dialog.accept();
+      if (dialog.type() === 'confirm') {
+        console.log(
+          `[SuperSyncPage] Auto-accepting confirm dialog: "${dialog.message()}"`,
+        );
+        await dialog.accept();
+      }
     });
 
     // Wait for sync button to be ready first
