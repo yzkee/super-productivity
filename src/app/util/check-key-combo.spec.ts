@@ -4,6 +4,7 @@ import {
   KEYS,
   prepareKeyCode,
   saveUserKbLayout,
+  userKbLayout,
 } from './check-key-combo';
 
 const MOCK_LAYOUTS = {
@@ -156,16 +157,21 @@ const MOCK_LAYOUTS = {
   },
 };
 
+// Store original navigator to restore after tests
+const originalNavigator = window.navigator;
+
 /**
  * Overrides the keyboard layout for testing so that the `navigator.keyboard.getLayoutMap` method returns the provided layout
  */
 const overrideLayout = async (layout: KeyboardLayout): Promise<void> => {
   Object.defineProperty(window, 'navigator', {
     value: {
+      ...originalNavigator,
       keyboard: {
         getLayoutMap: () => new Promise((resolve) => resolve(layout)),
       },
     },
+    configurable: true,
   });
 
   await saveUserKbLayout();
@@ -184,7 +190,17 @@ const withLayouts = async (
   }
 };
 
-describe('checkKeyCombo', async () => {
+describe('checkKeyCombo', () => {
+  afterAll(() => {
+    // Restore original navigator to prevent test pollution
+    Object.defineProperty(window, 'navigator', {
+      value: originalNavigator,
+      configurable: true,
+    });
+    // Clear the keyboard layout map to prevent affecting other tests
+    userKbLayout.clear();
+  });
+
   it('should return a true if specified key combination are pressed', async () => {
     const ev: Partial<KeyboardEvent> = {
       code: 'KeyA',
