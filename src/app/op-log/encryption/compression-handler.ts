@@ -55,20 +55,22 @@ export async function decompressGzipFromString(
   compressedBase64: string,
 ): Promise<string> {
   try {
-    // Use fetch to decode base64 efficiently
-    const response = await fetch(
-      `data:application/octet-stream;base64,${compressedBase64}`,
-    );
-    const compressedData = await response.arrayBuffer();
+    // Decode base64 to binary using atob (more reliable than fetch with data URIs)
+    const binary = atob(compressedBase64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
 
     const stream = new DecompressionStream('gzip');
     const writer = stream.writable.getWriter();
-    writer.write(compressedData);
-    writer.close();
 
-    const decompressed = await new Response(stream.readable).arrayBuffer();
+    // Write and read concurrently - writer.close() can hang if we don't consume readable
+    const writePromise = writer.write(bytes).then(() => writer.close());
+    const readPromise = new Response(stream.readable).arrayBuffer();
+
+    const [, decompressed] = await Promise.all([writePromise, readPromise]);
     const decoded = new TextDecoder().decode(decompressed);
-    // PFLog.normal( 'Decompression stats', { decompressedLength: decoded.length });
     return decoded;
   } catch (error) {
     PFLog.err(error);
