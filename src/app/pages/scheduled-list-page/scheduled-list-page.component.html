@@ -41,15 +41,7 @@
                   <div
                     (click)="editTaskRepeatCfg(taskRepeatCfg)"
                     class="repeat-text-and-icon"
-                    [matTooltip]="
-                      T.SCHEDULE.NEXT +
-                      ' ' +
-                      (getNextOccurrence(taskRepeatCfg) | shortDate2) +
-                      ', ' +
-                      T.SCHEDULE.LAST +
-                      ' ' +
-                      (taskRepeatCfg.lastTaskCreationDay | shortDate2)
-                    "
+                    [matTooltip]="getTooltipText(taskRepeatCfg)"
                     mat-ripple
                   >
                     <div class="repeat-text">{{ getRepeatInfoText(taskRepeatCfg) }}</div>
