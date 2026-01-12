@@ -118,11 +118,5 @@
       opacity: 0.6;
       text-decoration: line-through;
     }
-
-    // Fix for loose lists (lists with blank lines between items)
-    // marked.js wraps items in <p> tags which have default margins
-    p {
-      margin: 0;
-    }
   }
 }
