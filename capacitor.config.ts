@@ -12,6 +12,16 @@ const config: CapacitorConfig = {
       // Android-specific: small icon for notification
       smallIcon: 'ic_stat_sp',
     },
+    Keyboard: {
+      // Resize the web view when keyboard appears (iOS)
+      resize: 'body',
+      // Style keyboard accessory bar
+      resizeOnFullScreen: true,
+    },
+    StatusBar: {
+      // Status bar overlays webview (iOS)
+      overlaysWebView: false,
+    },
   },
   ios: {
     // Content inset for safe areas (notch, home indicator)
