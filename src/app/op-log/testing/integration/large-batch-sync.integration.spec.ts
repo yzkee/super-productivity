@@ -6,6 +6,10 @@ import { MockSyncServer } from './helpers/mock-sync-server.helper';
 import { SimulatedClient } from './helpers/simulated-client.helper';
 import { createMinimalTaskPayload } from './helpers/operation-factory.helper';
 
+// Increase timeout for large batch tests - creating/syncing 500-1500 ops
+// can exceed the default 2000ms timeout under load
+jasmine.DEFAULT_TIMEOUT_INTERVAL = 10000;
+
 /**
  * Integration tests for Large Batch Sync scenarios.
  *
