@@ -1,7 +1,25 @@
 import { inject, Injectable } from '@angular/core';
-import { LocalNotifications, ScheduleOptions } from '@capacitor/local-notifications';
+import {
+  ActionPerformed,
+  LocalNotifications,
+  ScheduleOptions,
+} from '@capacitor/local-notifications';
 import { Log } from '../log';
 import { CapacitorPlatformService } from './capacitor-platform.service';
+import { Subject } from 'rxjs';
+
+/**
+ * Notification action IDs for reminder notifications
+ */
+export const NOTIFICATION_ACTION = {
+  SNOOZE: 'snooze',
+  DONE: 'done',
+} as const;
+
+/**
+ * Action type ID for reminder notifications with action buttons
+ */
+export const REMINDER_ACTION_TYPE_ID = 'reminder-actions';
 
 export interface ScheduleNotificationOptions {
   id: number;
@@ -19,6 +37,16 @@ export interface ScheduleNotificationOptions {
    * Whether to allow notification when device is idle (Android)
    */
   allowWhileIdle?: boolean;
+  /**
+   * Action type ID for notification actions (iOS)
+   */
+  actionTypeId?: string;
+}
+
+export interface NotificationActionEvent {
+  actionId: string;
+  notificationId: number;
+  extra?: Record<string, unknown>;
 }
 
 /**
@@ -32,12 +60,72 @@ export interface ScheduleNotificationOptions {
 })
 export class CapacitorNotificationService {
   private _platformService = inject(CapacitorPlatformService);
+  private _actionsRegistered = false;
+
+  /**
+   * Subject that emits when a notification action is performed
+   */
+  readonly action$ = new Subject<NotificationActionEvent>();
 
   /**
    * Check if notifications are available on this platform
    */
   get isAvailable(): boolean {
     return this._platformService.capabilities.scheduledNotifications;
+  }
+
+  /**
+   * Register action types for reminder notifications (iOS).
+   * Call this once during app initialization.
+   */
+  async registerReminderActions(): Promise<void> {
+    if (!this.isAvailable || this._actionsRegistered) {
+      return;
+    }
+
+    try {
+      // Register action types with Snooze and Done buttons
+      await LocalNotifications.registerActionTypes({
+        types: [
+          {
+            id: REMINDER_ACTION_TYPE_ID,
+            actions: [
+              {
+                id: NOTIFICATION_ACTION.SNOOZE,
+                title: 'Snooze',
+              },
+              {
+                id: NOTIFICATION_ACTION.DONE,
+                title: 'Done',
+                destructive: true,
+              },
+            ],
+          },
+        ],
+      });
+
+      // Listen for action events
+      await LocalNotifications.addListener(
+        'localNotificationActionPerformed',
+        (event: ActionPerformed) => {
+          Log.log('CapacitorNotificationService: Action performed', {
+            actionId: event.actionId,
+            notificationId: event.notification.id,
+          });
+
+          this.action$.next({
+            actionId: event.actionId,
+            notificationId: event.notification.id,
+            extra: event.notification.extra,
+          });
+        },
+      );
+
+      this._actionsRegistered = true;
+      Log.log('CapacitorNotificationService: Reminder actions registered');
+    } catch (error) {
+      Log.err('CapacitorNotificationService: Failed to register actions', error);
+    }
   }
 
   /**
@@ -110,6 +198,8 @@ export class CapacitorNotificationService {
             title: options.title,
             body: options.body,
             extra: options.extra,
+            // Include action type for iOS notification actions
+            actionTypeId: options.actionTypeId,
             schedule: options.scheduleAt
               ? {
                   at: options.scheduleAt,

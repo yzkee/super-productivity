@@ -291,6 +291,11 @@ export class GlobalThemeService {
         this.document.body.classList.add(BodyClass.isIOS);
         this._initIOSKeyboardHandling();
         this._initIOSStatusBar();
+
+        // Add iPad-specific class for tablet optimizations
+        if (this._platformService.isIPad()) {
+          this.document.body.classList.add(BodyClass.isIPad);
+        }
       }
     }
 

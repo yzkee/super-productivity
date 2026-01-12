@@ -74,3 +74,35 @@ body.isKeyboardVisible {
   // Optionally adjust for keyboard height
   // Elements can use --keyboard-height to position above keyboard
 }
+
+// ===============================
+// iPad-Specific Optimizations
+// ===============================
+
+body.isIPad {
+  // iPad has more screen real estate - use wider content
+  --component-max-width: 900px;
+
+  // Larger touch targets are less necessary on iPad
+  --touch-target-min: 40px;
+
+  // Better use of horizontal space in landscape
+  @media (min-width: 1024px) {
+    --component-max-width: 1000px;
+  }
+
+  // Split-view support: when iPad is in split-view mode,
+  // the viewport is narrower - detect and adjust
+  @media (max-width: 500px) {
+    // In narrow split-view, use phone-like layout
+    --component-max-width: 100%;
+  }
+
+  // iPad in landscape with enough space for side-by-side content
+  @media (min-width: 1024px) and (orientation: landscape) {
+    // Wider dialogs on iPad landscape
+    .mat-mdc-dialog-container {
+      max-width: 700px;
+    }
+  }
+}

@@ -2,9 +2,14 @@ import { inject, Injectable } from '@angular/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Log } from '../log';
 import { CapacitorPlatformService } from './capacitor-platform.service';
-import { CapacitorNotificationService } from './capacitor-notification.service';
+import {
+  CapacitorNotificationService,
+  NotificationActionEvent,
+  REMINDER_ACTION_TYPE_ID,
+} from './capacitor-notification.service';
 import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
 import { androidInterface } from '../../features/android/android-interface';
+import { Observable } from 'rxjs';
 
 export interface ScheduleReminderOptions {
   /**
@@ -47,10 +52,28 @@ export class CapacitorReminderService {
   private _notificationService = inject(CapacitorNotificationService);
 
   /**
+   * Observable that emits when a notification action is performed (iOS).
+   * Use this to handle snooze/done button taps from notifications.
+   */
+  get action$(): Observable<NotificationActionEvent> {
+    return this._notificationService.action$;
+  }
+
+  /**
    * Check if reminder scheduling is available on this platform
    */
   get isAvailable(): boolean {
     return this._platformService.capabilities.scheduledNotifications;
+  }
+
+  /**
+   * Initialize the reminder service.
+   * Registers notification action types on iOS.
+   */
+  async initialize(): Promise<void> {
+    if (this._platformService.isIOS()) {
+      await this._notificationService.registerReminderActions();
+    }
   }
 
   /**
@@ -103,6 +126,10 @@ export class CapacitorReminderService {
               id: options.notificationId,
               title: options.title,
               body: `Reminder: ${options.title}`,
+              // Include action type for iOS notification actions (Snooze/Done buttons)
+              actionTypeId: this._platformService.isIOS()
+                ? REMINDER_ACTION_TYPE_ID
+                : undefined,
               schedule: {
                 at: new Date(triggerAt),
                 allowWhileIdle: true,

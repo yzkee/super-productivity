@@ -90,6 +90,25 @@ export class CapacitorPlatformService {
   }
 
   /**
+   * Check if running on iPad (native or browser)
+   */
+  isIPad(): boolean {
+    if (this.platform !== 'ios') {
+      return false;
+    }
+    // Check for iPad identifier in user agent
+    const userAgent = navigator.userAgent;
+    if (/iPad/.test(userAgent)) {
+      return true;
+    }
+    // iPad on iOS 13+ reports as Mac with touch support
+    if (userAgent.includes('Mac') && 'ontouchend' in document) {
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Detect the current platform
    */
   private _detectPlatform(): PlatformType {
