@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { ReminderService } from './reminder.service';
 import { MatDialog } from '@angular/material/dialog';
 import { IS_ELECTRON } from '../../app.constants';
-import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
+import { IS_NATIVE_PLATFORM } from '../../util/is-native-platform';
 import {
   concatMap,
   delay,
@@ -96,7 +96,7 @@ export class ReminderModule {
         //    app state. The reminder will be cancelled when the task is marked done in the app.
         // To fully fix: Add onReminderDone$ subject to android-interface.ts and wire it up
         // in the Kotlin ReminderBroadcastReceiver to call dismissReminderOnly action.
-        if (IS_ANDROID_WEB_VIEW) {
+        if (IS_NATIVE_PLATFORM) {
           return;
         }
 
@@ -139,7 +139,7 @@ export class ReminderModule {
   @throttle(60000)
   private _showNotification(reminders: TaskWithReminderData[]): void {
     // Skip on Android - we use native notifications with snooze button instead
-    if (IS_ANDROID_WEB_VIEW) {
+    if (IS_NATIVE_PLATFORM) {
       return;
     }
 
