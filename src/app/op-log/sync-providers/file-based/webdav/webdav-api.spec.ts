@@ -348,6 +348,32 @@ describe('WebdavApi', () => {
       ).toBeRejectedWith(jasmine.any(NoRevAPIError));
     });
 
+    it('should use ETag as fallback revision when metadata fallback fails', async () => {
+      const mockResponse = {
+        status: 200,
+        headers: {
+          etag: '"etag-fallback-123"',
+        },
+        data: 'file content',
+      };
+      mockHttpAdapter.request.and.returnValue(Promise.resolve(mockResponse));
+      mockXmlParser.validateResponseContent.and.stub();
+
+      // Simulate metadata fallback failing
+      spyOn(api, 'getFileMeta').and.returnValue(
+        Promise.reject(new Error('PROPFIND failed')),
+      );
+
+      const result = await api.download({
+        path: '/test.txt',
+      });
+
+      // Should use ETag as fallback revision
+      expect(result.rev).toBe('etag-fallback-123');
+      expect(result.legacyRev).toBe('etag-fallback-123');
+      expect(result.dataStr).toBe('file content');
+    });
+
     // Test removed: If-None-Match header functionality has been removed
     // Test removed: If-Modified-Since header functionality has been removed
     // Test removed: If-Modified-Since header functionality has been removed
@@ -844,7 +870,7 @@ describe('WebdavApi', () => {
       });
     });
 
-    it('should throw InvalidDataSPError when Last-Modified header missing', async () => {
+    it('should throw InvalidDataSPError when both Last-Modified and ETag headers are missing', async () => {
       spyOn<any>(api, '_makeRequest').and.returnValue(
         Promise.resolve({
           status: 200,
@@ -856,6 +882,29 @@ describe('WebdavApi', () => {
       await expectAsync(
         (api as any)._getFileMetaViaHead('http://example.com/webdav/test.json'),
       ).toBeRejectedWith(jasmine.any(InvalidDataSPError));
+    });
+
+    it('should use ETag as fallback when Last-Modified header is missing', async () => {
+      const mockHeadResponse = {
+        status: 200,
+        headers: {
+          etag: '"abc123-etag"',
+          'content-length': '256',
+          'content-type': 'application/json',
+        },
+        data: '',
+      };
+      spyOn<any>(api, '_makeRequest').and.returnValue(Promise.resolve(mockHeadResponse));
+
+      const result = await (api as any)._getFileMetaViaHead(
+        'http://example.com/webdav/test.json',
+      );
+
+      // ETag should be cleaned and used as lastmod
+      expect(result.lastmod).toBe('abc123-etag');
+      expect(result.etag).toBe('abc123-etag');
+      expect(result.filename).toBe('test.json');
+      expect(result.size).toBe(256);
     });
   });
 
