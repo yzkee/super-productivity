@@ -134,7 +134,23 @@ export abstract class WebdavBaseProvider<
   protected async _cfgOrError(): Promise<WebdavPrivateCfg> {
     const cfg = await this.privateCfg.load();
     if (!cfg) {
-      throw new MissingCredentialsSPError();
+      throw new MissingCredentialsSPError('WebDAV configuration is missing.');
+    }
+    // Validate required fields are present and not empty
+    if (!cfg.baseUrl) {
+      throw new MissingCredentialsSPError(
+        'WebDAV base URL is not configured. Please check your sync settings.',
+      );
+    }
+    if (!cfg.userName) {
+      throw new MissingCredentialsSPError(
+        'WebDAV username is not configured. Please check your sync settings.',
+      );
+    }
+    if (!cfg.password) {
+      throw new MissingCredentialsSPError(
+        'WebDAV password is not configured. Please check your sync settings.',
+      );
     }
     return cfg;
   }
