@@ -310,7 +310,10 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
 
       // Wait for dialog to close and sync to complete
       await expect(dialog).not.toBeVisible({ timeout: 10000 });
-      await clientB.page.waitForTimeout(2000);
+
+      // Wait for sync to fully complete after USE_REMOTE (downloads server state)
+      // This is more reliable than a fixed timeout as it waits for actual sync completion
+      await clientB.sync.waitForSyncComplete(30000);
       console.log('[USE_REMOTE] Client B chose USE_REMOTE');
 
       // ============ PHASE 4: Verify Client B State ============
@@ -318,6 +321,8 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
 
       await clientB.page.goto('/#/work-view');
       await clientB.page.waitForLoadState('networkidle');
+      // Allow UI to settle after navigation under load
+      await clientB.page.waitForTimeout(500);
 
       // B should have A's task (server state), not imported tasks
       await waitForTask(clientB.page, taskARemote);
@@ -410,6 +415,8 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
 
       await clientB.page.goto('/#/work-view');
       await clientB.page.waitForLoadState('networkidle');
+      // Allow UI to settle after navigation under load
+      await clientB.page.waitForTimeout(500);
 
       // B should still have imported tasks (unchanged)
       await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
@@ -424,6 +431,8 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
       await clientA.sync.syncAndWait();
       await clientA.page.goto('/#/work-view');
       await clientA.page.waitForLoadState('networkidle');
+      // Allow UI to settle after navigation under load
+      await clientA.page.waitForTimeout(500);
 
       // A should still have original task (server unchanged)
       await waitForTask(clientA.page, taskARemote);

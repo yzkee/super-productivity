@@ -655,8 +655,9 @@ test.describe('@supersync SuperSync Edge Cases', () => {
       // 6. Client B syncs (should receive the restore action)
       await clientB.sync.syncAndWait();
 
-      // Wait for UI to update
-      await clientB.page.waitForTimeout(500);
+      // Wait for UI to update - use waitForTask which has robust polling
+      // instead of a fixed timeout that may be insufficient under load
+      await waitForTask(clientB.page, taskName);
 
       // 7. Verify Task exists on Client B after sync
       const taskLocatorB = clientB.page

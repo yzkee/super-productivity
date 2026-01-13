@@ -285,6 +285,10 @@ test.describe('@supersync Task Ordering Sync', () => {
       await clientA.sync.syncAndWait();
       await clientB.sync.syncAndWait();
       await clientA.sync.syncAndWait(); // Final sync to converge
+
+      // Allow UI to settle after sync operations under load
+      await clientA.page.waitForTimeout(500);
+      await clientB.page.waitForTimeout(500);
       console.log('[Concurrent Order Test] All clients synced');
 
       // ============ PHASE 4: Verify Consistent State ============
