@@ -548,6 +548,83 @@ describe('WebdavApi', () => {
       );
     });
 
+    it('should use If-Match header when expectedRev is an ETag (not a valid date)', async () => {
+      const mockResponse = {
+        status: 200,
+        headers: {
+          'last-modified': 'Wed, 15 Jan 2025 11:00:00 GMT',
+        },
+        data: '',
+      };
+      mockHttpAdapter.request.and.returnValue(Promise.resolve(mockResponse));
+
+      // ETag that is not a valid date
+      const etag = 'abc123-etag-value';
+
+      await api.upload({
+        path: '/test.txt',
+        data: 'new content',
+        expectedRev: etag,
+      });
+
+      const requestArgs = mockHttpAdapter.request.calls.mostRecent()?.args[0] as any;
+      expect(requestArgs.headers['If-Match']).toBe('"abc123-etag-value"');
+      expect(requestArgs.headers['If-Unmodified-Since']).toBeUndefined();
+    });
+
+    it('should properly quote ETag in If-Match header per RFC 7232', async () => {
+      const mockResponse = {
+        status: 200,
+        headers: { 'last-modified': 'Wed, 15 Jan 2025 11:00:00 GMT' },
+        data: '',
+      };
+      mockHttpAdapter.request.and.returnValue(Promise.resolve(mockResponse));
+
+      // Unquoted ETag
+      await api.upload({
+        path: '/test.txt',
+        data: 'content',
+        expectedRev: 'simple-etag',
+      });
+
+      const requestArgs = mockHttpAdapter.request.calls.mostRecent()?.args[0] as any;
+      expect(requestArgs.headers['If-Match']).toBe('"simple-etag"');
+    });
+
+    it('should not double-quote already quoted ETags in If-Match header', async () => {
+      const mockResponse = {
+        status: 200,
+        headers: { 'last-modified': 'Wed, 15 Jan 2025 11:00:00 GMT' },
+        data: '',
+      };
+      mockHttpAdapter.request.and.returnValue(Promise.resolve(mockResponse));
+
+      // Already quoted ETag
+      await api.upload({
+        path: '/test.txt',
+        data: 'content',
+        expectedRev: '"already-quoted-etag"',
+      });
+
+      const requestArgs = mockHttpAdapter.request.calls.mostRecent()?.args[0] as any;
+      expect(requestArgs.headers['If-Match']).toBe('"already-quoted-etag"');
+    });
+
+    it('should handle 412 Precondition Failed with ETag-based If-Match', async () => {
+      const errorResponse = new Response(null, { status: 412 });
+      const error = new HttpNotOkAPIError(errorResponse);
+      mockHttpAdapter.request.and.returnValue(Promise.reject(error));
+
+      // Using ETag (not a date) should trigger If-Match
+      await expectAsync(
+        api.upload({
+          path: '/test.txt',
+          data: 'new content',
+          expectedRev: 'etag-that-changed',
+        }),
+      ).toBeRejectedWith(jasmine.any(RemoteFileChangedUnexpectedly));
+    });
+
     it('should handle 412 Precondition Failed', async () => {
       const errorResponse = new Response(null, { status: 412 });
       const error = new HttpNotOkAPIError(errorResponse);
