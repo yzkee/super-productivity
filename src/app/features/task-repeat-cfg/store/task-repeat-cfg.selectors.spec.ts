@@ -1060,6 +1060,114 @@ describe('Issue #5806 - Weekly tasks with correct weekday show in planner', () =
   });
 });
 
+describe('isPaused filter for selectTaskRepeatCfgsForExactDay', () => {
+  it('should NOT return paused configs', () => {
+    const result = selectTaskRepeatCfgsForExactDay.projector(
+      [
+        dummyRepeatable('R1', {
+          repeatCycle: 'DAILY',
+          startDate: '2022-01-10',
+          isPaused: true,
+        }),
+      ],
+      { dayDate: FAKE_MONDAY_THE_10TH },
+    );
+    expect(result.map((item) => item.id)).toEqual([]);
+  });
+
+  it('should return non-paused configs normally', () => {
+    const result = selectTaskRepeatCfgsForExactDay.projector(
+      [
+        dummyRepeatable('R1', {
+          repeatCycle: 'DAILY',
+          startDate: '2022-01-10',
+          isPaused: false,
+        }),
+      ],
+      { dayDate: FAKE_MONDAY_THE_10TH },
+    );
+    expect(result.map((item) => item.id)).toEqual(['R1']);
+  });
+
+  it('should filter out paused configs while keeping non-paused', () => {
+    const result = selectTaskRepeatCfgsForExactDay.projector(
+      [
+        dummyRepeatable('R1', {
+          repeatCycle: 'DAILY',
+          startDate: '2022-01-10',
+          isPaused: false,
+        }),
+        dummyRepeatable('R2', {
+          repeatCycle: 'DAILY',
+          startDate: '2022-01-10',
+          isPaused: true,
+        }),
+        dummyRepeatable('R3', {
+          repeatCycle: 'DAILY',
+          startDate: '2022-01-10',
+          isPaused: false,
+        }),
+      ],
+      { dayDate: FAKE_MONDAY_THE_10TH },
+    );
+    expect(result.map((item) => item.id)).toEqual(['R1', 'R3']);
+  });
+});
+
+describe('isPaused filter for selectAllUnprocessedTaskRepeatCfgs', () => {
+  it('should NOT return paused configs', () => {
+    const result = selectAllUnprocessedTaskRepeatCfgs.projector(
+      [
+        dummyRepeatable('R1', {
+          repeatCycle: 'DAILY',
+          startDate: '2022-01-10',
+          isPaused: true,
+        }),
+      ],
+      { dayDate: FAKE_MONDAY_THE_10TH },
+    );
+    expect(result.map((item) => item.id)).toEqual([]);
+  });
+
+  it('should return non-paused configs normally', () => {
+    const result = selectAllUnprocessedTaskRepeatCfgs.projector(
+      [
+        dummyRepeatable('R1', {
+          repeatCycle: 'DAILY',
+          startDate: '2022-01-10',
+          isPaused: false,
+        }),
+      ],
+      { dayDate: FAKE_MONDAY_THE_10TH },
+    );
+    expect(result.map((item) => item.id)).toEqual(['R1']);
+  });
+
+  it('should filter out paused configs while keeping non-paused', () => {
+    const result = selectAllUnprocessedTaskRepeatCfgs.projector(
+      [
+        dummyRepeatable('R1', {
+          repeatCycle: 'DAILY',
+          startDate: '2022-01-10',
+          isPaused: false,
+        }),
+        dummyRepeatable('R2', {
+          repeatCycle: 'DAILY',
+          startDate: '2022-01-10',
+          isPaused: true,
+        }),
+        dummyRepeatable('R3', {
+          repeatCycle: 'DAILY',
+          startDate: '2022-01-10',
+          isPaused: false,
+        }),
+      ],
+      { dayDate: FAKE_MONDAY_THE_10TH },
+    );
+    expect(result.map((item) => item.id)).toEqual(['R1', 'R3']);
+  });
+});
+
 describe('Timezone Edge Cases for selectTaskRepeatCfgsForExactDay', () => {
   const createTaskRepeatCfg = (id: string, lastDay: string): TaskRepeatCfg => ({
     ...DEFAULT_TASK_REPEAT_CFG,

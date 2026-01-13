@@ -4,17 +4,10 @@
  *
  * Bug: Multiple Pomodoro timer sync issues with breaks
  *
- * 1. Bug 1: Pressing time tracking button after session ends but before manually starting
- *    a break stops tracking, but when you then manually start the break, tracking
- *    doesn't resume (even with "Pause task during breaks" disabled)
- *
- * 2. Bug 2: Pausing the break from the banner doesn't stop time tracking
- *    (it should stop tracking to sync with the paused state)
- *
- * 3. Visual Bug: When pausing a break using the time tracking button, the banner
- *    still shows a pause icon instead of a play icon
- *
- * 4. Typo: "Sync focus session with time tracking" should be "Sync focus sessions..."
+ * These tests verify basic focus mode functionality and the typo fix.
+ * The complex sync behavior is thoroughly tested in unit tests:
+ * - focus-mode.effects.spec.ts: Tests Bug 1 & Bug 2 scenarios
+ * - banner.service.spec.ts: Tests Visual Bug fix
  */
 
 import { test, expect } from '../../fixtures/test.fixture';
@@ -85,6 +78,22 @@ const completeSession = async (page: Page): Promise<void> => {
   await completeSessionBtn.click();
 };
 
+// Helper to close focus overlay
+const closeFocusOverlay = async (page: Page): Promise<void> => {
+  const closeButton = page.locator('focus-mode-overlay button.close-btn');
+  await closeButton.click();
+  await expect(page.locator('focus-mode-overlay')).not.toBeVisible({ timeout: 3000 });
+};
+
+// Helper to open focus overlay
+const openFocusOverlay = async (page: Page): Promise<void> => {
+  const mainFocusButton = page
+    .getByRole('button')
+    .filter({ hasText: 'center_focus_strong' });
+  await mainFocusButton.click();
+  await expect(page.locator('focus-mode-overlay')).toBeVisible({ timeout: 5000 });
+};
+
 test.describe('Bug #5974: Pomodoro timer break sync issues', () => {
   test.describe('Basic focus mode with Pomodoro', () => {
     test('should complete session and show break or session done screen', async ({
@@ -97,18 +106,13 @@ test.describe('Bug #5974: Pomodoro timer break sync issues', () => {
       await startFocusSession(page);
 
       // Close overlay to verify task tracking
-      const closeButton = page.locator('focus-mode-overlay button.close-btn');
-      await closeButton.click();
-      await expect(page.locator('focus-mode-overlay')).not.toBeVisible({ timeout: 3000 });
+      await closeFocusOverlay(page);
 
       // Task should still be tracked after closing overlay
       await expect(task).toHaveClass(/isCurrent/, { timeout: 5000 });
 
       // Re-open overlay to complete session
-      const mainFocusButton = page
-        .getByRole('button')
-        .filter({ hasText: 'center_focus_strong' });
-      await mainFocusButton.click();
+      await openFocusOverlay(page);
 
       // Complete session
       await completeSession(page);
@@ -129,11 +133,55 @@ test.describe('Bug #5974: Pomodoro timer break sync issues', () => {
       await startFocusSession(page);
 
       // Close overlay to verify task tracking
-      const closeButton = page.locator('focus-mode-overlay button.close-btn');
-      await closeButton.click();
+      await closeFocusOverlay(page);
 
       // Task should be tracked
       await expect(task).toHaveClass(/isCurrent/, { timeout: 5000 });
+    });
+
+    test('should show banner when focus mode overlay is closed during session', async ({
+      page,
+      testPrefix,
+    }) => {
+      const workViewPage = new WorkViewPage(page, testPrefix);
+      await openFocusModeWithTask(page, workViewPage, 'BannerTest');
+      await selectPomodoroMode(page);
+      await startFocusSession(page);
+
+      // Close overlay
+      await closeFocusOverlay(page);
+
+      // Banner should be visible
+      const banner = page.locator('banner');
+      await expect(banner).toBeVisible({ timeout: 5000 });
+
+      // Banner should have action buttons
+      const bannerButtons = banner.locator('button');
+      await expect(bannerButtons.first()).toBeVisible({ timeout: 2000 });
+    });
+
+    test('should show break screen after completing session', async ({
+      page,
+      testPrefix,
+    }) => {
+      const workViewPage = new WorkViewPage(page, testPrefix);
+      await openFocusModeWithTask(page, workViewPage, 'BreakTest');
+      await selectPomodoroMode(page);
+      await startFocusSession(page);
+
+      // Complete session
+      await completeSession(page);
+
+      // Should show either break screen or session done screen
+      const breakScreen = page.locator('focus-mode-break');
+      const sessionDoneScreen = page.locator('focus-mode-session-done');
+      await expect(breakScreen.or(sessionDoneScreen)).toBeVisible({ timeout: 5000 });
+
+      // Close overlay and verify banner appears
+      await closeFocusOverlay(page);
+
+      const banner = page.locator('banner');
+      await expect(banner).toBeVisible({ timeout: 5000 });
     });
   });
 
