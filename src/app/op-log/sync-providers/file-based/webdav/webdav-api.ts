@@ -244,17 +244,20 @@ export class WebdavApi {
         [WebDavHttpHeader.CONTENT_TYPE]: 'application/octet-stream',
       };
 
-      // Set conditional headers based on Last-Modified date
+      // Set conditional headers based on revision type
       if (!isForceOverwrite && expectedRev) {
-        // Parse the date string and validate it
+        // Try to parse as date first
         const parsedDate = new Date(expectedRev);
         if (isNaN(parsedDate.getTime())) {
-          PFLog.warn(
-            `${WebdavApi.L}.upload() Invalid date string for conditional request: ${expectedRev}`,
-          );
-          // Skip conditional header - let server handle as unconditional
+          // Not a valid date - treat as ETag and use If-Match header
+          // ETags should be quoted per RFC 7232
+          const quotedEtag = expectedRev.startsWith('"')
+            ? expectedRev
+            : `"${expectedRev}"`;
+          headers[WebDavHttpHeader.IF_MATCH] = quotedEtag;
+          Log.verbose(WebdavApi.L, 'Using If-Match with ETag', quotedEtag);
         } else {
-          // Use normalized UTC format
+          // Valid date - use If-Unmodified-Since header
           headers[WebDavHttpHeader.IF_UNMODIFIED_SINCE] = parsedDate.toUTCString();
           Log.verbose(WebdavApi.L, 'Using If-Unmodified-Since', parsedDate.toUTCString());
         }
