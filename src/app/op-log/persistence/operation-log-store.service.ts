@@ -22,6 +22,7 @@ import {
   BACKUP_KEY,
   OPS_INDEXES,
 } from './db-keys.const';
+import { runDbUpgrade } from './db-upgrade';
 
 /**
  * Vector clock entry stored in the vector_clock object store.
@@ -172,43 +173,7 @@ export class OperationLogStoreService {
   async init(): Promise<void> {
     this._db = await openDB<OpLogDB>(DB_NAME, DB_VERSION, {
       upgrade: (db, oldVersion, _newVersion, transaction) => {
-        // Version 1: Create initial stores
-        if (oldVersion < 1) {
-          const opStore = db.createObjectStore(STORE_NAMES.OPS, {
-            keyPath: 'seq',
-            autoIncrement: true,
-          });
-          opStore.createIndex(OPS_INDEXES.BY_ID, 'op.id', { unique: true });
-          opStore.createIndex(OPS_INDEXES.BY_SYNCED_AT, 'syncedAt');
-
-          db.createObjectStore(STORE_NAMES.STATE_CACHE, { keyPath: 'id' });
-          db.createObjectStore(STORE_NAMES.IMPORT_BACKUP, { keyPath: 'id' });
-        }
-
-        // Version 2: Add vector_clock store for atomic writes
-        // This consolidates the vector clock from pf.META_MODEL into SUP_OPS
-        // to enable single-transaction writes (op + vector clock together)
-        if (oldVersion < 2) {
-          db.createObjectStore(STORE_NAMES.VECTOR_CLOCK);
-        }
-
-        // Version 3: Add compound index for efficient source+status queries
-        // PERF: Enables O(results) queries for getPendingRemoteOps/getFailedRemoteOps
-        // instead of O(all ops) full table scan
-        if (oldVersion < 3) {
-          const opStore = transaction.objectStore(STORE_NAMES.OPS);
-          opStore.createIndex(OPS_INDEXES.BY_SOURCE_AND_STATUS, [
-            'source',
-            'applicationStatus',
-          ]);
-        }
-
-        // Version 4: Add archive stores for archiveYoung and archiveOld
-        // Consolidates archive data from legacy 'pf' database into SUP_OPS
-        if (oldVersion < 4) {
-          db.createObjectStore(STORE_NAMES.ARCHIVE_YOUNG, { keyPath: 'id' });
-          db.createObjectStore(STORE_NAMES.ARCHIVE_OLD, { keyPath: 'id' });
-        }
+        runDbUpgrade(db, oldVersion, transaction);
       },
     });
   }

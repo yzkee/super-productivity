@@ -5,6 +5,7 @@ import { WebDavHttpAdapter, WebDavHttpResponse } from './webdav-http-adapter';
 import {
   HttpNotOkAPIError,
   InvalidDataSPError,
+  MissingCredentialsSPError,
   NoRevAPIError,
   RemoteFileChangedUnexpectedly,
   RemoteFileNotFoundAPIError,
@@ -195,9 +196,20 @@ export class WebdavApi {
         }
       }
 
+      // Fallback to ETag if Last-Modified is still not available
+      if (!rev && legacyRev) {
+        rev = legacyRev;
+        PFLog.warn(
+          `${WebdavApi.L}.download() no Last-Modified for ${path}, using ETag as revision.`,
+        );
+      }
+
       if (!rev) {
-        PFLog.err(`${WebdavApi.L}.download() no Last-Modified found for ${path}`);
-        throw new NoRevAPIError(rev);
+        PFLog.err(
+          `${WebdavApi.L}.download() no revision markers (Last-Modified or ETag) found for ${path}. ` +
+            `Check your WebDAV server or reverse proxy configuration.`,
+        );
+        throw new NoRevAPIError(`No revision markers available for: ${path}`);
       }
 
       return {
@@ -607,7 +619,14 @@ export class WebdavApi {
     }
   }
 
-  private _buildFullPath(baseUrl: string, path: string): string {
+  private _buildFullPath(baseUrl: string | null | undefined, path: string): string {
+    // Validate baseUrl is present - this can be null/undefined if WebDAV config is incomplete
+    if (!baseUrl) {
+      throw new MissingCredentialsSPError(
+        'WebDAV base URL is not configured. Please check your sync settings.',
+      );
+    }
+
     // Validate path to prevent directory traversal attacks
     if (path.includes('..') || path.includes('//')) {
       throw new Error(
@@ -695,9 +714,24 @@ export class WebdavApi {
     const lastModified = headers['last-modified'] || headers['Last-Modified'] || '';
     const contentLength = headers['content-length'] || headers['Content-Length'] || '0';
     const contentType = headers['content-type'] || headers['Content-Type'] || '';
+    const etag = headers['etag'] || headers['ETag'] || '';
 
-    if (!lastModified) {
-      throw new InvalidDataSPError('No Last-Modified header in HEAD response');
+    // Determine effective lastmod: prefer Last-Modified, fall back to ETag
+    let effectiveLastmod = lastModified;
+    if (!lastModified && etag) {
+      effectiveLastmod = this._cleanRev(etag);
+      PFLog.warn(
+        `${WebdavApi.L}._getFileMetaViaHead() No Last-Modified header for ${fullPath}, using ETag as revision. ` +
+          `This may indicate a reverse proxy or server configuration issue.`,
+      );
+    }
+
+    if (!effectiveLastmod) {
+      throw new InvalidDataSPError(
+        `No Last-Modified or ETag headers in HEAD response for ${fullPath}. ` +
+          `Your WebDAV server or reverse proxy may be stripping headers. ` +
+          `Check server configuration or reverse proxy header forwarding settings.`,
+      );
     }
 
     // Extract filename from path
@@ -716,20 +750,18 @@ export class WebdavApi {
       );
     }
 
-    const etag = headers['etag'] || headers['ETag'] || '';
-
     return {
       filename,
       basename: filename,
-      lastmod: lastModified,
+      lastmod: effectiveLastmod,
       size,
       type: contentType || 'application/octet-stream',
-      etag: lastModified, // Use lastmod as etag for consistency
+      etag: effectiveLastmod, // Use effective lastmod for consistency
       data: {
         /* eslint-disable @typescript-eslint/naming-convention */
         'content-type': contentType,
         'content-length': contentLength,
-        'last-modified': lastModified,
+        'last-modified': effectiveLastmod,
         /* eslint-enable @typescript-eslint/naming-convention */
         etag: etag,
         href: fullPath,

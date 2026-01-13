@@ -66,7 +66,8 @@ import { WorkContextThemeCfg } from './features/work-context/work-context.model'
 import { isInputElement } from './util/dom-element';
 import { MobileBottomNavComponent } from './core-ui/mobile-bottom-nav/mobile-bottom-nav.component';
 import { StartupService } from './core/startup/startup.service';
-import { saveUserKbLayout } from './util/check-key-combo';
+import { KeyboardLayoutService } from './core/keyboard-layout/keyboard-layout.service';
+import { setKeyboardLayoutService } from './util/check-key-combo';
 
 const w = window as Window & { productivityTips?: string[][]; randomIndex?: number };
 const productivityTip: string[] | undefined =
@@ -129,6 +130,7 @@ export class AppComponent implements OnDestroy, AfterViewInit {
   private _ngZone = inject(NgZone);
   private _document = inject(DOCUMENT, { optional: true });
   private _startupService = inject(StartupService);
+  private _keyboardLayoutService = inject(KeyboardLayoutService);
 
   readonly syncTriggerService = inject(SyncTriggerService);
   readonly imexMetaService = inject(ImexViewService);
@@ -228,7 +230,9 @@ export class AppComponent implements OnDestroy, AfterViewInit {
       });
 
     // ! For keyboard shortcuts to work correctly with any layouts (QWERTZ/AZERTY/etc) - user's keyboard layout must be presaved
-    saveUserKbLayout();
+    // Connect the service to the utility functions and save the layout
+    setKeyboardLayoutService(this._keyboardLayoutService);
+    this._keyboardLayoutService.saveUserLayout();
   }
 
   skipInitialSync(): void {

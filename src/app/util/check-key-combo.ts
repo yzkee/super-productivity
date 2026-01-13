@@ -1,18 +1,12 @@
-export interface NavigatorWithKeyboard {
-  keyboard?: NavigatorKeyboard;
-}
+import {
+  KeyboardLayoutService,
+  KeyboardLayout,
+  NavigatorWithKeyboard,
+  NavigatorKeyboard,
+} from '../core/keyboard-layout/keyboard-layout.service';
 
-export interface NavigatorKeyboard {
-  getLayoutMap: () => Promise<Map<string, string>>;
-}
-
-/**
- * A Map where keys are string representations of key codes,
- * and values are the corresponding characters or symbols for this layout.
- *
- * See https://developer.mozilla.org/en-US/docs/Web/API/KeyboardLayoutMap#browser_compatibility
- */
-export type KeyboardLayout = Map<string, string>;
+// Re-export types for backwards compatibility
+export type { KeyboardLayout, NavigatorWithKeyboard, NavigatorKeyboard };
 
 // Just an alias for better readability
 export const KEYS = {
@@ -26,18 +20,42 @@ export const KEYS = {
   },
 } as const;
 
-/** Saved user keyboard layout */
+/**
+ * Module-level reference to the keyboard layout service.
+ * Initialized lazily when first accessed.
+ */
+let _keyboardLayoutService: KeyboardLayoutService | null = null;
+
+/**
+ * Sets the keyboard layout service instance.
+ * Called from app initialization to connect the service to these utility functions.
+ */
+export const setKeyboardLayoutService = (service: KeyboardLayoutService): void => {
+  _keyboardLayoutService = service;
+};
+
+/**
+ * @deprecated Use KeyboardLayoutService.layout instead.
+ * Provided for backwards compatibility with tests.
+ */
 export const userKbLayout: KeyboardLayout = new Map();
 
-/** Try to save user kayboard layout mapping - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardLayoutMap */
+/**
+ * @deprecated Use KeyboardLayoutService.saveUserLayout() instead.
+ * Provided for backwards compatibility.
+ */
 export const saveUserKbLayout = async (): Promise<void> => {
-  // If browser doesn't support keyboard API https://developer.mozilla.org/en-US/docs/Web/API/KeyboardLayoutMap
-  if (!('keyboard' in navigator)) return;
-
-  const keyboard = navigator.keyboard as NavigatorKeyboard;
-  const kbLayout = await keyboard.getLayoutMap();
-  userKbLayout.clear();
-  kbLayout.forEach((value, key) => userKbLayout.set(key, value));
+  if (_keyboardLayoutService) {
+    await _keyboardLayoutService.saveUserLayout();
+  } else {
+    // Fallback for when service is not available (e.g., tests without DI)
+    if (!('keyboard' in navigator)) return;
+    const keyboard = (navigator as NavigatorWithKeyboard).keyboard;
+    if (!keyboard) return;
+    const kbLayout = await keyboard.getLayoutMap();
+    userKbLayout.clear();
+    kbLayout.forEach((value, key) => userKbLayout.set(key, value));
+  }
 };
 
 /**
@@ -80,9 +98,11 @@ export const prepareKeyCode = (code: KeyboardEvent['code']): string => {
       },
     };
 
-  // Try to use user kayboard layout mapping - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardLayoutMap
-  if (!rules.codeMapping[code] && userKbLayout.size) {
-    const foundKey = userKbLayout.get(code);
+  // Try to use user keyboard layout mapping - https://developer.mozilla.org/en-US/docs/Web/API/KeyboardLayoutMap
+  // Use service layout if available, fall back to deprecated userKbLayout for backwards compat
+  const layout = _keyboardLayoutService?.layout ?? userKbLayout;
+  if (!rules.codeMapping[code] && layout.size) {
+    const foundKey = layout.get(code);
     if (foundKey) code = foundKey.toUpperCase();
   }
 
