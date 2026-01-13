@@ -123,10 +123,12 @@ export class BannerService {
 
   open(banner: Banner): void {
     this._banners.update((banners) => {
-      const bannerToUpdate = banners.find((bannerIN) => bannerIN.id === banner.id);
-      if (bannerToUpdate) {
-        Object.assign(bannerToUpdate, banner);
-        return [...banners];
+      const bannerIndex = banners.findIndex((bannerIN) => bannerIN.id === banner.id);
+      if (bannerIndex > -1) {
+        // Create new banner object to ensure change detection triggers for nested properties
+        // Bug #5974 fix: Object.assign mutation didn't trigger change detection for action.icon
+        const updatedBanner = { ...banners[bannerIndex], ...banner };
+        return banners.map((b, i) => (i === bannerIndex ? updatedBanner : b));
       } else {
         return [...banners, banner];
       }

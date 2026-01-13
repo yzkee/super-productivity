@@ -1453,9 +1453,54 @@ describe('FocusModeEffects', () => {
       }, 50);
     });
 
-    it('should NOT dispatch during break', (done) => {
+    // Bug #5974 fix: Pausing break should also stop tracking to maintain sync
+    it('should dispatch unsetCurrentTask when break pauses with pausedTaskId', (done) => {
       store.overrideSelector(selectFocusModeConfig, {
         isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(
+        selectors.selectTimer,
+        createMockTimer({ isRunning: false, purpose: 'break' }),
+      );
+      store.refreshState();
+
+      actions$ = of(actions.pauseFocusSession({ pausedTaskId: 'task-123' }));
+
+      effects.syncSessionPauseToTracking$.subscribe((action) => {
+        expect(action.type).toEqual('[Task] UnsetCurrentTask');
+        done();
+      });
+    });
+
+    // Bug #5974: Additional edge case tests for break pause
+    it('should NOT dispatch when break pauses but pausedTaskId is null', (done) => {
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(
+        selectors.selectTimer,
+        createMockTimer({ isRunning: false, purpose: 'break' }),
+      );
+      store.refreshState();
+
+      actions$ = of(actions.pauseFocusSession({ pausedTaskId: null }));
+
+      let emitted = false;
+      effects.syncSessionPauseToTracking$.subscribe(() => {
+        emitted = true;
+      });
+
+      setTimeout(() => {
+        expect(emitted).toBe(false);
+        done();
+      }, 50);
+    });
+
+    it('should NOT dispatch when break pauses but isSyncSessionWithTracking is false', (done) => {
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: false,
         isSkipPreparation: false,
       });
       store.overrideSelector(
@@ -2278,6 +2323,149 @@ describe('FocusModeEffects', () => {
           .all()
           .find((call) => call.args[0]?.type === actions.skipBreak.type);
         expect(skipBreakCall).toBeDefined();
+        done();
+      }, 50);
+    });
+
+    // Bug #5974 fix: Manual break start should resume tracking when isPauseTrackingDuringBreak is false
+    it('should dispatch setCurrentTask when starting break manually with isPauseTrackingDuringBreak=false and pausedTaskId exists', (done) => {
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 1);
+      store.overrideSelector(selectors.selectPausedTaskId, 'previously-tracked-task');
+      store.refreshState();
+
+      // Mock that there's no current task (user manually stopped tracking)
+      taskServiceMock.currentTaskId = jasmine
+        .createSpy('currentTaskId')
+        .and.returnValue(null);
+
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 25 * 60 * 1000,
+      });
+      const focusModeConfig = {
+        isManualBreakStart: true,
+        isPauseTrackingDuringBreak: false, // User wants tracking during breaks
+      };
+
+      const buttonActions = (effects as any)._getIconButtonActions(
+        timer,
+        false, // isOnBreak
+        true, // isSessionCompleted
+        false, // isBreakTimeUp
+        focusModeConfig,
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        // Should dispatch setCurrentTask to resume tracking
+        const setCurrentTaskCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === '[Task] SetCurrentTask');
+        expect(setCurrentTaskCall).toBeDefined();
+        expect(setCurrentTaskCall?.args[0].id).toBe('previously-tracked-task');
+
+        // Should also dispatch startBreak
+        const startBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startBreak.type);
+        expect(startBreakCall).toBeDefined();
+        done();
+      }, 50);
+    });
+
+    it('should NOT dispatch setCurrentTask when starting break with isPauseTrackingDuringBreak=false but currentTaskId exists', (done) => {
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 1);
+      store.overrideSelector(selectors.selectPausedTaskId, 'previously-tracked-task');
+      store.refreshState();
+
+      // Mock that there IS a current task (tracking is already active)
+      taskServiceMock.currentTaskId = jasmine
+        .createSpy('currentTaskId')
+        .and.returnValue('current-task-123');
+
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 25 * 60 * 1000,
+      });
+      const focusModeConfig = {
+        isManualBreakStart: true,
+        isPauseTrackingDuringBreak: false,
+      };
+
+      const buttonActions = (effects as any)._getIconButtonActions(
+        timer,
+        false,
+        true,
+        false,
+        focusModeConfig,
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        // Should NOT dispatch setCurrentTask since tracking is already active
+        const setCurrentTaskCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === '[Task] SetCurrentTask');
+        expect(setCurrentTaskCall).toBeUndefined();
+
+        // Should still dispatch startBreak
+        const startBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startBreak.type);
+        expect(startBreakCall).toBeDefined();
+        done();
+      }, 50);
+    });
+
+    it('should NOT dispatch setCurrentTask when starting break with isPauseTrackingDuringBreak=false but no pausedTaskId', (done) => {
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 1);
+      store.overrideSelector(selectors.selectPausedTaskId, null); // No paused task
+      store.refreshState();
+
+      // Mock that there's no current task
+      taskServiceMock.currentTaskId = jasmine
+        .createSpy('currentTaskId')
+        .and.returnValue(null);
+
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 25 * 60 * 1000,
+      });
+      const focusModeConfig = {
+        isManualBreakStart: true,
+        isPauseTrackingDuringBreak: false,
+      };
+
+      const buttonActions = (effects as any)._getIconButtonActions(
+        timer,
+        false,
+        true,
+        false,
+        focusModeConfig,
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        // Should NOT dispatch setCurrentTask since no pausedTaskId
+        const setCurrentTaskCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === '[Task] SetCurrentTask');
+        expect(setCurrentTaskCall).toBeUndefined();
+
+        // Should still dispatch startBreak
+        const startBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startBreak.type);
+        expect(startBreakCall).toBeDefined();
         done();
       }, 50);
     });
