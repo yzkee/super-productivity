@@ -150,10 +150,13 @@ export class ServerMigrationService {
       'ServerMigrationService: Server migration detected. Creating full state SYNC_IMPORT.',
     );
 
-    // Get current full state from NgRx store
+    // Get current full state from NgRx store (async to include archives from IndexedDB)
     // Cast to Record for validation compatibility
     let currentState: Record<string, unknown> =
-      this.stateSnapshotService.getStateSnapshot() as unknown as Record<string, unknown>;
+      (await this.stateSnapshotService.getStateSnapshotAsync()) as unknown as Record<
+        string,
+        unknown
+      >;
 
     // Skip if local state is effectively empty
     if (this._isEmptyState(currentState)) {

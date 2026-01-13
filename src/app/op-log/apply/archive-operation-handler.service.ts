@@ -489,36 +489,61 @@ export class ArchiveOperationHandler {
       .archiveYoung;
     const archiveOld = (appDataComplete as { archiveOld?: ArchiveModel }).archiveOld;
 
-    // Load original state for potential rollback
+    // Load original state for potential rollback and safety checks
     const originalArchiveYoung = await this._archiveDbAdapter.loadArchiveYoung();
+    const originalArchiveOld = await this._archiveDbAdapter.loadArchiveOld();
+
+    // Safety guard: Check if we're about to overwrite non-empty archives with empty ones
+    // This can happen if SYNC_IMPORT was created with getStateSnapshot() (sync) instead
+    // of getStateSnapshotAsync() (async), which returns DEFAULT_ARCHIVE (empty)
+    const hasExistingYoung = (originalArchiveYoung?.task?.ids?.length ?? 0) > 0;
+    const hasExistingOld = (originalArchiveOld?.task?.ids?.length ?? 0) > 0;
+    const isIncomingYoungEmpty = !archiveYoung?.task?.ids?.length;
+    const isIncomingOldEmpty = !archiveOld?.task?.ids?.length;
 
     // Write archiveYoung if present in the import data
     if (archiveYoung !== undefined) {
-      await this._archiveDbAdapter.saveArchiveYoung(archiveYoung);
+      if (hasExistingYoung && isIncomingYoungEmpty) {
+        OpLog.warn(
+          '[ArchiveOperationHandler] SAFETY GUARD: Refusing to overwrite non-empty archiveYoung with empty archive. ' +
+            'This may indicate a bug in SYNC_IMPORT creation (using sync instead of async snapshot).',
+          { existingTaskCount: originalArchiveYoung?.task?.ids?.length ?? 0 },
+        );
+      } else {
+        await this._archiveDbAdapter.saveArchiveYoung(archiveYoung);
+      }
     }
 
     // Write archiveOld if present in the import data
     if (archiveOld !== undefined) {
-      try {
-        await this._archiveDbAdapter.saveArchiveOld(archiveOld);
-      } catch (e) {
-        // Attempt rollback: restore archiveYoung to original state
-        OpLog.err(
-          '[ArchiveOperationHandler] archiveOld write failed, attempting rollback...',
-          e,
+      if (hasExistingOld && isIncomingOldEmpty) {
+        OpLog.warn(
+          '[ArchiveOperationHandler] SAFETY GUARD: Refusing to overwrite non-empty archiveOld with empty archive. ' +
+            'This may indicate a bug in SYNC_IMPORT creation (using sync instead of async snapshot).',
+          { existingTaskCount: originalArchiveOld?.task?.ids?.length ?? 0 },
         );
+      } else {
         try {
-          if (originalArchiveYoung !== undefined) {
-            await this._archiveDbAdapter.saveArchiveYoung(originalArchiveYoung);
-            OpLog.log('[ArchiveOperationHandler] Rollback successful');
-          }
-        } catch (rollbackErr) {
+          await this._archiveDbAdapter.saveArchiveOld(archiveOld);
+        } catch (e) {
+          // Attempt rollback: restore archiveYoung to original state
           OpLog.err(
-            '[ArchiveOperationHandler] Rollback FAILED - archive may be inconsistent',
-            rollbackErr,
+            '[ArchiveOperationHandler] archiveOld write failed, attempting rollback...',
+            e,
           );
+          try {
+            if (originalArchiveYoung !== undefined) {
+              await this._archiveDbAdapter.saveArchiveYoung(originalArchiveYoung);
+              OpLog.log('[ArchiveOperationHandler] Rollback successful');
+            }
+          } catch (rollbackErr) {
+            OpLog.err(
+              '[ArchiveOperationHandler] Rollback FAILED - archive may be inconsistent',
+              rollbackErr,
+            );
+          }
+          throw e; // Re-throw original error
         }
-        throw e; // Re-throw original error
       }
     }
 

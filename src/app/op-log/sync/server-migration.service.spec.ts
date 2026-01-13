@@ -71,6 +71,7 @@ describe('ServerMigrationService', () => {
     ]);
     stateSnapshotServiceSpy = jasmine.createSpyObj('StateSnapshotService', [
       'getStateSnapshot',
+      'getStateSnapshotAsync',
     ]);
     snackServiceSpy = jasmine.createSpyObj('SnackService', ['open']);
     clientIdProviderSpy = jasmine.createSpyObj('ClientIdProvider', ['loadClientId']);
@@ -94,6 +95,16 @@ describe('ServerMigrationService', () => {
       project: { ids: [], entities: {} },
       tag: { ids: [], entities: {} },
     } as any);
+    stateSnapshotServiceSpy.getStateSnapshotAsync.and.returnValue(
+      Promise.resolve({
+        task: {
+          ids: ['task-1'],
+          entities: { 'task-1': { id: 'task-1', title: 'Test' } },
+        },
+        project: { ids: [], entities: {} },
+        tag: { ids: [], entities: {} },
+      } as any),
+    );
     clientIdProviderSpy.loadClientId.and.returnValue(Promise.resolve('test-client'));
 
     TestBed.configureTestingModule({
@@ -171,11 +182,13 @@ describe('ServerMigrationService', () => {
 
   describe('handleServerMigration', () => {
     it('should skip if state is empty (no tasks/projects/tags)', async () => {
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
-        task: { ids: [], entities: {} },
-        project: { ids: [], entities: {} },
-        tag: { ids: [], entities: {} },
-      } as any);
+      stateSnapshotServiceSpy.getStateSnapshotAsync.and.returnValue(
+        Promise.resolve({
+          task: { ids: [], entities: {} },
+          project: { ids: [], entities: {} },
+          tag: { ids: [], entities: {} },
+        } as any),
+      );
 
       await service.handleServerMigration(defaultProvider);
 
@@ -184,11 +197,13 @@ describe('ServerMigrationService', () => {
 
     it('should skip if state only has system tags', async () => {
       const systemTagIds = Array.from(SYSTEM_TAG_IDS);
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
-        task: { ids: [], entities: {} },
-        project: { ids: [], entities: {} },
-        tag: { ids: systemTagIds, entities: {} },
-      } as any);
+      stateSnapshotServiceSpy.getStateSnapshotAsync.and.returnValue(
+        Promise.resolve({
+          task: { ids: [], entities: {} },
+          project: { ids: [], entities: {} },
+          tag: { ids: systemTagIds, entities: {} },
+        } as any),
+      );
 
       await service.handleServerMigration(defaultProvider);
 
@@ -244,7 +259,9 @@ describe('ServerMigrationService', () => {
         project: { ids: [], entities: {} },
         tag: { ids: [], entities: {} },
       };
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(mockState as any);
+      stateSnapshotServiceSpy.getStateSnapshotAsync.and.returnValue(
+        Promise.resolve(mockState as any),
+      );
       vectorClockServiceSpy.getCurrentVectorClock.and.returnValue(
         Promise.resolve({ 'test-client': 5 }),
       );
@@ -256,7 +273,7 @@ describe('ServerMigrationService', () => {
       expect(appendedOp.opType).toBe(OpType.SyncImport);
       expect(appendedOp.entityType).toBe('ALL');
       expect(appendedOp.clientId).toBe('test-client');
-      expect(appendedOp.payload).toBe(mockState);
+      expect(appendedOp.payload).toEqual(mockState);
       expect(appendedOp.vectorClock['test-client']).toBe(6);
     });
 
@@ -307,7 +324,9 @@ describe('ServerMigrationService', () => {
 
   describe('_isEmptyState (tested via handleServerMigration)', () => {
     it('should treat null state as empty', async () => {
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(null as any);
+      stateSnapshotServiceSpy.getStateSnapshotAsync.and.returnValue(
+        Promise.resolve(null as any),
+      );
 
       await service.handleServerMigration(defaultProvider);
 
@@ -315,7 +334,9 @@ describe('ServerMigrationService', () => {
     });
 
     it('should treat undefined state as empty', async () => {
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue(undefined as any);
+      stateSnapshotServiceSpy.getStateSnapshotAsync.and.returnValue(
+        Promise.resolve(undefined as any),
+      );
 
       await service.handleServerMigration(defaultProvider);
 
@@ -323,7 +344,9 @@ describe('ServerMigrationService', () => {
     });
 
     it('should treat non-object state as empty', async () => {
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue('not an object' as any);
+      stateSnapshotServiceSpy.getStateSnapshotAsync.and.returnValue(
+        Promise.resolve('not an object' as any),
+      );
 
       await service.handleServerMigration(defaultProvider);
 
@@ -335,11 +358,13 @@ describe('ServerMigrationService', () => {
     it('should identify system tags correctly', async () => {
       for (const systemTagId of SYSTEM_TAG_IDS) {
         opLogStoreSpy.append.calls.reset();
-        stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
-          task: { ids: [], entities: {} },
-          project: { ids: [], entities: {} },
-          tag: { ids: [systemTagId], entities: {} },
-        } as any);
+        stateSnapshotServiceSpy.getStateSnapshotAsync.and.returnValue(
+          Promise.resolve({
+            task: { ids: [], entities: {} },
+            project: { ids: [], entities: {} },
+            tag: { ids: [systemTagId], entities: {} },
+          } as any),
+        );
 
         await service.handleServerMigration(defaultProvider);
 
@@ -348,15 +373,122 @@ describe('ServerMigrationService', () => {
     });
 
     it('should proceed with mixed system and user tags', async () => {
-      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
-        task: { ids: [], entities: {} },
-        project: { ids: [], entities: {} },
-        tag: { ids: ['TODAY', 'user-custom-tag'], entities: {} },
-      } as any);
+      stateSnapshotServiceSpy.getStateSnapshotAsync.and.returnValue(
+        Promise.resolve({
+          task: { ids: [], entities: {} },
+          project: { ids: [], entities: {} },
+          tag: { ids: ['TODAY', 'user-custom-tag'], entities: {} },
+        } as any),
+      );
 
       await service.handleServerMigration(defaultProvider);
 
       expect(opLogStoreSpy.append).toHaveBeenCalled();
+    });
+  });
+
+  describe('handleServerMigration - Archive data preservation', () => {
+    it('should include archive data in SYNC_IMPORT payload (not empty DEFAULT_ARCHIVE)', async () => {
+      // This test verifies that archive data is included in the SYNC_IMPORT operation.
+      // BUG: Currently getStateSnapshot() returns DEFAULT_ARCHIVE (empty) for archives
+      // instead of loading real archive data from IndexedDB via getStateSnapshotAsync().
+
+      const mockArchiveYoung = {
+        task: {
+          ids: ['archived-task-1'],
+          entities: {
+            'archived-task-1': {
+              id: 'archived-task-1',
+              title: 'Archived Task',
+              tagIds: ['tag-1'],
+              isDone: true,
+            },
+          },
+        },
+        timeTracking: { project: {}, tag: {} },
+        lastTimeTrackingFlush: 0,
+      };
+
+      const mockArchiveOld = {
+        task: {
+          ids: ['old-archived-task-1'],
+          entities: {
+            'old-archived-task-1': {
+              id: 'old-archived-task-1',
+              title: 'Old Archived Task',
+              tagIds: ['tag-2'],
+              isDone: true,
+            },
+          },
+        },
+        timeTracking: { project: {}, tag: {} },
+        lastTimeTrackingFlush: 0,
+      };
+
+      // Mock getStateSnapshot to return state WITH empty archives (current buggy behavior)
+      // This simulates what actually happens in production
+      stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
+        task: {
+          ids: ['task-1'],
+          entities: { 'task-1': { id: 'task-1', title: 'Active Task' } },
+        },
+        project: { ids: [], entities: {} },
+        tag: { ids: ['tag-1'], entities: { 'tag-1': { id: 'tag-1', name: 'Test Tag' } } },
+        // DEFAULT_ARCHIVE values (empty) - this is what getStateSnapshot returns
+        archiveYoung: {
+          task: { ids: [], entities: {} },
+          timeTracking: { project: {}, tag: {} },
+          lastTimeTrackingFlush: 0,
+        },
+        archiveOld: {
+          task: { ids: [], entities: {} },
+          timeTracking: { project: {}, tag: {} },
+          lastTimeTrackingFlush: 0,
+        },
+      } as any);
+
+      // Mock getStateSnapshotAsync to return state with REAL archive data
+      // This is what SHOULD be used to get archive data
+      (stateSnapshotServiceSpy as any).getStateSnapshotAsync = jasmine
+        .createSpy('getStateSnapshotAsync')
+        .and.returnValue(
+          Promise.resolve({
+            task: {
+              ids: ['task-1'],
+              entities: { 'task-1': { id: 'task-1', title: 'Active Task' } },
+            },
+            project: { ids: [], entities: {} },
+            tag: {
+              ids: ['tag-1'],
+              entities: { 'tag-1': { id: 'tag-1', name: 'Test Tag' } },
+            },
+            archiveYoung: mockArchiveYoung,
+            archiveOld: mockArchiveOld,
+          }),
+        );
+
+      await service.handleServerMigration(defaultProvider);
+
+      expect(opLogStoreSpy.append).toHaveBeenCalled();
+      const appendedOp = opLogStoreSpy.append.calls.mostRecent().args[0];
+      const payload = appendedOp.payload as {
+        archiveYoung: { task: { ids: string[]; entities: Record<string, unknown> } };
+        archiveOld: { task: { ids: string[]; entities: Record<string, unknown> } };
+      };
+
+      // The SYNC_IMPORT payload should contain the archive data, not empty archives
+      // This test will FAIL with the current implementation because getStateSnapshot()
+      // is used instead of getStateSnapshotAsync()
+      expect(payload.archiveYoung.task.ids.length).toBeGreaterThan(
+        0,
+        'archiveYoung should contain archived tasks, not be empty',
+      );
+      expect(payload.archiveOld.task.ids.length).toBeGreaterThan(
+        0,
+        'archiveOld should contain archived tasks, not be empty',
+      );
+      expect(payload.archiveYoung.task.entities['archived-task-1']).toBeDefined();
+      expect(payload.archiveOld.task.entities['old-archived-task-1']).toBeDefined();
     });
   });
 

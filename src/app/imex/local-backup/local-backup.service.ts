@@ -95,8 +95,9 @@ export class LocalBackupService {
   }
 
   private async _backup(): Promise<void> {
+    // Use async method to include archives from IndexedDB (not empty DEFAULT_ARCHIVE)
     const data =
-      this._stateSnapshotService.getAllSyncModelDataFromStore() as AppDataComplete;
+      (await this._stateSnapshotService.getAllSyncModelDataFromStoreAsync()) as AppDataComplete;
     if (IS_ELECTRON) {
       window.ea.backupAppData(data);
     }
