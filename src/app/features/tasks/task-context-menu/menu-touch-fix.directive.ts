@@ -89,20 +89,9 @@ export class MenuTouchFixDirective implements OnInit, OnDestroy {
     const timeSinceMenuOpen = Date.now() - lastMenuOpenTime;
     const timeSinceTouchStart = Date.now() - this._touchStartTime;
 
-    console.log(
-      '[MenuTouchFix] Capturing click:',
-      'timeSinceMenuOpen:',
-      timeSinceMenuOpen,
-      'timeSinceTouchStart:',
-      timeSinceTouchStart,
-      'isTrusted:',
-      event.isTrusted,
-    );
-
     // Block clicks that happen too quickly after any menu/submenu opened
     // This prevents accidental selection when submenu appears under finger
     if (event.isTrusted && lastMenuOpenTime > 0 && timeSinceMenuOpen < 350) {
-      console.log('[MenuTouchFix] BLOCKING click - too soon after menu open');
       event.preventDefault();
       event.stopImmediatePropagation();
       return;
@@ -110,13 +99,10 @@ export class MenuTouchFixDirective implements OnInit, OnDestroy {
 
     // Also block if touch just started (immediate taps)
     if (event.isTrusted && timeSinceTouchStart < 100) {
-      console.log('[MenuTouchFix] BLOCKING click - too soon after touch start');
       event.preventDefault();
       event.stopImmediatePropagation();
       return;
     }
-
-    console.log('[MenuTouchFix] ALLOWING click');
   }
 
   @HostListener('touchstart', ['$event'])
@@ -192,7 +178,6 @@ export class MenuTouchFixDirective implements OnInit, OnDestroy {
   private _applyTouchFix(): void {
     // Record when the menu opened - shared via monkey patch module
     setLastMenuOpenTime(Date.now());
-    console.log('[MenuTouchFix] Menu opened via directive, timestamp:', lastMenuOpenTime);
 
     // Use requestAnimationFrame to ensure DOM is ready
     requestAnimationFrame(() => {

@@ -38,13 +38,7 @@ export const setLastMenuOpenTime = (time: number): void => {
  *    - 21.x+: Changed to MatMenuItem.prototype._checkDisabled
  */
 export const applyMatMenuTouchMonkeyPatch = (): void => {
-  console.log(
-    '[MatMenuPatch] applyMatMenuTouchMonkeyPatch called, IS_TOUCH_PRIMARY:',
-    IS_TOUCH_PRIMARY,
-  );
-
   if (!IS_TOUCH_PRIMARY) {
-    console.log('[MatMenuPatch] Skipping patch - not a touch device');
     return;
   }
 
@@ -52,17 +46,11 @@ export const applyMatMenuTouchMonkeyPatch = (): void => {
   const originalOpenMenu = MatMenuTrigger.prototype.openMenu;
   const originalCheckDisabled = (MatMenuItem.prototype as any)._checkDisabled;
 
-  console.log(
-    '[MatMenuPatch] Original _checkDisabled exists:',
-    typeof originalCheckDisabled === 'function',
-  );
-
   const TOUCH_DELAY_MS = 300;
 
   // Override MatMenuTrigger.openMenu
   MatMenuTrigger.prototype.openMenu = function (this: MatMenuTrigger): void {
     setLastMenuOpenTime(Date.now());
-    console.log('[MatMenuPatch] openMenu called, lastMenuOpenTime:', lastMenuOpenTime);
 
     // Call original method
     originalOpenMenu.call(this);
@@ -71,7 +59,6 @@ export const applyMatMenuTouchMonkeyPatch = (): void => {
     if (this.menu && (this.menu as any)._allItems) {
       // Temporarily disable all menu items
       const items = (this.menu as any)._allItems.toArray();
-      console.log('[MatMenuPatch] Disabling pointer-events on', items.length, 'items');
       items.forEach((item) => {
         const element = item._elementRef.nativeElement as HTMLElement;
         element.style.pointerEvents = 'none';
@@ -79,7 +66,6 @@ export const applyMatMenuTouchMonkeyPatch = (): void => {
 
       // Re-enable after delay
       setTimeout(() => {
-        console.log('[MatMenuPatch] Re-enabling pointer-events');
         items.forEach((item) => {
           const element = item._elementRef.nativeElement as HTMLElement;
           element.style.pointerEvents = '';
@@ -94,16 +80,9 @@ export const applyMatMenuTouchMonkeyPatch = (): void => {
     event: MouseEvent,
   ): void {
     const timeSinceMenuOpen = Date.now() - lastMenuOpenTime;
-    console.log(
-      '[MatMenuPatch] _checkDisabled called, timeSinceMenuOpen:',
-      timeSinceMenuOpen,
-      'isTrusted:',
-      event.isTrusted,
-    );
 
     // On touch devices, prevent clicks that happen too quickly after menu opens
     if (event.isTrusted && timeSinceMenuOpen < TOUCH_DELAY_MS) {
-      console.log('[MatMenuPatch] BLOCKING click - too soon after menu open');
       event.preventDefault();
       // stopImmediatePropagation prevents OTHER handlers on the SAME element from firing
       // (stopPropagation only prevents bubbling UP to parent elements)
@@ -111,12 +90,9 @@ export const applyMatMenuTouchMonkeyPatch = (): void => {
       return;
     }
 
-    console.log('[MatMenuPatch] ALLOWING click');
     // Call original method for disabled check
     originalCheckDisabled.call(this, event);
   };
-
-  console.log('[MatMenuPatch] Patch applied successfully');
 
   // Use MutationObserver to detect when ANY menu panel appears (including submenus)
   // This is necessary because Angular Material 21 may not call openMenu() for submenus
@@ -131,10 +107,6 @@ export const applyMatMenuTouchMonkeyPatch = (): void => {
             node.querySelector?.('.mat-mdc-menu-panel');
           if (menuPanel) {
             setLastMenuOpenTime(Date.now());
-            console.log(
-              '[MatMenuPatch] Menu panel detected via MutationObserver, lastMenuOpenTime:',
-              lastMenuOpenTime,
-            );
           }
         }
       }
@@ -160,19 +132,9 @@ export const applyMatMenuTouchMonkeyPatch = (): void => {
       if (!menuItem) return;
 
       const timeSinceMenuOpen = Date.now() - lastMenuOpenTime;
-      console.log(
-        '[MatMenuPatch] Document capturing click on menu item:',
-        'timeSinceMenuOpen:',
-        timeSinceMenuOpen,
-        'isTrusted:',
-        event.isTrusted,
-      );
 
       // Block clicks that happen too quickly after menu opened
       if (event.isTrusted && lastMenuOpenTime > 0 && timeSinceMenuOpen < TOUCH_DELAY_MS) {
-        console.log(
-          '[MatMenuPatch] BLOCKING click via document capture - too soon after menu open',
-        );
         event.preventDefault();
         event.stopImmediatePropagation();
       }
