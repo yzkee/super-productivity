@@ -47,7 +47,8 @@ export const initIndicator = ({
   initListeners();
 
   const suf = shouldUseDarkColors ? '-d.png' : '-l.png';
-  tray = new Tray(DIR + `stopped${suf}`, IS_WINDOWS ? WINDOWS_TRAY_GUID : undefined);
+  const trayIconPath = DIR + `stopped${suf}`;
+  tray = IS_WINDOWS ? new Tray(trayIconPath, WINDOWS_TRAY_GUID) : new Tray(trayIconPath);
   tray.setContextMenu(createContextMenu(showApp, quitApp));
 
   tray.on('click', () => {
