@@ -27,9 +27,10 @@ export const adjustToLiveFormlyForm = (
         templateOptions: {
           ...item.templateOptions,
           keydown: (field: FormlyFieldConfig, event: KeyboardEvent) => {
-            if (event.key === 'Enter' && (event.target as any)?.tagName !== 'TEXTAREA') {
+            const target = event.target as HTMLInputElement | HTMLTextAreaElement | null;
+            if (event.key === 'Enter' && target?.tagName !== 'TEXTAREA') {
               event.preventDefault();
-              const value = (event?.target as any)?.value;
+              const value = target?.value;
               // For duration fields, convert the string to milliseconds
               if (item.type === 'duration') {
                 field.formControl?.setValue(value ? stringToMs(value) : null);
