@@ -29,6 +29,7 @@ import {
 } from '../../features/tasks/store/task.selectors';
 import { selectTaskRepeatCfgsSortedByTitleAndProject } from '../../features/task-repeat-cfg/store/task-repeat-cfg.selectors';
 import { getNextRepeatOccurrence } from '../../features/task-repeat-cfg/store/get-next-repeat-occurrence.util';
+import { getEffectiveLastTaskCreationDay } from '../../features/task-repeat-cfg/store/get-effective-last-task-creation-day.util';
 import { ShortDate2Pipe } from '../../ui/pipes/short-date2.pipe';
 import { ShortTimePipe } from '../../ui/pipes/short-time.pipe';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -122,8 +123,9 @@ export class ScheduledListPageComponent {
     const locale = this._dateTimeFormatService.currentLocale;
     const nextDate = this.getNextOccurrence(repeatCfg);
     const nextFormatted = nextDate ? formatMonthDay(new Date(nextDate), locale) : '';
-    const lastFormatted = repeatCfg.lastTaskCreationDay
-      ? formatMonthDay(new Date(repeatCfg.lastTaskCreationDay), locale)
+    const effectiveLastDay = getEffectiveLastTaskCreationDay(repeatCfg);
+    const lastFormatted = effectiveLastDay
+      ? formatMonthDay(new Date(effectiveLastDay), locale)
       : '';
 
     const next = this._translateService.instant(T.SCHEDULE.NEXT);
