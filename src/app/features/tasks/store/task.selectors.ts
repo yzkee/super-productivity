@@ -604,13 +604,16 @@ export const selectAllTasksWithoutHiddenProjects = createSelector(
 export const selectAllTasksWithDueDay = createSelector(
   selectTaskFeatureState,
   (taskState): TaskWithDueDay[] => {
-    // return all tasks with dueDay
-    const allPlannnedForDayTasks = Object.values(taskState.entities).filter(
-      (task) => !!task && !!(task as TaskWithDueTime).dueDay,
-    ) as TaskWithDueDay[];
-    return allPlannnedForDayTasks.sort((a, b) =>
-      a.dueDay > b.dueDay ? 1 : a.dueDay < b.dueDay ? -1 : 0,
-    );
+    // PERF: Iterate ids instead of Object.values() to avoid creating intermediate array
+    const tasksWithDueDay: TaskWithDueDay[] = [];
+    for (const id of taskState.ids) {
+      const task = taskState.entities[id];
+      if (task?.dueDay) {
+        tasksWithDueDay.push(task as TaskWithDueDay);
+      }
+    }
+    // Sort by dueDay (YYYY-MM-DD format is lexicographically sortable)
+    return tasksWithDueDay.sort((a, b) => a.dueDay.localeCompare(b.dueDay));
   },
 );
 
