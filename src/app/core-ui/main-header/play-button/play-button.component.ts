@@ -185,10 +185,6 @@ import { distinctUntilChanged, observeOn } from 'rxjs/operators';
         .project {
           padding-right: 0;
         }
-
-        ::ng-deep .action-nav:hover & {
-          visibility: hidden;
-        }
       }
     `,
   ],
