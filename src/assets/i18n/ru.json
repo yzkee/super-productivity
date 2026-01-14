@@ -33,7 +33,7 @@
     "BY": "По",
     "NO_RESULTS": "Изображения не найдены. Попробуйте другой поисковый запрос.",
     "SEARCH_LABEL": "Поиск изображений",
-    "SEARCH_PLACEHOLDER": "например, природа, горы, абстракция",
+    "SEARCH_PLACEHOLDER": "Например: природа, горы, абстракция",
     "TITLE": "Выбрать фоновое изображение из Unsplash"
   },
   "DONATE_PAGE": {
@@ -291,7 +291,7 @@
         "FILTER_USER": "Имя пользователя (чтобы отфильтровать изменения самостоятельно)",
         "GITLAB_BASE_URL": "Пользовательский базовый URL GitLab",
         "PROJECT": "Идентификатор проекта или имя \"username/repository\"",
-        "PROJECT_HINT": "например, super-productivity/super-productivity",
+        "PROJECT_HINT": "Например, super-productivity/super-productivity",
         "SCOPE": "Область",
         "SCOPE_ALL": "Все",
         "SCOPE_ASSIGNED": "Назначено мне",
@@ -1453,7 +1453,7 @@
     "DISMISS": "Отклонить",
     "DO_IT": "Сделать это!",
     "DUPLICATE": "Дубликат",
-    "DURATION_DESCRIPTION": "например \"5h 23m\", что равно 5 часам и 23 минутам",
+    "DURATION_DESCRIPTION": "Например \"5h 23m\", что равно 5 часам и 23 минутам",
     "EDIT": "Редактировать",
     "ENABLED": "Включено",
     "EXAMPLE_VAL": "Нажмите, чтобы редактировать",
@@ -1614,7 +1614,7 @@
       "TIME_LOCALE": "Локальный формат времени",
       "TIME_LOCALE_AUTO": "Системный",
       "TIME_LOCALE_DE_DE": "Немецкий - 24-часовой",
-      "TIME_LOCALE_DESCRIPTION": "Выберите формат времени. В разных странах разные соглашения (формат 12 или 24)",
+      "TIME_LOCALE_DESCRIPTION": "ПРИМЕЧАНИЕ: теперь эти параметры не позволяют изменять формат ввода времени (12/24 часа), поскольку он контролируется вашей операционной системой.",
       "TIME_LOCALE_EN_GB": "Английский (UK) - 24-часовой",
       "TIME_LOCALE_EN_US": "Английский (US) - 12-часовой AM/PM",
       "TIME_LOCALE_ES_ES": "Испанский - 24-часовой",
@@ -1659,7 +1659,7 @@
       "IS_USE_CUSTOM_WINDOW_TITLE_BAR": "Использовать пользовательскую панель заголовка (только Windows/Linux)",
       "IS_USE_CUSTOM_WINDOW_TITLE_BAR_HINT": "Требуется перезапуск для вступления изменений в силу",
       "START_OF_NEXT_DAY": "Время начала следующего дня",
-      "START_OF_NEXT_DAY_HINT": "с какого момента (в часах) хотите отсчитывать начало дня. По умолчанию полночь, что равно 0.",
+      "START_OF_NEXT_DAY_HINT": "С какого момента (в часах) хотите отсчитывать начало дня. По умолчанию полночь, что равно 0.",
       "TASK_NOTES_TPL": "Шаблон описания задачи",
       "THEME": "Тема",
       "THEME_EXPERIMENTAL": "Тема (экспериментально)",
@@ -1688,9 +1688,9 @@
       "L_LUNCH_BREAK_START": "Начало обеда",
       "L_WORK_END": "Конец рабочего дня",
       "L_WORK_START": "Начало рабочего дня",
-      "LUNCH_BREAK_START_END_DESCRIPTION": "например 13:00",
+      "LUNCH_BREAK_START_END_DESCRIPTION": "Например 13:00",
       "TITLE": "Временная шкала",
-      "WORK_START_END_DESCRIPTION": "например 17:00"
+      "WORK_START_END_DESCRIPTION": "Например 17:00"
     },
     "SHORT_SYNTAX": {
       "HELP": "<p>Здесь вы можете управлять параметрами короткого синтаксиса при создании задачи</p>",
