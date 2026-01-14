@@ -9,7 +9,7 @@ import { selectCurrentTask } from '../../tasks/store/task.selectors';
 import { speak } from '../../../util/speak';
 
 @Injectable()
-export class DominaModeEffects {
+export class VoiceReminderEffects {
   private actions$ = inject(LOCAL_ACTIONS);
   private _store$ = inject(Store);
 
