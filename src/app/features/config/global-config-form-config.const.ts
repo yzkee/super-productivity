@@ -12,7 +12,7 @@ import { TIME_TRACKING_FORM_CFG } from './form-cfgs/time-tracking-form.const';
 import { IS_ELECTRON } from '../../app.constants';
 import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
 import { SCHEDULE_FORM_CFG } from './form-cfgs/schedule-form.const';
-import { VOICE_REMINDER_FORM } from './form-cfgs/domina-mode-form.const';
+import { VOICE_REMINDER_FORM } from './form-cfgs/voice-reminder-form.const';
 import { FOCUS_MODE_FORM_CFG } from './form-cfgs/focus-mode-form.const';
 import { REMINDER_FORM_CFG } from './form-cfgs/reminder-form.const';
 import { SHORT_SYNTAX_FORM_CFG } from './form-cfgs/short-syntax-form.const';

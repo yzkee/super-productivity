@@ -1,6 +1,6 @@
 import { environment } from '../../../environments/environment';
 import { TRACKING_INTERVAL } from '../../app.constants';
-import { getDefaultVoice } from '../domina-mode/getAvailableVoices';
+import { getDefaultVoice } from '../voice-reminder/getAvailableVoices';
 import { TaskReminderOptionId } from '../tasks/task.model';
 import { GlobalConfigState } from './global-config.model';
 

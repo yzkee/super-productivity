@@ -1,7 +1,7 @@
 import { ConfigFormSection, DominaModeConfig } from '../global-config.model';
 import { T } from '../../../t.const';
 import { speak } from '../../../util/speak';
-import { getAvailableVoices } from '../../domina-mode/getAvailableVoices';
+import { getAvailableVoices } from '../../voice-reminder/getAvailableVoices';
 
 export const VOICE_REMINDER_FORM: ConfigFormSection<DominaModeConfig> = {
   title: T.F.VOICE_REMINDER.FORM.TITLE,
