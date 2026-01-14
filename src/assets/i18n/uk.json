@@ -127,7 +127,7 @@
         "L_TEXT_DESCRIPTION": "Наприклад: \"Працюй над ${currentTaskTitle}!\"",
         "L_VOICE": "Виберіть голос",
         "L_VOICE_DESCRIPTION": "Виберіть голос",
-        "TITLE": "Режим Domina"
+        "TITLE": "Голосове нагадування"
       }
     },
     "DROPBOX": {

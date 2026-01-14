@@ -68,7 +68,7 @@
         "L_INTERVAL": "Interval opakování fráze",
         "L_TEXT": "Text",
         "L_TEXT_DESCRIPTION": "Např.: \"Pracujte na ${currentTaskTitle}!\"",
-        "TITLE": "Režim Domina"
+        "TITLE": "Hlasové připomenutí"
       }
     },
     "DROPBOX": {

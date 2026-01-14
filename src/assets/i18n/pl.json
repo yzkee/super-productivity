@@ -194,7 +194,7 @@
         "L_TEXT_DESCRIPTION": "Np: \"Pracuj nad ${currentTaskTitle}!\"",
         "L_VOICE": "Wybierz głos",
         "L_VOICE_DESCRIPTION": "Wybierz głos",
-        "TITLE": "Tryb Domeny"
+        "TITLE": "Przypomnienie głosowe"
       }
     },
     "DROPBOX": {

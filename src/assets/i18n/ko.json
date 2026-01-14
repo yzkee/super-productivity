@@ -126,7 +126,7 @@
         "L_TEXT_DESCRIPTION": "예: \"{currentTaskTitle}달러 작업!\"",
         "L_VOICE": "음색 선택",
         "L_VOICE_DESCRIPTION": "음성 선택",
-        "TITLE": "도미나 모드"
+        "TITLE": "음성 알림"
       }
     },
     "DROPBOX": {

@@ -151,7 +151,7 @@
         "L_TEXT_DESCRIPTION": "Ex : « Travailler sur $ {currentTaskTitle} ! »",
         "L_VOICE": "Sélectionner une voix",
         "L_VOICE_DESCRIPTION": "Choisissez une voix",
-        "TITLE": "Mode Domina"
+        "TITLE": "Rappel vocal"
       }
     },
     "DROPBOX": {

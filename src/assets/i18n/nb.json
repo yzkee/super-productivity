@@ -151,7 +151,7 @@
         "L_TEXT_DESCRIPTION": "F.eks: \"Jobb på ${currentTaskTitle}!\"",
         "L_VOICE": "Velg en stemme",
         "L_VOICE_DESCRIPTION": "Velg en stemme",
-        "TITLE": "Domina Mode"
+        "TITLE": "Stemmepåminnelse"
       }
     },
     "DROPBOX": {

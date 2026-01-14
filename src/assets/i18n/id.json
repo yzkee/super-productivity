@@ -151,7 +151,7 @@
         "L_TEXT_DESCRIPTION": "Misalnya: \"Kerjakan ${currentTaskTitle}!\"",
         "L_VOICE": "Pilih Suara",
         "L_VOICE_DESCRIPTION": "Pilih Suara",
-        "TITLE": "Mode Domina"
+        "TITLE": "Pengingat Suara"
       }
     },
     "DROPBOX": {

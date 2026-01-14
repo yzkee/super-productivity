@@ -145,7 +145,7 @@
         "L_TEXT_DESCRIPTION": "例えば\"${currentTaskTitle}に取り組む！\"",
         "L_VOICE": "ボイスを選択",
         "L_VOICE_DESCRIPTION": "音声を選択する",
-        "TITLE": "ドミナ・モード"
+        "TITLE": "音声リマインダー"
       }
     },
     "DROPBOX": {

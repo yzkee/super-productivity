@@ -151,7 +151,7 @@
         "L_TEXT_DESCRIPTION": "Örn.: \"${currentTaskTitle} üzerinde çalış!\"",
         "L_VOICE": "Bir Ses Seçin",
         "L_VOICE_DESCRIPTION": "Bir Ses Seçin",
-        "TITLE": "Domina Modu"
+        "TITLE": "Sesli hatırlatma"
       }
     },
     "DROPBOX": {

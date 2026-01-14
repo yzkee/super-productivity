@@ -151,7 +151,7 @@
         "L_TEXT_DESCRIPTION": "Es.: \"Lavora su ${currentTaskTitle}!\"",
         "L_VOICE": "Seleziona una voce",
         "L_VOICE_DESCRIPTION": "Scegli una voce",
-        "TITLE": "Modalità dominio"
+        "TITLE": "Promemoria vocale"
       }
     },
     "DROPBOX": {

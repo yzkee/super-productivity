@@ -151,7 +151,7 @@
         "L_TEXT_DESCRIPTION": "Esim.: \"Työskentele tehtävän ${currentTaskTitle} parissa!\"",
         "L_VOICE": "Valitse ääni",
         "L_VOICE_DESCRIPTION": "Valitse ääni",
-        "TITLE": "Domina-tila"
+        "TITLE": "Äänimuistutus"
       }
     },
     "DROPBOX": {

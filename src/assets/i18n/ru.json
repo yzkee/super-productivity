@@ -151,7 +151,7 @@
         "L_TEXT_DESCRIPTION": "Например: \"Работай над ${currentTaskTitle}!\"",
         "L_VOICE": "Выбрать голос",
         "L_VOICE_DESCRIPTION": "Выберите голос",
-        "TITLE": "Режим доминирования"
+        "TITLE": "Голосовое напоминание"
       }
     },
     "DROPBOX": {

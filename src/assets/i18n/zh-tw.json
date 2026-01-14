@@ -145,7 +145,7 @@
         "L_TEXT_DESCRIPTION": "例如：\"處理 ${currentTaskTitle}！\"",
         "L_VOICE": "選擇一種聲音",
         "L_VOICE_DESCRIPTION": "選擇一種聲音",
-        "TITLE": "Domina 模式"
+        "TITLE": "語音提醒"
       }
     },
     "DROPBOX": {

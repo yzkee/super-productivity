@@ -196,7 +196,7 @@
         "L_TEXT_DESCRIPTION": "例如：\"专注于 ${currentTaskTitle}!\"",
         "L_VOICE": "选择声音",
         "L_VOICE_DESCRIPTION": "选择一个声音",
-        "TITLE": "Domina 模式"
+        "TITLE": "语音提醒"
       }
     },
     "DROPBOX": {

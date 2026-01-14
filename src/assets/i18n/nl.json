@@ -151,7 +151,7 @@
         "L_TEXT_DESCRIPTION": "Bijvoorbeeld: \"Werk aan ${currentTaskTitle}!\"",
         "L_VOICE": "Selecteer een stem",
         "L_VOICE_DESCRIPTION": "Kies een stem",
-        "TITLE": "Domina Mode"
+        "TITLE": "Spraakherinnering"
       }
     },
     "DROPBOX": {

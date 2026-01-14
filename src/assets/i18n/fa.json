@@ -145,7 +145,7 @@
         "L_TEXT_DESCRIPTION": "به عنوان مثال: \"روی ${currentTaskTitle}کار کنید!\"",
         "L_VOICE": "یک صدا را انتخاب کنید",
         "L_VOICE_DESCRIPTION": "صدا را انتخاب کنید",
-        "TITLE": "حالت Domina"
+        "TITLE": "یادآوری صوتی"
       }
     },
     "DROPBOX": {
