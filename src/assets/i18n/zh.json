@@ -188,7 +188,7 @@
       "TITLE": "🙈 请原谅我们，但是...",
       "TXT": "如果您喜欢它，<strong>给它一个好评</strong>，您将极大地帮助这个项目！"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "在跟踪任务时间时，每隔 X 重复一次配置的短语。",
         "L_INTERVAL": "重复短语的间隔",

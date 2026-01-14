@@ -62,7 +62,7 @@
         "UPDATE_SECTION": "Aktualizovaná nastavení pro <strong>{{sectionKey}}</strong>"
       }
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "Opakuje nastavenou frázi každých X při sledování času úkolu.",
         "L_INTERVAL": "Interval opakování fráze",

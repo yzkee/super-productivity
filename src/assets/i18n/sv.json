@@ -137,7 +137,7 @@
       "TITLE": "🙈 Förlåt oss, men...",
       "TXT": "Du skulle hjälpa projektet enormt genom att <strong>ge det ett bra betyg, om du gillar det!</strong>"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "Upprepar den konfigurerade frasen varje X när du loggar tid för en uppgift.",
         "L_INTERVAL": "Intervall för att upprepa frasen",

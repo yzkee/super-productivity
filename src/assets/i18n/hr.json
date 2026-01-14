@@ -118,7 +118,7 @@
       "TITLE": "🙈 Tanpri padonnen nou, men ...",
       "TXT": "Ou ta ede pwojè a ekstrèmman pa <strong>bay li yon Bon Rating, si ou renmen li!</strong>"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "Ponavlja konfiguriranu frazu svakih X tijekom praćenja vremena zadatka.",
         "L_INTERVAL": "Interval za ponavljanje fraze",

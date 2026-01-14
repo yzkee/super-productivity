@@ -143,7 +143,7 @@
       "TITLE": "🙈 Pyydämme anteeksi, mutta...",
       "TXT": "Auttaisit projektia valtavasti <strong>antamalla sille hyvän arvion, jos pidät siitä!</strong>"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "Toistaa määritetyn lauseen joka X, kun aikaa seurataan tehtävään.",
         "L_INTERVAL": "Aikaväli lauseen toistamiseen",

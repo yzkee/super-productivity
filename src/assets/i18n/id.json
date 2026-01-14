@@ -143,7 +143,7 @@
       "TITLE": "🙈 Maafkan kami, tapi...",
       "TXT": "Anda akan sangat membantu proyek dengan <strong>memberikannya peringkat yang bagus, jika Anda menyukainya!</strong>"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "Mengulangi frasa yang dikonfigurasi setiap X ketika melacak waktu untuk suatu tugas.",
         "L_INTERVAL": "Interval untuk mengulang frasa",

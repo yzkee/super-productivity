@@ -143,7 +143,7 @@
       "TITLE": "\u001f48 Por favor, nos perdoe, mas...",
       "TXT": "Você ajudaria muito o projeto <strong>dando uma boa avaliação, se gostar!<\\/strong>"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "Repete a frase configurada a cada X ao rastrear o tempo para uma tarefa.",
         "L_INTERVAL": "Intervalo para repetir frase",

@@ -137,7 +137,7 @@
       "TITLE": "🙈 Please forgive us, but...",
       "TXT": "You would help the project immensely by <strong>giving it a good rating, if you like it!</strong>"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "在記錄任務時間時，每隔 X 時間重複配置的短語。",
         "L_INTERVAL": "重複短語的間隔時間",
