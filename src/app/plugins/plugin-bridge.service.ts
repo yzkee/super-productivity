@@ -1156,27 +1156,41 @@ export class PluginBridgeService implements OnDestroy {
   private _isWindowFocused = true;
   private _windowFocusHandlers = new Map<string, (isFocused: boolean) => void>();
 
+  // Named listener methods for proper cleanup
+  private _onWindowFocus = (): void => {
+    this._isWindowFocused = true;
+    this._notifyFocusHandlers(true);
+  };
+
+  private _onWindowBlur = (): void => {
+    this._isWindowFocused = false;
+    this._notifyFocusHandlers(false);
+  };
+
+  private _onVisibilityChange = (): void => {
+    const isFocused = !document.hidden;
+    this._isWindowFocused = isFocused;
+    this._notifyFocusHandlers(isFocused);
+  };
+
   /**
    * Initialize window focus tracking
    */
   private _initWindowFocusTracking(): void {
     // Track window focus/blur events
-    window.addEventListener('focus', () => {
-      this._isWindowFocused = true;
-      this._notifyFocusHandlers(true);
-    });
-
-    window.addEventListener('blur', () => {
-      this._isWindowFocused = false;
-      this._notifyFocusHandlers(false);
-    });
-
+    window.addEventListener('focus', this._onWindowFocus);
+    window.addEventListener('blur', this._onWindowBlur);
     // Also track document visibility changes
-    document.addEventListener('visibilitychange', () => {
-      const isFocused = !document.hidden;
-      this._isWindowFocused = isFocused;
-      this._notifyFocusHandlers(isFocused);
-    });
+    document.addEventListener('visibilitychange', this._onVisibilityChange);
+  }
+
+  /**
+   * Clean up window focus tracking listeners
+   */
+  private _cleanupWindowFocusTracking(): void {
+    window.removeEventListener('focus', this._onWindowFocus);
+    window.removeEventListener('blur', this._onWindowBlur);
+    document.removeEventListener('visibilitychange', this._onVisibilityChange);
   }
 
   /**
@@ -1412,6 +1426,7 @@ export class PluginBridgeService implements OnDestroy {
    */
   ngOnDestroy(): void {
     PluginLog.log('PluginBridgeService: Cleaning up resources');
+    this._cleanupWindowFocusTracking();
     // Note: Signals don't need explicit cleanup like BehaviorSubjects
     PluginLog.log('PluginBridgeService: Cleanup complete');
   }

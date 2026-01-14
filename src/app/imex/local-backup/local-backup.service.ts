@@ -1,4 +1,5 @@
-import { inject, Injectable } from '@angular/core';
+import { DestroyRef, inject, Injectable } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import { interval, Observable } from 'rxjs';
 import { LocalBackupConfig } from '../../features/config/global-config.model';
@@ -24,6 +25,7 @@ const ANDROID_DB_KEY = 'backup';
   providedIn: 'root',
 })
 export class LocalBackupService {
+  private _destroyRef = inject(DestroyRef);
   private _configService = inject(GlobalConfigService);
   private _stateSnapshotService = inject(StateSnapshotService);
   private _backupService = inject(BackupService);
@@ -40,7 +42,7 @@ export class LocalBackupService {
   );
 
   init(): void {
-    this._triggerBackupSave$.subscribe();
+    this._triggerBackupSave$.pipe(takeUntilDestroyed(this._destroyRef)).subscribe();
   }
 
   checkBackupAvailable(): Promise<boolean | LocalBackupMeta> {
