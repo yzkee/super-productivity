@@ -15,6 +15,7 @@ import { DEFAULT_TASK_REPEAT_CFG, TaskRepeatCfg } from './task-repeat-cfg.model'
 import { of } from 'rxjs';
 import { WorkContextType } from '../work-context/work-context.model';
 import {
+  selectAllTaskRepeatCfgs,
   selectAllUnprocessedTaskRepeatCfgs,
   selectTaskRepeatCfgsForExactDay,
 } from './store/task-repeat-cfg.selectors';
@@ -113,14 +114,9 @@ describe('TaskRepeatCfgService', () => {
   describe('taskRepeatCfgs$', () => {
     it('should select all task repeat configs', (done) => {
       const mockConfigs = [mockTaskRepeatCfg];
-      store.setState({
-        taskRepeatCfg: {
-          ids: ['test-cfg-id'],
-          entities: {
-            ['test-cfg-id']: mockTaskRepeatCfg,
-          },
-        },
-      });
+
+      store.overrideSelector(selectAllTaskRepeatCfgs, mockConfigs);
+      store.refreshState();
 
       service.taskRepeatCfgs$.subscribe((configs) => {
         expect(configs).toEqual(mockConfigs);
