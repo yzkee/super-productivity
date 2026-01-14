@@ -25,6 +25,15 @@
   }
 
   <nav class="action-nav">
+    @if (isTimeTrackingEnabled()) {
+      <play-button
+        [currentTask]="currentTask()"
+        [currentTaskId]="currentTaskId()"
+        [currentTaskContext]="currentTaskContext()"
+        [hasTrackableTasks]="hasTrackableTasks()"
+      ></play-button>
+    }
+
     @if (showDesktopButtons()) {
       <button
         (click)="layoutService.showAddTaskBar()"
@@ -74,15 +83,6 @@
 
     @if (isUserProfilesEnabled()) {
       <user-profile-button></user-profile-button>
-    }
-
-    @if (isTimeTrackingEnabled()) {
-      <play-button
-        [currentTask]="currentTask()"
-        [currentTaskId]="currentTaskId()"
-        [currentTaskContext]="currentTaskContext()"
-        [hasTrackableTasks]="hasTrackableTasks()"
-      ></play-button>
     }
 
     @if (isFocusModeEnabled() && !isXxxs()) {
