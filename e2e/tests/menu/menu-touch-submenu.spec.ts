@@ -50,18 +50,20 @@ test.describe('Mat Menu Touch Submenu Fix', () => {
     await toggleTagsBtn.waitFor({ state: 'visible', timeout: 5000 });
     await toggleTagsBtn.click();
 
-    // Wait for submenu to appear AND for the 300ms protection delay
-    await page.waitForTimeout(400);
+    // Wait for submenu to appear (the tag button in the menu)
+    const tagBtn = page.locator('.mat-mdc-menu-content button', { hasText: tagName });
+    await tagBtn.waitFor({ state: 'visible', timeout: 5000 });
+
+    // Wait for 300ms touch protection delay to expire, then a small buffer
+    // This is a timing-based protection feature being tested, so timeout is justified
+    await page.waitForTimeout(350);
 
     // Click on the tag - should work after delay
-    const tagBtn = page.locator(`button:has-text("${tagName}")`);
-    await tagBtn.waitFor({ state: 'visible', timeout: 3000 });
     await tagBtn.click();
 
-    // Wait for menu to close
-    await page.waitForTimeout(500);
-
-    // Verify tag was assigned
+    // Wait for tag to appear on task (implicitly waits for menu action to complete)
+    const tagOnTask = tagPage.getTagOnTask(task, tagName);
+    await tagOnTask.waitFor({ state: 'visible', timeout: 5000 });
     const hasTag = await tagPage.taskHasTag(task, tagName);
     expect(hasTag).toBe(true);
   });
