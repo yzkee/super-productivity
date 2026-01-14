@@ -1,3 +1,63 @@
+# [17.0.0-RC.2](https://github.com/super-productivity/super-productivity/compare/v17.0.0-RC.1...v17.0.0-RC.2) (2026-01-14)
+
+### Bug Fixes
+
+- **android:** support pre-release versions in APK builds ([b583454](https://github.com/super-productivity/super-productivity/commit/b583454327309a626c443b6776835482c2cf643d)), closes [#5964](https://github.com/super-productivity/super-productivity/issues/5964)
+- better adaptation to screen width for time tracking panel. ([75f9f1f](https://github.com/super-productivity/super-productivity/commit/75f9f1f34829790e404d117e7ec4c1d522e49299))
+- **build:** prevent RPM build-id collisions with other Electron apps ([d8c5dd5](https://github.com/super-productivity/super-productivity/commit/d8c5dd5c8d9a7daa96171ba1fff8ace00ce264a4)), closes [#5368](https://github.com/super-productivity/super-productivity/issues/5368)
+- capitalization and punctuation in START_OF_NEXT_DAY_HINT string. ([0f7000a](https://github.com/super-productivity/super-productivity/commit/0f7000a3ef8547fc8df1dd6b08707102d658b0f6))
+- **config:** prevent controlType error during tag deletion on config page ([6fc11c5](https://github.com/super-productivity/super-productivity/commit/6fc11c5c60b7eed0bdcb14c844708c7b62f059d6)), closes [#5970](https://github.com/super-productivity/super-productivity/issues/5970)
+- **e2e:** reduce task count in tag deletion test to prevent timeout ([df4aa2b](https://github.com/super-productivity/super-productivity/commit/df4aa2b56d91fe43e176ee002019589f34812128))
+- **e2e:** stabilize flaky menu-touch-submenu test ([c6028b9](https://github.com/super-productivity/super-productivity/commit/c6028b980d242463b87bbd2bd97e8b990ed182d4))
+- **e2e:** stabilize flaky supersync tests with better waiting strategies ([9431f23](https://github.com/super-productivity/super-productivity/commit/9431f23a1adaadb548a85de49b09b08f9b88ef83))
+- **e2e:** stabilize flaky tests with improved waiting strategies ([9d21fa1](https://github.com/super-productivity/super-productivity/commit/9d21fa1b6e24bec06cf50d7cebd13e094d19ab6e))
+- **electron:** only pass tray GUID on Windows to prevent validation error ([df386a7](https://github.com/super-productivity/super-productivity/commit/df386a7a7ec7119b21d906bebd1a821286b9d335))
+- **focus-mode:** resolve Pomodoro timer sync issues with breaks ([#5974](https://github.com/super-productivity/super-productivity/issues/5974)) ([7fb5905](https://github.com/super-productivity/super-productivity/commit/7fb59050e3817102527018486a1435973f307e56))
+- **icons:** remove local() from font-face to prevent icon rendering issues ([4cb2c17](https://github.com/super-productivity/super-productivity/commit/4cb2c177f7387516e6daf5d6ecb257d812cc54ae)), closes [#5506](https://github.com/super-productivity/super-productivity/issues/5506)
+- improve capitalization and punctuation in various strings in ru.json ([05c5374](https://github.com/super-productivity/super-productivity/commit/05c53741af63c601ac195c0e95ec5a061f70f78f))
+- links and remove extra symbols in main README. ([c6b1a55](https://github.com/super-productivity/super-productivity/commit/c6b1a55da5d53238db5543a0e74a1751d3a660fe))
+- **menu:** update touch monkey patch for Angular Material 21 ([4ffad50](https://github.com/super-productivity/super-productivity/commit/4ffad50f34b7db31f24692eab90b8e4723ddb82f)), closes [#4436](https://github.com/super-productivity/super-productivity/issues/4436)
+- **menu:** use document-level capturing to block touch submenu clicks ([3cda4bd](https://github.com/super-productivity/super-productivity/commit/3cda4bda92c29860278f2e003fbb89a989d6cbad)), closes [#4436](https://github.com/super-productivity/super-productivity/issues/4436)
+- move time tracking panel position to the left of all elements in heared. ([f0e9020](https://github.com/super-productivity/super-productivity/commit/f0e9020936a5652938d114cbc321ccab0e341503))
+- **notes:** auto-focus textarea in fullscreen markdown dialog ([205d6f1](https://github.com/super-productivity/super-productivity/commit/205d6f1a269ede63ab073da129b309c677142d27))
+- **notes:** auto-focus textarea when fullscreen view opens ([8294976](https://github.com/super-productivity/super-productivity/commit/8294976525ebe44245c4c329c89d7667ca034655))
+- **notes:** improve fullscreen markdown toolbar styling and scrolling ([df03695](https://github.com/super-productivity/super-productivity/commit/df036953ad45b0695ace90c890cc5833a83ce473))
+- **notes:** show reflection banner only for daily reflections, not regular notes ([c17b7dc](https://github.com/super-productivity/super-productivity/commit/c17b7dc4e98dbb45188dd3869a6dfcdbba4b54e1))
+- prevent memory leaks from unmanaged subscriptions and event listeners ([c562531](https://github.com/super-productivity/super-productivity/commit/c5625317bff1c35b83da546c3b6396fd3dfdb01c))
+- provide fallback values for assignee ([dc2f4d2](https://github.com/super-productivity/super-productivity/commit/dc2f4d2191196775c38b2d0c28dc9307fb4ec79e))
+- remove hover effects for current task title and action navigation ([a9c0b4a](https://github.com/super-productivity/super-productivity/commit/a9c0b4a590d4385461a55fbb9b7d5505a4f4d09b))
+- **repeat:** add event loop yield and isPaused filter ([#5976](https://github.com/super-productivity/super-productivity/issues/5976)) ([0414b74](https://github.com/super-productivity/super-productivity/commit/0414b74365001d600375974997894990f81477e4))
+- **schedule:** translate tooltip keys on repeated tasks page ([01b6cc2](https://github.com/super-productivity/super-productivity/commit/01b6cc2f6be9029f329f897a346b1313fd5272e3)), closes [#5967](https://github.com/super-productivity/super-productivity/issues/5967)
+- **schedule:** use fallback utility for legacy repeat config tooltip ([126f42a](https://github.com/super-productivity/super-productivity/commit/126f42a3fdf67a8c6cd6e91cf183004504d64386))
+- support undefined usernames ([0a9459d](https://github.com/super-productivity/super-productivity/commit/0a9459d58c882433bd901320354571717b76a250))
+- **sync-server:** add rate limiting to page endpoints ([e7e693e](https://github.com/super-productivity/super-productivity/commit/e7e693e78fc39a2f25622b56c6dbd4106d21858c))
+- **sync:** preserve archived tasks during server migration and backup ([0fd2618](https://github.com/super-productivity/super-productivity/commit/0fd2618dabe89dc92bdea5e6cd62e3e3738e314f))
+- **sync:** use BackupImport OpType for backup imports to bypass 409 ([a93f6a7](https://github.com/super-productivity/super-productivity/commit/a93f6a7ba27419a6d92219a715845d6d592ac669))
+- **sync:** use ETag as fallback when WebDAV Last-Modified header missing ([c9078fe](https://github.com/super-productivity/super-productivity/commit/c9078feafdf4970e0c516b0675a0dc4a5ca9af94)), closes [#4898](https://github.com/super-productivity/super-productivity/issues/4898)
+- **sync:** use If-Match header for ETag-based conflict detection ([dcc7bd9](https://github.com/super-productivity/super-productivity/commit/dcc7bd95c588520052a0b3d45562763cf4c5c813))
+- **sync:** validate WebDAV credentials before sync to prevent null errors ([085d25a](https://github.com/super-productivity/super-productivity/commit/085d25a14180384858070ea214cbb35a2817aec2)), closes [#5965](https://github.com/super-productivity/super-productivity/issues/5965)
+- **tag:** correct emoji spacing in tag toggle menu dropdown ([28bba15](https://github.com/super-productivity/super-productivity/commit/28bba15e050f2df3c3c09badc038d6a0e3685950)), closes [#5977](https://github.com/super-productivity/super-productivity/issues/5977)
+- **task:** correct vertical alignment of issue updated icon ([6af397e](https://github.com/super-productivity/super-productivity/commit/6af397eeafd38a55ed818887d1ae390de72c5e9b))
+- **test:** add E2E dialog validation and fix keyboard test cleanup ([51f3c89](https://github.com/super-productivity/super-productivity/commit/51f3c892e3680614699d1387bd62b73d0cf27ad8))
+- **test:** increase timeout for large batch sync tests ([704f070](https://github.com/super-productivity/super-productivity/commit/704f07042a2a488ae908fa4189b962f8e9f14263))
+- **ui:** visibility menu positioning after toggling Inbox ([b435f28](https://github.com/super-productivity/super-productivity/commit/b435f28a231633751bd4e96890a8289847acb33a)), closes [#5955](https://github.com/super-productivity/super-productivity/issues/5955)
+- update TIME_LOCALE_DESCRIPTION in ru.json for to match the current information in en.json. ([ffceed1](https://github.com/super-productivity/super-productivity/commit/ffceed18b53db9a7f84a4286859fb8b341e7cba0))
+
+### Features
+
+- **electron:** add static GUID to tray icon for Windows ([9140f51](https://github.com/super-productivity/super-productivity/commit/9140f51a8d6ccbf8a0b737b33ba8a2b8d154fb66)), closes [#5973](https://github.com/super-productivity/super-productivity/issues/5973)
+- **metric:** remove loading placeholder for activity heatmap ([f4b0391](https://github.com/super-productivity/super-productivity/commit/f4b0391209a2dbd65b4a4c1d69e62c8ef58a0f7b))
+
+### Performance Improvements
+
+- **archive:** remove unused NgRx archive stores to reduce memory usage ([b2a807f](https://github.com/super-productivity/super-productivity/commit/b2a807f7db5b9a6e0c7d4d571405090072ddbd0d))
+- **planner:** optimize selectAllTasksDueToday selector ([5cb8720](https://github.com/super-productivity/super-productivity/commit/5cb87200587a7c6612402e435e2efee5fedd0d72))
+- **tasks:** optimize selectAllTasksWithDueDay selector ([d345bc3](https://github.com/super-productivity/super-productivity/commit/d345bc33ea4e218885227333248b66646031397d))
+
+### Reverts
+
+- Revert "fix(ui): visibility menu positioning after toggling Inbox" ([74671bb](https://github.com/super-productivity/super-productivity/commit/74671bb48258c83b90a1b33b6ff1e4c0631ecaec))
+
 # [17.0.0-RC.1](https://github.com/super-productivity/super-productivity/compare/v17.0.0-RC.0...v17.0.0-RC.1) (2026-01-11)
 
 ### Bug Fixes
