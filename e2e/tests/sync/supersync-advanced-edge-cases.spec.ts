@@ -48,7 +48,12 @@ test.describe('@supersync SuperSync Advanced Edge Cases', () => {
         const taskName = `Bulk${i}-${testRunId}`;
         taskNames.push(taskName);
         await clientA.workView.addTask(taskName);
+        // Small settle delay to let UI and NgRx store process each task
+        await clientA.page.waitForTimeout(100);
       }
+
+      // Allow operations to fully persist to IndexedDB before sync
+      await clientA.page.waitForTimeout(500);
 
       // Sync A -> B
       await clientA.sync.syncAndWait();
@@ -129,11 +134,16 @@ test.describe('@supersync SuperSync Advanced Edge Cases', () => {
       // Mark initial task as done
       const initialTaskLocator = clientA.page.locator(`task:has-text("${initialTask}")`);
       await initialTaskLocator.hover();
-      await initialTaskLocator.locator('.task-done-btn').click();
+      // Wait for done button to be visible after hover reveals it
+      const doneBtn = initialTaskLocator.locator('.task-done-btn');
+      await doneBtn.waitFor({ state: 'visible', timeout: 5000 });
+      await doneBtn.click();
       await clientA.sync.syncAndWait();
 
       // Client B "reconnects" (syncs after missing many updates)
       await clientB.sync.syncAndWait();
+      // Extra settle time for state propagation after receiving many operations
+      await clientB.page.waitForTimeout(500);
 
       // Verify B has all the changes
       await waitForTask(clientB.page, offlineTask1);
@@ -141,9 +151,13 @@ test.describe('@supersync SuperSync Advanced Edge Cases', () => {
       await waitForTask(clientB.page, offlineTask3);
 
       // Initial task should be marked as done
-      // Use more specific locator to target the done task (avoids matching both backlog and done section)
-      const initialTaskB = clientB.page.locator(`task.isDone:has-text("${initialTask}")`);
-      await expect(initialTaskB).toBeVisible();
+      // Use toPass() to handle Angular change detection lag for CSS class update
+      await expect(async () => {
+        const initialTaskB = clientB.page.locator(
+          `task.isDone:has-text("${initialTask}")`,
+        );
+        await expect(initialTaskB).toBeVisible({ timeout: 2000 });
+      }).toPass({ timeout: 10000, intervals: [500, 1000, 2000] });
 
       console.log('[Stale] Stale client reconnected and received all changes');
     } finally {

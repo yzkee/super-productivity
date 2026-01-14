@@ -397,8 +397,11 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
       // ============ PHASE 3: Client B Syncs and Chooses CANCEL ============
       console.log('[CANCEL] Phase 3: Client B syncs and chooses CANCEL');
 
-      // The auto-sync after enabling will trigger the conflict dialog
-      // Use specific locator for the sync import conflict dialog
+      // Trigger sync - this will cause the sync import conflict dialog to appear
+      // (matches the pattern from other tests in this file)
+      await clientB.sync.triggerSync();
+
+      // Wait for the sync import conflict dialog to appear
       const dialog = clientB.page.locator('dialog-sync-import-conflict');
       await expect(dialog).toBeVisible({ timeout: 15000 });
 
