@@ -68,15 +68,7 @@
   }
 
   <section style="max-width: 880px; margin: auto; margin-top: 32px">
-    @defer (on viewport) {
-      <activity-heatmap></activity-heatmap>
-    } @placeholder {
-      <div
-        style="height: 200px; display: flex; align-items: center; justify-content: center"
-      >
-        Loading activity heatmap...
-      </div>
-    }
+    <activity-heatmap></activity-heatmap>
   </section>
 
   @if (!metricService.hasData()) {
