@@ -281,8 +281,8 @@ export interface OperationSyncCapable {
     reason: 'initial' | 'recovery' | 'migration',
     vectorClock: Record<string, number>,
     schemaVersion: number,
-    isPayloadEncrypted?: boolean,
-    opId?: string,
+    isPayloadEncrypted: boolean | undefined,
+    opId: string,
   ): Promise<SnapshotUploadResponse>;
 
   /**
