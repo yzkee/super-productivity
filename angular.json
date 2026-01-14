@@ -73,6 +73,11 @@
               "baseHref": "",
               "budgets": [
                 {
+                  "type": "initial",
+                  "maximumWarning": "5.5mb",
+                  "maximumError": "6mb"
+                },
+                {
                   "type": "anyComponentStyle",
                   "maximumWarning": "20kb"
                 }
@@ -105,6 +110,11 @@
               },
               "budgets": [
                 {
+                  "type": "initial",
+                  "maximumWarning": "5.5mb",
+                  "maximumError": "6mb"
+                },
+                {
                   "type": "anyComponentStyle",
                   "maximumWarning": "20kb"
                 }
@@ -133,6 +143,11 @@
             "stage": {
               "baseHref": "",
               "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "5.5mb",
+                  "maximumError": "6mb"
+                },
                 {
                   "type": "anyComponentStyle",
                   "maximumWarning": "20kb"

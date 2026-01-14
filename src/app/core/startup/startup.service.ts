@@ -162,11 +162,13 @@ export class StartupService {
   private async _checkIsSingleInstance(): Promise<boolean> {
     const channel = new BroadcastChannel('superProductivityTab');
     let isAnotherInstanceActive = false;
+    let resolved = false;
 
     // 1. Listen for other instances saying "I'm here!"
     const checkListener = (msg: MessageEvent): void => {
       if (msg.data === 'alreadyOpenElsewhere') {
         isAnotherInstanceActive = true;
+        resolved = true;
       }
     };
     channel.addEventListener('message', checkListener);
@@ -174,8 +176,20 @@ export class StartupService {
     // 2. Ask "Is anyone here?"
     channel.postMessage('newTabOpened');
 
-    // 3. Wait a bit for a response
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    // 3. Wait for response with early exit - reduced from 150ms to 50ms
+    // BroadcastChannel is synchronous within the same origin, so 50ms is sufficient
+    await new Promise<void>((resolve) => {
+      const checkInterval = setInterval(() => {
+        if (resolved) {
+          clearInterval(checkInterval);
+          resolve();
+        }
+      }, 10);
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        resolve();
+      }, 50);
+    });
 
     channel.removeEventListener('message', checkListener);
 

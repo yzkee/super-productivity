@@ -197,10 +197,28 @@ bootstrapApplication(AppComponent, {
   // Initialize touch fix for Material menus
   initializeMatMenuTouchFix();
 
-  // Register all supported locales
-  Object.keys(LocalesImports).forEach((locale) => {
-    registerLocaleData(LocalesImports[locale], locale);
-  });
+  // Register default locale immediately for fast startup
+  registerLocaleData(LocalesImports[DEFAULT_LANGUAGE], DEFAULT_LANGUAGE);
+
+  // Defer other locales to idle time for better initial load performance
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(() => {
+      Object.keys(LocalesImports).forEach((locale) => {
+        if (locale !== DEFAULT_LANGUAGE) {
+          registerLocaleData(LocalesImports[locale], locale);
+        }
+      });
+    });
+  } else {
+    // Fallback for browsers without requestIdleCallback
+    setTimeout(() => {
+      Object.keys(LocalesImports).forEach((locale) => {
+        if (locale !== DEFAULT_LANGUAGE) {
+          registerLocaleData(LocalesImports[locale], locale);
+        }
+      });
+    }, 0);
+  }
 
   // TODO make asset caching work for electron
 
