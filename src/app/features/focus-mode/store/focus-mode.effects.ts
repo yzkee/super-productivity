@@ -289,22 +289,36 @@ export class FocusModeEffects {
     ),
   );
 
-  // Effect 2: Stop tracking on manual session end (bug #5875 fix)
+  // Effect 2: Stop tracking on session end when no break auto-starts
+  // Bug #5875 fix: Stop tracking on manual session end
   // Bug #5954 fix: Only stop tracking if isPauseTrackingDuringBreak is enabled
-  stopTrackingOnManualEnd$ = createEffect(() =>
+  // Bug #5996 fix: Also stop tracking on automatic completion for modes without auto-break
+  stopTrackingOnSessionEnd$ = createEffect(() =>
     this.actions$.pipe(
       ofType(actions.completeFocusSession),
       withLatestFrom(
         this.store.select(selectFocusModeConfig),
+        this.store.select(selectors.selectMode),
         this.taskService.currentTaskId$,
       ),
-      filter(
-        ([action, config, taskId]) =>
-          !!action.isManual &&
-          !!config?.isSyncSessionWithTracking &&
-          !!config?.isPauseTrackingDuringBreak &&
-          !!taskId,
-      ),
+      filter(([action, config, mode, taskId]) => {
+        if (!config?.isSyncSessionWithTracking || !config?.isPauseTrackingDuringBreak) {
+          return false;
+        }
+        if (!taskId) {
+          return false;
+        }
+        // For manual completion, always stop tracking
+        if (action.isManual) {
+          return true;
+        }
+        // For automatic completion, only stop tracking if break won't auto-start
+        // (autoStartBreakOnSessionComplete$ handles tracking pause when break starts)
+        const strategy = this.strategyFactory.getStrategy(mode);
+        const breakWillAutoStart =
+          strategy.shouldStartBreakAfterSession && !config?.isManualBreakStart;
+        return !breakWillAutoStart;
+      }),
       map(() => unsetCurrentTask()),
     ),
   );

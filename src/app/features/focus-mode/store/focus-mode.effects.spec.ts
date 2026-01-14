@@ -476,7 +476,7 @@ describe('FocusModeEffects', () => {
       });
     });
 
-    describe('stopTrackingOnManualEnd$', () => {
+    describe('stopTrackingOnSessionEnd$', () => {
       it('should dispatch unsetCurrentTask when isManual=true AND isSyncSessionWithTracking=true AND isPauseTrackingDuringBreak=true AND currentTaskId exists', (done) => {
         currentTaskId$.next('task-123');
         actions$ = of(actions.completeFocusSession({ isManual: true }));
@@ -487,7 +487,7 @@ describe('FocusModeEffects', () => {
         });
         store.refreshState();
 
-        effects.stopTrackingOnManualEnd$.pipe(take(1)).subscribe((action) => {
+        effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
           expect(action).toEqual(unsetCurrentTask());
           done();
         });
@@ -503,7 +503,7 @@ describe('FocusModeEffects', () => {
         });
         store.refreshState();
 
-        effects.stopTrackingOnManualEnd$.pipe(toArray()).subscribe((actionsArr) => {
+        effects.stopTrackingOnSessionEnd$.pipe(toArray()).subscribe((actionsArr) => {
           expect(actionsArr.length).toBe(0);
           done();
         });
@@ -519,7 +519,7 @@ describe('FocusModeEffects', () => {
         });
         store.refreshState();
 
-        effects.stopTrackingOnManualEnd$.pipe(toArray()).subscribe((actionsArr) => {
+        effects.stopTrackingOnSessionEnd$.pipe(toArray()).subscribe((actionsArr) => {
           expect(actionsArr.length).toBe(0);
           done();
         });
@@ -535,13 +535,34 @@ describe('FocusModeEffects', () => {
         });
         store.refreshState();
 
-        effects.stopTrackingOnManualEnd$.pipe(toArray()).subscribe((actionsArr) => {
+        effects.stopTrackingOnSessionEnd$.pipe(toArray()).subscribe((actionsArr) => {
           expect(actionsArr.length).toBe(0);
           done();
         });
       });
 
-      it('should NOT dispatch unsetCurrentTask when isManual=false (auto completion)', (done) => {
+      it('should NOT dispatch unsetCurrentTask when isManual=false in Pomodoro mode with auto-break (Bug #5996)', (done) => {
+        // In Pomodoro mode with auto-break, autoStartBreakOnSessionComplete$ handles tracking pause
+        currentTaskId$.next('task-123');
+        actions$ = of(actions.completeFocusSession({ isManual: false }));
+        store.overrideSelector(selectFocusModeConfig, {
+          isSyncSessionWithTracking: true,
+          isPauseTrackingDuringBreak: true,
+          isSkipPreparation: false,
+          isManualBreakStart: false, // Break auto-starts
+        });
+        store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+        store.refreshState();
+
+        // Default mock has shouldStartBreakAfterSession: true (Pomodoro)
+        effects.stopTrackingOnSessionEnd$.pipe(toArray()).subscribe((actionsArr) => {
+          expect(actionsArr.length).toBe(0);
+          done();
+        });
+      });
+
+      it('should dispatch unsetCurrentTask when isManual=false in Countdown mode (Bug #5996)', (done) => {
+        // In Countdown mode, no break auto-starts, so this effect should fire
         currentTaskId$.next('task-123');
         actions$ = of(actions.completeFocusSession({ isManual: false }));
         store.overrideSelector(selectFocusModeConfig, {
@@ -549,10 +570,18 @@ describe('FocusModeEffects', () => {
           isPauseTrackingDuringBreak: true,
           isSkipPreparation: false,
         });
+        store.overrideSelector(selectors.selectMode, FocusModeMode.Countdown);
         store.refreshState();
 
-        effects.stopTrackingOnManualEnd$.pipe(toArray()).subscribe((actionsArr) => {
-          expect(actionsArr.length).toBe(0);
+        // Override strategy to return Countdown behavior
+        strategyFactoryMock.getStrategy.and.returnValue({
+          shouldStartBreakAfterSession: false,
+          shouldAutoStartNextSession: false,
+          getBreakDuration: () => null,
+        });
+
+        effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
+          expect(action).toEqual(unsetCurrentTask());
           done();
         });
       });
@@ -2703,7 +2732,7 @@ describe('FocusModeEffects', () => {
       });
     });
 
-    describe('stopTrackingOnManualEnd$ edge cases', () => {
+    describe('stopTrackingOnSessionEnd$ edge cases', () => {
       it('should respect isPauseTrackingDuringBreak=true for manual session end', (done) => {
         store.overrideSelector(selectFocusModeConfig, {
           isSyncSessionWithTracking: true,
@@ -2715,7 +2744,7 @@ describe('FocusModeEffects', () => {
 
         actions$ = of(actions.completeFocusSession({ isManual: true }));
 
-        effects.stopTrackingOnManualEnd$.pipe(take(1)).subscribe((action) => {
+        effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
           expect(action.type).toEqual('[Task] UnsetCurrentTask');
           done();
         });
@@ -2732,7 +2761,7 @@ describe('FocusModeEffects', () => {
 
         actions$ = of(actions.completeFocusSession({ isManual: true }));
 
-        effects.stopTrackingOnManualEnd$.pipe(toArray()).subscribe((actionsArr) => {
+        effects.stopTrackingOnSessionEnd$.pipe(toArray()).subscribe((actionsArr) => {
           expect(actionsArr.length).toBe(0);
           done();
         });

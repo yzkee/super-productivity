@@ -218,27 +218,37 @@ describe('FocusMode Bug #5875: Pomodoro timer sync issues', () => {
 
       actions$ = of(actions.completeFocusSession({ isManual: true }));
 
-      effects.stopTrackingOnManualEnd$.pipe(take(1)).subscribe((action) => {
+      effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
         expect(action.type).toEqual(unsetCurrentTask.type);
         done();
       });
     });
 
-    it('should NOT dispatch unsetCurrentTask when session ends automatically (timer completion)', (done) => {
-      // Setup: Session completes automatically (not manual)
-      // isPauseTrackingDuringBreak is true, but isManual is false, so effect should not fire
+    it('should NOT dispatch unsetCurrentTask when session ends automatically in Pomodoro mode (break auto-starts)', (done) => {
+      // Setup: Session completes automatically in Pomodoro mode
+      // Break will auto-start, so autoStartBreakOnSessionComplete$ handles tracking pause
+      // This effect should NOT fire to avoid double dispatch
       store.overrideSelector(selectFocusModeConfig, {
         isSyncSessionWithTracking: true,
         isSkipPreparation: false,
         isPauseTrackingDuringBreak: true,
+        isManualBreakStart: false, // Break will auto-start
       });
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
       currentTaskId$.next('task-123');
       store.refreshState();
 
+      // Pomodoro strategy has shouldStartBreakAfterSession: true
+      strategyFactoryMock.getStrategy.and.returnValue({
+        shouldStartBreakAfterSession: true,
+        shouldAutoStartNextSession: true,
+        getBreakDuration: () => ({ duration: 5 * 60 * 1000, isLong: false }),
+      });
+
       actions$ = of(actions.completeFocusSession({ isManual: false }));
 
-      effects.stopTrackingOnManualEnd$.pipe(toArray()).subscribe((actionsArr) => {
-        // For automatic completion, tracking should continue
+      effects.stopTrackingOnSessionEnd$.pipe(toArray()).subscribe((actionsArr) => {
+        // For Pomodoro automatic completion with auto-break, tracking is handled by autoStartBreakOnSessionComplete$
         expect(actionsArr.length).toBe(0);
         done();
       });
@@ -255,7 +265,7 @@ describe('FocusMode Bug #5875: Pomodoro timer sync issues', () => {
 
       actions$ = of(actions.completeFocusSession({ isManual: true }));
 
-      effects.stopTrackingOnManualEnd$.pipe(toArray()).subscribe((actionsArr) => {
+      effects.stopTrackingOnSessionEnd$.pipe(toArray()).subscribe((actionsArr) => {
         expect(actionsArr.length).toBe(0);
         done();
       });
@@ -272,8 +282,90 @@ describe('FocusMode Bug #5875: Pomodoro timer sync issues', () => {
 
       actions$ = of(actions.completeFocusSession({ isManual: true }));
 
-      effects.stopTrackingOnManualEnd$.pipe(toArray()).subscribe((actionsArr) => {
+      effects.stopTrackingOnSessionEnd$.pipe(toArray()).subscribe((actionsArr) => {
         expect(actionsArr.length).toBe(0);
+        done();
+      });
+    });
+  });
+
+  describe('Bug #5996: Countdown timer automatic completion should stop tracking', () => {
+    it('should dispatch unsetCurrentTask when Countdown session ends automatically', (done) => {
+      // Setup: Countdown mode, session completes automatically, both sync settings enabled
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+        isPauseTrackingDuringBreak: true,
+      });
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Countdown);
+      currentTaskId$.next('task-123');
+      store.refreshState();
+
+      // Countdown strategy has shouldStartBreakAfterSession: false
+      strategyFactoryMock.getStrategy.and.returnValue({
+        shouldStartBreakAfterSession: false,
+        shouldAutoStartNextSession: false,
+        getBreakDuration: () => null,
+      });
+
+      actions$ = of(actions.completeFocusSession({ isManual: false }));
+
+      effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
+        expect(action.type).toEqual(unsetCurrentTask.type);
+        done();
+      });
+    });
+
+    it('should dispatch unsetCurrentTask when Flowtime session ends automatically', (done) => {
+      // Setup: Flowtime mode, session completes automatically, both sync settings enabled
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+        isPauseTrackingDuringBreak: true,
+      });
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Flowtime);
+      currentTaskId$.next('task-123');
+      store.refreshState();
+
+      // Flowtime strategy has shouldStartBreakAfterSession: false
+      strategyFactoryMock.getStrategy.and.returnValue({
+        shouldStartBreakAfterSession: false,
+        shouldAutoStartNextSession: false,
+        getBreakDuration: () => null,
+      });
+
+      actions$ = of(actions.completeFocusSession({ isManual: false }));
+
+      effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
+        expect(action.type).toEqual(unsetCurrentTask.type);
+        done();
+      });
+    });
+
+    it('should dispatch unsetCurrentTask when Pomodoro session ends automatically with isManualBreakStart', (done) => {
+      // Setup: Pomodoro mode with manual break start, session completes automatically
+      // Break won't auto-start due to isManualBreakStart, so this effect should fire
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+        isPauseTrackingDuringBreak: true,
+        isManualBreakStart: true, // User must manually start break
+      });
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      currentTaskId$.next('task-123');
+      store.refreshState();
+
+      // Pomodoro strategy has shouldStartBreakAfterSession: true but config has isManualBreakStart
+      strategyFactoryMock.getStrategy.and.returnValue({
+        shouldStartBreakAfterSession: true,
+        shouldAutoStartNextSession: true,
+        getBreakDuration: () => ({ duration: 5 * 60 * 1000, isLong: false }),
+      });
+
+      actions$ = of(actions.completeFocusSession({ isManual: false }));
+
+      effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
+        expect(action.type).toEqual(unsetCurrentTask.type);
         done();
       });
     });
