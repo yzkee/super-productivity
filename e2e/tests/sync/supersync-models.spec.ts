@@ -444,7 +444,7 @@ test.describe('@supersync SuperSync Models', () => {
       await clientA.sync.setupSuperSync(syncConfig);
 
       const tagName = `BulkTag-${testRunId}`;
-      const taskCount = 10;
+      const taskCount = 5; // Reduced from 10 to speed up test
       const taskNames: string[] = [];
 
       // 1. Create tag first
