@@ -9,6 +9,7 @@ import { ClientIdService } from '../../core/util/client-id.service';
 import { ArchiveDbAdapter } from '../../core/persistence/archive-db-adapter.service';
 import { ArchiveModel } from '../../features/archive/archive.model';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
+import { OpType, Operation } from '../core/operation.types';
 
 describe('BackupService', () => {
   let service: BackupService;
@@ -263,6 +264,29 @@ describe('BackupService', () => {
       expect(mockArchiveDbAdapter.saveArchiveYoung).toHaveBeenCalled();
       const calledWith = mockArchiveDbAdapter.saveArchiveYoung.calls.mostRecent().args[0];
       expect(calledWith.task.ids).toContain('wrapped-task');
+    });
+
+    /**
+     * CRITICAL: Backup imports MUST use OpType.BackupImport (not SyncImport).
+     *
+     * This ensures the server receives reason='recovery' which bypasses the
+     * "SYNC_IMPORT already exists" check (409 error). Without this, users cannot
+     * recover by importing a backup when a SYNC_IMPORT already exists on the server.
+     *
+     * @see packages/super-sync-server/src/sync/sync.routes.ts:703-733
+     */
+    it('should use OpType.BackupImport for recovery (not SyncImport)', async () => {
+      const backupData = createMinimalValidBackup();
+
+      await service.importCompleteBackup(backupData as any, true, true);
+
+      expect(mockOpLogStore.append).toHaveBeenCalled();
+      const appendedOp = mockOpLogStore.append.calls.mostRecent().args[0] as Operation;
+
+      // CRITICAL: Must use BackupImport so server receives reason='recovery'
+      expect(appendedOp.opType).toBe(OpType.BackupImport);
+      // Verify it's NOT using SyncImport (which would cause 409 errors)
+      expect(appendedOp.opType).not.toBe(OpType.SyncImport);
     });
   });
 });

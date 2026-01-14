@@ -173,10 +173,13 @@ export class BackupService {
       : incrementVectorClock(currentClock, clientId);
 
     const opId = uuidv7();
+    // IMPORTANT: Uses OpType.BackupImport which maps to reason='recovery' on the server.
+    // This allows backup imports to succeed even when a SYNC_IMPORT already exists.
+    // See server validation at sync.routes.ts:703-733
     const op: Operation = {
       id: opId,
       actionType: ActionType.LOAD_ALL_DATA,
-      opType: OpType.SyncImport,
+      opType: OpType.BackupImport,
       entityType: 'ALL',
       entityId: opId,
       payload: importedData,
