@@ -1296,7 +1296,7 @@
         "RO_NEVER": "Never",
         "RO_START": "when it starts",
         "SCHEDULE": "Schedule",
-        "UNSCHEDULE": "Remove"
+        "UNSCHEDULE": "Unschedule"
       },
       "D_SELECT_DATE_AND_TIME": {
         "DATE": "Date",

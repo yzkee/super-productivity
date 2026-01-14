@@ -96,14 +96,19 @@ import {
   REMINDER_FEATURE_NAME,
   reminderReducer,
 } from '../features/reminder/store/reminder.reducer';
-import {
-  ARCHIVE_YOUNG_FEATURE_NAME,
-  archiveYoungReducer,
-} from '../features/archive/store/archive-young.reducer';
-import {
-  ARCHIVE_OLD_FEATURE_NAME,
-  archiveOldReducer,
-} from '../features/archive/store/archive-old.reducer';
+// REMOVED: Archive stores were loading data into NgRx at startup but were never read.
+// All code that needs archives loads them directly from IndexedDB via ArchiveDbAdapter.
+// Removing these stores eliminates memory bloat for users with large archives.
+// See: https://github.com/johannesjo/super-productivity/issues/XXXX
+//
+// import {
+//   ARCHIVE_YOUNG_FEATURE_NAME,
+//   archiveYoungReducer,
+// } from '../features/archive/store/archive-young.reducer';
+// import {
+//   ARCHIVE_OLD_FEATURE_NAME,
+//   archiveOldReducer,
+// } from '../features/archive/store/archive-old.reducer';
 
 @NgModule({
   declarations: [],
@@ -172,8 +177,9 @@ import {
     StoreModule.forFeature(PLUGIN_USER_DATA_FEATURE_NAME, pluginUserDataReducer),
     StoreModule.forFeature(PLUGIN_METADATA_FEATURE_NAME, pluginMetadataReducer),
     StoreModule.forFeature(REMINDER_FEATURE_NAME, reminderReducer),
-    StoreModule.forFeature(ARCHIVE_YOUNG_FEATURE_NAME, archiveYoungReducer),
-    StoreModule.forFeature(ARCHIVE_OLD_FEATURE_NAME, archiveOldReducer),
+    // REMOVED: Archive stores - see comment above for explanation
+    // StoreModule.forFeature(ARCHIVE_YOUNG_FEATURE_NAME, archiveYoungReducer),
+    // StoreModule.forFeature(ARCHIVE_OLD_FEATURE_NAME, archiveOldReducer),
 
     // EFFECTS ONLY
     EffectsModule.forFeature([
