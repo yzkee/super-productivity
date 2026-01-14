@@ -273,6 +273,7 @@ export interface OperationSyncCapable {
    * @param vectorClock Current vector clock state
    * @param schemaVersion Schema version of the state
    * @param isPayloadEncrypted Whether the state payload is E2E encrypted
+   * @param opId Client's operation ID - server MUST use this ID to prevent ID mismatch bugs
    */
   uploadSnapshot(
     state: unknown,
@@ -281,6 +282,7 @@ export interface OperationSyncCapable {
     vectorClock: Record<string, number>,
     schemaVersion: number,
     isPayloadEncrypted?: boolean,
+    opId?: string,
   ): Promise<SnapshotUploadResponse>;
 
   /**

@@ -336,6 +336,7 @@ export class FileBasedSyncAdapterService {
         vectorClock: Record<string, number>,
         schemaVersion: number,
         isPayloadEncrypted?: boolean,
+        _opId?: string, // Not used in file-based sync (operation IDs are client-local)
       ): Promise<SnapshotUploadResponse> => {
         return this._uploadSnapshot(
           provider,
