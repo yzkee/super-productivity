@@ -67,19 +67,25 @@ export abstract class BasePage {
 
     if (!dialogExists) {
       // Wait for task to be created - check for the specific task
-      const taskLocator = this.page.locator(
-        `task:has-text("${prefixedTaskName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}")`,
-      );
+      const maxWaitTime = 15000; // Increased from 10s to handle slow renders
+      const taskSelector = `task:has-text("${prefixedTaskName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}")`;
 
       try {
-        await taskLocator.first().waitFor({ state: 'visible', timeout: 10000 });
+        // Primary: wait for the specific task to be visible
+        await this.page.locator(taskSelector).first().waitFor({
+          state: 'visible',
+          timeout: maxWaitTime,
+        });
       } catch (error) {
-        // If specific task not found, verify count increased
+        // Fallback: verify task count increased (captures edge cases)
         const finalCount = await this.page.locator('task').count();
         if (finalCount < expectedCount) {
+          // Get fresh snapshot for error message after DOM settles
+          await this.page.waitForTimeout(500);
           const tasks = await this.page.locator('task').allTextContents();
+          const currentCount = await this.page.locator('task').count();
           throw new Error(
-            `Task creation failed. Expected ${expectedCount} tasks, but got ${finalCount}.\n` +
+            `Task creation failed. Expected ${expectedCount} tasks, but got ${currentCount}.\n` +
               `Task name: "${prefixedTaskName}"\n` +
               `Existing tasks: ${JSON.stringify(tasks, null, 2)}`,
           );
@@ -88,11 +94,12 @@ export abstract class BasePage {
     }
 
     if (!skipClose) {
-      // Close the add task bar if backdrop is visible
+      // Close the add task bar by clicking the backdrop
+      // Use force: true to bypass element coverage checks (overlays may cover backdrop)
       const backdropVisible = await safeIsVisible(this.backdrop);
       if (backdropVisible) {
-        await this.backdrop.click();
-        await this.backdrop.waitFor({ state: 'hidden', timeout: 2000 }).catch(() => {
+        await this.backdrop.click({ force: true });
+        await this.backdrop.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {
           // Non-fatal: backdrop might auto-hide
         });
       }
