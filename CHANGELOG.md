@@ -1,3 +1,14 @@
+# [17.0.0-RC.3](https://github.com/super-productivity/super-productivity/compare/v17.0.0-RC.2...v17.0.0-RC.3) (2026-01-14)
+
+### Bug Fixes
+
+- **focus-mode:** add pause/resume and Back to Planning buttons to break screen ([#5995](https://github.com/super-productivity/super-productivity/issues/5995)) ([3d7eab0](https://github.com/super-productivity/super-productivity/commit/3d7eab0365878c84f403161c30089db9f0a5fa35))
+- **focus-mode:** stop time tracking when countdown timer ends naturally ([07a5bc7](https://github.com/super-productivity/super-productivity/commit/07a5bc73757fd6bebe392d594b1b1d76063d0148)), closes [#5996](https://github.com/super-productivity/super-productivity/issues/5996)
+- **planner:** fix tomorrow$ timezone bug in daily summary Plan tab ([84e12d2](https://github.com/super-productivity/super-productivity/commit/84e12d25ae8bdfaad4f309e70783005a07cf9f9a))
+- **test:** improve e2e sync test stability ([f31aa0f](https://github.com/super-productivity/super-productivity/commit/f31aa0f4a4344c34d2437907ad5b4b4f59272646))
+- **test:** use overrideSelector in taskRepeatCfgs$ test ([ec32146](https://github.com/super-productivity/super-productivity/commit/ec32146ac03e26fd9feac5c09506706e31858cff))
+- **test:** use per-test timeout for large batch sync tests ([e93e0ab](https://github.com/super-productivity/super-productivity/commit/e93e0abc8990424b17ea1c7c1cba07550fd89ea4))
+
 # [17.0.0-RC.2](https://github.com/super-productivity/super-productivity/compare/v17.0.0-RC.1...v17.0.0-RC.2) (2026-01-14)
 
 ### Bug Fixes
