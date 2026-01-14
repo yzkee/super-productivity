@@ -164,6 +164,7 @@ export class NoteComponent implements OnChanges {
         minWidth: '100vw',
         height: '100vh',
         restoreFocus: true,
+        autoFocus: 'textarea',
         data: {
           content: this.note.content,
         },

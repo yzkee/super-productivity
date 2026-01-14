@@ -202,6 +202,7 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
       minWidth: '100vw',
       height: '100vh',
       restoreFocus: true,
+      autoFocus: 'textarea',
       data: {
         content: this.modelCopy(),
       },

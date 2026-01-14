@@ -77,6 +77,12 @@ export class AddTasksForTomorrowService {
     });
     await Promise.all(promises);
 
+    // Yield to event loop to ensure store has processed dispatched actions.
+    // This may help fix https://github.com/johannesjo/super-productivity/issues/5976
+    // where some repeat tasks don't appear in Today. We're not 100% certain this is
+    // the root cause, but it follows the established pattern (see OperationApplierService).
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
     // NOTE we only get the tasks due after we created the repeatable tasks (which then should be also due tomorrow)
     const [dueWithTime, dueWithDay] = await combineLatest([
       this._dueWithTimeForTomorrow$,
@@ -144,6 +150,12 @@ export class AddTasksForTomorrowService {
       return this._taskRepeatCfgService.createRepeatableTask(repeatCfg, todayTS);
     });
     await Promise.all(promises);
+
+    // Yield to event loop to ensure store has processed dispatched actions.
+    // This may help fix https://github.com/johannesjo/super-productivity/issues/5976
+    // where some repeat tasks don't appear in Today. We're not 100% certain this is
+    // the root cause, but it follows the established pattern (see OperationApplierService).
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     // Get tasks due for today
     const [dueWithTime, dueWithDay] = await combineLatest([

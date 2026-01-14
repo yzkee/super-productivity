@@ -1697,7 +1697,7 @@
       "L_PAUSE_TRACKING_DURING_BREAK": "Pause task tracking during breaks",
       "L_SKIP_PREPARATION_SCREEN": "Skip preparation screen (rocket animation)",
       "L_START_IN_BACKGROUND": "Start focus sessions with banner only (no overlay)",
-      "L_SYNC_SESSION_WITH_TRACKING": "Sync focus session with time tracking",
+      "L_SYNC_SESSION_WITH_TRACKING": "Sync focus sessions with time tracking",
       "TITLE": "Focus Mode"
     },
     "IDLE": {
@@ -1837,7 +1837,7 @@
       "IS_USE_CUSTOM_WINDOW_TITLE_BAR": "Use custom title bar (Windows/Linux only)",
       "IS_USE_CUSTOM_WINDOW_TITLE_BAR_HINT": "Requires restart to take effect",
       "START_OF_NEXT_DAY": "Start time of the next day",
-      "START_OF_NEXT_DAY_HINT": "from when (in hour) you want to count the next day has started. default is midnight which is 0.",
+      "START_OF_NEXT_DAY_HINT": "From when (in hour) you want to count the next day has started. Default is midnight which is 0.",
       "TASK_NOTES_TPL": "Task description template",
       "THEME": "Theme",
       "THEME_EXPERIMENTAL": "Theme (experimental)",

@@ -163,7 +163,7 @@ export class FocusModeEffects {
       filter(
         ([action, cfg, timer]) =>
           !!cfg?.isSyncSessionWithTracking &&
-          timer.purpose === 'work' &&
+          (timer.purpose === 'work' || timer.purpose === 'break') &&
           !!action.pausedTaskId,
       ),
       map(() => unsetCurrentTask()),
@@ -830,9 +830,10 @@ export class FocusModeEffects {
               combineLatest([
                 this.store.select(selectors.selectMode),
                 this.store.select(selectors.selectCurrentCycle),
+                this.store.select(selectors.selectPausedTaskId),
               ])
                 .pipe(take(1))
-                .subscribe(([mode, cycle]) => {
+                .subscribe(([mode, cycle, pausedTaskId]) => {
                   const strategy = this.strategyFactory.getStrategy(mode);
 
                   // If manual break start is enabled and mode supports breaks, start a break
@@ -848,6 +849,17 @@ export class FocusModeEffects {
 
                       if (shouldPauseTracking) {
                         this.store.dispatch(unsetCurrentTask());
+                      }
+
+                      // Bug #5974 fix: If isPauseTrackingDuringBreak is false and user manually
+                      // stopped tracking (pausedTaskId exists), resume tracking during break
+                      const shouldResumeTracking =
+                        !focusModeConfig?.isPauseTrackingDuringBreak &&
+                        !currentTaskId &&
+                        pausedTaskId;
+
+                      if (shouldResumeTracking) {
+                        this.store.dispatch(setCurrentTask({ id: pausedTaskId }));
                       }
 
                       this.store.dispatch(

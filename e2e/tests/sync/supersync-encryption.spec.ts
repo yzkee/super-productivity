@@ -132,15 +132,22 @@ test.describe('@supersync SuperSync Encryption', () => {
 
       // Verify Error UI - always assert error occurred
       // Silent decryption failure is unacceptable - wrong password MUST produce visible error
-      const hasError = await clientC.sync.hasSyncError();
-      // App uses snack-custom component, not simple-snack-bar
-      const snackbar = clientC.page.locator(
-        'snack-custom:has-text("decrypt"), ' +
-          'snack-custom:has-text("password"), ' +
-          '.mat-mdc-snack-bar-container:has-text("decrypt"), ' +
-          '.mat-mdc-snack-bar-container:has-text("password")',
-      );
-      expect(hasError || (await snackbar.first().isVisible())).toBe(true);
+      // Use retry logic since error indicators may take a moment to appear under load
+      await expect(async () => {
+        const hasError = await clientC.sync.hasSyncError();
+        // App uses snack-custom component, not simple-snack-bar
+        const snackbar = clientC.page.locator(
+          'snack-custom:has-text("decrypt"), ' +
+            'snack-custom:has-text("password"), ' +
+            '.mat-mdc-snack-bar-container:has-text("decrypt"), ' +
+            '.mat-mdc-snack-bar-container:has-text("password")',
+        );
+        const snackbarVisible = await snackbar
+          .first()
+          .isVisible()
+          .catch(() => false);
+        expect(hasError || snackbarVisible).toBe(true);
+      }).toPass({ timeout: 10000, intervals: [500, 1000, 2000] });
     } finally {
       if (clientA) await closeClient(clientA);
       if (clientC) await closeClient(clientC);
