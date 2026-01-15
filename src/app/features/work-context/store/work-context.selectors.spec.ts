@@ -208,6 +208,58 @@ describe('workContext selectors', () => {
         planned: [],
       } as any);
     });
+
+    it('should handle missing task entities gracefully (issue #6014)', () => {
+      // Simulate state where todayIds contains IDs that don't exist in entities
+      // This can happen during sync or when tasks are deleted
+      const existingTask = {
+        id: 'existing',
+        subTaskIds: [],
+        tagIds: [],
+        isDone: false,
+      } as Partial<TaskCopy> as TaskCopy;
+
+      // Create task state with only one task but multiple IDs
+      const taskState = {
+        ids: ['existing', 'missing1', 'missing2'],
+        entities: {
+          existing: existingTask,
+          // missing1 and missing2 are not in entities
+        },
+      } as any;
+
+      // This should not throw "Cannot read properties of undefined"
+      const result = selectTimelineTasks.projector(['existing', 'missing1'], taskState);
+
+      // Should only include the existing task, not crash on missing ones
+      expect(result.unPlanned.length).toBe(1);
+      expect(result.unPlanned[0].id).toBe('existing');
+      expect(result.planned.length).toBe(0);
+    });
+
+    it('should handle task with dueWithTime when some entities are missing (issue #6014)', () => {
+      const taskWithDueTime = {
+        id: 'withDueTime',
+        subTaskIds: [],
+        tagIds: [],
+        isDone: false,
+        dueWithTime: Date.now(),
+      } as Partial<TaskCopy> as TaskCopy;
+
+      const taskState = {
+        ids: ['withDueTime', 'missingTask'],
+        entities: {
+          withDueTime: taskWithDueTime,
+          // missingTask is not in entities
+        },
+      } as any;
+
+      // This should not throw "Cannot read properties of undefined (reading 'dueWithTime')"
+      const result = selectTimelineTasks.projector(['missingTask'], taskState);
+
+      expect(result.planned.length).toBe(1);
+      expect(result.planned[0].id).toBe('withDueTime');
+    });
   });
 
   describe('selectTodayTaskIds (virtual tag pattern - uses dueDay)', () => {

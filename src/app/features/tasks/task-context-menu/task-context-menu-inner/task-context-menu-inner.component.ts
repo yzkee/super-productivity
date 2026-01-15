@@ -120,7 +120,7 @@ export class TaskContextMenuInnerComponent implements AfterViewInit {
 
   isAdvancedControls = input<boolean>(false);
   todayList = toSignal(this._store.select(selectTodayTaskIds), { initialValue: [] });
-  isOnTodayList = computed(() => this.todayList().includes(this.task.id));
+  isOnTodayList = computed(() => this.task && this.todayList().includes(this.task.id));
   readonly isTimeTrackingEnabled = computed(
     () => this._globalConfigService.cfg()?.appFeatures.isTimeTrackingEnabled,
   );
