@@ -225,6 +225,33 @@ describe('FocusMode Bug #5875: Pomodoro timer sync issues', () => {
       });
     });
 
+    it('should dispatch setPausedTaskId before unsetCurrentTask (Bug #5737 race condition fix)', (done) => {
+      // Setup: Session is running, sync is enabled, task is being tracked
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+        isPauseTrackingDuringBreak: true,
+      });
+      currentTaskId$.next('task-123');
+      store.refreshState();
+
+      actions$ = of(actions.completeFocusSession({ isManual: true }));
+
+      // Bug #5737 fix: Effect must emit setPausedTaskId BEFORE unsetCurrentTask
+      // to store the task ID before it's cleared, enabling resume after break
+      effects.stopTrackingOnSessionEnd$
+        .pipe(take(2), toArray())
+        .subscribe((actionsArr) => {
+          expect(actionsArr.length).toBe(2);
+          expect(actionsArr[0].type).toEqual(actions.setPausedTaskId.type);
+          expect(
+            (actionsArr[0] as ReturnType<typeof actions.setPausedTaskId>).pausedTaskId,
+          ).toEqual('task-123');
+          expect(actionsArr[1].type).toEqual(unsetCurrentTask.type);
+          done();
+        });
+    });
+
     it('should NOT dispatch unsetCurrentTask when session ends automatically in Pomodoro mode (break auto-starts)', (done) => {
       // Setup: Session completes automatically in Pomodoro mode
       // Break will auto-start, so autoStartBreakOnSessionComplete$ handles tracking pause
