@@ -2887,6 +2887,67 @@ describe('FocusModeEffects', () => {
       }, 50);
     });
 
+    // Bug #5737: Manual break start should use cycle - 1 for break duration calculation
+    it('should dispatch long break when cycle=5 with manual break start (Bug #5737)', (done) => {
+      // After session 4 completes, incrementCycleOnSessionComplete$ runs first,
+      // setting cycle to 5. When user manually clicks start, we should use cycle - 1 = 4
+      // to correctly trigger the long break (every 4th session).
+      const getBreakDurationSpy = jasmine
+        .createSpy('getBreakDuration')
+        .and.callFake((cycle: number) => {
+          // Return long break for cycle 4 (every 4th session)
+          const isLong = cycle % 4 === 0;
+          return {
+            duration: isLong ? 15 * 60 * 1000 : 5 * 60 * 1000,
+            isLong,
+          };
+        });
+      strategyFactoryMock.getStrategy.and.returnValue({
+        shouldStartBreakAfterSession: true,
+        shouldAutoStartNextSession: true,
+        initialSessionDuration: 25 * 60 * 1000,
+        getBreakDuration: getBreakDurationSpy,
+      });
+
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 5); // Already incremented
+      store.refreshState();
+
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 25 * 60 * 1000,
+      });
+      const focusModeConfig = {
+        isManualBreakStart: true,
+        isPauseTrackingDuringBreak: false,
+      };
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        false, // isOnBreak
+        true, // isSessionCompleted
+        false, // isBreakTimeUp
+        focusModeConfig,
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        // Verify getBreakDuration was called with cycle - 1 = 4 (not 5)
+        expect(getBreakDurationSpy).toHaveBeenCalledWith(4);
+
+        const startBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startBreak.type);
+        expect(startBreakCall).toBeDefined();
+        // Long break should be 15 minutes (default), not 5 minutes (short break)
+        expect(startBreakCall?.args[0].duration).toBe(15 * 60 * 1000);
+        expect(startBreakCall?.args[0].isLongBreak).toBeTrue();
+        done();
+      }, 50);
+    });
+
     it('should dispatch startFocusSession when session completed with isManualBreakStart=false', (done) => {
       store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
       store.overrideSelector(selectors.selectCurrentCycle, 1);
