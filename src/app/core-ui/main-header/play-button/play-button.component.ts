@@ -157,15 +157,15 @@ import { distinctUntilChanged, observeOn } from 'rxjs/operators';
 
       .current-task-title {
         position: absolute;
-        right: 100%;
+        left: 100%;
         width: auto;
         border: 2px solid var(--c-accent);
         border-radius: 12px;
         min-width: 50px;
         white-space: nowrap;
         padding: var(--s-half) var(--s2);
-        padding-right: calc(var(--s) * 2.5);
-        margin-right: calc(-1 * var(--s) * 2);
+        padding-left: calc(var(--s) * 2.5);
+        margin-left: calc(-1 * var(--s) * 2);
         top: 50%;
         transform: translateY(-50%);
         transition: var(--transition-standard);

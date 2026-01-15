@@ -1,6 +1,20 @@
 <div class="wrapper">
   <page-title></page-title>
 
+  @if (isFocusModeEnabled() && !isXxxs()) {
+    <focus-button></focus-button>
+  }
+
+  @if (isTimeTrackingEnabled()) {
+    <play-button
+      class="play-button-right"
+      [currentTask]="currentTask()"
+      [currentTaskId]="currentTaskId()"
+      [currentTaskContext]="currentTaskContext()"
+      [hasTrackableTasks]="hasTrackableTasks()"
+    ></play-button>
+  }
+
   @if (isScheduleSection()) {
     <div class="week-month-selector">
       <button
@@ -25,15 +39,6 @@
   }
 
   <nav class="action-nav">
-    @if (isTimeTrackingEnabled()) {
-      <play-button
-        [currentTask]="currentTask()"
-        [currentTaskId]="currentTaskId()"
-        [currentTaskContext]="currentTaskContext()"
-        [hasTrackableTasks]="hasTrackableTasks()"
-      ></play-button>
-    }
-
     @if (showDesktopButtons()) {
       <button
         (click)="layoutService.showAddTaskBar()"
@@ -83,10 +88,6 @@
 
     @if (isUserProfilesEnabled()) {
       <user-profile-button></user-profile-button>
-    }
-
-    @if (isFocusModeEnabled() && !isXxxs()) {
-      <focus-button></focus-button>
     }
 
     <!-- Desktop: Show all buttons inline -->
