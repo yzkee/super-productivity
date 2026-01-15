@@ -168,7 +168,7 @@ import { distinctUntilChanged, observeOn } from 'rxjs/operators';
         margin-left: calc(-1 * var(--s) * 1.75);
         top: 50%;
         transform: translateY(-50%);
-        transition: opacity 0.15s ease-out;
+        transition: opacity 0.3s ease-out;
         display: flex;
         background: var(--bg-lighter);
         font-size: 13px;
