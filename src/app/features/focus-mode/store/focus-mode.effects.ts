@@ -201,6 +201,7 @@ export class FocusModeEffects {
   // Sync: When focus session starts → start tracking (if not already tracking)
   // Checks that the paused task still exists before starting tracking
   // Bug #5954 fix: Falls back to lastCurrentTask if no pausedTaskId (e.g., after app restart)
+  // Bug #5954 fix: Shows focus overlay if no valid (undone) task is available
   syncSessionStartToTracking$ = createEffect(() =>
     this.actions$.pipe(
       ofType(actions.startFocusSession),
@@ -224,11 +225,12 @@ export class FocusModeEffects {
         return this.store.select(selectTaskById, { id: taskIdToResume }).pipe(
           take(1),
           map((task) =>
-            task && !task.isDone ? setCurrentTask({ id: taskIdToResume }) : null,
+            task && !task.isDone
+              ? setCurrentTask({ id: taskIdToResume })
+              : actions.showFocusOverlay(),
           ),
         );
       }),
-      filter((action): action is ReturnType<typeof setCurrentTask> => action !== null),
     ),
   );
 
