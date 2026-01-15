@@ -173,7 +173,19 @@ import { distinctUntilChanged, observeOn } from 'rxjs/operators';
         background: var(--bg-lighter);
         font-size: 13px;
 
-        @media (max-width: 865px) {
+        @media (max-width: 1400px) {
+          .title {
+            max-width: 180px;
+          }
+        }
+
+        @media (max-width: 1280px) {
+          .title {
+            max-width: 140px;
+          }
+        }
+
+        @media (max-width: 1150px) {
           display: none;
         }
 
@@ -187,6 +199,10 @@ import { distinctUntilChanged, observeOn } from 'rxjs/operators';
           padding-right: 0;
           padding-left: var(--s-half);
           font-size: 12px;
+        }
+
+        ::ng-deep .action-nav-right:hover & {
+          visibility: hidden;
         }
       }
     `,

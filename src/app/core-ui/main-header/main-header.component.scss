@@ -310,6 +310,12 @@ button.isActive2 {
   line-height: 10px;
 }
 
+:host:hover ::ng-deep {
+  .current-task-title {
+    opacity: 0;
+  }
+}
+
 .focus-btn-wrapper {
   position: relative;
   display: inline-flex;
