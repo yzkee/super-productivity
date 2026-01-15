@@ -264,6 +264,13 @@ export const KEYBOARD_SETTINGS_FORM_CFG: ConfigFormSection<KeyboardConfig> = {
       },
     },
     {
+      key: 'taskUnschedule',
+      type: 'keyboard',
+      templateOptions: {
+        label: T.GCF.KEYBOARD.TASK_UNSCHEDULE,
+      },
+    },
+    {
       key: 'taskToggleDone',
       type: 'keyboard',
       templateOptions: {
