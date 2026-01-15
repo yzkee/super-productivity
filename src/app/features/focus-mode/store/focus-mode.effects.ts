@@ -691,13 +691,10 @@ export class FocusModeEffects {
               return;
             }
 
-            // In background mode, also show banner when paused
+            // Show banner when paused so user can resume from banner
             const useIconButtons = focusModeConfig?.isStartInBackground;
             const shouldShowBanner =
-              isSessionRunning ||
-              isOnBreak ||
-              isSessionCompleted ||
-              (useIconButtons && isSessionPaused);
+              isSessionRunning || isOnBreak || isSessionCompleted || isSessionPaused;
 
             // Check if break time is up (needed for both banner display and button actions)
             const isBreakTimeUp =
