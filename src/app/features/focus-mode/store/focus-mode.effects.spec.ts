@@ -454,6 +454,33 @@ describe('FocusModeEffects', () => {
           });
       });
 
+      it('should use cycle - 1 for break duration calculation (Bug #5737)', (done) => {
+        // Bug #5737 fix: incrementCycle fires before autoStartBreakOnSessionComplete$
+        // so we need to use cycle - 1 to get the correct session number for break calculation
+        // When cycle=5 (after session 4 completes), break should be calculated for cycle=4
+        actions$ = of(actions.completeFocusSession({ isManual: false }));
+        store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+        store.overrideSelector(selectors.selectCurrentCycle, 5); // After session 4 completes
+        store.refreshState();
+
+        const getBreakDurationSpy = jasmine
+          .createSpy('getBreakDuration')
+          .and.returnValue({ duration: 15 * 60 * 1000, isLong: true });
+
+        strategyFactoryMock.getStrategy.and.returnValue({
+          initialSessionDuration: 25 * 60 * 1000,
+          shouldStartBreakAfterSession: true,
+          shouldAutoStartNextSession: true,
+          getBreakDuration: getBreakDurationSpy,
+        });
+
+        effects.autoStartBreakOnSessionComplete$.pipe(toArray()).subscribe(() => {
+          // Verify getBreakDuration was called with cycle - 1 = 4 (not 5)
+          expect(getBreakDurationSpy).toHaveBeenCalledWith(4);
+          done();
+        });
+      });
+
       it('should NOT dispatch when strategy.shouldStartBreakAfterSession is false', (done) => {
         actions$ = of(actions.completeFocusSession({ isManual: false }));
         store.overrideSelector(selectors.selectMode, FocusModeMode.Flowtime);
@@ -477,7 +504,7 @@ describe('FocusModeEffects', () => {
     });
 
     describe('stopTrackingOnSessionEnd$', () => {
-      it('should dispatch unsetCurrentTask when isManual=true AND isSyncSessionWithTracking=true AND isPauseTrackingDuringBreak=true AND currentTaskId exists', (done) => {
+      it('should dispatch setPausedTaskId and unsetCurrentTask when isManual=true AND isSyncSessionWithTracking=true AND isPauseTrackingDuringBreak=true AND currentTaskId exists (Bug #5737)', (done) => {
         currentTaskId$.next('task-123');
         actions$ = of(actions.completeFocusSession({ isManual: true }));
         store.overrideSelector(selectFocusModeConfig, {
@@ -487,8 +514,14 @@ describe('FocusModeEffects', () => {
         });
         store.refreshState();
 
-        effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
-          expect(action).toEqual(unsetCurrentTask());
+        // Bug #5737 fix: Should dispatch both setPausedTaskId and unsetCurrentTask
+        // to preserve task for resumption after break
+        effects.stopTrackingOnSessionEnd$.pipe(toArray()).subscribe((actionsArr) => {
+          expect(actionsArr.length).toBe(2);
+          expect(actionsArr[0]).toEqual(
+            actions.setPausedTaskId({ pausedTaskId: 'task-123' }),
+          );
+          expect(actionsArr[1]).toEqual(unsetCurrentTask());
           done();
         });
       });
@@ -561,8 +594,9 @@ describe('FocusModeEffects', () => {
         });
       });
 
-      it('should dispatch unsetCurrentTask when isManual=false in Countdown mode (Bug #5996)', (done) => {
+      it('should dispatch setPausedTaskId and unsetCurrentTask when isManual=false in Countdown mode (Bug #5996, #5737)', (done) => {
         // In Countdown mode, no break auto-starts, so this effect should fire
+        // Bug #5737: Now also stores pausedTaskId for potential task resumption
         currentTaskId$.next('task-123');
         actions$ = of(actions.completeFocusSession({ isManual: false }));
         store.overrideSelector(selectFocusModeConfig, {
@@ -580,8 +614,12 @@ describe('FocusModeEffects', () => {
           getBreakDuration: () => null,
         });
 
-        effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
-          expect(action).toEqual(unsetCurrentTask());
+        effects.stopTrackingOnSessionEnd$.pipe(toArray()).subscribe((actionsArr) => {
+          expect(actionsArr.length).toBe(2);
+          expect(actionsArr[0]).toEqual(
+            actions.setPausedTaskId({ pausedTaskId: 'task-123' }),
+          );
+          expect(actionsArr[1]).toEqual(unsetCurrentTask());
           done();
         });
       });
@@ -2746,7 +2784,7 @@ describe('FocusModeEffects', () => {
     });
 
     describe('stopTrackingOnSessionEnd$ edge cases', () => {
-      it('should respect isPauseTrackingDuringBreak=true for manual session end', (done) => {
+      it('should respect isPauseTrackingDuringBreak=true for manual session end and store pausedTaskId (Bug #5737)', (done) => {
         store.overrideSelector(selectFocusModeConfig, {
           isSyncSessionWithTracking: true,
           isSkipPreparation: false,
@@ -2757,8 +2795,11 @@ describe('FocusModeEffects', () => {
 
         actions$ = of(actions.completeFocusSession({ isManual: true }));
 
-        effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
-          expect(action.type).toEqual('[Task] UnsetCurrentTask');
+        // Bug #5737: Now dispatches both setPausedTaskId and unsetCurrentTask
+        effects.stopTrackingOnSessionEnd$.pipe(toArray()).subscribe((actionsArr) => {
+          expect(actionsArr.length).toBe(2);
+          expect(actionsArr[0].type).toEqual('[FocusMode] Set Paused Task Id');
+          expect(actionsArr[1].type).toEqual('[Task] UnsetCurrentTask');
           done();
         });
       });
