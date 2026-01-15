@@ -383,7 +383,7 @@
   <ng-template matMenuContent>
     @for (tag of toggleTagList(); track $index) {
       <button
-        (click)="toggleTag(tag.id)"
+        (click)="toggleTag(tag.id); $event.stopPropagation()"
         mat-menu-item
         menuTouchFix
       >

@@ -11,7 +11,7 @@
   <ng-template matMenuContent>
     @for (tag of toggleTagList(); track $index) {
       <button
-        (click)="toggleTag.emit(tag.id)"
+        (click)="toggleTag.emit(tag.id); $event.stopPropagation()"
         (keydown)="onTagMenuKeydown($event, tag.id)"
         mat-menu-item
       >
