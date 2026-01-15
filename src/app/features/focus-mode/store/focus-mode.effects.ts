@@ -851,7 +851,10 @@ export class FocusModeEffects {
                     focusModeConfig?.isManualBreakStart &&
                     strategy.shouldStartBreakAfterSession
                   ) {
-                    const breakInfo = strategy.getBreakDuration(cycle ?? 1);
+                    // Bug #5737 fix: Use cycle - 1 since incrementCycle fires before user clicks
+                    // This ensures long break occurs after session 4, not session 5
+                    const actualCycle = Math.max(1, (cycle || 1) - 1);
+                    const breakInfo = strategy.getBreakDuration(actualCycle);
                     if (breakInfo) {
                       const currentTaskId = this.taskService.currentTaskId();
                       const shouldPauseTracking =
@@ -1001,7 +1004,10 @@ export class FocusModeEffects {
                     focusModeConfig?.isManualBreakStart &&
                     strategy.shouldStartBreakAfterSession
                   ) {
-                    const breakInfo = strategy.getBreakDuration(cycle ?? 1);
+                    // Bug #5737 fix: Use cycle - 1 since incrementCycle fires before user clicks
+                    // This ensures long break occurs after session 4, not session 5
+                    const actualCycle = Math.max(1, (cycle || 1) - 1);
+                    const breakInfo = strategy.getBreakDuration(actualCycle);
                     if (breakInfo) {
                       const currentTaskId = this.taskService.currentTaskId();
                       const shouldPauseTracking =
