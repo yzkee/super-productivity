@@ -40,7 +40,7 @@ import {
   selectIsFocusModeEnabled,
   selectPomodoroConfig,
 } from '../../config/store/global-config.reducer';
-import { take, toArray } from 'rxjs/operators';
+import { skip, take, toArray } from 'rxjs/operators';
 
 describe('FocusMode Bug #5875: Pomodoro timer sync issues', () => {
   let actions$: Observable<any>;
@@ -218,7 +218,8 @@ describe('FocusMode Bug #5875: Pomodoro timer sync issues', () => {
 
       actions$ = of(actions.completeFocusSession({ isManual: true }));
 
-      effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
+      // Effect emits setPausedTaskId first (Bug #5737 fix), then unsetCurrentTask
+      effects.stopTrackingOnSessionEnd$.pipe(skip(1), take(1)).subscribe((action) => {
         expect(action.type).toEqual(unsetCurrentTask.type);
         done();
       });
@@ -310,7 +311,8 @@ describe('FocusMode Bug #5875: Pomodoro timer sync issues', () => {
 
       actions$ = of(actions.completeFocusSession({ isManual: false }));
 
-      effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
+      // Effect emits setPausedTaskId first (Bug #5737 fix), then unsetCurrentTask
+      effects.stopTrackingOnSessionEnd$.pipe(skip(1), take(1)).subscribe((action) => {
         expect(action.type).toEqual(unsetCurrentTask.type);
         done();
       });
@@ -336,7 +338,8 @@ describe('FocusMode Bug #5875: Pomodoro timer sync issues', () => {
 
       actions$ = of(actions.completeFocusSession({ isManual: false }));
 
-      effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
+      // Effect emits setPausedTaskId first (Bug #5737 fix), then unsetCurrentTask
+      effects.stopTrackingOnSessionEnd$.pipe(skip(1), take(1)).subscribe((action) => {
         expect(action.type).toEqual(unsetCurrentTask.type);
         done();
       });
@@ -364,7 +367,8 @@ describe('FocusMode Bug #5875: Pomodoro timer sync issues', () => {
 
       actions$ = of(actions.completeFocusSession({ isManual: false }));
 
-      effects.stopTrackingOnSessionEnd$.pipe(take(1)).subscribe((action) => {
+      // Effect emits setPausedTaskId first (Bug #5737 fix), then unsetCurrentTask
+      effects.stopTrackingOnSessionEnd$.pipe(skip(1), take(1)).subscribe((action) => {
         expect(action.type).toEqual(unsetCurrentTask.type);
         done();
       });
