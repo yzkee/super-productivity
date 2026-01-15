@@ -2540,7 +2540,9 @@ describe('FocusModeEffects', () => {
         });
     });
 
-    it('should NOT dispatch setPausedTaskId when isPauseTrackingDuringBreak is false', (done) => {
+    // Bug #5974 fix: Store pausedTaskId even when isPauseTrackingDuringBreak is false
+    // This allows tracking to resume if user manually stops tracking before starting break
+    it('should dispatch setPausedTaskId when isPauseTrackingDuringBreak is false', (done) => {
       actions$ = of(actions.completeFocusSession({ isManual: false }));
       store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
       store.overrideSelector(selectFocusModeConfig, {
@@ -2552,12 +2554,11 @@ describe('FocusModeEffects', () => {
       currentTaskId$.next('task-123');
       store.refreshState();
 
-      effects.storePausedTaskOnManualBreakSession$
-        .pipe(toArray())
-        .subscribe((actionsArr) => {
-          expect(actionsArr.length).toBe(0);
-          done();
-        });
+      effects.storePausedTaskOnManualBreakSession$.pipe(take(1)).subscribe((action) => {
+        expect(action.type).toEqual(actions.setPausedTaskId.type);
+        expect(action.pausedTaskId).toBe('task-123');
+        done();
+      });
     });
 
     it('should NOT dispatch setPausedTaskId when no current task', (done) => {

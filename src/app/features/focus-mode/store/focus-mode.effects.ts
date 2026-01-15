@@ -383,6 +383,8 @@ export class FocusModeEffects {
 
   // Effect 5: Store pausedTaskId when session completes with manual break start
   // Bug #5954 fix: Ensures task can be resumed when break is skipped/completed
+  // Bug #5974 fix: Store pausedTaskId regardless of isPauseTrackingDuringBreak setting
+  // This allows tracking to resume when user manually stops tracking before starting break
   storePausedTaskOnManualBreakSession$ = createEffect(() =>
     this.actions$.pipe(
       ofType(actions.completeFocusSession),
@@ -393,11 +395,14 @@ export class FocusModeEffects {
       ),
       filter(([_, mode, config, currentTaskId]) => {
         const strategy = this.strategyFactory.getStrategy(mode);
-        // Only when manual break is enabled, pause tracking is enabled, and there's a current task
+        // Store pausedTaskId when manual break is enabled and there's a current task
+        // Note: We store regardless of isPauseTrackingDuringBreak because:
+        // - If isPauseTrackingDuringBreak=true: pausedTaskId is used to resume after break
+        // - If isPauseTrackingDuringBreak=false: pausedTaskId is used to resume if user
+        //   manually stopped tracking before starting the break (bug #5974)
         return (
           strategy.shouldStartBreakAfterSession &&
           !!config?.isManualBreakStart &&
-          !!config?.isPauseTrackingDuringBreak &&
           !!currentTaskId
         );
       }),
