@@ -2555,6 +2555,410 @@ describe('FocusModeEffects', () => {
     });
   });
 
+  describe('_getTextButtonActions banner button behavior (issue #6000)', () => {
+    let dispatchSpy: jasmine.Spy;
+
+    beforeEach(() => {
+      dispatchSpy = spyOn(store, 'dispatch').and.callThrough();
+    });
+
+    it('should have pause button when session is running', () => {
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 5 * 60 * 1000,
+        isRunning: true,
+      });
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        false, // isOnBreak
+        false, // isSessionCompleted
+        false, // isBreakTimeUp
+        {},
+      );
+
+      expect(buttonActions.action).toBeDefined();
+      expect(buttonActions.action.label).toBe('F.FOCUS_MODE.B.PAUSE');
+      expect(buttonActions.action.icon).toBeUndefined(); // Text buttons have no icon
+    });
+
+    it('should have resume button when session is paused', () => {
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 5 * 60 * 1000,
+        isRunning: false,
+      });
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        false, // isOnBreak
+        false, // isSessionCompleted
+        false, // isBreakTimeUp
+        {},
+      );
+
+      expect(buttonActions.action).toBeDefined();
+      expect(buttonActions.action.label).toBe('F.FOCUS_MODE.B.RESUME');
+    });
+
+    it('should dispatch pauseFocusSession when pause button clicked', (done) => {
+      taskServiceMock.currentTaskId = jasmine
+        .createSpy('currentTaskId')
+        .and.returnValue('task-123');
+
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 5 * 60 * 1000,
+        isRunning: true,
+      });
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        false,
+        false,
+        false,
+        {},
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        const pauseCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.pauseFocusSession.type);
+        expect(pauseCall).toBeDefined();
+        expect(pauseCall?.args[0].pausedTaskId).toBe('task-123');
+        done();
+      }, 50);
+    });
+
+    it('should dispatch unPauseFocusSession when resume button clicked', (done) => {
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 5 * 60 * 1000,
+        isRunning: false,
+      });
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        false,
+        false,
+        false,
+        {},
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        const resumeCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.unPauseFocusSession.type);
+        expect(resumeCall).toBeDefined();
+        done();
+      }, 50);
+    });
+
+    it('should have end session button during work session', () => {
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 5 * 60 * 1000,
+        isRunning: true,
+      });
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        false, // isOnBreak
+        false, // isSessionCompleted
+        false, // isBreakTimeUp
+        {},
+      );
+
+      expect(buttonActions.action2).toBeDefined();
+      expect(buttonActions.action2.label).toBe('F.FOCUS_MODE.B.END_SESSION');
+    });
+
+    it('should dispatch completeFocusSession when end session button clicked', (done) => {
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 5 * 60 * 1000,
+        isRunning: true,
+      });
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        false,
+        false,
+        false,
+        {},
+      );
+
+      buttonActions.action2.fn();
+
+      setTimeout(() => {
+        const completeCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.completeFocusSession.type);
+        expect(completeCall).toBeDefined();
+        expect(completeCall?.args[0].isManual).toBeTrue();
+        done();
+      }, 50);
+    });
+
+    it('should have skip break button during break', () => {
+      const timer = createMockTimer({
+        purpose: 'break',
+        duration: 5 * 60 * 1000,
+        elapsed: 2 * 60 * 1000,
+        isRunning: true,
+      });
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        true, // isOnBreak
+        false, // isSessionCompleted
+        false, // isBreakTimeUp
+        {},
+      );
+
+      expect(buttonActions.action2).toBeDefined();
+      expect(buttonActions.action2.label).toBe('F.FOCUS_MODE.SKIP_BREAK');
+    });
+
+    it('should dispatch skipBreak when skip break button clicked', (done) => {
+      store.overrideSelector(selectors.selectPausedTaskId, 'paused-task-123');
+      store.refreshState();
+
+      const timer = createMockTimer({
+        purpose: 'break',
+        duration: 5 * 60 * 1000,
+        elapsed: 2 * 60 * 1000,
+        isRunning: true,
+      });
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        true, // isOnBreak
+        false,
+        false,
+        {},
+      );
+
+      buttonActions.action2.fn();
+
+      setTimeout(() => {
+        const skipBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.skipBreak.type);
+        expect(skipBreakCall).toBeDefined();
+        expect(skipBreakCall?.args[0].pausedTaskId).toBe('paused-task-123');
+        done();
+      }, 50);
+    });
+
+    it('should have start button when session is completed', () => {
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 25 * 60 * 1000,
+        isRunning: false,
+      });
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        false, // isOnBreak
+        true, // isSessionCompleted
+        false, // isBreakTimeUp
+        {},
+      );
+
+      expect(buttonActions.action).toBeDefined();
+      expect(buttonActions.action.label).toBe('F.FOCUS_MODE.B.START');
+      // action2 should be undefined when start button is shown
+      expect(buttonActions.action2).toBeUndefined();
+    });
+
+    it('should have start button when break time is up', () => {
+      const timer = createMockTimer({
+        purpose: 'break',
+        duration: 5 * 60 * 1000,
+        elapsed: 5 * 60 * 1000,
+        isRunning: false,
+      });
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        true, // isOnBreak
+        false, // isSessionCompleted
+        true, // isBreakTimeUp
+        {},
+      );
+
+      expect(buttonActions.action).toBeDefined();
+      expect(buttonActions.action.label).toBe('F.FOCUS_MODE.B.START');
+      expect(buttonActions.action2).toBeUndefined();
+    });
+
+    it('should always have to focus overlay button', () => {
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 5 * 60 * 1000,
+        isRunning: true,
+      });
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        false,
+        false,
+        false,
+        {},
+      );
+
+      expect(buttonActions.action3).toBeDefined();
+      expect(buttonActions.action3.label).toBe('F.FOCUS_MODE.B.TO_FOCUS_OVERLAY');
+    });
+
+    it('should dispatch showFocusOverlay when to focus overlay button clicked', (done) => {
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 5 * 60 * 1000,
+        isRunning: true,
+      });
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        false,
+        false,
+        false,
+        {},
+      );
+
+      buttonActions.action3.fn();
+
+      setTimeout(() => {
+        const overlayCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === '[FocusMode] Show Overlay');
+        expect(overlayCall).toBeDefined();
+        done();
+      }, 50);
+    });
+
+    it('should dispatch startBreak when session completed with isManualBreakStart=true in Pomodoro mode', (done) => {
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 1);
+      store.refreshState();
+
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 25 * 60 * 1000,
+      });
+      const focusModeConfig = {
+        isManualBreakStart: true,
+        isPauseTrackingDuringBreak: false,
+      };
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        false, // isOnBreak
+        true, // isSessionCompleted
+        false, // isBreakTimeUp
+        focusModeConfig,
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        const startBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startBreak.type);
+        expect(startBreakCall).toBeDefined();
+        expect(startBreakCall?.args[0].duration).toBe(5 * 60 * 1000);
+        expect(startBreakCall?.args[0].isLongBreak).toBeFalse();
+        done();
+      }, 50);
+    });
+
+    it('should dispatch startFocusSession when session completed with isManualBreakStart=false', (done) => {
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentCycle, 1);
+      store.refreshState();
+
+      const timer = createMockTimer({
+        purpose: 'work',
+        duration: 25 * 60 * 1000,
+        elapsed: 25 * 60 * 1000,
+      });
+      const focusModeConfig = {
+        isManualBreakStart: false,
+      };
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        false,
+        true,
+        false,
+        focusModeConfig,
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        const startSessionCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startFocusSession.type);
+        const startBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.startBreak.type);
+        expect(startSessionCall).toBeDefined();
+        expect(startBreakCall).toBeUndefined();
+        done();
+      }, 50);
+    });
+
+    it('should handle isBreakTimeUp case correctly', (done) => {
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectPausedTaskId, null);
+      store.refreshState();
+
+      const timer = createMockTimer({
+        purpose: 'break',
+        duration: 5 * 60 * 1000,
+        elapsed: 5 * 60 * 1000,
+        isRunning: false,
+      });
+      const focusModeConfig = {
+        isManualBreakStart: true,
+      };
+
+      const buttonActions = (effects as any)._getTextButtonActions(
+        timer,
+        true, // isOnBreak
+        false, // isSessionCompleted
+        true, // isBreakTimeUp
+        focusModeConfig,
+      );
+
+      buttonActions.action.fn();
+
+      setTimeout(() => {
+        const skipBreakCall = dispatchSpy.calls
+          .all()
+          .find((call) => call.args[0]?.type === actions.skipBreak.type);
+        expect(skipBreakCall).toBeDefined();
+        done();
+      }, 50);
+    });
+  });
+
   describe('storePausedTaskOnManualBreakSession$ (Bug #5954)', () => {
     it('should dispatch setPausedTaskId when session completes with manual break start and pause tracking enabled', (done) => {
       actions$ = of(actions.completeFocusSession({ isManual: false }));
