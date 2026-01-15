@@ -72,9 +72,7 @@ export class NavListTreeComponent {
   readonly allUnarchivedProjects = this._navConfigService.allUnarchivedProjects;
 
   // ViewChild for visibility menu trigger to close menu after toggling
-  visibilityMenuTrigger = viewChild<MatMenuTrigger>('visibilityBtn', {
-    read: MatMenuTrigger,
-  });
+  visibilityMenuTrigger = viewChild('visibilityBtn', { read: MatMenuTrigger });
 
   readonly treeNodes = signal<TreeNode<MenuTreeViewNode>[]>([]);
   readonly treeKind = computed<MenuTreeKind>(() => this.item().treeKind);
