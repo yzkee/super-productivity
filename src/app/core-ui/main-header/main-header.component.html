@@ -1,6 +1,20 @@
 <div class="wrapper">
   <page-title></page-title>
 
+  <!-- Desktop: Show all buttons inline -->
+  @if (showDesktopButtons()) {
+    <!-- Simple counter buttons -->
+    @for (
+      simpleCounter of enabledSimpleCounters();
+      track trackById($index, simpleCounter)
+    ) {
+      <simple-counter-button
+        [matTooltip]="simpleCounter.title"
+        [simpleCounter]="simpleCounter"
+      ></simple-counter-button>
+    }
+  }
+
   @if (isFocusModeEnabled() && !isXxxs()) {
     <focus-button></focus-button>
   }
@@ -92,17 +106,6 @@
 
     <!-- Desktop: Show all buttons inline -->
     @if (showDesktopButtons()) {
-      <!-- Simple counter buttons -->
-      @for (
-        simpleCounter of enabledSimpleCounters();
-        track trackById($index, simpleCounter)
-      ) {
-        <simple-counter-button
-          [matTooltip]="simpleCounter.title"
-          [simpleCounter]="simpleCounter"
-        ></simple-counter-button>
-      }
-
       <plugin-side-panel-btns></plugin-side-panel-btns>
 
       <desktop-panel-buttons
