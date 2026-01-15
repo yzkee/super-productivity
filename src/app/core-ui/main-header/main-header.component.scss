@@ -68,25 +68,6 @@
   }
 }
 
-.action-nav-left {
-  display: flex;
-  align-items: center;
-  gap: var(--header-nav-button-gap);
-  flex-shrink: 0;
-
-  ::ng-deep button {
-    width: 36px;
-    height: 36px;
-
-    .mat-icon {
-      font-size: 20px;
-      width: 20px;
-      height: 20px;
-      line-height: 20px;
-    }
-  }
-}
-
 .project-settings-btn {
   display: none;
   @include mq(xs) {
@@ -113,6 +94,25 @@ button {
 button.isActive2 {
   background: var(--c-accent);
   transition: background var(--transition-standard);
+}
+
+.action-nav-left {
+  display: flex;
+  align-items: center;
+  gap: var(--header-nav-button-gap);
+  flex-shrink: 0;
+
+  ::ng-deep button {
+    width: 36px;
+    height: 36px;
+
+    .mat-icon {
+      font-size: 20px;
+      width: 20px;
+      height: 20px;
+      line-height: 20px;
+    }
+  }
 }
 
 .action-nav-right {
