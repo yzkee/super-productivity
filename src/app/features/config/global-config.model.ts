@@ -180,6 +180,8 @@ export type ReminderConfig = Readonly<{
   defaultTaskRemindOption?: TaskReminderOptionId;
   disableReminders?: boolean;
   isFocusWindow?: boolean;
+  // Android only: use alarm-style notifications (louder, more intrusive)
+  useAlarmStyleReminders?: boolean;
 }>;
 
 export type TrackingReminderConfigOld = Readonly<{

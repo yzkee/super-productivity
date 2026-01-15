@@ -175,6 +175,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     countdownDuration: minute * 10,
     defaultTaskRemindOption: TaskReminderOptionId.AtStart, // The hard-coded default prior to this changeable setting
     isFocusWindow: false,
+    useAlarmStyleReminders: false,
   },
   schedule: {
     isWorkStartEndEnabled: true,

@@ -1859,7 +1859,9 @@
       "DISABLE_REMINDERS": "Disable all reminders",
       "IS_COUNTDOWN_BANNER_ENABLED": "Show countdown banner before reminders are due",
       "IS_FOCUS_WINDOW": "Focus application window when reminder is triggered",
-      "TITLE": "Reminders"
+      "TITLE": "Reminders",
+      "USE_ALARM_STYLE_REMINDERS": "Use alarm-style notifications (Android)",
+      "USE_ALARM_STYLE_REMINDERS_DESCRIPTION": "When enabled, reminders use louder alarm sounds and more intrusive notifications. Recommended for critical reminders."
     },
     "SCHEDULE": {
       "HELP": "The schedule feature should provide you with a quick overview over how your planned tasks play out over time. You can find it in the left hand menu under <a href='#/schedule'>'Schedule'</a>. ",

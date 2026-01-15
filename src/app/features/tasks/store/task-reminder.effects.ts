@@ -9,7 +9,10 @@ import { SnackService } from '../../../core/snack/snack.service';
 import { TaskService } from '../task.service';
 import { Store } from '@ngrx/store';
 import { LocaleDatePipe } from 'src/app/ui/pipes/locale-date.pipe';
-import { IS_ANDROID_WEB_VIEW } from '../../../util/is-android-web-view';
+import {
+  IS_ANDROID_WEB_VIEW,
+  IS_ANDROID_WEB_VIEW_TOKEN,
+} from '../../../util/is-android-web-view';
 import { androidInterface } from '../../android/android-interface';
 import { generateNotificationId } from '../../android/android-notification-id.util';
 
@@ -20,6 +23,7 @@ export class TaskReminderEffects {
   private _taskService = inject(TaskService);
   private _store = inject(Store);
   private _datePipe = inject(LocaleDatePipe);
+  private _isAndroidWebView = inject(IS_ANDROID_WEB_VIEW_TOKEN);
 
   snack$ = createEffect(
     () =>
@@ -127,6 +131,25 @@ export class TaskReminderEffects {
             msg: T.F.TASK.S.REMINDER_DELETED,
             ico: 'schedule',
           });
+        }),
+      ),
+    { dispatch: false },
+  );
+
+  // Cancel native Android reminders when reminder is removed or dismissed
+  // Uses injection token with filter for testability (unlike other Android effects)
+  cancelNativeReminderOnUnschedule$ = createEffect(
+    () =>
+      this._localActions$.pipe(
+        ofType(TaskSharedActions.unscheduleTask, TaskSharedActions.dismissReminderOnly),
+        filter(() => this._isAndroidWebView),
+        tap(({ id }) => {
+          try {
+            const notificationId = generateNotificationId(id);
+            androidInterface.cancelNativeReminder?.(notificationId);
+          } catch (e) {
+            console.error('Failed to cancel native reminder:', e);
+          }
         }),
       ),
     { dispatch: false },

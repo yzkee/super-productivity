@@ -10,6 +10,7 @@ import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions'
 import { DEFAULT_TASK, Task } from '../task.model';
 import { TestScheduler } from 'rxjs/testing';
 import { T } from '../../../t.const';
+import { IS_ANDROID_WEB_VIEW_TOKEN } from '../../../util/is-android-web-view';
 
 describe('TaskReminderEffects', () => {
   let actions$: Observable<Action>;
@@ -47,6 +48,7 @@ describe('TaskReminderEffects', () => {
         { provide: TaskService, useValue: taskServiceSpy },
         { provide: Store, useValue: storeSpy },
         { provide: LocaleDatePipe, useValue: datePipeSpy },
+        { provide: IS_ANDROID_WEB_VIEW_TOKEN, useValue: false },
       ],
     });
 
@@ -297,4 +299,112 @@ describe('TaskReminderEffects', () => {
 
   // NOTE: Tests for removeTaskReminderTrigger1$ were removed because the effect no longer exists.
   // The reminder removal is now handled differently in the task-shared scheduling meta-reducer.
+});
+
+// NOTE: Full Android integration tests for cancelNativeReminderOnUnschedule$ require
+// androidInterface to be initialized (only happens in Android WebView).
+// These tests verify the filter behavior with the injection token.
+
+describe('TaskReminderEffects - cancelNativeReminderOnUnschedule$ filter', () => {
+  let actions$: Observable<Action>;
+  let effects: TaskReminderEffects;
+
+  describe('when IS_ANDROID_WEB_VIEW_TOKEN is true', () => {
+    beforeEach(() => {
+      const snackServiceSpy = jasmine.createSpyObj('SnackService', ['open']);
+      const taskServiceSpy = jasmine.createSpyObj('TaskService', ['getByIdOnce$']);
+      const storeSpy = jasmine.createSpyObj('Store', ['dispatch']);
+      const datePipeSpy = jasmine.createSpyObj('LocaleDatePipe', ['transform']);
+
+      TestBed.configureTestingModule({
+        providers: [
+          TaskReminderEffects,
+          provideMockActions(() => actions$),
+          { provide: SnackService, useValue: snackServiceSpy },
+          { provide: TaskService, useValue: taskServiceSpy },
+          { provide: Store, useValue: storeSpy },
+          { provide: LocaleDatePipe, useValue: datePipeSpy },
+          { provide: IS_ANDROID_WEB_VIEW_TOKEN, useValue: true },
+        ],
+      });
+
+      effects = TestBed.inject(TaskReminderEffects);
+    });
+
+    it('should pass through unscheduleTask action when on Android', (done) => {
+      const action = TaskSharedActions.unscheduleTask({ id: 'task-1' });
+      actions$ = of(action);
+
+      // Verify the effect emits (filter passes)
+      effects.cancelNativeReminderOnUnschedule$.subscribe({
+        next: () => {
+          // Action passed through the filter - this is the expected behavior
+          expect(true).toBe(true);
+          done();
+        },
+        error: () => {
+          // The tap may throw because androidInterface is undefined,
+          // but the filter still passed, which is what we're testing
+          expect(true).toBe(true);
+          done();
+        },
+      });
+    });
+
+    it('should pass through dismissReminderOnly action when on Android', (done) => {
+      const action = TaskSharedActions.dismissReminderOnly({ id: 'task-1' });
+      actions$ = of(action);
+
+      effects.cancelNativeReminderOnUnschedule$.subscribe({
+        next: () => {
+          expect(true).toBe(true);
+          done();
+        },
+        error: () => {
+          expect(true).toBe(true);
+          done();
+        },
+      });
+    });
+  });
+
+  describe('when IS_ANDROID_WEB_VIEW_TOKEN is false', () => {
+    beforeEach(() => {
+      const snackServiceSpy = jasmine.createSpyObj('SnackService', ['open']);
+      const taskServiceSpy = jasmine.createSpyObj('TaskService', ['getByIdOnce$']);
+      const storeSpy = jasmine.createSpyObj('Store', ['dispatch']);
+      const datePipeSpy = jasmine.createSpyObj('LocaleDatePipe', ['transform']);
+
+      TestBed.configureTestingModule({
+        providers: [
+          TaskReminderEffects,
+          provideMockActions(() => actions$),
+          { provide: SnackService, useValue: snackServiceSpy },
+          { provide: TaskService, useValue: taskServiceSpy },
+          { provide: Store, useValue: storeSpy },
+          { provide: LocaleDatePipe, useValue: datePipeSpy },
+          { provide: IS_ANDROID_WEB_VIEW_TOKEN, useValue: false },
+        ],
+      });
+
+      effects = TestBed.inject(TaskReminderEffects);
+    });
+
+    it('should filter out actions when not on Android', (done) => {
+      const action = TaskSharedActions.unscheduleTask({ id: 'task-1' });
+      actions$ = of(action);
+
+      let emitted = false;
+      effects.cancelNativeReminderOnUnschedule$.subscribe({
+        next: () => {
+          emitted = true;
+        },
+        complete: () => {
+          // Filter should block the action, so nothing should emit
+          expect(emitted).toBe(false);
+          done();
+        },
+      });
+    });
+  });
 });
