@@ -64,6 +64,20 @@ export class IconInputComponent extends FieldType<FormlyFieldConfig> implements 
     return i;
   }
 
+  onFocus(): void {
+    // Show initial icons when field is focused and no filter applied yet
+    if (this.filteredIcons().length === 0) {
+      const currentValue = this.formControl.value || '';
+      if (currentValue) {
+        // If there's a current value, filter by it
+        this.onInputValueChange(currentValue);
+      } else {
+        // Show first 50 icons when empty
+        this.filteredIcons.set(MATERIAL_ICONS.slice(0, 50));
+      }
+    }
+  }
+
   onInputValueChange(val: string): void {
     // Skip if this is the value we just set programmatically (prevents double processing)
     if (val === this._lastSetValue) {
