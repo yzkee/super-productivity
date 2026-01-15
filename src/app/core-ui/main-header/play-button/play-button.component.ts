@@ -145,7 +145,7 @@ import { distinctUntilChanged, observeOn } from 'rxjs/operators';
         .play-btn {
           position: relative;
           margin-left: 0;
-          z-index: 2;
+          z-index: 6;
           box-shadow: var(--whiteframe-shadow-2dp);
 
           .mat-icon {
@@ -168,24 +168,13 @@ import { distinctUntilChanged, observeOn } from 'rxjs/operators';
         margin-left: calc(-1 * var(--s) * 1.75);
         top: 50%;
         transform: translateY(-50%);
-        transition: var(--transition-standard);
+        transition: opacity 0.15s ease-out;
         display: flex;
         background: var(--bg-lighter);
         font-size: 13px;
+        z-index: 5;
 
-        @media (max-width: 1400px) {
-          .title {
-            max-width: 180px;
-          }
-        }
-
-        @media (max-width: 1280px) {
-          .title {
-            max-width: 140px;
-          }
-        }
-
-        @media (max-width: 1150px) {
+        @media (max-width: 1050px) {
           display: none;
         }
 
@@ -199,10 +188,6 @@ import { distinctUntilChanged, observeOn } from 'rxjs/operators';
           padding-right: 0;
           padding-left: var(--s-half);
           font-size: 12px;
-        }
-
-        ::ng-deep .action-nav-right:hover & {
-          visibility: hidden;
         }
       }
     `,
