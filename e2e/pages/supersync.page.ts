@@ -260,16 +260,23 @@ export class SuperSyncPage extends BasePage {
 
     // Wait for formly to re-render SuperSync-specific fields after provider selection
     // The hideExpression on these fields triggers a re-render that needs time to complete
+    // NOTE: The mat-select UI updates immediately, but the formly model update is async.
+    // We must wait for the actual DOM elements to appear, not just the UI selection.
     await this.page.waitForLoadState('networkidle').catch(() => {});
-    await this.page.waitForTimeout(500);
 
     // Fill Access Token first (it's outside the collapsible)
-    // Use toPass() to handle slow formly rendering of the textarea
+    // Use toPass() to handle slow formly model updates and hideExpression re-evaluation
+    // First wait for the wrapper element to exist (formly has processed the model change)
+    // Then wait for the textarea inside to be visible
     await expect(async () => {
+      // Check if the wrapper element exists (formly hideExpression has evaluated)
+      const wrapper = this.page.locator('.e2e-accessToken');
+      await wrapper.waitFor({ state: 'attached', timeout: 3000 });
+      // Then check if the textarea is visible
       await this.accessTokenInput.waitFor({ state: 'visible', timeout: 3000 });
     }).toPass({
-      timeout: 15000,
-      intervals: [500, 1000, 1500, 2000],
+      timeout: 30000,
+      intervals: [500, 1000, 1500, 2000, 3000],
     });
     await this.accessTokenInput.fill(config.accessToken);
 
