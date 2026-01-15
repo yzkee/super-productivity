@@ -68,6 +68,13 @@
   }
 }
 
+.action-nav-left {
+  display: flex;
+  align-items: center;
+  gap: var(--header-nav-button-gap);
+  flex-shrink: 0;
+}
+
 .project-settings-btn {
   display: none;
   @include mq(xs) {
