@@ -55,19 +55,16 @@ plugin.registerHook(PluginHooks.TASK_UPDATE, (taskData: TaskUpdatePayload) => {
 });
 
 // Example: Hook into context changes
-plugin.registerHook(
-  PluginHooks.ANY_TASK_UPDATE,
-  async (payload: AnyTaskUpdatePayload) => {
-    const changes = payload.changes;
-    if (changes && 'projectId' in changes && changes.projectId) {
-      const projects = await plugin.getAllProjects();
-      const currentProject = projects.find((p) => p.id === changes.projectId);
-      if (currentProject) {
-        plugin.log.info('Switched to project:', currentProject.title);
-      }
+plugin.registerHook(PluginHooks.ANY_TASK_UPDATE, async (payload: AnyTaskUpdatePayload) => {
+  const changes = payload.changes;
+  if (changes && 'projectId' in changes && changes.projectId) {
+    const projects = await plugin.getAllProjects();
+    const currentProject = projects.find((p) => p.id === changes.projectId);
+    if (currentProject) {
+      plugin.log.info('Switched to project:', currentProject.title);
     }
-  },
-);
+  }
+});
 
 // Example: Custom command handler
 if (plugin.onMessage) {
@@ -76,8 +73,7 @@ if (plugin.onMessage) {
       case 'getStats':
         const tasks = await plugin.getTasks();
         const completedToday = tasks.filter(
-          (t) =>
-            t.isDone && new Date(t.doneOn!).toDateString() === new Date().toDateString(),
+          (t) => t.isDone && new Date(t.doneOn!).toDateString() === new Date().toDateString(),
         );
 
         return {
@@ -111,8 +107,25 @@ if (plugin.onMessage) {
         const settings = await plugin.loadSyncedData();
         return settings ? JSON.parse(settings) : {};
       }
+      // i18n support
+      case 'translate':
+        return plugin.translate(message.data.key, message.data.params);
+      case 'getCurrentLanguage':
+        return plugin.getCurrentLanguage();
       default:
         return { error: 'Unknown message type' };
     }
   });
 }
+
+// Listen for language changes and notify iframe
+plugin.registerHook(PluginHooks.LANGUAGE_CHANGE, (language: string) => {
+  // Notify the iframe about language change
+  const iframe = document.querySelector('iframe[data-plugin-iframe]');
+  if (iframe && (iframe as HTMLIFrameElement).contentWindow) {
+    (iframe as HTMLIFrameElement).contentWindow!.postMessage(
+      { type: 'languageChanged', language },
+      '*',
+    );
+  }
+});
