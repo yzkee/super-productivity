@@ -41,7 +41,7 @@ The iOS build is automated via `.github/workflows/build-ios.yml`. It triggers on
 
 1. Go to [Apple Developer Portal → Profiles](https://developer.apple.com/account/resources/profiles/list)
 2. Click **+** → **App Store Connect** (under Distribution)
-3. Select App ID: `com.superproductivity.superproductivity`
+3. Select App ID: `com.super-productivity.app`
 4. Select your **Apple Distribution** certificate
 5. Download the `.mobileprovision` file
 6. Base64 encode: `base64 -i profile.mobileprovision | pbcopy`
@@ -67,6 +67,6 @@ To capture:
 
 1. Go to [App Store Connect](https://appstoreconnect.apple.com) → My Apps → **+** → New App
 2. Select **iOS** platform
-3. Bundle ID: `com.superproductivity.superproductivity`
+3. Bundle ID: `com.super-productivity.app`
 4. Fill in app name, SKU, etc.
 5. Builds uploaded via workflow appear under **TestFlight** tab

@@ -88,7 +88,7 @@ jobs:
           echo "App ID: $PROFILE_APP_ID"
           echo "=================================="
           # Verify bundle ID matches
-          EXPECTED_BUNDLE_ID="com.superproductivity.superproductivity"
+          EXPECTED_BUNDLE_ID="com.super-productivity.app"
           if [ "$PROFILE_APP_ID" != "$EXPECTED_BUNDLE_ID" ]; then
             echo "ERROR: Provisioning profile app ID ($PROFILE_APP_ID) does not match expected bundle ID ($EXPECTED_BUNDLE_ID)"
             echo "Please create a new provisioning profile with the correct bundle ID"
@@ -170,7 +170,7 @@ jobs:
               <string>manual</string>
               <key>provisioningProfiles</key>
               <dict>
-                  <key>com.superproductivity.superproductivity</key>
+                  <key>com.super-productivity.app</key>
                   <string>${{ env.PROVISIONING_PROFILE_UUID }}</string>
               </dict>
           </dict>
