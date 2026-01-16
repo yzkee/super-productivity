@@ -5,6 +5,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { fadeAnimation } from '../../ui/animations/fade.ani';
 import { T } from '../../t.const';
 import { ProjectMetricsService } from './project-metrics.service';
+import { AllTasksMetricsService } from './all-tasks-metrics.service';
 import { WorkContextService } from '../work-context/work-context.service';
 import { LazyChartComponent } from './lazy-chart/lazy-chart.component';
 import { DecimalPipe } from '@angular/common';
@@ -16,6 +17,7 @@ import { ShareFormatter } from '../../core/share/share-formatter';
 import { SharePayload } from '../../core/share/share.model';
 import { map } from 'rxjs/operators';
 import { calculateSustainabilityScore } from './metric-scoring.util';
+import { TODAY_TAG } from '../tag/tag.const';
 
 @Component({
   selector: 'metric',
@@ -36,10 +38,28 @@ export class MetricComponent {
   workContextService = inject(WorkContextService);
   metricService = inject(MetricService);
   projectMetricsService = inject(ProjectMetricsService);
+  allTasksMetricsService = inject(AllTasksMetricsService);
 
   T: typeof T = T;
 
   activeWorkContext = toSignal(this.workContextService.activeWorkContext$);
+
+  /**
+   * Determine which metrics service to use based on the active work context.
+   * - For TODAY_TAG: use AllTasksMetricsService (shows all tasks)
+   * - For other contexts: use ProjectMetricsService (project/tag specific)
+   */
+  private _isShowingAllTasks = computed(() => {
+    const context = this.activeWorkContext();
+    return context?.id === TODAY_TAG.id;
+  });
+
+  /**
+   * Dynamic title that changes based on context
+   */
+  metricsTitle = computed(() => {
+    return this._isShowingAllTasks() ? 'Metrics (all tasks)' : this.T.PM.TITLE;
+  });
 
   simpleClickCounterData = toSignal(this.metricService.getSimpleClickCounterMetrics$());
 
@@ -123,8 +143,18 @@ export class MetricComponent {
   };
   lineChartType: ChartType = 'line';
 
+  /**
+   * Simple metrics signal that switches between AllTasksMetricsService and ProjectMetricsService
+   * based on the current context
+   */
+  simpleMetrics = computed(() => {
+    return this._isShowingAllTasks()
+      ? this.allTasksMetricsService.simpleMetrics()
+      : this.projectMetricsService.simpleMetrics();
+  });
+
   sharePayload = computed<SharePayload>(() => {
-    const sm = this.projectMetricsService.simpleMetrics();
+    const sm = this.simpleMetrics();
     const workContext = this.activeWorkContext();
 
     if (!sm) {
