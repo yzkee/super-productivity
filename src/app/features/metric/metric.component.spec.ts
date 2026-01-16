@@ -169,12 +169,12 @@ describe('MetricComponent', () => {
   });
 
   describe('metricsTitle computed', () => {
-    it('should return "Metrics (all tasks)" when viewing TODAY_TAG', () => {
+    it('should return PM.ALL_TASKS_TITLE when viewing TODAY_TAG', () => {
       activeWorkContext$.next(
         createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
       );
 
-      expect(component.metricsTitle()).toBe('Metrics (all tasks)');
+      expect(component.metricsTitle()).toBe(T.PM.ALL_TASKS_TITLE);
     });
 
     it('should return T.PM.TITLE when viewing a regular project', () => {
@@ -287,7 +287,7 @@ describe('MetricComponent', () => {
         createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
       );
       expect(component.simpleMetrics()?.nrOfAllTasks).toBe(100);
-      expect(component.metricsTitle()).toBe('Metrics (all tasks)');
+      expect(component.metricsTitle()).toBe(T.PM.ALL_TASKS_TITLE);
     });
 
     it('should switch from AllTasksMetrics to ProjectMetrics when changing context', () => {
@@ -302,7 +302,7 @@ describe('MetricComponent', () => {
         createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
       );
       expect(component.simpleMetrics()?.nrOfAllTasks).toBe(100);
-      expect(component.metricsTitle()).toBe('Metrics (all tasks)');
+      expect(component.metricsTitle()).toBe(T.PM.ALL_TASKS_TITLE);
 
       // Switch to a project
       activeWorkContext$.next(

@@ -7,6 +7,7 @@ import { T } from '../../t.const';
 import { ProjectMetricsService } from './project-metrics.service';
 import { AllTasksMetricsService } from './all-tasks-metrics.service';
 import { WorkContextService } from '../work-context/work-context.service';
+import { WorkContextType } from '../work-context/work-context.model';
 import { LazyChartComponent } from './lazy-chart/lazy-chart.component';
 import { DecimalPipe } from '@angular/common';
 import { MsToStringPipe } from '../../ui/duration/ms-to-string.pipe';
@@ -51,14 +52,14 @@ export class MetricComponent {
    */
   private _isShowingAllTasks = computed(() => {
     const context = this.activeWorkContext();
-    return context?.id === TODAY_TAG.id;
+    return context?.type === WorkContextType.TAG && context.id === TODAY_TAG.id;
   });
 
   /**
    * Dynamic title that changes based on context
    */
   metricsTitle = computed(() => {
-    return this._isShowingAllTasks() ? 'Metrics (all tasks)' : this.T.PM.TITLE;
+    return this._isShowingAllTasks() ? this.T.PM.ALL_TASKS_TITLE : this.T.PM.TITLE;
   });
 
   simpleClickCounterData = toSignal(this.metricService.getSimpleClickCounterMetrics$());
