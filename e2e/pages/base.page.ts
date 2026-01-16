@@ -28,45 +28,46 @@ export abstract class BasePage {
   }
 
   /**
-   * Waits for all overlay backdrops to be removed from the DOM.
+   * Ensures all overlay backdrops are removed from the DOM before proceeding.
    * This is critical before interacting with elements that might be blocked by overlays.
+   * Uses Escape key to dismiss overlays if they don't close naturally.
    */
-  async waitForOverlaysToClose(): Promise<void> {
-    // Try waiting for overlays to close naturally first
-    const overlaysClosed = await this.page
-      .waitForFunction(
-        () => {
-          const backdrops = document.querySelectorAll('.cdk-overlay-backdrop');
-          return backdrops.length === 0;
-        },
-        { timeout: 3000 },
-      )
-      .then(() => true)
-      .catch(() => false);
+  async ensureOverlaysClosed(): Promise<void> {
+    const backdrop = this.page.locator('.cdk-overlay-backdrop');
 
-    // If overlays didn't close, press Escape and wait again
-    if (!overlaysClosed) {
-      await this.page.keyboard.press('Escape');
-      await this.page.waitForTimeout(300);
-
-      // Wait again after pressing Escape
-      await this.page
-        .waitForFunction(
-          () => {
-            const backdrops = document.querySelectorAll('.cdk-overlay-backdrop');
-            return backdrops.length === 0;
-          },
-          { timeout: 3000 },
-        )
-        .catch(async () => {
-          // If still not closed, press Escape again and force wait
-          await this.page.keyboard.press('Escape');
-          await this.page.waitForTimeout(500);
-        });
+    // Check if any overlays are present
+    const count = await backdrop.count();
+    if (count === 0) {
+      return; // No overlays - nothing to do
     }
 
-    // Additional wait for any animations to complete
-    await this.page.waitForTimeout(200);
+    // Overlays present - try dismissing with Escape
+    console.log(
+      `[ensureOverlaysClosed] Found ${count} overlay(s), attempting to dismiss with Escape`,
+    );
+    await this.page.keyboard.press('Escape');
+
+    try {
+      // Wait for backdrop to be removed (uses Playwright's smart waiting)
+      await backdrop.first().waitFor({ state: 'detached', timeout: 3000 });
+    } catch (e) {
+      // Fallback: try Escape again for stacked overlays
+      const remaining = await backdrop.count();
+      if (remaining > 0) {
+        console.warn(
+          `[ensureOverlaysClosed] ${remaining} overlay(s) still present after first Escape, trying again`,
+        );
+        await this.page.keyboard.press('Escape');
+        await backdrop
+          .first()
+          .waitFor({ state: 'detached', timeout: 2000 })
+          .catch(() => {
+            console.error(
+              '[ensureOverlaysClosed] Failed to close overlays after multiple attempts',
+            );
+          });
+      }
+    }
   }
 
   async addTask(taskName: string, skipClose = false): Promise<void> {

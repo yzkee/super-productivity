@@ -68,11 +68,8 @@ export class TagPage extends BasePage {
    */
   async assignTagToTask(task: Locator, tagName: string): Promise<void> {
     // Ensure no overlays are blocking before we start
-    await this.waitForOverlaysToClose();
-
-    // Exit any edit mode by pressing Escape first
-    await this.page.keyboard.press('Escape');
-    await this.page.waitForTimeout(300);
+    // Note: This also exits any edit mode
+    await this.ensureOverlaysClosed();
 
     // Right-click to open context menu
     await task.click({ button: 'right' });
@@ -116,8 +113,8 @@ export class TagPage extends BasePage {
       await tagNameInput.waitFor({ state: 'hidden', timeout: 3000 });
     }
 
-    // Wait for all overlays to close before returning
-    await this.waitForOverlaysToClose();
+    // Wait for all overlays to close to ensure clean state for next operation
+    await this.ensureOverlaysClosed();
   }
 
   /**
@@ -125,11 +122,8 @@ export class TagPage extends BasePage {
    */
   async removeTagFromTask(task: Locator, tagName: string): Promise<void> {
     // Ensure no overlays are blocking before we start
-    await this.waitForOverlaysToClose();
-
-    // Exit any edit mode by pressing Escape first
-    await this.page.keyboard.press('Escape');
-    await this.page.waitForTimeout(300);
+    // Note: This also exits any edit mode
+    await this.ensureOverlaysClosed();
 
     // Right-click to open context menu
     await task.click({ button: 'right' });
@@ -151,8 +145,8 @@ export class TagPage extends BasePage {
     await tagOption.waitFor({ state: 'visible', timeout: 3000 });
     await tagOption.click();
 
-    // Wait for all overlays to close before returning
-    await this.waitForOverlaysToClose();
+    // Wait for all overlays to close to ensure clean state for next operation
+    await this.ensureOverlaysClosed();
   }
 
   /**
@@ -221,7 +215,7 @@ export class TagPage extends BasePage {
    */
   async deleteTag(tagName: string): Promise<void> {
     // Ensure any open menus/overlays are closed before starting
-    await this.waitForOverlaysToClose();
+    await this.ensureOverlaysClosed();
 
     // Ensure Tags section is expanded
     const tagsGroupBtn = this.tagsGroup
@@ -264,7 +258,7 @@ export class TagPage extends BasePage {
     // Wait for tag to be removed from sidebar
     await tagTreeItem.waitFor({ state: 'hidden', timeout: 5000 });
 
-    // Wait for all overlays to close before returning
-    await this.waitForOverlaysToClose();
+    // Wait for all overlays to close to ensure clean state for next operation
+    await this.ensureOverlaysClosed();
   }
 }

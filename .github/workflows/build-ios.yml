@@ -99,7 +99,7 @@ jobs:
       - name: Get npm cache directory
         id: npm-cache-dir
         run: |
-          echo "::set-output name=dir::$(npm config get cache)"
+          echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v5
         id: npm-cache
@@ -125,8 +125,14 @@ jobs:
           echo "Setting iOS version to $VERSION (build $BUILD_NUMBER) [from $FULL_VERSION]"
 
           cd ios/App
-          xcrun agvtool new-marketing-version "$VERSION"
-          xcrun agvtool new-version -all "$BUILD_NUMBER"
+          if ! xcrun agvtool new-marketing-version "$VERSION"; then
+            echo "Error: Failed to set marketing version to $VERSION"
+            exit 1
+          fi
+          if ! xcrun agvtool new-version -all "$BUILD_NUMBER"; then
+            echo "Error: Failed to set build number to $BUILD_NUMBER"
+            exit 1
+          fi
 
       - name: Build Angular frontend
         run: npm run buildFrontend:prodWeb
