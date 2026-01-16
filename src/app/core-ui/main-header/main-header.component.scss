@@ -69,7 +69,7 @@
   }
 
   @media (max-width: 1280px) {
-    &:has(.action-nav-right:hover) ::ng-deep .current-task-title {
+    &:has(page-title:hover) ::ng-deep .current-task-title {
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.3s ease-out;
@@ -105,11 +105,12 @@ button.isActive2 {
   transition: background var(--transition-standard);
 }
 
-.action-nav-left {
+.primary-action-group {
   display: flex;
   align-items: center;
   gap: var(--header-nav-button-gap);
   flex-shrink: 0;
+  margin-right: var(--s);
 
   ::ng-deep button {
     width: 36px;
@@ -130,23 +131,26 @@ button.isActive2 {
   display: flex;
   align-items: center;
   gap: var(--header-nav-button-gap);
-  position: relative;
-
-  @media (max-width: 1280px) {
-    &::before {
-      content: '';
-      position: absolute;
-      right: 100%;
-      top: -20px;
-      bottom: -20px;
-      width: 50px;
-      pointer-events: auto;
-    }
-  }
 
   :host-context([dir='rtl']) & {
     margin-left: 0;
     margin-right: auto;
+  }
+}
+
+page-title {
+  position: relative;
+
+  @media (max-width: 1280px) {
+    &::after {
+      content: '';
+      position: absolute;
+      left: 100%;
+      top: -20px;
+      bottom: -20px;
+      width: 300px;
+      pointer-events: auto;
+    }
   }
 }
 

@@ -24,37 +24,36 @@
     </div>
   }
 
-  <div class="action-nav-left">
-    <!-- Desktop: Show all buttons inline -->
-    @if (showDesktopButtons()) {
-      <!-- Simple counter buttons -->
-      @for (
-        simpleCounter of enabledSimpleCounters();
-        track trackById($index, simpleCounter)
-      ) {
-        <simple-counter-button
-          [matTooltip]="simpleCounter.title"
-          [simpleCounter]="simpleCounter"
-        ></simple-counter-button>
-      }
-    }
-
-    @if (isFocusModeEnabled() && !isXxxs()) {
-      <focus-button></focus-button>
-    }
-
-    @if (isTimeTrackingEnabled()) {
-      <play-button
-        class="play-button-right"
-        [currentTask]="currentTask()"
-        [currentTaskId]="currentTaskId()"
-        [currentTaskContext]="currentTaskContext()"
-        [hasTrackableTasks]="hasTrackableTasks()"
-      ></play-button>
-    }
-  </div>
-
   <nav class="action-nav-right">
+    <!-- Desktop: Primary action group (play, focus, counters) -->
+    @if (showDesktopButtons()) {
+      <div class="primary-action-group">
+        @if (isTimeTrackingEnabled()) {
+          <play-button
+            [currentTask]="currentTask()"
+            [currentTaskId]="currentTaskId()"
+            [currentTaskContext]="currentTaskContext()"
+            [hasTrackableTasks]="hasTrackableTasks()"
+          ></play-button>
+        }
+
+        @if (isFocusModeEnabled() && !isXxxs()) {
+          <focus-button></focus-button>
+        }
+
+        @for (
+          simpleCounter of enabledSimpleCounters();
+          track trackById($index, simpleCounter)
+        ) {
+          <simple-counter-button
+            [matTooltip]="simpleCounter.title"
+            [simpleCounter]="simpleCounter"
+          ></simple-counter-button>
+        }
+      </div>
+    }
+
+    <!-- Desktop: Secondary action group -->
     @if (showDesktopButtons()) {
       <button
         (click)="layoutService.showAddTaskBar()"
