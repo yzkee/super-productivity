@@ -110,7 +110,10 @@ button.isActive2 {
   align-items: center;
   gap: var(--header-nav-button-gap);
   flex-shrink: 0;
-  margin-right: var(--s);
+  margin-right: calc(var(--s) * 1.5);
+  padding: 4px 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(128, 128, 128, 0.3);
 
   ::ng-deep button {
     width: 36px;
