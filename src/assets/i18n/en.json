@@ -2187,6 +2187,13 @@
     "RELOAD": "Reload",
     "SYNC_EXPORT": "Sync & Export",
     "TAG_SETTINGS": "Tag Specific Settings",
+    "TABS": {
+      "GENERAL": "General",
+      "TIME_TRACKING": "Time & Tracking",
+      "PRODUCTIVITY": "Productivity",
+      "PLUGINS_SHORTCUTS": "Plugins & Shortcuts",
+      "SYNC_BACKUP": "Sync & Backup"
+    },
     "TOGGLE_DARK_MODE": "Toggle Dark Mode",
     "UPDATE_APP": "Update App"
   },

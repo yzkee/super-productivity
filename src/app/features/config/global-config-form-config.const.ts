@@ -24,6 +24,28 @@ const filterGlobalConfigForm = (cfg: ConfigFormSection<any>): boolean => {
   );
 };
 
+// Tab: General - Language, App Features, Misc, Short Syntax
+export const GLOBAL_GENERAL_FORM_CONFIG: ConfigFormConfig = [
+  LANGUAGE_SELECTION_FORM_FORM,
+  APP_FEATURES_FORM_CFG,
+  MISC_SETTINGS_FORM_CFG,
+  SHORT_SYNTAX_FORM_CFG,
+].filter(filterGlobalConfigForm);
+
+// Tab: Time & Tracking - Time Tracking, Idle, Schedule, Reminder
+export const GLOBAL_TIME_TRACKING_FORM_CONFIG: ConfigFormConfig = [
+  TIME_TRACKING_FORM_CFG,
+  IDLE_FORM_CFG,
+  SCHEDULE_FORM_CFG,
+  REMINDER_FORM_CFG,
+].filter(filterGlobalConfigForm);
+
+// Tab: Plugins & Shortcuts - Keyboard settings (plugins managed separately)
+export const GLOBAL_PLUGINS_SHORTCUTS_FORM_CONFIG: ConfigFormConfig = [
+  KEYBOARD_SETTINGS_FORM_CFG,
+].filter(filterGlobalConfigForm);
+
+// Legacy: keep for backwards compatibility
 export const GLOBAL_CONFIG_FORM_CONFIG: ConfigFormConfig = [
   LANGUAGE_SELECTION_FORM_FORM,
   APP_FEATURES_FORM_CFG,
