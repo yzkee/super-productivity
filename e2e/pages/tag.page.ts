@@ -67,6 +67,9 @@ export class TagPage extends BasePage {
    * Assigns a tag to a task via context menu
    */
   async assignTagToTask(task: Locator, tagName: string): Promise<void> {
+    // Ensure no overlays are blocking before we start
+    await this.waitForOverlaysToClose();
+
     // Exit any edit mode by pressing Escape first
     await this.page.keyboard.press('Escape');
     await this.page.waitForTimeout(300);
@@ -113,19 +116,17 @@ export class TagPage extends BasePage {
       await tagNameInput.waitFor({ state: 'hidden', timeout: 3000 });
     }
 
-    // Wait for menu to close and overlay to disappear
-    // The stopPropagation wrapper can prevent proper menu closing, so explicitly wait for overlay removal
-    await this.page
-      .locator('.cdk-overlay-backdrop')
-      .waitFor({ state: 'detached', timeout: 3000 })
-      .catch(() => {});
-    await this.page.waitForTimeout(300);
+    // Wait for all overlays to close before returning
+    await this.waitForOverlaysToClose();
   }
 
   /**
    * Removes a tag from a task via context menu
    */
   async removeTagFromTask(task: Locator, tagName: string): Promise<void> {
+    // Ensure no overlays are blocking before we start
+    await this.waitForOverlaysToClose();
+
     // Exit any edit mode by pressing Escape first
     await this.page.keyboard.press('Escape');
     await this.page.waitForTimeout(300);
@@ -150,13 +151,8 @@ export class TagPage extends BasePage {
     await tagOption.waitFor({ state: 'visible', timeout: 3000 });
     await tagOption.click();
 
-    // Wait for menu to close and overlay to disappear
-    // The stopPropagation wrapper can prevent proper menu closing, so explicitly wait for overlay removal
-    await this.page
-      .locator('.cdk-overlay-backdrop')
-      .waitFor({ state: 'detached', timeout: 3000 })
-      .catch(() => {});
-    await this.page.waitForTimeout(300);
+    // Wait for all overlays to close before returning
+    await this.waitForOverlaysToClose();
   }
 
   /**
@@ -225,10 +221,7 @@ export class TagPage extends BasePage {
    */
   async deleteTag(tagName: string): Promise<void> {
     // Ensure any open menus/overlays are closed before starting
-    await this.page
-      .locator('.cdk-overlay-backdrop')
-      .waitFor({ state: 'detached', timeout: 3000 })
-      .catch(() => {});
+    await this.waitForOverlaysToClose();
 
     // Ensure Tags section is expanded
     const tagsGroupBtn = this.tagsGroup
@@ -270,5 +263,8 @@ export class TagPage extends BasePage {
 
     // Wait for tag to be removed from sidebar
     await tagTreeItem.waitFor({ state: 'hidden', timeout: 5000 });
+
+    // Wait for all overlays to close before returning
+    await this.waitForOverlaysToClose();
   }
 }

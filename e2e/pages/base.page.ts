@@ -27,6 +27,48 @@ export abstract class BasePage {
     return `${this.testPrefix}-${value}`;
   }
 
+  /**
+   * Waits for all overlay backdrops to be removed from the DOM.
+   * This is critical before interacting with elements that might be blocked by overlays.
+   */
+  async waitForOverlaysToClose(): Promise<void> {
+    // Try waiting for overlays to close naturally first
+    const overlaysClosed = await this.page
+      .waitForFunction(
+        () => {
+          const backdrops = document.querySelectorAll('.cdk-overlay-backdrop');
+          return backdrops.length === 0;
+        },
+        { timeout: 3000 },
+      )
+      .then(() => true)
+      .catch(() => false);
+
+    // If overlays didn't close, press Escape and wait again
+    if (!overlaysClosed) {
+      await this.page.keyboard.press('Escape');
+      await this.page.waitForTimeout(300);
+
+      // Wait again after pressing Escape
+      await this.page
+        .waitForFunction(
+          () => {
+            const backdrops = document.querySelectorAll('.cdk-overlay-backdrop');
+            return backdrops.length === 0;
+          },
+          { timeout: 3000 },
+        )
+        .catch(async () => {
+          // If still not closed, press Escape again and force wait
+          await this.page.keyboard.press('Escape');
+          await this.page.waitForTimeout(500);
+        });
+    }
+
+    // Additional wait for any animations to complete
+    await this.page.waitForTimeout(200);
+  }
+
   async addTask(taskName: string, skipClose = false): Promise<void> {
     // Add test prefix to task name for isolation
     const prefixedTaskName = this.applyPrefix(taskName);
