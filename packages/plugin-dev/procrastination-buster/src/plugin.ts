@@ -6,14 +6,8 @@ declare const plugin: PluginAPI;
 // Plugin initialization
 plugin.log.info('Procrastination Buster plugin initialized');
 
-// Register side panel button
-plugin.registerSidePanelButton({
-  icon: 'psychology',
-  label: 'Procrastination Buster',
-  onClick: () => {
-    plugin.showIndexHtmlAsView();
-  },
-});
+// Note: Side panel button is automatically registered via manifest.json
+// with "sidePanel": true, so no manual registration needed
 
 // i18n support - handle translation requests from iframe
 if (plugin.onMessage) {
