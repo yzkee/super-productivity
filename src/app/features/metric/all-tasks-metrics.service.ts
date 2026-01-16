@@ -2,14 +2,15 @@ import { Injectable, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { combineLatest, from, Observable } from 'rxjs';
 import { SimpleMetrics } from './metric.model';
-import { delay, map, switchMap, take } from 'rxjs/operators';
+import { delay, filter, map, switchMap, take } from 'rxjs/operators';
 import { mapSimpleMetrics } from './metric.util';
 import { TaskService } from '../tasks/task.service';
 import { WorklogService } from '../worklog/worklog.service';
-import { DataInitStateService } from '../../core/data-init/data-init-state.service';
 import { TimeTrackingService } from '../time-tracking/time-tracking.service';
-import { BreakNr, BreakTime } from '../work-context/work-context.model';
+import { BreakNr, BreakTime, WorkContextType } from '../work-context/work-context.model';
 import { TimeTrackingState } from '../time-tracking/time-tracking.model';
+import { WorkContextService } from '../work-context/work-context.service';
+import { TODAY_TAG } from '../tag/tag.const';
 
 @Injectable({
   providedIn: 'root',
@@ -17,12 +18,18 @@ import { TimeTrackingState } from '../time-tracking/time-tracking.model';
 export class AllTasksMetricsService {
   private _taskService = inject(TaskService);
   private _worklogService = inject(WorklogService);
-  private _dataInitStateService = inject(DataInitStateService);
+  private _workContextService = inject(WorkContextService);
   private _timeTrackingService = inject(TimeTrackingService);
 
-  private _simpleMetricsObs$: Observable<SimpleMetrics> =
-    this._dataInitStateService.isAllDataLoadedInitially$.pipe(
-      // wait for data to settle
+  /**
+   * Reactive metrics that recompute when context switches to TODAY_TAG.
+   * WorklogService automatically returns ALL tasks when context is TODAY_TAG
+   * via getCompleteStateForWorkContext utility.
+   */
+  private _simpleMetricsObs$: Observable<SimpleMetrics | undefined> =
+    this._workContextService.activeWorkContext$.pipe(
+      filter((ctx) => ctx?.type === WorkContextType.TAG && ctx.id === TODAY_TAG.id),
+      // wait for worklog to load after context switch
       delay(100),
       switchMap(() =>
         combineLatest([
@@ -33,7 +40,7 @@ export class AllTasksMetricsService {
           from(this._taskService.getAllTasksEverywhere()),
         ]).pipe(
           map(mapSimpleMetrics),
-          // prevent constant redraws
+          // prevent constant redraws - take 1 per context switch
           take(1),
         ),
       ),

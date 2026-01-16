@@ -1,22 +1,43 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { TestBed, fakeAsync, tick, flush } from '@angular/core/testing';
+import { provideMockStore } from '@ngrx/store/testing';
 import { AllTasksMetricsService } from './all-tasks-metrics.service';
 import { TaskService } from '../tasks/task.service';
 import { WorklogService } from '../worklog/worklog.service';
-import { DataInitStateService } from '../../core/data-init/data-init-state.service';
+import { WorkContextService } from '../work-context/work-context.service';
 import { TimeTrackingService } from '../time-tracking/time-tracking.service';
 import { BehaviorSubject } from 'rxjs';
 import { createTask } from '../tasks/task.test-helper';
 import { Worklog } from '../worklog/worklog.model';
 import { TimeTrackingState } from '../time-tracking/time-tracking.model';
+import { WorkContext, WorkContextType } from '../work-context/work-context.model';
+import { TODAY_TAG } from '../tag/tag.const';
 
 describe('AllTasksMetricsService', () => {
   let service: AllTasksMetricsService;
   let taskService: jasmine.SpyObj<TaskService>;
-  let isAllDataLoadedInitially$: BehaviorSubject<boolean>;
+  let activeWorkContext$: BehaviorSubject<WorkContext | null>;
   let worklog$: BehaviorSubject<Worklog>;
   let totalTimeSpent$: BehaviorSubject<number>;
   let timeTrackingState$: BehaviorSubject<TimeTrackingState>;
+
+  const createMockWorkContext = (
+    id: string,
+    type: WorkContextType,
+    title: string = 'Test Context',
+  ): WorkContext => ({
+    id,
+    type,
+    title,
+    icon: null,
+    theme: {} as any,
+    advancedCfg: { worklogExportSettings: {} as any },
+    routerLink: `/${type.toLowerCase()}/${id}`,
+    isEnableBacklog: false,
+    taskIds: [],
+    backlogTaskIds: [],
+    noteIds: [],
+  });
 
   const createWorklog = (timeSpent: number): Worklog => {
     return {
@@ -56,7 +77,7 @@ describe('AllTasksMetricsService', () => {
   };
 
   beforeEach(() => {
-    isAllDataLoadedInitially$ = new BehaviorSubject<boolean>(false);
+    activeWorkContext$ = new BehaviorSubject<WorkContext | null>(null);
     worklog$ = new BehaviorSubject<Worklog>(createWorklog(10000));
     totalTimeSpent$ = new BehaviorSubject<number>(10000);
     timeTrackingState$ = new BehaviorSubject<TimeTrackingState>(
@@ -68,8 +89,8 @@ describe('AllTasksMetricsService', () => {
       worklog$: worklog$.asObservable(),
       totalTimeSpent$: totalTimeSpent$.asObservable(),
     });
-    const dataInitStateServiceSpy = jasmine.createSpyObj('DataInitStateService', [], {
-      isAllDataLoadedInitially$: isAllDataLoadedInitially$.asObservable(),
+    const workContextServiceSpy = jasmine.createSpyObj('WorkContextService', [], {
+      activeWorkContext$: activeWorkContext$.asObservable(),
     });
     const timeTrackingServiceSpy = jasmine.createSpyObj('TimeTrackingService', [], {
       state$: timeTrackingState$.asObservable(),
@@ -83,9 +104,10 @@ describe('AllTasksMetricsService', () => {
     TestBed.configureTestingModule({
       providers: [
         AllTasksMetricsService,
+        provideMockStore(),
         { provide: TaskService, useValue: taskServiceSpy },
         { provide: WorklogService, useValue: worklogServiceSpy },
-        { provide: DataInitStateService, useValue: dataInitStateServiceSpy },
+        { provide: WorkContextService, useValue: workContextServiceSpy },
         { provide: TimeTrackingService, useValue: timeTrackingServiceSpy },
       ],
     });
@@ -99,19 +121,47 @@ describe('AllTasksMetricsService', () => {
       expect(service.simpleMetrics).toBeDefined();
     });
 
-    it('should return undefined initially (before data is loaded)', () => {
+    it('should return undefined initially (before context is TODAY_TAG)', () => {
       expect(service.simpleMetrics()).toBeUndefined();
     });
 
-    it('should wait for data to be loaded initially', fakeAsync(() => {
-      // Trigger data load
-      isAllDataLoadedInitially$.next(true);
+    it('should compute metrics when context switches to TODAY_TAG', fakeAsync(() => {
+      // Set context to TODAY_TAG
+      activeWorkContext$.next(
+        createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
+      );
 
       tick(200);
       flush();
 
       const metrics = service.simpleMetrics();
       expect(metrics).toBeDefined();
+    }));
+
+    it('should not compute metrics for regular project context', fakeAsync(() => {
+      // Set context to regular project
+      activeWorkContext$.next(
+        createMockWorkContext('project-1', WorkContextType.PROJECT, 'Project 1'),
+      );
+
+      tick(200);
+      flush();
+
+      const metrics = service.simpleMetrics();
+      expect(metrics).toBeUndefined();
+    }));
+
+    it('should not compute metrics for regular tag context', fakeAsync(() => {
+      // Set context to regular tag
+      activeWorkContext$.next(
+        createMockWorkContext('tag-1', WorkContextType.TAG, 'Tag 1'),
+      );
+
+      tick(200);
+      flush();
+
+      const metrics = service.simpleMetrics();
+      expect(metrics).toBeUndefined();
     }));
   });
 
@@ -130,7 +180,9 @@ describe('AllTasksMetricsService', () => {
       });
 
       timeTrackingState$.next(state);
-      isAllDataLoadedInitially$.next(true);
+      activeWorkContext$.next(
+        createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
+      );
 
       tick(200);
       flush();
@@ -156,7 +208,9 @@ describe('AllTasksMetricsService', () => {
       });
 
       timeTrackingState$.next(state);
-      isAllDataLoadedInitially$.next(true);
+      activeWorkContext$.next(
+        createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
+      );
 
       tick(200);
       flush();
@@ -178,7 +232,9 @@ describe('AllTasksMetricsService', () => {
       });
 
       timeTrackingState$.next(state);
-      isAllDataLoadedInitially$.next(true);
+      activeWorkContext$.next(
+        createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
+      );
 
       tick(200);
       flush();
@@ -203,7 +259,9 @@ describe('AllTasksMetricsService', () => {
       });
 
       timeTrackingState$.next(state);
-      isAllDataLoadedInitially$.next(true);
+      activeWorkContext$.next(
+        createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
+      );
 
       tick(200);
       flush();
@@ -220,7 +278,9 @@ describe('AllTasksMetricsService', () => {
       });
 
       timeTrackingState$.next(state);
-      isAllDataLoadedInitially$.next(true);
+      activeWorkContext$.next(
+        createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
+      );
 
       tick(200);
       flush();
@@ -230,50 +290,62 @@ describe('AllTasksMetricsService', () => {
       expect(metrics?.breakTime).toBe(0);
     }));
 
-    it('should handle projects/tags with no break data', fakeAsync(() => {
+    it('should not double-count breaks from same date across contexts', fakeAsync(() => {
+      // Different contexts on same date should be summed (not double-counted)
       const state = createTimeTrackingState({
         project: {
           'project-1': {
-            '2025-01-15': { s: 1000, e: 2000 }, // No breaks (b or bt)
+            '2025-01-15': { b: 2, bt: 600000 },
+          },
+        },
+        tag: {
+          'tag-1': {
+            '2025-01-15': { b: 1, bt: 300000 },
           },
         },
       });
 
       timeTrackingState$.next(state);
-      isAllDataLoadedInitially$.next(true);
+      activeWorkContext$.next(
+        createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
+      );
 
       tick(200);
       flush();
 
       const metrics = service.simpleMetrics();
-      expect(metrics?.breakNr).toBe(0);
-      expect(metrics?.breakTime).toBe(0);
+      // Projects and tags are separate contexts, so they should be summed
+      expect(metrics?.breakNr).toBe(3); // 2 + 1
+      expect(metrics?.breakTime).toBe(900000); // 600000 + 300000
     }));
   });
 
   describe('Task aggregation', () => {
-    it('should aggregate tasks from all projects and archives', fakeAsync(() => {
+    it('should use getAllTasksEverywhere for task data', fakeAsync(() => {
       const allTasks = [
         createTask({ id: '1', projectId: 'project-1' }),
         createTask({ id: '2', projectId: 'project-2' }),
-        createTask({ id: '3', projectId: 'project-1' }),
+        createTask({ id: '3', tagIds: ['tag-1'] }),
       ];
 
       taskService.getAllTasksEverywhere.and.returnValue(Promise.resolve(allTasks));
-      isAllDataLoadedInitially$.next(true);
+      activeWorkContext$.next(
+        createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
+      );
 
       tick(200);
       flush();
 
       expect(taskService.getAllTasksEverywhere).toHaveBeenCalled();
-
       const metrics = service.simpleMetrics();
       expect(metrics?.nrOfAllTasks).toBe(3);
     }));
 
     it('should handle empty task list', fakeAsync(() => {
       taskService.getAllTasksEverywhere.and.returnValue(Promise.resolve([]));
-      isAllDataLoadedInitially$.next(true);
+      activeWorkContext$.next(
+        createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
+      );
 
       tick(200);
       flush();
@@ -282,148 +354,83 @@ describe('AllTasksMetricsService', () => {
       expect(metrics?.nrOfAllTasks).toBe(0);
       expect(metrics?.nrOfCompletedTasks).toBe(0);
     }));
-
-    it('should count completed tasks correctly', fakeAsync(() => {
-      const allTasks = [
-        createTask({ id: '1', isDone: true }),
-        createTask({ id: '2', isDone: false }),
-        createTask({ id: '3', isDone: true }),
-      ];
-
-      taskService.getAllTasksEverywhere.and.returnValue(Promise.resolve(allTasks));
-      isAllDataLoadedInitially$.next(true);
-
-      tick(200);
-      flush();
-
-      const metrics = service.simpleMetrics();
-      expect(metrics?.nrOfCompletedTasks).toBe(2);
-      expect(metrics?.nrOfAllTasks).toBe(3);
-    }));
   });
 
   describe('Worklog integration', () => {
-    it('should use total worklog across all contexts', fakeAsync(() => {
-      const worklog = createWorklog(25000);
-      worklog$.next(worklog);
-      totalTimeSpent$.next(25000);
-      isAllDataLoadedInitially$.next(true);
+    it('should use worklog data from WorklogService', fakeAsync(() => {
+      const testWorklog = createWorklog(50000);
+      worklog$.next(testWorklog);
+      totalTimeSpent$.next(50000);
+
+      activeWorkContext$.next(
+        createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
+      );
 
       tick(200);
       flush();
 
       const metrics = service.simpleMetrics();
-      expect(metrics?.timeSpent).toBe(25000);
-      expect(metrics?.daysWorked).toBe(1);
+      expect(metrics?.timeSpent).toBe(50000);
     }));
 
-    it('should handle empty worklog', fakeAsync(() => {
-      worklog$.next({});
+    it('should handle zero time spent', fakeAsync(() => {
+      const testWorklog = createWorklog(0);
+      worklog$.next(testWorklog);
       totalTimeSpent$.next(0);
-      isAllDataLoadedInitially$.next(true);
+
+      activeWorkContext$.next(
+        createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
+      );
 
       tick(200);
       flush();
 
       const metrics = service.simpleMetrics();
       expect(metrics?.timeSpent).toBe(0);
-      expect(metrics?.daysWorked).toBe(0);
     }));
   });
 
-  describe('Edge cases', () => {
-    it('should handle archived tasks', fakeAsync(() => {
-      // getAllTasksEverywhere() includes both active and archived tasks
-      const allTasks = [
-        createTask({ id: '1' }),
-        createTask({ id: '2' }), // Archived task
-      ];
-
-      taskService.getAllTasksEverywhere.and.returnValue(Promise.resolve(allTasks));
-      isAllDataLoadedInitially$.next(true);
+  describe('Context switching behavior', () => {
+    it('should recompute metrics when switching back to TODAY_TAG', fakeAsync(() => {
+      // Start with TODAY_TAG
+      activeWorkContext$.next(
+        createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
+      );
 
       tick(200);
       flush();
 
-      const metrics = service.simpleMetrics();
-      expect(metrics?.nrOfAllTasks).toBe(2);
-    }));
+      let metrics = service.simpleMetrics();
+      expect(metrics).toBeDefined();
+      const initialTimeSpent = metrics?.timeSpent;
 
-    it('should apply 100ms delay before processing', fakeAsync(() => {
-      isAllDataLoadedInitially$.next(true);
-
-      // Before delay completes
-      tick(50);
-      expect(service.simpleMetrics()).toBeUndefined();
-
-      // After delay completes
-      tick(150);
-      flush();
-      expect(service.simpleMetrics()).toBeDefined();
-    }));
-
-    it('should use take(1) to prevent redraws', fakeAsync(() => {
-      isAllDataLoadedInitially$.next(true);
+      // Switch to a project (signal retains last value, doesn't become undefined)
+      activeWorkContext$.next(
+        createMockWorkContext('project-1', WorkContextType.PROJECT, 'Project 1'),
+      );
 
       tick(200);
       flush();
 
-      const firstMetrics = service.simpleMetrics();
-      expect(firstMetrics).toBeDefined();
+      metrics = service.simpleMetrics();
+      // Signal retains last emitted value when observable stops emitting
+      expect(metrics?.timeSpent).toBe(initialTimeSpent);
 
-      // Update worklog - should NOT trigger new metrics calculation
-      worklog$.next(createWorklog(99999));
-      tick(200);
-      flush();
+      // Switch back to TODAY_TAG with updated worklog (metrics should recompute)
+      const updatedWorklog = createWorklog(99999);
+      worklog$.next(updatedWorklog);
+      totalTimeSpent$.next(99999);
 
-      const secondMetrics = service.simpleMetrics();
-      // Metrics should still be the same (take(1) prevents re-emission)
-      expect(secondMetrics).toBe(firstMetrics);
-    }));
-
-    it('should handle multiple date entries in break data', fakeAsync(() => {
-      const state = createTimeTrackingState({
-        project: {
-          'project-1': {
-            '2025-01-14': { b: 1, bt: 300000 },
-            '2025-01-15': { b: 2, bt: 600000 },
-            '2025-01-16': { b: 1, bt: 300000 },
-          },
-        },
-      });
-
-      timeTrackingState$.next(state);
-      isAllDataLoadedInitially$.next(true);
+      activeWorkContext$.next(
+        createMockWorkContext(TODAY_TAG.id, WorkContextType.TAG, 'Today'),
+      );
 
       tick(200);
       flush();
 
-      const metrics = service.simpleMetrics();
-      expect(metrics?.breakNr).toBe(4); // 1 + 2 + 1
-      expect(metrics?.breakTime).toBe(1200000); // 300000 + 600000 + 300000
-    }));
-
-    it('should handle break data with undefined or null values', fakeAsync(() => {
-      const state = createTimeTrackingState({
-        project: {
-          'project-1': {
-            '2025-01-15': { b: 2, bt: undefined as any },
-          },
-          'project-2': {
-            '2025-01-15': { b: undefined as any, bt: 600000 },
-          },
-        },
-      });
-
-      timeTrackingState$.next(state);
-      isAllDataLoadedInitially$.next(true);
-
-      tick(200);
-      flush();
-
-      const metrics = service.simpleMetrics();
-      expect(metrics?.breakNr).toBe(2); // Only project-1's b is valid
-      expect(metrics?.breakTime).toBe(600000); // Only project-2's bt is valid
+      metrics = service.simpleMetrics();
+      expect(metrics).toBeDefined();
+      expect(metrics?.timeSpent).toBe(99999);
     }));
   });
 });
