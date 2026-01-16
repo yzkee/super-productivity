@@ -16,6 +16,9 @@ import { TrackingReminderService } from '../../features/tracking-reminder/tracki
 import { of } from 'rxjs';
 import { signal } from '@angular/core';
 import { LS } from '../persistence/storage-keys.const';
+import { provideMockStore } from '@ngrx/store/testing';
+import { selectSyncConfig } from '../../features/config/store/global-config.reducer';
+import { selectEnabledIssueProviders } from '../../features/issue/store/issue-provider.selectors';
 
 describe('StartupService', () => {
   let service: StartupService;
@@ -108,6 +111,12 @@ describe('StartupService', () => {
         },
         { provide: ProjectService, useValue: projectServiceSpy },
         { provide: TrackingReminderService, useValue: trackingReminderServiceSpy },
+        provideMockStore({
+          selectors: [
+            { selector: selectSyncConfig, value: { syncProvider: null } },
+            { selector: selectEnabledIssueProviders, value: [] },
+          ],
+        }),
       ],
     });
 

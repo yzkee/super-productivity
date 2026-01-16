@@ -222,10 +222,8 @@ export class WorklogService {
       (await this._taskService.taskFeatureState$.pipe(first()).toPromise()) ||
       createEmptyEntity();
 
-    // console.time('calcTime');
     const { completeStateForWorkContext, nonArchiveTaskIds } =
       getCompleteStateForWorkContext(workContext, taskState, archive);
-    // console.timeEnd('calcTime');
 
     const workStartEndForWorkContext =
       await this._timeTrackingService.getLegacyWorkStartEndForWorkContext(workContext);
@@ -257,10 +255,8 @@ export class WorklogService {
       (await this._taskService.taskFeatureState$.pipe(first()).toPromise()) ||
       createEmptyEntity();
 
-    // console.time('calcTime');
     const { completeStateForWorkContext, nonArchiveTaskIds } =
       getCompleteStateForWorkContext(workContext, taskState, archive);
-    // console.timeEnd('calcTime');
 
     const workStartEndForWorkContext =
       await this._timeTrackingService.getLegacyWorkStartEndForWorkContext(workContext);

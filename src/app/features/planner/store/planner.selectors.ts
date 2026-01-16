@@ -38,9 +38,9 @@ export const selectAllTasksDueToday = createSelector(
     const allDue: (TaskWithDueTime | TaskWithDueDay)[] = (
       plannerState.days[todayStr] || []
     )
-      .map((tid) => taskState.entities[tid] as TaskWithDueDay)
+      .map((tid) => taskState.entities[tid])
       // there is a chance that the task is not in the store anymore
-      .filter((t) => !!t);
+      .filter((t): t is TaskWithDueDay => !!t);
 
     // Use Set for O(1) lookup
     const allDueIds = new Set(allDue.map((t) => t.id));
