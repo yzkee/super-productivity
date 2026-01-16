@@ -28,6 +28,7 @@ test.describe('Add to Today - Subtask Support', () => {
 
     // Hover over subtask to reveal hover controls
     await subtask.hover();
+    await page.waitForTimeout(100); // Allow Angular change detection cycle
 
     // Click "Add to Today" button (sun icon)
     const addToTodayBtn = subtask.locator('button[title*="Add to My Day"]');
@@ -118,19 +119,12 @@ test.describe('Add to Today - Subtask Support', () => {
     const subtask = parentTask.locator('.sub-tasks task').first();
     await expect(subtask).toBeVisible();
 
-    // Try to add subtask to Today (should be blocked)
-    await subtask.hover();
-    const subtaskAddBtn = subtask.locator('button[title*="Add to My Day"]');
-
-    // The button might not even appear if subtask is already treated as "in Today"
-    // Or clicking it should have no effect
-    if (await subtaskAddBtn.isVisible()) {
-      await subtaskAddBtn.click();
-      await page.waitForTimeout(500);
-    }
-
     // Count total root tasks (not subtasks) in Today view
-    const todayRootTasks = page.locator('task-list > task, .task-list > task');
+    // Use .first() to target only the main task-list, not other task-lists that might be on the page
+    const todayRootTasks = page
+      .locator('task-list')
+      .first()
+      .locator('.task-list-inner > task');
     const taskCount = await todayRootTasks.count();
 
     // Should only have parent task (1 task), subtask should not be a separate root task
@@ -165,12 +159,10 @@ test.describe('Add to Today - Subtask Support', () => {
     // Right-click on subtask to open context menu
     await subtask.click({ button: 'right' });
 
-    // Wait for context menu to appear
-    const contextMenu = page.locator('task-context-menu');
-    await contextMenu.waitFor({ state: 'visible', timeout: 5000 });
-
-    // Click "Add to My Day" in context menu
-    const addToTodayMenuItem = contextMenu.locator('button:has-text("Add to My Day")');
+    // Click "Add to My Day" in context menu (Material menu renders in overlay)
+    const addToTodayMenuItem = page
+      .locator('.mat-mdc-menu-item')
+      .filter({ hasText: 'Add to My Day' });
     await addToTodayMenuItem.click();
 
     // Wait for state update

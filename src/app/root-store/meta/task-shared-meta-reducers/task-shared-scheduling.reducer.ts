@@ -173,9 +173,14 @@ const handlePlanTasksForToday = (
   });
 
   // Filter out tasks that already have dueDay set to today
+  // Only update dueDay for tasks that are:
+  // 1. Being added to TODAY_TAG (newTasksForToday), OR
+  // 2. Already in TODAY_TAG but have incorrect dueDay
   const tasksNeedingDueDayUpdate = taskIds.filter((taskId) => {
     const task = state[TASK_FEATURE_NAME].entities[taskId] as Task;
-    return task && task.dueDay !== today;
+    if (!task || task.dueDay === today) return false;
+    // Update dueDay if task is being added to TODAY or is already in TODAY
+    return newTasksForToday.includes(taskId) || todayTag.taskIds.includes(taskId);
   });
 
   // Early return if no actual changes needed
