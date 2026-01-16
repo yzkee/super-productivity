@@ -174,7 +174,7 @@ import { distinctUntilChanged, observeOn } from 'rxjs/operators';
         font-size: 13px;
         z-index: 5;
 
-        @media (max-width: 1050px) {
+        @media (max-width: 1280px) {
           display: none;
         }
 
