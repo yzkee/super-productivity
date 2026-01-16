@@ -1,10 +1,11 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import { TestBed, fakeAsync, tick, flush } from '@angular/core/testing';
 import { ProjectMetricsService } from './project-metrics.service';
 import { TaskService } from '../tasks/task.service';
 import { ProjectService } from '../project/project.service';
 import { WorklogService } from '../worklog/worklog.service';
 import { WorkContextService } from '../work-context/work-context.service';
-import { BehaviorSubject, of, EMPTY } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { WorkContextType } from '../work-context/work-context.model';
 import { createTask } from '../tasks/task.test-helper';
 import { Worklog } from '../worklog/worklog.model';
@@ -14,8 +15,6 @@ describe('ProjectMetricsService', () => {
   let service: ProjectMetricsService;
   let taskService: jasmine.SpyObj<TaskService>;
   let projectService: jasmine.SpyObj<ProjectService>;
-  let worklogService: jasmine.SpyObj<WorklogService>;
-  let workContextService: jasmine.SpyObj<WorkContextService>;
   let activeWorkContextTypeAndId$: BehaviorSubject<{
     activeType: WorkContextType | null;
     activeId: string | null;

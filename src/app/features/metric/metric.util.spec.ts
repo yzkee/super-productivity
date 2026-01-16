@@ -1,14 +1,13 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 import { mapSimpleMetrics } from './metric.util';
 import { Worklog } from '../worklog/worklog.model';
 import { Task } from '../tasks/task.model';
 import { BreakNr, BreakTime } from '../work-context/work-context.model';
-import { SimpleMetrics } from './metric.model';
 import { createTask } from '../tasks/task.test-helper';
 import { getDbDateStr } from '../../util/get-db-date-str';
 
 describe('metric.util', () => {
   describe('mapSimpleMetrics', () => {
-    const TODAY_STR = '2025-01-16';
     const DAY_2025_01_15 = '2025-01-15';
     const TIMESTAMP_2025_01_15 = new Date('2025-01-15').getTime();
     const TIMESTAMP_2025_01_14 = new Date('2025-01-14').getTime();
