@@ -57,7 +57,7 @@ import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
 import { DialogChangeEncryptionPasswordComponent } from '../../imex/sync/dialog-change-encryption-password/dialog-change-encryption-password.component';
 import { DialogConfirmComponent } from '../../ui/dialog-confirm/dialog-confirm.component';
 import { LS } from '../../core/persistence/storage-keys.const';
-import { MatTab, MatTabGroup } from '@angular/material/tabs';
+import { MatTab, MatTabGroup, MatTabLabel } from '@angular/material/tabs';
 import { MatIcon } from '@angular/material/icon';
 
 @Component({
@@ -75,6 +75,7 @@ import { MatIcon } from '@angular/material/icon';
     CollapsibleComponent,
     MatTabGroup,
     MatTab,
+    MatTabLabel,
     MatIcon,
   ],
 })
