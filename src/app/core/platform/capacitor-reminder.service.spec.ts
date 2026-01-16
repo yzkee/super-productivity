@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { provideMockStore } from '@ngrx/store/testing';
 import { CapacitorReminderService } from './capacitor-reminder.service';
 import { CapacitorPlatformService } from './capacitor-platform.service';
 import { CapacitorNotificationService } from './capacitor-notification.service';
@@ -43,6 +44,7 @@ describe('CapacitorReminderService', () => {
     TestBed.configureTestingModule({
       providers: [
         CapacitorReminderService,
+        provideMockStore(),
         { provide: CapacitorPlatformService, useValue: platformServiceSpy },
         { provide: CapacitorNotificationService, useValue: notificationServiceSpy },
       ],
@@ -76,6 +78,7 @@ describe('CapacitorReminderService', () => {
       TestBed.configureTestingModule({
         providers: [
           CapacitorReminderService,
+          provideMockStore(),
           { provide: CapacitorPlatformService, useValue: nativePlatformSpy },
           { provide: CapacitorNotificationService, useValue: notificationServiceSpy },
         ],
@@ -156,6 +159,7 @@ describe('CapacitorReminderService', () => {
       TestBed.configureTestingModule({
         providers: [
           CapacitorReminderService,
+          provideMockStore(),
           { provide: CapacitorPlatformService, useValue: nativePlatformSpy },
           { provide: CapacitorNotificationService, useValue: notificationServiceSpy },
         ],
