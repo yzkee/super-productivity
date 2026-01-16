@@ -112,9 +112,15 @@ button.isActive2 {
   gap: var(--header-nav-button-gap);
   flex-shrink: 0;
   margin-right: calc(var(--s) * 1.5);
-  padding: 4px 8px;
+  padding: 0;
   border-radius: 20px;
-  border: 1px solid rgba(128, 128, 128, 0.3);
+  border: none;
+
+  // Show border and padding only when there are 2+ children
+  &:has(> :nth-child(2)) {
+    padding: 4px 8px;
+    border: 1px solid rgba(128, 128, 128, 0.3);
+  }
 
   ::ng-deep button {
     width: 36px;
