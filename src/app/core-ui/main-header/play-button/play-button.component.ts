@@ -174,20 +174,29 @@ import { distinctUntilChanged, observeOn } from 'rxjs/operators';
         font-size: 13px;
         z-index: 5;
 
-        @media (max-width: 1280px) {
+        @media (max-width: 1080px) {
           display: none;
         }
 
         .title {
-          max-width: 220px;
+          max-width: 200px;
           text-overflow: ellipsis;
           overflow: hidden;
         }
 
         .project {
+          max-width: 130px;
           padding-right: 0;
           padding-left: var(--s-half);
           font-size: 12px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+
+          ::ng-deep .tag-title {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+          }
         }
       }
     `,
