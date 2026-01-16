@@ -420,7 +420,11 @@ export class TaskContextMenuInnerComponent implements AfterViewInit {
 
   addToMyDay(): void {
     this._store.dispatch(
-      TaskSharedActions.planTasksForToday({ taskIds: [this.task.id], isShowSnack: true }),
+      TaskSharedActions.planTasksForToday({
+        taskIds: [this.task.id],
+        parentTaskMap: { [this.task.id]: this.task.parentId },
+        isShowSnack: true,
+      }),
     );
   }
 

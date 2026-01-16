@@ -670,8 +670,12 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   }
 
   addToMyDay(): void {
+    const task = this.task();
     this._store.dispatch(
-      TaskSharedActions.planTasksForToday({ taskIds: [this.task().id] }),
+      TaskSharedActions.planTasksForToday({
+        taskIds: [task.id],
+        parentTaskMap: { [task.id]: task.parentId },
+      }),
     );
   }
 
