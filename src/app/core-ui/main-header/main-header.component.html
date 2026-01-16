@@ -25,9 +25,9 @@
   }
 
   <nav class="action-nav-right">
-    <!-- Desktop: Primary action group (play, focus, counters) -->
+    <!-- Desktop: Counters action group (play, focus, counters) -->
     @if (showDesktopButtons()) {
-      <div class="primary-action-group">
+      <div class="counters-action-group">
         @if (isTimeTrackingEnabled()) {
           <play-button
             [currentTask]="currentTask()"
