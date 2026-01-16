@@ -6,13 +6,11 @@ const sendMessage = async (type: string, payload?: any): Promise<any> => {
     const messageId = Math.random().toString(36).substring(2, 9);
 
     const handler = (event: MessageEvent) => {
-      console.log('[useTranslate] Received message:', event.data);
       // Listen for MESSAGE_RESPONSE from parent
       if (
         event.data.type === 'PLUGIN_MESSAGE_RESPONSE' &&
         event.data.messageId === messageId
       ) {
-        console.log('[useTranslate] Message matched, resolving with:', event.data.result);
         window.removeEventListener('message', handler);
         resolve(event.data.result);
       }
@@ -20,11 +18,6 @@ const sendMessage = async (type: string, payload?: any): Promise<any> => {
 
     window.addEventListener('message', handler);
     const message = { type, payload };
-    console.log('[useTranslate] Sending message:', {
-      type: 'PLUGIN_MESSAGE',
-      message,
-      messageId,
-    });
     // Use the proper PLUGIN_MESSAGE type for the plugin message system
     window.parent.postMessage({ type: 'PLUGIN_MESSAGE', message, messageId }, '*');
   });
