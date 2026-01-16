@@ -112,6 +112,12 @@ export class AndroidEffects {
 
               // Schedule each reminder using the platform-appropriate method
               for (const task of tasksWithReminders) {
+                // Skip reminders that are already in the past (already fired)
+                // These will be handled by the dialog when the user opens the app
+                if (task.remindAt! < Date.now()) {
+                  continue;
+                }
+
                 const id = generateNotificationId(task.id);
                 await this._reminderService.scheduleReminder({
                   notificationId: id,
