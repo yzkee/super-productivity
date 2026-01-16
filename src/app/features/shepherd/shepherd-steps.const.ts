@@ -29,7 +29,7 @@ const NEXT_BTN = {
   type: 'next',
 };
 
-const CANCEL_BTN: any = (shepherdService: ShepherdService) => ({
+const CANCEL_BTN = (shepherdService: ShepherdService): Step.StepOptionsButton => ({
   classes: SECONDARY_CLASSES,
   text: 'No thanks',
   action: () => {

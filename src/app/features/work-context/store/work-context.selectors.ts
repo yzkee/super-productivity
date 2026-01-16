@@ -321,7 +321,8 @@ export const selectTimelineTasks = createSelector(
   } => {
     const allPlannedTasks: TaskWithDueTime[] = [];
     s.ids
-      .map((id) => s.entities[id] as Task)
+      .map((id) => s.entities[id])
+      .filter((t): t is Task => !!t)
       .forEach((t) => {
         if (!t.isDone) {
           if (t.dueWithTime) {
@@ -335,9 +336,9 @@ export const selectTimelineTasks = createSelector(
     return {
       planned: allPlannedTasks,
       unPlanned: todayIds
-        .map((id) => {
-          return mapSubTasksToTask(s.entities[id] as Task, s) as TaskWithSubTasks;
-        })
+        .map((id) => s.entities[id])
+        .filter((t): t is Task => !!t)
+        .map((t) => mapSubTasksToTask(t, s) as TaskWithSubTasks)
         .filter((t) => !t.isDone && !allPlannedIdSet.has(t.id)),
     };
   },

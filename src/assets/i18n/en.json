@@ -220,6 +220,7 @@
       "RESUME_SESSION": "Resume session",
       "SELECT_MODE": "Choose your focus mode",
       "SELECT_TASK": "Select Task to focus on",
+      "SELECT_TASK_FIRST": "Select a task first to start tracking",
       "SELECT_TASK_TO_FOCUS": "Select Task to Focus",
       "SESSION_COMPLETED": "Focus Session Completed!",
       "SHORT_BREAK": "Short Break",
@@ -1753,6 +1754,7 @@
       "TASK_OPEN_CONTEXT_MENU": "Open task context menu",
       "TASK_OPEN_ESTIMATION_DIALOG": "Edit estimation / time spent",
       "TASK_SCHEDULE": "Schedule Task",
+      "TASK_UNSCHEDULE": "Unschedule Task",
       "TASK_SHORTCUTS": "Tasks",
       "TASK_SHORTCUTS_INFO": "The following shortcuts apply for the currently selected task (selected via tab or mouse).",
       "TASK_TOGGLE_DETAIL_PANEL_OPEN": "Show/Hide additional task info",
@@ -1858,7 +1860,9 @@
       "DISABLE_REMINDERS": "Disable all reminders",
       "IS_COUNTDOWN_BANNER_ENABLED": "Show countdown banner before reminders are due",
       "IS_FOCUS_WINDOW": "Focus application window when reminder is triggered",
-      "TITLE": "Reminders"
+      "TITLE": "Reminders",
+      "USE_ALARM_STYLE_REMINDERS": "Use alarm-style notifications (Android)",
+      "USE_ALARM_STYLE_REMINDERS_DESCRIPTION": "When enabled, reminders use louder alarm sounds and more intrusive notifications. Recommended for critical reminders."
     },
     "SCHEDULE": {
       "HELP": "The schedule feature should provide you with a quick overview over how your planned tasks play out over time. You can find it in the left hand menu under <a href='#/schedule'>'Schedule'</a>. ",

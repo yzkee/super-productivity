@@ -21,7 +21,12 @@ import { isOnline$ } from '../../util/is-online';
 import { LS } from '../persistence/storage-keys.const';
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { DialogPleaseRateComponent } from '../../features/dialog-please-rate/dialog-please-rate.component';
-import { take } from 'rxjs/operators';
+import { map, take } from 'rxjs/operators';
+import { combineLatest } from 'rxjs';
+import { Store } from '@ngrx/store';
+import { selectSyncConfig } from '../../features/config/store/global-config.reducer';
+import { selectEnabledIssueProviders } from '../../features/issue/store/issue-provider.selectors';
+import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
 import { GlobalConfigState } from '../../features/config/global-config.model';
 import { IPC } from '../../../../electron/shared-with-frontend/ipc-events.const';
 import { IpcRendererEvent } from 'electron';
@@ -51,6 +56,7 @@ export class StartupService {
   private _projectService = inject(ProjectService);
   private _trackingReminderService = inject(TrackingReminderService);
   private _opLogStore = inject(OperationLogStoreService);
+  private _store = inject(Store);
 
   constructor() {
     // Initialize electron error handler in an effect
@@ -235,8 +241,21 @@ export class StartupService {
   }
 
   private _initOfflineBanner(): void {
-    isOnline$.subscribe((isOnlineIn) => {
-      if (!isOnlineIn) {
+    const needsInternet$ = combineLatest([
+      this._store.select(selectSyncConfig),
+      this._store.select(selectEnabledIssueProviders),
+    ]).pipe(
+      map(([syncConfig, enabledIssueProviders]) => {
+        const hasCloudSync =
+          syncConfig.syncProvider !== null &&
+          syncConfig.syncProvider !== LegacySyncProvider.LocalFile;
+        const hasIssueProviders = enabledIssueProviders.length > 0;
+        return hasCloudSync || hasIssueProviders;
+      }),
+    );
+
+    combineLatest([isOnline$, needsInternet$]).subscribe(([isOnline, needsInternet]) => {
+      if (!isOnline && needsInternet) {
         this._bannerService.open({
           id: BannerId.Offline,
           ico: 'cloud_off',

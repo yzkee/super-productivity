@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { createEffect } from '@ngrx/effects';
 import { switchMap, tap } from 'rxjs/operators';
-import { timer } from 'rxjs';
+import { combineLatest, timer } from 'rxjs';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { SnackService } from '../../../core/snack/snack.service';
 import { IS_ANDROID_WEB_VIEW } from '../../../util/is-android-web-view';
@@ -12,6 +12,7 @@ import { TaskService } from '../../tasks/task.service';
 import { TaskAttachmentService } from '../../tasks/task-attachment/task-attachment.service';
 import { Store } from '@ngrx/store';
 import { selectAllTasksWithReminder } from '../../tasks/store/task.selectors';
+import { selectReminderConfig } from '../../config/store/global-config.reducer';
 
 // TODO send message to electron when current task changes here
 
@@ -71,8 +72,13 @@ export class AndroidEffects {
     createEffect(
       () =>
         timer(DELAY_SCHEDULE).pipe(
-          switchMap(() => this._store.select(selectAllTasksWithReminder)),
-          tap(async (tasksWithReminders) => {
+          switchMap(() =>
+            combineLatest([
+              this._store.select(selectAllTasksWithReminder),
+              this._store.select(selectReminderConfig),
+            ]),
+          ),
+          tap(async ([tasksWithReminders, reminderConfig]) => {
             try {
               const currentReminderIds = new Set(
                 (tasksWithReminders || []).map((t) => t.id),
@@ -111,6 +117,8 @@ export class AndroidEffects {
               }
               await this._ensureExactAlarmAccess();
 
+              const useAlarmStyle = reminderConfig.useAlarmStyleReminders ?? false;
+
               // Schedule each reminder using native Android AlarmManager
               for (const task of tasksWithReminders) {
                 const id = generateNotificationId(task.id);
@@ -124,6 +132,7 @@ export class AndroidEffects {
                   task.title,
                   'TASK',
                   scheduleAt,
+                  useAlarmStyle,
                 );
               }
 
