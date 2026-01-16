@@ -69,7 +69,8 @@
   }
 
   @media (max-width: 1280px) {
-    &:has(page-title:hover) ::ng-deep .current-task-title {
+    &:has(page-title:hover) ::ng-deep .current-task-title,
+    &:has(page-title [aria-expanded='true']) ::ng-deep .current-task-title {
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.3s ease-out;
