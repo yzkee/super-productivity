@@ -141,17 +141,16 @@ jobs:
       - name: Archive iOS app
         run: |
           cd ios/App
-          # Don't apply PROVISIONING_PROFILE_SPECIFIER globally - CocoaPods frameworks don't support it
-          # Manual signing is handled during export via ExportOptions.plist
+          # Archive without code signing - signing is handled during export
+          # This avoids conflicts with CocoaPods frameworks
           xcodebuild archive \
             -workspace App.xcworkspace \
             -scheme App \
             -configuration Release \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -destination 'generic/platform=iOS' \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
-            CODE_SIGN_STYLE=Automatic
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
 
       - name: Create ExportOptions.plist
         run: |
