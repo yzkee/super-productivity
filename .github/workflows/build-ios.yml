@@ -117,13 +117,14 @@ jobs:
 
       - name: Set iOS version from package.json
         run: |
-          VERSION=$(node -p "require('./package.json').version")
+          FULL_VERSION=$(node -p "require('./package.json').version")
+          # Strip pre-release suffix (e.g., "17.0.0-RC.3" -> "17.0.0")
+          # App Store requires X.Y.Z format; build number differentiates uploads
+          VERSION=$(echo "$FULL_VERSION" | sed 's/-.*//')
           BUILD_NUMBER=$(date +%Y%m%d%H%M)
-          echo "Setting iOS version to $VERSION (build $BUILD_NUMBER)"
+          echo "Setting iOS version to $VERSION (build $BUILD_NUMBER) [from $FULL_VERSION]"
 
-          # Update the project.pbxproj with the correct version
           cd ios/App
-          # Use agvtool to set versions (it handles all the project file updates)
           xcrun agvtool new-marketing-version "$VERSION"
           xcrun agvtool new-version -all "$BUILD_NUMBER"
 
