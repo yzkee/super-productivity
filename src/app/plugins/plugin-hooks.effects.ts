@@ -45,6 +45,7 @@ import {
 } from '../features/work-context/store/work-context-meta.actions';
 import { LOCAL_ACTIONS } from '../util/local-actions.token';
 import { PlannerActions } from '../features/planner/store/planner.actions';
+import { LanguageCode } from '../core/locale.constants';
 
 @Injectable()
 export class PluginHooksEffects {
@@ -210,11 +211,11 @@ export class PluginHooksEffects {
         filter((action) => action.sectionKey === 'localization'),
         withLatestFrom(this.store.pipe(select(selectLocalizationConfig))),
         map(([_, localizationConfig]) => localizationConfig.lng),
-        filter((lng) => !!lng),
+        filter((lng): lng is LanguageCode => typeof lng === 'string' && lng.length > 0),
         distinctUntilChanged(),
         tap((newLanguage) => {
           // Update plugin i18n service with new language
-          this.pluginI18nService.setCurrentLanguage(newLanguage!);
+          this.pluginI18nService.setCurrentLanguage(newLanguage);
 
           // Dispatch hook to notify plugins
           this.pluginService.dispatchHook(PluginHooks.LANGUAGE_CHANGE, {
