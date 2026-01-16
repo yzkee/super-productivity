@@ -15,6 +15,10 @@ describe('ProjectMetricsService', () => {
   let service: ProjectMetricsService;
   let taskService: jasmine.SpyObj<TaskService>;
   let projectService: jasmine.SpyObj<ProjectService>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let worklogService: jasmine.SpyObj<WorklogService>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  let workContextService: jasmine.SpyObj<WorkContextService>;
   let activeWorkContextTypeAndId$: BehaviorSubject<{
     activeType: WorkContextType | null;
     activeId: string | null;

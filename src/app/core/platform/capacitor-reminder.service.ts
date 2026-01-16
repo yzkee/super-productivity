@@ -10,6 +10,7 @@ import {
 import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
 import { androidInterface } from '../../features/android/android-interface';
 import { Observable } from 'rxjs';
+import { GlobalConfigService } from '../../features/config/global-config.service';
 
 export interface ScheduleReminderOptions {
   /**
@@ -50,6 +51,7 @@ export interface ScheduleReminderOptions {
 export class CapacitorReminderService {
   private _platformService = inject(CapacitorPlatformService);
   private _notificationService = inject(CapacitorNotificationService);
+  private _globalConfigService = inject(GlobalConfigService);
 
   /**
    * Observable that emits when a notification action is performed (iOS).
@@ -91,6 +93,8 @@ export class CapacitorReminderService {
     // On Android, use native AlarmManager for precision
     if (IS_ANDROID_WEB_VIEW && androidInterface.scheduleNativeReminder) {
       try {
+        const useAlarmStyle =
+          this._globalConfigService.cfg()?.reminder?.useAlarmStyleReminders ?? false;
         androidInterface.scheduleNativeReminder(
           options.notificationId,
           options.reminderId,
@@ -98,6 +102,7 @@ export class CapacitorReminderService {
           options.title,
           options.reminderType,
           triggerAt,
+          useAlarmStyle,
         );
         Log.log('CapacitorReminderService: Android reminder scheduled', {
           notificationId: options.notificationId,
