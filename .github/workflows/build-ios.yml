@@ -82,9 +82,19 @@ jobs:
         run: |
           security cms -D -i "$HOME/Library/MobileDevice/Provisioning Profiles/${PROVISIONING_PROFILE_UUID}.mobileprovision" > /tmp/profile.plist
           echo "=== PROVISIONING PROFILE INFO ==="
-          /usr/libexec/PlistBuddy -c "Print Name" /tmp/profile.plist
-          /usr/libexec/PlistBuddy -c "Print TeamIdentifier:0" /tmp/profile.plist
+          echo "Name: $(/usr/libexec/PlistBuddy -c "Print Name" /tmp/profile.plist)"
+          echo "Team: $(/usr/libexec/PlistBuddy -c "Print TeamIdentifier:0" /tmp/profile.plist)"
+          PROFILE_APP_ID=$(/usr/libexec/PlistBuddy -c "Print Entitlements:application-identifier" /tmp/profile.plist | sed 's/^[A-Z0-9]*\.//')
+          echo "App ID: $PROFILE_APP_ID"
           echo "=================================="
+          # Verify bundle ID matches
+          EXPECTED_BUNDLE_ID="com.superproductivity.superproductivity"
+          if [ "$PROFILE_APP_ID" != "$EXPECTED_BUNDLE_ID" ]; then
+            echo "ERROR: Provisioning profile app ID ($PROFILE_APP_ID) does not match expected bundle ID ($EXPECTED_BUNDLE_ID)"
+            echo "Please create a new provisioning profile with the correct bundle ID"
+            exit 1
+          fi
+          echo "Bundle ID verification passed!"
 
       - name: Get npm cache directory
         id: npm-cache-dir
@@ -131,16 +141,17 @@ jobs:
       - name: Archive iOS app
         run: |
           cd ios/App
+          # Don't apply PROVISIONING_PROFILE_SPECIFIER globally - CocoaPods frameworks don't support it
+          # Manual signing is handled during export via ExportOptions.plist
           xcodebuild archive \
             -workspace App.xcworkspace \
             -scheme App \
             -configuration Release \
             -archivePath "$RUNNER_TEMP/App.xcarchive" \
             -destination 'generic/platform=iOS' \
-            CODE_SIGN_STYLE=Manual \
-            PROVISIONING_PROFILE_SPECIFIER="${{ env.PROVISIONING_PROFILE_UUID }}" \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}"
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            CODE_SIGN_STYLE=Automatic
 
       - name: Create ExportOptions.plist
         run: |
