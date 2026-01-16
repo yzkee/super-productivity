@@ -28,6 +28,7 @@ test.describe('Focus Mode - Break Controls (Issue #5995)', () => {
   }) => {
     const focusModeOverlay = page.locator('focus-mode-overlay');
     const focusModeBreak = page.locator('focus-mode-break');
+    const focusModeCountdown = page.locator('focus-mode-countdown');
     const mainFocusButton = page
       .getByRole('button')
       .filter({ hasText: 'center_focus_strong' });
@@ -43,6 +44,7 @@ test.describe('Focus Mode - Break Controls (Issue #5995)', () => {
     await expect(focusModeOverlay).toBeVisible({ timeout: 5000 });
     await pomodoroModeButton.click();
     await playButton.click();
+    await expect(focusModeCountdown).not.toBeVisible({ timeout: 10000 });
     await expect(completeSessionButton).toBeVisible({ timeout: 10000 });
     await completeSessionButton.click();
     await expect(focusModeBreak).toBeVisible({ timeout: 10000 });
@@ -59,6 +61,7 @@ test.describe('Focus Mode - Break Controls (Issue #5995)', () => {
     const focusModeOverlay = page.locator('focus-mode-overlay');
     const focusModeBreak = page.locator('focus-mode-break');
     const focusModeMain = page.locator('focus-mode-main');
+    const focusModeCountdown = page.locator('focus-mode-countdown');
     const mainFocusButton = page
       .getByRole('button')
       .filter({ hasText: 'center_focus_strong' });
@@ -84,6 +87,9 @@ test.describe('Focus Mode - Break Controls (Issue #5995)', () => {
 
     // Start a focus session
     await playButton.click();
+
+    // Wait for countdown animation to complete
+    await expect(focusModeCountdown).not.toBeVisible({ timeout: 10000 });
 
     // Wait for session to be in progress, then complete it
     await expect(completeSessionButton).toBeVisible({ timeout: 10000 });
@@ -122,6 +128,7 @@ test.describe('Focus Mode - Break Controls (Issue #5995)', () => {
     // Locators
     const focusModeOverlay = page.locator('focus-mode-overlay');
     const focusModeBreak = page.locator('focus-mode-break');
+    const focusModeCountdown = page.locator('focus-mode-countdown');
     const mainFocusButton = page
       .getByRole('button')
       .filter({ hasText: 'center_focus_strong' });
@@ -143,6 +150,9 @@ test.describe('Focus Mode - Break Controls (Issue #5995)', () => {
     await pomodoroModeButton.click();
     await playButton.click();
 
+    // Wait for countdown animation to complete
+    await expect(focusModeCountdown).not.toBeVisible({ timeout: 10000 });
+
     // Complete the session
     await expect(completeSessionButton).toBeVisible({ timeout: 10000 });
     await completeSessionButton.click();
@@ -160,6 +170,7 @@ test.describe('Focus Mode - Break Controls (Issue #5995)', () => {
     const focusModeOverlay = page.locator('focus-mode-overlay');
     const focusModeBreak = page.locator('focus-mode-break');
     const focusModeMain = page.locator('focus-mode-main');
+    const focusModeCountdown = page.locator('focus-mode-countdown');
     const mainFocusButton = page
       .getByRole('button')
       .filter({ hasText: 'center_focus_strong' });
@@ -180,6 +191,9 @@ test.describe('Focus Mode - Break Controls (Issue #5995)', () => {
     // Select Pomodoro mode and start session
     await pomodoroModeButton.click();
     await playButton.click();
+
+    // Wait for countdown animation to complete
+    await expect(focusModeCountdown).not.toBeVisible({ timeout: 10000 });
 
     // Complete the session
     await expect(completeSessionButton).toBeVisible({ timeout: 10000 });
@@ -203,6 +217,7 @@ test.describe('Focus Mode - Break Controls (Issue #5995)', () => {
     const focusModeOverlay = page.locator('focus-mode-overlay');
     const focusModeBreak = page.locator('focus-mode-break');
     const focusModeMain = page.locator('focus-mode-main');
+    const focusModeCountdown = page.locator('focus-mode-countdown');
     const mainFocusButton = page
       .getByRole('button')
       .filter({ hasText: 'center_focus_strong' });
@@ -223,6 +238,9 @@ test.describe('Focus Mode - Break Controls (Issue #5995)', () => {
     // Select Pomodoro mode and start session
     await pomodoroModeButton.click();
     await playButton.click();
+
+    // Wait for countdown animation to complete
+    await expect(focusModeCountdown).not.toBeVisible({ timeout: 10000 });
 
     // Complete the session
     await expect(completeSessionButton).toBeVisible({ timeout: 10000 });
