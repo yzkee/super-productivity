@@ -26,6 +26,9 @@ const config: CapacitorConfig = {
   ios: {
     // Content inset for safe areas (notch, home indicator)
     contentInset: 'automatic',
+    // Background color for safe areas (home indicator, notch)
+    // Use dark color to match dark theme (most common on mobile)
+    backgroundColor: '#131314',
     // Allow inline media playback
     allowsLinkPreview: true,
     // Scroll behavior
