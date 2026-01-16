@@ -191,7 +191,7 @@ export class GitlabApiService {
   }> {
     return this._sendRawRequest$(
       {
-        url: `${this._issueApiLink(cfg)}/time_stats`,
+        url: `${this._issueApiLink(cfg, issueId)}/time_stats`,
       },
       cfg,
     ).pipe(map((res) => (res as any).body));
@@ -325,8 +325,8 @@ export class GitlabApiService {
 
   private _issueApiLink(cfg: GitlabCfg, issueId: string): string {
     IssueLog.log(issueId);
-    const {project, projectIssueId } = getPartsFromGitlabIssueId(issueId);
-    return `${this._projectApiLink(cfg,project)}/issues/${projectIssueId}`;
+    const { project, projectIssueId } = getPartsFromGitlabIssueId(issueId);
+    return `${this._projectApiLink(cfg, project)}/issues/${projectIssueId}`;
   }
 
   private _projectApiLink(cfg: GitlabCfg, project: string): string {
@@ -347,6 +347,6 @@ export class GitlabApiService {
   }
 
   private _apiLink(cfg: GitlabCfg): string {
-    return this._projectApiLink(cfg.project)
+    return this._projectApiLink(cfg, cfg.project);
   }
 }
