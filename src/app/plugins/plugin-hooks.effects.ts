@@ -210,10 +210,11 @@ export class PluginHooksEffects {
         filter((action) => action.sectionKey === 'localization'),
         withLatestFrom(this.store.pipe(select(selectLocalizationConfig))),
         map(([_, localizationConfig]) => localizationConfig.lng),
+        filter((lng) => !!lng),
         distinctUntilChanged(),
         tap((newLanguage) => {
           // Update plugin i18n service with new language
-          this.pluginI18nService.setCurrentLanguage(newLanguage);
+          this.pluginI18nService.setCurrentLanguage(newLanguage!);
 
           // Dispatch hook to notify plugins
           this.pluginService.dispatchHook(PluginHooks.LANGUAGE_CHANGE, {
