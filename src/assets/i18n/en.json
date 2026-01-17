@@ -2186,7 +2186,6 @@
     "PROVIDE_FEEDBACK": "Provide Feedback",
     "RELOAD": "Reload",
     "SYNC_EXPORT": "Sync & Export",
-    "TAG_SETTINGS": "Tag Specific Settings",
     "TABS": {
       "GENERAL": "General",
       "TIME_TRACKING": "Time & Tracking",
@@ -2194,6 +2193,7 @@
       "PLUGINS": "Plugins",
       "SYNC_BACKUP": "Sync & Backup"
     },
+    "TAG_SETTINGS": "Tag Specific Settings",
     "TOGGLE_DARK_MODE": "Toggle Dark Mode",
     "UPDATE_APP": "Update App"
   },
