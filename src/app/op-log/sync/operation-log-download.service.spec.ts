@@ -1,4 +1,4 @@
-import { fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { fakeAsync, flushMicrotasks, TestBed, tick } from '@angular/core/testing';
 import { OperationLogDownloadService } from './operation-log-download.service';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { LockService } from './lock.service';
@@ -125,7 +125,7 @@ describe('OperationLogDownloadService', () => {
         );
 
         service.downloadRemoteOps(mockApiProvider);
-        tick(); // Resolve promises
+        flushMicrotasks(); // Flush all pending promises
 
         // Warning should not be shown immediately
         expect(OpLog.warn).not.toHaveBeenCalled();
@@ -269,13 +269,13 @@ describe('OperationLogDownloadService', () => {
 
         // First call - should warn after retry
         service.downloadRemoteOps(mockApiProvider);
-        tick(); // Resolve promises
+        flushMicrotasks(); // Flush all pending promises
         tick(1000); // Wait for retry
         expect(OpLog.warn).toHaveBeenCalledTimes(1);
 
         // Second call - should NOT warn again
         service.downloadRemoteOps(mockApiProvider);
-        tick(); // Resolve promises
+        flushMicrotasks(); // Flush all pending promises
         tick(1000); // Wait for retry (if any)
         expect(OpLog.warn).toHaveBeenCalledTimes(1);
       }));
@@ -361,7 +361,7 @@ describe('OperationLogDownloadService', () => {
         );
 
         service.downloadRemoteOps(mockApiProvider);
-        tick(); // Resolve promises
+        flushMicrotasks(); // Flush all pending promises
         tick(1000); // Wait for retry
 
         // Should warn because serverTime differs from client time
