@@ -75,7 +75,7 @@
           </div>
         </mat-tab>
 
-        <!-- Tab: Plugins & Shortcuts -->
+        <!-- Tab: Plugins -->
         <mat-tab>
           <ng-template mat-tab-label>
             <mat-icon class="tab-icon">extension</mat-icon>
@@ -83,15 +83,8 @@
           </ng-template>
           <div class="tab-content">
             <section class="config-section plugin-section">
-              <collapsible
-                [isIconBefore]="true"
-                [isExpanded]="true"
-                [title]="T.PS.PLUGINS | translate"
-              >
-                <plugin-management></plugin-management>
-              </collapsible>
+              <plugin-management></plugin-management>
             </section>
-
             @for (section of pluginsShortcutsFormCfg; track section.key) {
               <section class="config-section section-{{ section.key }}">
                 <config-section
