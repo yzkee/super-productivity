@@ -1,3 +1,19 @@
+# [17.0.0-RC.6](https://github.com/super-productivity/super-productivity/compare/v17.0.0-RC.5...v17.0.0-RC.6) (2026-01-17)
+
+### Bug Fixes
+
+- **ci:** add memory allocation to Mac test step to prevent OOM ([7a7cb03](https://github.com/super-productivity/super-productivity/commit/7a7cb031b9f6de7f99fa6075ec69f79889a108e9))
+- **ci:** grant write permissions for Claude code review to post comments ([a11257e](https://github.com/super-productivity/super-productivity/commit/a11257e70bac6f7696ef29b881cbdd24c60115c3))
+- **config:** add missing MatTabLabel import to config page component ([9e3e622](https://github.com/super-productivity/super-productivity/commit/9e3e622a9b87dd176089676252705a9559f2019a))
+- **config:** rename 'Plugins & Shortcuts' to 'Plugins' for consistency in UI and translations ([c64485b](https://github.com/super-productivity/super-productivity/commit/c64485b888471cab786a81401669110f26943040))
+- **i18n:** update Russian translations and make alphabetical order for en and ru. ([4c7875c](https://github.com/super-productivity/super-productivity/commit/4c7875c8dd58ccfb09282fef77f4162b92d110d0))
+- **snap:** add filesystem and desktop integration plugs ([1c0581b](https://github.com/super-productivity/super-productivity/commit/1c0581bca83ca4e28a7a4d271c2e3aecd5dc6404)), closes [#6031](https://github.com/super-productivity/super-productivity/issues/6031)
+- **tags:** show subtasks in tag lists only when parent is not in same list ([0c5bc46](https://github.com/super-productivity/super-productivity/commit/0c5bc46e6799eb11f494e98d38b17bc408a0876c))
+
+### Features
+
+- **config:** implement tabbed configuration UI with language and tracking settings ([b8e0683](https://github.com/super-productivity/super-productivity/commit/b8e0683f070fc97c12874cf9577e6159e3caca4b))
+
 # [17.0.0-RC.5](https://github.com/super-productivity/super-productivity/compare/v17.0.0-RC.3...v17.0.0-RC.5) (2026-01-16)
 
 ### Bug Fixes
