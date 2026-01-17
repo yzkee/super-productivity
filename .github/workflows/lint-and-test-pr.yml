@@ -50,6 +50,8 @@ jobs:
       - run: npm run lint
       - run: npm run int:test # Validate i18n JSON files
       - run: npm run test
+      - name: Test E2E
+        run: npm run e2e
       - name: 'Upload E2E results on failure'
         if: ${{ failure() }}
         uses: actions/upload-artifact@v6
