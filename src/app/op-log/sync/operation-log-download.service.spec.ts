@@ -92,7 +92,11 @@ describe('OperationLogDownloadService', () => {
 
       it('should detect and warn about clock drift after retry', fakeAsync(() => {
         const driftMs = CLOCK_DRIFT_THRESHOLD_MS + 60000; // Threshold + 1 min
-        const serverCurrentTime = Date.now() - driftMs; // Server clock is behind
+        const initialTime = Date.now();
+        const serverCurrentTime = initialTime - driftMs; // Server clock is behind
+
+        // Spy on Date.now() to return consistent time during the test
+        spyOn(Date, 'now').and.returnValue(initialTime);
 
         mockApiProvider.downloadOps.and.returnValue(
           Promise.resolve({
@@ -108,7 +112,7 @@ describe('OperationLogDownloadService', () => {
                   entityType: 'TASK',
                   payload: {},
                   vectorClock: {},
-                  timestamp: Date.now(),
+                  timestamp: initialTime,
                   schemaVersion: 1,
                 },
               },
@@ -232,7 +236,11 @@ describe('OperationLogDownloadService', () => {
 
       it('should only warn about clock drift once per session', fakeAsync(() => {
         const driftMs = CLOCK_DRIFT_THRESHOLD_MS + 60000; // Threshold + 1 min
-        const serverCurrentTime = Date.now() - driftMs;
+        const initialTime = Date.now();
+        const serverCurrentTime = initialTime - driftMs;
+
+        // Spy on Date.now() to return consistent time during the test
+        spyOn(Date, 'now').and.returnValue(initialTime);
 
         mockApiProvider.downloadOps.and.returnValue(
           Promise.resolve({
@@ -248,7 +256,7 @@ describe('OperationLogDownloadService', () => {
                   entityType: 'TASK',
                   payload: {},
                   vectorClock: {},
-                  timestamp: Date.now(),
+                  timestamp: initialTime,
                   schemaVersion: 1,
                 },
               },
@@ -321,7 +329,11 @@ describe('OperationLogDownloadService', () => {
         // When server sends its current time and it differs significantly from
         // client time, we should warn about clock drift
         const driftMs = CLOCK_DRIFT_THRESHOLD_MS + 60000; // 6 minutes drift
-        const serverCurrentTime = Date.now() - driftMs; // Server clock is 6 min behind
+        const initialTime = Date.now();
+        const serverCurrentTime = initialTime - driftMs; // Server clock is 6 min behind
+
+        // Spy on Date.now() to return consistent time during the test
+        spyOn(Date, 'now').and.returnValue(initialTime);
 
         mockApiProvider.downloadOps.and.returnValue(
           Promise.resolve({
