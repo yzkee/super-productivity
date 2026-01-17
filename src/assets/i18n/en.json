@@ -2187,6 +2187,7 @@
     "SYNC_EXPORT": "Sync & Export",
     "TABS": {
       "GENERAL": "General",
+      "TASKS": "Tasks",
       "TIME_TRACKING": "Time & Tracking",
       "PRODUCTIVITY": "Productivity",
       "PLUGINS": "Plugins",
