@@ -15,6 +15,7 @@
 import { test, expect } from '../../fixtures/test.fixture';
 import { Page, Locator } from '@playwright/test';
 import { WorkViewPage } from '../../pages/work-view.page';
+import { waitForAngularStability } from '../../utils/waits';
 
 // Helper to open focus mode and select a task
 const openFocusModeWithTask = async (
@@ -336,12 +337,21 @@ test.describe('Bug #5954: Pomodoro timer sync issues', () => {
       await playButton.click();
       await expect(task).toHaveClass(/isCurrent/, { timeout: 5000 });
 
-      // Step 2: Mark task as done (this stops tracking)
+      // Wait for Angular to finish re-rendering the task hover controls
+      // When isCurrent changes, the hover controls switch from play to pause button
+      await waitForAngularStability(page);
+
+      // Step 2: Stop tracking first to avoid continuous re-renders from progress bar
+      // Use the task page's toggle method which handles play/pause button
+      await taskPage.toggleTaskTimeTracking(task);
+      await expect(task).not.toHaveClass(/isCurrent/, { timeout: 5000 });
+      await waitForAngularStability(page);
+
+      // Step 3: Mark task as done (now that tracking is stopped)
       await taskPage.markTaskAsDone(task);
       await expect(task).toHaveClass(/isDone/, { timeout: 5000 });
-      await expect(task).not.toHaveClass(/isCurrent/, { timeout: 5000 });
 
-      // Step 3: Open focus mode and try to start session
+      // Step 4: Open focus mode and try to start session
       await mainFocusButton.click();
       await expect(focusModeOverlay).toBeVisible({ timeout: 5000 });
 
