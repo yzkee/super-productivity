@@ -1,3 +1,5 @@
+# [17.0.0-RC.9](https://github.com/super-productivity/super-productivity/compare/v17.0.0-RC.8...v17.0.0-RC.9) (2026-01-17)
+
 # [17.0.0-RC.8](https://github.com/super-productivity/super-productivity/compare/v17.0.0-RC.7...v17.0.0-RC.8) (2026-01-17)
 
 ### Bug Fixes
