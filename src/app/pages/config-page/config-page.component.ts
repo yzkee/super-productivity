@@ -82,14 +82,15 @@ import { MatIcon } from '@angular/material/icon';
 export class ConfigPageComponent implements OnInit, OnDestroy {
   private readonly _cd = inject(ChangeDetectorRef);
   private readonly _providerManager = inject(SyncProviderManager);
-  readonly configService = inject(GlobalConfigService);
-  readonly syncSettingsService = inject(SyncConfigService);
   private readonly _syncWrapperService = inject(SyncWrapperService);
   private readonly _pluginBridgeService = inject(PluginBridgeService);
   private readonly _snackService = inject(SnackService);
   private readonly _userProfileService = inject(UserProfileService);
   private readonly _matDialog = inject(MatDialog);
   private readonly _superSyncRestoreService = inject(SuperSyncRestoreService);
+
+  readonly configService = inject(GlobalConfigService);
+  readonly syncSettingsService = inject(SyncConfigService);
 
   T: typeof T = T;
 

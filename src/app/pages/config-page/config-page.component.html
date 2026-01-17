@@ -25,6 +25,12 @@
                 ></config-section>
               </section>
             }
+            <section class="config-section">
+              <config-sound-form
+                [cfg]="getGlobalCfgSection('sound')"
+                (save)="saveGlobalCfg($event)"
+              ></config-sound-form>
+            </section>
           </div>
         </mat-tab>
 
@@ -92,13 +98,6 @@
                 ></config-section>
               </section>
             }
-
-            <section class="config-section">
-              <config-sound-form
-                [cfg]="getGlobalCfgSection('sound')"
-                (save)="saveGlobalCfg($event)"
-              ></config-sound-form>
-            </section>
           </div>
         </mat-tab>
 
