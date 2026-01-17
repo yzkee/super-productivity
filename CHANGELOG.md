@@ -1,3 +1,11 @@
+# [17.0.0-RC.8](https://github.com/super-productivity/super-productivity/compare/v17.0.0-RC.7...v17.0.0-RC.8) (2026-01-17)
+
+### Bug Fixes
+
+- **ci:** add E2E tests to PR workflow ([4d78d7b](https://github.com/super-productivity/super-productivity/commit/4d78d7b9fc9363c5b545f95143c52a003613078e))
+- **snap:** remove duplicate plugs from configuration ([dbaaab8](https://github.com/super-productivity/super-productivity/commit/dbaaab8faace09434c58ed6d9054e281df55ba72))
+- **sync:** pass clientId to downloadOps for accurate snapshot detection ([978d71f](https://github.com/super-productivity/super-productivity/commit/978d71f40d2ac60f0d7bd33ae8581de29f6cd791))
+
 # [17.0.0-RC.7](https://github.com/super-productivity/super-productivity/compare/v17.0.0-RC.5...v17.0.0-RC.7) (2026-01-17)
 
 ### Bug Fixes
