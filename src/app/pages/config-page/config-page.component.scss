@@ -49,6 +49,9 @@
 
   .tab-content {
     padding-top: var(--s2);
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   collapsible {
