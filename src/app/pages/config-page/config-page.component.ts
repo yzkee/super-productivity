@@ -11,7 +11,7 @@ import { GlobalConfigService } from '../../features/config/global-config.service
 import {
   GLOBAL_GENERAL_FORM_CONFIG,
   GLOBAL_IMEX_FORM_CONFIG,
-  GLOBAL_PLUGINS_SHORTCUTS_FORM_CONFIG,
+  GLOBAL_PLUGINS_FORM_CONFIG,
   GLOBAL_PRODUCTIVITY_FORM_CONFIG,
   GLOBAL_TIME_TRACKING_FORM_CONFIG,
 } from '../../features/config/global-config-form-config.const';
@@ -131,7 +131,7 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
     // Initialize tab-specific form configurations
     this.generalFormCfg = GLOBAL_GENERAL_FORM_CONFIG.slice();
     this.timeTrackingFormCfg = GLOBAL_TIME_TRACKING_FORM_CONFIG.slice();
-    this.pluginsShortcutsFormCfg = GLOBAL_PLUGINS_SHORTCUTS_FORM_CONFIG.slice();
+    this.pluginsShortcutsFormCfg = GLOBAL_PLUGINS_FORM_CONFIG.slice();
     this.globalImexFormCfg = GLOBAL_IMEX_FORM_CONFIG.slice();
     this.globalProductivityConfigFormCfg = GLOBAL_PRODUCTIVITY_FORM_CONFIG.slice();
 
@@ -167,7 +167,7 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
 
   private _updateKeyboardFormWithPluginShortcuts(shortcuts: PluginShortcutCfg[]): void {
     // Find keyboard form section in plugins & shortcuts tab config
-    const keyboardFormIndex = this.pluginsShortcutsFormCfg.findIndex(
+    const keyboardFormIndex = this.generalFormCfg.findIndex(
       (section) => section.key === 'keyboard',
     );
 
@@ -176,7 +176,7 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const keyboardSection = this.pluginsShortcutsFormCfg[keyboardFormIndex];
+    const keyboardSection = this.generalFormCfg[keyboardFormIndex];
 
     // Remove existing plugin shortcuts and header from the form
     const filteredItems = (keyboardSection.items || []).filter((item) => {
@@ -212,10 +212,10 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
     };
 
     // Create a new config array to ensure Angular detects the change
-    this.pluginsShortcutsFormCfg = [
-      ...this.pluginsShortcutsFormCfg.slice(0, keyboardFormIndex),
+    this.generalFormCfg = [
+      ...this.generalFormCfg.slice(0, keyboardFormIndex),
       newKeyboardSection,
-      ...this.pluginsShortcutsFormCfg.slice(keyboardFormIndex + 1),
+      ...this.generalFormCfg.slice(keyboardFormIndex + 1),
     ];
 
     // Trigger change detection
