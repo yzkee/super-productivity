@@ -234,6 +234,18 @@ sudo snap install --channel=edge superproductivity
 sudo snap set core experimental.refresh-app-awareness=true
 ```
 
+**Important: Enable Local File Sync**
+To use local file sync, you need to manually connect the `home` interface:
+
+```bash
+sudo snap connect superproductivity:home
+```
+
+**⚠️ Snap Data Persistence Warning**
+When uninstalling the snap package, all user data (tasks, projects, settings) stored in `~/snap/superproductivity/common/` may be removed. Always export your data before uninstalling. Consider using Flatpak, AppImage, or .deb packages if you prefer data to persist in the standard `~/.config/` location.
+
+For more details, see [issue #6031](https://github.com/super-productivity/super-productivity/issues/6031).
+
 <a href="https://snapcraft.io/superproductivity">
   <img alt="Get it from the Snap Store" src="https://snapcraft.io/static/images/badges/en/snap-store-black.svg" />
 </a>

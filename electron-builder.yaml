@@ -80,6 +80,13 @@ snap:
     - password-manager-service
     - system-observe
     - login-session-observe
+    # Fix for issue #6031: Add filesystem access for local file sync
+    # https://github.com/super-productivity/super-productivity/issues/6031
+    - home # Allows file picker to access user's home directory for sync
+    - removable-media # Allows sync to external drives/USB storage
+    # Fix for issue #6031: Add desktop integration for taskbar pinning in Cinnamon
+    - desktop # Provides D-Bus interfaces for window manager integration
+    - desktop-legacy # Fallback for older desktop environments
 
 flatpak:
   runtimeVersion: '23.08'
