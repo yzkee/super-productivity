@@ -24,7 +24,7 @@ const filterGlobalConfigForm = (cfg: ConfigFormSection<any>): boolean => {
   );
 };
 
-// Tab: General - Language, App Features, Misc, Short Syntax
+// Tab: General - Language, App Features, Misc, Short Syntax, Sound (specified separately in html)
 export const GLOBAL_GENERAL_FORM_CONFIG: ConfigFormConfig = [
   LANGUAGE_SELECTION_FORM_FORM,
   APP_FEATURES_FORM_CFG,

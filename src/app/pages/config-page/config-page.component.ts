@@ -51,7 +51,6 @@ import { SyncWrapperService } from '../../imex/sync/sync-wrapper.service';
 import { UserProfileService } from '../../features/user-profile/user-profile.service';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogDisableProfilesConfirmationComponent } from '../../features/user-profile/dialog-disable-profiles-confirmation/dialog-disable-profiles-confirmation.component';
-import { SuperSyncRestoreService } from '../../imex/sync/super-sync-restore.service';
 import { DialogRestorePointComponent } from '../../imex/sync/dialog-restore-point/dialog-restore-point.component';
 import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
 import { DialogChangeEncryptionPasswordComponent } from '../../imex/sync/dialog-change-encryption-password/dialog-change-encryption-password.component';
@@ -87,7 +86,6 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
   private readonly _snackService = inject(SnackService);
   private readonly _userProfileService = inject(UserProfileService);
   private readonly _matDialog = inject(MatDialog);
-  private readonly _superSyncRestoreService = inject(SuperSyncRestoreService);
 
   readonly configService = inject(GlobalConfigService);
   readonly syncSettingsService = inject(SyncConfigService);
@@ -96,6 +94,7 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
 
   selectedTabIndex = 0;
 
+  // @todo - find better names for tabs configs forms
   // Tab-specific form configurations
   generalFormCfg: ConfigFormConfig;
   timeTrackingFormCfg: ConfigFormConfig;
@@ -167,7 +166,8 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
   }
 
   private _updateKeyboardFormWithPluginShortcuts(shortcuts: PluginShortcutCfg[]): void {
-    // Find keyboard form section in plugins & shortcuts tab config
+    // @todo - make separate core shortcuts and plugins shortcuts settings
+    // Find keyboard form section in general tab configuration
     const keyboardFormIndex = this.generalFormCfg.findIndex(
       (section) => section.key === 'keyboard',
     );
