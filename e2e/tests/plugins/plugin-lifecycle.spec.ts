@@ -45,6 +45,22 @@ test.describe('Plugin Lifecycle', () => {
       .first()
       .waitFor({ state: 'visible', timeout: 10000 });
 
+    // Navigate to Plugins tab first
+    await page.evaluate(() => {
+      const pluginsTab = Array.from(
+        document.querySelectorAll('mat-tab-header .mat-mdc-tab'),
+      ).find((tab) => {
+        const icon = tab.querySelector('mat-icon');
+        return icon?.textContent?.trim() === 'extension';
+      });
+
+      if (pluginsTab) {
+        (pluginsTab as HTMLElement).click();
+      }
+    });
+
+    await page.waitForTimeout(500);
+
     await page.evaluate(() => {
       const configPage = document.querySelector('.page-settings');
       if (!configPage) {
@@ -154,6 +170,22 @@ test.describe('Plugin Lifecycle', () => {
       .locator('.page-settings')
       .first()
       .waitFor({ state: 'visible', timeout: 10000 });
+
+    // Navigate to Plugins tab first
+    await page.evaluate(() => {
+      const pluginsTab = Array.from(
+        document.querySelectorAll('mat-tab-header .mat-mdc-tab'),
+      ).find((tab) => {
+        const icon = tab.querySelector('mat-icon');
+        return icon?.textContent?.trim() === 'extension';
+      });
+
+      if (pluginsTab) {
+        (pluginsTab as HTMLElement).click();
+      }
+    });
+
+    await page.waitForTimeout(500);
 
     // Expand plugin section
     await page.evaluate(() => {
