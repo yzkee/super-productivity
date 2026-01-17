@@ -267,7 +267,7 @@
       "START_FOCUS_SESSION": "Rozpoczęcie sesji skupienia",
       "START_NEXT_FOCUS_SESSION": "Rozpoczęcie następnej sesji fokusowej",
       "SWITCH_TASK": "Zmień zadanie",
-      "WORKED_FOR": "Pracowałeś dla"
+      "WORKED_FOR": "Pracowałeś/aś dla"
     },
     "GITEA": {
       "FORM": {
@@ -549,14 +549,14 @@
     },
     "METRIC": {
       "CMP": {
-        "ACTIVITY_HEATMAP": "Mapa ciepła aktywności",
-        "AVG_BREAKS_PER_DAY": "Avg. breaks per day",
-        "AVG_TASKS_PER_DAY_WORKED": "Avg. tasks per day worked",
-        "AVG_TIME_SPENT_ON_BREAKS": "Avg. time spent on breaks",
-        "AVG_TIME_SPENT_PER_DAY": "Avg. time spent per day",
-        "AVG_TIME_SPENT_PER_TASK": "Avg. time spent per task",
-        "COUNTING_SUBTASKS": "(counting subtasks)",
-        "DAYS_WORKED": "Days worked",
+        "ACTIVITY_HEATMAP": "Mapa termiczna aktywności",
+        "AVG_BREAKS_PER_DAY": "Średnia przerw w ciągu dnia",
+        "AVG_TASKS_PER_DAY_WORKED": "Średnia liczba wykonywanych zadań w ciągu dnia",
+        "AVG_TIME_SPENT_ON_BREAKS": "Średni czas spędzony podczas przerw",
+        "AVG_TIME_SPENT_PER_DAY": "Średni czas spędzony w ciągu dnia",
+        "AVG_TIME_SPENT_PER_TASK": "Średni czas spędzony podczas zadań",
+        "COUNTING_SUBTASKS": "(liczenie podzadań)",
+        "DAYS_WORKED": "Przepracowane dni",
         "FOCUS_SESSION_TRENDS": "Sesje skupienia w czasie",
         "GLOBAL_METRICS": "Global Metrics",
         "NO_ADDITIONAL_DATA_YET": "Nie zebrano jeszcze dodatkowych danych. Użyj formularza w panelu „Ocena” w podsumowaniu dnia, aby je dodać.",
@@ -565,12 +565,12 @@
         "SIMPLE_COUNTERS": "Proste liczniki",
         "SIMPLE_STOPWATCH_COUNTERS_OVER_TIME": "Stoper odlicza czas",
         "TASKS_DONE_CREATED": "Tasks (done/created)",
-        "TIME_ESTIMATED": "Time Estimated",
+        "TIME_ESTIMATED": "Zaplanowany czas",
         "TIME_FRAME_1_MONTH": "1 miesiąc",
         "TIME_FRAME_2_WEEKS": "2 tygodnie",
         "TIME_FRAME_LABEL": "Okres czasu",
         "TIME_FRAME_MAX": "MAKS",
-        "TIME_SPENT": "Time Spent"
+        "TIME_SPENT": "Czas spędzony"
       },
       "EVAL_FORM": {
         "DAILY_STATE": "Stan dzienny",
@@ -1567,7 +1567,7 @@
       "L_SKIP_PREPARATION_SCREEN": "Pomiń ekran przygotowania (rozciąganie itp.)",
       "L_START_IN_BACKGROUND": "Rozpocznij sesje skupienia tylko z banerem (bez nakładki)",
       "L_SYNC_SESSION_WITH_TRACKING": "Synchronizuj sesję skupienia ze śledzeniem czasu",
-      "TITLE": "Tryb ostrości"
+      "TITLE": "Tryb skupienia"
     },
     "IDLE": {
       "HELP": "Pokaż okno dialogowe, gdy wykryto bezczynność (brak aktywności) podczas śledzenia czasu.",
@@ -2020,7 +2020,7 @@
     "TITLE": "Metryki Projektu"
   },
   "PS": {
-    "GLOBAL_SETTINGS": "Ustawienia Globalne",
+    "GLOBAL_SETTINGS": "Ustawienia globalne",
     "NO_PLUGINS_INSTALLED": "Obecnie nie ma zainstalowanych wtyczek",
     "PLUGINS": "Wtyczki",
     "PRIVACY_POLICY": "Polityka Prywatności",
@@ -2072,7 +2072,7 @@
     "DONE_TASKS": "Wykonane zadania",
     "DONE_TASKS_IN_ARCHIVE": "Obecnie nie ma tutaj żadnych zakończonych zadań, ale są już archiwizowane.",
     "ESTIMATE_REMAINING": "Pozostało zaplanowanego czasu:",
-    "FINISH_DAY": "Zakończ Dzień",
+    "FINISH_DAY": "Zakończ dzień",
     "FINISH_DAY_TOOLTIP": "Oceń swój dzień, przenieś wszystkie wykonane zadania do archiwum (opcjonalnie) i/lub zaplanuj następny dzień.",
     "LATER_TODAY": "Później dziś",
     "MOVE_DONE_TO_ARCHIVE": "Przenieś gotowe do archiwum",
@@ -2081,9 +2081,9 @@
     "NO_PLANNED_TASKS": "Nie zaplanowano zadań",
     "READY_TO_WORK": "Gotowy do Pracy!",
     "RESET_BREAK_TIMER": "Zresetuj bez czasu przerwy",
-    "TIME_ESTIMATED": "Zaplanowany Czas:",
+    "TIME_ESTIMATED": "Zaplanowany czas:",
     "TODAY_REMAINING": "Dziś pozostało:",
-    "WITHOUT_BREAK": "Bez Przerwy:",
+    "WITHOUT_BREAK": "Bez przerwy:",
     "WORKING_TODAY": "Czas pracy:",
     "WORKING_TODAY_ARCHIVED": "Czas przepracowany dzisiaj nad zarchiwizowanymi zadaniami"
   }
