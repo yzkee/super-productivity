@@ -12,13 +12,6 @@ export const MISC_SETTINGS_FORM_CFG: ConfigFormSection<MiscConfig> = {
   key: 'misc',
   help: T.GCF.MISC.HELP,
   items: [
-    // {
-    //   key: 'isDarkMode',
-    //   type: 'checkbox',
-    //   templateOptions: {
-    //     label: T.GCF.MISC.IS_DARK_MODE,
-    //   },
-    // },
     ...((IS_ELECTRON
       ? [
           {
@@ -39,21 +32,6 @@ export const MISC_SETTINGS_FORM_CFG: ConfigFormSection<MiscConfig> = {
           },
         ]) as LimitedFormlyFieldConfig<MiscConfig>[]),
     {
-      key: 'isConfirmBeforeTaskDelete',
-      type: 'checkbox',
-      templateOptions: {
-        label: T.GCF.MISC.IS_CONFIRM_BEFORE_TASK_DELETE,
-      },
-    },
-    {
-      key: 'isAutMarkParentAsDone',
-      type: 'checkbox',
-      templateOptions: {
-        label: T.GCF.MISC.IS_AUTO_MARK_PARENT_AS_DONE,
-      },
-    },
-
-    {
       key: 'isTurnOffMarkdown',
       type: 'checkbox',
       templateOptions: {
@@ -61,31 +39,10 @@ export const MISC_SETTINGS_FORM_CFG: ConfigFormSection<MiscConfig> = {
       },
     },
     {
-      key: 'isAutoAddWorkedOnToToday',
-      type: 'checkbox',
-      templateOptions: {
-        label: T.GCF.MISC.IS_AUTO_ADD_WORKED_ON_TO_TODAY,
-      },
-    },
-    {
       key: 'isMinimizeToTray',
       type: 'checkbox',
       templateOptions: {
         label: T.GCF.MISC.IS_MINIMIZE_TO_TRAY,
-      },
-    },
-    {
-      key: 'isTrayShowCurrentTask',
-      type: 'checkbox',
-      templateOptions: {
-        label: T.GCF.MISC.IS_TRAY_SHOW_CURRENT_TASK,
-      },
-    },
-    {
-      key: 'defaultProjectId',
-      type: 'project-select',
-      templateOptions: {
-        label: T.GCF.MISC.DEFAULT_PROJECT,
       },
     },
     {
@@ -99,14 +56,6 @@ export const MISC_SETTINGS_FORM_CFG: ConfigFormSection<MiscConfig> = {
         type: 'number',
         min: 0,
         max: 23,
-      },
-    },
-    {
-      key: 'taskNotesTpl',
-      type: 'textarea',
-      templateOptions: {
-        rows: 5,
-        label: T.GCF.MISC.TASK_NOTES_TPL,
       },
     },
     {
