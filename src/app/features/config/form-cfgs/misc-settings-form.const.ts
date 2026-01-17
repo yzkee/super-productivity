@@ -5,7 +5,6 @@ import {
 } from '../global-config.model';
 import { T } from '../../../t.const';
 import { IS_ELECTRON } from '../../../app.constants';
-import { AVAILABLE_CUSTOM_THEMES } from '../../../core/theme/custom-theme.service';
 
 export const MISC_SETTINGS_FORM_CFG: ConfigFormSection<MiscConfig> = {
   title: T.GCF.MISC.TITLE,
@@ -105,17 +104,6 @@ export const MISC_SETTINGS_FORM_CFG: ConfigFormSection<MiscConfig> = {
           },
         ]
       : []) as LimitedFormlyFieldConfig<MiscConfig>[]),
-    {
-      key: 'customTheme',
-      type: 'select',
-      templateOptions: {
-        label: T.GCF.MISC.THEME,
-        options: AVAILABLE_CUSTOM_THEMES.map((theme) => ({
-          label: theme.name,
-          value: theme.id,
-        })),
-      },
-    },
     {
       key: 'defaultStartPage',
       type: 'select',
