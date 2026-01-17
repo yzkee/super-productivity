@@ -25,15 +25,6 @@
                 ></config-section>
               </section>
             }
-            <!-- @todo: Create a single style for forming all the settings elements.
-                        Make all as "sections" or as "forms" consistently.
-            -->
-            <section class="config-section">
-              <config-sound-form
-                [cfg]="getGlobalCfgSection('sound')"
-                (save)="saveGlobalCfg($event)"
-              ></config-sound-form>
-            </section>
           </div>
         </mat-tab>
 
@@ -53,6 +44,16 @@
                 ></config-section>
               </section>
             }
+
+            <!-- @todo: Create a single style for forming all the settings elements.
+                        Make all as "sections" or as "forms" consistently.
+            -->
+            <section class="config-section">
+              <config-sound-form
+                [cfg]="getGlobalCfgSection('sound')"
+                (save)="saveGlobalCfg($event)"
+              ></config-sound-form>
+            </section>
           </div>
         </mat-tab>
 
