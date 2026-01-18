@@ -7,7 +7,7 @@ import { GlobalConfigState } from './global-config.model';
 const minute = 60 * 1000;
 const defaultVoice = getDefaultVoice();
 
-const defaultTaskNoteTemplate = `**How can I best achieve it now?**
+const defaultTaskNotesTemplate = `**How can I best achieve it now?**
 
 **What do I want?**
 
@@ -41,7 +41,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isTrayShowCurrent: true,
     defaultProjectId: null,
     isMarkdownFormattingInNotesEnabled: true,
-    notesTemplate: defaultTaskNoteTemplate,
+    notesTemplate: defaultTaskNotesTemplate,
   },
   misc: {
     isConfirmBeforeExit: false,
