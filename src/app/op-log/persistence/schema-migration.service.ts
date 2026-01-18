@@ -224,9 +224,24 @@ export class SchemaMigrationService {
   }
 
   /**
-   * Returns all registered migrations (for debugging/testing).
+   * Returns registered migrations for a specific version range.
+   * If no range is provided, returns all migrations.
+   *
+   * @param fromVersion - The starting version (inclusive).
+   * @param toVersion - The ending version (inclusive).
+   * @returns Array of migrations within the specified range.
    */
-  getMigrations(): readonly SchemaMigration[] {
-    return MIGRATIONS;
+  getMigrations(fromVersion?: number, toVersion?: number): readonly SchemaMigration[] {
+    if (fromVersion === undefined && toVersion === undefined) {
+      return MIGRATIONS;
+    }
+
+    return MIGRATIONS.filter((migration) => {
+      const isAfterFromVersion =
+        fromVersion === undefined || migration.fromVersion >= fromVersion;
+      const isBeforeToVersion =
+        toVersion === undefined || migration.toVersion <= toVersion;
+      return isAfterFromVersion && isBeforeToVersion;
+    });
   }
 }

@@ -68,7 +68,7 @@ describe('SchemaMigrationService', () => {
 
     it('should return empty array for initial version', () => {
       // No migrations defined yet for version 1
-      const migrations = service.getMigrations();
+      const migrations = service.getMigrations(1, 1);
       expect(migrations.length).toBe(0);
     });
   });
