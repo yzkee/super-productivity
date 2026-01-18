@@ -39,7 +39,7 @@ export class TaskInternalEffects {
       filter(
         ([{ task }, tasksCfg, state]) =>
           !!tasksCfg &&
-          tasksCfg.isAutMarkParentAsDone &&
+          tasksCfg.isAutoMarkParentAsDone &&
           !!task.changes.isDone &&
           // @ts-ignore
           !!state.entities[task.id].parentId,

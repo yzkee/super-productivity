@@ -38,7 +38,7 @@ export type MiscConfig = Readonly<{
 }>;
 
 export type TasksConfig = Readonly<{
-  isAutMarkParentAsDone: boolean;
+  isAutoMarkParentAsDone: boolean;
   isConfirmBeforeTaskDelete?: boolean;
   isAutoAddWorkedOnToToday: boolean;
   isTrayShowCurrentTask: boolean;

@@ -110,7 +110,7 @@ describe('AddTaskBarComponent', () => {
 
   const mockMiscConfig: MiscConfig = {
     defaultProjectId: null,
-    isAutMarkParentAsDone: false,
+    isAutoMarkParentAsDone: false,
     isConfirmBeforeExit: false,
     isConfirmBeforeExitWithoutFinishDay: false,
     isTurnOffMarkdown: false,

@@ -13,7 +13,7 @@ export const TASKS_SETTINGS_FORM_CFG: ConfigFormSection<TasksConfig> = {
       },
     },
     {
-      key: 'isAutMarkParentAsDone',
+      key: 'isAutoMarkParentAsDone',
       type: 'checkbox',
       templateOptions: {
         label: T.GCF.MISC.IS_AUTO_MARK_PARENT_AS_DONE,

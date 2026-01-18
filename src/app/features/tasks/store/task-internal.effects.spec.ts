@@ -92,7 +92,7 @@ describe('TaskInternalEffects', () => {
           selectors: [
             {
               selector: selectMiscConfig,
-              value: createMiscConfig({ isAutMarkParentAsDone: true }),
+              value: createMiscConfig({ isAutoMarkParentAsDone: true }),
             },
             { selector: selectTaskFeatureState, value: createTaskState([]) },
             { selector: selectConfigFeatureState, value: createConfigState() },
@@ -130,7 +130,7 @@ describe('TaskInternalEffects', () => {
 
       store.overrideSelector(
         selectMiscConfig,
-        createMiscConfig({ isAutMarkParentAsDone: true }),
+        createMiscConfig({ isAutoMarkParentAsDone: true }),
       );
       store.overrideSelector(
         selectTaskFeatureState,
@@ -165,7 +165,7 @@ describe('TaskInternalEffects', () => {
 
       store.overrideSelector(
         selectMiscConfig,
-        createMiscConfig({ isAutMarkParentAsDone: false }),
+        createMiscConfig({ isAutoMarkParentAsDone: false }),
       );
       store.overrideSelector(
         selectTaskFeatureState,
@@ -206,7 +206,7 @@ describe('TaskInternalEffects', () => {
 
       store.overrideSelector(
         selectMiscConfig,
-        createMiscConfig({ isAutMarkParentAsDone: true }),
+        createMiscConfig({ isAutoMarkParentAsDone: true }),
       );
       store.overrideSelector(
         selectTaskFeatureState,

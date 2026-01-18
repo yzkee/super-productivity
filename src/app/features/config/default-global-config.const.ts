@@ -37,7 +37,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
   tasks: {
     isConfirmBeforeTaskDelete: true,
     isAutoAddWorkedOnToToday: true,
-    isAutMarkParentAsDone: false,
+    isAutoMarkParentAsDone: false,
     isTrayShowCurrentTask: true,
     defaultProjectId: null,
     isTurnOffMarkdown: false,
