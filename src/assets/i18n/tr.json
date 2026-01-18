@@ -1628,7 +1628,7 @@
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Üzerinde çalışılan görevleri otomatik olarak bugüne ekle",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Tüm alt görevler tamamlandığında ana görevi otomatik olarak tamamlandı olarak işaretle",
       "IS_CONFIRM_BEFORE_TASK_DELETE": "Görevleri silmeden önce onayla",
-      "IS_MARKDOWN_NOTES_ENABLED": "Görev notlarında Markdown biçimlendirmesini etkinleştir",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Görev notlarında Markdown biçimlendirmesini etkinleştir",
       "IS_TRAY_SHOW_CURRENT_TASK": "Mevcut görevi tepsi / durum menüsünde göster (yalnızca masaüstü Mac/Windows için)",
       "NOTES_TEMPLATE": "Görev açıklama şablonu",
       "TITLE": "Görevler"

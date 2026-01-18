@@ -1664,7 +1664,7 @@
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Voeg automatisch de tag voor vandaag toe aan taken",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Markeer de bovenliggende taak als voltooid wanneer alle subtaken zijn voltooid",
       "IS_CONFIRM_BEFORE_TASK_DELETE": "Bevestig voordat u taken verwijdert",
-      "IS_MARKDOWN_NOTES_ENABLED": "Markdown-opmaak inschakelen in taaknotities",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Markdown-opmaak inschakelen in taaknotities",
       "IS_TRAY_SHOW_CURRENT_TASK": "Toon huidige taak in het systeemvak / statusmenu (alleen desktop mac/windows)",
       "NOTES_TEMPLATE": "Sjabloon voor taaknotities bij het maken van nieuwe taken",
       "TITLE": "Taken"

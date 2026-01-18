@@ -3,7 +3,7 @@
   [class.isHideOverflow]="isHideOverflow()"
   class="markdown-wrapper"
 >
-  @if (isShowEdit() || !isMarkdownNotesEnabled()) {
+  @if (isShowEdit() || !isMarkdownFormattingInNotesEnabled()) {
     <textarea
       #textareaEl
       (blur)="untoggleShowEdit(); setBlur($event)"
@@ -20,7 +20,7 @@
   }
 
   <!--  (focus)="clickOrFocusPreview($event, true)"-->
-  @if (isMarkdownNotesEnabled()) {
+  @if (isMarkdownFormattingInNotesEnabled()) {
     <div
       #previewEl
       (click)="clickPreview($event)"
@@ -37,7 +37,7 @@
   <div class="controls">
     <ng-content> </ng-content>
 
-    @if (isShowChecklistToggle() && isMarkdownNotesEnabled()) {
+    @if (isShowChecklistToggle() && isMarkdownFormattingInNotesEnabled()) {
       <!--  -->
       <button
         [matTooltip]="'Add checklist item'"

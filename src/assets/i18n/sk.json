@@ -1664,7 +1664,7 @@
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Automaticky pridať dnes tag k upravovaným úlohám",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Automaticky označiť rodičovskú úlohu ako dokončenú, keď sú všetky podúlohy dokončené",
       "IS_CONFIRM_BEFORE_TASK_DELETE": "Potvrdiť pred odstránením úloh",
-      "IS_MARKDOWN_NOTES_ENABLED": "Povoliť formátovanie Markdown v poznámkach k úlohám",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Povoliť formátovanie Markdown v poznámkach k úlohám",
       "IS_TRAY_SHOW_CURRENT_TASK": "Zobraziť aktuálnu úlohu v systémovej lište / stavovom menu (iba desktop Mac/Windows)",
       "NOTES_TEMPLATE": "Šablóna poznámok k úlohe",
       "TITLE": "Úlohy"

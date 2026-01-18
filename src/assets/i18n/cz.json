@@ -1020,7 +1020,7 @@
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Automaticky přidat úkoly, na kterých jste pracovali, k dnešku",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Automaticky označit nadřazený úkol jako hotový, když jsou všechny podúkoly hotové",
       "IS_CONFIRM_BEFORE_TASK_DELETE": "Potvrdit před smazáním úkolů",
-      "IS_MARKDOWN_NOTES_ENABLED": "Povolit Markdown formátování v poznámkách k úkolům",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Povolit Markdown formátování v poznámkách k úkolům",
       "IS_TRAY_SHOW_CURRENT_TASK": "Zobrazit aktuální úkol v oznamovací oblasti / menu stavu (pouze pro desktop Mac/Windows)",
       "NOTES_TEMPLATE": "Šablona popisu úkolu",
       "TITLE": "Úkoly"

@@ -1664,7 +1664,7 @@
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Adicionar automaticamente tarefas trabalhadas a hoje",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Marcar tarefa pai como concluída, quando todas as subtarefas estiverem concluídas",
       "IS_CONFIRM_BEFORE_TASK_DELETE": "Confirmar antes de excluir tarefas",
-      "IS_MARKDOWN_NOTES_ENABLED": "Ativar formatação Markdown nas notas das tarefas",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Ativar formatação Markdown nas notas das tarefas",
       "IS_TRAY_SHOW_CURRENT_TASK": "Mostrar tarefa atual na bandeja / menu de status (somente desktop Mac/Windows)",
       "NOTES_TEMPLATE": "Modelo de descrição de tarefa",
       "TITLE": "Tarefas"

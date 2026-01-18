@@ -1711,7 +1711,7 @@
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Automatycznie dodaj zadania, nad którymi pracowano, do dzisiaj",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Automatycznie oznaczaj zadanie nadrzędne jako ukończone, gdy wszystkie zadania podrzędne są ukończone",
       "IS_CONFIRM_BEFORE_TASK_DELETE": "Potwierdź przed usunięciem zadań",
-      "IS_MARKDOWN_NOTES_ENABLED": "Włącz formatowanie Markdown w notatkach zadań",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Włącz formatowanie Markdown w notatkach zadań",
       "IS_TRAY_SHOW_CURRENT_TASK": "Pokaż bieżące zadanie w zasobniku / menu statusu (tylko desktop mac/windows)",
       "NOTES_TEMPLATE": "Domyślny szablon notatek zadania",
       "TITLE": "Zadania"

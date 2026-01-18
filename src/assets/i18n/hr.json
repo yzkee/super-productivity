@@ -1323,7 +1323,7 @@
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Automatski dodaj oznaku danas zadacima koje si obrađivao/la",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Automatski označi nadređeni zadatak kao obavljen kada su sve podzadatke obavljene",
       "IS_CONFIRM_BEFORE_TASK_DELETE": "Potvrdi prije brisanja zadataka",
-      "IS_MARKDOWN_NOTES_ENABLED": "Omogući Markdown formatiranje u bilješkama zadataka",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Omogući Markdown formatiranje u bilješkama zadataka",
       "IS_TRAY_SHOW_CURRENT_TASK": "Prikaži trenutni zadatak u donjoj traci sustava / izborniku stanja (samo desktop mac/windows računala)",
       "NOTES_TEMPLATE": "Predložak za opis zadatka",
       "TITLE": "Zadaci"

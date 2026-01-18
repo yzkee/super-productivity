@@ -1336,7 +1336,7 @@
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Автоматично додавати працюючі завдання до сьогодні",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Автоматично позначати батьківське завдання як виконане, коли всі підзавдання виконані",
       "IS_CONFIRM_BEFORE_TASK_DELETE": "Підтверджувати перед видаленням завдань",
-      "IS_MARKDOWN_NOTES_ENABLED": "Увімкнути форматування Markdown у нотатках завдань",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Увімкнути форматування Markdown у нотатках завдань",
       "IS_TRAY_SHOW_CURRENT_TASK": "Показувати поточне завдання в системному треї / меню статусу (тільки для десктопної версії Mac/Windows)",
       "NOTES_TEMPLATE": "Шаблон нотаток для нових завдань",
       "TITLE": "Завдання"

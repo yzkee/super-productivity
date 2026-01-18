@@ -44,7 +44,7 @@ export type TasksConfig = Readonly<{
   isTrayShowCurrentTask: boolean;
   // allow also false because of #569
   defaultProjectId?: string | null | false;
-  isMarkdownNotesEnabled: boolean;
+  isMarkdownFormattingInNotesEnabled: boolean;
   notesTemplate: string;
 }>;
 

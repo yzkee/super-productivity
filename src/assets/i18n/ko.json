@@ -1344,7 +1344,7 @@
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "자동으로 오늘 작업 중인 태스크를 추가합니다.",
       "IS_AUTO_MARK_PARENT_AS_DONE": "모든 하위 작업이 완료되면 부모 작업을 완료로 표시합니다.",
       "IS_CONFIRM_BEFORE_TASK_DELETE": "작업 삭제 전에 확인합니다.",
-      "IS_MARKDOWN_NOTES_ENABLED": "작업 노트에서 Markdown 형식을 사용하도록 설정합니다.",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "작업 노트에서 Markdown 형식을 사용하도록 설정합니다.",
       "IS_TRAY_SHOW_CURRENT_TASK": "트레이/상태 메뉴에 현재 작업을 표시합니다(데스크톱 Mac/Windows 전용).",
       "NOTES_TEMPLATE": "작업 설명 템플릿",
       "TITLE": "작업"

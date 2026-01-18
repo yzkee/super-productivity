@@ -1664,7 +1664,7 @@
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Legg til dagens tag automatisk for å jobbe med oppgaver",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Merk foreldreoppgaven som ferdig når alle underoppgaver er utført",
       "IS_CONFIRM_BEFORE_TASK_DELETE": "Bekreft før du sletter oppgaver",
-      "IS_MARKDOWN_NOTES_ENABLED": "Aktiver Markdown-formatering i oppgavenotater",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Aktiver Markdown-formatering i oppgavenotater",
       "IS_TRAY_SHOW_CURRENT_TASK": "Vis gjeldende oppgave i skuffen / statusmenyen (kun desktop mac/windows)",
       "NOTES_TEMPLATE": "Mal for oppgavebeskrivelse",
       "TITLE": "Oppgaver"

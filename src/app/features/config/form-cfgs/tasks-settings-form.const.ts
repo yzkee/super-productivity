@@ -41,10 +41,10 @@ export const TASKS_SETTINGS_FORM_CFG: ConfigFormSection<TasksConfig> = {
       },
     },
     {
-      key: 'isMarkdownNotesEnabled',
+      key: 'isMarkdownFormattingInNotesEnabled',
       type: 'checkbox',
       templateOptions: {
-        label: T.GCF.TASKS.IS_MARKDOWN_NOTES_ENABLED,
+        label: T.GCF.TASKS.IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED,
       },
     },
     {

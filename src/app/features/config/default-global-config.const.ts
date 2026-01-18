@@ -40,7 +40,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isAutoMarkParentAsDone: false,
     isTrayShowCurrentTask: true,
     defaultProjectId: null,
-    isMarkdownNotesEnabled: true,
+    isMarkdownFormattingInNotesEnabled: true,
     notesTemplate: defaultTaskNoteTemplate,
   },
   misc: {
