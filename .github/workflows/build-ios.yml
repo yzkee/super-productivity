@@ -7,7 +7,7 @@ on:
 
 jobs:
   ios-app-store-release:
-    runs-on: macos-latest
+    runs-on: macos-26
     env:
       UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
       UNSPLASH_CLIENT_ID: ${{ secrets.UNSPLASH_CLIENT_ID }}
@@ -24,6 +24,15 @@ jobs:
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+
+      - name: Verify Xcode and SDK version
+        run: |
+          echo "=== Xcode Version ==="
+          xcodebuild -version
+          echo ""
+          echo "=== SDK Information ==="
+          xcrun --show-sdk-version
+          xcodebuild -showsdks | grep -E "(iOS|iphoneos)"
 
       # work around for npm installs from git+https://github.com/johannesjo/J2M.git
       - name: Reconfigure git to use HTTP authentication

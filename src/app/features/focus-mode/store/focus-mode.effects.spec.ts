@@ -3364,8 +3364,8 @@ describe('FocusModeEffects', () => {
         store.overrideSelector(selectIsFocusModeEnabled, true);
         store.refreshState();
 
-        // Re-inject effects after setting up selectors
-        effects = TestBed.inject(FocusModeEffects);
+        // Dispatch a tick action to trigger the effect
+        actions$ = of(actions.tick());
 
         // Subscribe to the effect to trigger it
         effects.updateBanner$.pipe(take(1)).subscribe(() => {
@@ -3396,7 +3396,8 @@ describe('FocusModeEffects', () => {
         store.overrideSelector(selectIsFocusModeEnabled, true);
         store.refreshState();
 
-        effects = TestBed.inject(FocusModeEffects);
+        // Dispatch a tick action to trigger the effect
+        actions$ = of(actions.tick());
 
         effects.updateBanner$.pipe(take(1)).subscribe(() => {
           expect(bannerServiceMock.open).toHaveBeenCalled();
@@ -3425,7 +3426,8 @@ describe('FocusModeEffects', () => {
         store.overrideSelector(selectIsFocusModeEnabled, true);
         store.refreshState();
 
-        effects = TestBed.inject(FocusModeEffects);
+        // Dispatch a tick action to trigger the effect
+        actions$ = of(actions.tick());
 
         effects.updateBanner$.pipe(take(1)).subscribe(() => {
           expect(bannerServiceMock.open).toHaveBeenCalled();
@@ -3456,7 +3458,8 @@ describe('FocusModeEffects', () => {
         store.overrideSelector(selectIsFocusModeEnabled, true);
         store.refreshState();
 
-        effects = TestBed.inject(FocusModeEffects);
+        // Dispatch a tick action to trigger the effect
+        actions$ = of(actions.tick());
 
         effects.updateBanner$.pipe(take(1)).subscribe(() => {
           expect(bannerServiceMock.open).toHaveBeenCalled();
