@@ -7,6 +7,7 @@ import {
   OnDestroy,
   OnInit,
 } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import {
   GLOBAL_GENERAL_FORM_CONFIG,
@@ -81,6 +82,7 @@ import { MatIcon } from '@angular/material/icon';
 })
 export class ConfigPageComponent implements OnInit, OnDestroy {
   private readonly _cd = inject(ChangeDetectorRef);
+  private readonly _route = inject(ActivatedRoute);
   private readonly _providerManager = inject(SyncProviderManager);
   private readonly _syncWrapperService = inject(SyncWrapperService);
   private readonly _pluginBridgeService = inject(PluginBridgeService);
@@ -164,6 +166,19 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
       this.configService.cfg$.subscribe((cfg) => {
         this.globalCfg = cfg;
         // this._cd.detectChanges();
+      }),
+    );
+
+    // Check for tab query parameter and set selected tab
+    this._subs.add(
+      this._route.queryParams.subscribe((params) => {
+        if (params['tab'] !== undefined) {
+          const tabIndex = parseInt(params['tab'], 10);
+          if (!isNaN(tabIndex) && tabIndex >= 0 && tabIndex < 5) {
+            this.selectedTabIndex = tabIndex;
+            this._cd.detectChanges();
+          }
+        }
       }),
     );
   }
