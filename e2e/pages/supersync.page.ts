@@ -473,7 +473,7 @@ export class SuperSyncPage extends BasePage {
             await this.conflictApplyBtn.click();
             break;
           }
-          await this.page.waitForTimeout(200);
+          await this.page.waitForTimeout(100); // Reduced from 200ms
         }
 
         // Wait for dialog to close
@@ -558,13 +558,13 @@ export class SuperSyncPage extends BasePage {
           return;
         }
 
-        await this.page.waitForTimeout(300);
+        await this.page.waitForTimeout(150); // Reduced from 300ms
         continue;
       }
 
       // Still spinning - reset stable count
       stableCount = 0;
-      await this.page.waitForTimeout(200);
+      await this.page.waitForTimeout(100); // Reduced from 200ms
     }
 
     throw new Error(`Sync did not complete within ${timeout}ms`);
