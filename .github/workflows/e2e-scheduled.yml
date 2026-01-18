@@ -44,7 +44,7 @@ jobs:
       - name: Get npm cache directory
         id: npm-cache-dir
         run: |
-          echo "::set-output name=dir::$(npm config get cache)"
+          echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
 
       - uses: actions/cache@v5
         id: npm-cache
@@ -63,6 +63,10 @@ jobs:
           npx playwright install-deps chromium
 
       - run: npm run env
+
+      - name: Create .env file for Docker Compose
+        run: |
+          cp .env.example .env
 
       - name: Start Docker Services (WebDAV + SuperSync)
         run: |
