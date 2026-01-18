@@ -230,7 +230,7 @@ export class FocusModeMainComponent {
     effect(() => {
       const tasks = this._globalConfigService.tasks();
       if (tasks) {
-        this.defaultTaskNotes.set(tasks.taskNotesTpl);
+        this.defaultTaskNotes.set(tasks.notesTemplate);
       }
     });
 

@@ -41,7 +41,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isTrayShowCurrentTask: true,
     defaultProjectId: null,
     isTurnOffMarkdown: false,
-    taskNotesTpl: defaultTaskNoteTemplate,
+    notesTemplate: defaultTaskNoteTemplate,
   },
   misc: {
     isConfirmBeforeExit: false,

@@ -48,7 +48,7 @@ export const TASKS_SETTINGS_FORM_CFG: ConfigFormSection<TasksConfig> = {
       },
     },
     {
-      key: 'taskNotesTpl',
+      key: 'notesTemplate',
       type: 'textarea',
       templateOptions: {
         rows: 5,

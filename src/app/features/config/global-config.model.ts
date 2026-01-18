@@ -45,7 +45,7 @@ export type TasksConfig = Readonly<{
   // allow also false because of #569
   defaultProjectId?: string | null | false;
   isTurnOffMarkdown: boolean;
-  taskNotesTpl: string;
+  notesTemplate: string;
 }>;
 
 export type ShortSyntaxConfig = Readonly<{

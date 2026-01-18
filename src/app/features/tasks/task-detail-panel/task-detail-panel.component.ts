@@ -245,7 +245,7 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
   // Default task notes computed signal
   defaultTaskNotes = computed(() => {
     const tasks = this._globalConfigService.tasks();
-    return tasks?.taskNotesTpl || '';
+    return tasks?.notesTemplate || '';
   });
 
   // Local attachments computed signal
