@@ -9,9 +9,9 @@ body:
     attributes:
       value: |
 
-        Thank you for taking the time to fill out this feature request fully! This will help a lot to communicate what this is about and focus the discussion.
+        🤝 Thank you for taking the time to fill out this feature request fully! This will help a lot to communicate what this is about and focus the discussion.
 
-        Please also make sure that there is no similar feature request opened up already by searching the issues in this repository!
+        ⚠️ Please make sure that there is no similar feature request opened up already by searching the issues in this repository!
 
   - type: textarea
     id: problem-statement
@@ -39,6 +39,7 @@ body:
       placeholder: 'Have you thought about other ways to solve the problem? What were they?'
     validations:
       required: false # Often optional, but good to prompt for
+    if: alternatives # Only include this field in the final issue if it is filled
 
   - type: textarea
     id: additional-context
@@ -48,3 +49,4 @@ body:
       placeholder: 'Add links to related issues, screenshots, mockups, or any other relevant information.'
     validations:
       required: false
+    if: additional-context # Only include this field in the final issue if it is filled
