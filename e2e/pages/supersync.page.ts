@@ -172,7 +172,7 @@ export class SuperSyncPage extends BasePage {
         );
         // Dismiss any partial state
         await this.page.keyboard.press('Escape');
-        await this.page.waitForTimeout(500);
+        await this.page.waitForTimeout(200); // Reduced from 500ms
       }
     }
 
@@ -186,8 +186,8 @@ export class SuperSyncPage extends BasePage {
       await expect(this.providerSelect).toBeAttached({ timeout: 5000 });
     }
 
-    // Additional wait for the element to be stable/interactive
-    await this.page.waitForTimeout(300);
+    // Additional wait for the element to be stable/interactive (reduced from 300ms)
+    await this.page.waitForTimeout(100);
 
     // Retry loop for opening the dropdown - use toPass() for more robust retries
     const superSyncOption = this.page
@@ -211,7 +211,7 @@ export class SuperSyncPage extends BasePage {
         await dropdownBackdrop
           .waitFor({ state: 'hidden', timeout: 2000 })
           .catch(() => {});
-        await this.page.waitForTimeout(200);
+        await this.page.waitForTimeout(100); // Reduced from 200ms
       }
 
       // Ensure the select is still attached (may have been re-rendered)
@@ -227,7 +227,7 @@ export class SuperSyncPage extends BasePage {
       await expect(superSyncOption).toBeVisible({ timeout: 2000 });
     }).toPass({
       timeout: 30000,
-      intervals: [500, 1000, 1500, 2000, 2500, 3000],
+      intervals: [200, 400, 600, 800, 1000, 1200], // Reduced from [500, 1000, 1500, 2000, 2500, 3000]
     });
 
     // Click the SuperSync option and verify selection was applied
@@ -255,7 +255,7 @@ export class SuperSyncPage extends BasePage {
       }
     }).toPass({
       timeout: 15000,
-      intervals: [500, 1000, 1500, 2000],
+      intervals: [200, 400, 600, 800], // Reduced from [500, 1000, 1500, 2000]
     });
 
     // Wait for formly to re-render SuperSync-specific fields after provider selection
@@ -276,7 +276,7 @@ export class SuperSyncPage extends BasePage {
       await this.accessTokenInput.waitFor({ state: 'visible', timeout: 3000 });
     }).toPass({
       timeout: 30000,
-      intervals: [500, 1000, 1500, 2000, 3000],
+      intervals: [200, 400, 600, 800, 1000], // Reduced from [500, 1000, 1500, 2000, 3000]
     });
     await this.accessTokenInput.fill(config.accessToken);
 
