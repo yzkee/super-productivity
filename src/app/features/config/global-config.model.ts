@@ -41,6 +41,7 @@ export type MiscConfig = Readonly<{
   isAutoAddWorkedOnToToday?: boolean; // Deprecated
   isAutMarkParentAsDone?: boolean; // Deprecated
   isTrayShowCurrentTask?: boolean; // Deprecated
+  isTurnOffMarkdown?: boolean; // Deprecated
   defaultProjectId?: string | null | false; // Deprecated
   taskNotesTpl?: string; // Deprecated
 }>;
