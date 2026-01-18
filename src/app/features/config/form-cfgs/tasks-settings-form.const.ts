@@ -13,17 +13,17 @@ export const TASKS_SETTINGS_FORM_CFG: ConfigFormSection<TasksConfig> = {
       },
     },
     {
-      key: 'isAutoMarkParentAsDone',
-      type: 'checkbox',
-      templateOptions: {
-        label: T.GCF.TASKS.IS_AUTO_MARK_PARENT_AS_DONE,
-      },
-    },
-    {
       key: 'isAutoAddWorkedOnToToday',
       type: 'checkbox',
       templateOptions: {
         label: T.GCF.TASKS.IS_AUTO_ADD_WORKED_ON_TO_TODAY,
+      },
+    },
+    {
+      key: 'isAutoMarkParentAsDone',
+      type: 'checkbox',
+      templateOptions: {
+        label: T.GCF.TASKS.IS_AUTO_MARK_PARENT_AS_DONE,
       },
     },
     {
@@ -34,17 +34,17 @@ export const TASKS_SETTINGS_FORM_CFG: ConfigFormSection<TasksConfig> = {
       },
     },
     {
-      key: 'defaultProjectId',
-      type: 'project-select',
-      templateOptions: {
-        label: T.GCF.TASKS.DEFAULT_PROJECT,
-      },
-    },
-    {
       key: 'isMarkdownFormattingInNotesEnabled',
       type: 'checkbox',
       templateOptions: {
         label: T.GCF.TASKS.IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED,
+      },
+    },
+    {
+      key: 'defaultProjectId',
+      type: 'project-select',
+      templateOptions: {
+        label: T.GCF.TASKS.DEFAULT_PROJECT,
       },
     },
     {
