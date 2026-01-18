@@ -388,8 +388,8 @@ export class SuperSyncPage extends BasePage {
    * Trigger a sync operation by clicking the sync button.
    */
   async triggerSync(): Promise<void> {
-    // Wait a bit to ensure any previous internal state is cleared
-    await this.page.waitForTimeout(1000);
+    // Wait a bit to ensure any previous internal state is cleared (reduced from 1000ms)
+    await this.page.waitForTimeout(300);
 
     // Check if sync is already running to avoid "Sync already in progress" errors
     // If it is, wait for it to finish so we can trigger a fresh sync that includes our latest changes
