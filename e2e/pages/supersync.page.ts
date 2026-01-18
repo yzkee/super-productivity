@@ -584,8 +584,8 @@ export class SuperSyncPage extends BasePage {
   async syncAndWait(): Promise<void> {
     await this.triggerSync();
     await this.waitForSyncComplete();
-    // Allow UI to settle after sync - reduces flakiness
-    await this.page.waitForTimeout(300);
+    // Allow UI to settle after sync - reduces flakiness (reduced from 300ms)
+    await this.page.waitForTimeout(100);
   }
 
   /**
