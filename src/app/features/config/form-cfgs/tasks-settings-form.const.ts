@@ -41,6 +41,13 @@ export const TASKS_SETTINGS_FORM_CFG: ConfigFormSection<TasksConfig> = {
       },
     },
     {
+      key: 'isTurnOffMarkdown',
+      type: 'checkbox',
+      templateOptions: {
+        label: T.GCF.MISC.IS_TURN_OFF_MARKDOWN,
+      },
+    },
+    {
       key: 'taskNotesTpl',
       type: 'textarea',
       templateOptions: {

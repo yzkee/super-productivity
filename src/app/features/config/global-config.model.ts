@@ -23,7 +23,6 @@ export type AppFeaturesConfig = Readonly<{
 export type MiscConfig = Readonly<{
   isConfirmBeforeExit: boolean;
   isConfirmBeforeExitWithoutFinishDay: boolean;
-  isTurnOffMarkdown: boolean;
   isMinimizeToTray: boolean;
   startOfNextDay: number;
   isDisableAnimations: boolean;
@@ -45,6 +44,7 @@ export type TasksConfig = Readonly<{
   isTrayShowCurrentTask: boolean;
   // allow also false because of #569
   defaultProjectId?: string | null | false;
+  isTurnOffMarkdown: boolean;
   taskNotesTpl: string;
 }>;
 

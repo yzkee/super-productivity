@@ -61,8 +61,8 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
   modelCopy = signal<string | undefined>(undefined);
 
   isTurnOffMarkdownParsing = computed(() => {
-    const misc = this._globalConfigService.misc();
-    return misc?.isTurnOffMarkdown ?? false;
+    const tasks = this._globalConfigService.tasks();
+    return tasks?.isTurnOffMarkdown ?? false;
   });
   private _hideOverFlowTimeout: number | undefined;
 

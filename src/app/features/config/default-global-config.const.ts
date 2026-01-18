@@ -40,12 +40,12 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isAutMarkParentAsDone: false,
     isTrayShowCurrentTask: true,
     defaultProjectId: null,
+    isTurnOffMarkdown: false,
     taskNotesTpl: defaultTaskNoteTemplate,
   },
   misc: {
     isConfirmBeforeExit: false,
     isConfirmBeforeExitWithoutFinishDay: true,
-    isTurnOffMarkdown: false,
     isMinimizeToTray: false,
     isTrayShowCurrentCountdown: true,
     startOfNextDay: 0,

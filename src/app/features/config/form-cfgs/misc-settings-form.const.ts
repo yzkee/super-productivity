@@ -31,13 +31,6 @@ export const MISC_SETTINGS_FORM_CFG: ConfigFormSection<MiscConfig> = {
           },
         ]) as LimitedFormlyFieldConfig<MiscConfig>[]),
     {
-      key: 'isTurnOffMarkdown',
-      type: 'checkbox',
-      templateOptions: {
-        label: T.GCF.MISC.IS_TURN_OFF_MARKDOWN,
-      },
-    },
-    {
       key: 'isMinimizeToTray',
       type: 'checkbox',
       templateOptions: {
