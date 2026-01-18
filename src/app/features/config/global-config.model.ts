@@ -35,6 +35,14 @@ export type MiscConfig = Readonly<{
   customTheme?: string;
   defaultStartPage?: number;
   unsplashApiKey?: string | null;
+
+  // @todo: remove deprecated items in future major releases, after giving users time to migrate
+  isConfirmBeforeTaskDelete?: boolean; // Deprecated
+  isAutoAddWorkedOnToToday?: boolean; // Deprecated
+  isAutMarkParentAsDone?: boolean; // Deprecated
+  isTrayShowCurrentTask?: boolean; // Deprecated
+  defaultProjectId?: string | null | false; // Deprecated
+  taskNotesTpl?: string; // Deprecated
 }>;
 
 export type TasksConfig = Readonly<{
