@@ -240,19 +240,24 @@ export class FocusModeEffects {
   detectSessionCompletion$ = createEffect(() =>
     this.store.select(selectors.selectTimer).pipe(
       skipWhileApplyingRemoteOps(),
-      withLatestFrom(this.store.select(selectors.selectMode)),
+      withLatestFrom(
+        this.store.select(selectors.selectMode),
+        this.store.select(selectFocusModeConfig),
+      ),
       // Only consider emissions where timer just stopped running
       distinctUntilChanged(
         ([prevTimer], [currTimer]) => prevTimer.isRunning === currTimer.isRunning,
       ),
       filter(
-        ([timer, mode]) =>
+        ([timer, mode, config]) =>
           timer.purpose === 'work' &&
           !timer.isRunning &&
           timer.duration > 0 &&
           timer.elapsed >= timer.duration &&
-          mode !== FocusModeMode.Flowtime, // Flowtime sessions should never auto-complete
+          mode !== FocusModeMode.Flowtime &&
+          !config?.isManualBreakStart,
       ),
+
       map(() => actions.completeFocusSession({ isManual: false })),
     ),
   );
