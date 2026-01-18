@@ -1663,9 +1663,9 @@
       "DEFAULT_PROJECT": "Oletusprojekti tehtäville, jos mitään ei ole määritetty",
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Lisää automaattisesti tänään-tunniste työskennellyille tehtäville",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Merkitse vanhempi tehtävä valmiiksi, kun kaikki alitehtävät ovat valmiita",
-      "IS_CONFIRM_BEFORE_TASK_DELETE": "Vahvista ennen tehtävien poistamista",
+      "IS_CONFIRM_BEFORE_DELETE": "Vahvista ennen tehtävien poistamista",
       "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Ota käyttöön Markdown-muotoilu tehtävämuistiinpanoissa",
-      "IS_TRAY_SHOW_CURRENT_TASK": "Näytä nykyinen tehtävä tehtäväpalkissa / tilavalikossa (vain työpöytä mac/windows)",
+      "IS_TRAY_SHOW_CURRENT": "Näytä nykyinen tehtävä tehtäväpalkissa / tilavalikossa (vain työpöytä mac/windows)",
       "NOTES_TEMPLATE": "Tehtävän kuvauksen mallipohja",
       "TITLE": "Tehtävät"
     },

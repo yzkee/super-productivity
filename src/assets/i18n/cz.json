@@ -1010,7 +1010,7 @@
       "IS_DISABLE_ANIMATIONS": "Vypnout všechny animace",
       "IS_DISABLE_CELEBRATION": "Vypnout oslavy v denním přehledu",
       "IS_MINIMIZE_TO_TRAY": "Minimalizovat do oznamovací oblasti (pouze pro desktop)",
-      "IS_TRAY_SHOW_CURRENT_TASK": "Zobrazit aktuální úkol v oznamovací oblasti/menu stavu (pouze pro desktop Mac/Windows)",
+      "IS_TRAY_SHOW_CURRENT": "Zobrazit aktuální úkol v oznamovací oblasti/menu stavu (pouze pro desktop Mac/Windows)",
       "START_OF_NEXT_DAY": "Začátek dalšího dne",
       "START_OF_NEXT_DAY_HINT": "od kdy (v hodinách) chcete počítat, že další den začal. Výchozí hodnota je půlnoc, což je 0.",
       "TITLE": "Různá nastavení"
@@ -1019,9 +1019,9 @@
       "DEFAULT_PROJECT": "Výchozí projekt pro použití pro úkoly, pokud není žádný určen",
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Automaticky přidat úkoly, na kterých jste pracovali, k dnešku",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Automaticky označit nadřazený úkol jako hotový, když jsou všechny podúkoly hotové",
-      "IS_CONFIRM_BEFORE_TASK_DELETE": "Potvrdit před smazáním úkolů",
+      "IS_CONFIRM_BEFORE_DELETE": "Potvrdit před smazáním úkolů",
       "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Povolit Markdown formátování v poznámkách k úkolům",
-      "IS_TRAY_SHOW_CURRENT_TASK": "Zobrazit aktuální úkol v oznamovací oblasti / menu stavu (pouze pro desktop Mac/Windows)",
+      "IS_TRAY_SHOW_CURRENT": "Zobrazit aktuální úkol v oznamovací oblasti / menu stavu (pouze pro desktop Mac/Windows)",
       "NOTES_TEMPLATE": "Šablona popisu úkolu",
       "TITLE": "Úkoly"
     },

@@ -2006,9 +2006,9 @@
       "DEFAULT_PROJECT": "默认项目，用于未指定其他项目的任务",
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "自动将已处理的任务添加到今天",
       "IS_AUTO_MARK_PARENT_AS_DONE": "当所有子任务完成时，自动将父任务标记为完成",
-      "IS_CONFIRM_BEFORE_TASK_DELETE": "删除任务前确认",
+      "IS_CONFIRM_BEFORE_DELETE": "删除任务前确认",
       "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "在任务笔记中启用Markdown格式",
-      "IS_TRAY_SHOW_CURRENT_TASK": "在托盘/状态菜单中显示当前任务（仅限桌面Mac/Windows）",
+      "IS_TRAY_SHOW_CURRENT": "在托盘/状态菜单中显示当前任务（仅限桌面Mac/Windows）",
       "NOTES_TEMPLATE": "任务描述模板",
       "TITLE": "任务"
     },

@@ -1663,9 +1663,9 @@
       "DEFAULT_PROJECT": "Proyek default untuk digunakan untuk tugas jika tidak ada yang ditentukan",
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Secara otomatis tambahkan tugas yang dikerjakan ke hari ini",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Secara otomatis tandai tugas induk sebagai selesai, ketika semua sub tugas selesai",
-      "IS_CONFIRM_BEFORE_TASK_DELETE": "Konfirmasi sebelum menghapus tugas",
+      "IS_CONFIRM_BEFORE_DELETE": "Konfirmasi sebelum menghapus tugas",
       "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Aktifkan format Markdown di catatan tugas",
-      "IS_TRAY_SHOW_CURRENT_TASK": "Tampilkan tugas saat ini di baki / menu status (khusus desktop mac/windows)",
+      "IS_TRAY_SHOW_CURRENT": "Tampilkan tugas saat ini di baki / menu status (khusus desktop mac/windows)",
       "NOTES_TEMPLATE": "Templat deskripsi tugas",
       "TITLE": "Tugas"
     },

@@ -1592,9 +1592,9 @@
       "DEFAULT_PROJECT": "پروژه پیش فرض برای کارهای جدید در صورت عدم تعیین پروژه دیگر",
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "اضافه کردن خودکار کارهای انجام شده به امروز",
       "IS_AUTO_MARK_PARENT_AS_DONE": "علامت گذاری خودکار کار اصلی به عنوان انجام شده، زمانی که تمام زیر کارها انجام شده باشند",
-      "IS_CONFIRM_BEFORE_TASK_DELETE": "تأیید قبل از حذف کارها",
+      "IS_CONFIRM_BEFORE_DELETE": "تأیید قبل از حذف کارها",
       "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "فعال کردن فرمت بندی Markdown در یادداشت های کار",
-      "IS_TRAY_SHOW_CURRENT_TASK": "نمایش کار فعلی در منوی سینی / وضعیت (فقط دسک تاپ مک/ویندوز)",
+      "IS_TRAY_SHOW_CURRENT": "نمایش کار فعلی در منوی سینی / وضعیت (فقط دسک تاپ مک/ویندوز)",
       "NOTES_TEMPLATE": "الگوی توضیحات کار",
       "TITLE": "کارها"
     },

@@ -1663,9 +1663,9 @@
       "DEFAULT_PROJECT": "Projet par défaut à utiliser pour les tâches si aucun n'est spécifié",
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Ajouter automatiquement les tâches travaillées à aujourd'hui",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Marquer automatiquement la tâche parente comme terminée lorsque toutes les sous-tâches sont terminées",
-      "IS_CONFIRM_BEFORE_TASK_DELETE": "Confirmer avant de supprimer des tâches",
+      "IS_CONFIRM_BEFORE_DELETE": "Confirmer avant de supprimer des tâches",
       "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Activer le formatage Markdown dans les notes de tâche",
-      "IS_TRAY_SHOW_CURRENT_TASK": "Afficher la tâche en cours dans la barre d'état / menu d'état (bureau uniquement)",
+      "IS_TRAY_SHOW_CURRENT": "Afficher la tâche en cours dans la barre d'état / menu d'état (bureau uniquement)",
       "NOTES_TEMPLATE": "Modèle de description de tâche",
       "TITLE": "Tâches"
     },

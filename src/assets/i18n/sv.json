@@ -1602,9 +1602,9 @@
       "DEFAULT_PROJECT": "Standardprojekt som ska användas för uppgifter om inget annat anges",
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Automatiskt lägga till arbetade uppgifter till idag",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Automatiskt markera överordnad uppgift som klar när alla underordnade uppgifter är klara",
-      "IS_CONFIRM_BEFORE_TASK_DELETE": "Bekräfta innan du tar bort uppgifter",
+      "IS_CONFIRM_BEFORE_DELETE": "Bekräfta innan du tar bort uppgifter",
       "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Aktivera Markdown-formatering i uppgiftsanteckningar",
-      "IS_TRAY_SHOW_CURRENT_TASK": "Visa aktuell uppgift i systemfältet / statusmenyn (endast skrivbord Mac/Windows)",
+      "IS_TRAY_SHOW_CURRENT": "Visa aktuell uppgift i systemfältet / statusmenyn (endast skrivbord Mac/Windows)",
       "NOTES_TEMPLATE": "Mall för uppgiftsanteckningar",
       "TITLE": "Uppgifter"
     },

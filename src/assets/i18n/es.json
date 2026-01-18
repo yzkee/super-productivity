@@ -1662,9 +1662,9 @@
       "DEFAULT_PROJECT": "Proyecto predeterminado a usar para tareas si no se especifica ninguno",
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Añadir automáticamente la etiqueta de hoy a las tareas trabajadas",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Marcar la tarea principal como realizada, cuando se completen todas las subtareas",
-      "IS_CONFIRM_BEFORE_TASK_DELETE": "Confirmar antes de eliminar tareas",
+      "IS_CONFIRM_BEFORE_DELETE": "Confirmar antes de eliminar tareas",
       "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Habilitar formato Markdown en notas de tareas",
-      "IS_TRAY_SHOW_CURRENT_TASK": "Mostrar tarea actual en la bandeja / menú de estado (solo escritorio mac/windows)",
+      "IS_TRAY_SHOW_CURRENT": "Mostrar tarea actual en la bandeja / menú de estado (solo escritorio mac/windows)",
       "NOTES_TEMPLATE": "Plantilla de descripción de tarea",
       "TITLE": "Tareas"
     },

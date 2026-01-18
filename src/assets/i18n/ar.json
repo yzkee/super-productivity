@@ -1591,9 +1591,9 @@
       "DEFAULT_PROJECT": "المشروع الافتراضي لإنشاء المهام الجديدة فيه",
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "إضافة علامة اليوم تلقائيًا للعمل على المهام الجديدة",
       "IS_AUTO_MARK_PARENT_AS_DONE": "عند الانتهاء من جميع المهام الفرعية، يتم تلقائيًا وضع علامة على المهمة الرئيسية كمكتملة",
-      "IS_CONFIRM_BEFORE_TASK_DELETE": "تأكيد قبل حذف المهام",
+      "IS_CONFIRM_BEFORE_DELETE": "تأكيد قبل حذف المهام",
       "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "تمكين تنسيق Markdown في ملاحظات المهام",
-      "IS_TRAY_SHOW_CURRENT_TASK": "إظهار المهمة الحالية في الدرج / قائمة الحالة (سطح المكتب فقط)",
+      "IS_TRAY_SHOW_CURRENT": "إظهار المهمة الحالية في الدرج / قائمة الحالة (سطح المكتب فقط)",
       "NOTES_TEMPLATE": "قالب وصف المهمة",
       "TITLE": "المهام"
     },

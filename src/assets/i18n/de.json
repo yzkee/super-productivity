@@ -1661,9 +1661,9 @@
       "DEFAULT_PROJECT": "Standardprojekt für Aufgaben, wenn keines angegeben ist",
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Automatisch hinzugefügte Aufgaben für heute",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Automatisch übergeordnete Aufgaben als erledigt markieren, wenn alle Unteraufgaben erledigt sind",
-      "IS_CONFIRM_BEFORE_TASK_DELETE": "Bestätigen, bevor Aufgaben gelöscht werden",
+      "IS_CONFIRM_BEFORE_DELETE": "Bestätigen, bevor Aufgaben gelöscht werden",
       "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Markdown-Formatierung in Aufgabenbeschreibungen aktivieren",
-      "IS_TRAY_SHOW_CURRENT_TASK": "Aktuelle Aufgabe im Tray / Statusmenü anzeigen (nur Desktop Mac/Windows)",
+      "IS_TRAY_SHOW_CURRENT": "Aktuelle Aufgabe im Tray / Statusmenü anzeigen (nur Desktop Mac/Windows)",
       "NOTES_TEMPLATE": "Aufgabenbeschreibungsvorlage",
       "TITLE": "Aufgaben"
     },
