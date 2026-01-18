@@ -60,7 +60,7 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
   isShowEdit = signal(false);
   modelCopy = signal<string | undefined>(undefined);
 
-  isMarkdownFormattingInNotesEnabled = computed(() => {
+  isMarkdownFormattingEnabled = computed(() => {
     const tasks = this._globalConfigService.tasks();
     return tasks?.isMarkdownFormattingInNotesEnabled ?? true;
   });
