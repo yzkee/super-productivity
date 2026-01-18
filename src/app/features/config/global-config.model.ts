@@ -49,8 +49,8 @@ export type MiscConfig = Readonly<{
 export type TasksConfig = Readonly<{
   isAutoMarkParentAsDone: boolean;
   isAutoAddWorkedOnToToday: boolean;
-  isConfirmBeforeTaskDelete?: boolean;
-  isTrayShowCurrentTask: boolean;
+  isConfirmBeforeDelete?: boolean;
+  isTrayShowCurrent: boolean;
   isMarkdownFormattingInNotesEnabled: boolean;
   defaultProjectId?: string | null | false; // allow 'false' because of #569
   notesTemplate: string;

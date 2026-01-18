@@ -35,10 +35,10 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     firstDayOfWeek: undefined,
   },
   tasks: {
-    isConfirmBeforeTaskDelete: true,
+    isConfirmBeforeDelete: true,
     isAutoAddWorkedOnToToday: true,
     isAutoMarkParentAsDone: false,
-    isTrayShowCurrentTask: true,
+    isTrayShowCurrent: true,
     defaultProjectId: null,
     isMarkdownFormattingInNotesEnabled: true,
     notesTemplate: defaultTaskNoteTemplate,

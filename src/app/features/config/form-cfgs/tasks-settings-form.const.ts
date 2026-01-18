@@ -6,7 +6,7 @@ export const TASKS_SETTINGS_FORM_CFG: ConfigFormSection<TasksConfig> = {
   key: 'tasks',
   items: [
     {
-      key: 'isConfirmBeforeTaskDelete',
+      key: 'isConfirmBeforeDelete',
       type: 'checkbox',
       templateOptions: {
         label: T.GCF.TASKS.IS_CONFIRM_BEFORE_TASK_DELETE,
@@ -27,7 +27,7 @@ export const TASKS_SETTINGS_FORM_CFG: ConfigFormSection<TasksConfig> = {
       },
     },
     {
-      key: 'isTrayShowCurrentTask',
+      key: 'isTrayShowCurrent',
       type: 'checkbox',
       templateOptions: {
         label: T.GCF.TASKS.IS_TRAY_SHOW_CURRENT_TASK,
