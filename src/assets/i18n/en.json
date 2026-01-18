@@ -1846,7 +1846,7 @@
       "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Automatically add worked on tasks to today",
       "IS_AUTO_MARK_PARENT_AS_DONE": "Automatically mark parent task as done, when all sub tasks are done",
       "IS_CONFIRM_BEFORE_TASK_DELETE": "Confirm before deleting tasks",
-      "IS_MARKDOWN_NOTES_ENABLED": "Enable markdown notes",
+      "IS_MARKDOWN_NOTES_ENABLED": "Enable Markdown formatting in task notes",
       "IS_TRAY_SHOW_CURRENT_TASK": "Show current task in the tray / status menu (desktop mac/windows only)",
       "NOTES_TEMPLATE": "Task description template",
       "TITLE": "Tasks"
