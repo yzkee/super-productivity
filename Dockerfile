@@ -26,6 +26,10 @@ COPY package*.json ./
 COPY packages/plugin-api/package*.json ./packages/plugin-api/
 COPY packages/plugin-api/tsconfig.json ./packages/plugin-api/
 COPY packages/plugin-api/src ./packages/plugin-api/src
+COPY packages/shared-schema/package*.json ./packages/shared-schema/
+COPY packages/shared-schema/tsconfig.json ./packages/shared-schema/
+COPY packages/shared-schema/tsup.config.ts ./packages/shared-schema/
+COPY packages/shared-schema/src ./packages/shared-schema/src
 COPY tsconfig.json ./
 RUN npm ci --ignore-scripts || npm i --ignore-scripts
 RUN npm run prepare
