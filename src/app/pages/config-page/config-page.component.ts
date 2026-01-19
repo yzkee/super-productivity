@@ -59,6 +59,7 @@ import { DialogConfirmComponent } from '../../ui/dialog-confirm/dialog-confirm.c
 import { LS } from '../../core/persistence/storage-keys.const';
 import { MatTab, MatTabGroup, MatTabLabel } from '@angular/material/tabs';
 import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 
 @Component({
   selector: 'config-page',
@@ -77,6 +78,7 @@ import { MatIcon } from '@angular/material/icon';
     MatTab,
     MatTabLabel,
     MatIcon,
+    MatTooltip,
   ],
 })
 export class ConfigPageComponent implements OnInit, OnDestroy {

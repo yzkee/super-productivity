@@ -11,10 +11,17 @@
         <!-- Tab: General -->
         <mat-tab>
           <ng-template mat-tab-label>
-            <mat-icon class="tab-icon">settings</mat-icon>
+            <mat-icon
+              class="tab-icon"
+              [matTooltip]="'PS.TABS.GENERAL' | translate"
+              >settings</mat-icon
+            >
             <span class="tab-label">{{ 'PS.TABS.GENERAL' | translate }}</span>
           </ng-template>
           <div class="tab-content">
+            <h2 class="mat-h2 section-title">
+              {{ 'PS.TABS.GENERAL' | translate }}
+            </h2>
             <theme-selector></theme-selector>
             @for (section of generalFormCfg; track section.key) {
               <section class="config-section section-{{ section.key }}">
@@ -40,10 +47,17 @@
         <!-- Tab: Time & Tracking -->
         <mat-tab>
           <ng-template mat-tab-label>
-            <mat-icon class="tab-icon">timer</mat-icon>
+            <mat-icon
+              class="tab-icon"
+              [matTooltip]="'PS.TABS.TIME_TRACKING' | translate"
+              >timer</mat-icon
+            >
             <span class="tab-label">{{ 'PS.TABS.TIME_TRACKING' | translate }}</span>
           </ng-template>
           <div class="tab-content">
+            <h2 class="mat-h2 section-title">
+              {{ 'PS.TABS.TIME_TRACKING' | translate }}
+            </h2>
             @for (section of timeTrackingFormCfg; track section.key) {
               <section class="config-section section-{{ section.key }}">
                 <config-section
@@ -59,10 +73,17 @@
         <!-- Tab: Productivity -->
         <mat-tab>
           <ng-template mat-tab-label>
-            <mat-icon class="tab-icon">trending_up</mat-icon>
+            <mat-icon
+              class="tab-icon"
+              [matTooltip]="'PS.TABS.PRODUCTIVITY' | translate"
+              >trending_up</mat-icon
+            >
             <span class="tab-label">{{ 'PS.TABS.PRODUCTIVITY' | translate }}</span>
           </ng-template>
           <div class="tab-content tour-productivityHelper">
+            <h2 class="mat-h2 section-title">
+              {{ 'PS.TABS.PRODUCTIVITY' | translate }}
+            </h2>
             @for (section of globalProductivityConfigFormCfg; track section.key) {
               <section class="config-section">
                 <config-section
@@ -78,10 +99,17 @@
         <!-- Tab: Plugins -->
         <mat-tab>
           <ng-template mat-tab-label>
-            <mat-icon class="tab-icon">extension</mat-icon>
+            <mat-icon
+              class="tab-icon"
+              [matTooltip]="'PS.TABS.PLUGINS' | translate"
+              >extension</mat-icon
+            >
             <span class="tab-label">{{ 'PS.TABS.PLUGINS' | translate }}</span>
           </ng-template>
           <div class="tab-content">
+            <h2 class="mat-h2 section-title">
+              {{ 'PS.TABS.PLUGINS' | translate }}
+            </h2>
             <section class="config-section plugin-section">
               <plugin-management></plugin-management>
             </section>
@@ -100,10 +128,17 @@
         <!-- Tab: Sync & Backup -->
         <mat-tab>
           <ng-template mat-tab-label>
-            <mat-icon class="tab-icon">cloud_sync</mat-icon>
+            <mat-icon
+              class="tab-icon"
+              [matTooltip]="'PS.TABS.SYNC_BACKUP' | translate"
+              >cloud_sync</mat-icon
+            >
             <span class="tab-label">{{ 'PS.TABS.SYNC_BACKUP' | translate }}</span>
           </ng-template>
           <div class="tab-content">
+            <h2 class="mat-h2 section-title">
+              {{ 'PS.TABS.SYNC_BACKUP' | translate }}
+            </h2>
             <section class="config-section tour-syncSection">
               @let syncSettingsForm = syncSettingsService.syncSettingsForm$ | async;
               @if (syncSettingsForm) {
