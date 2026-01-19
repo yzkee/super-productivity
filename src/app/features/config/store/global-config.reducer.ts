@@ -15,6 +15,7 @@ import {
   SoundConfig,
   SyncConfig,
   TakeABreakConfig,
+  TasksConfig,
 } from '../global-config.model';
 import { DEFAULT_GLOBAL_CONFIG } from '../default-global-config.const';
 import { loadAllData } from '../../../root-store/meta/load-all-data.action';
@@ -26,6 +27,10 @@ export const selectConfigFeatureState =
 export const selectLocalizationConfig = createSelector(
   selectConfigFeatureState,
   (cfg): LocalizationConfig => cfg?.localization ?? DEFAULT_GLOBAL_CONFIG.localization,
+);
+export const selectTasksConfig = createSelector(
+  selectConfigFeatureState,
+  (cfg): TasksConfig => cfg.tasks ?? DEFAULT_GLOBAL_CONFIG.tasks,
 );
 export const selectMiscConfig = createSelector(
   selectConfigFeatureState,
