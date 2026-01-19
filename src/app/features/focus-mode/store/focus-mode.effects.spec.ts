@@ -9,6 +9,8 @@ import { TaskService } from '../../tasks/task.service';
 import { BannerService } from '../../../core/banner/banner.service';
 import { MetricService } from '../../metric/metric.service';
 import { FocusModeStorageService } from '../focus-mode-storage.service';
+import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
+import { TakeABreakService } from '../../take-a-break/take-a-break.service';
 import * as actions from './focus-mode.actions';
 import * as selectors from './focus-mode.selectors';
 import { FocusModeMode, FocusScreen, TimerState } from '../focus-mode.model';
@@ -83,6 +85,10 @@ describe('FocusModeEffects', () => {
         .and.returnValue(false),
     };
 
+    const takeABreakServiceMock = {
+      otherNoBreakTIme$: new BehaviorSubject<number>(0),
+    };
+
     TestBed.configureTestingModule({
       providers: [
         FocusModeEffects,
@@ -120,6 +126,13 @@ describe('FocusModeEffects', () => {
           useValue: { setLastCountdownDuration: jasmine.createSpy() },
         },
         { provide: HydrationStateService, useValue: hydrationStateServiceMock },
+        { provide: TakeABreakService, useValue: takeABreakServiceMock },
+        {
+          provide: GlobalTrackingIntervalService,
+          useValue: {
+            todayStr$: new BehaviorSubject<string>('2024-01-19'),
+          },
+        },
       ],
     });
 
