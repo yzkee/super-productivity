@@ -19,6 +19,9 @@
             <span class="tab-label">{{ 'PS.TABS.GENERAL' | translate }}</span>
           </ng-template>
           <div class="tab-content">
+            <h2 class="mat-h2 section-title">
+              {{ 'PS.TABS.GENERAL' | translate }}
+            </h2>
             <theme-selector></theme-selector>
             @for (section of generalFormCfg; track section.key) {
               <section class="config-section section-{{ section.key }}">
@@ -52,6 +55,9 @@
             <span class="tab-label">{{ 'PS.TABS.TIME_TRACKING' | translate }}</span>
           </ng-template>
           <div class="tab-content">
+            <h2 class="mat-h2 section-title">
+              {{ 'PS.TABS.TIME_TRACKING' | translate }}
+            </h2>
             @for (section of timeTrackingFormCfg; track section.key) {
               <section class="config-section section-{{ section.key }}">
                 <config-section
@@ -75,6 +81,9 @@
             <span class="tab-label">{{ 'PS.TABS.PRODUCTIVITY' | translate }}</span>
           </ng-template>
           <div class="tab-content tour-productivityHelper">
+            <h2 class="mat-h2 section-title">
+              {{ 'PS.TABS.PRODUCTIVITY' | translate }}
+            </h2>
             @for (section of globalProductivityConfigFormCfg; track section.key) {
               <section class="config-section">
                 <config-section
@@ -98,6 +107,9 @@
             <span class="tab-label">{{ 'PS.TABS.PLUGINS' | translate }}</span>
           </ng-template>
           <div class="tab-content">
+            <h2 class="mat-h2 section-title">
+              {{ 'PS.TABS.PLUGINS' | translate }}
+            </h2>
             <section class="config-section plugin-section">
               <plugin-management></plugin-management>
             </section>
@@ -124,6 +136,9 @@
             <span class="tab-label">{{ 'PS.TABS.SYNC_BACKUP' | translate }}</span>
           </ng-template>
           <div class="tab-content">
+            <h2 class="mat-h2 section-title">
+              {{ 'PS.TABS.SYNC_BACKUP' | translate }}
+            </h2>
             <section class="config-section tour-syncSection">
               @let syncSettingsForm = syncSettingsService.syncSettingsForm$ | async;
               @if (syncSettingsForm) {
