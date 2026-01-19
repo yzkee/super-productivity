@@ -38,10 +38,17 @@
         <!-- Tab: Tasks -->
         <mat-tab>
           <ng-template mat-tab-label>
-            <mat-icon class="tab-icon">task</mat-icon>
+            <mat-icon
+              class="tab-icon"
+              [matTooltip]="'PS.TABS.TASKS' | translate"
+              >task</mat-icon
+            >
             <span class="tab-label">{{ 'PS.TABS.TASKS' | translate }}</span>
           </ng-template>
           <div class="tab-content">
+            <h2 class="mat-h2 section-title">
+              {{ 'PS.TABS.TASKS' | translate }}
+            </h2>
             @for (section of globalTasksFormCfg; track section.key) {
               <section class="config-section section-{{ section.key }}">
                 <config-section
