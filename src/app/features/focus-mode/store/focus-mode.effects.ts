@@ -40,6 +40,7 @@ import { Banner, BannerId } from '../../../core/banner/banner.model';
 import { T } from '../../../t.const';
 import { MetricService } from '../../metric/metric.service';
 import { FocusModeStorageService } from '../focus-mode-storage.service';
+import { TakeABreakService } from '../../take-a-break/take-a-break.service';
 
 const SESSION_DONE_SOUND = 'positive.ogg';
 const TICK_SOUND = 'tick.mp3';
@@ -54,6 +55,7 @@ export class FocusModeEffects {
   private bannerService = inject(BannerService);
   private metricService = inject(MetricService);
   private storageService = inject(FocusModeStorageService);
+  private takeABreakService = inject(TakeABreakService);
 
   // Auto-show overlay when task is selected (if sync session with tracking is enabled)
   // Skip showing overlay if isStartInBackground is enabled
@@ -120,8 +122,8 @@ export class FocusModeEffects {
                     // Check store flag to distinguish between break resume and manual tracking start
                     if (isResumingBreak) {
                       // Clear flag after processing to prevent false positives
-                      this.store.dispatch(actions.clearResumingBreakFlag());
-                      return EMPTY; // Don't skip - break is resuming
+                      // Don't skip the break - just clear the flag
+                      return of(actions.clearResumingBreakFlag());
                     }
                     // User manually started tracking during break
                     // Skip the break to sync with tracking (bug #5875 fix)
@@ -513,6 +515,22 @@ export class FocusModeEffects {
         return actionsToDispatch.length > 0 ? of(...actionsToDispatch) : EMPTY;
       }),
     ),
+  );
+
+  // Bug #6064 fix: Reset "without break" timer when focus mode break starts
+  // This ensures Pomodoro breaks are correctly recognized as rest periods regardless of
+  // whether task tracking is paused during breaks (isPauseTrackingDuringBreak setting)
+  resetBreakTimerOnBreakStart$ = createEffect(
+    () =>
+      this.actions$.pipe(
+        ofType(actions.startBreak),
+        tap(() => {
+          // Signal TakeABreakService to reset its timer
+          // otherNoBreakTIme$ feeds into the break timer's tick stream
+          this.takeABreakService.otherNoBreakTIme$.next(0);
+        }),
+      ),
+    { dispatch: false },
   );
 
   // Handle session cancellation

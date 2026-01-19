@@ -28,6 +28,7 @@ import { TaskService } from '../../tasks/task.service';
 import { BannerService } from '../../../core/banner/banner.service';
 import { MetricService } from '../../metric/metric.service';
 import { FocusModeStorageService } from '../focus-mode-storage.service';
+import { TakeABreakService } from '../../take-a-break/take-a-break.service';
 import * as actions from './focus-mode.actions';
 import * as selectors from './focus-mode.selectors';
 import { FocusModeMode, FocusScreen, TimerState } from '../focus-mode.model';
@@ -83,6 +84,10 @@ describe('FocusMode Bug #5995: Resume paused break', () => {
 
     metricServiceMock = {
       logFocusSession: jasmine.createSpy('logFocusSession'),
+    };
+
+    const takeABreakServiceMock = {
+      otherNoBreakTIme$: new BehaviorSubject<number>(0),
     };
 
     TestBed.configureTestingModule({
@@ -147,6 +152,7 @@ describe('FocusMode Bug #5995: Resume paused break', () => {
         { provide: BannerService, useValue: {} },
         { provide: MetricService, useValue: metricServiceMock },
         { provide: FocusModeStorageService, useValue: {} },
+        { provide: TakeABreakService, useValue: takeABreakServiceMock },
       ],
     });
 
@@ -200,9 +206,9 @@ describe('FocusMode Bug #5995: Resume paused break', () => {
       currentTaskId$.next('test-task-id');
       tick(10);
 
-      // Verify: No actions dispatched (EMPTY was returned, break continues)
-      // The clearResumingBreakFlag action is dispatched via store.dispatch(), not returned
-      expect(dispatchedActions.length).toBe(0);
+      // Verify: clearResumingBreakFlag action is returned (break continues, no skip)
+      expect(dispatchedActions.length).toBe(1);
+      expect(dispatchedActions[0].type).toBe(actions.clearResumingBreakFlag.type);
 
       flush();
     }));
