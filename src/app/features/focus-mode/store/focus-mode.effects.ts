@@ -974,20 +974,29 @@ export class FocusModeEffects {
         };
 
     // End session button - complete for work, skip for break (while running)
-    // Hide when session is completed or break time is up (Start button takes priority)
-    const endAction = shouldShowStartButton
-      ? undefined
-      : isOnBreak
+    // When session is completed (not break), show "End Focus Session" button
+    const endAction =
+      isSessionCompleted && !isBreakTimeUp
         ? {
-            label: T.F.FOCUS_MODE.SKIP_BREAK,
-            ...(useIcons && { icon: 'skip_next' }),
-            fn: () => this._handleSkipBreak(),
-          }
-        : {
-            label: T.F.FOCUS_MODE.B.END_SESSION,
+            label: T.F.FOCUS_MODE.B.END_FOCUS_SESSION,
             ...(useIcons && { icon: 'done_all' }),
-            fn: () => this._handleEndSession(),
-          };
+            fn: () => {
+              this.store.dispatch(actions.cancelFocusSession());
+            },
+          }
+        : shouldShowStartButton
+          ? undefined
+          : isOnBreak
+            ? {
+                label: T.F.FOCUS_MODE.SKIP_BREAK,
+                ...(useIcons && { icon: 'skip_next' }),
+                fn: () => this._handleSkipBreak(),
+              }
+            : {
+                label: T.F.FOCUS_MODE.B.END_SESSION,
+                ...(useIcons && { icon: 'done_all' }),
+                fn: () => this._handleEndSession(),
+              };
 
     // Open overlay button
     const overlayAction = {
