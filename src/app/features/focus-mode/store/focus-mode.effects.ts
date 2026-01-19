@@ -633,14 +633,33 @@ export class FocusModeEffects {
   );
 
   // Electron-specific effects
+  // Action-based effect to update Windows taskbar progress (fixes #6061)
+  // Throttled to prevent excessive IPC calls (timer ticks every 1s)
+  // Follows action-based pattern (CLAUDE.md Section 8) instead of selector-based
   setTaskBarProgress$ =
     IS_ELECTRON &&
     createEffect(
       () =>
-        this.store.select(selectors.selectProgress).pipe(
-          skipWhileApplyingRemoteOps(),
-          withLatestFrom(this.store.select(selectors.selectIsRunning)),
-          tap(([progress, isRunning]) => {
+        this.actions$.pipe(
+          ofType(
+            actions.tick,
+            actions.startFocusSession,
+            actions.pauseFocusSession,
+            actions.unPauseFocusSession,
+            actions.startBreak,
+            actions.skipBreak,
+            actions.completeBreak,
+            actions.completeFocusSession,
+            actions.cancelFocusSession,
+          ),
+          // Throttle to prevent excessive IPC calls (timer ticks every 1s)
+          // Use leading + trailing to ensure immediate feedback and final state
+          throttleTime(500, undefined, { leading: true, trailing: true }),
+          withLatestFrom(
+            this.store.select(selectors.selectProgress),
+            this.store.select(selectors.selectIsRunning),
+          ),
+          tap(([_action, progress, isRunning]) => {
             window.ea.setProgressBar({
               progress: progress / 100,
               progressBarMode: isRunning ? 'normal' : 'pause',
