@@ -110,19 +110,34 @@ export class FocusModeEffects {
                   pausedTaskId,
                   isResumingBreak,
                 ]) => {
+                  console.log('[Bug #5995] syncTrackingStartToSession$ fired:', {
+                    timerPurpose: timer.purpose,
+                    timerIsRunning: timer.isRunning,
+                    isResumingBreak,
+                    pausedTaskId,
+                  });
+
                   // If session is paused (purpose is 'work' but not running), resume it
                   if (timer.purpose === 'work' && !timer.isRunning) {
+                    console.log('[Bug #5995] Resuming paused work session');
                     return of(actions.unPauseFocusSession());
                   }
                   // If break is active, handle based on state and cause
                   // Bug #5995 Fix: Don't skip breaks that were just resumed
                   if (timer.purpose === 'break') {
+                    console.log('[Bug #5995] Break is active, checking flag...');
                     // Check store flag to distinguish between break resume and manual tracking start
                     if (isResumingBreak) {
+                      console.log(
+                        '[Bug #5995] Flag is TRUE - NOT skipping break (correct behavior)',
+                      );
                       // Clear flag after processing to prevent false positives
                       this.store.dispatch(actions.clearResumingBreakFlag());
                       return EMPTY; // Don't skip - break is resuming
                     }
+                    console.log(
+                      '[Bug #5995] Flag is FALSE - SKIPPING break (user manually started tracking)',
+                    );
                     // User manually started tracking during break
                     // Skip the break to sync with tracking (bug #5875 fix)
                     return of(actions.skipBreak({ pausedTaskId }));
@@ -209,6 +224,12 @@ export class FocusModeEffects {
           !currentTaskId &&
           !!pausedTaskId,
       ),
+      tap(([_action, _cfg, timer, pausedTaskId]) => {
+        console.log('[Bug #5995] syncSessionResumeToTracking$ resuming tracking:', {
+          timerPurpose: timer.purpose,
+          pausedTaskId,
+        });
+      }),
       switchMap(([_action, _cfg, _timer, pausedTaskId]) =>
         this.store.select(selectTaskById, { id: pausedTaskId! }).pipe(
           take(1),

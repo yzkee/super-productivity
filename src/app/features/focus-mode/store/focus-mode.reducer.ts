@@ -138,6 +138,13 @@ export const focusModeReducer = createReducer(
     // Allow resuming both work sessions and breaks
     if (state.timer.purpose === null) return state;
 
+    const isBreak = state.timer.purpose === 'break';
+    console.log('[Bug #5995] unPauseFocusSession reducer:', {
+      purpose: state.timer.purpose,
+      isBreak,
+      willSetFlag: isBreak,
+    });
+
     return {
       ...state,
       timer: {
@@ -146,7 +153,7 @@ export const focusModeReducer = createReducer(
         startedAt: Date.now() - state.timer.elapsed,
       },
       // Set flag ONLY when resuming a break (not work sessions)
-      _isResumingBreak: state.timer.purpose === 'break',
+      _isResumingBreak: isBreak,
     };
   }),
 
