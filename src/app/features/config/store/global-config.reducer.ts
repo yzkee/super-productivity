@@ -30,7 +30,7 @@ export const selectLocalizationConfig = createSelector(
 );
 export const selectTasksConfig = createSelector(
   selectConfigFeatureState,
-  (cfg): TasksConfig => cfg.tasks,
+  (cfg): TasksConfig => cfg.tasks ?? DEFAULT_GLOBAL_CONFIG.tasks,
 );
 export const selectMiscConfig = createSelector(
   selectConfigFeatureState,
