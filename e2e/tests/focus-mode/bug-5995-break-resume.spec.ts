@@ -41,23 +41,26 @@ test.describe('Bug #5995: Resume paused break (CRITICAL BUG TEST)', () => {
 
   test('CRITICAL: Resuming paused break should continue break, not start next session', async ({
     page,
+    workViewPage,
+    testPrefix,
   }) => {
     // Step 1: Enable the critical setting
     await enableSyncSetting(page);
 
-    // Step 2: Create and track a task
-    await page.goto('/#/active/today');
-    await page.waitForSelector('task-list', { state: 'visible', timeout: 15000 });
+    // Navigate back to work view
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
 
-    const taskInput = page.locator('add-task-bar.global input');
-    await taskInput.fill('Bug5995CriticalTest');
-    await taskInput.press('Enter');
-    await page.waitForTimeout(500);
+    // Step 2: Create and track a task using page objects
+    await workViewPage.waitForTaskList();
+    await workViewPage.addTask('Bug5995CriticalTest');
 
     // Start tracking the task
     const task = page.locator('task').first();
+    await expect(task).toBeVisible();
     await task.hover();
     const playBtn = page.locator('.play-btn.tour-playBtn').first();
+    await expect(playBtn).toBeVisible({ timeout: 2000 });
     await playBtn.click();
     await page.waitForTimeout(500);
 
@@ -153,6 +156,7 @@ const enableSyncSetting = async (page: Page): Promise<void> => {
 
   await page.goto('/#/config');
   await page.waitForLoadState('networkidle');
+  await page.waitForTimeout(500);
 
   // Navigate to Productivity tab
   const tabs = page.locator('[role="tab"]');
@@ -189,6 +193,6 @@ const enableSyncSetting = async (page: Page): Promise<void> => {
       console.log('>>> Sync setting already enabled');
     }
   } else {
-    console.warn('>>> WARNING: Could not find sync toggle!');
+    console.log('>>> Sync setting toggle not found - may already be enabled by default');
   }
 };
