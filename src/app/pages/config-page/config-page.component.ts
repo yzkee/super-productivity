@@ -374,7 +374,7 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
           type: 'btn',
           className: 'mt2 block',
           templateOptions: {
-            text: T.F.SYNC.C.FORCE_UPLOAD,
+            text: T.F.SYNC.S.BTN_FORCE_OVERWRITE,
             btnType: 'warn',
             required: false,
             onClick: () => {
