@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { createEffect, ofType } from '@ngrx/effects';
 import { LOCAL_ACTIONS } from '../../../util/local-actions.token';
-import { Store } from '@ngrx/store';
+import { Action, Store } from '@ngrx/store';
 import { combineLatest, EMPTY, of } from 'rxjs';
 import { skipWhileApplyingRemoteOps } from '../../../util/skip-during-sync.operator';
 import {
@@ -103,9 +103,14 @@ export class FocusModeEffects {
                 if (timer.purpose === 'work' && !timer.isRunning) {
                   return of(actions.unPauseFocusSession());
                 }
-                // If break is active (running or paused), skip it to sync with tracking
-                // This fixes bug #5875: pressing time tracking button during break
+                // If break is active (running or paused), handle based on state
+                // Bug #5995 Fix: Don't skip paused breaks - resume them instead
                 if (timer.purpose === 'break') {
+                  // If break is paused with time remaining, resume it
+                  if (!timer.isRunning && timer.elapsed < timer.duration) {
+                    return of(actions.unPauseFocusSession());
+                  }
+                  // Break is running or completed, skip it (fixes bug #5875)
                   return of(actions.skipBreak({ pausedTaskId }));
                 }
                 // If no session active, start a new one (only from Main screen)
@@ -359,7 +364,7 @@ export class FocusModeEffects {
         // No adjustment needed - cycle is already correct after incrementCycle
         const breakInfo = strategy.getBreakDuration(cycle || 1);
         const shouldPauseTracking = config?.isPauseTrackingDuringBreak && currentTaskId;
-        const actionsArr: any[] = [];
+        const actionsArr: Action[] = [];
 
         // Pause tracking during break if configured
         if (shouldPauseTracking) {
@@ -878,10 +883,9 @@ export class FocusModeEffects {
           focusModeConfig?.isManualBreakStart &&
           strategy.shouldStartBreakAfterSession
         ) {
-          // Bug #5737 fix: Use cycle - 1 since incrementCycle fires before user clicks
-          // This ensures long break occurs after session 4, not session 5
-          const actualCycle = Math.max(1, (cycle || 1) - 1);
-          const breakInfo = strategy.getBreakDuration(actualCycle);
+          // Bug #6044 fix: No adjustment needed - cycle is already correct after incrementCycle
+          // This matches the auto-start break logic to ensure consistent break timing
+          const breakInfo = strategy.getBreakDuration(cycle || 1);
           if (breakInfo) {
             const currentTaskId = this.taskService.currentTaskId();
             const shouldPauseTracking =
@@ -977,6 +981,18 @@ export class FocusModeEffects {
     // Show "Start" button when session completed OR break time is up
     // Otherwise show play/pause button
     const shouldShowStartButton = isSessionCompleted || isBreakTimeUp;
+
+    console.warn('🟢 [BUG 5995] Banner _getBannerActions:', {
+      timerRunning: timer.isRunning,
+      timerPurpose: timer.purpose,
+      timerElapsed: timer.elapsed,
+      timerDuration: timer.duration,
+      isPaused,
+      isOnBreak,
+      isSessionCompleted,
+      isBreakTimeUp,
+      shouldShowStartButton,
+    });
 
     const playPauseAction = shouldShowStartButton
       ? {
