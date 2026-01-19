@@ -27,7 +27,24 @@
 <br>
 <br>
 
-[![Stand With Ukraine](https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner2-direct.svg)](https://vshymanskyy.github.io/StandWithUkraine)
+<p align="center">
+</p>
+
+<p align="center">
+  <a href="https://crisisrelief.un.org/ukraine-crisis" target="_blank">
+    <img
+      src="https://upload.wikimedia.org/wikipedia/commons/4/49/Flag_of_Ukraine.svg"
+      alt="Ukraine Flag"
+      width="420"
+      height="120"
+    /><br/>
+    <strong>Humanitarian Aid for Ukraine</strong><br/>
+    Support medical care, shelter, and essential relief efforts.
+  </a>
+</p>
+
+<br>
+<br>
 
 <p align="center" style="text-align: center;">
 <a href="https://lbesson.mit-license.org">
