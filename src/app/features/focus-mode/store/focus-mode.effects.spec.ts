@@ -371,8 +371,8 @@ describe('FocusModeEffects', () => {
     });
 
     describe('autoStartBreakOnSessionComplete$', () => {
-      it('should dispatch startBreak for automatic completions when strategy allows', (done) => {
-        actions$ = of(actions.completeFocusSession({ isManual: false }));
+      it('should dispatch startBreak when incrementCycle is dispatched', (done) => {
+        actions$ = of(actions.incrementCycle());
         store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
         store.overrideSelector(selectors.selectCurrentCycle, 1);
         store.refreshState();
@@ -390,25 +390,8 @@ describe('FocusModeEffects', () => {
           });
       });
 
-      it('should dispatch startBreak for manual completions (to allow early break start)', (done) => {
-        actions$ = of(actions.completeFocusSession({ isManual: true }));
-        store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-        store.overrideSelector(selectors.selectCurrentCycle, 1);
-        store.refreshState();
-
-        effects.autoStartBreakOnSessionComplete$
-          .pipe(toArray())
-          .subscribe((actionsArr) => {
-            const startBreakAction = actionsArr.find(
-              (a) => a.type === actions.startBreak.type,
-            );
-            expect(startBreakAction).toBeDefined();
-            done();
-          });
-      });
-
       it('should NOT dispatch startBreak when isManualBreakStart is enabled', (done) => {
-        actions$ = of(actions.completeFocusSession({ isManual: false }));
+        actions$ = of(actions.incrementCycle());
         store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
         store.overrideSelector(selectors.selectCurrentCycle, 1);
         store.overrideSelector(selectFocusModeConfig, {
@@ -426,41 +409,12 @@ describe('FocusModeEffects', () => {
           });
       });
 
-      it('should dispatch correct isLongBreak based on cycle', (done) => {
-        actions$ = of(actions.completeFocusSession({ isManual: false }));
+      it('should dispatch long break after 4th session (Bug #6044)', (done) => {
+        // Bug #6044 fix: Effect now listens to incrementCycle, so cycle value is already correct
+        // When cycle=4 (after increment from 3 to 4), break should be long break
+        actions$ = of(actions.incrementCycle());
         store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
         store.overrideSelector(selectors.selectCurrentCycle, 4);
-        store.refreshState();
-
-        strategyFactoryMock.getStrategy.and.returnValue({
-          initialSessionDuration: 25 * 60 * 1000,
-          shouldStartBreakAfterSession: true,
-          shouldAutoStartNextSession: true,
-          getBreakDuration: jasmine
-            .createSpy('getBreakDuration')
-            .and.returnValue({ duration: 15 * 60 * 1000, isLong: true }),
-        });
-
-        effects.autoStartBreakOnSessionComplete$
-          .pipe(toArray())
-          .subscribe((actionsArr) => {
-            const startBreakAction = actionsArr.find(
-              (a) => a.type === actions.startBreak.type,
-            );
-            expect(startBreakAction).toBeDefined();
-            expect(startBreakAction.isLongBreak).toBeTrue();
-            expect(startBreakAction.duration).toBe(15 * 60 * 1000);
-            done();
-          });
-      });
-
-      it('should use cycle - 1 for break duration calculation (Bug #5737)', (done) => {
-        // Bug #5737 fix: incrementCycle fires before autoStartBreakOnSessionComplete$
-        // so we need to use cycle - 1 to get the correct session number for break calculation
-        // When cycle=5 (after session 4 completes), break should be calculated for cycle=4
-        actions$ = of(actions.completeFocusSession({ isManual: false }));
-        store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-        store.overrideSelector(selectors.selectCurrentCycle, 5); // After session 4 completes
         store.refreshState();
 
         const getBreakDurationSpy = jasmine
@@ -474,15 +428,56 @@ describe('FocusModeEffects', () => {
           getBreakDuration: getBreakDurationSpy,
         });
 
-        effects.autoStartBreakOnSessionComplete$.pipe(toArray()).subscribe(() => {
-          // Verify getBreakDuration was called with cycle - 1 = 4 (not 5)
-          expect(getBreakDurationSpy).toHaveBeenCalledWith(4);
-          done();
-        });
+        effects.autoStartBreakOnSessionComplete$
+          .pipe(toArray())
+          .subscribe((actionsArr) => {
+            const startBreakAction = actionsArr.find(
+              (a) => a.type === actions.startBreak.type,
+            );
+            // Verify getBreakDuration was called with cycle 4 (no adjustment needed)
+            expect(getBreakDurationSpy).toHaveBeenCalledWith(4);
+            expect(startBreakAction).toBeDefined();
+            expect(startBreakAction.isLongBreak).toBeTrue();
+            expect(startBreakAction.duration).toBe(15 * 60 * 1000);
+            done();
+          });
       });
 
-      it('should NOT dispatch when strategy.shouldStartBreakAfterSession is false', (done) => {
-        actions$ = of(actions.completeFocusSession({ isManual: false }));
+      it('should dispatch short break after 5th session (Bug #6044)', (done) => {
+        // Bug #6044 fix: Verify that session 5 gets a short break, not long break
+        actions$ = of(actions.incrementCycle());
+        store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+        store.overrideSelector(selectors.selectCurrentCycle, 5);
+        store.refreshState();
+
+        const getBreakDurationSpy = jasmine
+          .createSpy('getBreakDuration')
+          .and.returnValue({ duration: 5 * 60 * 1000, isLong: false });
+
+        strategyFactoryMock.getStrategy.and.returnValue({
+          initialSessionDuration: 25 * 60 * 1000,
+          shouldStartBreakAfterSession: true,
+          shouldAutoStartNextSession: true,
+          getBreakDuration: getBreakDurationSpy,
+        });
+
+        effects.autoStartBreakOnSessionComplete$
+          .pipe(toArray())
+          .subscribe((actionsArr) => {
+            const startBreakAction = actionsArr.find(
+              (a) => a.type === actions.startBreak.type,
+            );
+            // Verify getBreakDuration was called with cycle 5
+            expect(getBreakDurationSpy).toHaveBeenCalledWith(5);
+            expect(startBreakAction).toBeDefined();
+            expect(startBreakAction.isLongBreak).toBeFalse();
+            expect(startBreakAction.duration).toBe(5 * 60 * 1000);
+            done();
+          });
+      });
+
+      it('should NOT dispatch for non-Pomodoro modes', (done) => {
+        actions$ = of(actions.incrementCycle());
         store.overrideSelector(selectors.selectMode, FocusModeMode.Flowtime);
         store.overrideSelector(selectors.selectCurrentCycle, 1);
         store.refreshState();
@@ -1927,7 +1922,7 @@ describe('FocusModeEffects', () => {
 
   describe('pauseTrackingDuringBreak (autoStartBreakOnSessionComplete$)', () => {
     it('should dispatch unsetCurrentTask when break starts and isPauseTrackingDuringBreak is true', (done) => {
-      actions$ = of(actions.completeFocusSession({ isManual: false }));
+      actions$ = of(actions.incrementCycle());
       store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
       store.overrideSelector(selectors.selectCurrentCycle, 1);
       store.overrideSelector(selectFocusModeConfig, {
@@ -1946,7 +1941,7 @@ describe('FocusModeEffects', () => {
     });
 
     it('should NOT dispatch unsetCurrentTask when isPauseTrackingDuringBreak is false', (done) => {
-      actions$ = of(actions.completeFocusSession({ isManual: false }));
+      actions$ = of(actions.incrementCycle());
       store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
       store.overrideSelector(selectors.selectCurrentCycle, 1);
       store.overrideSelector(selectFocusModeConfig, {

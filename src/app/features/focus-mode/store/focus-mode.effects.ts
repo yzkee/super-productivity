@@ -337,9 +337,11 @@ export class FocusModeEffects {
   );
 
   // Effect 3: Auto-start break after session completion
+  // Bug #6044 fix: Listen to incrementCycle instead of completeFocusSession to eliminate race condition
+  // This ensures the cycle value is already incremented when we calculate break type
   autoStartBreakOnSessionComplete$ = createEffect(() =>
     this.actions$.pipe(
-      ofType(actions.completeFocusSession),
+      ofType(actions.incrementCycle),
       withLatestFrom(
         this.store.select(selectors.selectMode),
         this.store.select(selectors.selectCurrentCycle),
@@ -347,15 +349,15 @@ export class FocusModeEffects {
         this.taskService.currentTaskId$,
       ),
       filter(([_, mode, __, config]) => {
+        // Only for Pomodoro mode (since only Pomodoro increments cycles)
+        if (mode !== FocusModeMode.Pomodoro) return false;
         const strategy = this.strategyFactory.getStrategy(mode);
         return strategy.shouldStartBreakAfterSession && !config?.isManualBreakStart;
       }),
       switchMap(([_, mode, cycle, config, currentTaskId]) => {
         const strategy = this.strategyFactory.getStrategy(mode);
-        // Bug #5737 fix: Use cycle - 1 since incrementCycle fires before this effect
-        // This ensures long break occurs after session 4, not session 3
-        const actualCycle = Math.max(1, (cycle || 1) - 1);
-        const breakInfo = strategy.getBreakDuration(actualCycle);
+        // No adjustment needed - cycle is already correct after incrementCycle
+        const breakInfo = strategy.getBreakDuration(cycle || 1);
         const shouldPauseTracking = config?.isPauseTrackingDuringBreak && currentTaskId;
         const actionsArr: any[] = [];
 
