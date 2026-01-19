@@ -14,6 +14,7 @@ import {
   waitForSyncComplete,
   generateSyncFolderName,
   dismissTourIfVisible,
+  waitForArchivePersistence,
 } from '../../utils/sync-helpers';
 import { Page } from 'playwright';
 
@@ -117,6 +118,7 @@ test.describe('@webdav WebDAV Delete Cascade Sync', () => {
     await taskPageA.markTaskAsDone(task);
     await pageA.waitForTimeout(300);
     await archiveDoneTasks(pageA);
+    await waitForArchivePersistence(pageA);
     await expect(pageA.locator('task')).toHaveCount(0);
     console.log('[Delete Tag] Client A archived task');
 
@@ -415,6 +417,7 @@ test.describe('@webdav WebDAV Delete Cascade Sync', () => {
     await taskPageB.markTaskAsDone(task1OnB);
     await pageB.waitForTimeout(300);
     await archiveDoneTasks(pageB);
+    await waitForArchivePersistence(pageB);
     await expect(pageB.locator('task')).toHaveCount(1); // Only Task2 visible
     console.log('[Concurrent] Client B archived Task1 (not synced yet)');
 

@@ -11,6 +11,7 @@ import {
   createSyncFolder,
   waitForSyncComplete,
   generateSyncFolderName,
+  waitForArchivePersistence,
 } from '../../utils/sync-helpers';
 
 /**
@@ -145,6 +146,7 @@ test.describe('@webdav WebDAV Archive Sync', () => {
     console.log('[Archive Diff] Client A marked Task1 done');
 
     await archiveDoneTasks(pageA);
+    await waitForArchivePersistence(pageA);
     await expect(pageA.locator('task')).toHaveCount(1); // Only Task2 remains
     console.log('[Archive Diff] Client A archived Task1');
 
@@ -168,6 +170,7 @@ test.describe('@webdav WebDAV Archive Sync', () => {
     console.log('[Archive Diff] Client B marked Task3 done');
 
     await archiveDoneTasks(pageB);
+    await waitForArchivePersistence(pageB);
     // Note: Daily Summary flow automatically syncs after archiving.
     // So Client B downloads Client A's archive of Task1 during this flow.
     // Final state on Client B: only Task2 (both Task1 and Task3 archived)
