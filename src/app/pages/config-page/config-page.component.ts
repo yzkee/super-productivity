@@ -369,6 +369,20 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
           },
         },
         {
+          hideExpression: (m: any, _v: any, field: any) =>
+            !m.isEnabled || !field?.form?.valid,
+          type: 'btn',
+          className: 'mt2 block',
+          templateOptions: {
+            text: T.F.SYNC.S.BTN_FORCE_OVERWRITE,
+            btnType: 'warn',
+            required: false,
+            onClick: () => {
+              this._syncWrapperService.forceUpload();
+            },
+          },
+        },
+        {
           hideExpression: (m: any) =>
             !m.isEnabled || m.syncProvider !== LegacySyncProvider.SuperSync,
           type: 'btn',
