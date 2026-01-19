@@ -64,7 +64,6 @@ body: # Ensure indentation uses regular spaces
       render: shell # Use 'shell' or 'log' for better formatting of code/logs
     validations:
       required: false
-    if: console-output # Only include this field in the final issue if it is filled
 #  - type: textarea
 #    id: error-log-info # ID is optional for markdown but kept for consistency
 #    attributes:
