@@ -83,10 +83,13 @@ export class FocusModeEffects {
     combineLatest([
       this.store.select(selectFocusModeConfig),
       this.store.select(selectIsFocusModeEnabled),
+      // Track break resume intent via store flag to distinguish between
+      // user manually starting tracking vs focus mode resuming tracking
+      this.store.select(selectors.selectIsResumingBreak),
     ]).pipe(
       // Outer guard: skip config changes during sync
       skipWhileApplyingRemoteOps(),
-      switchMap(([cfg, isFocusModeEnabled]) =>
+      switchMap(([cfg, isFocusModeEnabled, isResumingBreak]) =>
         isFocusModeEnabled && cfg?.isSyncSessionWithTracking
           ? this.taskService.currentTaskId$.pipe(
               // currentTaskId$ is local UI state (not synced), so distinctUntilChanged is sufficient
@@ -103,14 +106,17 @@ export class FocusModeEffects {
                 if (timer.purpose === 'work' && !timer.isRunning) {
                   return of(actions.unPauseFocusSession());
                 }
-                // If break is active (running or paused), handle based on state
-                // Bug #5995 Fix: Don't skip paused breaks - resume them instead
+                // If break is active, handle based on state and cause
+                // Bug #5995 Fix: Don't skip breaks that were just resumed
                 if (timer.purpose === 'break') {
-                  // If break is paused with time remaining, resume it
-                  if (!timer.isRunning && timer.elapsed < timer.duration) {
-                    return of(actions.unPauseFocusSession());
+                  // Check store flag to distinguish between break resume and manual tracking start
+                  if (isResumingBreak) {
+                    // Clear flag after processing to prevent false positives
+                    this.store.dispatch(actions.clearResumingBreakFlag());
+                    return EMPTY; // Don't skip - break is resuming
                   }
-                  // Break is running or completed, skip it (fixes bug #5875)
+                  // User manually started tracking during break
+                  // Skip the break to sync with tracking (bug #5875 fix)
                   return of(actions.skipBreak({ pausedTaskId }));
                 }
                 // If no session active, start a new one (only from Main screen)
@@ -981,18 +987,6 @@ export class FocusModeEffects {
     // Show "Start" button when session completed OR break time is up
     // Otherwise show play/pause button
     const shouldShowStartButton = isSessionCompleted || isBreakTimeUp;
-
-    console.warn('🟢 [BUG 5995] Banner _getBannerActions:', {
-      timerRunning: timer.isRunning,
-      timerPurpose: timer.purpose,
-      timerElapsed: timer.elapsed,
-      timerDuration: timer.duration,
-      isPaused,
-      isOnBreak,
-      isSessionCompleted,
-      isBreakTimeUp,
-      shouldShowStartButton,
-    });
 
     const playPauseAction = shouldShowStartButton
       ? {
