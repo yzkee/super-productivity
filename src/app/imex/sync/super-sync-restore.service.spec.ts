@@ -165,17 +165,19 @@ describe('SuperSyncRestoreService', () => {
       });
     });
 
-    it('should show error snack and rethrow on failure', async () => {
-      const error = new Error('Network error');
+    it('should show error snack and rethrow on failure after retries', async () => {
+      const error = new Error('timeout error'); // Network error triggers retry logic
       mockProvider.getStateAtSeq.and.returnValue(Promise.reject(error));
 
       await expectAsync(service.restoreToPoint(100)).toBeRejectedWith(error);
 
+      // Should have attempted 3 times (initial + 2 retries)
+      expect(mockProvider.getStateAtSeq).toHaveBeenCalledTimes(3);
       expect(mockSnackService.open).toHaveBeenCalledWith({
         type: 'ERROR',
         msg: T.F.SYNC.S.RESTORE_ERROR,
       });
-    });
+    }, 10000); // Increase timeout to 10s to allow for retries (2s + 4s + overhead)
 
     it('should show error when import fails', async () => {
       const error = new Error('Import failed');
