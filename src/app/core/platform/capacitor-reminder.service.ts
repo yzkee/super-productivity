@@ -97,7 +97,7 @@ export class CapacitorReminderService {
       triggerInMs: triggerAt - now,
       triggerInMinutes: Math.round((triggerAt - now) / 1000 / 60),
       isAndroidWebView: IS_ANDROID_WEB_VIEW,
-      hasNativeScheduler: !!androidInterface.scheduleNativeReminder,
+      hasNativeScheduler: !!androidInterface?.scheduleNativeReminder,
     });
 
     // On Android, use native AlarmManager for precision
@@ -196,7 +196,7 @@ export class CapacitorReminderService {
     Log.log('🚫 CapacitorReminderService.cancelReminder called', {
       notificationId,
       isAndroidWebView: IS_ANDROID_WEB_VIEW,
-      hasNativeCanceller: !!androidInterface.cancelNativeReminder,
+      hasNativeCanceller: !!androidInterface?.cancelNativeReminder,
     });
 
     // On Android, use native cancellation
