@@ -241,6 +241,10 @@ export class ArchiveOperationHandler {
       return;
     }
 
+    // Yield after hasTask() check to prevent blocking the main thread
+    // hasTask() loads the entire archive from IndexedDB
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
     await taskArchiveService.updateTask(id as string, changes, {
       isSkipDispatch: true,
       isIgnoreDBLock: true,
@@ -263,10 +267,15 @@ export class ArchiveOperationHandler {
     const taskArchiveService = this._getTaskArchiveService();
 
     // Filter to only tasks that exist in archive
-    // Check all tasks in parallel for better performance
-    const hasTaskResults = await Promise.all(
-      taskUpdates.map((update) => taskArchiveService.hasTask(update.id as string)),
-    );
+    // Check tasks sequentially with yielding to prevent UI freeze.
+    // Each hasTask() call loads the entire archive from IndexedDB, so we must
+    // yield between checks to prevent blocking the main thread.
+    const hasTaskResults: boolean[] = [];
+    for (const update of taskUpdates) {
+      hasTaskResults.push(await taskArchiveService.hasTask(update.id as string));
+      // Yield to event loop after each check to prevent blocking
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
 
     const archiveUpdates: Update<Task>[] = taskUpdates.filter(
       (_, i) => hasTaskResults[i],
