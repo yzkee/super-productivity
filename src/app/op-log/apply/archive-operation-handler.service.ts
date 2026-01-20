@@ -263,12 +263,14 @@ export class ArchiveOperationHandler {
     const taskArchiveService = this._getTaskArchiveService();
 
     // Filter to only tasks that exist in archive
-    const archiveUpdates: Update<Task>[] = [];
-    for (const update of taskUpdates) {
-      if (await taskArchiveService.hasTask(update.id as string)) {
-        archiveUpdates.push(update);
-      }
-    }
+    // Check all tasks in parallel for better performance
+    const hasTaskResults = await Promise.all(
+      taskUpdates.map((update) => taskArchiveService.hasTask(update.id as string)),
+    );
+
+    const archiveUpdates: Update<Task>[] = taskUpdates.filter(
+      (_, i) => hasTaskResults[i],
+    );
 
     if (archiveUpdates.length > 0) {
       await taskArchiveService.updateTasks(archiveUpdates, {
