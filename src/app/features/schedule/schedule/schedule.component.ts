@@ -6,6 +6,7 @@ import {
   computed,
   effect,
   inject,
+  signal,
 } from '@angular/core';
 import { fromEvent } from 'rxjs';
 import { select, Store } from '@ngrx/store';
@@ -13,6 +14,9 @@ import { debounceTime, map, startWith } from 'rxjs/operators';
 import { TaskService } from '../../tasks/task.service';
 import { LayoutService } from '../../../core-ui/layout/layout.service';
 import { MatDialog } from '@angular/material/dialog';
+import { MatIconButton, MatButton } from '@angular/material/button';
+import { MatIcon } from '@angular/material/icon';
+import { MatTooltip } from '@angular/material/tooltip';
 import { LS } from '../../../core/persistence/storage-keys.const';
 import { DialogTimelineSetupComponent } from '../dialog-timeline-setup/dialog-timeline-setup.component';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
@@ -24,10 +28,20 @@ import { ScheduleWeekComponent } from '../schedule-week/schedule-week.component'
 import { ScheduleMonthComponent } from '../schedule-month/schedule-month.component';
 import { ScheduleService } from '../schedule.service';
 import { DateAdapter } from '@angular/material/core';
+import { TranslatePipe } from '@ngx-translate/core';
+import { T } from '../../../t.const';
 
 @Component({
   selector: 'schedule',
-  imports: [ScheduleWeekComponent, ScheduleMonthComponent],
+  imports: [
+    ScheduleWeekComponent,
+    ScheduleMonthComponent,
+    MatIconButton,
+    MatButton,
+    MatIcon,
+    MatTooltip,
+    TranslatePipe,
+  ],
   templateUrl: './schedule.component.html',
   styleUrls: ['./schedule.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -38,6 +52,7 @@ import { DateAdapter } from '@angular/material/core';
   },
 })
 export class ScheduleComponent {
+  T = T;
   taskService = inject(TaskService);
   layoutService = inject(LayoutService);
   scheduleService = inject(ScheduleService);
@@ -49,7 +64,22 @@ export class ScheduleComponent {
   private _currentTimeViewMode = computed(() => this.layoutService.selectedTimeView());
   isMonthView = computed(() => this._currentTimeViewMode() === 'month');
 
-  private _todayDateStr = toSignal(this._globalTrackingIntervalService.todayDateStr$);
+  // Navigation state - null = viewing today, Date = viewing selected date
+  private _selectedDate = signal<Date | null>(null);
+
+  // Helper computed for UI - compares actual dates, not just null check
+  isViewingToday = computed(() => {
+    const selected = this._selectedDate();
+    if (selected === null) return true;
+
+    // Compare date strings to check if selected date IS today
+    const selectedDateStr = this.scheduleService.getTodayStr(selected);
+    const todayStr = this._todayDateStr();
+
+    return selectedDateStr === todayStr;
+  });
+
+  protected _todayDateStr = toSignal(this._globalTrackingIntervalService.todayDateStr$);
   private _windowSize = toSignal(
     fromEvent(window, 'resize').pipe(
       startWith({ width: window.innerWidth, height: window.innerHeight }),
@@ -95,20 +125,48 @@ export class ScheduleComponent {
   daysToShow = computed(() => {
     const count = this._daysToShowCount();
     const selectedView = this._currentTimeViewMode();
+    const selectedDate = this._selectedDate();
     // Trigger re-computation when today changes
     this._todayDateStr();
 
     if (selectedView === 'month') {
-      return this.scheduleService.getMonthDaysToShow(count, this.firstDayOfWeek);
+      return this.scheduleService.getMonthDaysToShow(
+        count,
+        this.firstDayOfWeek,
+        selectedDate,
+      );
     }
-    return this.scheduleService.getDaysToShow(count);
+    return this.scheduleService.getDaysToShow(count, selectedDate);
   });
 
   weeksToShow = computed(() => Math.ceil(this.daysToShow().length / 7));
 
   firstDayOfWeek = this._dateAdapter.getFirstDayOfWeek();
 
-  scheduleDays = this.scheduleService.createScheduleDaysComputed(this.daysToShow);
+  // Calculate context-aware "now" based on selected date
+  // When viewing a future week, use the start of that week as reference time
+  private _contextNow = computed(() => {
+    const selectedDate = this._selectedDate();
+    if (selectedDate === null) {
+      // Viewing today - use actual current time
+      return Date.now();
+    }
+
+    // Viewing a different date - use that date's midnight as reference
+    // This ensures display calculations (work hours, etc.) are correct for the viewed date
+    const contextDate = new Date(selectedDate);
+    contextDate.setHours(0, 0, 0, 0);
+    return contextDate.getTime();
+  });
+
+  scheduleDays = computed(() => {
+    return this.scheduleService.createScheduleDaysWithContext({
+      daysToShow: this.daysToShow(),
+      contextNow: this._contextNow(),
+      realNow: Date.now(), // Always use actual current time for "current week" calculation
+      currentTaskId: this.taskService.currentTaskId() ?? null,
+    });
+  });
 
   private _eventsAndBeyondBudget = computed(() => {
     const days = this.scheduleDays();
@@ -134,6 +192,11 @@ export class ScheduleComponent {
   beyondBudget = computed(() => this._eventsAndBeyondBudget().beyondBudgetDays);
 
   currentTimeRow = computed(() => {
+    // Only show current time indicator when viewing today
+    if (!this.isViewingToday()) {
+      return null;
+    }
+
     // Trigger re-computation every 2 minutes
     this.scheduleService.scheduleRefreshTick();
     const now = new Date();
@@ -143,6 +206,56 @@ export class ScheduleComponent {
     const hoursToday = hours + minutes / 60;
     return Math.round(hoursToday * FH);
   });
+
+  goToPreviousPeriod(): void {
+    const currentDate = this._selectedDate() || new Date();
+    const selectedView = this._currentTimeViewMode();
+
+    if (selectedView === 'month') {
+      // Jump to first day of previous month
+      const previousMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() - 1,
+        1,
+      );
+      this._selectedDate.set(previousMonth);
+    } else {
+      // Week view: subtract 7 days (create fresh Date to avoid mutations)
+      const previousWeek = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        currentDate.getDate() - 7,
+      );
+      this._selectedDate.set(previousWeek);
+    }
+  }
+
+  goToNextPeriod(): void {
+    const currentDate = this._selectedDate() || new Date();
+    const selectedView = this._currentTimeViewMode();
+
+    if (selectedView === 'month') {
+      // Jump to first day of next month
+      const nextMonth = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth() + 1,
+        1,
+      );
+      this._selectedDate.set(nextMonth);
+    } else {
+      // Week view: add 7 days (create fresh Date to avoid mutations)
+      const nextWeek = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        currentDate.getDate() + 7,
+      );
+      this._selectedDate.set(nextWeek);
+    }
+  }
+
+  goToToday(): void {
+    this._selectedDate.set(null); // Resets to "today" mode
+  }
 
   constructor() {
     this.layoutService.selectedTimeView.set('week');

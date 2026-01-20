@@ -34,6 +34,35 @@ header {
   padding-right: 11px;
 }
 
+.schedule-nav-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--extra-border-color);
+  background: var(--bg-lighter);
+  flex-wrap: nowrap;
+  min-height: 48px;
+
+  button {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  button[mat-button] {
+    min-width: fit-content;
+    padding: 0 12px;
+  }
+
+  button[mat-icon-button] {
+    flex-shrink: 0;
+  }
+
+  mat-icon {
+    flex-shrink: 0;
+  }
+}
+
 .main-controls {
   display: flex;
   align-items: center;

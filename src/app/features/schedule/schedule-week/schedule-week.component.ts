@@ -69,7 +69,8 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
   beyondBudget = input<ScheduleEvent[][] | null>([]);
   daysToShow = input<string[]>([]);
   workStartEnd = input<{ workStartRow: number; workEndRow: number } | null>(null);
-  currentTimeRow = input<number>(0);
+  currentTimeRow = input<number | null>(null);
+  todayDateStr = input<string | undefined>(undefined);
   isCtrlPressed = signal<boolean>(false);
   isTaskDragActive = input<boolean>(false);
 

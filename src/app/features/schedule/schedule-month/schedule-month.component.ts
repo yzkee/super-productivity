@@ -50,10 +50,22 @@ export class ScheduleMonthComponent {
     return headers;
   });
 
+  // Determine the reference month from the displayed days
+  // Find the first day that's actually in the target month (not padding days)
+  readonly referenceMonth = computed(() => {
+    const days = this.daysToShow();
+    if (days.length === 0) return new Date();
+
+    // Use the middle day as reference (around day 14-15 of the month)
+    // This ensures we get a day that's actually in the target month
+    const middleIndex = Math.floor(days.length / 2);
+    return new Date(days[middleIndex]);
+  });
+
   T: typeof T = T;
 
   getDayClass(day: string): string {
-    return this._scheduleService.getDayClass(day);
+    return this._scheduleService.getDayClass(day, this.referenceMonth());
   }
 
   getWeekIndex(dayIndex: number): number {
