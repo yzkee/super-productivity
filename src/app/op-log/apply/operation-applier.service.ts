@@ -103,6 +103,8 @@ export class OperationApplierService {
         // Trigger archive reload for UI if archive-affecting operations were applied
         if (archiveResult.hadArchiveAffectingOp) {
           this.store.dispatch(remoteArchiveDataApplied());
+          // Yield to let the remoteArchiveDataApplied effect run (refreshWorklog)
+          await new Promise((resolve) => setTimeout(resolve, 0));
         }
       }
     } finally {
@@ -140,7 +142,8 @@ export class OperationApplierService {
     const appliedOps: Operation[] = [];
     let hadArchiveAffectingOp = false;
 
-    for (const op of ops) {
+    for (let i = 0; i < ops.length; i++) {
+      const op = ops[i];
       try {
         const action = convertOpToAction(op);
 
@@ -150,6 +153,9 @@ export class OperationApplierService {
         // Track if any archive-affecting operations were processed (for UI refresh)
         if (isArchiveAffectingAction(action)) {
           hadArchiveAffectingOp = true;
+          // Yield after EACH archive-affecting operation to prevent UI freeze.
+          // Archive operations involve slow IndexedDB writes that can block the event loop.
+          await new Promise((resolve) => setTimeout(resolve, 0));
         }
 
         appliedOps.push(op);
@@ -169,6 +175,11 @@ export class OperationApplierService {
           },
         };
       }
+    }
+
+    // Final yield after processing all operations to ensure last operation completes
+    if (ops.length > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
 
     return { appliedOps, hadArchiveAffectingOp };
