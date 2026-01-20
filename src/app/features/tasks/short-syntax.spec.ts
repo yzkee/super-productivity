@@ -1224,7 +1224,6 @@ describe('shortSyntax', () => {
         isEnableDue: false,
         isEnableProject: false,
         isEnableTag: false,
-        isEnableUrl: false,
       });
       expect(r).toEqual(undefined);
     });
@@ -1464,15 +1463,6 @@ describe('shortSyntax', () => {
       expect(r?.taskChanges.timeEstimate).toBe(1800000);
       expect(r?.newTagTitles).toContain('urgent');
       expect(r?.taskChanges.dueWithTime).toBeDefined();
-    });
-
-    it('should respect config flag and not extract when disabled', () => {
-      const t = {
-        ...TASK,
-        title: 'Task https://example.com',
-      };
-      const r = shortSyntax(t, { ...CONFIG, isEnableUrl: false });
-      expect(r).toBeUndefined();
     });
 
     it('should clean URLs from title properly', () => {
