@@ -185,9 +185,6 @@ test.describe('@webdav WebDAV Archive Sync', () => {
     await waitForSyncComplete(pageA, syncPageA);
     console.log('[Archive Diff] Client A synced to get B changes');
 
-    // Wait for archive persistence after remote sync (same as after local archive operations)
-    await waitForArchivePersistence(pageA);
-
     // --- Verify final state ---
     // Both clients should have only Task2 visible
     await expect(pageA.locator('task')).toHaveCount(1);
