@@ -111,3 +111,19 @@ mat-dialog-content {
     border-left: 1px solid var(--extra-border-color);
   }
 }
+
+.dialog-actions-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 96%;
+  margin: 0 auto;
+  gap: 8px;
+  padding-bottom: 18px;
+}
+
+.dialog-actions-center button {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 100%;
+}

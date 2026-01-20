@@ -92,31 +92,32 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="start">
-  @if (data.task && (data.task.dueWithTime || plannedDayForTask)) {
+  <div class="dialog-actions-center">
+    @if (data.task && (data.task.dueWithTime || plannedDayForTask)) {
+      <button
+        (click)="remove()"
+        color="warn"
+        mat-stroked-button
+      >
+        @if (selectedTime) {
+          <mat-icon>alarm_off</mat-icon>
+        } @else {
+          <mat-icon>event_busy</mat-icon>
+        }
+        {{ T.F.TASK.D_SCHEDULE_TASK.UNSCHEDULE | translate }}
+      </button>
+    }
     <button
-      (click)="remove()"
-      color="warn"
+      color="primary"
       mat-stroked-button
+      (click)="submit()"
     >
       @if (selectedTime) {
-        <mat-icon>alarm_off</mat-icon>
+        <mat-icon>alarm</mat-icon>
       } @else {
-        <mat-icon>event_busy</mat-icon>
+        <mat-icon>today</mat-icon>
       }
-      {{ T.F.TASK.D_SCHEDULE_TASK.UNSCHEDULE | translate }}
+      {{ T.F.TASK.D_SCHEDULE_TASK.SCHEDULE | translate }}
     </button>
-  }
-
-  <button
-    color="primary"
-    mat-stroked-button
-    (click)="submit()"
-  >
-    @if (selectedTime) {
-      <mat-icon>alarm</mat-icon>
-    } @else {
-      <mat-icon>today</mat-icon>
-    }
-    {{ T.F.TASK.D_SCHEDULE_TASK.SCHEDULE | translate }}
-  </button>
+  </div>
 </mat-dialog-actions>
