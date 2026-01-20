@@ -173,24 +173,34 @@ const handlePlanTasksForToday = (
     return !parentId || !todayTag.taskIds.includes(parentId);
   });
 
-  // Filter out tasks that already have dueDay set to today
-  // Only update dueDay for tasks that are:
-  // 1. Being added to TODAY_TAG (newTasksForToday), OR
-  // 2. Already in TODAY_TAG but have incorrect dueDay
-  const tasksNeedingDueDayUpdate = taskIds.filter((taskId) => {
+  // Filter for tasks that need updates:
+  // 1. Tasks that need dueDay updated (not yet scheduled for today)
+  // 2. Tasks already scheduled for today that need remindAt/dueWithTime cleared
+  const tasksNeedingUpdate = taskIds.filter((taskId) => {
     const task = state[TASK_FEATURE_NAME].entities[taskId] as Task;
-    if (!task || task.dueDay === today) return false;
-    // Update dueDay if task is being added to TODAY or is already in TODAY
-    return newTasksForToday.includes(taskId) || todayTag.taskIds.includes(taskId);
+    if (!task) return false;
+
+    // Include tasks that need dueDay updated
+    if (task.dueDay !== today) {
+      return newTasksForToday.includes(taskId) || todayTag.taskIds.includes(taskId);
+    }
+
+    // Include tasks already scheduled for today when we need to clear scheduling
+    if (task.dueDay === today && isClearScheduledTime) {
+      // Need to clear remindAt and/or dueWithTime
+      return task.remindAt !== undefined || task.dueWithTime !== undefined;
+    }
+
+    return false;
   });
 
   // Early return if no actual changes needed
-  if (newTasksForToday.length === 0 && tasksNeedingDueDayUpdate.length === 0) {
+  if (newTasksForToday.length === 0 && tasksNeedingUpdate.length === 0) {
     return state;
   }
 
   // Only create updates for tasks that need dueDay change
-  const taskUpdates: Update<Task>[] = tasksNeedingDueDayUpdate.map((taskId) => {
+  const taskUpdates: Update<Task>[] = tasksNeedingUpdate.map((taskId) => {
     const task = state[TASK_FEATURE_NAME].entities[taskId] as Task;
 
     // Preserve dueWithTime if it matches today's date
