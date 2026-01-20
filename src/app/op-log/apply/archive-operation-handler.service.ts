@@ -1,8 +1,6 @@
 import { inject, Injectable, Injector } from '@angular/core';
-import { Update } from '@ngrx/entity';
 import { Action } from '@ngrx/store';
 import { PersistentAction } from '../core/persistent-action.interface';
-import { Task } from '../../features/tasks/task.model';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import {
   compressArchive,
@@ -264,29 +262,33 @@ export class ArchiveOperationHandler {
 
     const taskUpdates = (action as ReturnType<typeof TaskSharedActions.updateTasks>)
       .tasks;
-    const taskArchiveService = this._getTaskArchiveService();
+
+    // OPTIMIZATION: Load archives once instead of N times
+    // Before: 50 tasks = 100 IndexedDB reads (50 tasks × 2 archives)
+    // After: 50 tasks = 2 IndexedDB reads (50x improvement)
+    const [archiveYoung, archiveOld] = await Promise.all([
+      this._archiveDbAdapter.loadArchiveYoung(),
+      this._archiveDbAdapter.loadArchiveOld(),
+    ]);
 
     // Filter to only tasks that exist in archive
-    // Check tasks sequentially with yielding to prevent UI freeze.
-    // Each hasTask() call loads the entire archive from IndexedDB, so we must
-    // yield between checks to prevent blocking the main thread.
-    const hasTaskResults: boolean[] = [];
-    for (const update of taskUpdates) {
-      hasTaskResults.push(await taskArchiveService.hasTask(update.id as string));
-      // Yield to event loop after each check to prevent blocking
-      await new Promise((resolve) => setTimeout(resolve, 0));
+    const archiveUpdates = taskUpdates.filter((update) => {
+      const id = update.id as string;
+      return !!(archiveYoung?.task?.entities[id] || archiveOld?.task?.entities[id]);
+    });
+
+    if (archiveUpdates.length === 0) {
+      return;
     }
 
-    const archiveUpdates: Update<Task>[] = taskUpdates.filter(
-      (_, i) => hasTaskResults[i],
-    );
+    // Yield before writing to prevent UI blocking
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
-    if (archiveUpdates.length > 0) {
-      await taskArchiveService.updateTasks(archiveUpdates, {
-        isSkipDispatch: true,
-        isIgnoreDBLock: true,
-      });
-    }
+    const taskArchiveService = this._getTaskArchiveService();
+    await taskArchiveService.updateTasks(archiveUpdates, {
+      isSkipDispatch: true,
+      isIgnoreDBLock: true,
+    });
   }
 
   /**
