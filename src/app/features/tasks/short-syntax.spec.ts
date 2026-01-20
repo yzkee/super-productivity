@@ -1534,5 +1534,18 @@ describe('shortSyntax', () => {
       expect(r?.attachments.length).toBe(1);
       expect(r?.attachments[0].title).toBe('file');
     });
+
+    it('should extract basename correctly for URLs with trailing slash', () => {
+      const t = {
+        ...TASK,
+        title: 'Task https://example.com/projects/',
+      };
+      const r = shortSyntax(t, CONFIG);
+      expect(r).toBeDefined();
+      expect(r?.attachments.length).toBe(1);
+      expect(r?.attachments[0].path).toBe('https://example.com/projects/');
+      expect(r?.attachments[0].title).toBe('projects');
+      expect(r?.taskChanges.title).toBe('Task');
+    });
   });
 });
