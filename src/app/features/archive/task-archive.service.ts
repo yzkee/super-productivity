@@ -164,6 +164,40 @@ export class TaskArchiveService {
     return result;
   }
 
+  /**
+   * Gets multiple tasks by ID in single operation.
+   * Loads archives once instead of N times.
+   *
+   * @param ids Task IDs to retrieve
+   * @returns Map of task ID to Task (omits IDs not found)
+   * @example
+   * const ids = ['task1', 'task2'];
+   * const taskMap = await service.getByIdBatch(ids);
+   * const task1 = taskMap.get('task1'); // Task or undefined
+   */
+  async getByIdBatch(ids: string[]): Promise<Map<string, Task>> {
+    if (ids.length === 0) {
+      return new Map();
+    }
+
+    const [archiveYoung, archiveOld] = await Promise.all([
+      this.archiveDbAdapter.loadArchiveYoung(),
+      this.archiveDbAdapter.loadArchiveOld(),
+    ]);
+
+    const young = archiveYoung || DEFAULT_ARCHIVE;
+    const old = archiveOld || DEFAULT_ARCHIVE;
+
+    const result = new Map<string, Task>();
+    for (const id of ids) {
+      const task = young.task.entities[id] || old.task.entities[id];
+      if (task) {
+        result.set(id, task);
+      }
+    }
+    return result;
+  }
+
   async deleteTasks(
     taskIdsToDelete: string[],
     options?: { isIgnoreDBLock?: boolean },

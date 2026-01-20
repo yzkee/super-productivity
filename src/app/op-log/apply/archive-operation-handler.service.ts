@@ -262,33 +262,26 @@ export class ArchiveOperationHandler {
 
     const taskUpdates = (action as ReturnType<typeof TaskSharedActions.updateTasks>)
       .tasks;
-
-    // OPTIMIZATION: Load archives once instead of N times
-    // Before: 50 tasks = 100 IndexedDB reads (50 tasks × 2 archives)
-    // After: 50 tasks = 2 IndexedDB reads (50x improvement)
-    const [archiveYoung, archiveOld] = await Promise.all([
-      this._archiveDbAdapter.loadArchiveYoung(),
-      this._archiveDbAdapter.loadArchiveOld(),
-    ]);
-
-    // Filter to only tasks that exist in archive
-    const archiveUpdates = taskUpdates.filter((update) => {
-      const id = update.id as string;
-      return !!(archiveYoung?.task?.entities[id] || archiveOld?.task?.entities[id]);
-    });
-
-    if (archiveUpdates.length === 0) {
-      return;
-    }
-
-    // Yield before writing to prevent UI blocking
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
     const taskArchiveService = this._getTaskArchiveService();
-    await taskArchiveService.updateTasks(archiveUpdates, {
-      isSkipDispatch: true,
-      isIgnoreDBLock: true,
-    });
+
+    // Use batch method - loads archives once for all tasks
+    // Performance: 50 tasks = 2 IndexedDB reads (vs 100 with per-task hasTask())
+    const taskIds = taskUpdates.map((u) => u.id as string);
+    const existenceMap = await taskArchiveService.hasTasksBatch(taskIds);
+
+    const archiveUpdates = taskUpdates.filter((update) =>
+      existenceMap.get(update.id as string),
+    );
+
+    if (archiveUpdates.length > 0) {
+      // Yield before writing to prevent UI blocking
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      await taskArchiveService.updateTasks(archiveUpdates, {
+        isSkipDispatch: true,
+        isIgnoreDBLock: true,
+      });
+    }
   }
 
   /**
