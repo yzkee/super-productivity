@@ -13,6 +13,7 @@ import {
   generateSyncFolderName,
   waitForArchivePersistence,
 } from '../../utils/sync-helpers';
+import { dismissTourIfVisible } from '../../utils/tour-helpers';
 
 /**
  * WebDAV Archive Sync E2E Tests
@@ -30,6 +31,9 @@ import {
  * Adapted from supersync-archive-subtasks.spec.ts
  */
 const archiveDoneTasks = async (page: Page): Promise<void> => {
+  // Dismiss any tour dialogs that might block the finish day button
+  await dismissTourIfVisible(page);
+
   // Click finish day button
   const finishDayBtn = page.locator('.e2e-finish-day');
   await finishDayBtn.waitFor({ state: 'visible', timeout: 10000 });

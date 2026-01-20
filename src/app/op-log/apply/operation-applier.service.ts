@@ -100,11 +100,11 @@ export class OperationApplierService {
           return archiveResult;
         }
 
-        // Trigger archive reload for UI if archive-affecting operations were applied
+        // Dispatch action to signal archive data was applied (for potential future use)
+        // Note: The refreshWorklogAfterRemoteArchiveOps effect that used to listen to
+        // this action is now disabled to prevent UI freezes during bulk archive sync.
         if (archiveResult.hadArchiveAffectingOp) {
           this.store.dispatch(remoteArchiveDataApplied());
-          // Yield to let the remoteArchiveDataApplied effect run (refreshWorklog)
-          await new Promise((resolve) => setTimeout(resolve, 0));
         }
       }
     } finally {
