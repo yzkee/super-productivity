@@ -118,7 +118,7 @@
       "TITLE": "🙈 부디 용서해 주세요만...",
       "TXT": "당신이 그것을 좋아한다면 <strong>좋은 평가를 주면 프로젝트에 엄청난 도움이 될 것입니다!</strong>"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "작업 시간을 추적할 때 구성된 문구를 X마다 반복합니다.",
         "L_INTERVAL": "구문 반복 간격",
@@ -126,7 +126,7 @@
         "L_TEXT_DESCRIPTION": "예: \"{currentTaskTitle}달러 작업!\"",
         "L_VOICE": "음색 선택",
         "L_VOICE_DESCRIPTION": "음성 선택",
-        "TITLE": "도미나 모드"
+        "TITLE": "음성 알림"
       }
     },
     "DROPBOX": {

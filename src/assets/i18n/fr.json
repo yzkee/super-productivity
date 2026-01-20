@@ -143,7 +143,7 @@
       "TITLE": "\u001f926\u001f3fd Veuillez nous pardonner, mais...",
       "TXT": "Vous aideriez énormément le projet en <strong>l'évaluant positivement, si vous l'aimez !</strong>"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "Répète la phrase configurée tous les X lors du suivi du temps d'une tâche.",
         "L_INTERVAL": "Intervalle de répétition de la phrase",
@@ -151,7 +151,7 @@
         "L_TEXT_DESCRIPTION": "Ex : « Travailler sur $ {currentTaskTitle} ! »",
         "L_VOICE": "Sélectionner une voix",
         "L_VOICE_DESCRIPTION": "Choisissez une voix",
-        "TITLE": "Mode Domina"
+        "TITLE": "Rappel vocal"
       }
     },
     "DROPBOX": {

@@ -143,7 +143,7 @@
       "TITLE": "🙈 Vergeef ons alstublieft, maar...",
       "TXT": "Je zou het project enorm helpen door het <strong>een goede beoordeling te geven, als je het leuk vindt!</strong>"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "Herhaalt de geconfigureerde zin elke X bij het bijhouden van de tijd voor een taak.",
         "L_INTERVAL": "Interval om zin te herhalen",
@@ -151,7 +151,7 @@
         "L_TEXT_DESCRIPTION": "Bijvoorbeeld: \"Werk aan ${currentTaskTitle}!\"",
         "L_VOICE": "Selecteer een stem",
         "L_VOICE_DESCRIPTION": "Kies een stem",
-        "TITLE": "Domina Mode"
+        "TITLE": "Spraakherinnering"
       }
     },
     "DROPBOX": {

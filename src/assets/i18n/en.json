@@ -144,7 +144,7 @@
         "UPDATE_SECTION": "Updated settings for <strong>{{sectionKey}}</strong>"
       }
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "Repeats the configured phrase every X when tracking time to a task.",
         "L_INTERVAL": "Interval to repeat phrase",
@@ -152,7 +152,7 @@
         "L_TEXT_DESCRIPTION": "E.g.: \"Work on ${currentTaskTitle}!\"",
         "L_VOICE": "Select a Voice",
         "L_VOICE_DESCRIPTION": "Choose a voice",
-        "TITLE": "Domina Mode"
+        "TITLE": "Voice Reminder"
       }
     },
     "DROPBOX": {

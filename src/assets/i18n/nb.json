@@ -143,7 +143,7 @@
       "TITLE": "🙈 Vennligst tilgi oss, men...",
       "TXT": "Du vil hjelpe prosjektet enormt ved å <strong>gi det en god vurdering, hvis du liker det!</strong>"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "Gjentar den konfigurerte frasen hver X når du sporer tid til en oppgave.",
         "L_INTERVAL": "Intervall for å gjenta frasen",
@@ -151,7 +151,7 @@
         "L_TEXT_DESCRIPTION": "F.eks: \"Jobb på ${currentTaskTitle}!\"",
         "L_VOICE": "Velg en stemme",
         "L_VOICE_DESCRIPTION": "Velg en stemme",
-        "TITLE": "Domina Mode"
+        "TITLE": "Stemmepåminnelse"
       }
     },
     "DROPBOX": {

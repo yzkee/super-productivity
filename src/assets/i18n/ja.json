@@ -137,7 +137,7 @@
       "TITLE": "🙈 ご容赦ください、しかし...",
       "TXT": "あなたがそれを好きなら、あなたはそれに良い評価を与えることによって、プロジェクトを大いに助けるでしょう、 <strong>!</strong>"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "タスクの時間を追跡する際、設定されたフレーズをXごとに繰り返す。",
         "L_INTERVAL": "フレーズを繰り返す間隔",
@@ -145,7 +145,7 @@
         "L_TEXT_DESCRIPTION": "例えば\"${currentTaskTitle}に取り組む！\"",
         "L_VOICE": "ボイスを選択",
         "L_VOICE_DESCRIPTION": "音声を選択する",
-        "TITLE": "ドミナ・モード"
+        "TITLE": "音声リマインダー"
       }
     },
     "DROPBOX": {
