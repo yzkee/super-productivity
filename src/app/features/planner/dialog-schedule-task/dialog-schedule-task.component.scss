@@ -112,24 +112,30 @@ mat-dialog-content {
   }
 }
 
-.dialog-actions-center {
+:host ::ng-deep mat-dialog-actions {
+  padding: 0 0 16px 0 !important;
+}
+
+.schedule-actions {
   display: flex;
   justify-content: center;
   align-items: center;
-  width: 96%;
+  width: 100%;
   margin: 0 auto;
-  gap: 8px;
   padding-bottom: 8px;
 }
 
-.dialog-actions-center button {
+.schedule-actions button {
   flex: 1 1 0;
   min-width: 0;
   max-width: 100%;
 }
 
+.schedule-actions button:not(:last-child) {
+  margin-right: 2px;
+}
+
 .dialog-cancel-btn {
   display: block;
-  width: 96%;
-  margin: 0 auto 8px auto;
+  width: 100%;
 }
