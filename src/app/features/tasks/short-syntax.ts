@@ -159,18 +159,16 @@ export const shortSyntax = (
     };
   }
 
-  if (config.isEnableUrl) {
-    const urlChanges = parseUrlAttachments({
-      ...task,
-      title: taskChanges.title || task.title,
-    });
-    if (urlChanges.attachments.length > 0) {
-      attachments = urlChanges.attachments;
-      taskChanges = {
-        ...taskChanges,
-        title: urlChanges.title,
-      };
-    }
+  const urlChanges = parseUrlAttachments({
+    ...task,
+    title: taskChanges.title || task.title,
+  });
+  if (urlChanges.attachments.length > 0) {
+    attachments = urlChanges.attachments;
+    taskChanges = {
+      ...taskChanges,
+      title: urlChanges.title,
+    };
   }
 
   // const changesForDue = parseDueChanges({...task, title: taskChanges.title || task.title});

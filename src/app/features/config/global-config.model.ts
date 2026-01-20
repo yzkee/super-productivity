@@ -60,7 +60,6 @@ export type ShortSyntaxConfig = Readonly<{
   isEnableProject: boolean;
   isEnableDue: boolean;
   isEnableTag: boolean;
-  isEnableUrl: boolean;
 }>;
 
 export type TimeTrackingConfig = Readonly<{

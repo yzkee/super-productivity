@@ -60,7 +60,6 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isEnableProject: true,
     isEnableDue: true,
     isEnableTag: true,
-    isEnableUrl: true,
   },
   evaluation: {
     isHideEvaluationSheet: false,
