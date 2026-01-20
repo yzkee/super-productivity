@@ -161,6 +161,7 @@ const handlePlanTasksForToday = (
   state: RootState,
   taskIds: string[],
   parentTaskMap: Record<string, string | undefined>,
+  isClearScheduledTime?: boolean,
 ): RootState => {
   const todayTag = getTag(state, TODAY_TAG.id);
   const today = getDbDateStr();
@@ -194,7 +195,10 @@ const handlePlanTasksForToday = (
 
     // Preserve dueWithTime if it matches today's date
     // Only clear it if the task has a time scheduled for a different day
-    const shouldClearTime = task?.dueWithTime && !isToday(task.dueWithTime);
+    // However, if isClearScheduledTime is true (from reminder dialog), always clear the time
+    const shouldClearTime = isClearScheduledTime
+      ? !!task?.dueWithTime
+      : task?.dueWithTime && !isToday(task.dueWithTime);
 
     return {
       id: taskId,
@@ -303,10 +307,12 @@ const createActionHandlers = (state: RootState, action: Action): ActionHandlerMa
     return handleDismissReminderOnly(state, id);
   },
   [TaskSharedActions.planTasksForToday.type]: () => {
-    const { taskIds, parentTaskMap = {} } = action as ReturnType<
-      typeof TaskSharedActions.planTasksForToday
-    >;
-    return handlePlanTasksForToday(state, taskIds, parentTaskMap);
+    const {
+      taskIds,
+      parentTaskMap = {},
+      isClearScheduledTime,
+    } = action as ReturnType<typeof TaskSharedActions.planTasksForToday>;
+    return handlePlanTasksForToday(state, taskIds, parentTaskMap, isClearScheduledTime);
   },
   [TaskSharedActions.removeTasksFromTodayTag.type]: () => {
     const { taskIds } = action as ReturnType<

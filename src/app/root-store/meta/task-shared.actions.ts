@@ -232,6 +232,7 @@ export const TaskSharedActions = createActionGroup({
       parentTaskMap?: { [taskId: string]: string | undefined };
       isShowSnack?: boolean;
       isSkipRemoveReminder?: boolean;
+      isClearScheduledTime?: boolean;
     }) => ({
       ...taskProps,
       meta: {
