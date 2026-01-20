@@ -92,14 +92,6 @@
 </mat-dialog-content>
 
 <mat-dialog-actions align="end">
-  <button
-    color="primary"
-    mat-button
-    type="button"
-    (click)="close()"
-  >
-    {{ T.G.CANCEL | translate }}
-  </button>
   @if (data.task && (data.task.dueWithTime || plannedDayForTask)) {
     <button
       (click)="remove()"
