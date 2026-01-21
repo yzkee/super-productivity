@@ -636,7 +636,9 @@ test.describe('@supersync SuperSync Edge Cases', () => {
       // 4. Client A clicks Undo (snackbar should be visible)
       // The snackbar appears for 5 seconds with an "Undo" action
       // Use snack-custom .action selector (app uses custom snackbar component)
-      const undoButton = clientA.page.locator('snack-custom button.action');
+      const undoButton = clientA.page.locator(
+        'snack-custom button.action, .mat-mdc-snack-bar-container button',
+      );
       await undoButton.waitFor({ state: 'visible', timeout: 5000 });
       await undoButton.click();
 

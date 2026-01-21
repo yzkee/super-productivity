@@ -530,6 +530,17 @@ export class SyncWrapperService {
   }
 
   private _handleDecryptionError(): void {
+    // Set ERROR status so sync button shows error icon
+    this._providerManager.setSyncStatus('ERROR');
+
+    // Show snackbar (consistent with other error handlers)
+    this._snackService.open({
+      msg: T.F.SYNC.S.DECRYPTION_FAILED,
+      type: 'ERROR',
+      config: { duration: 10000 }, // Longer duration for critical errors
+    });
+
+    // Open dialog for password correction
     this._matDialog
       .open(DialogHandleDecryptErrorComponent, {
         disableClose: true,
@@ -542,6 +553,10 @@ export class SyncWrapperService {
         }
         if (isForceUpload) {
           this.forceUpload();
+        }
+        // Reset status if user cancelled without taking action
+        if (!isReSync && !isForceUpload) {
+          this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
         }
       });
   }
