@@ -2,6 +2,7 @@ import { createScheduleDays } from './create-schedule-days';
 import { DEFAULT_TASK, TaskWithoutReminder } from '../../tasks/task.model';
 import { PlannerDayMap } from '../../planner/planner.model';
 import { BlockedBlockByDayMap } from '../schedule.model';
+import { parseDbDateStr } from '../../../util/parse-db-date-str';
 
 // Helper function to create test tasks with required properties
 const createTestTask = (
@@ -386,7 +387,7 @@ describe('createScheduleDays - Task Filtering', () => {
       });
 
       // Viewing two days in next week
-      const secondDayNextWeek = new Date(nextWeekStr);
+      const secondDayNextWeek = parseDbDateStr(nextWeekStr);
       secondDayNextWeek.setDate(secondDayNextWeek.getDate() + 1);
       const secondDayStr = secondDayNextWeek.toISOString().split('T')[0];
 
@@ -451,7 +452,7 @@ describe('createScheduleDays - Task Filtering', () => {
   describe('Tasks with dueWithTime', () => {
     it('should appear when viewing a week that includes the dueWithTime', () => {
       // Arrange
-      const nextWeekDate = new Date(nextWeekStr);
+      const nextWeekDate = parseDbDateStr(nextWeekStr);
       nextWeekDate.setHours(14, 0, 0, 0); // 2 PM next week
       const taskWithDueTime = createTestTask('task13', 'Task With Due Time', {
         dueWithTime: nextWeekDate.getTime(),
@@ -482,7 +483,7 @@ describe('createScheduleDays - Task Filtering', () => {
 
     it('should NOT appear when dueWithTime is before the viewed week', () => {
       // Arrange
-      const todayDate = new Date(todayStr);
+      const todayDate = parseDbDateStr(todayStr);
       todayDate.setHours(14, 0, 0, 0);
       const taskWithDueTime = createTestTask('task14', 'Task With Due Time Today', {
         dueWithTime: todayDate.getTime(),

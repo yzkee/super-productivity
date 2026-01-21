@@ -12,6 +12,7 @@ import { T } from '../../../t.const';
 import { ScheduleService } from '../schedule.service';
 import { LocaleDatePipe } from 'src/app/ui/pipes/locale-date.pipe';
 import { DateTimeFormatService } from 'src/app/core/date-time-format/date-time-format.service';
+import { parseDbDateStr } from 'src/app/util/parse-db-date-str';
 
 @Component({
   selector: 'schedule-month',
@@ -59,7 +60,7 @@ export class ScheduleMonthComponent {
     // Use the middle day as reference (around day 14-15 of the month)
     // This ensures we get a day that's actually in the target month
     const middleIndex = Math.floor(days.length / 2);
-    return new Date(days[middleIndex]);
+    return parseDbDateStr(days[middleIndex]);
   });
 
   T: typeof T = T;

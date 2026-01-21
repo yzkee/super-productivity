@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ScheduleMonthComponent } from './schedule-month.component';
 import { ScheduleService } from '../schedule.service';
 import { DateTimeFormatService } from '../../../core/date-time-format/date-time-format.service';
+import { parseDbDateStr } from '../../../util/parse-db-date-str';
 
 describe('ScheduleMonthComponent', () => {
   let component: ScheduleMonthComponent;
@@ -120,7 +121,7 @@ describe('ScheduleMonthComponent', () => {
 
       // Assert
       // Middle index = floor(35/2) = 17
-      const middleDay = new Date(days[17]);
+      const middleDay = parseDbDateStr(days[17]);
       expect(result.getFullYear()).toBe(middleDay.getFullYear());
       expect(result.getMonth()).toBe(middleDay.getMonth());
       expect(result.getDate()).toBe(middleDay.getDate());
@@ -143,7 +144,7 @@ describe('ScheduleMonthComponent', () => {
 
       // Assert
       // Middle index = floor(42/2) = 21
-      const middleDay = new Date(days[21]);
+      const middleDay = parseDbDateStr(days[21]);
       expect(result.getFullYear()).toBe(middleDay.getFullYear());
       expect(result.getMonth()).toBe(middleDay.getMonth());
     });
@@ -190,7 +191,7 @@ describe('ScheduleMonthComponent', () => {
     it('should handle "other-month" class for padding days', () => {
       // Arrange
       mockScheduleService.getDayClass.and.callFake((day: string, ref?: Date) => {
-        const dayDate = new Date(day);
+        const dayDate = parseDbDateStr(day);
         if (ref && dayDate.getMonth() !== ref.getMonth()) {
           return 'other-month';
         }

@@ -23,6 +23,7 @@ import { CalendarIntegrationService } from '../calendar-integration/calendar-int
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TaskService } from '../tasks/task.service';
 import { startWith } from 'rxjs/operators';
+import { parseDbDateStr } from '../../util/parse-db-date-str';
 
 @Injectable({
   providedIn: 'root',
@@ -272,7 +273,7 @@ export class ScheduleService {
   }
 
   getDayClass(day: string, referenceMonth?: Date): string {
-    const dayDate = new Date(day);
+    const dayDate = parseDbDateStr(day);
     const today = new Date();
 
     // If referenceMonth is provided, use it to determine "current month"

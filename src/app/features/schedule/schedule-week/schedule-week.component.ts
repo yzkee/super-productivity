@@ -28,6 +28,7 @@ import { DRAG_DELAY_FOR_TOUCH } from '../../../app.constants';
 import { MatTooltip } from '@angular/material/tooltip';
 import { DateTimeFormatService } from '../../../core/date-time-format/date-time-format.service';
 import { LocaleDatePipe } from 'src/app/ui/pipes/locale-date.pipe';
+import { parseDbDateStr } from '../../../util/parse-db-date-str';
 import { formatMonthDay } from '../../../util/format-month-day.util';
 import { ScheduleWeekDragService } from './schedule-week-drag.service';
 import { calculatePlaceholderForGridMove } from './schedule-week-placeholder.util';
@@ -331,7 +332,7 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!dayStr) {
       return '';
     }
-    const date = new Date(dayStr);
+    const date = parseDbDateStr(dayStr);
     if (Number.isNaN(date.getTime())) {
       return dayStr;
     }
