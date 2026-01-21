@@ -210,7 +210,7 @@
     "@typescript-eslint/types": "^8.17.0",
     "@typescript-eslint/utils": "^8.51.0",
     "angular-eslint": "^21.1.0",
-    "angular-material-css-vars": "^9.1.1",
+    "angular-material-css-vars": "^10.0.0",
     "baseline-browser-mapping": "^2.9.14",
     "canvas-confetti": "^1.9.4",
     "chai": "^5.1.2",
