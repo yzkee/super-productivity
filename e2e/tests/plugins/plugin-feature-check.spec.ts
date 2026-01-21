@@ -2,67 +2,25 @@ import { test, expect } from '../../fixtures/test.fixture';
 
 test.describe.serial('Plugin Feature Check', () => {
   test('check if PluginService exists', async ({ page, workViewPage }) => {
-    // Wait for work view to be ready
+    // Wait for Angular app to be fully loaded
     await workViewPage.waitForTaskList();
 
-    const result = await page.evaluate(async () => {
-      // Poll for window.ng to become available (handles timing issues)
-      const pollForNg = async (): Promise<boolean> => {
-        const maxAttempts = 50; // 5 seconds with 100ms intervals
-        const interval = 100;
+    // Navigate to config/plugin management
+    await page.goto('/#/config');
 
-        for (let i = 0; i < maxAttempts; i++) {
-          if ((window as any).ng) {
-            return true;
-          }
-          await new Promise((resolve) => setTimeout(resolve, interval));
-        }
-        return false;
-      };
+    // Click on the Plugins tab to show plugin management
+    const pluginsTab = page.getByRole('tab', { name: 'Plugins' });
+    await pluginsTab.click();
 
-      // Check if Angular is loaded (with polling to handle race conditions)
-      const hasAngular = await pollForNg();
+    // Verify plugin management component exists (proves PluginService is loaded)
+    // The plugin-management component requires PluginService to be injected and functional
+    const pluginMgmt = page.locator('plugin-management');
+    await expect(pluginMgmt).toBeAttached({ timeout: 10000 });
 
-      // Check if PluginService is accessible through Angular's injector
-      let hasPluginService = false;
-      let errorMessage = '';
-
-      try {
-        if (hasAngular) {
-          const ng = (window as any).ng;
-          const appElement = document.querySelector('app-root');
-          if (appElement) {
-            try {
-              // Get the component and its injector
-              const component = ng.getComponent?.(appElement);
-
-              if (component) {
-                // If Angular is fully loaded with app-root component,
-                // all root-level services (providedIn: 'root') are guaranteed to exist
-                // This includes PluginService
-                hasPluginService = true;
-              }
-            } catch (e: any) {
-              errorMessage = e.toString();
-            }
-          }
-        }
-      } catch (e: any) {
-        errorMessage = e.toString();
-      }
-
-      return {
-        hasAngular,
-        hasPluginService,
-        errorMessage,
-      };
-    });
-
-    // console.log('Plugin service check:', result);
-    if (result && typeof result === 'object' && 'hasAngular' in result) {
-      expect(result.hasAngular).toBe(true);
-      expect(result.hasPluginService).toBe(true);
-    }
+    // Additional verification: check that plugin management has rendered content
+    // This confirms the service is not only loaded but also working correctly
+    const pluginCards = pluginMgmt.locator('mat-card');
+    await expect(pluginCards.first()).toBeVisible({ timeout: 10000 });
   });
 
   test('check plugin UI elements in DOM', async ({ page, workViewPage }) => {
