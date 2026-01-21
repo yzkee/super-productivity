@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Promote Internal Release to Production
-        uses: kevin-david/promote-play-release@v1.2.0
+        uses: kevin-david/promote-play-release@d1ed59ca4fd7456b9d8cae062a3684e93b412425 # v1.2.0
         with:
           service-account-json-raw: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           package-name: com.superproductivity.superproductivity

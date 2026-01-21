@@ -21,7 +21,7 @@ jobs:
           node-version: 20
 
       - name: Check out Git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           persist-credentials: false
 
@@ -203,7 +203,7 @@ jobs:
         run: ls -la "$RUNNER_TEMP/ipa-output"
 
       - name: Upload IPA artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: sup-ios-release
           path: ${{ runner.temp }}/ipa-output/*.ipa

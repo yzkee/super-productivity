@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: 20
       - name: Check out Git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           persist-credentials: false
       # work around for npm installs from git+https://github.com/johannesjo/J2M.git
@@ -28,7 +28,7 @@ jobs:
           ssh://git@github.com/
 
       - name: Install Node.js, NPM and Yarn
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
         with:
           node-version: 20
 
@@ -60,7 +60,7 @@ jobs:
         run: npm run buildFrontend:prodWeb
 
       - name: Deploy to Web Server
-        uses: easingthemes/ssh-deploy@v5.0.3
+        uses: easingthemes/ssh-deploy@01a39e33483634cbd7ac99020c55b72ca7f098fe # v5.0.3
         env:
           SSH_PRIVATE_KEY: ${{ secrets.WEB_SERVER_SSH_KEY }}
           ARGS: '-rltgoDzvO --delete --exclude "news.json"'

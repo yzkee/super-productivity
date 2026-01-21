@@ -32,7 +32,7 @@ jobs:
           node-version: 20
 
       - name: Check out Git repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           persist-credentials: false
 
@@ -101,7 +101,7 @@ jobs:
 
       - name: Upload E2E Results on Failure
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: e2e-results-${{ github.run_id }}
           path: .tmp/e2e-test-results/**/*.*
