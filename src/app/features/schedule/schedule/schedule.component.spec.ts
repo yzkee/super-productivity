@@ -203,25 +203,34 @@ describe('ScheduleComponent', () => {
   });
 
   describe('goToPreviousPeriod', () => {
-    it('should subtract 7 days in week view when viewing a future date', () => {
+    it('should navigate backward by the number of days currently shown', () => {
       // Arrange
       const startDate = new Date(2026, 0, 20); // Jan 20, 2026
       component['_selectedDate'].set(startDate);
+
+      // Get the actual number of days being shown (depends on test window size)
+      const daysShown = component.daysToShow().length;
 
       // Act
       component.goToPreviousPeriod();
 
       // Assert
       const newDate = component['_selectedDate']();
-      expect(newDate?.getDate()).toBe(13); // Jan 13, 2026 (20 - 7)
+      const expectedDate = new Date(startDate);
+      expectedDate.setDate(startDate.getDate() - daysShown);
+
+      expect(newDate?.getDate()).toBe(expectedDate.getDate());
       expect(newDate?.getHours()).toBe(0); // Normalized to midnight
     });
 
-    it('should subtract 7 days from today when _selectedDate is null in week view', () => {
+    it('should navigate backward from today by the number of days shown', () => {
       // Arrange
       component['_selectedDate'].set(null);
-      const expectedDate = new Date();
-      expectedDate.setDate(expectedDate.getDate() - 7);
+      const startDate = new Date();
+      const daysShown = component.daysToShow().length;
+
+      const expectedDate = new Date(startDate);
+      expectedDate.setDate(startDate.getDate() - daysShown);
 
       // Act
       component.goToPreviousPeriod();
@@ -264,27 +273,35 @@ describe('ScheduleComponent', () => {
   });
 
   describe('goToNextPeriod', () => {
-    it('should add 7 days in week view', () => {
+    it('should navigate forward by the number of days currently shown', () => {
       // Arrange
       const startDate = new Date(2026, 0, 20); // Jan 20, 2026
       component['_selectedDate'].set(startDate);
+
+      // Get the actual number of days being shown (depends on test window size)
+      const daysShown = component.daysToShow().length;
 
       // Act
       component.goToNextPeriod();
 
       // Assert
       const newDate = component['_selectedDate']();
-      expect(newDate?.getDate()).toBe(27); // Jan 27, 2026 (20 + 7)
+      const expectedDate = new Date(startDate);
+      expectedDate.setDate(startDate.getDate() + daysShown);
+
+      expect(newDate?.getDate()).toBe(expectedDate.getDate());
       expect(newDate?.getHours()).toBe(0); // Normalized to midnight
     });
 
-    it('should add 7 days from today when _selectedDate is null in week view', () => {
+    it('should navigate forward from today by the number of days shown', () => {
       // Arrange
       component['_selectedDate'].set(null);
+      const startDate = new Date();
+      const daysShown = component.daysToShow().length;
 
-      // Calculate expected date (today + 7 days)
-      const expectedDate = new Date();
-      expectedDate.setDate(expectedDate.getDate() + 7);
+      // Calculate expected date (today + daysShown)
+      const expectedDate = new Date(startDate);
+      expectedDate.setDate(startDate.getDate() + daysShown);
 
       // Act
       component.goToNextPeriod();

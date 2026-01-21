@@ -90,13 +90,8 @@ export class ScheduleComponent {
   );
 
   shouldEnableHorizontalScroll = computed(() => {
-    const selectedView = this._currentTimeViewMode();
-    // Only enable horizontal scroll for week view when viewport is narrow
-    if (selectedView !== 'week') {
-      return false;
-    }
-    // Enable scroll when viewport is smaller than what's needed for 7 days
-    return this._windowSize().width < 1900;
+    // No longer needed - we adjust day count to fit viewport instead
+    return false;
   });
 
   private _daysToShowCount = computed(() => {
@@ -119,8 +114,16 @@ export class ScheduleComponent {
       }
     }
 
-    // Week view: always 7 days
-    return 7;
+    // Week view: responsive day count based on viewport width
+    if (width >= 1200) {
+      return 7; // Desktop: full week
+    } else if (width >= 768) {
+      return 5; // Tablet: 5 days
+    } else if (width >= 480) {
+      return 3; // Mobile: 3 days
+    } else {
+      return 2; // Small mobile: 2 days
+    }
   });
 
   daysToShow = computed(() => {
@@ -221,11 +224,13 @@ export class ScheduleComponent {
       );
       this._selectedDate.set(previousMonth);
     } else {
-      // Week view: always subtract 7 days (full week)
-      const previousWeek = new Date(currentDate);
-      previousWeek.setDate(currentDate.getDate() - 7);
-      previousWeek.setHours(0, 0, 0, 0);
-      this._selectedDate.set(previousWeek);
+      // Week view: move backward by the number of days currently shown
+      // (automatically adapts to responsive day count: 2, 3, 5, or 7 days)
+      const daysToSkip = this.daysToShow().length;
+      const previousPeriod = new Date(currentDate);
+      previousPeriod.setDate(currentDate.getDate() - daysToSkip);
+      previousPeriod.setHours(0, 0, 0, 0);
+      this._selectedDate.set(previousPeriod);
     }
   }
 
@@ -242,11 +247,13 @@ export class ScheduleComponent {
       );
       this._selectedDate.set(nextMonth);
     } else {
-      // Week view: always add 7 days (full week)
-      const nextWeek = new Date(currentDate);
-      nextWeek.setDate(currentDate.getDate() + 7);
-      nextWeek.setHours(0, 0, 0, 0);
-      this._selectedDate.set(nextWeek);
+      // Week view: move forward by the number of days currently shown
+      // (automatically adapts to responsive day count: 2, 3, 5, or 7 days)
+      const daysToSkip = this.daysToShow().length;
+      const nextPeriod = new Date(currentDate);
+      nextPeriod.setDate(currentDate.getDate() + daysToSkip);
+      nextPeriod.setHours(0, 0, 0, 0);
+      this._selectedDate.set(nextPeriod);
     }
   }
 
