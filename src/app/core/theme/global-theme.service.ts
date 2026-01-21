@@ -31,7 +31,8 @@ import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
 import { androidInterface } from '../../features/android/android-interface';
 import { HttpClient } from '@angular/common/http';
 import { CapacitorPlatformService } from '../platform/capacitor-platform.service';
-import { Keyboard } from '@capacitor/keyboard';
+import { Keyboard, KeyboardInfo } from '@capacitor/keyboard';
+import { PluginListenerHandle } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { LS } from '../persistence/storage-keys.const';
 import { CustomThemeService } from './custom-theme.service';
@@ -59,6 +60,8 @@ export class GlobalThemeService {
   private _environmentInjector = inject(EnvironmentInjector);
   private _destroyRef = inject(DestroyRef);
   private _hasInitialized = false;
+  private _keyboardListenerHandles: PluginListenerHandle[] = [];
+  private _focusinListener: ((event: FocusEvent) => void) | null = null;
 
   darkMode = signal<DarkModeCfg>(
     (localStorage.getItem(LS.DARK_MODE) as DarkModeCfg) || 'system',
@@ -429,7 +432,7 @@ export class GlobalThemeService {
    * Adds/removes CSS classes when keyboard shows/hides.
    */
   private _initIOSKeyboardHandling(): void {
-    Keyboard.addListener('keyboardWillShow', (info) => {
+    Keyboard.addListener('keyboardWillShow', (info: KeyboardInfo) => {
       Log.log('iOS keyboard will show', info);
       this.document.body.classList.add(BodyClass.isKeyboardVisible);
       // Set CSS variable for keyboard height to adjust layout
@@ -437,13 +440,65 @@ export class GlobalThemeService {
         '--keyboard-height',
         `${info.keyboardHeight}px`,
       );
-    });
+    }).then((handle) => this._keyboardListenerHandles.push(handle));
+
+    // Use keyboardDidShow for scroll (after animation completes)
+    Keyboard.addListener('keyboardDidShow', () => {
+      this._scrollActiveInputIntoView();
+    }).then((handle) => this._keyboardListenerHandles.push(handle));
 
     Keyboard.addListener('keyboardWillHide', () => {
       Log.log('iOS keyboard will hide');
       this.document.body.classList.remove(BodyClass.isKeyboardVisible);
       this.document.documentElement.style.setProperty('--keyboard-height', '0px');
+    }).then((handle) => this._keyboardListenerHandles.push(handle));
+
+    // Also handle focus changes while keyboard is already visible
+    this._focusinListener = (event: FocusEvent): void => {
+      const target = event.target as HTMLElement;
+      if (
+        this.document.body.classList.contains(BodyClass.isKeyboardVisible) &&
+        this._isInputElement(target)
+      ) {
+        // Small delay to let CSS padding apply, validate element is still focused
+        setTimeout(() => {
+          if (this.document.activeElement === target) {
+            this._scrollActiveInputIntoView();
+          }
+        }, 50);
+      }
+    };
+    this.document.addEventListener('focusin', this._focusinListener, { passive: true });
+
+    // Cleanup listeners on destroy
+    this._destroyRef.onDestroy(() => {
+      this._keyboardListenerHandles.forEach((handle) => handle.remove());
+      if (this._focusinListener) {
+        this.document.removeEventListener('focusin', this._focusinListener);
+      }
     });
+  }
+
+  private _isInputElement(el: HTMLElement): boolean {
+    const tagName = el.tagName.toLowerCase();
+    return (
+      tagName === 'input' ||
+      tagName === 'textarea' ||
+      tagName === 'select' ||
+      el.isContentEditable
+    );
+  }
+
+  private _scrollActiveInputIntoView(): void {
+    const activeEl = this.document.activeElement as HTMLElement;
+    if (activeEl && this._isInputElement(activeEl)) {
+      // scrollIntoViewIfNeeded is non-standard but well-supported in iOS WebView
+      if ('scrollIntoViewIfNeeded' in activeEl) {
+        (activeEl as any).scrollIntoViewIfNeeded(true);
+      } else {
+        activeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
   }
 
   /**
