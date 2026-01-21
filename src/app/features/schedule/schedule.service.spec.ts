@@ -253,7 +253,9 @@ describe('ScheduleService', () => {
       // January 2026 starts on a Thursday, so with Sunday start,
       // we should have padding days from December 2025
       const firstDay = new Date(result[0]);
-      expect(firstDay.getMonth()).toBeLessThan(0); // December (previous year)
+      // December 2025 would be month 11 (previous year)
+      expect(firstDay.getMonth()).toBe(11);
+      expect(firstDay.getFullYear()).toBe(2025);
 
       // Should also have some days from February if weeks extend past January
       const lastDay = new Date(result[result.length - 1]);

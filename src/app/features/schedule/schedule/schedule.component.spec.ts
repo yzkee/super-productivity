@@ -173,8 +173,8 @@ describe('ScheduleComponent', () => {
     });
 
     it('should return true when _selectedDate matches today', () => {
-      // Arrange - set to today
-      const today = new Date();
+      // Arrange - set to today (must match the mock todayDateStr$ value)
+      const today = new Date('2026-01-20');
       component['_selectedDate'].set(today);
 
       // Act & Assert
