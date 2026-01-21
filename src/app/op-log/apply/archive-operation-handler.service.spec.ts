@@ -636,7 +636,6 @@ describe('ArchiveOperationHandler', () => {
         const action = {
           type: TaskSharedActions.deleteTaskRepeatCfg.type,
           taskRepeatCfgId: 'repeat-cfg-1',
-          taskIdsToUnlink: ['task-1', 'task-2'],
           meta: { isPersistent: true, isRemote: true },
         } as unknown as PersistentAction;
 
@@ -651,7 +650,6 @@ describe('ArchiveOperationHandler', () => {
         const action = {
           type: TaskSharedActions.deleteTaskRepeatCfg.type,
           taskRepeatCfgId: 'repeat-cfg-1',
-          taskIdsToUnlink: ['task-1'],
           meta: { isPersistent: true, isRemote: false },
         } as unknown as PersistentAction;
 
@@ -666,7 +664,6 @@ describe('ArchiveOperationHandler', () => {
         const action = {
           type: TaskSharedActions.deleteTaskRepeatCfg.type,
           taskRepeatCfgId: 'repeat-cfg-1',
-          taskIdsToUnlink: [],
           meta: { isPersistent: true, isRemote: true },
         } as unknown as PersistentAction;
 
