@@ -5,9 +5,23 @@ test.describe.serial('Plugin Feature Check', () => {
     // Wait for work view to be ready
     await workViewPage.waitForTaskList();
 
-    const result = await page.evaluate(() => {
-      // Check if Angular is loaded
-      const hasAngular = !!(window as any).ng;
+    const result = await page.evaluate(async () => {
+      // Poll for window.ng to become available (handles timing issues)
+      const pollForNg = async (): Promise<boolean> => {
+        const maxAttempts = 50; // 5 seconds with 100ms intervals
+        const interval = 100;
+
+        for (let i = 0; i < maxAttempts; i++) {
+          if ((window as any).ng) {
+            return true;
+          }
+          await new Promise((resolve) => setTimeout(resolve, interval));
+        }
+        return false;
+      };
+
+      // Check if Angular is loaded (with polling to handle race conditions)
+      const hasAngular = await pollForNg();
 
       // Check if PluginService is accessible through Angular's injector
       let hasPluginService = false;
