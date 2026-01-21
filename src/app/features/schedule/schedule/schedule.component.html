@@ -30,7 +30,10 @@
   </button>
 </div>
 
-<div class="scroll-wrapper">
+<div
+  class="scroll-wrapper"
+  [attr.data-horizontal-scroll]="shouldEnableHorizontalScroll() || null"
+>
   @if (isMonthView()) {
     <schedule-month
       [events]="events()"
@@ -46,6 +49,7 @@
       [workStartEnd]="workStartEnd() || null"
       [currentTimeRow]="currentTimeRow()"
       [todayDateStr]="_todayDateStr()"
+      [isHorizontalScrollMode]="shouldEnableHorizontalScroll()"
     ></schedule-week>
   }
 </div>

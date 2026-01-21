@@ -89,6 +89,16 @@ export class ScheduleComponent {
     { initialValue: { width: window.innerWidth, height: window.innerHeight } },
   );
 
+  shouldEnableHorizontalScroll = computed(() => {
+    const selectedView = this._currentTimeViewMode();
+    // Only enable horizontal scroll for week view when viewport is narrow
+    if (selectedView !== 'week') {
+      return false;
+    }
+    // Enable scroll when viewport is smaller than what's needed for 7 days
+    return this._windowSize().width < 1900;
+  });
+
   private _daysToShowCount = computed(() => {
     const size = this._windowSize();
     const selectedView = this._currentTimeViewMode();

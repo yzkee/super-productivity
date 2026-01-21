@@ -33,9 +33,6 @@ import { formatMonthDay } from '../../../util/format-month-day.util';
 import { ScheduleWeekDragService } from './schedule-week-drag.service';
 import { calculatePlaceholderForGridMove } from './schedule-week-placeholder.util';
 import { truncate } from '../../../util/truncate';
-import { fromEvent } from 'rxjs';
-import { debounceTime, map, startWith } from 'rxjs/operators';
-import { toSignal } from '@angular/core/rxjs-interop';
 
 const D_HOURS = 24;
 
@@ -61,7 +58,7 @@ const D_HOURS = 24;
     '[class.is-not-dragging]': '!isDragging()',
     '[class.is-resizing-event]': 'isAnyEventResizing()',
     '[class]': 'dragEventTypeClass()',
-    '[attr.data-horizontal-scroll]': 'shouldEnableHorizontalScroll()',
+    '[attr.data-horizontal-scroll]': 'isHorizontalScrollMode() || null',
   },
 })
 export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -69,21 +66,8 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
   private _dateTimeFormatService = inject(DateTimeFormatService);
   private _translateService = inject(TranslateService);
 
-  private _windowSize = toSignal(
-    fromEvent(window, 'resize').pipe(
-      startWith({ width: window.innerWidth }),
-      debounceTime(50),
-      map(() => ({ width: window.innerWidth })),
-    ),
-    { initialValue: { width: window.innerWidth } },
-  );
-
-  shouldEnableHorizontalScroll = computed(() => {
-    // Enable scroll when viewport is smaller than what's needed for 7 days
-    return this._windowSize().width < 1900;
-  });
-
   isInPanel = input<boolean>(false);
+  isHorizontalScrollMode = input<boolean>(false);
   events = input<ScheduleEvent[] | null>([]);
   beyondBudget = input<ScheduleEvent[][] | null>([]);
   daysToShow = input<string[]>([]);
