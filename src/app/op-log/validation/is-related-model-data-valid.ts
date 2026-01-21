@@ -184,10 +184,13 @@ const validateTasksToProjectsAndTags = (
 
     // Check repeatCfgId reference
     if (task.repeatCfgId && !taskRepeatCfgIds.has(task.repeatCfgId)) {
-      _validityError(`repeatCfgId "${task.repeatCfgId}" from task not existing`, {
-        task,
-        d,
-      });
+      _validityError(
+        `repeatCfgId "${task.repeatCfgId}" from task "${task.id}" in ${stateName} not existing`,
+        {
+          task,
+          d,
+        },
+      );
       return false;
     }
 
