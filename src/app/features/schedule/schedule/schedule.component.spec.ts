@@ -213,7 +213,8 @@ describe('ScheduleComponent', () => {
 
       // Assert
       const newDate = component['_selectedDate']();
-      expect(newDate?.getDate()).toBe(13); // Jan 13, 2026
+      expect(newDate?.getDate()).toBe(13); // Jan 13, 2026 (20 - 7)
+      expect(newDate?.getHours()).toBe(0); // Normalized to midnight
     });
 
     it('should subtract 7 days from today when _selectedDate is null in week view', () => {
@@ -228,6 +229,7 @@ describe('ScheduleComponent', () => {
       // Assert
       const newDate = component['_selectedDate']();
       expect(newDate?.getDate()).toBe(expectedDate.getDate());
+      expect(newDate?.getHours()).toBe(0); // Normalized to midnight
     });
 
     it('should go to previous month in month view', () => {
@@ -272,12 +274,15 @@ describe('ScheduleComponent', () => {
 
       // Assert
       const newDate = component['_selectedDate']();
-      expect(newDate?.getDate()).toBe(27); // Jan 27, 2026
+      expect(newDate?.getDate()).toBe(27); // Jan 27, 2026 (20 + 7)
+      expect(newDate?.getHours()).toBe(0); // Normalized to midnight
     });
 
     it('should add 7 days from today when _selectedDate is null in week view', () => {
       // Arrange
       component['_selectedDate'].set(null);
+
+      // Calculate expected date (today + 7 days)
       const expectedDate = new Date();
       expectedDate.setDate(expectedDate.getDate() + 7);
 
@@ -287,6 +292,7 @@ describe('ScheduleComponent', () => {
       // Assert
       const newDate = component['_selectedDate']();
       expect(newDate?.getDate()).toBe(expectedDate.getDate());
+      expect(newDate?.getHours()).toBe(0); // Normalized to midnight
     });
 
     it('should go to next month in month view', () => {

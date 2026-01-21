@@ -109,17 +109,8 @@ export class ScheduleComponent {
       }
     }
 
-    if (width < 600) {
-      return 3;
-    } else if (width < 900) {
-      return 4;
-    } else if (width < 1900) {
-      return 5;
-    } else if (width < 2200) {
-      return 7;
-    } else {
-      return 10;
-    }
+    // Week view: always 7 days
+    return 7;
   });
 
   daysToShow = computed(() => {
@@ -220,12 +211,10 @@ export class ScheduleComponent {
       );
       this._selectedDate.set(previousMonth);
     } else {
-      // Week view: subtract 7 days (create fresh Date to avoid mutations)
-      const previousWeek = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth(),
-        currentDate.getDate() - 7,
-      );
+      // Week view: always subtract 7 days (full week)
+      const previousWeek = new Date(currentDate);
+      previousWeek.setDate(currentDate.getDate() - 7);
+      previousWeek.setHours(0, 0, 0, 0);
       this._selectedDate.set(previousWeek);
     }
   }
@@ -243,12 +232,10 @@ export class ScheduleComponent {
       );
       this._selectedDate.set(nextMonth);
     } else {
-      // Week view: add 7 days (create fresh Date to avoid mutations)
-      const nextWeek = new Date(
-        currentDate.getFullYear(),
-        currentDate.getMonth(),
-        currentDate.getDate() + 7,
-      );
+      // Week view: always add 7 days (full week)
+      const nextWeek = new Date(currentDate);
+      nextWeek.setDate(currentDate.getDate() + 7);
+      nextWeek.setHours(0, 0, 0, 0);
       this._selectedDate.set(nextWeek);
     }
   }
