@@ -1,8 +1,7 @@
-import { test, expect } from '../../fixtures/test.fixture';
+import { test, expect } from '../../fixtures/webdav.fixture';
 import { SyncPage } from '../../pages/sync.page';
 import { WorkViewPage } from '../../pages/work-view.page';
 import { waitForStatePersistence } from '../../utils/waits';
-import { isWebDavServerUp } from '../../utils/check-webdav';
 import {
   WEBDAV_CONFIG_TEMPLATE,
   setupSyncClient,
@@ -23,13 +22,6 @@ import { waitForAppReady } from '../../utils/waits';
  */
 test.describe('WebDAV First Sync Conflict', () => {
   test.describe.configure({ mode: 'serial' });
-
-  test.beforeAll(async () => {
-    const isUp = await isWebDavServerUp(WEBDAV_CONFIG_TEMPLATE.baseUrl);
-    if (!isUp) {
-      test.skip(true, 'WebDAV server not reachable');
-    }
-  });
 
   test('should show conflict dialog and allow USE_LOCAL to upload local data', async ({
     browser,

@@ -1,8 +1,7 @@
-import { test, expect } from '../../fixtures/test.fixture';
+import { test, expect } from '../../fixtures/webdav.fixture';
 import { SyncPage } from '../../pages/sync.page';
 import { WorkViewPage } from '../../pages/work-view.page';
 import { waitForAppReady, waitForStatePersistence } from '../../utils/waits';
-import { isWebDavServerUp } from '../../utils/check-webdav';
 import {
   WEBDAV_CONFIG_TEMPLATE,
   setupSyncClient,
@@ -23,14 +22,6 @@ test.describe('WebDAV Sync Full Flow', () => {
     ...WEBDAV_CONFIG_TEMPLATE,
     syncFolderPath: `/${SYNC_FOLDER_NAME}`,
   };
-
-  test.beforeAll(async () => {
-    const isUp = await isWebDavServerUp(WEBDAV_CONFIG_TEMPLATE.baseUrl);
-    if (!isUp) {
-      console.warn('WebDAV server not reachable. Skipping WebDAV tests.');
-      test.skip(true, 'WebDAV server not reachable');
-    }
-  });
 
   test('should sync data between two clients', async ({ browser, baseURL, request }) => {
     test.slow(); // Sync tests might take longer
