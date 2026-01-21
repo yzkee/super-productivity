@@ -70,7 +70,7 @@ jobs:
         run: npm run buildFrontend:prodWeb
 
       - name: Deploy to Web Server
-        uses: easingthemes/ssh-deploy@01a39e33483634cbd7ac99020c55b72ca7f098fe # v5.0.3
+        uses: easingthemes/ssh-deploy@a1aa0b6cf96ce2406eef90faa35007a4a7bf0ac0 # v5.1.1
         env:
           SSH_PRIVATE_KEY: ${{ secrets.WEB_SERVER_SSH_KEY }}
           ARGS: '-rltgoDzvO --delete --exclude "news.json"'
