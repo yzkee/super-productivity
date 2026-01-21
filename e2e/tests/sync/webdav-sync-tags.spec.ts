@@ -10,7 +10,7 @@ import {
   waitForSync,
 } from '../../utils/sync-helpers';
 
-test.describe('WebDAV Sync Tags', () => {
+test.describe('@webdav WebDAV Sync Tags', () => {
   // Run sync tests serially to avoid WebDAV server contention
   test.describe.configure({ mode: 'serial' });
 

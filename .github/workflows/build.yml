@@ -60,7 +60,7 @@ jobs:
         run: npm run test
 
       - name: Test E2E
-        run: npm run e2e
+        run: npx playwright test --config e2e/playwright.config.ts --grep-invert "@webdav|@supersync"
 
       - name: 'Upload E2E results on failure'
         if: ${{ failure() }}

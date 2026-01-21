@@ -9,7 +9,7 @@ import {
   generateSyncFolderName,
 } from '../../utils/sync-helpers';
 
-test.describe('WebDAV Sync Advanced Features', () => {
+test.describe('@webdav WebDAV Sync Advanced Features', () => {
   // Run sync tests serially to avoid WebDAV server contention
   test.describe.configure({ mode: 'serial' });
 

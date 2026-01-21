@@ -9,7 +9,7 @@ import {
   waitForSync,
 } from '../../utils/sync-helpers';
 
-test.describe('WebDAV Sync Task Order', () => {
+test.describe('@webdav WebDAV Sync Task Order', () => {
   // Run sync tests serially to avoid WebDAV server contention
   test.describe.configure({ mode: 'serial' });
 

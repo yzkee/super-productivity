@@ -30,7 +30,7 @@ import legacyDataCollisionB from '../../fixtures/legacy-migration-collision-b.js
  *
  * Run with: npm run e2e:file e2e/tests/sync/webdav-legacy-migration-sync.spec.ts -- --retries=0
  */
-test.describe('@migration WebDAV Legacy Migration Sync', () => {
+test.describe('@webdav @migration WebDAV Legacy Migration Sync', () => {
   test.describe.configure({ mode: 'serial' });
 
   /**

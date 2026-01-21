@@ -15,7 +15,7 @@ import {
 
 const WEBDAV_TIMESTAMP_DELAY_MS = 2000;
 
-test.describe('WebDAV Sync Expansion', () => {
+test.describe('@webdav WebDAV Sync Expansion', () => {
   // Run sync tests serially to avoid WebDAV server contention
   test.describe.configure({ mode: 'serial' });
 

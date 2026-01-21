@@ -12,7 +12,7 @@ import {
 } from '../../utils/sync-helpers';
 import { waitForStatePersistence } from '../../utils/waits';
 
-test.describe('WebDAV Sync Error Handling', () => {
+test.describe('@webdav WebDAV Sync Error Handling', () => {
   // Run sync tests serially to avoid WebDAV server contention
   test.describe.configure({ mode: 'serial' });
 

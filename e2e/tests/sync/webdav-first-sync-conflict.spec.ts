@@ -20,7 +20,7 @@ import { waitForAppReady } from '../../utils/waits';
  * 2. Client B has DIFFERENT data, sets up WebDAV sync to same folder
  * 3. Expected: Conflict dialog with "Use Local" vs "Use Remote" options
  */
-test.describe('WebDAV First Sync Conflict', () => {
+test.describe('@webdav WebDAV First Sync Conflict', () => {
   test.describe.configure({ mode: 'serial' });
 
   test('should show conflict dialog and allow USE_LOCAL to upload local data', async ({
