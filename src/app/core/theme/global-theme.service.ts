@@ -161,6 +161,7 @@ export class GlobalThemeService {
       ['gitlab', 'assets/icons/gitlab.svg'],
       ['jira', 'assets/icons/jira.svg'],
       ['caldav', 'assets/icons/caldav.svg'],
+      ['calendar', 'assets/icons/calendar.svg'],
       ['open_project', 'assets/icons/open-project.svg'],
       ['remove_today', 'assets/icons/remove-today-48px.svg'],
       ['working_today', 'assets/icons/working-today.svg'],
