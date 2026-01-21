@@ -18,34 +18,36 @@
 
   // Enable horizontal scroll when viewport is too small for 7 days
   &[data-horizontal-scroll] {
-    overflow-x: auto;
-    overflow-y: visible;
+    overflow-x: scroll; // Use scroll to always show scrollbar
+    overflow-y: hidden; // Prevent vertical scroll on host
     display: block; // Change from default to allow proper overflow
 
     // Show scrollbar on all platforms
     &::-webkit-scrollbar {
-      height: 12px;
+      height: 14px; // Slightly taller for better visibility
       -webkit-appearance: none;
     }
 
     &::-webkit-scrollbar-track {
       background: var(--bg-darker);
       border-radius: 6px;
+      margin: 0 8px; // Add margin on sides
     }
 
     &::-webkit-scrollbar-thumb {
-      background: var(--extra-border-color);
+      background: var(--text-color-muted);
       border-radius: 6px;
       border: 2px solid var(--bg-darker);
+      min-width: 50px; // Ensure thumb is always grabbable
 
       &:hover {
-        background: var(--text-color-muted);
+        background: var(--text-color);
       }
     }
 
-    // For Firefox
-    scrollbar-width: auto;
-    scrollbar-color: var(--extra-border-color) var(--bg-darker);
+    // For Firefox - force visible scrollbar
+    scrollbar-width: thin; // Always visible but thin
+    scrollbar-color: var(--text-color-muted) var(--bg-darker);
 
     .week-header {
       // Remove left/right constraints to allow horizontal scrolling
