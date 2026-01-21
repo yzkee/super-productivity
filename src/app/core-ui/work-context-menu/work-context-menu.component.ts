@@ -8,7 +8,6 @@ import {
 } from '@angular/core';
 import { WorkContextType } from '../../features/work-context/work-context.model';
 import { T } from 'src/app/t.const';
-import { IS_IOS } from '../../util/is-ios';
 import { TODAY_TAG } from '../../features/tag/tag.const';
 import { DialogConfirmComponent } from '../../ui/dialog-confirm/dialog-confirm.component';
 import { MatDialog } from '@angular/material/dialog';
@@ -58,7 +57,6 @@ export class WorkContextMenuComponent implements OnInit {
   isForProject: boolean = true;
   base: string = 'project';
   shareSupport: ShareSupport = 'none';
-  private _isShareInProgress = false;
 
   // TODO: Skipped for migration because:
   //  Accessor inputs cannot be migrated as they are too complex.
@@ -135,73 +133,53 @@ export class WorkContextMenuComponent implements OnInit {
   protected readonly INBOX_PROJECT = INBOX_PROJECT;
 
   async shareTasksAsMarkdown(): Promise<void> {
-    // Guard against concurrent share operations
-    if (this._isShareInProgress) {
+    const { status, markdown, contextTitle } =
+      await this._markdownService.getMarkdownForContext(
+        this.contextId,
+        this.isForProject,
+      );
+
+    if (status === 'empty' || !markdown) {
+      this._snackService.open(T.GLOBAL_SNACK.NO_TASKS_TO_COPY);
       return;
     }
 
-    this._isShareInProgress = true;
+    const shareResult = await this._shareService.shareText({
+      title: contextTitle ?? 'Super Productivity',
+      text: markdown,
+    });
 
-    try {
-      const { status, markdown, contextTitle } =
-        await this._markdownService.getMarkdownForContext(
-          this.contextId,
-          this.isForProject,
-        );
-
-      if (status === 'empty' || !markdown) {
-        this._snackService.open(T.GLOBAL_SNACK.NO_TASKS_TO_COPY);
-        return;
+    if (shareResult === 'shared') {
+      if (this.shareSupport === 'none') {
+        const support = await this._shareService.getShareSupport();
+        this._setShareSupport(support);
       }
-
-      const shareResult = await this._shareService.shareText({
-        title: contextTitle ?? 'Super Productivity',
-        text: markdown,
-      });
-
-      if (shareResult === 'shared') {
-        if (this.shareSupport === 'none') {
-          const support = await this._shareService.getShareSupport();
-          this._setShareSupport(support);
-        }
-        return;
-      }
-
-      if (shareResult === 'cancelled') {
-        return;
-      }
-
-      const didCopy = await this._markdownService.copyMarkdownText(markdown);
-      if (didCopy) {
-        if (shareResult === 'unavailable') {
-          this._snackService.open(T.GLOBAL_SNACK.SHARE_UNAVAILABLE_FALLBACK);
-          this._setShareSupport('none');
-        } else if (shareResult === 'failed') {
-          this._snackService.open(T.GLOBAL_SNACK.SHARE_FAILED_FALLBACK);
-          this._setShareSupport('none');
-        } else {
-          this._snackService.open(T.GLOBAL_SNACK.COPY_TO_CLIPPBOARD);
-        }
-        return;
-      }
-
-      this._snackService.open({
-        msg: T.GLOBAL_SNACK.SHARE_FAILED,
-        type: 'ERROR',
-      });
-      this._setShareSupport('none');
-    } finally {
-      // iOS-specific: Delay clearing flag to prevent re-trigger from focus events
-      // On iOS, dismissing the native share sheet fires window focus events
-      // that can cause the method to be called again
-      if (IS_IOS) {
-        setTimeout(() => {
-          this._isShareInProgress = false;
-        }, 500);
-      } else {
-        this._isShareInProgress = false;
-      }
+      return;
     }
+
+    if (shareResult === 'cancelled') {
+      return;
+    }
+
+    const didCopy = await this._markdownService.copyMarkdownText(markdown);
+    if (didCopy) {
+      if (shareResult === 'unavailable') {
+        this._snackService.open(T.GLOBAL_SNACK.SHARE_UNAVAILABLE_FALLBACK);
+        this._setShareSupport('none');
+      } else if (shareResult === 'failed') {
+        this._snackService.open(T.GLOBAL_SNACK.SHARE_FAILED_FALLBACK);
+        this._setShareSupport('none');
+      } else {
+        this._snackService.open(T.GLOBAL_SNACK.COPY_TO_CLIPPBOARD);
+      }
+      return;
+    }
+
+    this._snackService.open({
+      msg: T.GLOBAL_SNACK.SHARE_FAILED,
+      type: 'ERROR',
+    });
+    this._setShareSupport('none');
   }
 
   async unplanAllTodayTasks(): Promise<void> {
