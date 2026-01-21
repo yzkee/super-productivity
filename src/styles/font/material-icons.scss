@@ -17,9 +17,9 @@
   @include material-icon.materialIconBase();
 
   // Set default font variation settings for consistent appearance
-  // FILL: 1 (filled), wght: 400 (normal), GRAD: 0 (default), opsz: 24 (24px)
+  // FILL: 0 (outlined), wght: 400 (normal), GRAD: 0 (default), opsz: 24 (24px)
   font-variation-settings:
-    'FILL' 1,
+    'FILL' 0,
     'wght' 400,
     'GRAD' 0,
     'opsz' 24;
