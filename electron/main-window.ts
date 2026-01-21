@@ -5,7 +5,6 @@ import {
   BrowserWindowConstructorOptions,
   ipcMain,
   Menu,
-  MenuItem,
   MenuItemConstructorOptions,
   nativeTheme,
   shell,
@@ -305,44 +304,41 @@ function initWinEventListeners(app: Electron.App): void {
 }
 
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
-function createMenu(
-  quitApp: (
-    menuItem: MenuItem,
-    browserWindow: BrowserWindow | undefined,
-    event: KeyboardEvent,
-  ) => void,
-): void {
+function createMenu(quitApp: () => void): void {
   // Create application menu to enable copy & pasting on MacOS
-  const menuTpl = [
+  const menuTpl: MenuItemConstructorOptions[] = [
     {
       label: 'Application',
       submenu: [
-        { label: 'About Super Productivity', selector: 'orderFrontStandardAboutPanel:' },
+        { role: 'about' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
         { type: 'separator' },
         {
           label: 'Quit',
-          click: quitApp,
           accelerator: 'CmdOrCtrl+Q',
+          click: quitApp,
         },
       ],
     },
     {
       label: 'Edit',
       submenu: [
-        { label: 'Undo', accelerator: 'CmdOrCtrl+Z', selector: 'undo:' },
-        { label: 'Redo', accelerator: 'Shift+CmdOrCtrl+Z', selector: 'redo:' },
+        { role: 'undo' },
+        { role: 'redo' },
         { type: 'separator' },
-        { label: 'Cut', accelerator: 'CmdOrCtrl+X', selector: 'cut:' },
-        { label: 'Copy', accelerator: 'CmdOrCtrl+C', selector: 'copy:' },
-        { label: 'Paste', accelerator: 'CmdOrCtrl+V', selector: 'paste:' },
-        { label: 'Select All', accelerator: 'CmdOrCtrl+A', selector: 'selectAll:' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' },
+        { role: 'selectAll' },
       ],
     },
   ];
-  const menuTplOUT = menuTpl as MenuItemConstructorOptions[];
 
   // we need to set a menu to get copy & paste working for mac os x
-  Menu.setApplicationMenu(Menu.buildFromTemplate(menuTplOUT));
+  Menu.setApplicationMenu(Menu.buildFromTemplate(menuTpl));
 }
 
 // TODO this is ugly as f+ck
