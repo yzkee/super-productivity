@@ -45,7 +45,7 @@ FROM nginx:1
 ENV APP_PORT=80
 
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends jq && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends jq curl && rm -rf /var/lib/apt/lists/*
 
 # Copy built app and configs
 COPY --from=build /app/dist/browser /usr/share/nginx/html
