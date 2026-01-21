@@ -18,36 +18,32 @@
 
   // Enable horizontal scroll when viewport is too small for 7 days
   &[data-horizontal-scroll] {
-    overflow-x: scroll; // Use scroll to always show scrollbar
-    overflow-y: hidden; // Prevent vertical scroll on host
-    display: block; // Change from default to allow proper overflow
+    .horizontal-scroll-wrapper {
+      overflow-x: scroll; // Always show horizontal scrollbar
+      overflow-y: visible; // Allow vertical content to extend
 
-    // Show scrollbar on all platforms
-    &::-webkit-scrollbar {
-      height: 14px; // Slightly taller for better visibility
-      -webkit-appearance: none;
-    }
+      // Match app's standard scrollbar styling
+      scrollbar-width: 4px;
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 
-    &::-webkit-scrollbar-track {
-      background: var(--bg-darker);
-      border-radius: 6px;
-      margin: 0 8px; // Add margin on sides
-    }
+      &::-webkit-scrollbar {
+        height: 8px; // Slightly taller than standard for horizontal
+      }
 
-    &::-webkit-scrollbar-thumb {
-      background: var(--text-color-muted);
-      border-radius: 6px;
-      border: 2px solid var(--bg-darker);
-      min-width: 50px; // Ensure thumb is always grabbable
+      &::-webkit-scrollbar-track {
+        background: var(--scrollbar-track);
+        border-radius: 4px;
+      }
 
-      &:hover {
-        background: var(--text-color);
+      &::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: 16px;
+
+        &:hover {
+          background: var(--scrollbar-thumb-hover);
+        }
       }
     }
-
-    // For Firefox - force visible scrollbar
-    scrollbar-width: thin; // Always visible but thin
-    scrollbar-color: var(--text-color-muted) var(--bg-darker);
 
     .week-header {
       // Remove left/right constraints to allow horizontal scrolling
