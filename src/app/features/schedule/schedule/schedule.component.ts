@@ -90,8 +90,13 @@ export class ScheduleComponent {
   );
 
   shouldEnableHorizontalScroll = computed(() => {
-    // No longer needed - we adjust day count to fit viewport instead
-    return false;
+    const selectedView = this._currentTimeViewMode();
+    // Only enable horizontal scroll for week view when viewport is narrow
+    if (selectedView !== 'week') {
+      return false;
+    }
+    // Enable scroll when viewport is smaller than what's needed for 7 days
+    return this._windowSize().width < 1900;
   });
 
   private _daysToShowCount = computed(() => {
@@ -114,16 +119,8 @@ export class ScheduleComponent {
       }
     }
 
-    // Week view: responsive day count based on viewport width
-    if (width >= 1200) {
-      return 7; // Desktop: full week
-    } else if (width >= 768) {
-      return 5; // Tablet: 5 days
-    } else if (width >= 480) {
-      return 3; // Mobile: 3 days
-    } else {
-      return 2; // Small mobile: 2 days
-    }
+    // Week view: always 7 days
+    return 7;
   });
 
   daysToShow = computed(() => {
