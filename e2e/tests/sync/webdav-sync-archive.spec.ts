@@ -69,14 +69,17 @@ test.describe('@webdav WebDAV Archive Sync', () => {
    * 3. Both clients sync
    * 4. Verify: Both clients see only Task2 (Task1 and Task3 archived)
    *
-   * TODO: This test consistently times out at line 194 after Client A syncs remote archive operations.
+   * TODO: This test consistently times out after Client A syncs remote archive operations.
    *
-   * Investigation done (2+ hours):
+   * Investigation done (3+ hours, Jan 2026):
    * - Fixed: Event loop yielding in _handleUpdateTask and _handleUpdateTasks
    * - Fixed: Disabled worklog refresh effect
    * - Fixed: Welcome tour dialog blocking
+   * - Tried: Increased timeouts to 30 seconds + added 2-second wait before assertions
+   * - Result: Client B now passes, but Client A still times out after syncing B's archive ops
    * - Issue: Page renders correctly (Task2 visible in screenshot), but Playwright cannot query DOM
-   * - Hypothesis: Remaining synchronous operation in NgRx change detection or selector evaluation
+   * - DOM query returns undefined even after 30+ seconds
+   * - Hypothesis: Complete main thread block during Client A's remote archive operation processing
    *
    * The fix requires deeper investigation with browser DevTools profiling to identify
    * what's blocking the main thread after sync completes. Likely a selector or effect
@@ -189,8 +192,12 @@ test.describe('@webdav WebDAV Archive Sync', () => {
     // Note: Daily Summary flow automatically syncs after archiving.
     // So Client B downloads Client A's archive of Task1 during this flow.
     // Final state on Client B: only Task2 (both Task1 and Task3 archived)
-    await expect(pageB.locator('task')).toHaveCount(1);
-    await expect(pageB.locator('task').first()).toContainText(task2Name);
+    // Wait for remote operations to be fully applied and rendered
+    await pageB.waitForTimeout(2000);
+    await expect(pageB.locator('task')).toHaveCount(1, { timeout: 30000 });
+    await expect(pageB.locator('task').first()).toContainText(task2Name, {
+      timeout: 30000,
+    });
     console.log(
       '[Archive Diff] Client B archived Task3 and synced (got Task1 archive from A)',
     );
@@ -202,12 +209,19 @@ test.describe('@webdav WebDAV Archive Sync', () => {
 
     // --- Verify final state ---
     // Both clients should have only Task2 visible
-    await expect(pageA.locator('task')).toHaveCount(1);
-    await expect(pageA.locator('task').first()).toContainText(task2Name);
+    // Wait for remote operations to be fully applied and rendered
+    await pageA.waitForTimeout(2000);
+    await expect(pageA.locator('task')).toHaveCount(1, { timeout: 30000 });
+    await expect(pageA.locator('task').first()).toContainText(task2Name, {
+      timeout: 30000,
+    });
     console.log('[Archive Diff] Client A has only Task2');
 
-    await expect(pageB.locator('task')).toHaveCount(1);
-    await expect(pageB.locator('task').first()).toContainText(task2Name);
+    await pageB.waitForTimeout(1000);
+    await expect(pageB.locator('task')).toHaveCount(1, { timeout: 30000 });
+    await expect(pageB.locator('task').first()).toContainText(task2Name, {
+      timeout: 30000,
+    });
     console.log('[Archive Diff] Client B has only Task2');
 
     console.log('[Archive Diff] ✓ Two clients archived different tasks successfully');
