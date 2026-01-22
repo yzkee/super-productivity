@@ -9,6 +9,7 @@ import { ShareService } from '../share.service';
 import { ShareDialogOptions, ShareResult, ShareTarget } from '../share.model';
 import { ShareFormatter } from '../share-formatter';
 import { T } from '../../../t.const';
+import { TranslatePipe } from '@ngx-translate/core';
 
 interface ShareTargetButton {
   target: ShareTarget;
@@ -29,6 +30,7 @@ interface ShareTargetButton {
     MatInputModule,
     MatFormFieldModule,
     FormsModule,
+    TranslatePipe,
   ],
 })
 export class DialogShareComponent {
