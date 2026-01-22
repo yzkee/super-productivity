@@ -1,4 +1,5 @@
 @use '../../../../styles/_globals.scss' as *;
+@use '../schedule-constants.scss' as *;
 
 :host {
   --nr-of-days: 5;
@@ -21,17 +22,17 @@
     overflow-x: scroll; // Show horizontal scrollbar when needed
 
     // Match app's standard scrollbar styling
-    scrollbar-width: 4px;
+    scrollbar-width: $schedule-scrollbar-width;
     scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 
     &::-webkit-scrollbar {
-      width: 4px;
-      height: 8px; // Slightly taller for horizontal visibility
+      width: $schedule-scrollbar-width;
+      height: $schedule-scrollbar-height; // Slightly taller for horizontal visibility
     }
 
     &::-webkit-scrollbar-track {
       background: var(--scrollbar-track);
-      border-radius: 4px;
+      border-radius: $schedule-scrollbar-width;
     }
 
     &::-webkit-scrollbar-thumb {
@@ -59,7 +60,7 @@ header {
   color: var(--text-color);
   background: var(--bg-lighter);
   // to account for scrollbar
-  padding-right: 11px;
+  padding-right: $schedule-header-scrollbar-padding;
 }
 
 .schedule-nav-controls {

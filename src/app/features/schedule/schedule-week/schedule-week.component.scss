@@ -1,19 +1,20 @@
 @use 'angular-material-css-vars' as mat-css-vars;
 @use '../../../../styles/_globals.scss' as *;
+@use '../schedule-constants.scss' as *;
 
 :host {
-  --schedule-time-width: 3em;
+  --schedule-time-width: #{$schedule-time-column-width};
   // Responsive day column widths
-  --schedule-day-width: 180px; // Default for desktop
+  --schedule-day-width: #{$schedule-day-column-width-desktop}; // Default for desktop
 
   @include mq(md, max) {
     // Tablet
-    --schedule-day-width: 150px;
+    --schedule-day-width: #{$schedule-day-column-width-tablet};
   }
 
   @include mq(xs, max) {
     // Mobile
-    --schedule-day-width: 120px;
+    --schedule-day-width: #{$schedule-day-column-width-mobile};
   }
 
   // Enable horizontal scroll when viewport is too small for 7 days

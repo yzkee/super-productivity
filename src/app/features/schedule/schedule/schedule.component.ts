@@ -30,6 +30,7 @@ import { ScheduleService } from '../schedule.service';
 import { DateAdapter } from '@angular/material/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { T } from '../../../t.const';
+import { SCHEDULE_CONSTANTS } from '../schedule.constants';
 
 @Component({
   selector: 'schedule',
@@ -96,7 +97,7 @@ export class ScheduleComponent {
       return false;
     }
     // Enable scroll when viewport is smaller than what's needed for 7 days
-    return this._windowSize().width < 1900;
+    return this._windowSize().width < SCHEDULE_CONSTANTS.HORIZONTAL_SCROLL_THRESHOLD;
   });
 
   private _daysToShowCount = computed(() => {
