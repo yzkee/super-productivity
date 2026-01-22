@@ -1,11 +1,12 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
 import { Subject, Subscription } from 'rxjs';
-import { debounceTime, exhaustMap, filter } from 'rxjs/operators';
+import { debounceTime, exhaustMap, filter, take } from 'rxjs/operators';
 import { isOnline } from '../../util/is-online';
 import { SyncProviderManager } from '../sync-providers/provider-manager.service';
 import { OperationLogSyncService } from './operation-log-sync.service';
 import { isFileBasedProvider, isOperationSyncCapable } from './operation-sync.util';
 import { OpLog } from '../../core/log';
+import { DataInitStateService } from '../../core/data-init/data-init-state.service';
 
 const IMMEDIATE_UPLOAD_DEBOUNCE_MS = 2000;
 
@@ -46,10 +47,22 @@ const IMMEDIATE_UPLOAD_DEBOUNCE_MS = 2000;
 export class ImmediateUploadService implements OnDestroy {
   private _providerManager = inject(SyncProviderManager);
   private _syncService = inject(OperationLogSyncService);
+  private _dataInitStateService = inject(DataInitStateService);
 
   private _uploadTrigger$ = new Subject<void>();
   private _subscription: Subscription | null = null;
   private _isInitialized = false;
+
+  constructor() {
+    // Initialize only after data is loaded to avoid race condition where
+    // upload attempts happen before sync config is loaded from IndexedDB.
+    // This prevents 404 errors to default baseUrl during app startup.
+    this._dataInitStateService.isAllDataLoadedInitially$
+      .pipe(filter(Boolean), take(1))
+      .subscribe(() => {
+        this.initialize();
+      });
+  }
 
   /**
    * Initializes the immediate upload pipeline.
