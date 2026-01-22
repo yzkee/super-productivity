@@ -83,6 +83,10 @@ body .mat-mdc-dialog-content {
   mat-form-field {
     display: block;
   }
+
+  @include media-queries.mq(xs, max) {
+    max-height: 90vh !important;
+  }
 }
 
 body .mat-mdc-dialog-surface {
