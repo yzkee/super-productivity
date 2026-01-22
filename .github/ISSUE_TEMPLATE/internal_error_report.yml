@@ -1,7 +1,7 @@
 name: 💥 Internal app error
 description: Internal app error report
 title: '💥 '
-type: bug
+type: Bug
 
 body:
   - type: input

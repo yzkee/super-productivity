@@ -1,7 +1,7 @@
 name: 🚨 Bug Report
 description: Report a bug you encountered.
 title: '🚨 '
-type: bug
+type: Bug
 
 body:
   - type: input
