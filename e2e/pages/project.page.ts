@@ -22,7 +22,7 @@ export class ProjectPage extends BasePage {
     );
     this.projectAccordion = page.locator('nav-item button:has-text("Projects")');
     this.projectNameInput = page.getByRole('textbox', { name: 'Project Name' });
-    this.submitBtn = page.locator('dialog-create-project button[type=submit]:enabled');
+    this.submitBtn = page.locator('dialog-create-project button[type=submit]');
     this.workCtxMenu = page.locator('work-context-menu');
     // Use more specific selector to avoid matching titles in other areas
     this.workCtxTitle = page
@@ -109,8 +109,9 @@ export class ProjectPage extends BasePage {
     // Wait for the dialog to appear and be fully initialized
     await this.projectNameInput.waitFor({ state: 'visible', timeout: 10000 });
 
-    // Wait for Angular to fully initialize the form by checking submit button is enabled
-    await this.submitBtn.waitFor({ state: 'visible', timeout: 3000 });
+    // Fill has built-in waiting for element to be editable, but Angular forms
+    // need a moment to wire up. Add a small delay for form initialization.
+    await this.page.waitForTimeout(500);
 
     await this.projectNameInput.fill(prefixedProjectName);
     await this.submitBtn.click();
