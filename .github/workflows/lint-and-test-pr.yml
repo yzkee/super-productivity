@@ -1,6 +1,9 @@
 name: 'Lint & Test PRs'
 
-on: [pull_request]
+on:
+  pull_request:
+    paths-ignore:
+      - 'docs/wiki/**'
 
 permissions:
   pull-requests: write
