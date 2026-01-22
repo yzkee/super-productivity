@@ -54,13 +54,12 @@ export class TagPage extends BasePage {
     const tagNameInput = this.page.getByRole('textbox', { name: 'Tag Name' });
     await tagNameInput.waitFor({ state: 'visible', timeout: 10000 });
 
-    // Wait for Angular to fully initialize the form
-    await this.page.waitForTimeout(300);
-
-    await tagNameInput.fill(tagName);
-
     // Submit the form - click the Save button
     const submitBtn = this.page.getByRole('button', { name: 'Save' });
+    // Wait for Angular to fully initialize the form by checking submit button is enabled
+    await submitBtn.waitFor({ state: 'visible', timeout: 3000 });
+
+    await tagNameInput.fill(tagName);
     await submitBtn.click();
 
     // Wait for dialog to close
