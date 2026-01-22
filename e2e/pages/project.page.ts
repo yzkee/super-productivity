@@ -106,8 +106,12 @@ export class ProjectPage extends BasePage {
       }
     }
 
-    // Wait for the dialog to appear
-    await this.projectNameInput.waitFor({ state: 'visible' });
+    // Wait for the dialog to appear and be fully initialized
+    await this.projectNameInput.waitFor({ state: 'visible', timeout: 10000 });
+
+    // Wait for Angular to fully initialize the form
+    await this.page.waitForTimeout(300);
+
     await this.projectNameInput.fill(prefixedProjectName);
     await this.submitBtn.click();
 
