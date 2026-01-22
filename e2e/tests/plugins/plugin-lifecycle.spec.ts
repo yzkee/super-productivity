@@ -154,7 +154,13 @@ test.describe('Plugin Lifecycle', () => {
 
     // Verify we navigated to the plugin page
     await expect(page).toHaveURL(/\/plugins\/api-test-plugin\/index/, { timeout: 10000 });
-    await expect(page.locator('iframe')).toBeVisible({ timeout: 10000 });
+
+    // Wait for Angular component initialization after navigation
+    await expect(async () => {
+      const iframe = page.locator('iframe');
+      await expect(iframe).toBeAttached({ timeout: 2000 });
+      await expect(iframe).toBeVisible({ timeout: 2000 });
+    }).toPass({ timeout: 10000, intervals: [500, 1000] });
 
     // Go back to work view
     await page.goto('/#/tag/TODAY');

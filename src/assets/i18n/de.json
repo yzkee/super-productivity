@@ -143,7 +143,7 @@
       "TITLE": "🙈 Verzeihung, aber...",
       "TXT": "Sie würden dem Projekt immens helfen, wenn Sie <strong>es gut bewerten, falls Sie es mögen!</strong>"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "Wiederholt den konfigurierten Satz alle X mal, wenn die Zeit für eine Aufgabe erfasst wird.",
         "L_INTERVAL": "Intervall zum Wiederholen einer Phrase",
@@ -151,7 +151,7 @@
         "L_TEXT_DESCRIPTION": "Beispiel: „Arbeite an $ {currentTaskTitle} !",
         "L_VOICE": "Eine Stimme auswählen",
         "L_VOICE_DESCRIPTION": "Wählen Sie eine Stimme",
-        "TITLE": "Domina-Modus"
+        "TITLE": "Spracherinnerung"
       }
     },
     "DROPBOX": {

@@ -1,12 +1,12 @@
 import { ConfigFormSection, DominaModeConfig } from '../global-config.model';
 import { T } from '../../../t.const';
 import { speak } from '../../../util/speak';
-import { getAvailableVoices } from '../../domina-mode/getAvailableVoices';
+import { getAvailableVoices } from '../../voice-reminder/getAvailableVoices';
 
-export const DOMINA_MODE_FORM: ConfigFormSection<DominaModeConfig> = {
-  title: T.F.DOMINA_MODE.FORM.TITLE,
+export const VOICE_REMINDER_FORM: ConfigFormSection<DominaModeConfig> = {
+  title: T.F.VOICE_REMINDER.FORM.TITLE,
   key: 'dominaMode',
-  help: T.F.DOMINA_MODE.FORM.HELP,
+  help: T.F.VOICE_REMINDER.FORM.HELP,
   items: [
     {
       key: 'isEnabled',
@@ -20,8 +20,8 @@ export const DOMINA_MODE_FORM: ConfigFormSection<DominaModeConfig> = {
       type: 'input',
       hideExpression: '!model.isEnabled',
       templateOptions: {
-        label: T.F.DOMINA_MODE.FORM.L_TEXT,
-        description: T.F.DOMINA_MODE.FORM.L_TEXT_DESCRIPTION,
+        label: T.F.VOICE_REMINDER.FORM.L_TEXT,
+        description: T.F.VOICE_REMINDER.FORM.L_TEXT_DESCRIPTION,
         required: true,
       },
     },
@@ -32,7 +32,7 @@ export const DOMINA_MODE_FORM: ConfigFormSection<DominaModeConfig> = {
       templateOptions: {
         required: true,
         isAllowSeconds: true,
-        label: T.F.DOMINA_MODE.FORM.L_INTERVAL,
+        label: T.F.VOICE_REMINDER.FORM.L_INTERVAL,
         description: T.G.DURATION_DESCRIPTION,
       },
     },
@@ -59,8 +59,8 @@ export const DOMINA_MODE_FORM: ConfigFormSection<DominaModeConfig> = {
       key: 'voice',
       type: 'select',
       templateOptions: {
-        label: T.F.DOMINA_MODE.FORM.L_VOICE,
-        description: T.F.DOMINA_MODE.FORM.L_VOICE_DESCRIPTION,
+        label: T.F.VOICE_REMINDER.FORM.L_VOICE,
+        description: T.F.VOICE_REMINDER.FORM.L_VOICE_DESCRIPTION,
         required: false,
       },
       hooks: {

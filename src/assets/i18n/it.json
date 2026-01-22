@@ -143,7 +143,7 @@
       "TITLE": "🙈 Perdonaci, ma...",
       "TXT": "Aiuteresti il progetto immensamente <strong>lasciando una buona recensione, se ti piace!</strong>"
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "Ripeti la frase configurata ogni X tempo mentre stai tracciando il tempo di una attività.",
         "L_INTERVAL": "Intervallo di ripetizione frase",
@@ -151,7 +151,7 @@
         "L_TEXT_DESCRIPTION": "Es.: \"Lavora su ${currentTaskTitle}!\"",
         "L_VOICE": "Seleziona una voce",
         "L_VOICE_DESCRIPTION": "Scegli una voce",
-        "TITLE": "Modalità dominio"
+        "TITLE": "Promemoria vocale"
       }
     },
     "DROPBOX": {

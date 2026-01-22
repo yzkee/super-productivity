@@ -335,6 +335,17 @@ export class SyncWrapperService {
         // File-based sync: Local data exists and remote snapshot would overwrite it
         // Show conflict dialog to let user choose between local and remote data
         return this._handleLocalDataConflict(error);
+      } else if (this._isTimeoutError(error)) {
+        this._snackService.open({
+          msg: T.F.SYNC.S.TIMEOUT_ERROR,
+          type: 'ERROR',
+          config: { duration: 12000 },
+          translateParams: {
+            suggestion:
+              'Large sync operations may take up to 90 seconds. Please try again.',
+          },
+        });
+        return 'HANDLED_ERROR';
       } else if (this._isPermissionError(error)) {
         this._snackService.open({
           msg: this._getPermissionErrorMessage(),
@@ -519,6 +530,17 @@ export class SyncWrapperService {
   }
 
   private _handleDecryptionError(): void {
+    // Set ERROR status so sync button shows error icon
+    this._providerManager.setSyncStatus('ERROR');
+
+    // Show snackbar (consistent with other error handlers)
+    this._snackService.open({
+      msg: T.F.SYNC.S.DECRYPTION_FAILED,
+      type: 'ERROR',
+      config: { duration: 10000 }, // Longer duration for critical errors
+    });
+
+    // Open dialog for password correction
     this._matDialog
       .open(DialogHandleDecryptErrorComponent, {
         disableClose: true,
@@ -531,6 +553,10 @@ export class SyncWrapperService {
         }
         if (isForceUpload) {
           this.forceUpload();
+        }
+        // Reset status if user cancelled without taking action
+        if (!isReSync && !isForceUpload) {
+          this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
         }
       });
   }
@@ -666,6 +692,15 @@ export class SyncWrapperService {
   private _isPermissionError(error: unknown): boolean {
     const errStr = String(error);
     return /EROFS|EACCES|EPERM|read-only file system|permission denied/i.test(errStr);
+  }
+
+  private _isTimeoutError(error: unknown): boolean {
+    const errStr = String(error).toLowerCase();
+    return (
+      errStr.includes('timeout') ||
+      errStr.includes('504') ||
+      errStr.includes('gateway timeout')
+    );
   }
 
   private _getPermissionErrorMessage(): string {

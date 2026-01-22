@@ -79,10 +79,7 @@
         (click)="focusSelf()"
         class="drag-handle"
       >
-        <mat-icon
-          class="drag-handle-ico"
-          svgIcon="drag_handle"
-        ></mat-icon>
+        <mat-icon class="drag-handle-ico">drag_indicator</mat-icon>
         @if (isCurrent()) {
           <mat-icon class="play-icon-indicator">play_arrow</mat-icon>
         }
@@ -171,10 +168,7 @@
               </div>
               <div class="separator">/</div>
               <div class="time-val">
-                <mat-icon
-                  svgIcon="estimate_remaining"
-                  inline="true"
-                ></mat-icon>
+                <mat-icon inline="true">hourglass_empty</mat-icon>
                 {{ t.timeEstimate | msToString }}
               </div>
             </div>
@@ -256,7 +250,7 @@
         }
 
         <div>
-          @if (t.notes || (t.issueId && t.issueType !== ICAL_TYPE) || isSelected()) {
+          @if (isShowToggleButton()) {
             <button
               (click)="toggleShowDetailPanel()"
               title="{{ T.F.TASK.CMP.TOGGLE_DETAIL_PANEL | translate }}  {{
@@ -268,19 +262,12 @@
               color=""
               mat-icon-button
             >
-              @if (!t.issueWasUpdated && !isSelected()) {
-                <mat-icon>chat</mat-icon>
-              }
-              @if (!t.issueWasUpdated && isSelected()) {
-                <mat-icon>close</mat-icon>
-              }
-              @if (t.issueWasUpdated) {
-                <mat-icon
-                  class="updated-icon"
-                  color="accent"
-                  >update
-                </mat-icon>
-              }
+              <mat-icon
+                [class.updated-icon]="toggleButtonIcon() === 'update'"
+                [color]="toggleButtonIcon() === 'update' ? 'accent' : ''"
+              >
+                {{ toggleButtonIcon() }}
+              </mat-icon>
             </button>
           }
         </div>

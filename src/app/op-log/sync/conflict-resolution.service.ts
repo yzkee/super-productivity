@@ -550,17 +550,29 @@ export class ConflictResolutionService {
     conflict: EntityConflict,
   ): Promise<Operation | undefined> {
     // Get current entity state from store
-    const entityState = await this.getCurrentEntityState(
+    let entityState = await this.getCurrentEntityState(
       conflict.entityType,
       conflict.entityId,
     );
 
     if (entityState === undefined) {
-      OpLog.warn(
-        `ConflictResolutionService: Cannot create local-win op - entity not found: ` +
-          `${conflict.entityType}:${conflict.entityId}`,
-      );
-      return undefined;
+      // Try to extract entity from remote DELETE operation
+      // This handles the case where a remote DELETE was applied before LWW resolution,
+      // and the local UPDATE wins. We need to recreate the entity from the DELETE payload.
+      entityState = this._extractEntityFromDeleteOperation(conflict);
+
+      if (entityState !== undefined) {
+        OpLog.warn(
+          `ConflictResolutionService: Extracted entity from DELETE op for LWW update: ` +
+            `${conflict.entityType}:${conflict.entityId}`,
+        );
+      } else {
+        OpLog.warn(
+          `ConflictResolutionService: Cannot create local-win op - entity not found: ` +
+            `${conflict.entityType}:${conflict.entityId}`,
+        );
+        return undefined;
+      }
     }
 
     // Get client ID
@@ -594,6 +606,35 @@ export class ConflictResolutionService {
       newClock,
       preservedTimestamp,
     );
+  }
+
+  /**
+   * Extracts entity state from a remote DELETE operation payload.
+   *
+   * When a remote DELETE wins the conflict but we need the entity state for LWW resolution,
+   * we can extract it from the DELETE operation's payload (which contains the deleted entity).
+   *
+   * @param conflict - The conflict containing remote DELETE operation
+   * @returns Entity state from DELETE payload, or undefined if not found
+   */
+  private _extractEntityFromDeleteOperation(
+    conflict: EntityConflict,
+  ): unknown | undefined {
+    // Find the DELETE operation in remote ops
+    const deleteOp = conflict.remoteOps.find((op) => op.opType === OpType.Delete);
+    if (!deleteOp) {
+      return undefined;
+    }
+
+    // Extract entity from payload based on entity type
+    // For TASK: payload.task
+    // For PROJECT: payload.project
+    // For TAG: payload.tag
+    // etc.
+    const payload = deleteOp.payload as Record<string, unknown>;
+    const entityKey = conflict.entityType.toLowerCase();
+
+    return payload[entityKey];
   }
 
   /**

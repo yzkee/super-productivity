@@ -86,6 +86,12 @@
   }
 }
 
+// iOS-specific: remove double safe-area padding
+// Body already handles safe area, so nav doesn't need its own
+:host-context(.isIOS) .mobile-bottom-nav {
+  padding-bottom: 0;
+}
+
 // Material Design touch target improvements
 .nav-button,
 .add-task-button {

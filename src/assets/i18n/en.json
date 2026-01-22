@@ -144,7 +144,7 @@
         "UPDATE_SECTION": "Updated settings for <strong>{{sectionKey}}</strong>"
       }
     },
-    "DOMINA_MODE": {
+    "VOICE_REMINDER": {
       "FORM": {
         "HELP": "Repeats the configured phrase every X when tracking time to a task.",
         "L_INTERVAL": "Interval to repeat phrase",
@@ -152,7 +152,7 @@
         "L_TEXT_DESCRIPTION": "E.g.: \"Work on ${currentTaskTitle}!\"",
         "L_VOICE": "Select a Voice",
         "L_VOICE_DESCRIPTION": "Choose a voice",
-        "TITLE": "Domina Mode"
+        "TITLE": "Voice Reminder"
       }
     },
     "DROPBOX": {
@@ -898,9 +898,11 @@
       },
       "D_AUTH_CODE": {
         "FOLLOW_LINK": "Please open the following link and copy the auth code provided there into the input field below.",
+        "FOLLOW_LINK_MOBILE": "Please tap the button below to authorize. You will be automatically redirected back to the app.",
         "GET_AUTH_CODE": "Get Authorization Code",
         "L_AUTH_CODE": "Enter Auth Code",
-        "TITLE": "Login: {{provider}}"
+        "TITLE": "Login: {{provider}}",
+        "WAITING_FOR_AUTH": "Waiting for authentication..."
       },
       "D_CONFLICT": {
         "ADDITIONAL_INFO": "Additional Info",
@@ -1093,6 +1095,7 @@
         "LOCAL_DATA_REPLACE_CANCELLED": "Sync cancelled. Your local data has been preserved.",
         "RESTORE_SUCCESS": "Data restored successfully",
         "RESTORE_ERROR": "Failed to restore data",
+        "TIMEOUT_ERROR": "Sync operation timed out. {{suggestion}}",
         "PARTIAL_APPLY_FAILURE": "Some sync operations failed to apply. Data has been validated.",
         "REPLAY_LOCAL_OPS_FAILED": "Failed to replay local operations after import. Some recent changes may be lost. Data has been validated.",
         "ARCHIVE_OPERATION_FAILED": "Archive operation failed. Some cleanup may not have completed.",
