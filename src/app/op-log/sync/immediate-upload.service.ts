@@ -7,6 +7,7 @@ import { OperationLogSyncService } from './operation-log-sync.service';
 import { isFileBasedProvider, isOperationSyncCapable } from './operation-sync.util';
 import { OpLog } from '../../core/log';
 import { DataInitStateService } from '../../core/data-init/data-init-state.service';
+import { handleStorageQuotaError } from './sync-error-utils';
 
 const IMMEDIATE_UPLOAD_DEBOUNCE_MS = 2000;
 
@@ -200,7 +201,11 @@ export class ImmediateUploadService implements OnDestroy {
         );
       }
     } catch (e) {
-      // Silent failure - normal sync will pick up pending ops
+      // Check for storage quota exceeded - this requires user action
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      handleStorageQuotaError(message);
+
+      // Silent failure for other errors - normal sync will pick up pending ops
       OpLog.warn(
         'ImmediateUploadService: Immediate upload failed, will retry on normal sync',
         e,
