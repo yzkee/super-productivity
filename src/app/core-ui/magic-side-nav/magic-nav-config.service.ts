@@ -370,16 +370,6 @@ export class MagicNavConfigService {
   private _buildMainRoutesItems(): NavItem[] {
     const items: NavItem[] = [];
 
-    if (this.isSchedulerEnabled()) {
-      items.push({
-        type: 'route',
-        id: 'schedule',
-        label: T.MH.SCHEDULE,
-        icon: 'schedule',
-        route: '/schedule',
-      });
-    }
-
     if (this.isPlannerEnabled()) {
       items.push({
         type: 'route',
@@ -387,6 +377,16 @@ export class MagicNavConfigService {
         label: T.MH.PLANNER,
         icon: 'edit_calendar',
         route: '/planner',
+      });
+    }
+
+    if (this.isSchedulerEnabled()) {
+      items.push({
+        type: 'route',
+        id: 'schedule',
+        label: T.MH.SCHEDULE,
+        icon: 'schedule',
+        route: '/schedule',
       });
     }
 
