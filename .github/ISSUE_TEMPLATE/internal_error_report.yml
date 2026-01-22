@@ -1,6 +1,6 @@
-name: 🚨 Bug Report
-description: Report a bug you encountered.
-title: '🚨 '
+name: 💥 Internal app error
+description: Internal app error report
+title: '💥 '
 type: Bug
 
 body:
@@ -10,24 +10,6 @@ body:
       label: Version Used
       description: Version number and package type (e.g., exe, snap, deb, installer).
       placeholder: "e.g. 'v7.12.0 snap' or 'v2.2.1 firefox'"
-    validations:
-      required: true
-
-  - type: textarea
-    id: expected-behavior
-    attributes:
-      label: Expected Behavior
-      description: Tell us what should happen.
-      placeholder: "e.g. When I click the 'Save' button, the data should be saved without errors."
-    validations:
-      required: true
-
-  - type: textarea
-    id: current-behavior
-    attributes:
-      label: Current Behavior
-      description: Tell us what happens instead of the expected behavior.
-      placeholder: "e.g. When I click the 'Save' button, the application crashes / nothing happens / an error message appears."
     validations:
       required: true
 
