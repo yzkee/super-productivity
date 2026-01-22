@@ -2,8 +2,9 @@
   <button
     mat-button
     class="nav-button"
-    [class.active]="currentRoute().includes('/tag/' + todayTagId + '/tasks')"
     [routerLink]="todayRoute"
+    routerLinkActive="active"
+    [routerLinkActiveOptions]="{ exact: false }"
   >
     <mat-icon>wb_sunny</mat-icon>
   </button>
@@ -11,8 +12,8 @@
   <button
     mat-button
     class="nav-button"
-    [class.active]="currentRoute() === '/planner'"
     routerLink="/planner"
+    routerLinkActive="active"
   >
     <mat-icon>edit_calendar</mat-icon>
   </button>
