@@ -1,8 +1,7 @@
 name: 💡 Feature Request
-description: Suggest an idea for this project
+description: Suggest an idea for this project.
 title: '💡 '
-labels: ['enhancement']
-assignees: []
+type: Future
 
 body:
   - type: markdown
