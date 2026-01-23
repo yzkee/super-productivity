@@ -1469,6 +1469,12 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       await clientA.sync.syncAndWait();
       console.log('[TodayDeleteRace] Client A synced, LWW applied');
 
+      // Wait for post-sync cooldown (2s) to ensure repair effect runs if needed.
+      // The meta-reducer should add task to TODAY_TAG.taskIds immediately, but
+      // the repair effect provides a safety net with a 2-second delay.
+      await clientA.page.waitForTimeout(2500);
+      console.log('[TodayDeleteRace] Post-sync cooldown complete');
+
       // 8. CRITICAL ASSERTION: Task should appear in TODAY view on Client A
       // This validates that syncTodayTagTaskIds properly updated TODAY_TAG.taskIds
       const recreatedTaskA = clientA.page.locator(`task:has-text("${taskName}-Updated")`);
