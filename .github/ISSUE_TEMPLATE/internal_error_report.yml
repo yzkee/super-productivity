@@ -39,6 +39,16 @@ body:
       required: true
 
   - type: textarea
+    id: error-message
+    attributes:
+      label: Error Message
+      description: If an error dialog or message was shown, please copy and paste the exact error message text here.
+      placeholder: 'e.g., "TypeError: Cannot read property of undefined" or the full error dialog content'
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
     id: console-output
     attributes:
       label: Console Output
