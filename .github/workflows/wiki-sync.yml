@@ -67,8 +67,6 @@ jobs:
   sync:
     name: Publish to GitHub Wiki
     needs: lint
-    if: '!cancelled()'
-    # if: needs.lint.result == 'success'
     runs-on: ubuntu-latest
     env:
       # Using [standard bot credentials](https://github.com/actions/checkout)
