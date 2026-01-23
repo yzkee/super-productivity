@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import {
+  ActionType,
   EntityConflict,
   EntityType,
   Operation,
@@ -287,7 +288,12 @@ export class ConflictResolutionService {
     for (const resolution of resolutions) {
       if (resolution.winner === 'remote') {
         remoteWinsCount++;
-        remoteWinsOps.push(...resolution.conflict.remoteOps);
+
+        // Convert remote UPDATE operations to LWW Update format when entity was deleted locally.
+        // This ensures lwwUpdateMetaReducer can recreate deleted entities (fixes DELETE vs UPDATE race).
+        const processedRemoteOps = this._convertToLWWUpdatesIfNeeded(resolution.conflict);
+        remoteWinsOps.push(...processedRemoteOps);
+
         localOpsToReject.push(...resolution.conflict.localOps.map((op) => op.id));
       } else {
         localWinsCount++;
@@ -635,6 +641,45 @@ export class ConflictResolutionService {
     const entityKey = conflict.entityType.toLowerCase();
 
     return payload[entityKey];
+  }
+
+  /**
+   * Converts remote UPDATE operations to LWW Update format when entity was deleted locally.
+   *
+   * When a local DELETE loses to a remote UPDATE via LWW, the entity is already deleted
+   * from the local store. Regular UPDATE operations can't recreate deleted entities -
+   * only LWW Update operations can (via lwwUpdateMetaReducer).
+   *
+   * This method detects DELETE vs UPDATE conflicts and converts the winning remote UPDATE
+   * to LWW Update format by changing its actionType to '[ENTITY_TYPE] LWW Update'.
+   *
+   * @param conflict - The entity conflict being resolved
+   * @returns Remote operations, with UPDATEs converted to LWW Updates if needed
+   */
+  private _convertToLWWUpdatesIfNeeded(conflict: EntityConflict): Operation[] {
+    // Check if local side has a DELETE operation
+    const hasLocalDelete = conflict.localOps.some((op) => op.opType === OpType.Delete);
+
+    if (!hasLocalDelete) {
+      // No DELETE conflict - return remote ops as-is
+      return conflict.remoteOps;
+    }
+
+    // Convert remote UPDATE operations to LWW Update format
+    return conflict.remoteOps.map((remoteOp) => {
+      if (remoteOp.opType === OpType.Update) {
+        OpLog.log(
+          `ConflictResolutionService: Converting remote UPDATE to LWW Update for ` +
+            `${remoteOp.entityType}:${remoteOp.entityId} (local DELETE lost)`,
+        );
+        return {
+          ...remoteOp,
+          // Convert to LWW Update action type so lwwUpdateMetaReducer can recreate the entity
+          actionType: `[${remoteOp.entityType}] LWW Update` as ActionType,
+        };
+      }
+      return remoteOp;
+    });
   }
 
   /**
