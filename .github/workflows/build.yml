@@ -59,8 +59,16 @@ jobs:
       - name: Test Unit
         run: npm run test
 
+      - name: Build Frontend for E2E
+        run: npm run buildFrontend:e2e
+
+      - name: Verify Build Output
+        run: |
+          test -f .tmp/angular-dist/browser/index.html || (echo "Build output missing" && exit 1)
+          test -f .tmp/angular-dist/browser/assets/bundled-plugins/api-test-plugin/manifest.json || (echo "Plugin assets missing from build" && exit 1)
+
       - name: Test E2E
-        run: npx playwright test --config e2e/playwright.config.ts --grep-invert "@webdav|@supersync"
+        run: npm run e2e:ci -- --grep-invert "@webdav|@supersync"
 
       - name: 'Upload E2E results on failure'
         if: ${{ failure() }}
