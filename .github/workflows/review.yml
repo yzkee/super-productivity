@@ -1,4 +1,4 @@
-name: Claude Code Review
+name: Code review
 
 # Using pull_request_target to grant write permissions for fork PRs.
 # This is safe because:
@@ -19,6 +19,7 @@ on:
 
 jobs:
   claude-review:
+    name: Claude Code
     # Optional: Filter by PR author
     # if: |
     #   github.event.pull_request.user.login == 'external-contributor' ||
