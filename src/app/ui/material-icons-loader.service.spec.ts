@@ -9,10 +9,6 @@ describe('MaterialIconsLoaderService', () => {
     service = TestBed.inject(MaterialIconsLoaderService);
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-
   it('should load icons on first call', async () => {
     const icons = await service.loadIcons();
     expect(icons).toBeDefined();

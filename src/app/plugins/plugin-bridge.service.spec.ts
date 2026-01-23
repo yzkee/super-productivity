@@ -233,10 +233,6 @@ describe('PluginBridgeService', () => {
     });
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-
   describe('showSnack', () => {
     it('should show success snack', () => {
       service._setCurrentPlugin(mockPluginId, mockManifest);

@@ -106,10 +106,6 @@ describe('TaskRepeatCfgService', () => {
     dispatchSpy = spyOn(store, 'dispatch');
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-
   describe('taskRepeatCfgs$', () => {
     it('should select all task repeat configs', (done) => {
       const mockConfigs = [mockTaskRepeatCfg];

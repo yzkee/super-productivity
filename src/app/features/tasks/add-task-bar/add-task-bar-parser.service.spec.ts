@@ -51,12 +51,6 @@ describe('AddTaskBarParserService', () => {
     ) as jasmine.SpyObj<AddTaskBarStateService>;
   });
 
-  describe('Service Creation', () => {
-    it('should be created', () => {
-      expect(service).toBeTruthy();
-    });
-  });
-
   describe('parseAndUpdateText', () => {
     let mockConfig: ShortSyntaxConfig;
     let mockProjects: Project[];

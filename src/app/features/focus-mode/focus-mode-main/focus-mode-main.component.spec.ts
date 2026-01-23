@@ -147,10 +147,6 @@ describe('FocusModeMainComponent', () => {
     mockStore.dispatch.calls.reset();
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
   describe('initialization', () => {
     it('should initialize with current task', () => {
       expect(component.currentTask()).toBe(mockTask);

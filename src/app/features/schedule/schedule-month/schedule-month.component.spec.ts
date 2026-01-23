@@ -39,10 +39,6 @@ describe('ScheduleMonthComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
   describe('referenceMonth computed', () => {
     it('should return current date when daysToShow is empty', () => {
       // Arrange

@@ -47,10 +47,6 @@ describe('ScheduleService', () => {
     dateService = TestBed.inject(DateService);
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-
   describe('getDaysToShow', () => {
     it('should return correct number of days when referenceDate is null', () => {
       // Arrange

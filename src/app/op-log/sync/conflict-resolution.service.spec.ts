@@ -80,10 +80,6 @@ describe('ConflictResolutionService', () => {
     );
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-
   describe('isIdenticalConflict', () => {
     it('should detect identical conflict when both sides DELETE', () => {
       const conflict: EntityConflict = {

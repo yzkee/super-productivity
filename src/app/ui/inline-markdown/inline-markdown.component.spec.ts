@@ -29,10 +29,6 @@ describe('InlineMarkdownComponent', () => {
     component = fixture.componentInstance;
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
   describe('ngOnDestroy', () => {
     it('should emit changed event with current value when in edit mode and value has changed', () => {
       // Arrange

@@ -20,10 +20,6 @@ describe('AddTaskBarStateService', () => {
   });
 
   describe('Service Creation', () => {
-    it('should be created', () => {
-      expect(service).toBeTruthy();
-    });
-
     it('should initialize with default state', () => {
       const state = service.state();
       expect(state).toEqual(INITIAL_ADD_TASK_BAR_STATE);

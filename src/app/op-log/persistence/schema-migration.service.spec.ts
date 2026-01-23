@@ -43,12 +43,6 @@ describe('SchemaMigrationService', () => {
     service = TestBed.inject(SchemaMigrationService);
   });
 
-  describe('creation', () => {
-    it('should be created', () => {
-      expect(service).toBeTruthy();
-    });
-  });
-
   describe('getCurrentVersion', () => {
     it('should return the current schema version', () => {
       expect(service.getCurrentVersion()).toBe(CURRENT_SCHEMA_VERSION);

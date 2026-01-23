@@ -96,10 +96,6 @@ describe('ScheduleComponent', () => {
     fixture.detectChanges();
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
   describe('_selectedDate signal', () => {
     it('should initialize as null (viewing today)', () => {
       expect(component['_selectedDate']()).toBeNull();

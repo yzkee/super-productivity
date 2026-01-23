@@ -81,10 +81,6 @@ describe('TaskArchiveService', () => {
     service = TestBed.inject(TaskArchiveService);
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-
   describe('loadYoung', () => {
     it('should load young archive', async () => {
       const mockTasks = [createMockTask('task1'), createMockTask('task2')];

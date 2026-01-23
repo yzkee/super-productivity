@@ -9,10 +9,6 @@ describe('OAuthCallbackHandlerService', () => {
     service = TestBed.inject(OAuthCallbackHandlerService);
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-
   describe('_parseOAuthCallback', () => {
     it('should extract auth code from valid URL', () => {
       const url = 'com.super-productivity.app://oauth-callback?code=ABC123';

@@ -73,10 +73,6 @@ describe('OperationLogMigrationService', () => {
     service = TestBed.inject(OperationLogMigrationService);
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-
   describe('checkAndMigrate', () => {
     describe('when state cache (snapshot) exists', () => {
       it('should return early if snapshot exists', async () => {

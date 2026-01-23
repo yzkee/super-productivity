@@ -62,17 +62,9 @@ describe('FocusModeBreakComponent', () => {
     });
   });
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
   describe('initialization', () => {
     it('should expose T translations', () => {
       expect(component.T).toBe(T);
-    });
-
-    it('should inject FocusModeService', () => {
-      expect(component.focusModeService).toBeDefined();
     });
   });
 

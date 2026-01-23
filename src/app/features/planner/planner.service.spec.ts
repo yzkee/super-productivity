@@ -105,10 +105,6 @@ describe('PlannerService', () => {
     jasmine.clock().uninstall();
   });
 
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-
   describe('tomorrow$', () => {
     describe('basic functionality', () => {
       it('should return the day matching tomorrow from the days array', (done) => {
