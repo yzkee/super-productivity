@@ -1,4 +1,5 @@
 import { test, expect } from '../../fixtures/supersync.fixture';
+import type { Page } from '@playwright/test';
 import {
   createTestUser,
   getSuperSyncConfig,
@@ -822,7 +823,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
     let clientB: SimulatedE2EClient | null = null;
 
     // Helper to create a project
-    const createProject = async (page: any, projectName: string): Promise<void> => {
+    const createProject = async (page: Page, projectName: string): Promise<void> => {
       await page.goto('/#/tag/TODAY/work');
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(1000);
@@ -872,7 +873,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
 
     // Helper to move task to project via context menu
     const moveTaskToProject = async (
-      page: any,
+      page: Page,
       taskName: string,
       projectName: string,
     ): Promise<void> => {
@@ -1072,7 +1073,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
     // Helper to toggle a tag on task via context menu "Toggle Tags" submenu
     // Used for both adding and removing tags (it's a toggle)
     const toggleTagOnTask = async (
-      page: any,
+      page: Page,
       taskName: string,
       tagName: string,
     ): Promise<void> => {

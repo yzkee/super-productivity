@@ -45,14 +45,14 @@ export const waitForPluginAssets = async (
           try {
             await page.request.get(iconUrl);
           } catch (e) {
-            console.error(`[Plugin Test] Basic asset test failed:`, e.message);
+            const message = e instanceof Error ? e.message : String(e);
+            console.error(`[Plugin Test] Basic asset test failed:`, message);
           }
         }
       }
-    } catch (error: any) {
-      console.error(
-        `[Plugin Test] Attempt ${i + 1}/${maxRetries}: Error - ${error.message}`,
-      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`[Plugin Test] Attempt ${i + 1}/${maxRetries}: Error - ${message}`);
     }
 
     // Respect overall cap to avoid test-level timeout
@@ -162,7 +162,8 @@ export const waitForPluginManagementInit = async (
 
     return !!result;
   } catch (error) {
-    console.error('[Plugin Test] Plugin management init failed:', error.message);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('[Plugin Test] Plugin management init failed:', message);
     return false;
   }
 };
@@ -297,7 +298,8 @@ export const waitForPluginInMenu = async (
 
     return !!result;
   } catch (error) {
-    console.error(`[Plugin Test] Plugin ${pluginName} not found in menu:`, error.message);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[Plugin Test] Plugin ${pluginName} not found in menu:`, message);
     return false;
   }
 };
@@ -443,9 +445,8 @@ export const disablePluginWithVerification = async (
     );
     return true;
   } catch (error) {
-    console.error(
-      `[Plugin Test] Timeout waiting for plugin to disable: ${error.message}`,
-    );
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`[Plugin Test] Timeout waiting for plugin to disable: ${message}`);
     return false;
   }
 };
@@ -465,7 +466,8 @@ export const robustClick = async (
       await element.click();
       return true;
     } catch (error) {
-      console.log(`Selector ${selector} failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : String(error);
+      console.log(`Selector ${selector} failed: ${message}`);
     }
   }
   console.error(`All selectors failed: ${selectors.join(', ')}`);

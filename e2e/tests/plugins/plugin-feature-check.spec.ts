@@ -31,7 +31,20 @@ test.describe.serial('Plugin Feature Check', () => {
     await page.goto('/#/config');
 
     await page.evaluate(() => {
-      const uiResults: any = {};
+      const uiResults: {
+        hasPluginManagementTag: boolean;
+        hasPluginSection: boolean;
+        hasMagicSideNav: boolean;
+        hasPluginHeaderBtns: boolean;
+        hasPluginTextInBody: boolean;
+        hasPluginTextInConfig?: boolean;
+      } = {
+        hasPluginManagementTag: false,
+        hasPluginSection: false,
+        hasMagicSideNav: false,
+        hasPluginHeaderBtns: false,
+        hasPluginTextInBody: false,
+      };
 
       // Check various plugin-related elements
       uiResults.hasPluginManagementTag = !!document.querySelector('plugin-management');
