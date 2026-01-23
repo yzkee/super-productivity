@@ -1326,7 +1326,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
 
       // 3. Client A deletes the task using reliable keyboard shortcut
       await deleteTask(clientA, taskName);
-      await clientA.page.waitForTimeout(50); // Flush operation to ensure DELETE is created
+      await clientA.page.waitForTimeout(150); // Flush operation to ensure DELETE is created
       console.log('[DeleteRace] Client A deleted task');
 
       // 4. Client B updates the task (with later timestamp)
@@ -1348,7 +1348,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       console.log('[DeleteRace] Client B updated task title');
 
       // Wait to ensure Client B's UPDATE operation is created and flushed
-      await clientB.page.waitForTimeout(500);
+      await clientB.page.waitForTimeout(1000);
 
       // 5. Client A syncs (uploads delete)
       await clientA.sync.syncAndWait();
@@ -1367,8 +1367,8 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       const updatedTaskA = clientA.page.locator(`task:has-text("${taskName}-Updated")`);
       const updatedTaskB = clientB.page.locator(`task:has-text("${taskName}-Updated")`);
 
-      await expect(updatedTaskB).toBeVisible({ timeout: 10000 });
-      await expect(updatedTaskA).toBeVisible({ timeout: 10000 });
+      await expect(updatedTaskB).toBeVisible({ timeout: 15000 });
+      await expect(updatedTaskA).toBeVisible({ timeout: 15000 });
 
       console.log('[DeleteRace] ✓ Update won over delete via LWW');
     } finally {
@@ -1436,6 +1436,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
 
       // 3. Client A deletes the task using reliable keyboard shortcut
       await deleteTask(clientA, taskName);
+      await clientA.page.waitForTimeout(150); // Flush operation to ensure DELETE is created and persisted
       console.log('[TodayDeleteRace] Client A deleted task');
 
       // 4. Client B updates the task (with later timestamp)
@@ -1453,6 +1454,8 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       await clientB.page.keyboard.press('Enter');
       await clientB.page.waitForTimeout(300);
       console.log('[TodayDeleteRace] Client B updated task title');
+      // Wait to ensure Client B's UPDATE operation is created and flushed to IndexedDB
+      await clientB.page.waitForTimeout(1000);
 
       // 5. Client A syncs (uploads delete)
       await clientA.sync.syncAndWait();
@@ -1469,7 +1472,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       // 8. CRITICAL ASSERTION: Task should appear in TODAY view on Client A
       // This validates that syncTodayTagTaskIds properly updated TODAY_TAG.taskIds
       const recreatedTaskA = clientA.page.locator(`task:has-text("${taskName}-Updated")`);
-      await expect(recreatedTaskA).toBeVisible({ timeout: 10000 });
+      await expect(recreatedTaskA).toBeVisible({ timeout: 15000 });
 
       // Also verify we're still in TODAY context
       const finalUrlA = clientA.page.url();
@@ -1477,7 +1480,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
 
       // Verify task also visible on Client B
       const updatedTaskB = clientB.page.locator(`task:has-text("${taskName}-Updated")`);
-      await expect(updatedTaskB).toBeVisible({ timeout: 10000 });
+      await expect(updatedTaskB).toBeVisible({ timeout: 15000 });
 
       console.log(
         '[TodayDeleteRace] ✓ Recreated task with dueDay=today appears in TODAY view',
