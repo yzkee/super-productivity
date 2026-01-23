@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   deploy-preview:
+    continue-on-error: true
     runs-on: ubuntu-latest
     env:
       UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
