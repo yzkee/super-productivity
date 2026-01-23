@@ -62,7 +62,7 @@ jobs:
         run: |
           pymarkdownlnt \
             --disable-rules line-length \
-            scan --recurse "docs/wiki"
+            scan "docs/wiki"
 
   sync:
     name: Publish to GitHub Wiki
