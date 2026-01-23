@@ -159,7 +159,7 @@
       "S": {
         "OFFLINE": "Dropbox: Unable to sync, because offline",
         "SYNC_ERROR": "Dropbox: Error while syncing",
-        "UNABLE_TO_GENERATE_PKCE_CHALLENGE": "Dropbox: Unable to generate PKCE challenge."
+        "UNABLE_TO_GENERATE_PKCE_CHALLENGE": "Dropbox sync requires a secure connection (HTTPS). Please ensure you're using the app over HTTPS or try the stable version."
       }
     },
     "D_RATE": {
