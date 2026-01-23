@@ -53,6 +53,7 @@ export class ImmediateUploadService implements OnDestroy {
   private _uploadTrigger$ = new Subject<void>();
   private _subscription: Subscription | null = null;
   private _isInitialized = false;
+  private _pendingTriggerCount = 0;
 
   constructor() {
     // Initialize only after data is loaded to avoid race condition where
@@ -83,6 +84,15 @@ export class ImmediateUploadService implements OnDestroy {
       .subscribe();
 
     this._isInitialized = true;
+
+    if (this._pendingTriggerCount > 0) {
+      OpLog.verbose(
+        `ImmediateUploadService: Replaying ${this._pendingTriggerCount} queued trigger(s)`,
+      );
+      this._uploadTrigger$.next();
+      this._pendingTriggerCount = 0;
+    }
+
     OpLog.verbose('ImmediateUploadService: Initialized');
   }
 
@@ -93,6 +103,8 @@ export class ImmediateUploadService implements OnDestroy {
   trigger(): void {
     if (this._isInitialized) {
       this._uploadTrigger$.next();
+    } else {
+      this._pendingTriggerCount++;
     }
   }
 

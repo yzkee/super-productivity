@@ -343,5 +343,35 @@ describe('ImmediateUploadService', () => {
 
       expect(mockSyncService.uploadPendingOps).not.toHaveBeenCalled();
     }));
+
+    it('should queue triggers before initialization and replay them when initialized', fakeAsync(() => {
+      mockSyncService.uploadPendingOps.and.returnValue(
+        Promise.resolve({
+          uploadedCount: 1,
+          rejectedCount: 0,
+          piggybackedOps: [],
+          rejectedOps: [],
+        }),
+      );
+
+      // Trigger multiple times before initialization (data not loaded)
+      service.trigger();
+      service.trigger();
+      service.trigger();
+      tick(100);
+
+      // No upload should happen yet
+      expect(mockSyncService.uploadPendingOps).not.toHaveBeenCalled();
+
+      // Simulate data loading complete - should replay queued triggers
+      mockDataInitStateService.isAllDataLoadedInitially$.next(true);
+      tick();
+
+      // Wait for debounce - queued triggers should result in one upload
+      tick(2100);
+
+      // Should upload once (debounce coalesces multiple triggers)
+      expect(mockSyncService.uploadPendingOps).toHaveBeenCalledTimes(1);
+    }));
   });
 });
