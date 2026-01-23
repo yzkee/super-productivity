@@ -3,8 +3,18 @@ import { OperationEncryptionService } from './operation-encryption.service';
 import { SyncOperation } from '../sync-providers/provider.interface';
 import { DecryptError } from '../core/errors/sync-errors';
 import { ActionType } from '../core/operation.types';
-import { mockEncrypt, mockDecrypt } from '../testing/helpers/mock-encryption.helper';
-import { ENCRYPT_FN, DECRYPT_FN } from '../encryption/encryption.token';
+import {
+  mockEncrypt,
+  mockDecrypt,
+  mockEncryptBatch,
+  mockDecryptBatch,
+} from '../testing/helpers/mock-encryption.helper';
+import {
+  ENCRYPT_FN,
+  DECRYPT_FN,
+  ENCRYPT_BATCH_FN,
+  DECRYPT_BATCH_FN,
+} from '../encryption/encryption.token';
 
 describe('OperationEncryptionService', () => {
   let service: OperationEncryptionService;
@@ -31,6 +41,8 @@ describe('OperationEncryptionService', () => {
         // Use fast mock encryption instead of real Argon2id (saves ~500ms per test)
         { provide: ENCRYPT_FN, useValue: mockEncrypt },
         { provide: DECRYPT_FN, useValue: mockDecrypt },
+        { provide: ENCRYPT_BATCH_FN, useValue: mockEncryptBatch },
+        { provide: DECRYPT_BATCH_FN, useValue: mockDecryptBatch },
       ],
     });
     service = TestBed.inject(OperationEncryptionService);
