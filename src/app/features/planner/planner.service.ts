@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { effect, inject, Injectable, signal } from '@angular/core';
 import { BehaviorSubject, combineLatest, Observable, of } from 'rxjs';
 import { first, map, shareReplay, switchMap, tap } from 'rxjs/operators';
 import { selectAllTasksWithDueTime } from '../tasks/store/task.selectors';
@@ -14,20 +14,47 @@ import { msToString } from '../../ui/duration/ms-to-string.pipe';
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { selectAllTaskRepeatCfgs } from '../task-repeat-cfg/store/task-repeat-cfg.selectors';
 import { Log } from '../../core/log';
+import { LayoutService } from '../../core-ui/layout/layout.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class PlannerService {
+  private static readonly INITIAL_DAYS_DESKTOP = 15;
+  private static readonly INITIAL_DAYS_MOBILE = 5;
+  private static readonly AUTO_LOAD_INCREMENT = 7;
+
   private _store = inject(Store);
   private _calendarIntegrationService = inject(CalendarIntegrationService);
   private _dateService = inject(DateService);
   private _globalTrackingIntervalService = inject(GlobalTrackingIntervalService);
+  private _layoutService = inject(LayoutService);
 
-  private _daysToShowCount$ = new BehaviorSubject<number>(15);
+  private _userHasScrolled = signal(false);
+
+  private _daysToShowCount$ = new BehaviorSubject<number>(
+    this._layoutService.isXs()
+      ? PlannerService.INITIAL_DAYS_MOBILE
+      : PlannerService.INITIAL_DAYS_DESKTOP,
+  );
   public isLoadingMore$ = new BehaviorSubject<boolean>(false);
 
   includedWeekDays$ = of([0, 1, 2, 3, 4, 5, 6]);
+
+  constructor() {
+    // Reset to initial count when breakpoint changes, but only if user hasn't scrolled yet
+    effect(() => {
+      const isMobile = this._layoutService.isXs();
+
+      // Only reset to initial count if user hasn't manually scrolled yet
+      if (!this._userHasScrolled()) {
+        const newCount = isMobile
+          ? PlannerService.INITIAL_DAYS_MOBILE
+          : PlannerService.INITIAL_DAYS_DESKTOP;
+        this._daysToShowCount$.next(newCount);
+      }
+    });
+  }
 
   daysToShow$ = combineLatest([
     this._daysToShowCount$,
@@ -142,11 +169,12 @@ export class PlannerService {
 
   loadMoreDays(): void {
     this.isLoadingMore$.next(true);
+    this._userHasScrolled.set(true);
 
     // Yield to event loop to ensure loading state is visible
     setTimeout(() => {
       const currentCount = this._daysToShowCount$.value;
-      this._daysToShowCount$.next(currentCount + 7);
+      this._daysToShowCount$.next(currentCount + PlannerService.AUTO_LOAD_INCREMENT);
       this.isLoadingMore$.next(false);
     }, 0);
   }
