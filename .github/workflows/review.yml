@@ -20,6 +20,7 @@ on:
 jobs:
   claude-review:
     name: Claude Code
+    continue-on-error: true
     # Optional: Filter by PR author
     # if: |
     #   github.event.pull_request.user.login == 'external-contributor' ||
