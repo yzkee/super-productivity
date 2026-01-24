@@ -672,4 +672,105 @@ export class SuperSyncPage extends BasePage {
       await dialogContainer.waitFor({ state: 'detached', timeout: 5000 });
     }
   }
+
+  /**
+   * Open the encryption/sync settings dialog.
+   * This opens the main sync configuration dialog where encryption can be managed.
+   */
+  async openEncryptionDialog(): Promise<void> {
+    // Open sync settings via right-click on sync button
+    await this.syncBtn.click({ button: 'right' });
+    await this.providerSelect.waitFor({ state: 'visible', timeout: 10000 });
+
+    // Expand "Advanced settings" collapsible to access encryption fields
+    const advancedCollapsible = this.page.locator(
+      '.collapsible-header:has-text("Advanced")',
+    );
+    await advancedCollapsible.waitFor({ state: 'visible', timeout: 5000 });
+
+    // Check if already expanded
+    const isExpanded = await this.encryptionCheckbox.isVisible().catch(() => false);
+    if (!isExpanded) {
+      await advancedCollapsible.click();
+      await this.encryptionCheckbox.waitFor({ state: 'visible', timeout: 3000 });
+    }
+  }
+
+  /**
+   * Enable encryption by reconfiguring the SuperSync provider.
+   * This will trigger a clean slate operation (server wipe + fresh encrypted upload).
+   *
+   * Prerequisites: SuperSync must already be configured (call setupSuperSync first)
+   *
+   * @param password - The encryption password to use
+   */
+  async enableEncryption(password: string): Promise<void> {
+    // Enable encryption
+    const checkboxLabel = this.page.locator('.e2e-isEncryptionEnabled label');
+    await this.encryptionCheckbox.waitFor({ state: 'attached', timeout: 5000 });
+    await this.page.waitForTimeout(200);
+
+    // Check if already enabled
+    const isChecked = await this.encryptionCheckbox.isChecked();
+    if (!isChecked) {
+      await checkboxLabel.click();
+      await this.page.waitForTimeout(100);
+      await expect(this.encryptionCheckbox).toBeChecked({ timeout: 3000 });
+    }
+
+    // Fill in password
+    await this.encryptionPasswordInput.waitFor({ state: 'visible' });
+    await this.encryptionPasswordInput.fill(password);
+    await this.encryptionPasswordInput.blur();
+    await this.page.waitForTimeout(200);
+
+    // Save the configuration
+    await this.saveBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await this.page.waitForTimeout(100);
+
+    await Promise.race([
+      this.saveBtn.click({ timeout: 5000 }),
+      this.page
+        .locator('mat-dialog-container')
+        .waitFor({ state: 'detached', timeout: 5000 }),
+    ]);
+
+    // Wait for clean slate operation to complete
+    await this.page.waitForTimeout(1000);
+  }
+
+  /**
+   * Disable encryption by reconfiguring the SuperSync provider.
+   * This will trigger a clean slate operation (server wipe + fresh unencrypted upload).
+   *
+   * Prerequisites: SuperSync must already be configured with encryption enabled
+   */
+  async disableEncryption(): Promise<void> {
+    // Uncheck encryption
+    const checkboxLabel = this.page.locator('.e2e-isEncryptionEnabled label');
+    await this.encryptionCheckbox.waitFor({ state: 'attached', timeout: 5000 });
+    await this.page.waitForTimeout(200);
+
+    // Check if already disabled
+    const isChecked = await this.encryptionCheckbox.isChecked();
+    if (isChecked) {
+      await checkboxLabel.click();
+      await this.page.waitForTimeout(100);
+      await expect(this.encryptionCheckbox).not.toBeChecked({ timeout: 3000 });
+    }
+
+    // Save the configuration
+    await this.saveBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await this.page.waitForTimeout(100);
+
+    await Promise.race([
+      this.saveBtn.click({ timeout: 5000 }),
+      this.page
+        .locator('mat-dialog-container')
+        .waitFor({ state: 'detached', timeout: 5000 }),
+    ]);
+
+    // Wait for clean slate operation to complete
+    await this.page.waitForTimeout(1000);
+  }
 }
