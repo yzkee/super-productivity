@@ -54,7 +54,6 @@ import { MatDialog } from '@angular/material/dialog';
 import { DialogDisableProfilesConfirmationComponent } from '../../features/user-profile/dialog-disable-profiles-confirmation/dialog-disable-profiles-confirmation.component';
 import { DialogRestorePointComponent } from '../../imex/sync/dialog-restore-point/dialog-restore-point.component';
 import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
-import { DialogChangeEncryptionPasswordComponent } from '../../imex/sync/dialog-change-encryption-password/dialog-change-encryption-password.component';
 import { DialogConfirmComponent } from '../../ui/dialog-confirm/dialog-confirm.component';
 import { LS } from '../../core/persistence/storage-keys.const';
 import { MatTab, MatTabGroup, MatTabLabel } from '@angular/material/tabs';
@@ -399,22 +398,6 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
             },
           },
         },
-        {
-          hideExpression: (m: any) =>
-            !m.isEnabled ||
-            m.syncProvider !== LegacySyncProvider.SuperSync ||
-            !m.superSync?.isEncryptionEnabled,
-          type: 'btn',
-          className: 'mt2 block',
-          templateOptions: {
-            text: T.F.SYNC.FORM.SUPER_SYNC.L_CHANGE_ENCRYPTION_PASSWORD,
-            btnType: 'stroked',
-            required: false,
-            onClick: () => {
-              this._openChangePasswordDialog();
-            },
-          },
-        },
       ],
     } as typeof SYNC_FORM;
   }
@@ -495,13 +478,6 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
     this._matDialog.open(DialogRestorePointComponent, {
       width: '500px',
       maxWidth: '90vw',
-    });
-  }
-
-  private _openChangePasswordDialog(): void {
-    this._matDialog.open(DialogChangeEncryptionPasswordComponent, {
-      width: '400px',
-      disableClose: true,
     });
   }
 }
