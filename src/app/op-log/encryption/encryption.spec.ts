@@ -483,5 +483,29 @@ describe('Encryption', () => {
       stats = getSessionKeyCacheStats();
       expect(stats.decryptKeyCount).toBeGreaterThan(0);
     });
+
+    it('should handle large batches efficiently with parallel processing', async () => {
+      // Create a large batch to verify parallel processing works
+      const items = Array.from({ length: 50 }, (_, i) => `item-${i}`);
+
+      const encrypted = await encryptBatch(items, PASSWORD);
+      expect(encrypted.length).toBe(50);
+
+      // Decrypt and verify all items
+      const decrypted = await decryptBatch(encrypted, PASSWORD);
+      expect(decrypted.length).toBe(50);
+      expect(decrypted[0]).toBe('item-0');
+      expect(decrypted[49]).toBe('item-49');
+    });
+
+    it('should maintain order when processing in parallel', async () => {
+      // Verify that parallel processing maintains correct order
+      const items = ['first', 'second', 'third', 'fourth', 'fifth'];
+
+      const encrypted = await encryptBatch(items, PASSWORD);
+      const decrypted = await decryptBatch(encrypted, PASSWORD);
+
+      expect(decrypted).toEqual(items);
+    });
   });
 });
