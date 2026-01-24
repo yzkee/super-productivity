@@ -107,14 +107,17 @@ export class ScheduleComponent {
     const height = size.height;
 
     if (selectedView === 'month') {
-      const availableHeight = height - 160;
-      const minHeightPerWeek = width < 768 ? 60 : 100;
+      const availableHeight = height - SCHEDULE_CONSTANTS.MONTH_VIEW.HEADER_OFFSET;
+      const minHeightPerWeek =
+        width < SCHEDULE_CONSTANTS.BREAKPOINTS.TABLET
+          ? SCHEDULE_CONSTANTS.MONTH_VIEW.MIN_HEIGHT_PER_WEEK_MOBILE
+          : SCHEDULE_CONSTANTS.MONTH_VIEW.MIN_HEIGHT_PER_WEEK_DESKTOP;
       const maxWeeks = Math.floor(availableHeight / minHeightPerWeek);
 
-      if (maxWeeks < 3) {
-        return 3;
-      } else if (maxWeeks > 6) {
-        return 6;
+      if (maxWeeks < SCHEDULE_CONSTANTS.MONTH_VIEW.MIN_WEEKS) {
+        return SCHEDULE_CONSTANTS.MONTH_VIEW.MIN_WEEKS;
+      } else if (maxWeeks > SCHEDULE_CONSTANTS.MONTH_VIEW.MAX_WEEKS) {
+        return SCHEDULE_CONSTANTS.MONTH_VIEW.MAX_WEEKS;
       } else {
         return maxWeeks;
       }

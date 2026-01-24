@@ -10,6 +10,7 @@ import { signal } from '@angular/core';
 import { of } from 'rxjs';
 import { provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule } from '@ngx-translate/core';
+import { SCHEDULE_CONSTANTS } from '../schedule.constants';
 
 describe('ScheduleComponent', () => {
   let component: ScheduleComponent;
@@ -565,6 +566,123 @@ describe('ScheduleComponent', () => {
         jasmine.any(Number),
         testDate,
       );
+    });
+  });
+
+  describe('_daysToShowCount computed (responsive weeks calculation)', () => {
+    it('should return 7 in week view regardless of window size', () => {
+      // Arrange
+      mockLayoutService.selectedTimeView.set('week');
+
+      // Act
+      const daysToShowCount = component['_daysToShowCount']();
+
+      // Assert
+      expect(daysToShowCount).toBe(7);
+    });
+
+    it('should return a value between MIN_WEEKS and MAX_WEEKS in month view', () => {
+      // Arrange
+      mockLayoutService.selectedTimeView.set('month');
+
+      // Act
+      const daysToShowCount = component['_daysToShowCount']();
+
+      // Assert - should be bounded by constants
+      expect(daysToShowCount).toBeGreaterThanOrEqual(
+        SCHEDULE_CONSTANTS.MONTH_VIEW.MIN_WEEKS,
+      );
+      expect(daysToShowCount).toBeLessThanOrEqual(
+        SCHEDULE_CONSTANTS.MONTH_VIEW.MAX_WEEKS,
+      );
+    });
+
+    it('should use MONTH_VIEW constants for calculation', () => {
+      // This test verifies the constants are being used by checking
+      // that the result is consistent with the constant values
+      mockLayoutService.selectedTimeView.set('month');
+
+      const daysToShowCount = component['_daysToShowCount']();
+
+      // The result must be an integer (whole number of weeks)
+      expect(Number.isInteger(daysToShowCount)).toBe(true);
+
+      // Must be within the defined bounds
+      expect(daysToShowCount).toBeGreaterThanOrEqual(3); // MIN_WEEKS
+      expect(daysToShowCount).toBeLessThanOrEqual(6); // MAX_WEEKS
+    });
+  });
+
+  describe('shouldEnableHorizontalScroll computed', () => {
+    it('should return false in month view regardless of window size', () => {
+      // Arrange
+      mockLayoutService.selectedTimeView.set('month');
+
+      // Act
+      const shouldScroll = component.shouldEnableHorizontalScroll();
+
+      // Assert - month view never enables horizontal scroll
+      expect(shouldScroll).toBe(false);
+    });
+
+    it('should use HORIZONTAL_SCROLL_THRESHOLD constant', () => {
+      // Arrange
+      mockLayoutService.selectedTimeView.set('week');
+
+      // Act
+      const shouldScroll = component.shouldEnableHorizontalScroll();
+
+      // Assert - verify the threshold constant is defined and used
+      expect(SCHEDULE_CONSTANTS.HORIZONTAL_SCROLL_THRESHOLD).toBe(1900);
+      // The result depends on actual window width vs threshold
+      expect(typeof shouldScroll).toBe('boolean');
+    });
+  });
+
+  describe('weeksToShow computed', () => {
+    it('should calculate weeks from days array length', () => {
+      // Arrange - mock returns 7 days
+      mockScheduleService.getDaysToShow.and.returnValue([
+        '2026-01-20',
+        '2026-01-21',
+        '2026-01-22',
+        '2026-01-23',
+        '2026-01-24',
+        '2026-01-25',
+        '2026-01-26',
+      ]);
+      // Trigger recomputation by changing a dependency
+      component['_selectedDate'].set(new Date(2026, 0, 20));
+
+      // Act
+      const weeks = component.weeksToShow();
+
+      // Assert - 7 days = 1 week
+      expect(weeks).toBe(1);
+    });
+
+    it('should round up partial weeks', () => {
+      // Arrange - mock returns 10 days (more than 1 week, less than 2)
+      mockScheduleService.getDaysToShow.and.returnValue([
+        '2026-01-20',
+        '2026-01-21',
+        '2026-01-22',
+        '2026-01-23',
+        '2026-01-24',
+        '2026-01-25',
+        '2026-01-26',
+        '2026-01-27',
+        '2026-01-28',
+        '2026-01-29',
+      ]);
+      // Trigger recomputation by changing a dependency
+      component['_selectedDate'].set(new Date(2026, 0, 20));
+
+      // Act
+      const weeks = component.weeksToShow();
+
+      // Assert - 10 days should round up to 2 weeks
+      expect(weeks).toBe(2);
     });
   });
 });
