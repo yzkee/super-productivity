@@ -134,7 +134,8 @@ export class EncryptionPasswordChangeService {
 
         throw new Error(
           `Password change failed: ${uploadError instanceof Error ? uploadError.message : uploadError}. ` +
-            'Local password has been reverted. Please try again or check your network connection.',
+            'Local password has been reverted. IMPORTANT: Retry the password change before using normal sync ' +
+            'to avoid sync issues. If problems persist, you may need to re-import your data from backup.',
         );
       }
     });
