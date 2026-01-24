@@ -641,7 +641,7 @@ describe('ScheduleComponent', () => {
 
   describe('weeksToShow computed', () => {
     it('should calculate weeks from days array length', () => {
-      // Arrange - mock returns 3 days
+      // Arrange - mock returns 7 days
       mockScheduleService.getDaysToShow.and.returnValue([
         '2026-01-20',
         '2026-01-21',
@@ -651,6 +651,8 @@ describe('ScheduleComponent', () => {
         '2026-01-25',
         '2026-01-26',
       ]);
+      // Trigger recomputation by changing a dependency
+      component['_selectedDate'].set(new Date(2026, 0, 20));
 
       // Act
       const weeks = component.weeksToShow();
@@ -673,6 +675,8 @@ describe('ScheduleComponent', () => {
         '2026-01-28',
         '2026-01-29',
       ]);
+      // Trigger recomputation by changing a dependency
+      component['_selectedDate'].set(new Date(2026, 0, 20));
 
       // Act
       const weeks = component.weeksToShow();
