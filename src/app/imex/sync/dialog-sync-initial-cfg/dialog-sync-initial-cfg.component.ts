@@ -117,6 +117,13 @@ export class DialogSyncInitialCfgComponent {
       return;
     }
 
+    // Explicitly sync form values to _tmpUpdatedCfg in case modelChange didn't fire
+    // This is especially important on Android WebView where change detection can be unreliable
+    this._tmpUpdatedCfg = {
+      ...this._tmpUpdatedCfg,
+      ...this.form.value,
+    };
+
     await this.syncConfigService.updateSettingsFromForm(
       {
         ...this._tmpUpdatedCfg,
