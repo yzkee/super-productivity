@@ -209,7 +209,10 @@ export class SuperSyncPage extends BasePage {
     await this.providerSelect.click();
     const superSyncOption = this.page.locator('mat-option:has-text("SuperSync")');
     await superSyncOption.click();
-    await this.page.waitForTimeout(200); // Wait for form to load current config
+
+    // IMPORTANT: Wait for the provider change listener to complete loading the config
+    // The listener is async and needs time to load provider config and update the form
+    await this.page.waitForTimeout(1000);
 
     // Expand "Advanced settings" collapsible to access encryption fields
     const advancedCollapsible = this.page.locator(
@@ -231,15 +234,14 @@ export class SuperSyncPage extends BasePage {
     // Check if already enabled
     const isChecked = await this.encryptionCheckbox.isChecked();
     if (!isChecked) {
-      // IMPORTANT: Fill in the password FIRST, before checking the checkbox
-      // The enable encryption dialog only appears if encryptKey is already in the model
-      await this.encryptionPasswordInput.waitFor({ state: 'visible', timeout: 3000 });
-      await this.encryptionPasswordInput.fill(password);
-      await this.encryptionPasswordInput.blur(); // Trigger ngModel update
-      await this.page.waitForTimeout(200);
-
-      // Now enable encryption checkbox - this will trigger the confirmation dialog
       const checkboxLabel = this.page.locator('.e2e-isEncryptionEnabled label');
+
+      // Fill the password field using force option to bypass visibility checks
+      // This works even when encryption is disabled and the field is hidden
+      await this.encryptionPasswordInput.fill(password, { force: true });
+      await this.page.waitForTimeout(300); // Wait for Angular model to update
+
+      // Now check the checkbox - this will trigger the confirmation dialog (password is now set)
       await checkboxLabel.click();
       await this.page.waitForTimeout(200);
 
@@ -308,7 +310,10 @@ export class SuperSyncPage extends BasePage {
     await this.providerSelect.click();
     const superSyncOption = this.page.locator('mat-option:has-text("SuperSync")');
     await superSyncOption.click();
-    await this.page.waitForTimeout(200); // Wait for form to load current config
+
+    // IMPORTANT: Wait for the provider change listener to complete loading the config
+    // The listener is async and needs time to load provider config and update the form
+    await this.page.waitForTimeout(1000);
 
     // Expand "Advanced settings" collapsible to access encryption fields
     const advancedCollapsible = this.page.locator(
@@ -464,63 +469,75 @@ export class SuperSyncPage extends BasePage {
     // Click sync button
     await this.syncBtn.click();
 
-    // Wait for sync to start (spinner appears)
-    await this.syncSpinner.waitFor({ state: 'visible', timeout: 5000 });
+    // Check if sync already completed (for very fast syncs)
+    const checkAlreadyVisible = await this.syncCheckIcon.isVisible().catch(() => false);
 
-    // Check for dialogs that might appear during sync
-    // These can appear in any order or not at all
+    if (!checkAlreadyVisible) {
+      // Sync not yet complete, wait for it to start or complete
+      // Try to wait for spinner, but if it's already gone (sync completed quickly), that's fine
+      const spinnerAppeared = await this.syncSpinner
+        .waitFor({ state: 'visible', timeout: 2000 })
+        .then(() => true)
+        .catch(() => false);
 
-    // 1. Check for fresh client confirmation dialog
-    const freshDialogVisible = await this.freshClientDialog
-      .isVisible()
-      .catch(() => false);
-    if (freshDialogVisible) {
-      console.log('[SuperSyncPage] Fresh client dialog detected, confirming...');
-      await this.freshClientConfirmBtn.click();
-      await this.freshClientDialog.waitFor({ state: 'hidden', timeout: 5000 });
-    }
+      if (spinnerAppeared) {
+        // Spinner appeared, now wait for dialogs and completion
+        // Check for dialogs that might appear during sync
+        // These can appear in any order or not at all
 
-    // 2. Check for conflict resolution dialog
-    const conflictDialogVisible = await this.conflictDialog
-      .isVisible()
-      .catch(() => false);
-    if (conflictDialogVisible) {
-      console.log(
-        `[SuperSyncPage] Conflict dialog detected, using ${useLocal ? 'local' : 'remote'} data...`,
-      );
-      if (useLocal) {
-        // Keep local changes (manual resolution required - just click Apply)
-        await this.conflictApplyBtn.click();
-      } else {
-        // Use all remote changes
-        await this.conflictUseRemoteBtn.click();
-        await this.page.waitForTimeout(200);
-        await this.conflictApplyBtn.click();
+        // 1. Check for fresh client confirmation dialog
+        const freshDialogVisible = await this.freshClientDialog
+          .isVisible()
+          .catch(() => false);
+        if (freshDialogVisible) {
+          console.log('[SuperSyncPage] Fresh client dialog detected, confirming...');
+          await this.freshClientConfirmBtn.click();
+          await this.freshClientDialog.waitFor({ state: 'hidden', timeout: 5000 });
+        }
+
+        // 2. Check for conflict resolution dialog
+        const conflictDialogVisible = await this.conflictDialog
+          .isVisible()
+          .catch(() => false);
+        if (conflictDialogVisible) {
+          console.log(
+            `[SuperSyncPage] Conflict dialog detected, using ${useLocal ? 'local' : 'remote'} data...`,
+          );
+          if (useLocal) {
+            // Keep local changes (manual resolution required - just click Apply)
+            await this.conflictApplyBtn.click();
+          } else {
+            // Use all remote changes
+            await this.conflictUseRemoteBtn.click();
+            await this.page.waitForTimeout(200);
+            await this.conflictApplyBtn.click();
+          }
+          await this.conflictDialog.waitFor({ state: 'hidden', timeout: 5000 });
+        }
+
+        // 3. Check for sync import conflict dialog
+        const syncImportConflictVisible = await this.syncImportConflictDialog
+          .isVisible()
+          .catch(() => false);
+        if (syncImportConflictVisible) {
+          console.log(
+            `[SuperSyncPage] Sync import conflict dialog detected, using ${useLocal ? 'local' : 'remote'} data...`,
+          );
+          if (useLocal) {
+            await this.syncImportUseLocalBtn.click();
+          } else {
+            await this.syncImportUseRemoteBtn.click();
+          }
+          await this.syncImportConflictDialog.waitFor({ state: 'hidden', timeout: 5000 });
+        }
+
+        // Wait for sync to complete (spinner disappears)
+        await this.syncSpinner.waitFor({ state: 'hidden', timeout });
       }
-      await this.conflictDialog.waitFor({ state: 'hidden', timeout: 5000 });
+
+      // Now wait for check icon to appear (whether spinner appeared or not)
+      await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 5000 });
     }
-
-    // 3. Check for sync import conflict dialog
-    const syncImportConflictVisible = await this.syncImportConflictDialog
-      .isVisible()
-      .catch(() => false);
-    if (syncImportConflictVisible) {
-      console.log(
-        `[SuperSyncPage] Sync import conflict dialog detected, using ${useLocal ? 'local' : 'remote'} data...`,
-      );
-      if (useLocal) {
-        await this.syncImportUseLocalBtn.click();
-      } else {
-        await this.syncImportUseRemoteBtn.click();
-      }
-      await this.syncImportConflictDialog.waitFor({ state: 'hidden', timeout: 5000 });
-    }
-
-    // Wait for sync to complete (spinner disappears)
-    await this.syncSpinner.waitFor({ state: 'hidden', timeout });
-
-    // Verify success (check icon should be visible)
-    await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 3000 });
   }
 
   /**

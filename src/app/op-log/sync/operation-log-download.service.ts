@@ -83,7 +83,9 @@ export class OperationLogDownloadService {
     let snapshotState: unknown | undefined;
 
     // Get encryption key upfront (optional - file-based adapters handle encryption internally)
-    const encryptKey = syncProvider.getEncryptKey
+    // Note: Use 'let' instead of 'const' because we may need to re-fetch the key
+    // if gap detection occurs (e.g., after password change clean slate)
+    let encryptKey = syncProvider.getEncryptKey
       ? await syncProvider.getEncryptKey()
       : undefined;
 
@@ -161,6 +163,15 @@ export class OperationLogDownloadService {
           allOpClocks.length = 0; // Clear clocks too
           snapshotVectorClock = undefined; // Clear snapshot clock to capture fresh one after reset
           snapshotState = undefined; // Clear snapshot state to capture fresh one after reset
+
+          // CRITICAL: Re-fetch encryption key after gap detection.
+          // Gap usually means server was wiped (e.g., password change clean slate),
+          // so the encryption key may have changed. We must fetch the current key
+          // before attempting to decrypt the re-downloaded operations.
+          encryptKey = syncProvider.getEncryptKey
+            ? await syncProvider.getEncryptKey()
+            : undefined;
+
           // NOTE: Don't persist lastServerSeq=0 here - caller will persist the final value
           // after ops are stored in IndexedDB. This ensures localStorage and IndexedDB stay in sync.
           continue;

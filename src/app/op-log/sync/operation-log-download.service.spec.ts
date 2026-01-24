@@ -1130,6 +1130,90 @@ describe('OperationLogDownloadService', () => {
           // Download service no longer calls setLastServerSeq directly
           expect(mockApiProvider.setLastServerSeq).not.toHaveBeenCalled();
         });
+
+        it('should re-fetch encryption key after gap detection for password change scenario', async () => {
+          // This test prevents regression of the password change bug where:
+          // 1. Client B syncs with OLD password
+          // 2. Gap detected (Client A changed password and did clean slate)
+          // 3. Client B re-downloads ops encrypted with NEW password
+          // 4. Client B tries to decrypt with OLD password → FAILS
+          //
+          // The fix: Re-fetch encryption key after gap detection
+
+          const encryptedOp = {
+            serverSeq: 1,
+            receivedAt: Date.now(),
+            op: {
+              id: 'op-encrypted',
+              clientId: 'c1',
+              actionType: '[Task] Add' as ActionType,
+              opType: OpType.Create,
+              entityType: 'TASK',
+              payload: 'encrypted-payload-string',
+              isPayloadEncrypted: true,
+              vectorClock: {},
+              timestamp: Date.now(),
+              schemaVersion: 1,
+            },
+          };
+
+          let getEncryptKeyCallCount = 0;
+          mockApiProvider.getEncryptKey = jasmine
+            .createSpy('getEncryptKey')
+            .and.callFake(async () => {
+              getEncryptKeyCallCount++;
+              // First call returns old password, second call (after gap) returns new password
+              return getEncryptKeyCallCount === 1 ? 'old-password' : 'new-password';
+            });
+
+          mockApiProvider.getLastServerSeq.and.returnValue(Promise.resolve(10));
+          mockApiProvider.downloadOps.and.returnValues(
+            // First response: gap detected (server was reset)
+            Promise.resolve({
+              ops: [],
+              hasMore: false,
+              latestSeq: 1,
+              gapDetected: true,
+            }),
+            // Second response after gap reset: encrypted ops from server
+            Promise.resolve({
+              ops: [encryptedOp],
+              hasMore: false,
+              latestSeq: 1,
+              gapDetected: false,
+            }),
+          );
+
+          mockEncryptionService.decryptOperations.and.callFake(
+            async (ops, encryptKey) => {
+              // Verify the encryption key was re-fetched (should be 'new-password')
+              if (encryptKey !== 'new-password') {
+                throw new Error(
+                  `Expected new-password after gap detection, got ${encryptKey}`,
+                );
+              }
+              // Return decrypted ops
+              return ops.map((op) => ({ ...op, isPayloadEncrypted: false }));
+            },
+          );
+
+          const result = await service.downloadRemoteOps(mockApiProvider);
+
+          // Verify getEncryptKey was called twice:
+          // 1. Initially before download
+          // 2. After gap detection
+          expect(getEncryptKeyCallCount).toBe(2);
+
+          // Verify decryption succeeded with new password
+          expect(mockEncryptionService.decryptOperations).toHaveBeenCalledWith(
+            jasmine.any(Array),
+            'new-password', // Should use NEW password after gap
+          );
+
+          // Should have successfully downloaded the op
+          expect(result.newOps.length).toBe(1);
+          expect(result.newOps[0].id).toBe('op-encrypted');
+        });
       });
 
       describe('server migration detection for file-based providers', () => {
