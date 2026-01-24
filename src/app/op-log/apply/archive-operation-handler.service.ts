@@ -513,12 +513,15 @@ export class ArchiveOperationHandler {
       if (hasExistingYoung && isIncomingYoungEmpty) {
         const existingCount = originalArchiveYoung?.task?.ids?.length ?? 0;
         if (action.meta.opType === OpType.SyncImport) {
-          throw new Error(
-            '[ArchiveOperationHandler] SAFETY GUARD: Refusing to overwrite non-empty archiveYoung with empty archive. ' +
-              'This is a bug in SYNC_IMPORT creation (using sync instead of async snapshot). ' +
-              `Existing task count: ${existingCount}`,
+          // SYNC_IMPORT with empty archives is likely a bug (sync snapshot used sync instead of async)
+          // Preserve local archives - the next SYNC_IMPORT (after the fix) will have correct data
+          OpLog.warn(
+            `[ArchiveOperationHandler] SYNC_IMPORT has empty archiveYoung but local has ${existingCount} tasks. ` +
+              'Preserving local archives (this is likely a bug in the SYNC_IMPORT source).',
           );
+          // Skip writing empty archive - preserve local
         } else if (action.meta.opType === OpType.BackupImport) {
+          // BACKUP_IMPORT is an explicit user action - ask for confirmation
           const confirmed = window.confirm(
             `This backup has empty archives, but you have ${existingCount} archived tasks locally. ` +
               'Restoring will delete your archived data. Continue?',
@@ -528,22 +531,31 @@ export class ArchiveOperationHandler {
               '[ArchiveOperationHandler] User cancelled backup import to preserve archives',
             );
           }
+          await this._archiveDbAdapter.saveArchiveYoung(archiveYoung);
+        } else {
+          await this._archiveDbAdapter.saveArchiveYoung(archiveYoung);
         }
+      } else {
+        await this._archiveDbAdapter.saveArchiveYoung(archiveYoung);
       }
-      await this._archiveDbAdapter.saveArchiveYoung(archiveYoung);
     }
 
     // Write archiveOld if present in the import data
     if (archiveOld !== undefined) {
+      let shouldWriteArchiveOld = true;
+
       if (hasExistingOld && isIncomingOldEmpty) {
         const existingCount = originalArchiveOld?.task?.ids?.length ?? 0;
         if (action.meta.opType === OpType.SyncImport) {
-          throw new Error(
-            '[ArchiveOperationHandler] SAFETY GUARD: Refusing to overwrite non-empty archiveOld with empty archive. ' +
-              'This is a bug in SYNC_IMPORT creation (using sync instead of async snapshot). ' +
-              `Existing task count: ${existingCount}`,
+          // SYNC_IMPORT with empty archives is likely a bug (sync snapshot used sync instead of async)
+          // Preserve local archives - the next SYNC_IMPORT (after the fix) will have correct data
+          OpLog.warn(
+            `[ArchiveOperationHandler] SYNC_IMPORT has empty archiveOld but local has ${existingCount} tasks. ` +
+              'Preserving local archives (this is likely a bug in the SYNC_IMPORT source).',
           );
+          shouldWriteArchiveOld = false;
         } else if (action.meta.opType === OpType.BackupImport) {
+          // BACKUP_IMPORT is an explicit user action - ask for confirmation
           const confirmed = window.confirm(
             `This backup has empty old archives, but you have ${existingCount} old archived tasks locally. ` +
               'Restoring will delete your old archived data. Continue?',
@@ -555,6 +567,8 @@ export class ArchiveOperationHandler {
           }
         }
       }
+
+      if (shouldWriteArchiveOld) {
       try {
         await this._archiveDbAdapter.saveArchiveOld(archiveOld);
       } catch (e) {
