@@ -133,8 +133,13 @@ export class SuperSyncProvider
     ops: SyncOperation[],
     clientId: string,
     lastKnownServerSeq?: number,
+    isCleanSlate?: boolean,
   ): Promise<OpUploadResponse> {
-    SyncLog.debug(this.logLabel, 'uploadOps', { opsCount: ops.length, clientId });
+    SyncLog.debug(this.logLabel, 'uploadOps', {
+      opsCount: ops.length,
+      clientId,
+      isCleanSlate,
+    });
     const cfg = await this._cfgOrError();
 
     // Compress the payload to reduce upload size
@@ -142,6 +147,7 @@ export class SuperSyncProvider
       ops,
       clientId,
       lastKnownServerSeq,
+      isCleanSlate,
     });
 
     // On Android, use CapacitorHttp with base64-encoded gzip

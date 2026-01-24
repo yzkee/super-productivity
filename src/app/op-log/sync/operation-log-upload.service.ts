@@ -208,7 +208,12 @@ export class OperationLogUploadService {
 
         let response;
         try {
-          response = await syncProvider.uploadOps(chunk, clientId, lastKnownServerSeq);
+          response = await syncProvider.uploadOps(
+            chunk,
+            clientId,
+            lastKnownServerSeq,
+            options?.isCleanSlate,
+          );
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Unknown error';
           OpLog.error(`OperationLogUploadService: Upload failed: ${message}`);

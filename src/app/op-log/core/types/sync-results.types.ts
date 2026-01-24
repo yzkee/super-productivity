@@ -82,6 +82,12 @@ export interface UploadOptions {
    * Use this for operations that must be atomic with the upload, such as server migration checks.
    */
   preUploadCallback?: () => Promise<void>;
+
+  /**
+   * If true, instructs server to delete all existing user data before accepting uploaded operations.
+   * Used for clean slate operations like encryption password changes or full imports.
+   */
+  isCleanSlate?: boolean;
 }
 
 /**
