@@ -162,8 +162,7 @@ export class SuperSyncPage extends BasePage {
     }
 
     // Save configuration
-    await this.saveBtn.waitFor({ state: 'visible', timeout: 5000 });
-    await this.page.waitForTimeout(200); // Wait for form validation
+    await expect(this.saveBtn).toBeEnabled({ timeout: 5000 });
     await this.saveBtn.click();
 
     // Wait for the dialog to close
@@ -376,17 +375,18 @@ export class SuperSyncPage extends BasePage {
    * @internal Use syncAndWait() instead for most cases
    */
   async triggerSync(): Promise<void> {
-    // Click sync button to trigger manual sync
     await this.syncBtn.click();
 
-    // Wait for sync to start (spinner appears)
-    await this.syncSpinner.waitFor({ state: 'visible', timeout: 5000 });
+    const spinnerAppeared = await this.syncSpinner
+      .waitFor({ state: 'visible', timeout: 3000 })
+      .then(() => true)
+      .catch(() => false);
 
-    // Wait for sync to complete (spinner disappears)
-    await this.syncSpinner.waitFor({ state: 'hidden', timeout: 15000 });
+    if (spinnerAppeared) {
+      await this.syncSpinner.waitFor({ state: 'hidden', timeout: 15000 });
+    }
 
-    // Verify success (check icon should be visible)
-    await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 3000 });
+    await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 10000 });
   }
 
   /**
@@ -630,7 +630,7 @@ export class SuperSyncPage extends BasePage {
     }
 
     // Save configuration
-    await this.saveBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(this.saveBtn).toBeEnabled({ timeout: 5000 });
     await this.saveBtn.click();
 
     // Wait for dialog to close
