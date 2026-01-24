@@ -77,7 +77,7 @@ export const getSessionKeyCacheStats = (): {
   decryptKeyCount: sessionDecryptKeyCache.size,
 });
 
-const base642ab = (base64: string): ArrayBuffer => {
+export const base642ab = (base64: string): ArrayBuffer => {
   const binary_string = window.atob(base64);
   const len = binary_string.length;
   const bytes = new Uint8Array(len);
@@ -87,7 +87,7 @@ const base642ab = (base64: string): ArrayBuffer => {
   return bytes.buffer;
 };
 
-const ab2base64 = (buffer: ArrayBuffer): string => {
+export const ab2base64 = (buffer: ArrayBuffer): string => {
   const binary = Array.prototype.map
     .call(new Uint8Array(buffer), (byte: number) => String.fromCharCode(byte))
     .join('');

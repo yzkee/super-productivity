@@ -272,9 +272,22 @@ export class SyncConfigService {
       encryptKey: (nonEmptyFormValues?.encryptKey as string) || settings.encryptKey || '',
     };
 
+    // Check if encryption settings changed to clear cached keys
+    const oldEncryptKey = (oldConfig as { encryptKey?: string })?.encryptKey;
+    const newEncryptKey = configWithDefaults.encryptKey as string;
+    const isEncryptionChanged = oldEncryptKey !== newEncryptKey;
+
     await this._providerManager.setProviderConfig(
       providerId,
       configWithDefaults as PrivateCfgByProviderId<SyncProviderId>,
     );
+
+    // Clear cache on ANY encryption change (not just disable)
+    if (isEncryptionChanged && (oldEncryptKey || newEncryptKey)) {
+      SyncLog.normal(
+        'SyncConfigService: Encryption settings changed, clearing cached keys',
+      );
+      this._derivedKeyCache.clearCache();
+    }
   }
 }

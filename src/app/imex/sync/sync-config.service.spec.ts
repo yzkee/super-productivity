@@ -967,4 +967,183 @@ describe('SyncConfigService', () => {
       );
     });
   });
+
+  describe('Cache Clearing on Encryption Changes', () => {
+    it('should clear cache when encryption is disabled', async () => {
+      // Mock existing provider config with encryption
+      const mockProvider = {
+        id: SyncProviderId.WebDAV,
+        privateCfg: {
+          load: jasmine.createSpy('load').and.returnValue(
+            Promise.resolve({
+              baseUrl: 'https://example.com/dav',
+              userName: 'user',
+              password: 'pass',
+              syncFolderPath: '/sync',
+              encryptKey: 'oldPassword', // Has encryption
+            }),
+          ),
+        },
+      };
+      (providerManager.getProviderById as jasmine.Spy).and.returnValue(mockProvider);
+
+      // Spy on cache clear
+      const clearCacheSpy = spyOn(service['_derivedKeyCache'], 'clearCache');
+
+      // Update settings to disable encryption
+      await service.updateSettingsFromForm({
+        syncProvider: SyncProviderId.WebDAV as any,
+        encryptKey: '', // No encryption key
+        webDav: {
+          baseUrl: 'https://example.com/dav',
+          userName: 'user',
+          password: 'pass',
+          syncFolderPath: '/sync',
+        },
+      } as SyncConfig);
+
+      // Verify cache was cleared
+      expect(clearCacheSpy).toHaveBeenCalled();
+    });
+
+    it('should clear cache when encryption password changes', async () => {
+      // Mock existing provider config with old password
+      const mockProvider = {
+        id: SyncProviderId.WebDAV,
+        privateCfg: {
+          load: jasmine.createSpy('load').and.returnValue(
+            Promise.resolve({
+              baseUrl: 'https://example.com/dav',
+              userName: 'user',
+              password: 'pass',
+              syncFolderPath: '/sync',
+              encryptKey: 'oldPassword',
+            }),
+          ),
+        },
+      };
+      (providerManager.getProviderById as jasmine.Spy).and.returnValue(mockProvider);
+
+      // Spy on cache clear
+      const clearCacheSpy = spyOn(service['_derivedKeyCache'], 'clearCache');
+
+      // Update settings with new encryption password
+      await service.updateSettingsFromForm({
+        syncProvider: SyncProviderId.WebDAV as any,
+        encryptKey: 'newPassword', // Different password
+        webDav: {
+          baseUrl: 'https://example.com/dav',
+          userName: 'user',
+          password: 'pass',
+          syncFolderPath: '/sync',
+        },
+      } as SyncConfig);
+
+      // Verify cache was cleared
+      expect(clearCacheSpy).toHaveBeenCalled();
+    });
+
+    it('should clear cache when encryption is enabled', async () => {
+      // Mock existing provider config without encryption
+      const mockProvider = {
+        id: SyncProviderId.WebDAV,
+        privateCfg: {
+          load: jasmine.createSpy('load').and.returnValue(
+            Promise.resolve({
+              baseUrl: 'https://example.com/dav',
+              userName: 'user',
+              password: 'pass',
+              syncFolderPath: '/sync',
+              encryptKey: '', // No encryption initially
+            }),
+          ),
+        },
+      };
+      (providerManager.getProviderById as jasmine.Spy).and.returnValue(mockProvider);
+
+      // Spy on cache clear
+      const clearCacheSpy = spyOn(service['_derivedKeyCache'], 'clearCache');
+
+      // Update settings to enable encryption
+      await service.updateSettingsFromForm({
+        syncProvider: SyncProviderId.WebDAV as any,
+        encryptKey: 'newPassword', // Enable encryption
+        webDav: {
+          baseUrl: 'https://example.com/dav',
+          userName: 'user',
+          password: 'pass',
+          syncFolderPath: '/sync',
+        },
+      } as SyncConfig);
+
+      // Verify cache was cleared
+      expect(clearCacheSpy).toHaveBeenCalled();
+    });
+
+    it('should NOT clear cache when encryption key unchanged', async () => {
+      // Mock existing provider config with encryption
+      const mockProvider = {
+        id: SyncProviderId.WebDAV,
+        privateCfg: {
+          load: jasmine.createSpy('load').and.returnValue(
+            Promise.resolve({
+              baseUrl: 'https://example.com/dav',
+              userName: 'user',
+              password: 'pass',
+              syncFolderPath: '/sync',
+              encryptKey: 'samePassword',
+            }),
+          ),
+        },
+      };
+      (providerManager.getProviderById as jasmine.Spy).and.returnValue(mockProvider);
+
+      // Spy on cache clear
+      const clearCacheSpy = spyOn(service['_derivedKeyCache'], 'clearCache');
+
+      // Update settings with same encryption password
+      await service.updateSettingsFromForm({
+        syncProvider: SyncProviderId.WebDAV as any,
+        encryptKey: 'samePassword', // Same password
+        webDav: {
+          baseUrl: 'https://example.com/dav',
+          userName: 'user',
+          password: 'pass',
+          syncFolderPath: '/sync',
+        },
+      } as SyncConfig);
+
+      // Verify cache was NOT cleared
+      expect(clearCacheSpy).not.toHaveBeenCalled();
+    });
+
+    it('should clear cache via updateEncryptionPassword method', async () => {
+      // Mock existing provider config
+      const mockProvider = {
+        id: SyncProviderId.WebDAV,
+        privateCfg: {
+          load: jasmine.createSpy('load').and.returnValue(
+            Promise.resolve({
+              baseUrl: 'https://example.com/dav',
+              userName: 'user',
+              password: 'pass',
+              syncFolderPath: '/sync',
+              encryptKey: 'oldPassword',
+            }),
+          ),
+        },
+      };
+      (providerManager.getProviderById as jasmine.Spy).and.returnValue(mockProvider);
+      (providerManager.getActiveProvider as jasmine.Spy).and.returnValue(mockProvider);
+
+      // Spy on cache clear
+      const clearCacheSpy = spyOn(service['_derivedKeyCache'], 'clearCache');
+
+      // Update password via dedicated method
+      await service.updateEncryptionPassword('newPassword', SyncProviderId.WebDAV);
+
+      // Verify cache was cleared
+      expect(clearCacheSpy).toHaveBeenCalled();
+    });
+  });
 });
