@@ -304,12 +304,22 @@ export class SyncConfigService {
       nonEmptyFormValues: JSON.parse(JSON.stringify(nonEmptyFormValues)),
     });
 
+    // The provider's saved config is the source of truth after EncryptionDisableService runs
+    // oldConfig is loaded from activeProvider.privateCfg.load()
+    // When encryption is explicitly disabled, we must clear encryptKey regardless of form state
+    const isEncryptionDisabledInSavedConfig =
+      providerId === SyncProviderId.SuperSync &&
+      (oldConfig as { isEncryptionEnabled?: boolean })?.isEncryptionEnabled === false;
+
     const configWithDefaults = {
       ...PROVIDER_FIELD_DEFAULTS[providerId],
       ...oldConfig,
       ...nonEmptyFormValues, // Only non-empty values overwrite saved config
-      // Use provider specific key if available, otherwise fallback to root key
-      encryptKey: (nonEmptyFormValues?.encryptKey as string) || settings.encryptKey || '',
+      // Clear encryptKey when encryption is disabled (saved config is source of truth)
+      // Otherwise use provider specific key if available, then fallback to root key
+      encryptKey: isEncryptionDisabledInSavedConfig
+        ? ''
+        : (nonEmptyFormValues?.encryptKey as string) || settings.encryptKey || '',
     };
 
     console.log('[SYNC_DEBUG] _updatePrivateConfig configWithDefaults', {

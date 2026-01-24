@@ -266,6 +266,10 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
                           }
                           // User confirmed and encryption was disabled successfully
                           previousValue = newValue;
+                          // Clear encryptKey from form model to prevent stale data being saved
+                          if (field?.model) {
+                            field.model.encryptKey = '';
+                          }
                         } finally {
                           isDialogOpen = false;
                         }
