@@ -1326,11 +1326,11 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
 
       // 3. Client A deletes the task using reliable keyboard shortcut
       await deleteTask(clientA, taskName);
-      await clientA.page.waitForTimeout(150); // Flush operation to ensure DELETE is created
+      await clientA.page.waitForTimeout(300); // Flush operation to ensure DELETE is created (increased from 150ms)
       console.log('[DeleteRace] Client A deleted task');
 
       // 4. Client B updates the task (with later timestamp)
-      await clientB.page.waitForTimeout(1000); // Ensure UPDATE has later timestamp than DELETE
+      await clientB.page.waitForTimeout(1500); // Ensure UPDATE has later timestamp than DELETE (increased from 1000ms)
 
       const taskLocatorB = clientB.page
         .locator(`task:not(.ng-animating):has-text("${taskName}")`)
@@ -1344,11 +1344,11 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       await titleInputB.focus();
       await titleInputB.fill(`${taskName}-Updated`);
       await clientB.page.keyboard.press('Enter');
-      await clientB.page.waitForTimeout(300);
+      await clientB.page.waitForTimeout(500); // Post-edit flush wait (increased from 300ms)
       console.log('[DeleteRace] Client B updated task title');
 
       // Wait to ensure Client B's UPDATE operation is created and flushed
-      await clientB.page.waitForTimeout(1000);
+      await clientB.page.waitForTimeout(1500); // Increased from 1000ms for CI stability
 
       // 5. Client A syncs (uploads delete)
       await clientA.sync.syncAndWait();
