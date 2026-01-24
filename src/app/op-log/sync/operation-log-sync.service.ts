@@ -4,7 +4,11 @@ import { TranslateService } from '@ngx-translate/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { OpType, VectorClock, FULL_STATE_OP_TYPES } from '../core/operation.types';
 import { OpLog } from '../../core/log';
-import { OperationSyncCapable } from '../sync-providers/provider.interface';
+import {
+  OperationSyncCapable,
+  SyncProviderServiceInterface,
+} from '../sync-providers/provider.interface';
+import { SyncProviderId } from '../sync-providers/provider.const';
 import { OperationLogUploadService, UploadResult } from './operation-log-upload.service';
 import { OperationLogDownloadService } from './operation-log-download.service';
 import { SnackService } from '../../core/snack/snack.service';
@@ -211,6 +215,12 @@ export class OperationLogSyncService {
     // Update pending ops status for UI indicator
     const pendingOps = await this.opLogStore.getUnsynced();
     this.superSyncStatusService.updatePendingOpsStatus(pendingOps.length > 0);
+
+    // Check for encryption state mismatch in piggybacked ops (another client disabled encryption)
+    await this.handleEncryptionStateMismatch(
+      syncProvider,
+      result.piggybackHasOnlyUnencryptedData,
+    );
 
     return { ...result, localWinOpsCreated };
   }
@@ -502,6 +512,12 @@ export class OperationLogSyncService {
     const pendingOps = await this.opLogStore.getUnsynced();
     this.superSyncStatusService.updatePendingOpsStatus(pendingOps.length > 0);
 
+    // Check for encryption state mismatch (another client disabled encryption)
+    await this.handleEncryptionStateMismatch(
+      syncProvider,
+      result.serverHasOnlyUnencryptedData,
+    );
+
     return {
       serverMigrationHandled: false,
       localWinOpsCreated: processResult.localWinOpsCreated,
@@ -666,6 +682,93 @@ export class OperationLogSyncService {
 
     OpLog.normal(
       `OperationLogSyncService: Force download complete. Processed ${result.newOps.length} ops.`,
+    );
+  }
+
+  /**
+   * Checks if there's an encryption state mismatch between local config and server data.
+   * If the server has only unencrypted data but local config has encryption enabled,
+   * this means another client disabled encryption. Updates local config to match.
+   *
+   * @param syncProvider - The sync provider to check and update
+   * @param serverHasOnlyUnencryptedData - Whether all downloaded/piggybacked ops were unencrypted
+   */
+  async handleEncryptionStateMismatch(
+    syncProvider: OperationSyncCapable,
+    serverHasOnlyUnencryptedData: boolean | undefined,
+  ): Promise<void> {
+    // No detection possible if we didn't download any ops
+    if (!serverHasOnlyUnencryptedData) {
+      return;
+    }
+
+    // Check if local config has encryption enabled
+    const localEncryptKey = syncProvider.getEncryptKey
+      ? await syncProvider.getEncryptKey()
+      : undefined;
+
+    // No mismatch if local config also has no encryption
+    if (!localEncryptKey) {
+      return;
+    }
+
+    // Mismatch detected: server has only unencrypted data but local has encryption enabled
+    OpLog.warn(
+      'OperationLogSyncService: Encryption state mismatch detected. ' +
+        'Server has only unencrypted data but local config has encryption enabled. ' +
+        'Another client must have disabled encryption. Updating local config to match.',
+    );
+
+    // Check if provider supports config updates using type guard
+    if (!this._isSyncProviderWithConfig(syncProvider)) {
+      OpLog.warn(
+        'OperationLogSyncService: Cannot update encryption config - ' +
+          'provider does not support privateCfg or setPrivateCfg.',
+      );
+      return;
+    }
+
+    // Load existing config
+    const existingCfg = await syncProvider.privateCfg.load();
+    if (!existingCfg) {
+      OpLog.warn(
+        'OperationLogSyncService: Cannot update encryption config - ' +
+          'failed to load existing config.',
+      );
+      return;
+    }
+
+    // Update config to disable encryption
+    await syncProvider.setPrivateCfg({
+      ...existingCfg,
+      encryptKey: undefined,
+      isEncryptionEnabled: false,
+    });
+
+    OpLog.normal(
+      'OperationLogSyncService: Local encryption config updated to match server state.',
+    );
+
+    // Notify user
+    this.snackService.open({
+      type: 'SUCCESS',
+      msg: T.F.SYNC.S.ENCRYPTION_DISABLED_ON_OTHER_DEVICE,
+    });
+  }
+
+  /**
+   * Type guard to check if a sync provider supports config updates.
+   * Returns true if the provider has both privateCfg.load() and setPrivateCfg().
+   */
+  private _isSyncProviderWithConfig(
+    provider: OperationSyncCapable,
+  ): provider is OperationSyncCapable & SyncProviderServiceInterface<SyncProviderId> {
+    const providerWithCfg = provider as Partial<
+      SyncProviderServiceInterface<SyncProviderId>
+    >;
+    return (
+      typeof providerWithCfg.privateCfg?.load === 'function' &&
+      typeof providerWithCfg.setPrivateCfg === 'function'
     );
   }
 }

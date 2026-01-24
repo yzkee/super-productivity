@@ -73,6 +73,11 @@ export class OperationLogUploadService {
     let uploadedCount = 0;
     let rejectedCount = 0;
     let hasMorePiggyback = false;
+    // Track encryption state of piggybacked operations for detecting encryption config mismatch.
+    // When another client disables encryption, all piggybacked ops will be unencrypted.
+    // We track this BEFORE decryption to detect the server's actual encryption state.
+    let sawAnyPiggybackOps = false;
+    let sawEncryptedPiggybackOp = false;
 
     await this.lockService.request(LOCK_NAMES.UPLOAD, async () => {
       // Execute pre-upload callback INSIDE the lock, BEFORE checking for pending ops.
@@ -244,8 +249,15 @@ export class OperationLogUploadService {
           );
           let piggybackSyncOps = response.newOps.map((serverOp) => serverOp.op);
 
-          // Decrypt piggybacked ops if any are encrypted
+          // Track encryption state BEFORE decryption to detect server's actual state.
+          // This is critical for detecting when another client disables encryption.
+          sawAnyPiggybackOps = true;
           const hasEncryptedOps = piggybackSyncOps.some((op) => op.isPayloadEncrypted);
+          if (hasEncryptedOps) {
+            sawEncryptedPiggybackOp = true;
+          }
+
+          // Decrypt piggybacked ops if any are encrypted
           if (hasEncryptedOps) {
             if (!encryptKey) {
               // Match download service behavior: throw error to trigger password dialog
@@ -326,12 +338,19 @@ export class OperationLogUploadService {
     // Note: We no longer show the rejection warning here since rejections
     // may be resolved via conflict dialog. The sync service handles this.
 
+    // Determine if piggybacked ops have only unencrypted data.
+    // This is true when we received piggybacked ops AND none of them were encrypted.
+    // This indicates another client disabled encryption.
+    const piggybackHasOnlyUnencryptedData =
+      sawAnyPiggybackOps && !sawEncryptedPiggybackOp;
+
     return {
       uploadedCount,
       piggybackedOps,
       rejectedCount,
       rejectedOps,
       ...(hasMorePiggyback ? { hasMorePiggyback: true } : {}),
+      ...(piggybackHasOnlyUnencryptedData ? { piggybackHasOnlyUnencryptedData } : {}),
     };
   }
 

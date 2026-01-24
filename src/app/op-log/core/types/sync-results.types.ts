@@ -49,6 +49,16 @@ export interface DownloadResult {
    * Contains the complete application state for bootstrapping a new client.
    */
   snapshotState?: unknown;
+  /**
+   * True when operations were downloaded AND ALL of them have isPayloadEncrypted: false.
+   * This indicates another client disabled encryption. The receiving client should
+   * update its local config to match (isEncryptionEnabled: false, encryptKey: undefined).
+   *
+   * False/undefined when:
+   * - No operations were downloaded (cannot determine encryption state)
+   * - Any operation has isPayloadEncrypted: true (server still has encrypted data)
+   */
+  serverHasOnlyUnencryptedData?: boolean;
 }
 
 /**
@@ -71,6 +81,16 @@ export interface UploadResult {
    * Caller should trigger a download to get the remaining operations.
    */
   hasMorePiggyback?: boolean;
+  /**
+   * True when piggybacked operations were received AND ALL of them have isPayloadEncrypted: false.
+   * This indicates another client disabled encryption. The receiving client should
+   * update its local config to match (isEncryptionEnabled: false, encryptKey: undefined).
+   *
+   * False/undefined when:
+   * - No piggybacked operations were received (cannot determine encryption state)
+   * - Any piggybacked operation has isPayloadEncrypted: true (server still has encrypted data)
+   */
+  piggybackHasOnlyUnencryptedData?: boolean;
 }
 
 /**

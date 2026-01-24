@@ -81,6 +81,11 @@ export class OperationLogDownloadService {
     let finalLatestSeq = 0;
     let snapshotVectorClock: import('../core/operation.types').VectorClock | undefined;
     let snapshotState: unknown | undefined;
+    // Track encryption state of downloaded operations for detecting encryption config mismatch.
+    // When another client disables encryption, all downloaded ops will be unencrypted.
+    // We track this BEFORE decryption to detect the server's actual encryption state.
+    let sawAnyOps = false;
+    let sawEncryptedOp = false;
 
     // Get encryption key upfront (optional - file-based adapters handle encryption internally)
     // Note: Use 'let' instead of 'const' because we may need to re-fetch the key
@@ -163,6 +168,8 @@ export class OperationLogDownloadService {
           allOpClocks.length = 0; // Clear clocks too
           snapshotVectorClock = undefined; // Clear snapshot clock to capture fresh one after reset
           snapshotState = undefined; // Clear snapshot state to capture fresh one after reset
+          sawAnyOps = false; // Reset encryption tracking
+          sawEncryptedOp = false;
 
           // CRITICAL: Re-fetch encryption key after gap detection.
           // Gap usually means server was wiped (e.g., password change clean slate),
@@ -196,6 +203,16 @@ export class OperationLogDownloadService {
             if (serverOp.op.vectorClock) {
               allOpClocks.push(serverOp.op.vectorClock);
             }
+          }
+        }
+
+        // Track encryption state from ALL server ops BEFORE filtering.
+        // This detects server encryption state even when ops were already applied.
+        // Critical for detecting when another client disables encryption.
+        if (response.ops.length > 0) {
+          sawAnyOps = true;
+          if (response.ops.some((serverOp) => serverOp.op.isPayloadEncrypted)) {
+            sawEncryptedOp = true;
           }
         }
 
@@ -346,6 +363,11 @@ export class OperationLogDownloadService {
         `hasSnapshotState=${!!snapshotState}`,
     );
 
+    // Determine if server has only unencrypted data.
+    // This is true when we downloaded ops AND none of them were encrypted.
+    // This indicates another client disabled encryption.
+    const serverHasOnlyUnencryptedData = sawAnyOps && !sawEncryptedOp;
+
     // Return latestServerSeq so caller can persist it AFTER storing ops in IndexedDB.
     // This ensures localStorage (lastServerSeq) and IndexedDB (ops) stay in sync.
     return {
@@ -360,6 +382,8 @@ export class OperationLogDownloadService {
       ...(snapshotVectorClock ? { snapshotVectorClock } : {}),
       // Include snapshot state for file-based sync fresh downloads
       ...(snapshotState ? { snapshotState } : {}),
+      // Include encryption state detection for mismatch handling
+      ...(serverHasOnlyUnencryptedData ? { serverHasOnlyUnencryptedData } : {}),
     };
   }
 
