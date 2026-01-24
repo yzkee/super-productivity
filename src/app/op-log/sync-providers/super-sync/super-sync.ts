@@ -216,7 +216,7 @@ export class SuperSyncProvider
     isPayloadEncrypted: boolean | undefined,
     opId: string,
   ): Promise<SnapshotUploadResponse> {
-    SyncLog.debug(this.logLabel, 'uploadSnapshot', {
+    SyncLog.normal(this.logLabel, 'uploadSnapshot: Starting...', {
       clientId,
       reason,
       schemaVersion,
@@ -276,6 +276,12 @@ export class SuperSyncProvider
       compressedPayload,
     );
 
+    SyncLog.normal(this.logLabel, 'uploadSnapshot: Complete', {
+      accepted: response.accepted,
+      serverSeq: response.serverSeq,
+      error: response.error,
+    });
+
     return response;
   }
 
@@ -310,16 +316,20 @@ export class SuperSyncProvider
   // === Data Management ===
 
   async deleteAllData(): Promise<{ success: boolean }> {
-    SyncLog.debug(this.logLabel, 'deleteAllData');
+    SyncLog.normal(this.logLabel, 'deleteAllData: Starting DELETE request...');
     const cfg = await this._cfgOrError();
 
+    SyncLog.normal(this.logLabel, 'deleteAllData: Calling DELETE /api/sync/data');
     const response = await this._fetchApi<{ success: boolean }>(cfg, '/api/sync/data', {
       method: 'DELETE',
     });
 
+    SyncLog.normal(this.logLabel, 'deleteAllData: Server response:', response);
+
     // Reset local lastServerSeq since all server data is deleted
     const key = await this._getServerSeqKey();
     localStorage.removeItem(key);
+    SyncLog.normal(this.logLabel, 'deleteAllData: Cleared local lastServerSeq');
 
     return response;
   }
