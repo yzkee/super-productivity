@@ -48,6 +48,7 @@ import { DataInitService } from '../../core/data-init/data-init.service';
 import { DialogSyncInitialCfgComponent } from './dialog-sync-initial-cfg/dialog-sync-initial-cfg.component';
 import { DialogIncompleteSyncComponent } from './dialog-incomplete-sync/dialog-incomplete-sync.component';
 import { DialogHandleDecryptErrorComponent } from './dialog-handle-decrypt-error/dialog-handle-decrypt-error.component';
+import { DialogEnterEncryptionPasswordComponent } from './dialog-enter-encryption-password/dialog-enter-encryption-password.component';
 import { DialogIncoherentTimestampsErrorComponent } from './dialog-incoherent-timestamps-error/dialog-incoherent-timestamps-error.component';
 import { SyncLog } from '../../core/log';
 import { promiseTimeout } from '../../util/promise-timeout';
@@ -315,10 +316,10 @@ export class SyncWrapperService {
           actionStr: T.F.SYNC.S.BTN_FORCE_OVERWRITE,
         });
         return 'HANDLED_ERROR';
-      } else if (
-        error instanceof DecryptNoPasswordError ||
-        error instanceof DecryptError
-      ) {
+      } else if (error instanceof DecryptNoPasswordError) {
+        this._handleMissingPasswordDialog();
+        return 'HANDLED_ERROR';
+      } else if (error instanceof DecryptError) {
         this._handleDecryptionError();
         return 'HANDLED_ERROR';
       } else if (error instanceof CanNotMigrateMajorDownError) {
@@ -528,6 +529,33 @@ export class SyncWrapperService {
       return error.additionalLog;
     }
     return undefined;
+  }
+
+  /**
+   * Handles missing encryption password when receiving encrypted data.
+   * Opens a simple dialog to prompt for the password, then re-syncs.
+   */
+  private _handleMissingPasswordDialog(): void {
+    // Set ERROR status so sync button shows error icon
+    this._providerManager.setSyncStatus('ERROR');
+
+    // Open dialog for password entry
+    this._matDialog
+      .open(DialogEnterEncryptionPasswordComponent, {
+        width: '450px',
+        disableClose: true,
+        autoFocus: false,
+      })
+      .afterClosed()
+      .subscribe((result) => {
+        if (result?.password) {
+          // Password was entered and saved, re-sync
+          this.sync();
+        } else {
+          // User cancelled - set status to unknown
+          this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
+        }
+      });
   }
 
   private _handleDecryptionError(): void {

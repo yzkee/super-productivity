@@ -7,7 +7,10 @@ import { IS_ELECTRON } from '../../../app.constants';
 import { fileSyncDroid, fileSyncElectron } from '../../../op-log/model/model-config';
 import { FormlyFieldConfig } from '@ngx-formly/core';
 import { IS_NATIVE_PLATFORM } from '../../../util/is-native-platform';
-import { openDisableEncryptionDialog } from '../../../imex/sync/encryption-password-dialog-opener.service';
+import {
+  openDisableEncryptionDialog,
+  openEnableEncryptionDialog,
+} from '../../../imex/sync/encryption-password-dialog-opener.service';
 
 /**
  * Creates form fields for WebDAV-based sync providers.
@@ -240,14 +243,14 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
               },
               hooks: {
                 onInit: (field: FormlyFieldConfig) => {
-                  // Track previous value to detect changes from true to false
+                  // Track previous value to detect changes
                   let previousValue = field?.formControl?.value;
                   // Guard to prevent multiple dialogs opening simultaneously
                   let isDialogOpen = false;
 
                   const subscription = field?.formControl?.valueChanges.subscribe(
                     async (newValue) => {
-                      // Only intercept when changing from true (enabled) to false (disabled)
+                      // Intercept when changing from true (enabled) to false (disabled)
                       if (previousValue === true && newValue === false && !isDialogOpen) {
                         isDialogOpen = true;
                         try {
@@ -261,6 +264,41 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
                             return;
                           }
                           // User confirmed and encryption was disabled successfully
+                          previousValue = newValue;
+                        } finally {
+                          isDialogOpen = false;
+                        }
+                      }
+                      // Intercept when changing from false (disabled) to true (enabled)
+                      else if (
+                        previousValue === false &&
+                        newValue === true &&
+                        !isDialogOpen
+                      ) {
+                        // Get the encryption password from the model
+                        // The encryptKey field is a sibling in the same fieldGroup
+                        const encryptKey = field?.model?.encryptKey;
+
+                        if (!encryptKey) {
+                          // No password yet - just update previousValue
+                          // The user will need to enter a password and the dialog
+                          // will be triggered when they save the form
+                          previousValue = newValue;
+                          return;
+                        }
+
+                        isDialogOpen = true;
+                        try {
+                          // Open confirmation dialog with the encrypt key
+                          const result = await openEnableEncryptionDialog(encryptKey);
+
+                          if (!result?.success) {
+                            // User cancelled - reset to false
+                            field?.formControl?.setValue(false, { emitEvent: false });
+                            previousValue = false;
+                            return;
+                          }
+                          // User confirmed and encryption was enabled successfully
                           previousValue = newValue;
                         } finally {
                           isDialogOpen = false;

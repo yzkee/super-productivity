@@ -17,7 +17,7 @@ import {
   CLOCK_DRIFT_THRESHOLD_MS,
 } from '../core/operation-log.const';
 import { OperationEncryptionService } from './operation-encryption.service';
-import { DecryptError } from '../core/errors/sync-errors';
+import { DecryptError, DecryptNoPasswordError } from '../core/errors/sync-errors';
 import { SuperSyncStatusService } from './super-sync-status.service';
 import { DownloadResult } from '../core/types/sync-results.types';
 import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
@@ -197,16 +197,13 @@ export class OperationLogDownloadService {
         const hasEncryptedOps = syncOps.some((op) => op.isPayloadEncrypted);
         if (hasEncryptedOps) {
           if (!encryptKey) {
-            // No encryption key available - fail with a helpful message
+            // No encryption key available - throw error to let sync wrapper show password dialog
             OpLog.error(
               'OperationLogDownloadService: Received encrypted operations but no encryption key is configured.',
             );
-            this.snackService.open({
-              type: 'ERROR',
-              msg: T.F.SYNC.S.ENCRYPTION_PASSWORD_REQUIRED,
-            });
-            downloadFailed = true;
-            return;
+            throw new DecryptNoPasswordError(
+              'Encrypted data received but no encryption password is configured',
+            );
           }
 
           try {
