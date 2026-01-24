@@ -1464,4 +1464,81 @@ describe('SuperSyncProvider', () => {
       );
     });
   });
+
+  describe('getEncryptKey', () => {
+    it('should return encryption key when encryption is enabled', async () => {
+      const configWithEncryption: SuperSyncPrivateCfg = {
+        ...testConfig,
+        encryptKey: 'test-password-123',
+        isEncryptionEnabled: true,
+      };
+      mockPrivateCfgStore.load.and.returnValue(Promise.resolve(configWithEncryption));
+
+      const result = await provider.getEncryptKey();
+
+      expect(result).toBe('test-password-123');
+    });
+
+    it('should return undefined when encryption is disabled even if encryptKey is set', async () => {
+      // This test prevents regression of the password change bug where data was
+      // uploaded unencrypted because getEncryptKey() returned the key even when
+      // isEncryptionEnabled was false
+      const configWithKeyButDisabled: SuperSyncPrivateCfg = {
+        ...testConfig,
+        encryptKey: 'test-password-123',
+        isEncryptionEnabled: false,
+      };
+      mockPrivateCfgStore.load.and.returnValue(Promise.resolve(configWithKeyButDisabled));
+
+      const result = await provider.getEncryptKey();
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when no encryption key is set', async () => {
+      const configWithoutKey: SuperSyncPrivateCfg = {
+        ...testConfig,
+        isEncryptionEnabled: true,
+      };
+      mockPrivateCfgStore.load.and.returnValue(Promise.resolve(configWithoutKey));
+
+      const result = await provider.getEncryptKey();
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when config is null', async () => {
+      mockPrivateCfgStore.load.and.returnValue(Promise.resolve(null));
+
+      const result = await provider.getEncryptKey();
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should return undefined when encryption is explicitly disabled', async () => {
+      const configDisabled: SuperSyncPrivateCfg = {
+        ...testConfig,
+        encryptKey: 'old-password',
+        isEncryptionEnabled: false,
+      };
+      mockPrivateCfgStore.load.and.returnValue(Promise.resolve(configDisabled));
+
+      const result = await provider.getEncryptKey();
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should handle empty string encryption key', async () => {
+      const configWithEmptyKey: SuperSyncPrivateCfg = {
+        ...testConfig,
+        encryptKey: '',
+        isEncryptionEnabled: true,
+      };
+      mockPrivateCfgStore.load.and.returnValue(Promise.resolve(configWithEmptyKey));
+
+      const result = await provider.getEncryptKey();
+
+      expect(result).toBeUndefined();
+    });
+  });
 });

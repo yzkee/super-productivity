@@ -968,6 +968,113 @@ describe('SyncConfigService', () => {
     });
   });
 
+  describe('updateEncryptionPassword', () => {
+    it('should set isEncryptionEnabled=true when updating password for SuperSync', async () => {
+      // Setup SuperSync provider with encryption disabled
+      const mockProvider = {
+        id: SyncProviderId.SuperSync,
+        privateCfg: {
+          load: jasmine.createSpy('load').and.returnValue(
+            Promise.resolve({
+              baseUrl: 'http://test.com',
+              userName: 'test',
+              password: 'test',
+              accessToken: 'token',
+              syncFolderPath: '/',
+              encryptKey: 'oldpass',
+              isEncryptionEnabled: false,
+            }),
+          ),
+        },
+      };
+      (providerManager.getProviderById as jasmine.Spy).and.returnValue(mockProvider);
+      (providerManager.getActiveProvider as jasmine.Spy).and.returnValue(mockProvider);
+
+      // Update password
+      await service.updateEncryptionPassword('newpass', SyncProviderId.SuperSync);
+
+      // Verify both encryptKey and isEncryptionEnabled are updated
+      expect(providerManager.setProviderConfig).toHaveBeenCalledWith(
+        SyncProviderId.SuperSync,
+        jasmine.objectContaining({
+          encryptKey: 'newpass',
+          isEncryptionEnabled: true,
+        }),
+      );
+    });
+
+    it('should not add isEncryptionEnabled for non-SuperSync providers', async () => {
+      // Setup WebDAV provider
+      const mockProvider = {
+        id: SyncProviderId.WebDAV,
+        privateCfg: {
+          load: jasmine.createSpy('load').and.returnValue(
+            Promise.resolve({
+              baseUrl: 'http://test.com',
+              userName: 'test',
+              password: 'test',
+              syncFolderPath: '/',
+              encryptKey: 'oldpass',
+            }),
+          ),
+        },
+      };
+      (providerManager.getProviderById as jasmine.Spy).and.returnValue(mockProvider);
+      (providerManager.getActiveProvider as jasmine.Spy).and.returnValue(mockProvider);
+
+      // Update password
+      await service.updateEncryptionPassword('newpass', SyncProviderId.WebDAV);
+
+      // Verify only encryptKey is updated (no isEncryptionEnabled field)
+      const callArgs = (
+        providerManager.setProviderConfig as jasmine.Spy
+      ).calls.mostRecent().args[1];
+      expect(callArgs.encryptKey).toBe('newpass');
+      expect(callArgs.isEncryptionEnabled).toBeUndefined();
+    });
+
+    it('should preserve existing config when updating password', async () => {
+      // Setup SuperSync provider with existing config
+      const existingConfig = {
+        baseUrl: 'https://my-server.com',
+        userName: 'testuser',
+        password: 'testpass',
+        accessToken: 'existing-token',
+        syncFolderPath: '/my-sync',
+        encryptKey: 'oldpass',
+        isEncryptionEnabled: false,
+      };
+
+      const mockProvider = {
+        id: SyncProviderId.SuperSync,
+        privateCfg: {
+          load: jasmine
+            .createSpy('load')
+            .and.returnValue(Promise.resolve(existingConfig)),
+        },
+      };
+      (providerManager.getProviderById as jasmine.Spy).and.returnValue(mockProvider);
+      (providerManager.getActiveProvider as jasmine.Spy).and.returnValue(mockProvider);
+
+      // Update password
+      await service.updateEncryptionPassword('newpass', SyncProviderId.SuperSync);
+
+      // Verify all existing config is preserved except the updated fields
+      expect(providerManager.setProviderConfig).toHaveBeenCalledWith(
+        SyncProviderId.SuperSync,
+        jasmine.objectContaining({
+          baseUrl: 'https://my-server.com',
+          userName: 'testuser',
+          password: 'testpass',
+          accessToken: 'existing-token',
+          syncFolderPath: '/my-sync',
+          encryptKey: 'newpass',
+          isEncryptionEnabled: true,
+        }),
+      );
+    });
+  });
+
   describe('Cache Clearing on Encryption Changes', () => {
     it('should clear cache when encryption is disabled', async () => {
       // Mock existing provider config with encryption

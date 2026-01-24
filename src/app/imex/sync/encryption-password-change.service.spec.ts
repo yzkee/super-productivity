@@ -320,5 +320,59 @@ describe('EncryptionPasswordChangeService', () => {
       // Verify runWithSyncBlocked was called (prevents sync during password change)
       expect(mockSyncWrapper.runWithSyncBlocked).toHaveBeenCalled();
     });
+
+    it('should set both encryptKey AND isEncryptionEnabled when changing password', async () => {
+      // This test prevents regression of the password change bug where
+      // isEncryptionEnabled was not set, causing getEncryptKey() to return undefined
+      // and data to be uploaded unencrypted
+
+      const oldConfig = {
+        baseUrl: 'https://sync.example.com',
+        accessToken: 'test-token',
+        encryptKey: 'old-password',
+        isEncryptionEnabled: false, // Currently disabled
+      };
+
+      mockSyncProvider.privateCfg.load.and.returnValue(Promise.resolve(oldConfig));
+
+      await service.changePassword(TEST_PASSWORD);
+
+      // Verify BOTH fields are set in the new config
+      expect(mockSyncProvider.setPrivateCfg).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          encryptKey: TEST_PASSWORD,
+          isEncryptionEnabled: true, // MUST be true!
+        }),
+      );
+    });
+
+    it('should preserve other config fields when changing password', async () => {
+      const oldConfig = {
+        baseUrl: 'https://custom-server.com',
+        accessToken: 'my-access-token',
+        userName: 'testuser',
+        password: 'testpass',
+        syncFolderPath: '/my-sync',
+        encryptKey: 'old-password',
+        isEncryptionEnabled: false,
+      };
+
+      mockSyncProvider.privateCfg.load.and.returnValue(Promise.resolve(oldConfig));
+
+      await service.changePassword(TEST_PASSWORD);
+
+      // Verify all other fields are preserved
+      expect(mockSyncProvider.setPrivateCfg).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          baseUrl: 'https://custom-server.com',
+          accessToken: 'my-access-token',
+          userName: 'testuser',
+          password: 'testpass',
+          syncFolderPath: '/my-sync',
+          encryptKey: TEST_PASSWORD,
+          isEncryptionEnabled: true,
+        }),
+      );
+    });
   });
 });

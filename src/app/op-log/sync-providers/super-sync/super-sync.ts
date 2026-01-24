@@ -345,7 +345,12 @@ export class SuperSyncProvider
 
   async getEncryptKey(): Promise<string | undefined> {
     const cfg = await this.privateCfg.load();
-    return cfg?.encryptKey;
+    // Only return encryption key if encryption is explicitly enabled
+    // This ensures encryption is not accidentally used when disabled
+    if (cfg?.isEncryptionEnabled && cfg.encryptKey) {
+      return cfg.encryptKey;
+    }
+    return undefined;
   }
 
   // === Private Helper Methods ===

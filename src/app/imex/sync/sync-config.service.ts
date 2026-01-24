@@ -8,6 +8,7 @@ import { PrivateCfgByProviderId, SyncProviderId } from '../../op-log/sync-export
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 import { SyncLog } from '../../core/log';
 import { DerivedKeyCacheService } from '../../op-log/encryption/derived-key-cache.service';
+import { SuperSyncPrivateCfg } from '../../op-log/sync-providers/super-sync/super-sync.model';
 
 // Maps sync providers to their corresponding form field in SyncConfig
 // Dropbox is null because it doesn't store settings in the form (uses OAuth)
@@ -179,10 +180,18 @@ export class SyncConfigService {
     }
     const oldConfig = await activeProvider.privateCfg.load();
 
-    await this._providerManager.setProviderConfig(activeProvider.id, {
+    // Build new config - for SuperSync, always enable encryption when password is set
+    const newConfig = {
       ...oldConfig,
       encryptKey: pwd,
-    } as PrivateCfgByProviderId<SyncProviderId>);
+    } as PrivateCfgByProviderId<SyncProviderId>;
+
+    // For SuperSync, explicitly enable encryption
+    if (activeProvider.id === SyncProviderId.SuperSync) {
+      (newConfig as SuperSyncPrivateCfg).isEncryptionEnabled = true;
+    }
+
+    await this._providerManager.setProviderConfig(activeProvider.id, newConfig);
 
     // Clear cached encryption keys to force re-derivation with new password
     this._derivedKeyCache.clearCache();
