@@ -10,6 +10,7 @@ import { IS_NATIVE_PLATFORM } from '../../../util/is-native-platform';
 import {
   openDisableEncryptionDialog,
   openEnableEncryptionDialog,
+  openEncryptionPasswordChangeDialog,
 } from '../../../imex/sync/encryption-password-dialog-opener.service';
 
 /**
@@ -332,17 +333,25 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
             },
             {
               hideExpression: (model: any) => !model.isEncryptionEnabled,
-              key: 'encryptKey',
-              type: 'input',
-              className: 'e2e-encryptKey',
+              type: 'btn',
               templateOptions: {
-                type: 'password',
-                label: T.F.SYNC.FORM.L_ENCRYPTION_PASSWORD,
+                text: T.F.SYNC.FORM.SUPER_SYNC.BTN_CHANGE_PASSWORD,
+                btnType: 'default',
+                onClick: async () => {
+                  const result = await openEncryptionPasswordChangeDialog();
+                  // Password is updated through the service, no need to update form
+                  return result?.success ? true : false;
+                },
               },
-              expressions: {
-                'props.required': (field: FormlyFieldConfig) =>
-                  field?.parent?.parent?.parent?.model?.syncProvider ===
-                    LegacySyncProvider.SuperSync && field?.model?.isEncryptionEnabled,
+            },
+            {
+              hideExpression: (model: any) =>
+                !model.isEncryptionEnabled || !model.encryptKey,
+              type: 'tpl',
+              className: 'tpl',
+              templateOptions: {
+                tag: 'div',
+                text: T.F.SYNC.FORM.SUPER_SYNC.PASSWORD_SET_INFO,
               },
             },
             // Server URL

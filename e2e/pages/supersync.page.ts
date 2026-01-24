@@ -106,6 +106,10 @@ export class SuperSyncPage extends BasePage {
       }
     });
 
+    // CRITICAL: Ensure any leftover overlays from previous operations are closed
+    // This prevents "backdrop intercepts pointer events" errors when clicking buttons
+    await this.ensureOverlaysClosed();
+
     // Open sync settings via right-click (context menu)
     // This allows configuring sync even when already set up
     await this.syncBtn.click({ button: 'right' });
@@ -214,15 +218,18 @@ export class SuperSyncPage extends BasePage {
       await this.encryptionCheckbox.waitFor({ state: 'visible', timeout: 3000 });
     }
 
-    // Enable encryption checkbox (triggers onChange -> opens confirmation dialog)
-    const checkboxLabel = this.page.locator('.e2e-isEncryptionEnabled label');
-    await this.encryptionCheckbox.waitFor({ state: 'attached', timeout: 5000 });
-    await this.page.waitForTimeout(200);
-
     // Check if already enabled
     const isChecked = await this.encryptionCheckbox.isChecked();
     if (!isChecked) {
-      // Click checkbox - this will trigger the enable encryption dialog immediately
+      // IMPORTANT: Fill in the password FIRST, before checking the checkbox
+      // The enable encryption dialog only appears if encryptKey is already in the model
+      await this.encryptionPasswordInput.waitFor({ state: 'visible', timeout: 3000 });
+      await this.encryptionPasswordInput.fill(password);
+      await this.encryptionPasswordInput.blur(); // Trigger ngModel update
+      await this.page.waitForTimeout(200);
+
+      // Now enable encryption checkbox - this will trigger the confirmation dialog
+      const checkboxLabel = this.page.locator('.e2e-isEncryptionEnabled label');
       await checkboxLabel.click();
       await this.page.waitForTimeout(200);
 
@@ -232,10 +239,9 @@ export class SuperSyncPage extends BasePage {
         .filter({ hasText: 'Enable Encryption?' });
       await enableDialog.waitFor({ state: 'visible', timeout: 5000 });
 
-      // Fill in the encryption password in the confirmation dialog
+      // The password is already pre-filled from the form, but verify the input exists
       const passwordInput = enableDialog.locator('input[type="password"]');
       await passwordInput.waitFor({ state: 'visible', timeout: 3000 });
-      await passwordInput.fill(password);
 
       // Click the confirm button (mat-flat-button with "Enable Encryption" text)
       const confirmBtn = enableDialog
@@ -257,6 +263,17 @@ export class SuperSyncPage extends BasePage {
     await expect(this.page.locator('mat-dialog-container')).toHaveCount(0, {
       timeout: 10000,
     });
+
+    // CRITICAL: Wait for overlay backdrop to be removed
+    // Angular Material backdrop removal is asynchronous, and lingering backdrops
+    // can block subsequent button clicks in tests
+    const backdrop = this.page.locator('.cdk-overlay-backdrop');
+    await backdrop
+      .first()
+      .waitFor({ state: 'detached', timeout: 3000 })
+      .catch(() => {
+        // Non-fatal: backdrop might already be gone
+      });
 
     // Wait for any snackbars to dismiss
     await this.page.waitForTimeout(1000);
@@ -333,6 +350,17 @@ export class SuperSyncPage extends BasePage {
     await expect(this.page.locator('mat-dialog-container')).toHaveCount(0, {
       timeout: 10000,
     });
+
+    // CRITICAL: Wait for overlay backdrop to be removed
+    // Angular Material backdrop removal is asynchronous, and lingering backdrops
+    // can block subsequent button clicks in tests (e.g., setupSuperSync called right after)
+    const backdrop = this.page.locator('.cdk-overlay-backdrop');
+    await backdrop
+      .first()
+      .waitFor({ state: 'detached', timeout: 3000 })
+      .catch(() => {
+        // Non-fatal: backdrop might already be gone
+      });
 
     // Wait for any snackbars to dismiss
     await this.page.waitForTimeout(1000);

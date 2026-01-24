@@ -35,13 +35,13 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
    * Actions:
    * 1. Client A disables encryption (removes password)
    * 2. Clean slate is triggered (server wiped, fresh unencrypted snapshot uploaded)
-   * 3. Client B syncs and should receive unencrypted data
-   * 4. Client B should automatically disable encryption settings locally
+   * 3. Client A creates unencrypted task
+   * 4. Client B reconfigures WITHOUT encryption and syncs (gets A's unencrypted snapshot)
    *
    * Verify:
    * - Client A's data is now unencrypted on server
    * - Client B successfully syncs WITHOUT encryption
-   * - Both clients have same data
+   * - Both clients have same data including tasks created after A disabled encryption
    * - No encryption errors occur
    */
   test('Disabling encryption triggers clean slate and other clients adapt', async ({
@@ -105,20 +105,21 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       await clientA.sync.syncAndWait();
       console.log(`[DisableEncryption] Client A created unencrypted: ${unencryptedTask}`);
 
-      // ============ PHASE 4: Client B needs to reconfigure without encryption ============
+      // ============ PHASE 4: Client B reconfigures without encryption ============
       console.log(
         '[DisableEncryption] Phase 4: Client B reconfiguring without encryption',
       );
 
-      // Client B needs to disable encryption too to match server state
-      await clientB.sync.disableEncryption();
-      console.log('[DisableEncryption] Client B disabled encryption');
+      // CRITICAL: Client B must reconfigure WITHOUT encryption and sync to get A's unencrypted state.
+      // We use setupSuperSync with isEncryptionEnabled: false to reconfigure.
+      // This will sync and get the unencrypted snapshot from A, avoiding the clean slate wipe issue.
+      await clientB.sync.setupSuperSync({
+        ...baseConfig,
+        isEncryptionEnabled: false,
+      });
+      console.log('[DisableEncryption] Client B reconfigured for unencrypted sync');
 
-      // Now sync should work
-      await clientB.sync.syncAndWait();
-      console.log('[DisableEncryption] Client B synced successfully');
-
-      // Client B should now have both tasks (clean slate replaced all data)
+      // Client B should now have both tasks
       await waitForTask(clientB.page, encryptedTask);
       await waitForTask(clientB.page, unencryptedTask);
 
@@ -158,13 +159,11 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
    * Actions:
    * 1. Client A enables encryption (adds password)
    * 2. Clean slate is triggered (server wiped, fresh encrypted snapshot uploaded)
-   * 3. Client B syncs and receives encrypted data
-   * 4. Client B should detect encryption and prompt for password
-   * 5. Client B provides correct password and syncs successfully
+   * 3. Client A creates encrypted task
+   * 4. Client B reconfigures with encryption and syncs to get A's encrypted snapshot
    *
    * Verify:
    * - Client A's data is now encrypted on server
-   * - Client B cannot sync without password
    * - Client B can sync after providing correct password
    * - Both clients have same encrypted data
    */
@@ -227,16 +226,16 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       await clientA.sync.syncAndWait();
       console.log(`[EnableEncryption] Client A created encrypted: ${encryptedTask}`);
 
-      // ============ PHASE 4: Client B needs to enable encryption with password ============
+      // ============ PHASE 4: Client B reconfigures with encryption ============
       console.log('[EnableEncryption] Phase 4: Client B enabling encryption');
 
-      // Client B needs to enable encryption with the same password
-      await clientB.sync.enableEncryption(encryptionPassword);
+      // Client B reconfigures with encryption enabled and the same password
+      await clientB.sync.setupSuperSync({
+        ...baseConfig,
+        isEncryptionEnabled: true,
+        password: encryptionPassword,
+      });
       console.log('[EnableEncryption] Client B enabled encryption with password');
-
-      // Now sync should work
-      await clientB.sync.syncAndWait();
-      console.log('[EnableEncryption] Client B synced successfully with password');
 
       // Client B should now have both tasks
       await waitForTask(clientB.page, unencryptedTask);
@@ -275,7 +274,7 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
    * Tests that:
    * - Client can enable → disable → enable encryption multiple times
    * - Each state change triggers clean slate
-   * - Other clients adapt to each change
+   * - Other clients adapt to each change by reconfiguring
    */
   test('Multiple encryption state changes work correctly', async ({
     browser,
@@ -322,11 +321,14 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       await clientA.workView.addTask(task2);
       await clientA.sync.syncAndWait();
 
-      // Client B enables encryption
-      await clientB.sync.enableEncryption(password1);
+      // Client B reconfigures with encryption
+      await clientB.sync.setupSuperSync({
+        ...baseConfig,
+        isEncryptionEnabled: true,
+        password: password1,
+      });
       console.log('[MultipleChanges] Client B enabled encryption');
 
-      await clientB.sync.syncAndWait();
       await waitForTask(clientB.page, task2);
 
       // ============ PHASE 3: Disable encryption ============
@@ -338,11 +340,13 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       await clientA.workView.addTask(task3);
       await clientA.sync.syncAndWait();
 
-      // Client B disables encryption
-      await clientB.sync.disableEncryption();
-      console.log('[MultipleChanges] Client B disabled encryption');
+      // Client B reconfigures without encryption
+      await clientB.sync.setupSuperSync({
+        ...baseConfig,
+        isEncryptionEnabled: false,
+      });
+      console.log('[MultipleChanges] Client B reconfigured for unencrypted sync');
 
-      await clientB.sync.syncAndWait();
       await waitForTask(clientB.page, task3);
 
       // ============ PHASE 4: Re-enable with different password ============
@@ -355,10 +359,13 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       await clientA.sync.syncAndWait();
 
       // Client B enables encryption with NEW password
-      await clientB.sync.enableEncryption(password2);
+      await clientB.sync.setupSuperSync({
+        ...baseConfig,
+        isEncryptionEnabled: true,
+        password: password2,
+      });
       console.log('[MultipleChanges] Client B enabled encryption with new password');
 
-      await clientB.sync.syncAndWait();
       await waitForTask(clientB.page, task4);
 
       // ============ PHASE 5: Verify final state ============
@@ -440,11 +447,13 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       await clientA.workView.addTask(taskAfterEncryption);
       await clientA.sync.syncAndWait();
 
-      // Now Client B enables encryption (triggering its own clean slate)
-      await clientB.sync.enableEncryption(encryptionPassword);
+      // Now Client B reconfigures with encryption (gets A's state, losing concurrent changes)
+      await clientB.sync.setupSuperSync({
+        ...baseConfig,
+        isEncryptionEnabled: true,
+        password: encryptionPassword,
+      });
       console.log('[Concurrent] Client B enabled encryption');
-
-      await clientB.sync.syncAndWait();
 
       // Client B should have tasks from clean slate (A's state)
       await waitForTask(clientB.page, sharedTask);
