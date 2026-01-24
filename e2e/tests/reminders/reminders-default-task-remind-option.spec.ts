@@ -151,7 +151,17 @@ test.describe('Default task reminder option', () => {
     await taskInput.press('Enter');
     // Click the scheduled task to reveal the details panel
     await page.locator('schedule-event').click();
-    await page.locator('task-detail-item', { hasText: 'Planned for' }).click();
+
+    // Click on the schedule item in the detail panel (using icon-based selector for robustness)
+    const scheduleItem = page
+      .locator(
+        'task-detail-item:has(mat-icon:text("alarm")), ' +
+          'task-detail-item:has(mat-icon:text("today")), ' +
+          'task-detail-item:has(mat-icon:text("schedule"))',
+      )
+      .first();
+    await scheduleItem.waitFor({ state: 'visible', timeout: 10000 });
+    await scheduleItem.click();
 
     await expect(page.getByText(changedOptionText)).toBeVisible();
   });
