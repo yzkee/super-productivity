@@ -8,6 +8,7 @@ import {
 } from './dialog-change-encryption-password.component';
 import { EncryptionPasswordChangeService } from '../encryption-password-change.service';
 import { SnackService } from '../../../core/snack/snack.service';
+import { EncryptionDisableService } from '../encryption-disable.service';
 
 describe('DialogChangeEncryptionPasswordComponent', () => {
   let component: DialogChangeEncryptionPasswordComponent;
@@ -17,6 +18,7 @@ describe('DialogChangeEncryptionPasswordComponent', () => {
   >;
   let mockEncryptionPasswordChangeService: jasmine.SpyObj<EncryptionPasswordChangeService>;
   let mockSnackService: jasmine.SpyObj<SnackService>;
+  let mockEncryptionDisableService: jasmine.SpyObj<EncryptionDisableService>;
 
   beforeEach(async () => {
     mockDialogRef = jasmine.createSpyObj('MatDialogRef', ['close']);
@@ -25,6 +27,9 @@ describe('DialogChangeEncryptionPasswordComponent', () => {
       ['changePassword'],
     );
     mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
+    mockEncryptionDisableService = jasmine.createSpyObj('EncryptionDisableService', [
+      'disableEncryption',
+    ]);
 
     await TestBed.configureTestingModule({
       imports: [
@@ -39,6 +44,7 @@ describe('DialogChangeEncryptionPasswordComponent', () => {
           useValue: mockEncryptionPasswordChangeService,
         },
         { provide: SnackService, useValue: mockSnackService },
+        { provide: EncryptionDisableService, useValue: mockEncryptionDisableService },
       ],
     }).compileComponents();
 
