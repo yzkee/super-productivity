@@ -209,7 +209,6 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
         {
           hideExpression: (m, v, field) =>
             field?.parent?.parent?.model.syncProvider !== LegacySyncProvider.SuperSync,
-          resetOnHide: true,
           key: 'accessToken',
           type: 'textarea',
           className: 'e2e-accessToken',
@@ -295,7 +294,6 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
             },
             {
               hideExpression: (model: any) => !model.isEncryptionEnabled,
-              resetOnHide: true,
               key: 'encryptKey',
               type: 'input',
               className: 'e2e-encryptKey',
@@ -398,7 +396,6 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
           hideExpression: (m: any, v: any, field: any) =>
             field?.parent?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
             !m.isEncryptionEnabled,
-          resetOnHide: true,
           key: 'encryptKey',
           type: 'input',
           templateOptions: {
