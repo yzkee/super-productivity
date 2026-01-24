@@ -31,6 +31,27 @@ const ab2base64 = (buffer: ArrayBuffer): string => {
   return window.btoa(binary);
 };
 
+// Minimum sizes for format detection
+// Argon2: [SALT (16)][IV (12)][CIPHERTEXT + AUTH_TAG (min 16)] = 44 bytes
+// Legacy: [IV (12)][CIPHERTEXT + AUTH_TAG (min 16)] = 28 bytes
+const MIN_ARGON2_SIZE = SALT_LENGTH + IV_LENGTH + 16;
+const MIN_LEGACY_SIZE = IV_LENGTH + 16;
+
+/**
+ * Detects the likely encryption format based on data length.
+ * Returns 'argon2' if data is large enough for Argon2 format,
+ * 'legacy' if it's only large enough for legacy format,
+ * or 'invalid' if too short for either.
+ */
+const detectFormat = (dataBuffer: ArrayBuffer): 'argon2' | 'legacy' | 'invalid' => {
+  if (dataBuffer.byteLength >= MIN_ARGON2_SIZE) {
+    return 'argon2';
+  } else if (dataBuffer.byteLength >= MIN_LEGACY_SIZE) {
+    return 'legacy';
+  }
+  return 'invalid';
+};
+
 // LEGACY FUNCTIONS
 // PBKDF2 functions are only kept for backward compatibility.
 // SECURITY NOTE: PBKDF2 with password-as-salt is cryptographically weak.
@@ -301,6 +322,10 @@ export const decryptWithDerivedKey = async (
  * Operations with the same salt (e.g., encrypted in the same batch) will
  * share the cached key, avoiding redundant Argon2id derivations.
  *
+ * SECURITY NOTE: Unlike the single-item decrypt(), this function uses explicit
+ * format detection to avoid masking decryption errors as legacy fallbacks.
+ * Only data that's too short for Argon2 format will attempt legacy decryption.
+ *
  * @param dataItems Array of Base64-encoded ciphertexts to decrypt
  * @param password The decryption password
  * @returns Array of decrypted plaintext strings in the same order
@@ -318,8 +343,21 @@ export const decryptBatch = async (
 
   const results: string[] = [];
   for (const data of dataItems) {
-    // Try Argon2 format first (extract salt from ciphertext)
     const dataBuffer = base642ab(data);
+    const format = detectFormat(dataBuffer);
+
+    if (format === 'invalid') {
+      throw new Error('Encrypted data is too short to be valid');
+    }
+
+    if (format === 'legacy') {
+      // Data is only large enough for legacy format - use legacy directly
+      // (skipping expensive Argon2 derivation that would fail anyway)
+      results.push(await decryptLegacy(data, password));
+      continue;
+    }
+
+    // Argon2 format: extract salt and use cached key
     const salt = new Uint8Array(dataBuffer, 0, SALT_LENGTH);
     const saltKey = ab2base64(salt.buffer);
 
@@ -331,14 +369,10 @@ export const decryptBatch = async (
       keyCache.set(saltKey, keyInfo);
     }
 
-    try {
-      // Decrypt using cached key
-      results.push(await decryptWithDerivedKey(data, keyInfo));
-    } catch (e) {
-      // Argon2 decryption failed - try legacy PBKDF2 format
-      // Legacy format has different structure (IV first, no salt)
-      results.push(await decryptLegacy(data, password));
-    }
+    // Decrypt using cached key - don't catch errors here!
+    // If decryption fails on Argon2-sized data, it's a real error
+    // (wrong password, corrupted data, or tampering), not a format issue.
+    results.push(await decryptWithDerivedKey(data, keyInfo));
   }
   return results;
 };

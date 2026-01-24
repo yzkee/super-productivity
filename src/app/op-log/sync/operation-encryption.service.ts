@@ -113,7 +113,13 @@ export class OperationEncryptionService {
 
     for (let i = 0; i < ops.length; i++) {
       const op = ops[i];
-      if (op.isPayloadEncrypted && typeof op.payload === 'string') {
+      if (op.isPayloadEncrypted) {
+        // Validate that encrypted payloads are strings (matching single-op behavior)
+        if (typeof op.payload !== 'string') {
+          throw new DecryptError(
+            `Encrypted payload must be a string (op ${op.id} has ${typeof op.payload})`,
+          );
+        }
         encryptedOps.push({ index: i, op });
       } else {
         // Non-encrypted ops pass through unchanged

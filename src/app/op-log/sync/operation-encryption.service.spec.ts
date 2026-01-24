@@ -190,6 +190,43 @@ describe('OperationEncryptionService', () => {
       const decrypted = await service.decryptOperations([], TEST_PASSWORD);
       expect(decrypted).toEqual([]);
     });
+
+    it('should return all operations unchanged when none are encrypted', async () => {
+      const ops = [
+        createMockSyncOp({ title: 'Plain 1' }),
+        createMockSyncOp({ title: 'Plain 2' }),
+        createMockSyncOp({ title: 'Plain 3' }),
+      ];
+
+      const result = await service.decryptOperations(ops, TEST_PASSWORD);
+
+      // Should return the same array (or equivalent)
+      expect(result.length).toBe(3);
+      expect(result).toEqual(ops);
+    });
+
+    it('should throw DecryptError for malformed encrypted operation (non-string payload)', async () => {
+      const malformedOp = createMockSyncOp({ title: 'Not a string' });
+      malformedOp.isPayloadEncrypted = true; // Mark as encrypted but payload is object
+
+      await expectAsync(
+        service.decryptOperations([malformedOp], TEST_PASSWORD),
+      ).toBeRejectedWithError(DecryptError);
+    });
+
+    it('should throw DecryptError with op ID for malformed encrypted operation', async () => {
+      const malformedOp = createMockSyncOp({ title: 'Not a string' });
+      malformedOp.id = 'malformed-op-123';
+      malformedOp.isPayloadEncrypted = true;
+
+      try {
+        await service.decryptOperations([malformedOp], TEST_PASSWORD);
+        fail('Should have thrown DecryptError');
+      } catch (e) {
+        expect(e).toBeInstanceOf(DecryptError);
+        expect((e as Error).message).toContain('malformed-op-123');
+      }
+    });
   });
 
   describe('round-trip with various payload types', () => {

@@ -192,6 +192,46 @@ describe('Encryption', () => {
         const decrypted = await decrypt(encrypted[0], PASSWORD);
         expect(decrypted).toBe(DATA);
       });
+
+      it('should use the same salt for all items in a batch', async () => {
+        const encrypted = await encryptBatch(['a', 'b', 'c'], PASSWORD);
+
+        // Extract salt (first 16 bytes) from each ciphertext
+        const extractSalt = (base64: string): string => {
+          const binary = window.atob(base64);
+          // Return first 16 bytes as hex for comparison
+          return Array.from(binary.slice(0, 16))
+            .map((c) => c.charCodeAt(0).toString(16).padStart(2, '0'))
+            .join('');
+        };
+
+        const salt1 = extractSalt(encrypted[0]);
+        const salt2 = extractSalt(encrypted[1]);
+        const salt3 = extractSalt(encrypted[2]);
+
+        // All items in the same batch should share the same salt
+        expect(salt1).toBe(salt2);
+        expect(salt2).toBe(salt3);
+      });
+
+      it('should use different salts for separate batch calls', async () => {
+        const batch1 = await encryptBatch(['a'], PASSWORD);
+        const batch2 = await encryptBatch(['b'], PASSWORD);
+
+        // Extract salt (first 16 bytes) from each ciphertext
+        const extractSalt = (base64: string): string => {
+          const binary = window.atob(base64);
+          return Array.from(binary.slice(0, 16))
+            .map((c) => c.charCodeAt(0).toString(16).padStart(2, '0'))
+            .join('');
+        };
+
+        const salt1 = extractSalt(batch1[0]);
+        const salt2 = extractSalt(batch2[0]);
+
+        // Different batch calls should have different salts (random)
+        expect(salt1).not.toBe(salt2);
+      });
     });
 
     describe('decryptBatch', () => {
@@ -239,6 +279,99 @@ describe('Encryption', () => {
           // Success
         }
       }, 10000); // 10s timeout for expensive Argon2id operations
+
+      it('should throw error for corrupted data (not fall back to legacy)', async () => {
+        // Create valid Argon2 encrypted data and corrupt it
+        const encrypted = await encryptBatch(['test data'], PASSWORD);
+        // Corrupt the ciphertext by modifying some bytes (but keep valid base64 length)
+        const corrupted = encrypted[0].slice(0, 30) + 'XXXX' + encrypted[0].slice(34);
+
+        try {
+          await decryptBatch([corrupted], PASSWORD);
+          fail('Should have thrown error for corrupted data');
+        } catch (e) {
+          // Success - should throw error, not silently fall back to legacy
+          expect(e).toBeDefined();
+        }
+      });
+    });
+
+    describe('decryptBatch with legacy format', () => {
+      // Helper to simulate legacy encryption (PBKDF2)
+      const encryptLegacy = async (data: string, password: string): Promise<string> => {
+        const ALGO = 'AES-GCM';
+        const IV_LEN = 12;
+
+        const enc = new TextEncoder();
+        const passwordBuffer = enc.encode(password);
+        const ops = {
+          name: 'PBKDF2',
+          salt: enc.encode(password),
+          iterations: 1000,
+          hash: 'SHA-256',
+        };
+        const keyMaterial = await window.crypto.subtle.importKey(
+          'raw',
+          passwordBuffer,
+          { name: 'PBKDF2' },
+          false,
+          ['deriveBits', 'deriveKey'],
+        );
+        const key = await window.crypto.subtle.deriveKey(
+          ops,
+          keyMaterial,
+          { name: ALGO, length: 256 },
+          true,
+          ['encrypt', 'decrypt'],
+        );
+
+        const dataBuffer = enc.encode(data);
+        const iv = window.crypto.getRandomValues(new Uint8Array(IV_LEN));
+        const encryptedContent = await window.crypto.subtle.encrypt(
+          { name: ALGO, iv },
+          key,
+          dataBuffer,
+        );
+
+        const buffer = new Uint8Array(IV_LEN + encryptedContent.byteLength);
+        buffer.set(iv, 0);
+        buffer.set(new Uint8Array(encryptedContent), IV_LEN);
+
+        const binary = Array.prototype.map
+          .call(buffer, (byte: number) => String.fromCharCode(byte))
+          .join('');
+        return window.btoa(binary);
+      };
+
+      it('should decrypt legacy PBKDF2 format data in batch', async () => {
+        const legacyEncrypted = await encryptLegacy(DATA, PASSWORD);
+        const decrypted = await decryptBatch([legacyEncrypted], PASSWORD);
+
+        expect(decrypted[0]).toBe(DATA);
+      });
+
+      it('should handle mixed legacy and Argon2 format in same batch', async () => {
+        // Create legacy encrypted items
+        const legacy1 = await encryptLegacy('legacy item 1', PASSWORD);
+        const legacy2 = await encryptLegacy('legacy item 2', PASSWORD);
+
+        // Create Argon2 encrypted items
+        const argon2Items = await encryptBatch(
+          ['argon2 item 1', 'argon2 item 2'],
+          PASSWORD,
+        );
+
+        // Mix them in the batch
+        const mixed = [legacy1, argon2Items[0], legacy2, argon2Items[1]];
+        const decrypted = await decryptBatch(mixed, PASSWORD);
+
+        expect(decrypted).toEqual([
+          'legacy item 1',
+          'argon2 item 1',
+          'legacy item 2',
+          'argon2 item 2',
+        ]);
+      });
     });
   });
 });
