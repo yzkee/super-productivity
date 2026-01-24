@@ -341,4 +341,104 @@ test.describe('@supersync SuperSync Encryption Password Change', () => {
       if (clientB) await closeClient(clientB);
     }
   });
+
+  test('Error dialog recovery: entering new password after change works', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
+
+    try {
+      const user = await createTestUser(testRunId);
+      const baseConfig = getSuperSyncConfig(user);
+      const oldPassword = `oldpass-${testRunId}`;
+      const newPassword = `newpass-${testRunId}`;
+
+      // --- Setup both clients with old password ---
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync({
+        ...baseConfig,
+        isEncryptionEnabled: true,
+        password: oldPassword,
+      });
+
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync({
+        ...baseConfig,
+        isEncryptionEnabled: true,
+        password: oldPassword,
+      });
+
+      // --- Create task and sync on both clients ---
+      const taskBeforeChange = `BeforeChange-${testRunId}`;
+      await clientA.workView.addTask(taskBeforeChange);
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
+      await waitForTask(clientB.page, taskBeforeChange);
+
+      // --- Client A changes password (triggers clean slate) ---
+      await clientA.sync.changeEncryptionPassword(newPassword);
+
+      // Create new task after password change
+      const taskAfterChange = `AfterChange-${testRunId}`;
+      await clientA.workView.addTask(taskAfterChange);
+      await clientA.sync.syncAndWait();
+
+      // --- Client B tries to sync with OLD password ---
+      // This will:
+      // 1. Detect gap (lastServerSeq > latestSeq due to clean slate)
+      // 2. Reset and re-download from seq 0
+      // 3. Download ops encrypted with NEW password
+      // 4. Try to decrypt with OLD password → DecryptError
+      // 5. Show decrypt error dialog
+
+      // Trigger sync manually (don't use syncAndWait - it would timeout on error)
+      await clientB.sync.triggerSync();
+
+      // Wait for decrypt error dialog to appear
+      const decryptErrorDialog = clientB.page.locator(
+        'dialog-handle-decrypt-error, mat-dialog-container:has-text("decrypt")',
+      );
+      await decryptErrorDialog.waitFor({ state: 'visible', timeout: 10000 });
+
+      // --- Enter NEW password in the error dialog ---
+      const passwordInput = decryptErrorDialog.locator('input[type="password"]');
+      await passwordInput.waitFor({ state: 'visible', timeout: 5000 });
+      await passwordInput.fill(newPassword);
+
+      // Click "Update Password & Resync" button
+      const updateButton = decryptErrorDialog.locator(
+        'button:has-text("Update"), button:has-text("Resync"), button:has-text("Change")',
+      );
+      await updateButton.first().click();
+
+      // Wait for dialog to close
+      await decryptErrorDialog.waitFor({ state: 'hidden', timeout: 5000 });
+
+      // --- Verify sync completes successfully with new password ---
+      // The fix ensures encryption key is re-fetched after gap detection
+      await clientB.sync.waitForSyncComplete({ timeout: 15000 });
+
+      // Verify Client B received the task created after password change
+      await waitForTask(clientB.page, taskAfterChange);
+      await expectTaskVisible(clientB, taskAfterChange);
+
+      // Also verify the old task is still there
+      await expectTaskVisible(clientB, taskBeforeChange);
+
+      // --- Verify bidirectional sync works after recovery ---
+      const taskFromB = `FromB-${testRunId}`;
+      await clientB.workView.addTask(taskFromB);
+      await clientB.sync.syncAndWait();
+
+      await clientA.sync.syncAndWait();
+      await waitForTask(clientA.page, taskFromB);
+      await expectTaskVisible(clientA, taskFromB);
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 });

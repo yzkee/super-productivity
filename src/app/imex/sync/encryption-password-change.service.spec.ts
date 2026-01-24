@@ -374,5 +374,67 @@ describe('EncryptionPasswordChangeService', () => {
         }),
       );
     });
+
+    it('should upload clean slate with isCleanSlate=true flag for server-side deletion', async () => {
+      // This test ensures the password change triggers the server to delete all old
+      // encrypted data before accepting the new data. This is critical because:
+      // 1. Old data is encrypted with OLD password
+      // 2. New data will be encrypted with NEW password
+      // 3. If old data remains, clients will see mixed encryption and fail
+      //
+      // The isCleanSlate=true flag tells the server to wipe everything first.
+      // This will cause other clients to experience gap detection when they sync.
+
+      await service.changePassword(TEST_PASSWORD);
+
+      // Verify upload was called with isCleanSlate flag
+      expect(mockUploadService.uploadPendingOps).toHaveBeenCalledWith(
+        mockSyncProvider,
+        jasmine.objectContaining({
+          isCleanSlate: true, // CRITICAL: Server will delete all data
+        }),
+      );
+    });
+
+    it('should clear derived key cache twice on upload failure (change + revert)', async () => {
+      // When upload fails, we revert the password change. This test ensures
+      // the derived key cache is cleared on both the initial change AND the revert.
+      // This prevents the cache from having stale keys for either password.
+
+      const originalConfig = {
+        encryptKey: 'old-password',
+        isEncryptionEnabled: true,
+      };
+      mockSyncProvider.privateCfg.load.and.returnValue(Promise.resolve(originalConfig));
+
+      mockUploadService.uploadPendingOps.and.returnValue(
+        Promise.reject(new Error('Network error')),
+      );
+
+      await expectAsync(service.changePassword(TEST_PASSWORD)).toBeRejected();
+
+      // Should have cleared cache twice:
+      // 1. After setting new password (before upload)
+      // 2. After reverting to old password (after upload failure)
+      expect(mockDerivedKeyCache.clearCache).toHaveBeenCalledTimes(2);
+    });
+
+    it('should generate new client ID via clean slate to prevent operation conflicts', async () => {
+      // Password change creates a clean slate which generates a new client ID.
+      // This is important because:
+      // 1. Server deletes all old operations (from old client ID)
+      // 2. Client uploads fresh SYNC_IMPORT (with new client ID)
+      // 3. Other clients will see gap (their lastServerSeq > latestSeq)
+      // 4. Gap triggers re-download with encryption key re-fetch
+      //
+      // Without new client ID, vector clock conflicts could occur.
+
+      await service.changePassword(TEST_PASSWORD);
+
+      // Verify clean slate was created (which generates new client ID)
+      expect(mockCleanSlateService.createCleanSlate).toHaveBeenCalledWith(
+        'ENCRYPTION_CHANGE',
+      );
+    });
   });
 });
