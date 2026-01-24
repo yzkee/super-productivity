@@ -19,6 +19,30 @@
   }
 }
 
+.info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(33, 150, 243, 0.1);
+  border: 1px solid rgba(33, 150, 243, 0.3);
+  border-radius: 4px;
+
+  mat-icon {
+    color: #2196f3;
+    flex-shrink: 0;
+  }
+
+  p {
+    margin: 0 0 8px;
+    line-height: 1.5;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
+
 .info-section {
   margin-bottom: 16px;
 

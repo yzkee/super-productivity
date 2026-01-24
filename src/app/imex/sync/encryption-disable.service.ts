@@ -41,8 +41,13 @@ export class EncryptionDisableService {
 
     // Get the sync provider
     const syncProvider = this._providerManager.getActiveProvider();
-    if (!syncProvider || syncProvider.id !== SyncProviderId.SuperSync) {
-      throw new Error('Disable encryption is only supported for SuperSync');
+    if (!syncProvider) {
+      throw new Error('No active sync provider. Please enable sync first.');
+    }
+    if (syncProvider.id !== SyncProviderId.SuperSync) {
+      throw new Error(
+        `Disable encryption is only supported for SuperSync (current: ${syncProvider.id})`,
+      );
     }
 
     if (!isOperationSyncCapable(syncProvider)) {

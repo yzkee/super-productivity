@@ -1033,7 +1033,10 @@
           "DISABLE_ENCRYPTION_ITEM_3": "All other devices will sync the unencrypted data",
           "DISABLE_ENCRYPTION_NOTE": "Your local data will NOT be deleted. You can re-enable encryption at any time.",
           "BTN_DISABLE_ENCRYPTION": "Disable Encryption",
-          "DISABLE_ENCRYPTION_SUCCESS": "Encryption disabled successfully"
+          "DISABLE_ENCRYPTION_SUCCESS": "Encryption disabled successfully",
+          "DISABLE_ENCRYPTION_NOT_READY": "Sync is not enabled or configured.",
+          "DISABLE_ENCRYPTION_SUPERSYNC_ONLY": "This feature is only available for SuperSync.",
+          "DISABLE_ENCRYPTION_ENABLE_FIRST": "Please enable sync and save your SuperSync configuration first, then try again."
         },
         "IMPORT_ENCRYPTION_WARNING": {
           "TITLE": "Encryption Settings Will Change",
