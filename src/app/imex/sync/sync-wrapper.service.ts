@@ -595,29 +595,40 @@ export class SyncWrapperService {
    * Opens a simple dialog to prompt for the password, then re-syncs.
    */
   private _handleMissingPasswordDialog(): void {
+    // Prevent multiple password dialogs from opening simultaneously
+    if (this._passwordDialog) {
+      return;
+    }
+
     // Set ERROR status so sync button shows error icon
     this._providerManager.setSyncStatus('ERROR');
 
     // Open dialog for password entry
-    this._matDialog
-      .open(DialogEnterEncryptionPasswordComponent, {
-        width: '450px',
-        disableClose: true,
-        autoFocus: false,
-      })
-      .afterClosed()
-      .subscribe((result) => {
-        if (result?.password) {
-          // Password was entered and saved, re-sync
-          this.sync();
-        } else {
-          // User cancelled - set status to unknown
-          this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
-        }
-      });
+    this._passwordDialog = this._matDialog.open(DialogEnterEncryptionPasswordComponent, {
+      width: '450px',
+      disableClose: true,
+      autoFocus: false,
+    });
+
+    this._passwordDialog.afterClosed().subscribe((result) => {
+      this._passwordDialog = undefined;
+
+      if (result?.password) {
+        // Password was entered and saved, re-sync
+        this.sync();
+      } else {
+        // User cancelled - set status to unknown
+        this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
+      }
+    });
   }
 
   private _handleDecryptionError(): void {
+    // Prevent multiple password dialogs from opening simultaneously
+    if (this._passwordDialog) {
+      return;
+    }
+
     // Set ERROR status so sync button shows error icon
     this._providerManager.setSyncStatus('ERROR');
 
@@ -629,24 +640,25 @@ export class SyncWrapperService {
     });
 
     // Open dialog for password correction
-    this._matDialog
-      .open(DialogHandleDecryptErrorComponent, {
-        disableClose: true,
-        autoFocus: false,
-      })
-      .afterClosed()
-      .subscribe(({ isReSync, isForceUpload }) => {
-        if (isReSync) {
-          this.sync();
-        }
-        if (isForceUpload) {
-          this.forceUpload();
-        }
-        // Reset status if user cancelled without taking action
-        if (!isReSync && !isForceUpload) {
-          this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
-        }
-      });
+    this._passwordDialog = this._matDialog.open(DialogHandleDecryptErrorComponent, {
+      disableClose: true,
+      autoFocus: false,
+    });
+
+    this._passwordDialog.afterClosed().subscribe(({ isReSync, isForceUpload }) => {
+      this._passwordDialog = undefined;
+
+      if (isReSync) {
+        this.sync();
+      }
+      if (isForceUpload) {
+        this.forceUpload();
+      }
+      // Reset status if user cancelled without taking action
+      if (!isReSync && !isForceUpload) {
+        this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
+      }
+    });
   }
 
   /**
@@ -802,6 +814,12 @@ export class SyncWrapperService {
   }
 
   private lastConflictDialog?: MatDialogRef<any, any>;
+
+  /**
+   * Reference to any open password-related dialog (enter password or decrypt error).
+   * Used to prevent multiple simultaneous password dialogs from opening.
+   */
+  private _passwordDialog?: MatDialogRef<any, any>;
 
   private _openConflictDialog$(
     conflictData: ConflictData,
