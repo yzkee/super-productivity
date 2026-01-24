@@ -9,6 +9,7 @@ import { CleanSlateService } from '../../op-log/clean-slate/clean-slate.service'
 import { OperationLogUploadService } from '../../op-log/sync/operation-log-upload.service';
 import { SyncWrapperService } from './sync-wrapper.service';
 import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
+import { isFullStateOpType } from '../../op-log/core/operation.types';
 
 /**
  * Service for changing the encryption password for SuperSync.
@@ -60,11 +61,16 @@ export class EncryptionPasswordChangeService {
       throw new Error('Sync provider does not support operation sync');
     }
 
-    // Check for unsynced operations before proceeding
+    // Check for unsynced user operations before proceeding.
+    // Exclude full-state operations (SYNC_IMPORT, BACKUP_IMPORT, REPAIR) as these are
+    // recovery/migration ops from failed attempts, not user work that would be lost.
     const unsyncedOps = await this._opLogStore.getUnsynced();
-    if (unsyncedOps.length > 0) {
+    const unsyncedUserOps = unsyncedOps.filter(
+      (entry) => !isFullStateOpType(entry.op.opType),
+    );
+    if (unsyncedUserOps.length > 0) {
       throw new Error(
-        `Cannot change password: ${unsyncedOps.length} operation(s) have not been synced yet. ` +
+        `Cannot change password: ${unsyncedUserOps.length} operation(s) have not been synced yet. ` +
           'Please wait for sync to complete or manually trigger a sync before changing the password.',
       );
     }

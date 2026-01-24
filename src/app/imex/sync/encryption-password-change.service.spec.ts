@@ -7,6 +7,7 @@ import { DerivedKeyCacheService } from '../../op-log/encryption/derived-key-cach
 import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { SyncWrapperService } from './sync-wrapper.service';
 import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
+import { OpType } from '../../op-log/core/operation.types';
 
 describe('EncryptionPasswordChangeService', () => {
   let service: EncryptionPasswordChangeService;
@@ -163,9 +164,12 @@ describe('EncryptionPasswordChangeService', () => {
       expect(mockCleanSlateService.createCleanSlate).not.toHaveBeenCalled();
     });
 
-    it('should throw error if there are unsynced operations', async () => {
+    it('should throw error if there are unsynced user operations', async () => {
       mockOpLogStore.getUnsynced.and.returnValue(
-        Promise.resolve([{ id: 'op1' } as any, { id: 'op2' } as any]),
+        Promise.resolve([
+          { seq: 1, op: { opType: OpType.Create } } as any,
+          { seq: 2, op: { opType: OpType.Update } } as any,
+        ]),
       );
 
       await expectAsync(service.changePassword(TEST_PASSWORD)).toBeRejectedWithError(
@@ -183,6 +187,37 @@ describe('EncryptionPasswordChangeService', () => {
 
       // Should proceed with password change
       expect(mockCleanSlateService.createCleanSlate).toHaveBeenCalled();
+    });
+
+    it('should ignore full-state operations (SYNC_IMPORT, BACKUP_IMPORT, REPAIR) when checking for unsynced ops', async () => {
+      // Full-state operations from failed previous attempts should not block retry
+      mockOpLogStore.getUnsynced.and.returnValue(
+        Promise.resolve([
+          { seq: 1, op: { opType: OpType.SyncImport } } as any,
+          { seq: 2, op: { opType: OpType.BackupImport } } as any,
+          { seq: 3, op: { opType: OpType.Repair } } as any,
+        ]),
+      );
+
+      await service.changePassword(TEST_PASSWORD);
+
+      // Should proceed despite having unsynced full-state ops
+      expect(mockCleanSlateService.createCleanSlate).toHaveBeenCalled();
+    });
+
+    it('should throw error if there are unsynced user operations mixed with full-state ops', async () => {
+      mockOpLogStore.getUnsynced.and.returnValue(
+        Promise.resolve([
+          { seq: 1, op: { opType: OpType.SyncImport } } as any, // Ignored
+          { seq: 2, op: { opType: OpType.Create } } as any, // Counts
+        ]),
+      );
+
+      await expectAsync(service.changePassword(TEST_PASSWORD)).toBeRejectedWithError(
+        /Cannot change password: 1 operation\(s\) have not been synced yet/,
+      );
+
+      expect(mockCleanSlateService.createCleanSlate).not.toHaveBeenCalled();
     });
 
     it('should revert password config if upload fails', async () => {
