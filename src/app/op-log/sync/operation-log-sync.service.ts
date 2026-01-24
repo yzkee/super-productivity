@@ -26,6 +26,9 @@ import { SyncHydrationService } from '../persistence/sync-hydration.service';
 import { SyncImportConflictDialogService } from './sync-import-conflict-dialog.service';
 import { getDefaultMainModelData } from '../model/model-config';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
+import { StateSnapshotService } from '../backup/state-snapshot.service';
+import { INBOX_PROJECT } from '../../features/project/project.const';
+import { SYSTEM_TAG_IDS } from '../../features/tag/tag.const';
 
 /**
  * Orchestrates synchronization of the Operation Log with remote storage.
@@ -103,6 +106,7 @@ export class OperationLogSyncService {
   private superSyncStatusService = inject(SuperSyncStatusService);
   private serverMigrationService = inject(ServerMigrationService);
   private writeFlushService = inject(OperationWriteFlushService);
+  private stateSnapshotService = inject(StateSnapshotService);
 
   // Extracted services
   private remoteOpsProcessingService = inject(RemoteOpsProcessingService);
@@ -123,6 +127,49 @@ export class OperationLogSyncService {
 
     // Fresh client: no snapshot AND no operations in the log
     return !snapshot && lastSeq === 0;
+  }
+
+  /**
+   * Checks if the NgRx store has meaningful user data (tasks, projects, tags, notes).
+   * This detects data that existed before the operation-log feature was added.
+   *
+   * @returns true if user has created any tasks, projects (besides INBOX), tags (besides system tags), or notes
+   */
+  private _hasMeaningfulLocalData(): boolean {
+    const snapshot = this.stateSnapshotService.getStateSnapshot();
+
+    if (!snapshot) {
+      OpLog.warn(
+        'OperationLogSyncService._hasMeaningfulLocalData: Unable to get state snapshot',
+      );
+      return false; // Assume no data rather than blocking sync
+    }
+
+    // Check for tasks (any tasks = meaningful data)
+    const taskState = snapshot.task as { ids: string[] };
+    if (taskState?.ids?.length > 0) {
+      return true;
+    }
+
+    // Check for projects (beyond the default INBOX project)
+    const projectState = snapshot.project as { ids: string[] };
+    if (projectState?.ids?.some((id) => id !== INBOX_PROJECT.id)) {
+      return true;
+    }
+
+    // Check for tags (beyond system tags like TODAY, URGENT, IMPORTANT, IN_PROGRESS)
+    const tagState = snapshot.tag as { ids: string[] };
+    if (tagState?.ids?.some((id) => !SYSTEM_TAG_IDS.has(id))) {
+      return true;
+    }
+
+    // Check for notes
+    const noteState = snapshot.note as { ids: string[] };
+    if (noteState?.ids?.length > 0) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -321,8 +368,24 @@ export class OperationLogSyncService {
 
       // Only show confirmation for wholly fresh clients without any local changes
       if (!hasLocalChanges) {
-        // Show fresh client confirmation if this is a wholly fresh client
         const isFreshClient = await this.isWhollyFreshClient();
+
+        // CRITICAL FIX: Even if op-log is empty, check if NgRx store has meaningful data.
+        // This catches data that existed before the operation-log feature was added.
+        if (isFreshClient && this._hasMeaningfulLocalData()) {
+          OpLog.warn(
+            'OperationLogSyncService: Fresh client detected with meaningful local data in store. ' +
+              'Throwing LocalDataConflictError for conflict resolution dialog.',
+          );
+
+          throw new LocalDataConflictError(
+            0, // No unsynced ops, but we have meaningful store data
+            result.snapshotState as Record<string, unknown>,
+            result.snapshotVectorClock,
+          );
+        }
+
+        // Original flow for truly fresh clients (no store data)
         if (isFreshClient) {
           OpLog.warn(
             'OperationLogSyncService: Fresh client detected. Requesting confirmation before accepting snapshot.',
