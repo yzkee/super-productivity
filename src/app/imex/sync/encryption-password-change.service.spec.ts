@@ -6,6 +6,7 @@ import { OperationLogUploadService } from '../../op-log/sync/operation-log-uploa
 import { DerivedKeyCacheService } from '../../op-log/encryption/derived-key-cache.service';
 import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { SyncWrapperService } from './sync-wrapper.service';
+import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
 
 describe('EncryptionPasswordChangeService', () => {
   let service: EncryptionPasswordChangeService;
@@ -14,6 +15,7 @@ describe('EncryptionPasswordChangeService', () => {
   let mockUploadService: jasmine.SpyObj<OperationLogUploadService>;
   let mockDerivedKeyCache: jasmine.SpyObj<DerivedKeyCacheService>;
   let mockSyncWrapper: jasmine.SpyObj<SyncWrapperService>;
+  let mockOpLogStore: jasmine.SpyObj<OperationLogStoreService>;
   let mockSyncProvider: jasmine.SpyObj<any>;
 
   const TEST_PASSWORD = 'new-secure-password-123';
@@ -67,6 +69,10 @@ describe('EncryptionPasswordChangeService', () => {
       },
     );
 
+    // Mock OperationLogStoreService - default to no unsynced operations
+    mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', ['getUnsynced']);
+    mockOpLogStore.getUnsynced.and.returnValue(Promise.resolve([]));
+
     TestBed.configureTestingModule({
       providers: [
         EncryptionPasswordChangeService,
@@ -75,6 +81,7 @@ describe('EncryptionPasswordChangeService', () => {
         { provide: OperationLogUploadService, useValue: mockUploadService },
         { provide: DerivedKeyCacheService, useValue: mockDerivedKeyCache },
         { provide: SyncWrapperService, useValue: mockSyncWrapper },
+        { provide: OperationLogStoreService, useValue: mockOpLogStore },
       ],
     });
     service = TestBed.inject(EncryptionPasswordChangeService);
@@ -154,6 +161,28 @@ describe('EncryptionPasswordChangeService', () => {
       );
 
       expect(mockCleanSlateService.createCleanSlate).not.toHaveBeenCalled();
+    });
+
+    it('should throw error if there are unsynced operations', async () => {
+      mockOpLogStore.getUnsynced.and.returnValue(
+        Promise.resolve([{ id: 'op1' } as any, { id: 'op2' } as any]),
+      );
+
+      await expectAsync(service.changePassword(TEST_PASSWORD)).toBeRejectedWithError(
+        /Cannot change password: 2 operation\(s\) have not been synced yet/,
+      );
+
+      // Should not proceed with password change
+      expect(mockCleanSlateService.createCleanSlate).not.toHaveBeenCalled();
+    });
+
+    it('should proceed when there are no unsynced operations', async () => {
+      mockOpLogStore.getUnsynced.and.returnValue(Promise.resolve([]));
+
+      await service.changePassword(TEST_PASSWORD);
+
+      // Should proceed with password change
+      expect(mockCleanSlateService.createCleanSlate).toHaveBeenCalled();
     });
 
     it('should revert password config if upload fails', async () => {

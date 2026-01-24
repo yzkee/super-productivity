@@ -8,6 +8,7 @@ import { DerivedKeyCacheService } from '../../op-log/encryption/derived-key-cach
 import { CleanSlateService } from '../../op-log/clean-slate/clean-slate.service';
 import { OperationLogUploadService } from '../../op-log/sync/operation-log-upload.service';
 import { SyncWrapperService } from './sync-wrapper.service';
+import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
 
 /**
  * Service for changing the encryption password for SuperSync.
@@ -26,6 +27,7 @@ export class EncryptionPasswordChangeService {
   private _uploadService = inject(OperationLogUploadService);
   private _derivedKeyCache = inject(DerivedKeyCacheService);
   private _syncWrapper = inject(SyncWrapperService);
+  private _opLogStore = inject(OperationLogStoreService);
 
   /**
    * Changes the encryption password using the clean slate approach.
@@ -56,6 +58,15 @@ export class EncryptionPasswordChangeService {
 
     if (!isOperationSyncCapable(syncProvider)) {
       throw new Error('Sync provider does not support operation sync');
+    }
+
+    // Check for unsynced operations before proceeding
+    const unsyncedOps = await this._opLogStore.getUnsynced();
+    if (unsyncedOps.length > 0) {
+      throw new Error(
+        `Cannot change password: ${unsyncedOps.length} operation(s) have not been synced yet. ` +
+          'Please wait for sync to complete or manually trigger a sync before changing the password.',
+      );
     }
 
     // Run the entire password change with sync blocked to prevent race conditions.
