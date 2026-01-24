@@ -49,6 +49,7 @@ describe('markedOptionsFactory', () => {
       expect(result).toContain('undone');
       expect(result).toContain('check_box_outline_blank');
       expect(result).toContain('Task item');
+      expect(result).toContain('</span> Task item');
     });
 
     it('should render checked task list item with checkbox', () => {
@@ -63,6 +64,7 @@ describe('markedOptionsFactory', () => {
       expect(result).toContain('check_box');
       expect(result).not.toContain('check_box_outline_blank');
       expect(result).toContain('Completed task');
+      expect(result).toContain('</span> Completed task');
     });
 
     it('should handle undefined checked value as unchecked', () => {
@@ -74,6 +76,15 @@ describe('markedOptionsFactory', () => {
       expect(result).toContain('checkbox-wrapper');
       expect(result).toContain('undone');
       expect(result).toContain('check_box_outline_blank');
+    });
+
+    it('should have space between checkbox and text for proper visual separation', () => {
+      const result = options.renderer!.listitem({
+        text: 'Spaced item',
+        task: true,
+        checked: false,
+      } as any);
+      expect(result).toMatch(/<\/span> Spaced item<\/li>/);
     });
   });
 

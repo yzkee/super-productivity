@@ -19,7 +19,7 @@ export const markedOptionsFactory = (): MarkedOptions => {
     if (task) {
       const isChecked = checked === true;
       const checkboxHtml = `<span class="checkbox material-icons">${isChecked ? 'check_box' : 'check_box_outline_blank'}</span>`;
-      return `<li class="checkbox-wrapper ${isChecked ? 'done' : 'undone'}">${checkboxHtml}${text}</li>`;
+      return `<li class="checkbox-wrapper ${isChecked ? 'done' : 'undone'}">${checkboxHtml} ${text}</li>`;
     }
     return `<li>${text}</li>`;
   };
