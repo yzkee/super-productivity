@@ -24,6 +24,7 @@ import {
   UploadOptions,
 } from '../core/types/sync-results.types';
 import { handleStorageQuotaError } from './sync-error-utils';
+import { DecryptNoPasswordError } from '../core/errors/sync-errors';
 
 // Re-export for consumers that import from this service
 export type {
@@ -237,9 +238,19 @@ export class OperationLogUploadService {
           );
           let piggybackSyncOps = response.newOps.map((serverOp) => serverOp.op);
 
-          // Decrypt piggybacked ops if any are encrypted and we have a key
+          // Decrypt piggybacked ops if any are encrypted
           const hasEncryptedOps = piggybackSyncOps.some((op) => op.isPayloadEncrypted);
-          if (hasEncryptedOps && encryptKey) {
+          if (hasEncryptedOps) {
+            if (!encryptKey) {
+              // Match download service behavior: throw error to trigger password dialog
+              OpLog.error(
+                'OperationLogUploadService: Received encrypted piggybacked operations but no encryption key is configured.',
+              );
+              throw new DecryptNoPasswordError(
+                'Encrypted data received but no encryption password is configured',
+              );
+            }
+
             piggybackSyncOps = await this.encryptionService.decryptOperations(
               piggybackSyncOps,
               encryptKey,
