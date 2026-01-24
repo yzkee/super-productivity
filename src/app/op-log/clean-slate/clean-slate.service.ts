@@ -94,7 +94,9 @@ export class CleanSlateService {
     }
 
     // 2. Get current application state (includes all features + archives)
-    const currentState = await this.stateSnapshotService.getStateSnapshot();
+    // IMPORTANT: Must use async version to load real archives from IndexedDB
+    // The sync getStateSnapshot() returns DEFAULT_ARCHIVE (empty) which causes data loss
+    const currentState = await this.stateSnapshotService.getStateSnapshotAsync();
 
     // 3. Generate new client ID (fresh start - all devices get new IDs after clean slate)
     const newClientId = await this.clientIdService.generateNewClientId();
