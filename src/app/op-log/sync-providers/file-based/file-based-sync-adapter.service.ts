@@ -337,6 +337,7 @@ export class FileBasedSyncAdapterService {
         schemaVersion: number,
         isPayloadEncrypted: boolean | undefined,
         _opId: string, // Not used in file-based sync (operation IDs are client-local)
+        _isCleanSlate?: boolean, // Not used - file-based sync replaces entire file
       ): Promise<SnapshotUploadResponse> => {
         return this._uploadSnapshot(
           provider,

@@ -117,6 +117,7 @@ export class OperationLogUploadService {
           syncProvider,
           entry,
           encryptKey,
+          options?.isCleanSlate,
         );
         if (result.accepted) {
           await this.opLogStore.markSynced([entry.seq]);
@@ -354,11 +355,17 @@ export class OperationLogUploadService {
    * Uploads a full-state operation (backup import, repair, sync import) via
    * the snapshot endpoint instead of the ops endpoint. This is more efficient
    * for large payloads as the snapshot endpoint is designed for full state uploads.
+   *
+   * @param syncProvider - The sync provider to upload to
+   * @param entry - The operation log entry containing the full state
+   * @param encryptKey - Optional encryption key for E2E encryption
+   * @param isCleanSlate - If true, server deletes all data before accepting the snapshot
    */
   private async _uploadFullStateOpAsSnapshot(
     syncProvider: OperationSyncCapable,
     entry: OperationLogEntry,
     encryptKey: string | undefined,
+    isCleanSlate?: boolean,
   ): Promise<{
     accepted: boolean;
     serverSeq?: number;
@@ -401,6 +408,7 @@ export class OperationLogUploadService {
         op.schemaVersion,
         isPayloadEncrypted,
         op.id, // CRITICAL: Pass op.id to prevent ID mismatch bugs
+        isCleanSlate,
       );
       return response;
     } catch (err) {

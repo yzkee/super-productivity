@@ -221,6 +221,7 @@ export class SuperSyncProvider
     schemaVersion: number,
     isPayloadEncrypted: boolean | undefined,
     opId: string,
+    isCleanSlate?: boolean,
   ): Promise<SnapshotUploadResponse> {
     SyncLog.normal(this.logLabel, 'uploadSnapshot: Starting...', {
       clientId,
@@ -228,6 +229,7 @@ export class SuperSyncProvider
       schemaVersion,
       isPayloadEncrypted,
       opId,
+      isCleanSlate,
     });
     const cfg = await this._cfgOrError();
 
@@ -240,6 +242,7 @@ export class SuperSyncProvider
       schemaVersion,
       isPayloadEncrypted,
       opId, // CRITICAL: Server must use this ID to prevent ID mismatch bugs
+      isCleanSlate,
     });
 
     // On Android, use CapacitorHttp with base64-encoded gzip

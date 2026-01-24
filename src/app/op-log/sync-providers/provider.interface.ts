@@ -276,6 +276,7 @@ export interface OperationSyncCapable {
    * @param schemaVersion Schema version of the state
    * @param isPayloadEncrypted Whether the state payload is E2E encrypted
    * @param opId Client's operation ID - server MUST use this ID to prevent ID mismatch bugs
+   * @param isCleanSlate If true, server deletes all user data before accepting the snapshot
    */
   uploadSnapshot(
     state: unknown,
@@ -285,6 +286,7 @@ export interface OperationSyncCapable {
     schemaVersion: number,
     isPayloadEncrypted: boolean | undefined,
     opId: string,
+    isCleanSlate?: boolean,
   ): Promise<SnapshotUploadResponse>;
 
   /**

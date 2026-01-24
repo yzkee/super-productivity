@@ -17,7 +17,7 @@ import {
   CLOCK_DRIFT_THRESHOLD_MS,
 } from '../core/operation-log.const';
 import { OperationEncryptionService } from './operation-encryption.service';
-import { DecryptError, DecryptNoPasswordError } from '../core/errors/sync-errors';
+import { DecryptNoPasswordError } from '../core/errors/sync-errors';
 import { SuperSyncStatusService } from './super-sync-status.service';
 import { DownloadResult } from '../core/types/sync-results.types';
 import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
@@ -206,23 +206,8 @@ export class OperationLogDownloadService {
             );
           }
 
-          try {
-            syncOps = await this.encryptionService.decryptOperations(syncOps, encryptKey);
-          } catch (e) {
-            if (e instanceof DecryptError) {
-              OpLog.error(
-                'OperationLogDownloadService: Failed to decrypt operations. Wrong encryption password?',
-                e,
-              );
-              this.snackService.open({
-                type: 'ERROR',
-                msg: T.F.SYNC.S.DECRYPTION_FAILED,
-              });
-              downloadFailed = true;
-              return;
-            }
-            throw e;
-          }
+          // Decrypt encrypted operations - let DecryptError propagate to sync-wrapper handler
+          syncOps = await this.encryptionService.decryptOperations(syncOps, encryptKey);
         }
 
         // Convert to Operation format
