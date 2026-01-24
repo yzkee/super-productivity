@@ -359,7 +359,9 @@ export const decryptBatch = async (
 
     // Argon2 format: extract salt and use cached key
     const salt = new Uint8Array(dataBuffer, 0, SALT_LENGTH);
-    const saltKey = ab2base64(salt.buffer);
+    // IMPORTANT: Use slice() to create a copy with its own ArrayBuffer.
+    // Without slice(), salt.buffer returns the entire dataBuffer, not just the salt!
+    const saltKey = ab2base64(salt.slice().buffer);
 
     // Check cache for this salt
     let keyInfo = keyCache.get(saltKey);
