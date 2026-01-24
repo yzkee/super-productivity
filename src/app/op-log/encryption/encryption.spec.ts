@@ -216,7 +216,10 @@ describe('Encryption', () => {
         expect(salt2).toBe(salt3);
       });
 
-      it('should use different salts for separate batch calls', async () => {
+      it('should reuse cached salt for separate batch calls with same password', async () => {
+        // Clear cache to ensure fresh start
+        clearSessionKeyCache();
+
         const batch1 = await encryptBatch(['a'], PASSWORD);
         const batch2 = await encryptBatch(['b'], PASSWORD);
 
@@ -231,7 +234,29 @@ describe('Encryption', () => {
         const salt1 = extractSalt(batch1[0]);
         const salt2 = extractSalt(batch2[0]);
 
-        // Different batch calls should have different salts (random)
+        // With session caching, same password reuses the cached key (same salt)
+        expect(salt1).toBe(salt2);
+      });
+
+      it('should use different salts for different passwords', async () => {
+        clearSessionKeyCache();
+        const batch1 = await encryptBatch(['a'], PASSWORD);
+
+        clearSessionKeyCache();
+        const batch2 = await encryptBatch(['b'], 'different_password');
+
+        // Extract salt (first 16 bytes) from each ciphertext
+        const extractSalt = (base64: string): string => {
+          const binary = window.atob(base64);
+          return Array.from(binary.slice(0, 16))
+            .map((c) => c.charCodeAt(0).toString(16).padStart(2, '0'))
+            .join('');
+        };
+
+        const salt1 = extractSalt(batch1[0]);
+        const salt2 = extractSalt(batch2[0]);
+
+        // Different passwords should have different salts
         expect(salt1).not.toBe(salt2);
       });
     });
