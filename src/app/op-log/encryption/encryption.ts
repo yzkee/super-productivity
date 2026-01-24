@@ -497,9 +497,17 @@ export const decryptBatch = async (
     const sessionCacheKey = `${passwordHash}:${item.saltBase64}`;
     const keyInfo = sessionDecryptKeyCache.get(sessionCacheKey)!;
 
-    // Decrypt using cached key - don't catch errors here!
-    // If decryption fails on Argon2-sized data, it's a real error
-    return { index: item.index, result: await decryptWithDerivedKey(item.data, keyInfo) };
+    // Try Argon2 decryption first, fall back to legacy if it fails
+    // This handles legacy data that's ≥44 bytes (misclassified as Argon2)
+    try {
+      return {
+        index: item.index,
+        result: await decryptWithDerivedKey(item.data, keyInfo),
+      };
+    } catch {
+      // Argon2 failed - try legacy format (data might be long legacy ciphertext)
+      return { index: item.index, result: await decryptLegacy(item.data, password) };
+    }
   });
 
   const decryptedItems = await Promise.all(decryptionPromises);
