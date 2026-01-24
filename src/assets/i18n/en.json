@@ -1032,6 +1032,8 @@
           "PASSWORD_MIN_LENGTH": "Password must be at least 8 characters",
           "BTN_CHANGE_PASSWORD": "Change Password",
           "PASSWORD_SET_INFO": "✓ Encryption password is set. Use 'Change Password' button to update it.",
+          "L_REMOVE_ENCRYPTION": "Or Remove Encryption",
+          "REMOVE_ENCRYPTION_WARNING": "Removing encryption will delete all server data and re-upload your data without encryption. All devices will need to reconfigure.",
           "DISABLE_ENCRYPTION_TITLE": "Disable Encryption?",
           "DISABLE_ENCRYPTION_WARNING": "WARNING: This will permanently delete ALL encrypted sync data on the server. This is necessary because encrypted operations cannot be mixed with unencrypted ones.",
           "DISABLE_ENCRYPTION_WHAT_HAPPENS": "What will happen:",

@@ -569,26 +569,27 @@ export class ArchiveOperationHandler {
       }
 
       if (shouldWriteArchiveOld) {
-      try {
-        await this._archiveDbAdapter.saveArchiveOld(archiveOld);
-      } catch (e) {
-        // Attempt rollback: restore archiveYoung to original state
-        OpLog.err(
-          '[ArchiveOperationHandler] archiveOld write failed, attempting rollback...',
-          e,
-        );
         try {
-          if (originalArchiveYoung !== undefined) {
-            await this._archiveDbAdapter.saveArchiveYoung(originalArchiveYoung);
-            OpLog.log('[ArchiveOperationHandler] Rollback successful');
-          }
-        } catch (rollbackErr) {
+          await this._archiveDbAdapter.saveArchiveOld(archiveOld);
+        } catch (e) {
+          // Attempt rollback: restore archiveYoung to original state
           OpLog.err(
-            '[ArchiveOperationHandler] Rollback FAILED - archive may be inconsistent',
-            rollbackErr,
+            '[ArchiveOperationHandler] archiveOld write failed, attempting rollback...',
+            e,
           );
+          try {
+            if (originalArchiveYoung !== undefined) {
+              await this._archiveDbAdapter.saveArchiveYoung(originalArchiveYoung);
+              OpLog.log('[ArchiveOperationHandler] Rollback successful');
+            }
+          } catch (rollbackErr) {
+            OpLog.err(
+              '[ArchiveOperationHandler] Rollback FAILED - archive may be inconsistent',
+              rollbackErr,
+            );
+          }
+          throw e; // Re-throw original error
         }
-        throw e; // Re-throw original error
       }
     }
 

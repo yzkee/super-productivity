@@ -24,7 +24,6 @@ import { SyncConfig } from '../../../features/config/global-config.model';
 import { LegacySyncProvider } from '../legacy-sync-provider.model';
 import { SyncConfigService } from '../sync-config.service';
 import { SyncWrapperService } from '../sync-wrapper.service';
-import { EncryptionPasswordDialogOpenerService } from '../encryption-password-dialog-opener.service';
 import { Subscription } from 'rxjs';
 import { first, skip } from 'rxjs/operators';
 import { toSyncProviderId } from '../../../op-log/sync-exports';
@@ -51,7 +50,6 @@ import { GlobalConfigService } from '../../../features/config/global-config.serv
 export class DialogSyncInitialCfgComponent implements AfterViewInit {
   syncConfigService = inject(SyncConfigService);
   syncWrapperService = inject(SyncWrapperService);
-  private _encryptionPasswordDialogOpener = inject(EncryptionPasswordDialogOpenerService);
   private _providerManager = inject(SyncProviderManager);
   private _globalConfigService = inject(GlobalConfigService);
 
@@ -61,28 +59,7 @@ export class DialogSyncInitialCfgComponent implements AfterViewInit {
   form = new FormGroup({});
 
   private _getFields(includeEnabledToggle: boolean): FormlyFieldConfig[] {
-    const baseFields = SYNC_FORM.items!.filter(
-      (f) => includeEnabledToggle || f.key !== 'isEnabled',
-    );
-
-    // Add the "Change Encryption Password" button
-    const changePasswordBtn: FormlyFieldConfig = {
-      hideExpression: (m: SyncConfig) =>
-        m.syncProvider !== LegacySyncProvider.SuperSync ||
-        !m.superSync?.isEncryptionEnabled,
-      type: 'btn',
-      className: 'mt2 block',
-      props: {
-        text: T.F.SYNC.FORM.SUPER_SYNC.L_CHANGE_ENCRYPTION_PASSWORD,
-        btnType: 'stroked',
-        required: false,
-        onClick: () => {
-          this._encryptionPasswordDialogOpener.openChangePasswordDialog();
-        },
-      },
-    };
-
-    return [...baseFields, changePasswordBtn];
+    return SYNC_FORM.items!.filter((f) => includeEnabledToggle || f.key !== 'isEnabled');
   }
   _tmpUpdatedCfg: SyncConfig = {
     isEnabled: true,
