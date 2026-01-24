@@ -8,6 +8,7 @@ import { LegacySyncProvider } from './legacy-sync-provider.model';
 import { SyncProviderId } from '../../op-log/sync-exports';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 import { first } from 'rxjs/operators';
+import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
 
 describe('SyncConfigService', () => {
   let service: SyncConfigService;
@@ -50,11 +51,16 @@ describe('SyncConfigService', () => {
       },
     );
 
+    const wrappedProviderServiceSpy = jasmine.createSpyObj('WrappedProviderService', [
+      'clearCache',
+    ]);
+
     TestBed.configureTestingModule({
       providers: [
         SyncConfigService,
         { provide: SyncProviderManager, useValue: providerManagerSpy },
         { provide: GlobalConfigService, useValue: globalConfigServiceSpy },
+        { provide: WrappedProviderService, useValue: wrappedProviderServiceSpy },
       ],
     });
 
@@ -1076,6 +1082,14 @@ describe('SyncConfigService', () => {
   });
 
   describe('Cache Clearing on Encryption Changes', () => {
+    let wrappedProviderService: jasmine.SpyObj<WrappedProviderService>;
+
+    beforeEach(() => {
+      wrappedProviderService = TestBed.inject(
+        WrappedProviderService,
+      ) as jasmine.SpyObj<WrappedProviderService>;
+    });
+
     it('should clear cache when encryption is disabled', async () => {
       // Mock existing provider config with encryption
       const mockProvider = {
@@ -1109,8 +1123,9 @@ describe('SyncConfigService', () => {
         },
       } as SyncConfig);
 
-      // Verify cache was cleared
+      // Verify both caches were cleared
       expect(clearCacheSpy).toHaveBeenCalled();
+      expect(wrappedProviderService.clearCache).toHaveBeenCalled();
     });
 
     it('should clear cache when encryption password changes', async () => {
@@ -1146,8 +1161,9 @@ describe('SyncConfigService', () => {
         },
       } as SyncConfig);
 
-      // Verify cache was cleared
+      // Verify both caches were cleared
       expect(clearCacheSpy).toHaveBeenCalled();
+      expect(wrappedProviderService.clearCache).toHaveBeenCalled();
     });
 
     it('should clear cache when encryption is enabled', async () => {
@@ -1183,8 +1199,9 @@ describe('SyncConfigService', () => {
         },
       } as SyncConfig);
 
-      // Verify cache was cleared
+      // Verify both caches were cleared
       expect(clearCacheSpy).toHaveBeenCalled();
+      expect(wrappedProviderService.clearCache).toHaveBeenCalled();
     });
 
     it('should NOT clear cache when encryption key unchanged', async () => {
@@ -1220,8 +1237,9 @@ describe('SyncConfigService', () => {
         },
       } as SyncConfig);
 
-      // Verify cache was NOT cleared
+      // Verify neither cache was cleared
       expect(clearCacheSpy).not.toHaveBeenCalled();
+      expect(wrappedProviderService.clearCache).not.toHaveBeenCalled();
     });
 
     it('should clear cache via updateEncryptionPassword method', async () => {
@@ -1249,8 +1267,9 @@ describe('SyncConfigService', () => {
       // Update password via dedicated method
       await service.updateEncryptionPassword('newPassword', SyncProviderId.WebDAV);
 
-      // Verify cache was cleared
+      // Verify both caches were cleared
       expect(clearCacheSpy).toHaveBeenCalled();
+      expect(wrappedProviderService.clearCache).toHaveBeenCalled();
     });
   });
 });

@@ -46,11 +46,11 @@ export class DialogEnterEncryptionPasswordComponent {
   T: typeof T = T;
   passwordVal: string = '';
 
-  saveAndSync(): void {
+  async saveAndSync(): Promise<void> {
     if (!this.passwordVal) {
       return;
     }
-    this._syncConfigService.updateEncryptionPassword(this.passwordVal);
+    await this._syncConfigService.updateEncryptionPassword(this.passwordVal);
     this._matDialogRef.close({ password: this.passwordVal });
   }
 

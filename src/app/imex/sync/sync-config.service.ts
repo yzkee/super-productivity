@@ -9,6 +9,7 @@ import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-conf
 import { SyncLog } from '../../core/log';
 import { DerivedKeyCacheService } from '../../op-log/encryption/derived-key-cache.service';
 import { SuperSyncPrivateCfg } from '../../op-log/sync-providers/super-sync/super-sync.model';
+import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
 
 // Maps sync providers to their corresponding form field in SyncConfig
 // Dropbox is null because it doesn't store settings in the form (uses OAuth)
@@ -86,6 +87,7 @@ export class SyncConfigService {
   private _providerManager = inject(SyncProviderManager);
   private _globalConfigService = inject(GlobalConfigService);
   private _derivedKeyCache = inject(DerivedKeyCacheService);
+  private _wrappedProvider = inject(WrappedProviderService);
 
   private _lastSettings: SyncConfig | null = null;
 
@@ -195,6 +197,8 @@ export class SyncConfigService {
 
     // Clear cached encryption keys to force re-derivation with new password
     this._derivedKeyCache.clearCache();
+    // Clear cached adapters to force recreation with new encryption settings
+    this._wrappedProvider.clearCache();
   }
 
   async updateSettingsFromForm(newSettings: SyncConfig, isForce = false): Promise<void> {
@@ -328,6 +332,8 @@ export class SyncConfigService {
         'SyncConfigService: Encryption settings changed, clearing cached keys',
       );
       this._derivedKeyCache.clearCache();
+      // Clear cached adapters to force recreation with new encryption settings
+      this._wrappedProvider.clearCache();
     }
   }
 }
