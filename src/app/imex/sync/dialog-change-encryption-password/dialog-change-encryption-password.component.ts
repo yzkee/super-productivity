@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import {
+  MAT_DIALOG_DATA,
   MatDialogActions,
   MatDialogContent,
   MatDialogRef,
@@ -21,6 +22,10 @@ import { MatDivider } from '@angular/material/divider';
 export interface ChangeEncryptionPasswordResult {
   success: boolean;
   encryptionRemoved?: boolean;
+}
+
+export interface ChangeEncryptionPasswordDialogData {
+  mode?: 'full' | 'disable-only';
 }
 
 @Component({
@@ -55,12 +60,16 @@ export class DialogChangeEncryptionPasswordComponent {
         ChangeEncryptionPasswordResult
       >
     >(MatDialogRef);
+  private _data = inject<ChangeEncryptionPasswordDialogData | null>(MAT_DIALOG_DATA, {
+    optional: true,
+  });
 
   T: typeof T = T;
   newPassword = '';
   confirmPassword = '';
   isLoading = signal(false);
   isRemovingEncryption = signal(false);
+  mode: 'full' | 'disable-only' = this._data?.mode || 'full';
 
   get passwordsMatch(): boolean {
     return this.newPassword === this.confirmPassword;

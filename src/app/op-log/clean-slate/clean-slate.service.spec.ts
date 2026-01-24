@@ -28,7 +28,7 @@ describe('CleanSlateService', () => {
 
   beforeEach(() => {
     mockStateSnapshotService = jasmine.createSpyObj('StateSnapshotService', [
-      'getStateSnapshot',
+      'getStateSnapshotAsync',
     ]);
     mockVectorClockService = jasmine.createSpyObj('VectorClockService', [
       'getCurrentVectorClock',
@@ -63,7 +63,7 @@ describe('CleanSlateService', () => {
     service = TestBed.inject(CleanSlateService);
 
     // Setup default mock responses
-    mockStateSnapshotService.getStateSnapshot.and.returnValue(mockState as any);
+    mockStateSnapshotService.getStateSnapshotAsync.and.resolveTo(mockState as any);
     mockVectorClockService.getCurrentVectorClock.and.resolveTo(mockVectorClock);
     mockClientIdService.generateNewClientId.and.resolveTo('E_newC');
     mockPreMigrationBackupService.createPreMigrationBackup.and.resolveTo();
@@ -82,8 +82,8 @@ describe('CleanSlateService', () => {
         'ENCRYPTION_CHANGE',
       );
 
-      // Should get current state
-      expect(mockStateSnapshotService.getStateSnapshot).toHaveBeenCalled();
+      // Should get current state (async version to include archives)
+      expect(mockStateSnapshotService.getStateSnapshotAsync).toHaveBeenCalled();
 
       // Should generate new client ID
       expect(mockClientIdService.generateNewClientId).toHaveBeenCalled();
@@ -166,7 +166,9 @@ describe('CleanSlateService', () => {
     });
 
     it('should throw if state snapshot fails', async () => {
-      mockStateSnapshotService.getStateSnapshot.and.throwError('State error');
+      mockStateSnapshotService.getStateSnapshotAsync.and.rejectWith(
+        new Error('State error'),
+      );
 
       await expectAsync(service.createCleanSlate('ENCRYPTION_CHANGE')).toBeRejectedWith(
         jasmine.objectContaining({ message: 'State error' }),
@@ -205,8 +207,8 @@ describe('CleanSlateService', () => {
         'FULL_IMPORT',
       );
 
-      // Should NOT call getStateSnapshot (uses imported state instead)
-      expect(mockStateSnapshotService.getStateSnapshot).not.toHaveBeenCalled();
+      // Should NOT call getStateSnapshotAsync (uses imported state instead)
+      expect(mockStateSnapshotService.getStateSnapshotAsync).not.toHaveBeenCalled();
 
       // Should generate new client ID
       expect(mockClientIdService.generateNewClientId).toHaveBeenCalled();

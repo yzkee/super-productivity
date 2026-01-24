@@ -3,11 +3,8 @@ import { MatDialog } from '@angular/material/dialog';
 import {
   DialogChangeEncryptionPasswordComponent,
   ChangeEncryptionPasswordResult,
+  ChangeEncryptionPasswordDialogData,
 } from './dialog-change-encryption-password/dialog-change-encryption-password.component';
-import {
-  DialogDisableEncryptionComponent,
-  DisableEncryptionResult,
-} from './dialog-disable-encryption/dialog-disable-encryption.component';
 import {
   DialogEnableEncryptionComponent,
   EnableEncryptionDialogData,
@@ -24,22 +21,24 @@ import {
 export class EncryptionPasswordDialogOpenerService {
   private _matDialog = inject(MatDialog);
 
-  openChangePasswordDialog(): Promise<ChangeEncryptionPasswordResult | undefined> {
+  openChangePasswordDialog(
+    mode: 'full' | 'disable-only' = 'full',
+  ): Promise<ChangeEncryptionPasswordResult | undefined> {
     const dialogRef = this._matDialog.open(DialogChangeEncryptionPasswordComponent, {
-      width: '400px',
+      width: mode === 'disable-only' ? '450px' : '400px',
       disableClose: true,
+      data: { mode } as ChangeEncryptionPasswordDialogData,
     });
 
     return dialogRef.afterClosed().toPromise();
   }
 
-  openDisableEncryptionDialog(): Promise<DisableEncryptionResult | undefined> {
-    const dialogRef = this._matDialog.open(DialogDisableEncryptionComponent, {
-      width: '450px',
-      disableClose: true,
-    });
-
-    return dialogRef.afterClosed().toPromise();
+  /**
+   * Opens the unified change password dialog in disable-only mode.
+   * @deprecated Use openChangePasswordDialog('disable-only') instead
+   */
+  openDisableEncryptionDialog(): Promise<ChangeEncryptionPasswordResult | undefined> {
+    return this.openChangePasswordDialog('disable-only');
   }
 
   openEnableEncryptionDialog(
@@ -89,7 +88,7 @@ export const openEncryptionPasswordChangeDialog = (): Promise<
  * Can be called from form config onChange handlers.
  */
 export const openDisableEncryptionDialog = (): Promise<
-  DisableEncryptionResult | undefined
+  ChangeEncryptionPasswordResult | undefined
 > => {
   if (!dialogOpenerInstance) {
     console.error('EncryptionPasswordDialogOpenerService not initialized');
