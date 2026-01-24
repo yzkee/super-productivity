@@ -105,6 +105,13 @@ export class SyncWrapperService {
   isSyncInProgress$ = this._isSyncInProgress$.asObservable();
 
   /**
+   * Flag to block sync during critical encryption operations (password change, enable/disable).
+   * When true, sync() will skip and return immediately. This prevents race conditions where
+   * sync could read partial encryption state during password change.
+   */
+  private _isEncryptionOperationInProgress$ = new BehaviorSubject(false);
+
+  /**
    * Observable for UI: true when all local changes have been uploaded.
    * Used for all sync providers to show the single checkmark indicator.
    */
@@ -157,6 +164,12 @@ export class SyncWrapperService {
   );
 
   async sync(): Promise<SyncStatus | 'HANDLED_ERROR'> {
+    // Block sync if encryption operation is in progress (password change, enable/disable)
+    if (this._isEncryptionOperationInProgress$.getValue()) {
+      SyncLog.log('Sync blocked: encryption operation in progress');
+      return 'HANDLED_ERROR';
+    }
+
     // Race condition fix: Check-and-set atomically before starting sync
     if (this._isSyncInProgress$.getValue()) {
       SyncLog.log('Sync already in progress, skipping concurrent sync attempt');
@@ -173,6 +186,52 @@ export class SyncWrapperService {
         this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
       }
     });
+  }
+
+  /**
+   * Runs an encryption operation (password change, enable, disable) with sync blocked.
+   *
+   * This method:
+   * 1. Waits for any ongoing sync to complete
+   * 2. Blocks new syncs from starting
+   * 3. Runs the operation
+   * 4. Unblocks sync
+   *
+   * This prevents race conditions where sync could interfere with encryption state changes.
+   *
+   * @param operation - The async operation to run with sync blocked
+   * @returns The result of the operation
+   */
+  async runWithSyncBlocked<T>(operation: () => Promise<T>): Promise<T> {
+    // Wait for any ongoing sync to complete (with timeout)
+    if (this._isSyncInProgress$.getValue()) {
+      SyncLog.log('Waiting for ongoing sync to complete before encryption operation...');
+      try {
+        // Race between sync completing and timeout
+        await Promise.race([
+          firstValueFrom(
+            this._isSyncInProgress$.pipe(filter((inProgress) => !inProgress)),
+          ),
+          promiseTimeout(SYNC_WAIT_TIMEOUT_MS).then(() => {
+            throw new Error('Timeout waiting for sync');
+          }),
+        ]);
+      } catch (e) {
+        SyncLog.warn('Timeout waiting for sync to complete, proceeding anyway');
+      }
+    }
+
+    // Block new syncs
+    this._isEncryptionOperationInProgress$.next(true);
+    SyncLog.log('Sync blocked for encryption operation');
+
+    try {
+      return await operation();
+    } finally {
+      // Unblock sync
+      this._isEncryptionOperationInProgress$.next(false);
+      SyncLog.log('Sync unblocked after encryption operation');
+    }
   }
 
   private async _sync(): Promise<SyncStatus | 'HANDLED_ERROR'> {

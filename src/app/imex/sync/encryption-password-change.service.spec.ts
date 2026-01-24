@@ -5,6 +5,7 @@ import { CleanSlateService } from '../../op-log/clean-slate/clean-slate.service'
 import { OperationLogUploadService } from '../../op-log/sync/operation-log-upload.service';
 import { DerivedKeyCacheService } from '../../op-log/encryption/derived-key-cache.service';
 import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
+import { SyncWrapperService } from './sync-wrapper.service';
 
 describe('EncryptionPasswordChangeService', () => {
   let service: EncryptionPasswordChangeService;
@@ -12,6 +13,7 @@ describe('EncryptionPasswordChangeService', () => {
   let mockCleanSlateService: jasmine.SpyObj<CleanSlateService>;
   let mockUploadService: jasmine.SpyObj<OperationLogUploadService>;
   let mockDerivedKeyCache: jasmine.SpyObj<DerivedKeyCacheService>;
+  let mockSyncWrapper: jasmine.SpyObj<SyncWrapperService>;
   let mockSyncProvider: jasmine.SpyObj<any>;
 
   const TEST_PASSWORD = 'new-secure-password-123';
@@ -57,6 +59,14 @@ describe('EncryptionPasswordChangeService', () => {
 
     mockDerivedKeyCache = jasmine.createSpyObj('DerivedKeyCacheService', ['clearCache']);
 
+    // Mock SyncWrapperService - runWithSyncBlocked should just execute the callback
+    mockSyncWrapper = jasmine.createSpyObj('SyncWrapperService', ['runWithSyncBlocked']);
+    mockSyncWrapper.runWithSyncBlocked.and.callFake(
+      async <T>(operation: () => Promise<T>): Promise<T> => {
+        return operation();
+      },
+    );
+
     TestBed.configureTestingModule({
       providers: [
         EncryptionPasswordChangeService,
@@ -64,6 +74,7 @@ describe('EncryptionPasswordChangeService', () => {
         { provide: CleanSlateService, useValue: mockCleanSlateService },
         { provide: OperationLogUploadService, useValue: mockUploadService },
         { provide: DerivedKeyCacheService, useValue: mockDerivedKeyCache },
+        { provide: SyncWrapperService, useValue: mockSyncWrapper },
       ],
     });
     service = TestBed.inject(EncryptionPasswordChangeService);
@@ -192,8 +203,8 @@ describe('EncryptionPasswordChangeService', () => {
     it('should throw error if operations are rejected by server', async () => {
       mockUploadService.uploadPendingOps.and.returnValue(
         Promise.resolve({
-          uploadedCount: 0,
-          rejectedCount: 1,
+          uploadedCount: 1, // Some ops uploaded
+          rejectedCount: 1, // But some were rejected
           rejectedOps: [{ opId: 'op1', error: 'Server rejected' }],
           piggybackedOps: [],
         }),
@@ -237,6 +248,13 @@ describe('EncryptionPasswordChangeService', () => {
         'clearCache',
         'uploadPendingOps',
       ]);
+    });
+
+    it('should run password change with sync blocked to prevent race conditions', async () => {
+      await service.changePassword(TEST_PASSWORD);
+
+      // Verify runWithSyncBlocked was called (prevents sync during password change)
+      expect(mockSyncWrapper.runWithSyncBlocked).toHaveBeenCalled();
     });
   });
 });
