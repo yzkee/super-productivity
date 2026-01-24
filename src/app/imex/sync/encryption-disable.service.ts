@@ -59,8 +59,10 @@ export class EncryptionDisableService {
       (await syncProvider.privateCfg.load()) as SuperSyncPrivateCfg | null;
 
     // Get current state
+    // IMPORTANT: Must use async version to load real archives from IndexedDB
+    // The sync getStateSnapshot() returns DEFAULT_ARCHIVE (empty) which causes data loss
     SyncLog.normal('EncryptionDisableService: Getting current state...');
-    const currentState = this._stateSnapshotService.getStateSnapshot();
+    const currentState = await this._stateSnapshotService.getStateSnapshotAsync();
     const vectorClock = await this._vectorClockService.getCurrentVectorClock();
     const clientId = await this._clientIdProvider.loadClientId();
     if (!clientId) {

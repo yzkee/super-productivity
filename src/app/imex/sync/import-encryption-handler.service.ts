@@ -156,7 +156,9 @@ export class ImportEncryptionHandlerService {
       } as SuperSyncPrivateCfg);
 
       // 3. Get current state snapshot
-      const currentState = this._stateSnapshotService.getStateSnapshot();
+      // IMPORTANT: Must use async version to load real archives from IndexedDB
+      // The sync getStateSnapshot() returns DEFAULT_ARCHIVE (empty) which causes data loss
+      const currentState = await this._stateSnapshotService.getStateSnapshotAsync();
       const vectorClock = await this._vectorClockService.getCurrentVectorClock();
       const clientId = await this._clientIdProvider.loadClientId();
 
