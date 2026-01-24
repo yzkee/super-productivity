@@ -7,6 +7,8 @@ import {
   deriveKeyFromPassword,
   encryptWithDerivedKey,
   decryptWithDerivedKey,
+  clearSessionKeyCache,
+  getSessionKeyCacheStats,
 } from './encryption';
 
 describe('Encryption', () => {
@@ -372,6 +374,114 @@ describe('Encryption', () => {
           'argon2 item 2',
         ]);
       });
+    });
+  });
+
+  describe('Session Key Caching', () => {
+    beforeEach(() => {
+      // Clear cache before each test to ensure isolation
+      clearSessionKeyCache();
+    });
+
+    afterEach(() => {
+      // Clean up after tests
+      clearSessionKeyCache();
+    });
+
+    it('should reuse cached key across multiple encryptBatch calls with same password', async () => {
+      // First batch - will derive key
+      const batch1 = await encryptBatch(['item1'], PASSWORD);
+
+      // Second batch - should reuse cached key (same salt)
+      const batch2 = await encryptBatch(['item2'], PASSWORD);
+
+      // Both should decrypt correctly
+      const decrypted1 = await decryptBatch(batch1, PASSWORD);
+      const decrypted2 = await decryptBatch(batch2, PASSWORD);
+
+      expect(decrypted1[0]).toBe('item1');
+      expect(decrypted2[0]).toBe('item2');
+
+      // Verify cache is populated
+      const stats = getSessionKeyCacheStats();
+      expect(stats.hasEncryptKey).toBe(true);
+    });
+
+    it('should invalidate encryption cache when password changes', async () => {
+      const PASSWORD2 = 'different_password';
+
+      // Encrypt with first password
+      const batch1 = await encryptBatch(['secret'], PASSWORD);
+
+      // Encrypt with different password - should derive new key
+      const batch2 = await encryptBatch(['secret'], PASSWORD2);
+
+      // Both should have different encrypted outputs (different keys)
+      expect(batch1[0]).not.toBe(batch2[0]);
+
+      // Each should only decrypt with its own password
+      const decrypted1 = await decryptBatch(batch1, PASSWORD);
+      expect(decrypted1[0]).toBe('secret');
+
+      const decrypted2 = await decryptBatch(batch2, PASSWORD2);
+      expect(decrypted2[0]).toBe('secret');
+    });
+
+    it('should clear both encrypt and decrypt caches when clearSessionKeyCache is called', async () => {
+      // Populate caches
+      const encrypted = await encryptBatch(['test'], PASSWORD);
+      await decryptBatch(encrypted, PASSWORD);
+
+      // Verify caches are populated
+      let stats = getSessionKeyCacheStats();
+      expect(stats.hasEncryptKey).toBe(true);
+      expect(stats.decryptKeyCount).toBeGreaterThan(0);
+
+      // Clear caches
+      clearSessionKeyCache();
+
+      // Verify caches are empty
+      stats = getSessionKeyCacheStats();
+      expect(stats.hasEncryptKey).toBe(false);
+      expect(stats.decryptKeyCount).toBe(0);
+    });
+
+    it('should cache decryption keys by salt for reuse', async () => {
+      // Encrypt items (same salt in batch)
+      const encrypted = await encryptBatch(['a', 'b', 'c'], PASSWORD);
+
+      // Clear encryption cache to focus on decryption caching
+      clearSessionKeyCache();
+
+      // First decryptBatch should cache the key
+      const decrypted1 = await decryptBatch(encrypted, PASSWORD);
+      expect(decrypted1).toEqual(['a', 'b', 'c']);
+
+      // Verify decrypt cache is populated
+      const stats = getSessionKeyCacheStats();
+      expect(stats.decryptKeyCount).toBeGreaterThan(0);
+
+      // Second decryptBatch should use cached key
+      const decrypted2 = await decryptBatch(encrypted, PASSWORD);
+      expect(decrypted2).toEqual(['a', 'b', 'c']);
+    });
+
+    it('should return correct cache stats', async () => {
+      // Initially empty
+      let stats = getSessionKeyCacheStats();
+      expect(stats.hasEncryptKey).toBe(false);
+      expect(stats.decryptKeyCount).toBe(0);
+
+      // After encryption
+      await encryptBatch(['test'], PASSWORD);
+      stats = getSessionKeyCacheStats();
+      expect(stats.hasEncryptKey).toBe(true);
+
+      // After decryption with same salt (from encrypted batch)
+      const encrypted = await encryptBatch(['test2'], PASSWORD);
+      await decryptBatch(encrypted, PASSWORD);
+      stats = getSessionKeyCacheStats();
+      expect(stats.decryptKeyCount).toBeGreaterThan(0);
     });
   });
 });

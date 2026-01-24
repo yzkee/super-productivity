@@ -17,18 +17,20 @@ export interface DerivedKeyInfo {
 // ============================================================================
 // SESSION-LEVEL KEY CACHING
 // ============================================================================
-// This cache persists across sync cycles for the session duration.
+// This cache persists for the entire app session (until close/refresh).
 // PERFORMANCE: Reduces mobile sync time from minutes to seconds by avoiding
 // repeated Argon2id derivations (each takes 500ms-2000ms on mobile).
 //
 // Cache structure:
 // - For encryption: keyed by password hash (reuses key with its salt)
 // - For decryption: keyed by password hash + salt (because each ciphertext may have different salt)
+//
+// SECURITY: Keys are only stored in memory, cleared on app restart.
+// Call clearSessionKeyCache() when user changes their encryption password.
 
 interface SessionCacheEntry {
   keyInfo: DerivedKeyInfo;
   passwordHash: string;
-  createdAt: number;
 }
 
 // Session cache: password hash -> encryption key (for new encryptions with random salt)
@@ -36,9 +38,6 @@ let sessionEncryptKeyCache: SessionCacheEntry | null = null;
 
 // Session cache: "passwordHash:saltBase64" -> decryption key
 const sessionDecryptKeyCache = new Map<string, DerivedKeyInfo>();
-
-// Maximum age for cached keys (30 minutes) - security measure
-const SESSION_CACHE_MAX_AGE_MS = 30 * 60 * 1000;
 
 // Maximum entries in decrypt cache to prevent memory bloat
 const SESSION_DECRYPT_CACHE_MAX_SIZE = 100;
@@ -351,12 +350,8 @@ export const encryptBatch = async (
   const passwordHash = hashPasswordForCache(password);
   let keyInfo: DerivedKeyInfo;
 
-  // Check session cache for existing key
-  if (
-    sessionEncryptKeyCache &&
-    sessionEncryptKeyCache.passwordHash === passwordHash &&
-    Date.now() - sessionEncryptKeyCache.createdAt < SESSION_CACHE_MAX_AGE_MS
-  ) {
+  // Check session cache for existing key (no timeout - cached for entire session)
+  if (sessionEncryptKeyCache && sessionEncryptKeyCache.passwordHash === passwordHash) {
     // Reuse cached key (same salt means consistent ciphertext format)
     keyInfo = sessionEncryptKeyCache.keyInfo;
   } else {
@@ -365,7 +360,6 @@ export const encryptBatch = async (
     sessionEncryptKeyCache = {
       keyInfo,
       passwordHash,
-      createdAt: Date.now(),
     };
   }
 

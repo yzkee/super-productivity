@@ -7,6 +7,7 @@ import { switchMap, tap } from 'rxjs/operators';
 import { PrivateCfgByProviderId, SyncProviderId } from '../../op-log/sync-exports';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 import { SyncLog } from '../../core/log';
+import { DerivedKeyCacheService } from '../../op-log/encryption/derived-key-cache.service';
 
 // Maps sync providers to their corresponding form field in SyncConfig
 // Dropbox is null because it doesn't store settings in the form (uses OAuth)
@@ -83,6 +84,7 @@ const PROVIDER_FIELD_DEFAULTS: Record<
 export class SyncConfigService {
   private _providerManager = inject(SyncProviderManager);
   private _globalConfigService = inject(GlobalConfigService);
+  private _derivedKeyCache = inject(DerivedKeyCacheService);
 
   private _lastSettings: SyncConfig | null = null;
 
@@ -181,6 +183,9 @@ export class SyncConfigService {
       ...oldConfig,
       encryptKey: pwd,
     } as PrivateCfgByProviderId<SyncProviderId>);
+
+    // Clear cached encryption keys to force re-derivation with new password
+    this._derivedKeyCache.clearCache();
   }
 
   async updateSettingsFromForm(newSettings: SyncConfig, isForce = false): Promise<void> {
