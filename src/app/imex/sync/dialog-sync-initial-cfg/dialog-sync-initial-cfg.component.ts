@@ -109,13 +109,34 @@ export class DialogSyncInitialCfgComponent {
   }
 
   async save(): Promise<void> {
+    console.log('[SYNC_DEBUG] Save method called', {
+      formValid: this.form.valid,
+      formStatus: this.form.status,
+    });
+
     // Check if form is valid
     if (!this.form.valid) {
       // Mark all fields as touched to show validation errors
       this.form.markAllAsTouched();
       SyncLog.err('Sync form validation failed', this.form.errors);
+      console.log('[SYNC_DEBUG] Form validation failed', {
+        errors: this.form.errors,
+        controls: Object.keys(this.form.controls).map((key) => ({
+          key,
+          valid: this.form.controls[key].valid,
+          errors: this.form.controls[key].errors,
+          value: this.form.controls[key].value,
+        })),
+      });
       return;
     }
+
+    // DIAGNOSTIC: Log what we have before merge
+    console.log('[SYNC_DEBUG] Before merge:', {
+      _tmpUpdatedCfg: JSON.parse(JSON.stringify(this._tmpUpdatedCfg)),
+      formValue: JSON.parse(JSON.stringify(this.form.value)),
+      formRawValue: JSON.parse(JSON.stringify(this.form.getRawValue())),
+    });
 
     // Explicitly sync form values to _tmpUpdatedCfg in case modelChange didn't fire
     // This is especially important on Android WebView where change detection can be unreliable
@@ -124,13 +145,14 @@ export class DialogSyncInitialCfgComponent {
       ...this.form.value,
     };
 
-    await this.syncConfigService.updateSettingsFromForm(
-      {
-        ...this._tmpUpdatedCfg,
-        isEnabled: this._tmpUpdatedCfg.isEnabled || !this.isWasEnabled(),
-      },
-      true,
-    );
+    // DIAGNOSTIC: Log what we're about to save
+    const configToSave = {
+      ...this._tmpUpdatedCfg,
+      isEnabled: this._tmpUpdatedCfg.isEnabled || !this.isWasEnabled(),
+    };
+    console.log('[SYNC_DEBUG] Config to save:', JSON.parse(JSON.stringify(configToSave)));
+
+    await this.syncConfigService.updateSettingsFromForm(configToSave, true);
     const providerId = toSyncProviderId(this._tmpUpdatedCfg.syncProvider);
     if (providerId && this._tmpUpdatedCfg.isEnabled) {
       this.syncWrapperService.configuredAuthForSyncProviderIfNecessary(providerId);

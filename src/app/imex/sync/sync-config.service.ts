@@ -189,10 +189,17 @@ export class SyncConfigService {
   }
 
   async updateSettingsFromForm(newSettings: SyncConfig, isForce = false): Promise<void> {
+    console.log('[SYNC_DEBUG] updateSettingsFromForm called', {
+      newSettings: JSON.parse(JSON.stringify(newSettings)),
+      isForce,
+      _lastSettings: JSON.parse(JSON.stringify(this._lastSettings)),
+    });
+
     // Formly can trigger multiple updates for a single user action, causing sync conflicts
     // and unnecessary API calls. This check prevents duplicate saves.
     const isEqual = JSON.stringify(this._lastSettings) === JSON.stringify(newSettings);
     if (isEqual && !isForce) {
+      console.log('[SYNC_DEBUG] Settings unchanged, skipping update');
       return;
     }
     this._lastSettings = newSettings;
@@ -233,15 +240,31 @@ export class SyncConfigService {
     providerId: SyncProviderId,
     settings: SyncConfig,
   ): Promise<void> {
+    console.log('[SYNC_DEBUG] _updatePrivateConfig called', {
+      providerId,
+      settings: JSON.parse(JSON.stringify(settings)),
+    });
+
     const prop = PROP_MAP_TO_FORM[providerId];
 
     // Load existing config to preserve OAuth tokens and other settings
     const activeProvider = this._providerManager.getProviderById(providerId);
     const oldConfig = activeProvider ? await activeProvider.privateCfg.load() : {};
 
+    console.log('[SYNC_DEBUG] _updatePrivateConfig oldConfig', {
+      oldConfig: JSON.parse(JSON.stringify(oldConfig)),
+      prop,
+    });
+
     // Form fields contain provider-specific settings, but Dropbox uses OAuth tokens
     // stored elsewhere, so it only needs the encryption key
     const privateConfigProviderSpecific = prop ? settings[prop] || {} : {};
+
+    console.log('[SYNC_DEBUG] _updatePrivateConfig privateConfigProviderSpecific', {
+      privateConfigProviderSpecific: JSON.parse(
+        JSON.stringify(privateConfigProviderSpecific),
+      ),
+    });
 
     // Start with defaults to ensure API calls won't fail due to undefined values,
     // then overlay old config to preserve existing data (like OAuth tokens),
@@ -264,6 +287,10 @@ export class SyncConfigService {
       {} as Record<string, unknown>,
     );
 
+    console.log('[SYNC_DEBUG] _updatePrivateConfig nonEmptyFormValues', {
+      nonEmptyFormValues: JSON.parse(JSON.stringify(nonEmptyFormValues)),
+    });
+
     const configWithDefaults = {
       ...PROVIDER_FIELD_DEFAULTS[providerId],
       ...oldConfig,
@@ -271,6 +298,10 @@ export class SyncConfigService {
       // Use provider specific key if available, otherwise fallback to root key
       encryptKey: (nonEmptyFormValues?.encryptKey as string) || settings.encryptKey || '',
     };
+
+    console.log('[SYNC_DEBUG] _updatePrivateConfig configWithDefaults', {
+      configWithDefaults: JSON.parse(JSON.stringify(configWithDefaults)),
+    });
 
     // Check if encryption settings changed to clear cached keys
     const oldEncryptKey = (oldConfig as { encryptKey?: string })?.encryptKey;
