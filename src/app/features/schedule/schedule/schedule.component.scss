@@ -106,7 +106,7 @@ header {
   grid-auto-columns: 1fr;
   grid-template-columns: var(--schedule-time-width) repeat(var(--nr-of-days), 1fr);
 
-  --schedule-time-width: $schedule-time-column-width;
+  --schedule-time-width: #{$schedule-time-column-width};
 }
 
 .day {
