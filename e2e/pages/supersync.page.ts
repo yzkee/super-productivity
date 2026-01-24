@@ -204,6 +204,13 @@ export class SuperSyncPage extends BasePage {
     await this.syncBtn.click({ button: 'right' });
     await this.providerSelect.waitFor({ state: 'visible', timeout: 10000 });
 
+    // CRITICAL: Select "SuperSync" from provider dropdown to load current configuration
+    // Without this, the form shows default/empty values instead of the actual current state
+    await this.providerSelect.click();
+    const superSyncOption = this.page.locator('mat-option:has-text("SuperSync")');
+    await superSyncOption.click();
+    await this.page.waitForTimeout(200); // Wait for form to load current config
+
     // Expand "Advanced settings" collapsible to access encryption fields
     const advancedCollapsible = this.page.locator(
       '.collapsible-header:has-text("Advanced")',
@@ -216,6 +223,10 @@ export class SuperSyncPage extends BasePage {
       await advancedCollapsible.click();
       await this.encryptionCheckbox.waitFor({ state: 'visible', timeout: 3000 });
     }
+
+    // CRITICAL: Wait for form to fully initialize
+    // The form's onInit hook sets up the valueChanges subscription
+    await this.page.waitForTimeout(500);
 
     // Check if already enabled
     const isChecked = await this.encryptionCheckbox.isChecked();
@@ -292,6 +303,13 @@ export class SuperSyncPage extends BasePage {
     await this.syncBtn.click({ button: 'right' });
     await this.providerSelect.waitFor({ state: 'visible', timeout: 10000 });
 
+    // CRITICAL: Select "SuperSync" from provider dropdown to load current configuration
+    // Without this, the form shows default/empty values instead of the actual current state
+    await this.providerSelect.click();
+    const superSyncOption = this.page.locator('mat-option:has-text("SuperSync")');
+    await superSyncOption.click();
+    await this.page.waitForTimeout(200); // Wait for form to load current config
+
     // Expand "Advanced settings" collapsible to access encryption fields
     const advancedCollapsible = this.page.locator(
       '.collapsible-header:has-text("Advanced")',
@@ -308,7 +326,20 @@ export class SuperSyncPage extends BasePage {
     // Disable encryption checkbox (triggers onChange -> opens confirmation dialog)
     const checkboxLabel = this.page.locator('.e2e-isEncryptionEnabled label');
     await this.encryptionCheckbox.waitFor({ state: 'attached', timeout: 5000 });
-    await this.page.waitForTimeout(200);
+
+    // CRITICAL: Wait for form to fully initialize before clicking checkbox
+    // The form's onInit hook sets up the valueChanges subscription that triggers the dialog
+    // Without this wait, clicking the checkbox before the subscription is ready means no dialog appears
+    await this.page.waitForTimeout(500);
+
+    // IMPORTANT: Wait for the password field to appear and be populated
+    // This ensures the form has fully loaded the current encryption configuration
+    const passwordField = this.encryptionPasswordInput;
+    await passwordField.waitFor({ state: 'visible', timeout: 3000 });
+
+    // If encryption is enabled, the password field should have a value (shown as dots)
+    // Wait a bit more to ensure form model is fully populated
+    await this.page.waitForTimeout(300);
 
     // Check if already disabled
     const isChecked = await this.encryptionCheckbox.isChecked();

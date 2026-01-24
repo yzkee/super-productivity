@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core';
 import {
   MatDialogActions,
   MatDialogContent,
@@ -20,9 +26,11 @@ import { SyncConfigService } from '../sync-config.service';
 import { SyncWrapperService } from '../sync-wrapper.service';
 import { EncryptionPasswordDialogOpenerService } from '../encryption-password-dialog-opener.service';
 import { Subscription } from 'rxjs';
-import { first } from 'rxjs/operators';
+import { first, skip } from 'rxjs/operators';
 import { toSyncProviderId } from '../../../op-log/sync-exports';
 import { SyncLog } from '../../../core/log';
+import { SyncProviderManager } from '../../../op-log/sync-providers/provider-manager.service';
+import { GlobalConfigService } from '../../../features/config/global-config.service';
 
 @Component({
   selector: 'dialog-sync-initial-cfg',
@@ -40,10 +48,12 @@ import { SyncLog } from '../../../core/log';
     FormlyModule,
   ],
 })
-export class DialogSyncInitialCfgComponent {
+export class DialogSyncInitialCfgComponent implements AfterViewInit {
   syncConfigService = inject(SyncConfigService);
   syncWrapperService = inject(SyncWrapperService);
   private _encryptionPasswordDialogOpener = inject(EncryptionPasswordDialogOpenerService);
+  private _providerManager = inject(SyncProviderManager);
+  private _globalConfigService = inject(GlobalConfigService);
 
   T = T;
   isWasEnabled = signal(false);
@@ -101,6 +111,82 @@ export class DialogSyncInitialCfgComponent {
           isEnabled: true,
         });
       }),
+    );
+
+    // Listen for provider changes and reload provider-specific configuration
+    this._subs.add(
+      this.form
+        .get('syncProvider')
+        ?.valueChanges.pipe(skip(1))
+        .subscribe(async (newProvider: LegacySyncProvider | null) => {
+          if (!newProvider) {
+            return;
+          }
+
+          // Get the current configuration for this provider
+          const providerId = toSyncProviderId(newProvider);
+          if (!providerId) {
+            return;
+          }
+
+          // Load the provider's stored configuration
+          const provider = this._providerManager.getProviderById(providerId);
+          if (!provider) {
+            // Provider not yet configured, keep current form state
+            return;
+          }
+
+          const privateCfg = await provider.privateCfg.load();
+          const globalCfg = await this._globalConfigService.sync$
+            .pipe(first())
+            .toPromise();
+
+          // Create provider-specific config based on provider type
+          let providerSpecificUpdate: Partial<SyncConfig> = {};
+
+          if (newProvider === LegacySyncProvider.SuperSync && privateCfg) {
+            providerSpecificUpdate = {
+              superSync: privateCfg,
+              encryptKey: privateCfg.encryptKey || '',
+            };
+          } else if (newProvider === LegacySyncProvider.WebDAV && privateCfg) {
+            providerSpecificUpdate = {
+              webDav: privateCfg,
+              encryptKey: privateCfg.encryptKey || '',
+            };
+          } else if (newProvider === LegacySyncProvider.LocalFile && privateCfg) {
+            providerSpecificUpdate = {
+              localFileSync: privateCfg,
+              encryptKey: privateCfg.encryptKey || '',
+            };
+          } else if (newProvider === LegacySyncProvider.Dropbox && privateCfg) {
+            providerSpecificUpdate = {
+              encryptKey: privateCfg.encryptKey || '',
+            };
+          }
+
+          // Update the model, preserving non-provider-specific fields
+          this._tmpUpdatedCfg = {
+            ...this._tmpUpdatedCfg,
+            ...providerSpecificUpdate,
+            syncProvider: newProvider,
+            // Preserve global settings
+            isEnabled: this._tmpUpdatedCfg.isEnabled,
+            syncInterval: globalCfg?.syncInterval || this._tmpUpdatedCfg.syncInterval,
+            isManualSyncOnly:
+              globalCfg?.isManualSyncOnly || this._tmpUpdatedCfg.isManualSyncOnly,
+            isCompressionEnabled:
+              globalCfg?.isCompressionEnabled || this._tmpUpdatedCfg.isCompressionEnabled,
+          };
+
+          // For non-SuperSync providers, update encryption from global config
+          if (newProvider !== LegacySyncProvider.SuperSync) {
+            this._tmpUpdatedCfg = {
+              ...this._tmpUpdatedCfg,
+              isEncryptionEnabled: globalCfg?.isEncryptionEnabled || false,
+            };
+          }
+        }) || new Subscription(),
     );
   }
 
