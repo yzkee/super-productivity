@@ -14,6 +14,70 @@ export interface DerivedKeyInfo {
   salt: Uint8Array;
 }
 
+// ============================================================================
+// SESSION-LEVEL KEY CACHING
+// ============================================================================
+// This cache persists across sync cycles for the session duration.
+// PERFORMANCE: Reduces mobile sync time from minutes to seconds by avoiding
+// repeated Argon2id derivations (each takes 500ms-2000ms on mobile).
+//
+// Cache structure:
+// - For encryption: keyed by password hash (reuses key with its salt)
+// - For decryption: keyed by password hash + salt (because each ciphertext may have different salt)
+
+interface SessionCacheEntry {
+  keyInfo: DerivedKeyInfo;
+  passwordHash: string;
+  createdAt: number;
+}
+
+// Session cache: password hash -> encryption key (for new encryptions with random salt)
+let sessionEncryptKeyCache: SessionCacheEntry | null = null;
+
+// Session cache: "passwordHash:saltBase64" -> decryption key
+const sessionDecryptKeyCache = new Map<string, DerivedKeyInfo>();
+
+// Maximum age for cached keys (30 minutes) - security measure
+const SESSION_CACHE_MAX_AGE_MS = 30 * 60 * 1000;
+
+// Maximum entries in decrypt cache to prevent memory bloat
+const SESSION_DECRYPT_CACHE_MAX_SIZE = 100;
+
+/**
+ * Simple hash of password for cache key comparison.
+ * NOT for security - just for cache invalidation when password changes.
+ */
+const hashPasswordForCache = (password: string): string => {
+  // Use a simple djb2 hash for speed (no crypto needed for cache key)
+  let hash = 5381;
+  for (let i = 0; i < password.length; i++) {
+    hash = (hash * 33) ^ password.charCodeAt(i);
+  }
+  return (hash >>> 0).toString(16);
+};
+
+/**
+ * Clears the session key cache. Call this when:
+ * - User changes their encryption password
+ * - User logs out or disables encryption
+ * - For security-sensitive operations
+ */
+export const clearSessionKeyCache = (): void => {
+  sessionEncryptKeyCache = null;
+  sessionDecryptKeyCache.clear();
+};
+
+/**
+ * Gets statistics about the session key cache (for debugging/monitoring).
+ */
+export const getSessionKeyCacheStats = (): {
+  hasEncryptKey: boolean;
+  decryptKeyCount: number;
+} => ({
+  hasEncryptKey: sessionEncryptKeyCache !== null,
+  decryptKeyCount: sessionDecryptKeyCache.size,
+});
+
 const base642ab = (base64: string): ArrayBuffer => {
   const binary_string = window.atob(base64);
   const len = binary_string.length;
@@ -269,6 +333,9 @@ export const encryptWithDerivedKey = async (
  * Encrypts multiple strings efficiently by deriving the key only once.
  * All encrypted strings share the same salt but have unique IVs.
  *
+ * SESSION CACHING: Reuses the derived key across sync cycles if password hasn't changed.
+ * This dramatically improves mobile performance by avoiding repeated Argon2id derivations.
+ *
  * @param dataItems Array of plaintext strings to encrypt
  * @param password The encryption password
  * @returns Array of Base64-encoded ciphertexts in the same order
@@ -281,8 +348,26 @@ export const encryptBatch = async (
     return [];
   }
 
-  // Derive key once for the entire batch
-  const keyInfo = await deriveKeyFromPassword(password);
+  const passwordHash = hashPasswordForCache(password);
+  let keyInfo: DerivedKeyInfo;
+
+  // Check session cache for existing key
+  if (
+    sessionEncryptKeyCache &&
+    sessionEncryptKeyCache.passwordHash === passwordHash &&
+    Date.now() - sessionEncryptKeyCache.createdAt < SESSION_CACHE_MAX_AGE_MS
+  ) {
+    // Reuse cached key (same salt means consistent ciphertext format)
+    keyInfo = sessionEncryptKeyCache.keyInfo;
+  } else {
+    // Derive new key and cache it
+    keyInfo = await deriveKeyFromPassword(password);
+    sessionEncryptKeyCache = {
+      keyInfo,
+      passwordHash,
+      createdAt: Date.now(),
+    };
+  }
 
   // Encrypt all items using the pre-derived key
   const results: string[] = [];
@@ -322,6 +407,9 @@ export const decryptWithDerivedKey = async (
  * Operations with the same salt (e.g., encrypted in the same batch) will
  * share the cached key, avoiding redundant Argon2id derivations.
  *
+ * SESSION CACHING: Caches derived keys across sync cycles by password+salt.
+ * This dramatically improves mobile performance for repeated syncs.
+ *
  * SECURITY NOTE: Unlike the single-item decrypt(), this function uses explicit
  * format detection to avoid masking decryption errors as legacy fallbacks.
  * Only data that's too short for Argon2 format will attempt legacy decryption.
@@ -338,8 +426,10 @@ export const decryptBatch = async (
     return [];
   }
 
-  // Cache derived keys by salt (as base64 string for Map key)
-  const keyCache = new Map<string, DerivedKeyInfo>();
+  const passwordHash = hashPasswordForCache(password);
+
+  // Local cache for this batch (will also check session cache)
+  const batchKeyCache = new Map<string, DerivedKeyInfo>();
 
   const results: string[] = [];
   for (const data of dataItems) {
@@ -361,15 +451,34 @@ export const decryptBatch = async (
     const salt = new Uint8Array(dataBuffer, 0, SALT_LENGTH);
     // IMPORTANT: Use slice() to create a copy with its own ArrayBuffer.
     // Without slice(), salt.buffer returns the entire dataBuffer, not just the salt!
-    const saltKey = ab2base64(salt.slice().buffer);
+    const saltBase64 = ab2base64(salt.slice().buffer);
+    const sessionCacheKey = `${passwordHash}:${saltBase64}`;
 
-    // Check cache for this salt
-    let keyInfo = keyCache.get(saltKey);
+    // Check batch cache first (fastest)
+    let keyInfo = batchKeyCache.get(saltBase64);
+
+    // Then check session cache
     if (!keyInfo) {
-      // Derive and cache the key for this salt
-      keyInfo = await deriveKeyFromPassword(password, salt);
-      keyCache.set(saltKey, keyInfo);
+      keyInfo = sessionDecryptKeyCache.get(sessionCacheKey);
     }
+
+    // Finally, derive if not cached
+    if (!keyInfo) {
+      keyInfo = await deriveKeyFromPassword(password, salt);
+
+      // Add to session cache (with size limit)
+      if (sessionDecryptKeyCache.size >= SESSION_DECRYPT_CACHE_MAX_SIZE) {
+        // Remove oldest entry (first key in iteration order)
+        const firstKey = sessionDecryptKeyCache.keys().next().value;
+        if (firstKey) {
+          sessionDecryptKeyCache.delete(firstKey);
+        }
+      }
+      sessionDecryptKeyCache.set(sessionCacheKey, keyInfo);
+    }
+
+    // Add to batch cache for this operation
+    batchKeyCache.set(saltBase64, keyInfo);
 
     // Decrypt using cached key - don't catch errors here!
     // If decryption fails on Argon2-sized data, it's a real error
