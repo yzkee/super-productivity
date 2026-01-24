@@ -155,7 +155,7 @@ export class DialogSyncInitialCfgComponent {
     await this.syncConfigService.updateSettingsFromForm(configToSave, true);
     const providerId = toSyncProviderId(this._tmpUpdatedCfg.syncProvider);
     if (providerId && this._tmpUpdatedCfg.isEnabled) {
-      this.syncWrapperService.configuredAuthForSyncProviderIfNecessary(providerId);
+      await this.syncWrapperService.configuredAuthForSyncProviderIfNecessary(providerId);
     }
 
     this._matDialogRef.close();
