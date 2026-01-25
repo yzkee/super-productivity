@@ -6,6 +6,7 @@ import {
   OpType,
   VectorClock,
 } from '../core/operation.types';
+import { StorageQuotaExceededError } from '../core/errors/sync-errors';
 import { toEntityKey } from '../util/entity-key.util';
 import {
   encodeOperation,
@@ -217,7 +218,14 @@ export class OperationLogStoreService {
         source === 'remote' ? (options?.pendingApply ? 'pending' : 'applied') : undefined,
     };
     // seq is auto-incremented, returned for later reference
-    return this.db.add(STORE_NAMES.OPS, entry as StoredOperationLogEntry);
+    try {
+      return await this.db.add(STORE_NAMES.OPS, entry as StoredOperationLogEntry);
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        throw new StorageQuotaExceededError();
+      }
+      throw e;
+    }
   }
 
   async appendBatch(
@@ -230,27 +238,34 @@ export class OperationLogStoreService {
     const store = tx.objectStore(STORE_NAMES.OPS);
     const seqs: number[] = [];
 
-    for (const op of ops) {
-      // Encode operation to compact format for storage efficiency
-      const compactOp = encodeOperation(op);
-      const entry: Omit<StoredOperationLogEntry, 'seq'> = {
-        op: compactOp,
-        appliedAt: Date.now(),
-        source,
-        syncedAt: source === 'remote' ? Date.now() : undefined,
-        applicationStatus:
-          source === 'remote'
-            ? options?.pendingApply
-              ? 'pending'
-              : 'applied'
-            : undefined,
-      };
-      const seq = await store.add(entry as StoredOperationLogEntry);
-      seqs.push(seq as number);
-    }
+    try {
+      for (const op of ops) {
+        // Encode operation to compact format for storage efficiency
+        const compactOp = encodeOperation(op);
+        const entry: Omit<StoredOperationLogEntry, 'seq'> = {
+          op: compactOp,
+          appliedAt: Date.now(),
+          source,
+          syncedAt: source === 'remote' ? Date.now() : undefined,
+          applicationStatus:
+            source === 'remote'
+              ? options?.pendingApply
+                ? 'pending'
+                : 'applied'
+              : undefined,
+        };
+        const seq = await store.add(entry as StoredOperationLogEntry);
+        seqs.push(seq as number);
+      }
 
-    await tx.done;
-    return seqs;
+      await tx.done;
+      return seqs;
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        throw new StorageQuotaExceededError();
+      }
+      throw e;
+    }
   }
 
   /**

@@ -154,6 +154,9 @@ export const generateKey = async (password: string): Promise<string> => {
 
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 async function decryptLegacy(data: string, password: string): Promise<string> {
+  console.warn(
+    '[DEPRECATION] Legacy PBKDF2 encryption detected. Consider re-syncing to migrate to Argon2id.',
+  );
   const dataBuffer = base642ab(data);
   const iv = new Uint8Array(dataBuffer, 0, IV_LENGTH);
   const encryptedData = new Uint8Array(dataBuffer, IV_LENGTH);
