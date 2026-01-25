@@ -774,6 +774,131 @@ describe('SyncImportFilterService', () => {
       });
     });
 
+    describe('BUG FIX: Vector clock pruning preserves import client', () => {
+      /**
+       * This test documents the bug that occurs when vector clock pruning removes
+       * the SYNC_IMPORT client's entry, causing new ops to appear CONCURRENT with
+       * the import instead of GREATER_THAN.
+       *
+       * THE BUG SCENARIO:
+       * 1. Client A creates SYNC_IMPORT with clock {clientA: 1}
+       * 2. Client B receives it, merges clocks → {clientA: 1, clientB: 9746, ...}
+       * 3. B has 91 clients in clock, pruning triggers (limit is 8)
+       * 4. clientA has counter=1 (lowest) → PRUNED by limitVectorClockSize()
+       * 5. New task on B has clock {clientB: 9747} - MISSING clientA!
+       * 6. Comparison: {clientA: 0 (missing)} vs {clientA: 1} → CONCURRENT
+       * 7. Op is incorrectly filtered as "invalidated by import"
+       *
+       * THE FIX:
+       * - After applying SYNC_IMPORT, store the import client ID as "protected"
+       * - limitVectorClockSize() preserves protected client IDs even with low counters
+       * - New ops include the import client entry → comparison yields GREATER_THAN
+       */
+
+      it('should correctly filter ops when SYNC_IMPORT client was NOT pruned (fix applied)', async () => {
+        // This test shows CORRECT behavior when the fix is applied:
+        // The import client's entry is preserved in the op's vector clock
+
+        const existingSyncImport: Operation = {
+          id: '019afd68-0050-7000-0000-000000000000',
+          actionType: '[SP_ALL] Load(import) all data' as ActionType,
+          opType: OpType.SyncImport,
+          entityType: 'ALL',
+          entityId: 'import-1',
+          payload: { appDataComplete: {} },
+          clientId: 'clientA',
+          vectorClock: { clientA: 1 }, // Import's clock
+          timestamp: Date.now(),
+          schemaVersion: 1,
+        };
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: existingSyncImport,
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // With the fix: op's clock includes clientA (protected during pruning)
+        const opWithPreservedClock: Operation[] = [
+          {
+            id: '019afd70-0001-7000-0000-000000000000',
+            actionType: '[Task Shared] addTask' as ActionType,
+            opType: OpType.Create,
+            entityType: 'TASK',
+            entityId: 'new-task-1',
+            payload: { title: 'My new task' },
+            clientId: 'clientB',
+            // Clock includes clientA because it was protected during pruning
+            vectorClock: { clientA: 1, clientB: 9747 },
+            timestamp: Date.now(),
+            schemaVersion: 1,
+          },
+        ];
+
+        const result =
+          await service.filterOpsInvalidatedBySyncImport(opWithPreservedClock);
+
+        // With preserved clock: op is GREATER_THAN import → kept
+        expect(result.validOps.length).toBe(1);
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
+      it('should incorrectly filter ops when SYNC_IMPORT client was pruned (bug scenario)', async () => {
+        // This test documents the BUGGY behavior before the fix:
+        // When the import client's entry is pruned, new ops appear CONCURRENT
+
+        const existingSyncImport: Operation = {
+          id: '019afd68-0050-7000-0000-000000000000',
+          actionType: '[SP_ALL] Load(import) all data' as ActionType,
+          opType: OpType.SyncImport,
+          entityType: 'ALL',
+          entityId: 'import-1',
+          payload: { appDataComplete: {} },
+          clientId: 'clientA',
+          vectorClock: { clientA: 1 },
+          timestamp: Date.now(),
+          schemaVersion: 1,
+        };
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: existingSyncImport,
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // WITHOUT the fix: clientA was pruned from clock (low counter)
+        const opWithPrunedClock: Operation[] = [
+          {
+            id: '019afd70-0001-7000-0000-000000000000',
+            actionType: '[Task Shared] addTask' as ActionType,
+            opType: OpType.Create,
+            entityType: 'TASK',
+            entityId: 'new-task-1',
+            payload: { title: 'My new task' },
+            clientId: 'clientB',
+            vectorClock: { clientB: 9747 }, // clientA was pruned!
+            timestamp: Date.now(),
+            schemaVersion: 1,
+          },
+        ];
+
+        const result = await service.filterOpsInvalidatedBySyncImport(opWithPrunedClock);
+
+        // BUG: Op is CONCURRENT with import (clientA: 0 vs 1) → filtered
+        // This documents the buggy behavior that the fix prevents
+        expect(result.invalidatedOps.length).toBe(1);
+        expect(result.validOps.length).toBe(0);
+      });
+    });
+
     describe('filteringImport return field', () => {
       it('should return filteringImport when ops are filtered by SYNC_IMPORT in batch', async () => {
         const syncImportOp = createOp({
