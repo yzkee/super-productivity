@@ -318,7 +318,12 @@ export class OperationLogUploadService {
         const rejected = response.results.filter((r) => !r.accepted);
         if (rejected.length > 0) {
           for (const r of rejected) {
-            rejectedOps.push({ opId: r.opId, error: r.error, errorCode: r.errorCode });
+            rejectedOps.push({
+              opId: r.opId,
+              error: r.error,
+              errorCode: r.errorCode,
+              existingClock: r.existingClock,
+            });
           }
           rejectedCount += rejected.length;
 

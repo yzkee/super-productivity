@@ -374,6 +374,85 @@ describe('RejectedOpsHandlerService', () => {
         expect(result).toBe(1);
       });
 
+      it('should pass existingClock from rejection to stale resolver (FIX: encryption conflict loop)', async () => {
+        // REGRESSION TEST: Bug where encrypted SuperSync gets stuck in infinite conflict loop.
+        // Root cause: Client cannot create LWW update that dominates server state because
+        // it doesn't receive the server's existing entity clock in rejection responses.
+        //
+        // Fix: Server returns existingClock in rejection, client passes it to stale resolver.
+        const op = createOp({ id: 'op-1' });
+        const existingClock = { otherClient: 5 };
+        opLogStoreSpy.getOpById.and.returnValue(Promise.resolve(mockEntry(op)));
+        downloadCallback.and.callFake(async (options) => {
+          if (options?.forceFromSeq0) {
+            return {
+              newOpsCount: 0,
+              allOpClocks: [],
+              snapshotVectorClock: { snapshot: 1 },
+            } as DownloadResultForRejection;
+          }
+          return { newOpsCount: 0 } as DownloadResultForRejection;
+        });
+        staleOperationResolverSpy.resolveStaleLocalOps.and.resolveTo(1);
+
+        await service.handleRejectedOps(
+          [
+            {
+              opId: 'op-1',
+              error: 'concurrent',
+              errorCode: 'CONFLICT_CONCURRENT',
+              existingClock,
+            },
+          ],
+          downloadCallback,
+        );
+
+        // Should include existingClock in the extraClocks passed to resolver
+        expect(staleOperationResolverSpy.resolveStaleLocalOps).toHaveBeenCalledWith(
+          jasmine.arrayContaining([jasmine.objectContaining({ opId: 'op-1' })]),
+          [existingClock], // existingClock should be in extraClocks
+          { snapshot: 1 },
+        );
+      });
+
+      it('should merge existingClock with allOpClocks from force download', async () => {
+        // Test that existingClock is merged with other clocks from force download
+        const op = createOp({ id: 'op-1' });
+        const existingClock = { conflictClient: 3 };
+        const remoteClocks = [{ otherClient: 2 }];
+        opLogStoreSpy.getOpById.and.returnValue(Promise.resolve(mockEntry(op)));
+        downloadCallback.and.callFake(async (options) => {
+          if (options?.forceFromSeq0) {
+            return {
+              newOpsCount: 0,
+              allOpClocks: remoteClocks,
+              snapshotVectorClock: { snapshot: 1 },
+            } as DownloadResultForRejection;
+          }
+          return { newOpsCount: 0 } as DownloadResultForRejection;
+        });
+        staleOperationResolverSpy.resolveStaleLocalOps.and.resolveTo(1);
+
+        await service.handleRejectedOps(
+          [
+            {
+              opId: 'op-1',
+              error: 'concurrent',
+              errorCode: 'CONFLICT_CONCURRENT',
+              existingClock,
+            },
+          ],
+          downloadCallback,
+        );
+
+        // Should merge existingClock with allOpClocks
+        expect(staleOperationResolverSpy.resolveStaleLocalOps).toHaveBeenCalledWith(
+          jasmine.arrayContaining([jasmine.objectContaining({ opId: 'op-1' })]),
+          [...remoteClocks, existingClock], // Both clocks should be passed
+          { snapshot: 1 },
+        );
+      });
+
       it('should mark ops as rejected when force download returns no clocks', async () => {
         const op = createOp({ id: 'op-1' });
         opLogStoreSpy.getOpById.and.returnValue(Promise.resolve(mockEntry(op)));

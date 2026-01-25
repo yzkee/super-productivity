@@ -7,6 +7,11 @@ export interface RejectedOpInfo {
   opId: string;
   error?: string;
   errorCode?: string;
+  /**
+   * The existing entity's vector clock when rejecting due to conflict.
+   * Allows clients to create LWW updates that dominate the server's state.
+   */
+  existingClock?: VectorClock;
 }
 
 /**

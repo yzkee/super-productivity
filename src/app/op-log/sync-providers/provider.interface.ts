@@ -165,6 +165,11 @@ export interface OpUploadResult {
   error?: string;
   /** Structured error code for programmatic handling */
   errorCode?: string;
+  /**
+   * The existing entity's vector clock when rejecting due to conflict.
+   * Allows clients to create LWW updates that dominate the server's state.
+   */
+  existingClock?: Record<string, number>;
 }
 
 /**
