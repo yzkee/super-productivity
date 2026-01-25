@@ -607,6 +607,87 @@ describe('RemoteOpsProcessingService', () => {
       expect(service.detectConflicts).not.toHaveBeenCalled();
     });
 
+    it('should call setProtectedClientIds when SYNC_IMPORT is applied', async () => {
+      const syncImportOp: Operation = {
+        id: 'sync-import-1',
+        opType: OpType.SyncImport,
+        actionType: '[All] Load All Data' as ActionType,
+        entityType: 'ALL',
+        payload: {},
+        clientId: 'importClientId',
+        vectorClock: { importClientId: 1 },
+        timestamp: Date.now(),
+        schemaVersion: 1,
+      };
+
+      opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
+      opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
+      operationApplierServiceSpy.applyOperations.and.returnValue(
+        Promise.resolve({ appliedOps: [syncImportOp] }),
+      );
+
+      await service.processRemoteOps([syncImportOp]);
+
+      expect(opLogStoreSpy.setProtectedClientIds).toHaveBeenCalledWith([
+        'importClientId',
+      ]);
+    });
+
+    it('should call setProtectedClientIds when BACKUP_IMPORT is applied', async () => {
+      const backupImportOp: Operation = {
+        id: 'backup-import-1',
+        opType: OpType.BackupImport,
+        actionType: '[All] Load All Data' as ActionType,
+        entityType: 'ALL',
+        payload: {},
+        clientId: 'backupClientId',
+        vectorClock: { backupClientId: 1 },
+        timestamp: Date.now(),
+        schemaVersion: 1,
+      };
+
+      opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
+      opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
+      operationApplierServiceSpy.applyOperations.and.returnValue(
+        Promise.resolve({ appliedOps: [backupImportOp] }),
+      );
+
+      await service.processRemoteOps([backupImportOp]);
+
+      expect(opLogStoreSpy.setProtectedClientIds).toHaveBeenCalledWith([
+        'backupClientId',
+      ]);
+    });
+
+    it('should NOT call setProtectedClientIds when no full-state op is applied', async () => {
+      const regularOp: Operation = {
+        id: 'regular-op-1',
+        opType: OpType.Update,
+        actionType: '[Task] Update Task' as ActionType,
+        entityType: 'TASK',
+        entityId: 'task-1',
+        payload: { title: 'Test' },
+        clientId: 'client1',
+        vectorClock: { client1: 1 },
+        timestamp: Date.now(),
+        schemaVersion: 1,
+      };
+
+      opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
+      opLogStoreSpy.getUnsyncedByEntity.and.returnValue(Promise.resolve(new Map()));
+      vectorClockServiceSpy.getEntityFrontier.and.returnValue(Promise.resolve(new Map()));
+      vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
+      opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
+      opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
+      operationApplierServiceSpy.applyOperations.and.returnValue(
+        Promise.resolve({ appliedOps: [regularOp] }),
+      );
+
+      await service.processRemoteOps([regularOp]);
+
+      expect(opLogStoreSpy.setProtectedClientIds).not.toHaveBeenCalled();
+    });
+
     describe('SYNC_IMPORT filter metadata return fields', () => {
       const createFullOp = (partial: Partial<Operation>): Operation => ({
         id: 'op-1',

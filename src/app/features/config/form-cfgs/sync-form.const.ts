@@ -328,7 +328,8 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
             },
             // Encryption password field for SuperSync (shown when encryption enabled)
             {
-              hideExpression: (model: any) => !model.isEncryptionEnabled,
+              hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
+                !(field?.model?.isEncryptionEnabled ?? false),
               key: 'encryptKey',
               type: 'input',
               className: 'e2e-encryptKey',
@@ -342,7 +343,8 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
               },
             },
             {
-              hideExpression: (model: any) => !model.isEncryptionEnabled,
+              hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
+                !(field?.model?.isEncryptionEnabled ?? false),
               type: 'tpl',
               className: 'tpl warn-text',
               templateOptions: {

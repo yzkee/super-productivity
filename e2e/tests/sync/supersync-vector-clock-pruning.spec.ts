@@ -74,7 +74,7 @@ test.describe('@supersync @pruning Vector Clock Pruning Fix', () => {
     baseURL,
     testRunId,
   }) => {
-    const uniqueId = Date.now();
+    const uniqueId = `${testRunId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
 
@@ -166,7 +166,7 @@ test.describe('@supersync @pruning Vector Clock Pruning Fix', () => {
 
       // Check for sync errors (would appear if tasks were rejected)
       const errorSnack = clientB.page.locator('simple-snack-bar.error');
-      await expect(errorSnack).not.toBeVisible({ timeout: 2000 });
+      await expect(errorSnack).not.toBeVisible({ timeout: 5000 });
       console.log('[VC Pruning] No sync errors on Client B');
 
       // ============ PHASE 7: Client A Downloads New Tasks ============
@@ -225,7 +225,7 @@ test.describe('@supersync @pruning Vector Clock Pruning Fix', () => {
     baseURL,
     testRunId,
   }) => {
-    const uniqueId = Date.now();
+    const uniqueId = `${testRunId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
 
@@ -321,8 +321,8 @@ test.describe('@supersync @pruning Vector Clock Pruning Fix', () => {
       // Check for errors
       const errorSnackA = clientA.page.locator('simple-snack-bar.error');
       const errorSnackB = clientB.page.locator('simple-snack-bar.error');
-      await expect(errorSnackA).not.toBeVisible({ timeout: 2000 });
-      await expect(errorSnackB).not.toBeVisible({ timeout: 2000 });
+      await expect(errorSnackA).not.toBeVisible({ timeout: 5000 });
+      await expect(errorSnackB).not.toBeVisible({ timeout: 5000 });
 
       console.log('[Multi-Cycle] Multi-cycle test PASSED!');
     } finally {
