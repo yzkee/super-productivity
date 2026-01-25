@@ -6,6 +6,12 @@ export interface SuperSyncConfig {
   accessToken: string;
   isEncryptionEnabled?: boolean;
   password?: string;
+  /**
+   * If true (default), waits for the automatic initial sync to complete
+   * and handles dialogs. Set to false when you want to manually handle
+   * dialogs (e.g., to test specific dialog behaviors like wrong password errors).
+   */
+  waitForInitialSync?: boolean;
 }
 
 /**
@@ -77,15 +83,11 @@ export class SuperSyncPage extends BasePage {
    * Configure SuperSync with server URL and access token.
    * Uses right-click to open settings dialog (works even when sync is already configured).
    *
-   * @param config - SuperSync configuration
-   * @param waitForInitialSync - If true (default), waits for the automatic initial sync to complete
-   *                            and handles dialogs. Set to false when you want to manually handle
-   *                            dialogs (e.g., to test specific dialog behaviors).
+   * @param config - SuperSync configuration (includes optional waitForInitialSync flag)
    */
-  async setupSuperSync(
-    config: SuperSyncConfig,
-    waitForInitialSync = true,
-  ): Promise<void> {
+  async setupSuperSync(config: SuperSyncConfig): Promise<void> {
+    // Extract waitForInitialSync from config, defaulting to true
+    const waitForInitialSync = config.waitForInitialSync ?? true;
     // Auto-accept native browser confirm dialogs (window.confirm used for fresh client sync confirmation)
     // Only handles 'confirm' dialogs to avoid conflicts with test handlers that may handle 'alert' dialogs
     // Use 'once' to prevent memory leak from registering multiple handlers on repeated calls
@@ -210,11 +212,33 @@ export class SuperSyncPage extends BasePage {
         timeout: 10000,
       });
     } else {
-      // Wait for the config dialog to close (but ignore error dialogs)
-      await this.page.waitForTimeout(1000);
-
-      // CRITICAL: Ensure backdrop is removed to prevent pointer event interception
-      await this.ensureOverlaysClosed();
+      // When waitForInitialSync is false, we expect sync to start and potentially show
+      // an error dialog (e.g., decrypt error with wrong password). We need to ensure:
+      // 1. The config dialog save action has been processed
+      // 2. Sync has started (which may trigger error dialogs)
+      // 3. We don't close error dialogs - tests want to interact with them
+      //
+      // Wait for any of these signals that indicate the config dialog has closed:
+      // - Sync spinner appears (sync started)
+      // - Sync error icon appears (sync failed immediately)
+      // - A different dialog appears (like decrypt error dialog)
+      // - Timeout fallback (sync might complete very quickly)
+      const syncStartedOrFailed = Promise.race([
+        this.syncSpinner
+          .waitFor({ state: 'visible', timeout: 5000 })
+          .catch(() => 'timeout'),
+        this.syncErrorIcon
+          .waitFor({ state: 'visible', timeout: 5000 })
+          .catch(() => 'timeout'),
+        this.page
+          .locator('dialog-handle-decrypt-error')
+          .waitFor({ state: 'visible', timeout: 5000 })
+          .catch(() => 'timeout'),
+        this.page.waitForTimeout(2000).then(() => 'timeout'),
+      ]);
+      await syncStartedOrFailed;
+      // NOTE: Do NOT call ensureOverlaysClosed() here - if there's a dialog (like
+      // decrypt error), we want it to stay open for the test to interact with.
     }
 
     if (waitForInitialSync) {
@@ -319,57 +343,49 @@ export class SuperSyncPage extends BasePage {
       return;
     }
 
-    // IMPORTANT: The "Enable Encryption?" dialog is triggered by the checkbox valueChanges
-    // subscription ONLY when there's already a password set. So we must:
-    // 1. First click checkbox to show password field (no dialog since no password)
+    // SIMPLIFIED FLOW: For enabling encryption on a client that doesn't have it:
+    // 1. Check the encryption checkbox (no dialog since no password yet)
     // 2. Fill the password
-    // 3. Uncheck the checkbox (might trigger disable dialog - cancel it)
-    // 4. Re-check the checkbox (this triggers the enable dialog with password set)
+    // 3. Save the form
+    //
+    // The "Enable Encryption?" dialog only appears when re-enabling after it was disabled,
+    // or when the form already has an encryptKey. For fresh encryption setup, just save the form.
 
     // Step 1: Enable checkbox first (this makes the password field visible)
     await checkboxLabel.click();
-    await this.page.waitForTimeout(300);
 
     // Step 2: Wait for password field to appear and fill it
     await this.encryptionPasswordInput.waitFor({ state: 'visible', timeout: 5000 });
     await this.encryptionPasswordInput.fill(password);
-    await this.page.waitForTimeout(300); // Wait for Angular model to update
 
-    // Step 3: Uncheck the checkbox
-    // NOTE: If the model has encryptKey, this might trigger the "Disable Encryption?" dialog
-    await checkboxLabel.click();
-    await this.page.waitForTimeout(300);
+    // Step 3: Save the form by clicking the Save button
+    // Wait for save button to be enabled (Angular form validation)
+    const configDialog = this.page.locator('mat-dialog-container').first();
+    const saveBtn = configDialog.locator('button').filter({ hasText: /save/i });
+    await expect(saveBtn).toBeEnabled({ timeout: 3000 });
+    await saveBtn.click();
 
-    // Check if disable dialog appeared and cancel it
-    const disableDialog = this.page
-      .locator('mat-dialog-container')
-      .filter({ hasText: 'Disable Encryption?' });
-    const disableDialogVisible = await disableDialog.isVisible().catch(() => false);
-    if (disableDialogVisible) {
-      const cancelBtn = disableDialog.locator('button').filter({ hasText: /cancel/i });
-      await cancelBtn.click();
-      await disableDialog.waitFor({ state: 'hidden', timeout: 5000 });
-      await this.page.waitForTimeout(300);
-    }
-
-    // Step 4: Re-check the checkbox - NOW the dialog will appear since password is set
-    await checkboxLabel.click();
-    await this.page.waitForTimeout(300);
-
-    // Wait for the "Enable Encryption?" confirmation dialog to appear
+    // Wait for any confirmation dialogs that might appear
+    // The "Enable Encryption?" dialog may appear when saving with encryption enabled for the first time
     const enableDialog = this.page
       .locator('mat-dialog-container')
       .filter({ hasText: 'Enable Encryption?' });
-    await enableDialog.waitFor({ state: 'visible', timeout: 10000 });
+    const enableDialogAppeared = await enableDialog
+      .waitFor({ state: 'visible', timeout: 3000 })
+      .then(() => true)
+      .catch(() => false);
 
-    // Click the confirm button (mat-flat-button with "Enable Encryption" text)
-    const confirmBtn = enableDialog
-      .locator('button[mat-flat-button]')
-      .filter({ hasText: /enable/i });
-    await confirmBtn.click();
+    if (enableDialogAppeared) {
+      // Click the confirm button (mat-flat-button with "Enable Encryption" text)
+      const confirmBtn = enableDialog
+        .locator('button[mat-flat-button]')
+        .filter({ hasText: /enable/i });
+      await confirmBtn.click();
 
-    // Wait for the enable encryption dialog to close and any loading to complete
-    await enableDialog.waitFor({ state: 'hidden', timeout: 60000 });
+      // Wait for the enable encryption dialog to close
+      await enableDialog.waitFor({ state: 'hidden', timeout: 60000 });
+    }
+
     await this.page.waitForTimeout(500);
 
     // Wait for all dialogs to close

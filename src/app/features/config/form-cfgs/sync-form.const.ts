@@ -351,7 +351,11 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
               },
             },
             {
-              hideExpression: (model: any) => !model.isEncryptionEnabled,
+              // Note: Using (m, v, field) signature for btn type fields to ensure
+              // hideExpression works correctly with the btn component.
+              // Using ?? false to ensure button stays hidden if field is undefined.
+              hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
+                !(field?.model?.isEncryptionEnabled ?? false),
               type: 'btn',
               templateOptions: {
                 text: T.F.SYNC.FORM.SUPER_SYNC.BTN_CHANGE_PASSWORD,
@@ -364,8 +368,10 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
               },
             },
             {
-              hideExpression: (model: any) =>
-                !model.isEncryptionEnabled || !model.encryptKey,
+              // Using ?? false to ensure message stays hidden if field is undefined
+              hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
+                !(field?.model?.isEncryptionEnabled ?? false) ||
+                !(field?.model?.encryptKey ?? false),
               type: 'tpl',
               className: 'tpl',
               templateOptions: {
