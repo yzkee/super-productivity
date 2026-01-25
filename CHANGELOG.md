@@ -1,3 +1,12 @@
+## [17.0.2](https://github.com/super-productivity/super-productivity/compare/v17.0.1...v17.0.2) (2026-01-25)
+
+### Bug Fixes
+
+- **ci:** only run dependency vulnerability review on pull requests ([#6153](https://github.com/super-productivity/super-productivity/issues/6153)) ([1b32a81](https://github.com/super-productivity/super-productivity/commit/1b32a81f7615ca7b3dc58501308c24039105214a))
+- **sync:** address code review findings and add encryption tests ([e48749d](https://github.com/super-productivity/super-productivity/commit/e48749d0f79039b335850040f0e2c8d4d293335f))
+- **sync:** clear adapter cache on encryption changes and add safety limits ([fe9db14](https://github.com/super-productivity/super-productivity/commit/fe9db14d7ac1e1df2dd11053dd23a40d79237107))
+- **sync:** use CapacitorHttp for SuperSync on iOS native platform ([#6154](https://github.com/super-productivity/super-productivity/issues/6154)) ([feb8604](https://github.com/super-productivity/super-productivity/commit/feb860498b6019d4772b4dcc7842afff41e5b6a5)), closes [#6151](https://github.com/super-productivity/super-productivity/issues/6151)
+
 ## [17.0.1](https://github.com/super-productivity/super-productivity/compare/v17.0.0...v17.0.1) (2026-01-24)
 
 ### Bug Fixes
