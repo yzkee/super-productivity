@@ -449,6 +449,34 @@ export class SuperSyncProvider
     return String(error);
   }
 
+  /**
+   * Handles errors from native CapacitorHttp requests.
+   * Logs the error and transforms network errors into user-friendly messages.
+   */
+  private _handleNativeRequestError(
+    error: unknown,
+    path: string,
+    startTime: number,
+  ): never {
+    const duration = Date.now() - startTime;
+    const errorMessage = this._getErrorMessage(error);
+    const isNetworkError = this._isNetworkError(error);
+
+    SyncLog.error(this.logLabel, `SuperSync request failed (native)`, {
+      path,
+      durationMs: duration,
+      error: errorMessage,
+      isNetworkError,
+    });
+
+    if (isNetworkError) {
+      throw new Error(
+        `Unable to connect to SuperSync server. Check your internet connection. (${errorMessage})`,
+      );
+    }
+    throw error;
+  }
+
   private async _fetchApi<T>(
     cfg: SuperSyncPrivateCfg,
     path: string,
@@ -579,24 +607,7 @@ export class SuperSyncProvider
 
       return response.data as T;
     } catch (error) {
-      const duration = Date.now() - startTime;
-      const errorMessage = this._getErrorMessage(error);
-      const isNetworkError = this._isNetworkError(error);
-
-      SyncLog.error(this.logLabel, `SuperSync request failed (native)`, {
-        path,
-        durationMs: duration,
-        error: errorMessage,
-        isNetworkError,
-      });
-
-      // Provide more user-friendly error messages for network issues
-      if (isNetworkError) {
-        throw new Error(
-          `Unable to connect to SuperSync server. Check your internet connection. (${errorMessage})`,
-        );
-      }
-      throw error;
+      this._handleNativeRequestError(error, path, startTime);
     }
   }
 
@@ -744,24 +755,7 @@ export class SuperSyncProvider
 
       return response.data as T;
     } catch (error) {
-      const duration = Date.now() - startTime;
-      const errorMessage = this._getErrorMessage(error);
-      const isNetworkError = this._isNetworkError(error);
-
-      SyncLog.error(this.logLabel, `SuperSync request failed (native)`, {
-        path,
-        durationMs: duration,
-        error: errorMessage,
-        isNetworkError,
-      });
-
-      // Provide more user-friendly error messages for network issues
-      if (isNetworkError) {
-        throw new Error(
-          `Unable to connect to SuperSync server. Check your internet connection. (${errorMessage})`,
-        );
-      }
-      throw error;
+      this._handleNativeRequestError(error, path, startTime);
     }
   }
 }
