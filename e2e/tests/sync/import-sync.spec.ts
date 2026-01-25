@@ -9,6 +9,7 @@ import {
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 import { ImportPage } from '../../pages/import.page';
+import { waitForAppReady } from '../../utils/waits';
 
 /**
  * Import + Sync E2E Tests
@@ -299,8 +300,12 @@ base.describe('@importsync @supersync Import + Sync E2E', () => {
         await clientB.sync.syncAndWait();
 
         // Reload Client B after sync to ensure UI reflects synced state
-        await clientB.page.reload();
-        await clientB.page.waitForLoadState('networkidle');
+        // Use goto (current URL) instead of reload - more reliable with service workers
+        await clientB.page.goto(clientB.page.url(), {
+          waitUntil: 'domcontentloaded',
+          timeout: 30000,
+        });
+        await waitForAppReady(clientB.page);
 
         // ============ PHASE 4: Verify Merged Data ============
         console.log('[Merge Test] Phase 4: Verifying merged data');

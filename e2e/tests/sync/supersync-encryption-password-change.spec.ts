@@ -155,19 +155,35 @@ test.describe('@supersync SuperSync Encryption Password Change', () => {
 
       // --- Client C: Try to sync with OLD password ---
       clientC = await createSimulatedClient(browser, baseURL!, 'C', testRunId);
-      await clientC.sync.setupSuperSync({
-        ...baseConfig,
-        isEncryptionEnabled: true,
-        password: oldPassword, // Using OLD password!
-      });
+      // Use waitForInitialSync: false because the sync will fail with a decrypt error
+      // The sync is triggered automatically after saving the config
+      await clientC.sync.setupSuperSync(
+        {
+          ...baseConfig,
+          isEncryptionEnabled: true,
+          password: oldPassword, // Using OLD password!
+        },
+        false, // Don't wait for initial sync - it will fail
+      );
 
-      // Try to sync - should fail or not get the data
-      try {
-        await clientC.sync.triggerSync();
-        await clientC.sync.waitForSyncComplete();
-      } catch (e) {
-        // Expected - sync may throw an error
-        console.log('Sync with old password failed as expected:', e);
+      // The sync is triggered automatically after setupSuperSync saves the config.
+      // Wait for the decrypt error dialog to appear (it should show automatically)
+      const decryptErrorDialog = clientC.page.locator('dialog-handle-decrypt-error');
+      const dialogAppeared = await decryptErrorDialog
+        .waitFor({ state: 'visible', timeout: 15000 })
+        .then(() => true)
+        .catch(() => false);
+
+      if (dialogAppeared) {
+        console.log('Decrypt error dialog appeared as expected');
+        // Close the dialog
+        const cancelBtn = decryptErrorDialog
+          .locator('button')
+          .filter({ hasText: /cancel/i });
+        if (await cancelBtn.isVisible()) {
+          await cancelBtn.click();
+          await decryptErrorDialog.waitFor({ state: 'hidden', timeout: 5000 });
+        }
       }
 
       // Verify Client C does NOT have the task
@@ -398,9 +414,8 @@ test.describe('@supersync SuperSync Encryption Password Change', () => {
       await clientB.sync.triggerSync();
 
       // Wait for decrypt error dialog to appear
-      const decryptErrorDialog = clientB.page.locator(
-        'dialog-handle-decrypt-error, mat-dialog-container:has-text("decrypt")',
-      );
+      // Use specific component selector to avoid strict mode violation
+      const decryptErrorDialog = clientB.page.locator('dialog-handle-decrypt-error');
       await decryptErrorDialog.waitFor({ state: 'visible', timeout: 10000 });
 
       // --- Enter NEW password in the error dialog ---
@@ -419,7 +434,7 @@ test.describe('@supersync SuperSync Encryption Password Change', () => {
 
       // --- Verify sync completes successfully with new password ---
       // The fix ensures encryption key is re-fetched after gap detection
-      await clientB.sync.waitForSyncComplete({ timeout: 15000 });
+      await clientB.sync.waitForSyncToComplete({ timeout: 15000 });
 
       // Verify Client B received the task created after password change
       await waitForTask(clientB.page, taskAfterChange);

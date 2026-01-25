@@ -326,6 +326,21 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
                 },
               },
             },
+            // Encryption password field for SuperSync (shown when encryption enabled)
+            {
+              hideExpression: (model: any) => !model.isEncryptionEnabled,
+              key: 'encryptKey',
+              type: 'input',
+              className: 'e2e-encryptKey',
+              templateOptions: {
+                type: 'password',
+                label: T.F.SYNC.FORM.L_ENCRYPTION_PASSWORD,
+              },
+              expressions: {
+                'props.required': (field: FormlyFieldConfig) =>
+                  field?.model?.isEncryptionEnabled,
+              },
+            },
             {
               hideExpression: (model: any) => !model.isEncryptionEnabled,
               type: 'tpl',

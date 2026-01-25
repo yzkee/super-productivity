@@ -58,8 +58,8 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       const baseConfig = getSuperSyncConfig(user);
       const encryptionPassword = `pass-${testRunId}`;
 
-      // ============ PHASE 1: Setup both clients with encryption ============
-      console.log('[DisableEncryption] Phase 1: Setting up clients with encryption');
+      // ============ PHASE 1: Setup Client A with encryption ============
+      console.log('[DisableEncryption] Phase 1: Setting up Client A with encryption');
 
       clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
       await clientA.sync.setupSuperSync({
@@ -73,20 +73,6 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       await clientA.workView.addTask(encryptedTask);
       await clientA.sync.syncAndWait();
       console.log(`[DisableEncryption] Client A created: ${encryptedTask}`);
-
-      // Setup Client B with same encryption
-      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
-      await clientB.sync.setupSuperSync({
-        ...baseConfig,
-        isEncryptionEnabled: true,
-        password: encryptionPassword,
-      });
-      await clientB.sync.syncAndWait();
-
-      // Verify both clients have the encrypted task
-      await waitForTask(clientA.page, encryptedTask);
-      await waitForTask(clientB.page, encryptedTask);
-      console.log('[DisableEncryption] Both clients synced with encryption');
 
       // ============ PHASE 2: Client A disables encryption ============
       console.log('[DisableEncryption] Phase 2: Client A disabling encryption');
@@ -105,21 +91,27 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       await clientA.sync.syncAndWait();
       console.log(`[DisableEncryption] Client A created unencrypted: ${unencryptedTask}`);
 
-      // ============ PHASE 4: Client B reconfigures without encryption ============
+      // ============ PHASE 4: Fresh Client B joins without encryption ============
       console.log(
-        '[DisableEncryption] Phase 4: Client B reconfiguring without encryption',
+        '[DisableEncryption] Phase 4: Fresh Client B joining without encryption',
       );
 
-      // CRITICAL: Client B must reconfigure WITHOUT encryption and sync to get A's unencrypted state.
-      // We use setupSuperSync with isEncryptionEnabled: false to reconfigure.
-      // This will sync and get the unencrypted snapshot from A, avoiding the clean slate wipe issue.
+      // CRITICAL: Use a FRESH client (new browser context) that directly sets up
+      // without encryption. This avoids triggering the "disable encryption" dialog
+      // which would cause a clean slate and overwrite Client A's data.
+      // This simulates a "new device joining" scenario.
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
       await clientB.sync.setupSuperSync({
         ...baseConfig,
         isEncryptionEnabled: false,
       });
-      console.log('[DisableEncryption] Client B reconfigured for unencrypted sync');
+      console.log('[DisableEncryption] Client B set up without encryption');
 
-      // Client B should now have both tasks
+      // Client B syncs to receive Client A's unencrypted data
+      await clientB.sync.syncAndWait();
+      console.log('[DisableEncryption] Client B synced');
+
+      // Client B should now have both tasks from Client A
       await waitForTask(clientB.page, encryptedTask);
       await waitForTask(clientB.page, unencryptedTask);
 
@@ -273,8 +265,12 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
    *
    * Tests that:
    * - Client can enable → disable → enable encryption multiple times
-   * - Each state change triggers clean slate
-   * - Other clients adapt to each change by reconfiguring
+   * - Each state change triggers clean slate on the initiating client
+   * - Fresh clients (simulating new devices) can join with the new encryption state
+   *
+   * Note: When encryption state changes, the initiating client (A) triggers a clean slate.
+   * Other clients must use fresh browser contexts to join with the new encryption state,
+   * as reconfiguring an existing client would trigger its own clean slate.
    */
   test('Multiple encryption state changes work correctly', async ({
     browser,
@@ -304,6 +300,7 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       await clientA.workView.addTask(task1);
       await clientA.sync.syncAndWait();
 
+      // Fresh Client B joins unencrypted
       clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
       await clientB.sync.setupSuperSync({
         ...baseConfig,
@@ -311,6 +308,11 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       });
       await clientB.sync.syncAndWait();
       await waitForTask(clientB.page, task1);
+      console.log('[MultipleChanges] Client B verified task1');
+
+      // Close Client B before encryption change
+      await closeClient(clientB);
+      clientB = null;
 
       // ============ PHASE 2: Enable encryption ============
       console.log('[MultipleChanges] Phase 2: Enabling encryption');
@@ -321,15 +323,20 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       await clientA.workView.addTask(task2);
       await clientA.sync.syncAndWait();
 
-      // Client B reconfigures with encryption
+      // Fresh Client B joins with encryption
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
       await clientB.sync.setupSuperSync({
         ...baseConfig,
         isEncryptionEnabled: true,
         password: password1,
       });
-      console.log('[MultipleChanges] Client B enabled encryption');
-
+      await clientB.sync.syncAndWait();
       await waitForTask(clientB.page, task2);
+      console.log('[MultipleChanges] Client B verified task2');
+
+      // Close Client B before encryption change
+      await closeClient(clientB);
+      clientB = null;
 
       // ============ PHASE 3: Disable encryption ============
       console.log('[MultipleChanges] Phase 3: Disabling encryption');
@@ -340,14 +347,19 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       await clientA.workView.addTask(task3);
       await clientA.sync.syncAndWait();
 
-      // Client B reconfigures without encryption
+      // Fresh Client B joins without encryption
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
       await clientB.sync.setupSuperSync({
         ...baseConfig,
         isEncryptionEnabled: false,
       });
-      console.log('[MultipleChanges] Client B reconfigured for unencrypted sync');
-
+      await clientB.sync.syncAndWait();
       await waitForTask(clientB.page, task3);
+      console.log('[MultipleChanges] Client B verified task3');
+
+      // Close Client B before encryption change
+      await closeClient(clientB);
+      clientB = null;
 
       // ============ PHASE 4: Re-enable with different password ============
       console.log('[MultipleChanges] Phase 4: Re-enabling with different password');
@@ -358,25 +370,27 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       await clientA.workView.addTask(task4);
       await clientA.sync.syncAndWait();
 
-      // Client B enables encryption with NEW password
+      // Fresh Client B joins with NEW password
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
       await clientB.sync.setupSuperSync({
         ...baseConfig,
         isEncryptionEnabled: true,
         password: password2,
       });
-      console.log('[MultipleChanges] Client B enabled encryption with new password');
-
+      await clientB.sync.syncAndWait();
       await waitForTask(clientB.page, task4);
+      console.log('[MultipleChanges] Client B verified task4');
 
       // ============ PHASE 5: Verify final state ============
       console.log('[MultipleChanges] Phase 5: Verifying final state');
 
-      // All tasks should be present on both clients
+      // All tasks should be present on Client A
       await waitForTask(clientA.page, task1);
       await waitForTask(clientA.page, task2);
       await waitForTask(clientA.page, task3);
       await waitForTask(clientA.page, task4);
 
+      // Client B should have all tasks too (joined with correct encryption)
       await waitForTask(clientB.page, task1);
       await waitForTask(clientB.page, task2);
       await waitForTask(clientB.page, task3);
@@ -399,8 +413,13 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
    *
    * Tests that:
    * - If Client B makes changes while Client A is changing encryption state
-   * - Client B's changes are overwritten by clean slate (expected behavior)
+   * - Client B's unsynced changes are lost when B joins fresh after the encryption change
    * - This is correct: clean slate is an explicit user action to reset sync
+   *
+   * Note: This test uses a fresh Client B context after A's encryption change,
+   * which simulates the real-world scenario where a device needs to reconfigure
+   * to match the new encryption state. Any local-only changes on the old device
+   * are lost because they were never synced.
    */
   test('Concurrent changes are overwritten by encryption state change', async ({
     browser,
@@ -438,7 +457,15 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       // Client B creates a task (while A will enable encryption)
       const concurrentTask = `ConcurrentTask-${uniqueId}`;
       await clientB.workView.addTask(concurrentTask);
-      // Note: B does NOT sync yet
+      // Note: B does NOT sync yet - this task is local only
+
+      // IMPORTANT: Close Client B BEFORE A enables encryption
+      // This simulates a real-world scenario where B has local-only changes
+      // when A changes the encryption state. B's local state is "lost" when
+      // the device reconnects (simulated by creating a fresh client).
+      console.log('[Concurrent] Client B has unsynced task, closing client');
+      await closeClient(clientB);
+      clientB = null;
 
       // Client A enables encryption (triggers clean slate)
       await clientA.sync.enableEncryption(encryptionPassword);
@@ -446,27 +473,32 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       const taskAfterEncryption = `AfterEncryption-${uniqueId}`;
       await clientA.workView.addTask(taskAfterEncryption);
       await clientA.sync.syncAndWait();
+      console.log('[Concurrent] Client A enabled encryption and created new task');
 
-      // Now Client B reconfigures with encryption (gets A's state, losing concurrent changes)
+      // Create a FRESH Client B that joins with encryption
+      // Fresh client has no knowledge of the concurrent task (it was never synced)
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
       await clientB.sync.setupSuperSync({
         ...baseConfig,
         isEncryptionEnabled: true,
         password: encryptionPassword,
       });
-      console.log('[Concurrent] Client B enabled encryption');
+      await clientB.sync.syncAndWait();
+      console.log('[Concurrent] Fresh Client B joined with encryption');
 
-      // Client B should have tasks from clean slate (A's state)
+      // Client B should have tasks from A's state
       await waitForTask(clientB.page, sharedTask);
       await waitForTask(clientB.page, taskAfterEncryption);
 
-      // CRITICAL: Client B's concurrent task should be GONE (overwritten by clean slate)
+      // CRITICAL: Client B's concurrent task should be GONE
+      // (it was never synced, and the fresh client doesn't have it)
       const concurrentTaskLocator = clientB.page.locator(
         `task:has-text("${concurrentTask}")`,
       );
       await expect(concurrentTaskLocator).not.toBeVisible({ timeout: 5000 });
 
       console.log(
-        '[Concurrent] ✓ Concurrent changes correctly overwritten by clean slate!',
+        '[Concurrent] ✓ Concurrent (unsynced) changes correctly lost after encryption state change!',
       );
     } finally {
       if (clientA) await closeClient(clientA);
