@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
-import { Operation, VectorClock } from '../core/operation.types';
+import { Operation, OpType, VectorClock } from '../core/operation.types';
 import { mergeVectorClocks } from '../../core/util/vector-clock';
 import { OpLog } from '../../core/log';
 import { ConflictResolutionService } from './conflict-resolution.service';
@@ -12,6 +12,8 @@ import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
 import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
 import { LWWOperationFactory } from './lww-operation-factory.service';
+import { uuidv7 } from '../../util/uuid-v7';
+import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 
 /**
  * Resolves stale local operations that were rejected due to concurrent modification.
@@ -125,6 +127,39 @@ export class StaleOperationResolverService {
           allClocks,
           clientId,
         );
+
+        // Check if all stale ops for this entity are DELETE operations
+        const allOpsAreDeletes = entityOps.every((e) => e.op.opType === OpType.Delete);
+
+        if (allOpsAreDeletes) {
+          // For DELETE operations, we can't get current state (entity is deleted).
+          // Create a new DELETE operation with merged clock instead of UPDATE.
+          // Use the first op's actionType and payload since they're self-contained.
+          const deleteOp = entityOps[0].op;
+          const preservedTimestamp = Math.max(...entityOps.map((e) => e.op.timestamp));
+
+          const newDeleteOp: Operation = {
+            id: uuidv7(),
+            actionType: deleteOp.actionType, // Preserve original actionType (e.g., '[Task] Delete Task')
+            opType: OpType.Delete,
+            entityType,
+            entityId,
+            payload: deleteOp.payload, // Preserve original payload (contains entity data)
+            clientId,
+            vectorClock: newClock,
+            timestamp: preservedTimestamp,
+            schemaVersion: CURRENT_SCHEMA_VERSION,
+          };
+
+          newOpsCreated.push(newDeleteOp);
+          opsToReject.push(...entityOps.map((e) => e.opId));
+
+          OpLog.normal(
+            `StaleOperationResolverService: Created replacement DELETE op for ${entityKey}, ` +
+              `replacing ${entityOps.length} stale DELETE op(s). New clock: ${JSON.stringify(newClock)}`,
+          );
+          continue;
+        }
 
         // Get current entity state from NgRx store
         const entityState = await this.conflictResolutionService.getCurrentEntityState(
