@@ -8,6 +8,7 @@ import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { SyncWrapperService } from './sync-wrapper.service';
 import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
 import { OpType } from '../../op-log/core/operation.types';
+import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
 
 describe('EncryptionPasswordChangeService', () => {
   let service: EncryptionPasswordChangeService;
@@ -17,6 +18,7 @@ describe('EncryptionPasswordChangeService', () => {
   let mockDerivedKeyCache: jasmine.SpyObj<DerivedKeyCacheService>;
   let mockSyncWrapper: jasmine.SpyObj<SyncWrapperService>;
   let mockOpLogStore: jasmine.SpyObj<OperationLogStoreService>;
+  let mockWrappedProviderService: jasmine.SpyObj<WrappedProviderService>;
   let mockSyncProvider: jasmine.SpyObj<any>;
 
   const TEST_PASSWORD = 'new-secure-password-123';
@@ -74,6 +76,10 @@ describe('EncryptionPasswordChangeService', () => {
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', ['getUnsynced']);
     mockOpLogStore.getUnsynced.and.returnValue(Promise.resolve([]));
 
+    mockWrappedProviderService = jasmine.createSpyObj('WrappedProviderService', [
+      'clearCache',
+    ]);
+
     TestBed.configureTestingModule({
       providers: [
         EncryptionPasswordChangeService,
@@ -83,6 +89,7 @@ describe('EncryptionPasswordChangeService', () => {
         { provide: DerivedKeyCacheService, useValue: mockDerivedKeyCache },
         { provide: SyncWrapperService, useValue: mockSyncWrapper },
         { provide: OperationLogStoreService, useValue: mockOpLogStore },
+        { provide: WrappedProviderService, useValue: mockWrappedProviderService },
       ],
     });
     service = TestBed.inject(EncryptionPasswordChangeService);
@@ -291,7 +298,11 @@ describe('EncryptionPasswordChangeService', () => {
       });
 
       mockDerivedKeyCache.clearCache.and.callFake(() => {
-        callOrder.push('clearCache');
+        callOrder.push('clearDerivedKeyCache');
+      });
+
+      mockWrappedProviderService.clearCache.and.callFake(() => {
+        callOrder.push('clearWrappedProviderCache');
       });
 
       mockUploadService.uploadPendingOps.and.callFake(async () => {
@@ -309,7 +320,8 @@ describe('EncryptionPasswordChangeService', () => {
       expect(callOrder).toEqual([
         'createCleanSlate',
         'setPrivateCfg',
-        'clearCache',
+        'clearDerivedKeyCache',
+        'clearWrappedProviderCache',
         'uploadPendingOps',
       ]);
     });
@@ -396,10 +408,10 @@ describe('EncryptionPasswordChangeService', () => {
       );
     });
 
-    it('should clear derived key cache twice on upload failure (change + revert)', async () => {
+    it('should clear caches twice on upload failure (change + revert)', async () => {
       // When upload fails, we revert the password change. This test ensures
-      // the derived key cache is cleared on both the initial change AND the revert.
-      // This prevents the cache from having stale keys for either password.
+      // both caches are cleared on both the initial change AND the revert.
+      // This prevents the caches from having stale keys for either password.
 
       const originalConfig = {
         encryptKey: 'old-password',
@@ -413,10 +425,11 @@ describe('EncryptionPasswordChangeService', () => {
 
       await expectAsync(service.changePassword(TEST_PASSWORD)).toBeRejected();
 
-      // Should have cleared cache twice:
+      // Should have cleared caches twice:
       // 1. After setting new password (before upload)
       // 2. After reverting to old password (after upload failure)
       expect(mockDerivedKeyCache.clearCache).toHaveBeenCalledTimes(2);
+      expect(mockWrappedProviderService.clearCache).toHaveBeenCalledTimes(2);
     });
 
     it('should generate new client ID via clean slate to prevent operation conflicts', async () => {
