@@ -8,11 +8,13 @@ import {
   SyncProviderServiceInterface,
 } from '../../op-log/sync-providers/provider.interface';
 import { SuperSyncPrivateCfg } from '../../op-log/sync-providers/super-sync/super-sync.model';
+import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
 
 describe('EncryptionEnableService', () => {
   let service: EncryptionEnableService;
   let mockSnapshotUploadService: jasmine.SpyObj<SnapshotUploadService>;
   let mockEncryptionService: jasmine.SpyObj<OperationEncryptionService>;
+  let mockWrappedProviderService: jasmine.SpyObj<WrappedProviderService>;
   let mockSyncProvider: jasmine.SpyObj<
     SyncProviderServiceInterface<SyncProviderId> & OperationSyncCapable
   >;
@@ -56,11 +58,16 @@ describe('EncryptionEnableService', () => {
     ]);
     mockEncryptionService.encryptPayload.and.resolveTo('encrypted-data');
 
+    mockWrappedProviderService = jasmine.createSpyObj('WrappedProviderService', [
+      'clearCache',
+    ]);
+
     TestBed.configureTestingModule({
       providers: [
         EncryptionEnableService,
         { provide: SnapshotUploadService, useValue: mockSnapshotUploadService },
         { provide: OperationEncryptionService, useValue: mockEncryptionService },
+        { provide: WrappedProviderService, useValue: mockWrappedProviderService },
       ],
     });
 

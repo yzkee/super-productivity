@@ -10,6 +10,7 @@ import { OperationLogUploadService } from '../../op-log/sync/operation-log-uploa
 import { SyncWrapperService } from './sync-wrapper.service';
 import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
 import { isFullStateOpType } from '../../op-log/core/operation.types';
+import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
 
 /**
  * Service for changing the encryption password for SuperSync.
@@ -29,6 +30,7 @@ export class EncryptionPasswordChangeService {
   private _derivedKeyCache = inject(DerivedKeyCacheService);
   private _syncWrapper = inject(SyncWrapperService);
   private _opLogStore = inject(OperationLogStoreService);
+  private _wrappedProviderService = inject(WrappedProviderService);
 
   /**
    * Changes the encryption password using the clean slate approach.
@@ -98,6 +100,8 @@ export class EncryptionPasswordChangeService {
 
       // Clear cached encryption keys to force re-derivation with new password
       this._derivedKeyCache.clearCache();
+      // Clear cached adapters to ensure new encryption settings take effect
+      this._wrappedProviderService.clearCache();
 
       // STEP 3: Upload the SYNC_IMPORT with isCleanSlate=true flag
       // The server will delete all existing data before accepting the operation
@@ -131,6 +135,8 @@ export class EncryptionPasswordChangeService {
         // Revert the password change in local config
         await syncProvider.setPrivateCfg(existingCfg as SuperSyncPrivateCfg);
         this._derivedKeyCache.clearCache();
+        // Clear cached adapters since encryption settings were reverted
+        this._wrappedProviderService.clearCache();
 
         throw new Error(
           `Password change failed: ${uploadError instanceof Error ? uploadError.message : uploadError}. ` +

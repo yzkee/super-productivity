@@ -7,10 +7,12 @@ import {
   SyncProviderServiceInterface,
 } from '../../op-log/sync-providers/provider.interface';
 import { SuperSyncPrivateCfg } from '../../op-log/sync-providers/super-sync/super-sync.model';
+import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
 
 describe('EncryptionDisableService', () => {
   let service: EncryptionDisableService;
   let mockSnapshotUploadService: jasmine.SpyObj<SnapshotUploadService>;
+  let mockWrappedProviderService: jasmine.SpyObj<WrappedProviderService>;
   let mockSyncProvider: jasmine.SpyObj<
     SyncProviderServiceInterface<SyncProviderId> & OperationSyncCapable
   >;
@@ -49,10 +51,15 @@ describe('EncryptionDisableService', () => {
     });
     mockSnapshotUploadService.updateLastServerSeq.and.resolveTo();
 
+    mockWrappedProviderService = jasmine.createSpyObj('WrappedProviderService', [
+      'clearCache',
+    ]);
+
     TestBed.configureTestingModule({
       providers: [
         EncryptionDisableService,
         { provide: SnapshotUploadService, useValue: mockSnapshotUploadService },
+        { provide: WrappedProviderService, useValue: mockWrappedProviderService },
       ],
     });
 

@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { SuperSyncPrivateCfg } from '../../op-log/sync-providers/super-sync/super-sync.model';
 import { SyncLog } from '../../core/log';
 import { SnapshotUploadService } from './snapshot-upload.service';
+import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
 
 const LOG_PREFIX = 'EncryptionDisableService';
 
@@ -18,6 +19,7 @@ const LOG_PREFIX = 'EncryptionDisableService';
 })
 export class EncryptionDisableService {
   private _snapshotUploadService = inject(SnapshotUploadService);
+  private _wrappedProviderService = inject(WrappedProviderService);
 
   /**
    * Disables encryption by deleting all server data
@@ -58,6 +60,9 @@ export class EncryptionDisableService {
         encryptKey: undefined,
         isEncryptionEnabled: false,
       } as SuperSyncPrivateCfg);
+
+      // Clear cached adapters to ensure new encryption settings take effect
+      this._wrappedProviderService.clearCache();
 
       // Update lastServerSeq
       await this._snapshotUploadService.updateLastServerSeq(

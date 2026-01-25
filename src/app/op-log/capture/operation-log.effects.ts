@@ -10,7 +10,7 @@ import {
 } from '../core/persistent-action.interface';
 import { uuidv7 } from '../../util/uuid-v7';
 import { devError } from '../../util/dev-error';
-import { incrementVectorClock } from '../../core/util/vector-clock';
+import { incrementVectorClock, limitVectorClockSize } from '../../core/util/vector-clock';
 import { MultiEntityPayload, Operation, ActionType } from '../core/operation.types';
 import { OperationLogCompactionService } from '../persistence/operation-log-compaction.service';
 import { OpLog } from '../../core/log';
@@ -173,7 +173,9 @@ export class OperationLogEffects {
           entityChanges,
         };
         const currentClock = await this.vectorClockService.getCurrentVectorClock();
-        const newClock = incrementVectorClock(currentClock, clientId);
+        const incrementedClock = incrementVectorClock(currentClock, clientId);
+        // Limit vector clock size to prevent unbounded growth with many clients
+        const newClock = limitVectorClockSize(incrementedClock, clientId);
 
         // For bulk operations, entityIds is provided but entityId may not be.
         // The server requires entityId for non-full-state operations.

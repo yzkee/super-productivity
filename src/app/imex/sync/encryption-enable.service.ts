@@ -3,6 +3,7 @@ import { SuperSyncPrivateCfg } from '../../op-log/sync-providers/super-sync/supe
 import { SyncLog } from '../../core/log';
 import { SnapshotUploadService } from './snapshot-upload.service';
 import { OperationEncryptionService } from '../../op-log/sync/operation-encryption.service';
+import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
 
 const LOG_PREFIX = 'EncryptionEnableService';
 
@@ -21,6 +22,7 @@ const LOG_PREFIX = 'EncryptionEnableService';
 export class EncryptionEnableService {
   private _snapshotUploadService = inject(SnapshotUploadService);
   private _encryptionService = inject(OperationEncryptionService);
+  private _wrappedProviderService = inject(WrappedProviderService);
 
   /**
    * Enables encryption by deleting all server data
@@ -52,6 +54,9 @@ export class EncryptionEnableService {
       encryptKey,
       isEncryptionEnabled: true,
     } as SuperSyncPrivateCfg);
+
+    // Clear cached adapters to ensure new encryption settings take effect
+    this._wrappedProviderService.clearCache();
 
     // Encrypt the snapshot payload
     SyncLog.normal(`${LOG_PREFIX}: Encrypting snapshot...`);
@@ -96,6 +101,9 @@ export class EncryptionEnableService {
         encryptKey: undefined,
         isEncryptionEnabled: false,
       } as SuperSyncPrivateCfg);
+
+      // Clear cached adapters since encryption settings were reverted
+      this._wrappedProviderService.clearCache();
 
       throw new Error(
         'CRITICAL: Failed to upload encrypted snapshot after deleting server data. ' +
