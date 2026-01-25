@@ -174,8 +174,14 @@ export class OperationLogEffects {
         };
         const currentClock = await this.vectorClockService.getCurrentVectorClock();
         const incrementedClock = incrementVectorClock(currentClock, clientId);
+        // Load protected client IDs (e.g., from latest SYNC_IMPORT) to preserve during pruning
+        const protectedClientIds = await this.opLogStore.getProtectedClientIds();
         // Limit vector clock size to prevent unbounded growth with many clients
-        const newClock = limitVectorClockSize(incrementedClock, clientId);
+        const newClock = limitVectorClockSize(
+          incrementedClock,
+          clientId,
+          protectedClientIds,
+        );
 
         // For bulk operations, entityIds is provided but entityId may not be.
         // The server requires entityId for non-full-state operations.

@@ -105,11 +105,22 @@ test.describe('@supersync @encryption Wrong Password Error Handling', () => {
         '[WrongPassword] Phase 4: Client B attempting sync with wrong password',
       );
 
-      // Trigger sync manually (it will fail with DecryptError)
-      await clientB.sync.triggerSync();
+      // The sync starts automatically after setup. Check if the decrypt error dialog
+      // is already open before trying to trigger sync manually.
+      const decryptErrorDialogEarly = clientB.page.locator('dialog-handle-decrypt-error');
+      const dialogAlreadyOpen = await decryptErrorDialogEarly
+        .waitFor({ state: 'visible', timeout: 3000 })
+        .then(() => true)
+        .catch(() => false);
 
-      // Wait a bit for the error to be processed
-      await clientB.page.waitForTimeout(2000);
+      if (!dialogAlreadyOpen) {
+        // Dialog not open yet - trigger sync manually
+        await clientB.sync.triggerSync();
+        // Wait a bit for the error to be processed
+        await clientB.page.waitForTimeout(2000);
+      } else {
+        console.log('[WrongPassword] Decrypt error dialog already open from auto-sync');
+      }
 
       // ============ PHASE 5: Verify error handling ============
       console.log('[WrongPassword] Phase 5: Verifying error is properly surfaced');
@@ -155,13 +166,13 @@ test.describe('@supersync @encryption Wrong Password Error Handling', () => {
         await passwordInput.fill(newPassword);
         console.log('[WrongPassword] Filled in correct password');
 
-        // Click the "Re-sync" or similar button to retry
+        // Click the "Change & Attempt Decrypt" button to retry with new password
         const resyncBtn = decryptErrorDialog
           .locator('button')
-          .filter({ hasText: /sync|retry/i })
+          .filter({ hasText: /change.*decrypt|attempt.*decrypt/i })
           .first();
         await resyncBtn.click();
-        console.log('[WrongPassword] Clicked re-sync button');
+        console.log('[WrongPassword] Clicked Change & Attempt Decrypt button');
 
         // Wait for dialog to close
         await decryptErrorDialog.waitFor({ state: 'hidden', timeout: 10000 });
@@ -243,22 +254,49 @@ test.describe('@supersync @encryption Wrong Password Error Handling', () => {
         waitForInitialSync: false,
       });
 
+      // The sync starts automatically after setup and may trigger the decrypt error dialog.
+      // If dialog appears, cancel it so we can add a local task first.
+      const decryptErrorDialogEarly = clientB.page.locator('dialog-handle-decrypt-error');
+      const dialogOpenedEarly = await decryptErrorDialogEarly
+        .waitFor({ state: 'visible', timeout: 3000 })
+        .then(() => true)
+        .catch(() => false);
+
+      if (dialogOpenedEarly) {
+        // Cancel the dialog so we can add a local task
+        const cancelBtn = decryptErrorDialogEarly
+          .locator('button')
+          .filter({ hasText: /cancel/i });
+        await cancelBtn.click();
+        await decryptErrorDialogEarly.waitFor({ state: 'hidden', timeout: 5000 });
+        await clientB.page.waitForTimeout(500);
+      }
+
       // Client B has its own local task
       const taskB = `TaskFromB-${uniqueId}`;
       await clientB.workView.addTask(taskB);
 
       // Trigger sync - should fail with DecryptError
-      await clientB.sync.triggerSync();
-      await clientB.page.waitForTimeout(2000);
+      // NOTE: Don't use triggerSync() because it waits for success check icon
+      // With wrong password, sync will fail and show error dialog instead
+      const syncBtn = clientB.page.locator('button.sync-btn');
+      await syncBtn.click();
 
-      // Verify error dialog opens
+      // Wait for the decrypt error dialog to appear
       const decryptErrorDialog = clientB.page.locator('dialog-handle-decrypt-error');
-      await decryptErrorDialog.waitFor({ state: 'visible', timeout: 5000 });
+      await decryptErrorDialog.waitFor({ state: 'visible', timeout: 10000 });
 
-      // Look for "Overwrite" or "Force Upload" button
+      // The "Change & Overwrite Remote" button requires a password to be entered first
+      // Enter any password (it will become the new encryption password after overwrite)
+      const passwordInput = decryptErrorDialog.locator('input[type="password"]');
+      const newPassword = `overwrite-pass-${uniqueId}`;
+      await passwordInput.fill(newPassword);
+      await clientB.page.waitForTimeout(300); // Wait for form validation
+
+      // Look for "Change & Overwrite Remote" button (should be enabled now)
       const overwriteBtn = decryptErrorDialog
         .locator('button')
-        .filter({ hasText: /overwrite|force|upload/i })
+        .filter({ hasText: /overwrite.*remote|change.*overwrite/i })
         .first();
       const hasOverwriteBtn = await overwriteBtn.isVisible().catch(() => false);
 
