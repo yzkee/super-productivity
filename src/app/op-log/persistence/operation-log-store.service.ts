@@ -1140,11 +1140,17 @@ export class OperationLogStoreService {
       }
     }
 
+    // Preserve existing protectedClientIds when updating the clock
+    // This is critical: without this, vector clock pruning will remove the SYNC_IMPORT
+    // client ID, causing new ops to appear CONCURRENT with the import instead of GREATER_THAN
+    const existingEntry = await this.db.get(STORE_NAMES.VECTOR_CLOCK, SINGLETON_KEY);
+    const protectedClientIds = existingEntry?.protectedClientIds ?? [];
+
     // Update the vector clock store
     await this.db.put(
-      'vector_clock',
-      { clock: mergedClock, lastUpdate: Date.now() },
-      'current',
+      STORE_NAMES.VECTOR_CLOCK,
+      { clock: mergedClock, lastUpdate: Date.now(), protectedClientIds },
+      SINGLETON_KEY,
     );
     this._vectorClockCache = mergedClock;
   }

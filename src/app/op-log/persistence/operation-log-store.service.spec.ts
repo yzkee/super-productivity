@@ -2106,6 +2106,103 @@ describe('OperationLogStoreService', () => {
         clientD: 30, // new from import
       });
     });
+
+    it('should preserve protectedClientIds when merging remote clocks', async () => {
+      // Set up protected client IDs (simulating a previous SYNC_IMPORT)
+      await service.setProtectedClientIds(['importClient', 'anotherProtected']);
+
+      // Set initial clock
+      await service.setVectorClock({ localClient: 5, importClient: 1 });
+
+      // Merge remote ops
+      await service.mergeRemoteOpClocks([
+        createTestOperation({ vectorClock: { remoteClient: 10 } }),
+        createTestOperation({ vectorClock: { anotherRemote: 5 } }),
+      ]);
+
+      // Protected IDs must still be preserved after merge
+      const protectedIds = await service.getProtectedClientIds();
+      expect(protectedIds).toEqual(['importClient', 'anotherProtected']);
+    });
+
+    it('should preserve protectedClientIds across multiple mergeRemoteOpClocks calls', async () => {
+      // Set up protected client IDs
+      await service.setProtectedClientIds(['syncImportClient']);
+
+      // Multiple merge calls (simulating multiple sync cycles)
+      await service.mergeRemoteOpClocks([
+        createTestOperation({ vectorClock: { clientA: 5 } }),
+      ]);
+      await service.mergeRemoteOpClocks([
+        createTestOperation({ vectorClock: { clientB: 3 } }),
+      ]);
+      await service.mergeRemoteOpClocks([
+        createTestOperation({ vectorClock: { clientC: 7 } }),
+      ]);
+
+      // Protected IDs should still be preserved
+      const protectedIds = await service.getProtectedClientIds();
+      expect(protectedIds).toEqual(['syncImportClient']);
+    });
+
+    it('should preserve protectedClientIds when starting with no initial clock', async () => {
+      // Set protected IDs before any clock exists
+      await service.setProtectedClientIds(['importClient']);
+
+      // Merge ops on fresh clock
+      await service.mergeRemoteOpClocks([
+        createTestOperation({ vectorClock: { remoteClient: 10 } }),
+      ]);
+
+      // Protected IDs must be preserved
+      const protectedIds = await service.getProtectedClientIds();
+      expect(protectedIds).toEqual(['importClient']);
+    });
+
+    it('should preserve protectedClientIds through realistic sync scenario', async () => {
+      // Simulate: Client A performs SYNC_IMPORT
+      // 1. SYNC_IMPORT sets protected IDs
+      await service.setProtectedClientIds(['clientA']);
+      await service.setVectorClock({ clientA: 1 });
+
+      // 2. Client B receives SYNC_IMPORT and merges the clock
+      await service.mergeRemoteOpClocks([
+        createTestOperation({
+          opType: OpType.SyncImport,
+          clientId: 'clientA',
+          vectorClock: { clientA: 1 },
+        }),
+      ]);
+
+      // 3. After merge, protected IDs must still exist
+      // This is CRITICAL: without this, vector clock pruning will remove clientA
+      const protectedIds = await service.getProtectedClientIds();
+      expect(protectedIds).toEqual(['clientA']);
+
+      // 4. New local operations should work correctly
+      const op = createTestOperation({
+        entityId: 'new-task',
+        vectorClock: { localClient: 1, clientA: 1 },
+      });
+      await service.appendWithVectorClockUpdate(op, 'local');
+
+      // 5. Protected IDs should still be there after local append
+      const protectedIdsAfter = await service.getProtectedClientIds();
+      expect(protectedIdsAfter).toEqual(['clientA']);
+    });
+
+    it('should handle empty protectedClientIds gracefully', async () => {
+      // No protected IDs set - should not error
+      await service.setVectorClock({ localClient: 5 });
+
+      await service.mergeRemoteOpClocks([
+        createTestOperation({ vectorClock: { remoteClient: 10 } }),
+      ]);
+
+      // Should return empty array, not undefined or null
+      const protectedIds = await service.getProtectedClientIds();
+      expect(protectedIds).toEqual([]);
+    });
   });
 
   describe('index fallback behavior', () => {
