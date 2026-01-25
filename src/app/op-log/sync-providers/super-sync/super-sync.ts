@@ -416,6 +416,39 @@ export class SuperSyncProvider
     return token.replace(/[^\x20-\x7E]/g, '');
   }
 
+  /**
+   * Classifies an error to determine if it's a network error (transient)
+   * vs a server error (may require user action).
+   */
+  private _isNetworkError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    const message = error.message.toLowerCase();
+    // Common network error patterns
+    return (
+      error.name === 'AbortError' ||
+      message.includes('failed to fetch') ||
+      message.includes('network') ||
+      message.includes('timeout') ||
+      message.includes('connection') ||
+      message.includes('econnrefused') ||
+      message.includes('enotfound') ||
+      message.includes('dns')
+    );
+  }
+
+  /**
+   * Extracts a user-friendly error message from various error types.
+   */
+  private _getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+      return error.message;
+    }
+    if (typeof error === 'object' && error !== null && 'message' in error) {
+      return String((error as { message: unknown }).message);
+    }
+    return String(error);
+  }
+
   private async _fetchApi<T>(
     cfg: SuperSyncPrivateCfg,
     path: string,
@@ -547,11 +580,22 @@ export class SuperSyncProvider
       return response.data as T;
     } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage = this._getErrorMessage(error);
+      const isNetworkError = this._isNetworkError(error);
+
       SyncLog.error(this.logLabel, `SuperSync request failed (native)`, {
         path,
         durationMs: duration,
-        error: (error as Error).message,
+        error: errorMessage,
+        isNetworkError,
       });
+
+      // Provide more user-friendly error messages for network issues
+      if (isNetworkError) {
+        throw new Error(
+          `Unable to connect to SuperSync server. Check your internet connection. (${errorMessage})`,
+        );
+      }
       throw error;
     }
   }
@@ -701,11 +745,22 @@ export class SuperSyncProvider
       return response.data as T;
     } catch (error) {
       const duration = Date.now() - startTime;
+      const errorMessage = this._getErrorMessage(error);
+      const isNetworkError = this._isNetworkError(error);
+
       SyncLog.error(this.logLabel, `SuperSync request failed (native)`, {
         path,
         durationMs: duration,
-        error: (error as Error).message,
+        error: errorMessage,
+        isNetworkError,
       });
+
+      // Provide more user-friendly error messages for network issues
+      if (isNetworkError) {
+        throw new Error(
+          `Unable to connect to SuperSync server. Check your internet connection. (${errorMessage})`,
+        );
+      }
       throw error;
     }
   }

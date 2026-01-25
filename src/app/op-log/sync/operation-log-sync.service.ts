@@ -31,6 +31,15 @@ import { INBOX_PROJECT } from '../../features/project/project.const';
 import { SYSTEM_TAG_IDS } from '../../features/tag/tag.const';
 
 /**
+ * Type guard for NgRx entity state (has an `ids` array).
+ */
+const isEntityState = (obj: unknown): obj is { ids: string[] } =>
+  typeof obj === 'object' &&
+  obj !== null &&
+  'ids' in obj &&
+  Array.isArray((obj as { ids: unknown }).ids);
+
+/**
  * Orchestrates synchronization of the Operation Log with remote storage.
  *
  * ## Overview
@@ -146,26 +155,28 @@ export class OperationLogSyncService {
     }
 
     // Check for tasks (any tasks = meaningful data)
-    const taskState = snapshot.task as { ids: string[] };
-    if (taskState?.ids?.length > 0) {
+    if (isEntityState(snapshot.task) && snapshot.task.ids.length > 0) {
       return true;
     }
 
     // Check for projects (beyond the default INBOX project)
-    const projectState = snapshot.project as { ids: string[] };
-    if (projectState?.ids?.some((id) => id !== INBOX_PROJECT.id)) {
+    if (
+      isEntityState(snapshot.project) &&
+      snapshot.project.ids.some((id) => id !== INBOX_PROJECT.id)
+    ) {
       return true;
     }
 
     // Check for tags (beyond system tags like TODAY, URGENT, IMPORTANT, IN_PROGRESS)
-    const tagState = snapshot.tag as { ids: string[] };
-    if (tagState?.ids?.some((id) => !SYSTEM_TAG_IDS.has(id))) {
+    if (
+      isEntityState(snapshot.tag) &&
+      snapshot.tag.ids.some((id) => !SYSTEM_TAG_IDS.has(id))
+    ) {
       return true;
     }
 
     // Check for notes
-    const noteState = snapshot.note as { ids: string[] };
-    if (noteState?.ids?.length > 0) {
+    if (isEntityState(snapshot.note) && snapshot.note.ids.length > 0) {
       return true;
     }
 

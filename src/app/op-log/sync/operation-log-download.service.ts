@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, OnDestroy } from '@angular/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { LockService } from './lock.service';
 import { Operation } from '../core/operation.types';
@@ -15,6 +15,7 @@ import {
   MAX_DOWNLOAD_OPS_IN_MEMORY,
   MAX_DOWNLOAD_ITERATIONS,
   CLOCK_DRIFT_THRESHOLD_MS,
+  DOWNLOAD_PAGE_SIZE,
 } from '../core/operation-log.const';
 import { OperationEncryptionService } from './operation-encryption.service';
 import { DecryptNoPasswordError } from '../core/errors/sync-errors';
@@ -40,7 +41,7 @@ export type { DownloadResult } from '../core/types/sync-results.types';
 @Injectable({
   providedIn: 'root',
 })
-export class OperationLogDownloadService {
+export class OperationLogDownloadService implements OnDestroy {
   private opLogStore = inject(OperationLogStoreService);
   private lockService = inject(LockService);
   private snackService = inject(SnackService);
@@ -50,6 +51,16 @@ export class OperationLogDownloadService {
 
   /** Track if we've already warned about clock drift this session */
   private hasWarnedClockDrift = false;
+
+  /** Timeout handle for clock drift retry check (cleaned up on destroy) */
+  private clockDriftTimeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  ngOnDestroy(): void {
+    if (this.clockDriftTimeoutId) {
+      clearTimeout(this.clockDriftTimeoutId);
+      this.clockDriftTimeoutId = null;
+    }
+  }
 
   async downloadRemoteOps(
     syncProvider: OperationSyncCapable,
@@ -129,7 +140,7 @@ export class OperationLogDownloadService {
         const response = await syncProvider.downloadOps(
           sinceSeq,
           clientId ?? undefined,
-          500,
+          DOWNLOAD_PAGE_SIZE,
         );
         finalLatestSeq = response.latestSeq;
         OpLog.verbose(
@@ -404,7 +415,8 @@ export class OperationLogDownloadService {
 
     if (driftMinutes > thresholdMinutes) {
       // Retry after 1 second - clock may sync after device wake-up
-      setTimeout(() => {
+      this.clockDriftTimeoutId = setTimeout(() => {
+        this.clockDriftTimeoutId = null;
         if (this.hasWarnedClockDrift) {
           return;
         }

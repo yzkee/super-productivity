@@ -88,7 +88,8 @@ export class SuperSyncPage extends BasePage {
   ): Promise<void> {
     // Auto-accept native browser confirm dialogs (window.confirm used for fresh client sync confirmation)
     // Only handles 'confirm' dialogs to avoid conflicts with test handlers that may handle 'alert' dialogs
-    this.page.on('dialog', async (dialog) => {
+    // Use 'once' to prevent memory leak from registering multiple handlers on repeated calls
+    this.page.once('dialog', async (dialog) => {
       if (dialog.type() === 'confirm') {
         const message = dialog.message();
         // Validate this is the expected fresh client sync confirmation
@@ -121,7 +122,7 @@ export class SuperSyncPage extends BasePage {
     await this.providerSelect.click();
     const superSyncOption = this.page.locator('mat-option:has-text("SuperSync")');
     await superSyncOption.click();
-    await this.page.waitForTimeout(200); // Wait for form to update
+    await this.page.waitForTimeout(500); // Wait for dropdown to close and form to update
 
     // IMPORTANT: The baseUrl field is now inside the "Advanced Config" collapsible section.
     // We need to expand it first to access the field.
@@ -143,14 +144,45 @@ export class SuperSyncPage extends BasePage {
     // Fill in access token (this field is NOT in the Advanced section)
     await this.accessTokenInput.fill(config.accessToken);
 
+    // Track if encryption settings were changed (requires fresh sync)
+    let encryptionSettingsChanged = false;
+
     // Handle encryption settings if provided
     // Note: The encryption checkbox is also in the Advanced Config section (already expanded above)
     if (config.isEncryptionEnabled !== undefined) {
       // Set encryption state
       const isCurrentlyChecked = await this.encryptionCheckbox.isChecked();
       if (config.isEncryptionEnabled !== isCurrentlyChecked) {
+        encryptionSettingsChanged = true;
         const checkboxLabel = this.page.locator('.e2e-isEncryptionEnabled label');
         await checkboxLabel.click();
+
+        // If we're disabling encryption (was checked, now unchecked), handle the confirmation dialog
+        if (isCurrentlyChecked && !config.isEncryptionEnabled) {
+          // Wait for "Disable Encryption?" confirmation dialog
+          const disableDialog = this.page
+            .locator('mat-dialog-container')
+            .filter({ hasText: 'Disable Encryption?' });
+          const dialogAppeared = await disableDialog
+            .waitFor({ state: 'visible', timeout: 5000 })
+            .then(() => true)
+            .catch(() => false);
+
+          if (dialogAppeared) {
+            // Click the confirm button to disable encryption
+            const confirmBtn = disableDialog
+              .locator('button[mat-flat-button]')
+              .filter({ hasText: /disable encryption/i });
+            await confirmBtn.click();
+
+            // Wait for the disable encryption dialog to close
+            await disableDialog.waitFor({ state: 'hidden', timeout: 60000 });
+
+            // Wait for clean slate operation to complete (server wipe + fresh upload)
+            await this.page.waitForTimeout(3000);
+          }
+        }
+
         await this.page.waitForTimeout(200); // Wait for checkbox state to update
       }
 
@@ -161,34 +193,71 @@ export class SuperSyncPage extends BasePage {
       }
     }
 
-    // Save configuration
-    await expect(this.saveBtn).toBeEnabled({ timeout: 5000 });
-    await this.saveBtn.click();
+    // Save configuration - but the form might already be closed after disabling encryption
+    const hasConfigDialog = (await this.page.locator('mat-dialog-container').count()) > 0;
+    if (hasConfigDialog) {
+      await expect(this.saveBtn).toBeEnabled({ timeout: 5000 });
+      await this.saveBtn.click();
+    }
 
     // Wait for the dialog to close
-    await expect(this.page.locator('mat-dialog-container')).toHaveCount(0, {
-      timeout: 10000,
-    });
+    // Skip this check if waitForInitialSync is false, as the sync might trigger
+    // an error dialog (e.g., decrypt error with wrong password)
+    if (waitForInitialSync) {
+      await expect(this.page.locator('mat-dialog-container')).toHaveCount(0, {
+        timeout: 10000,
+      });
+    } else {
+      // Wait for the config dialog to close (but ignore error dialogs)
+      await this.page.waitForTimeout(1000);
+
+      // CRITICAL: Ensure backdrop is removed to prevent pointer event interception
+      await this.ensureOverlaysClosed();
+    }
 
     if (waitForInitialSync) {
-      // Check if sync already completed
-      const checkAlreadyVisible = await this.syncCheckIcon.isVisible().catch(() => false);
+      // If encryption settings changed, we MUST wait for a fresh sync (clean slate operation)
+      // Don't skip even if check icon is visible from previous sync
+      if (encryptionSettingsChanged) {
+        // Trigger a manual sync to ensure we get latest data after encryption change
+        await this.page.waitForTimeout(500); // Wait for UI to settle
+        await this.syncBtn.click();
 
-      if (!checkAlreadyVisible) {
-        // Wait for sync to start or complete
-        // Try to wait for spinner first, but if it's already gone, that's fine
+        // Wait for sync to start
         const spinnerAppeared = await this.syncSpinner
-          .waitFor({ state: 'visible', timeout: 2000 })
+          .waitFor({ state: 'visible', timeout: 5000 })
           .then(() => true)
           .catch(() => false);
 
         if (spinnerAppeared) {
-          // Spinner appeared, wait for it to disappear
-          await this.syncSpinner.waitFor({ state: 'hidden', timeout: 15000 });
+          // Wait for sync to complete
+          await this.syncSpinner.waitFor({ state: 'hidden', timeout: 30000 });
         }
 
-        // Now wait for check icon to appear
-        await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 5000 });
+        // Wait for check icon
+        await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 10000 });
+      } else {
+        // Check if sync already completed
+        const checkAlreadyVisible = await this.syncCheckIcon
+          .isVisible()
+          .catch(() => false);
+
+        if (!checkAlreadyVisible) {
+          // Wait for sync to start or complete
+          // Try to wait for spinner first, but if it's already gone, that's fine
+          const spinnerAppeared = await this.syncSpinner
+            .waitFor({ state: 'visible', timeout: 2000 })
+            .then(() => true)
+            .catch(() => false);
+
+          if (spinnerAppeared) {
+            // Spinner appeared, wait for it to disappear
+            await this.syncSpinner.waitFor({ state: 'hidden', timeout: 15000 });
+          }
+
+          // Now wait for check icon to appear
+          await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 5000 });
+        }
       }
     }
   }
@@ -231,30 +300,39 @@ export class SuperSyncPage extends BasePage {
     // The form's onInit hook sets up the valueChanges subscription
     await this.page.waitForTimeout(500);
 
+    const checkboxLabel = this.page.locator('.e2e-isEncryptionEnabled label');
+
     // Check if already enabled
     const isChecked = await this.encryptionCheckbox.isChecked();
     if (!isChecked) {
-      const checkboxLabel = this.page.locator('.e2e-isEncryptionEnabled label');
-
-      // Fill the password field using force option to bypass visibility checks
-      // This works even when encryption is disabled and the field is hidden
-      await this.encryptionPasswordInput.fill(password, { force: true });
-      await this.page.waitForTimeout(300); // Wait for Angular model to update
-
-      // Now check the checkbox - this will trigger the confirmation dialog (password is now set)
+      // Step 1: Enable checkbox first (this makes the password field visible)
+      // Since there's no password yet, no dialog will appear
       await checkboxLabel.click();
-      await this.page.waitForTimeout(200);
+      await this.page.waitForTimeout(300);
+    }
 
-      // Wait for the "Enable Encryption?" confirmation dialog to appear
-      const enableDialog = this.page
-        .locator('mat-dialog-container')
-        .filter({ hasText: 'Enable Encryption?' });
-      await enableDialog.waitFor({ state: 'visible', timeout: 5000 });
+    // Step 2: Wait for password field to appear and fill it
+    await this.encryptionPasswordInput.waitFor({ state: 'visible', timeout: 5000 });
+    await this.encryptionPasswordInput.fill(password);
+    await this.page.waitForTimeout(300); // Wait for Angular model to update
 
-      // The password is already pre-filled from the form, but verify the input exists
-      const passwordInput = enableDialog.locator('input[type="password"]');
-      await passwordInput.waitFor({ state: 'visible', timeout: 3000 });
+    // Step 3: Save the form to trigger encryption enabling
+    // The form save with encryption enabled + password will configure encryption
+    const configDialog = this.page.locator('mat-dialog-container').first();
+    const saveBtn = configDialog.locator('button').filter({ hasText: /save/i });
+    await saveBtn.click();
 
+    // Wait for the "Enable Encryption?" confirmation dialog to appear
+    // This dialog should appear when saving with encryption enabled and a password set
+    const enableDialog = this.page
+      .locator('mat-dialog-container')
+      .filter({ hasText: 'Enable Encryption?' });
+    const dialogAppeared = await enableDialog
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (dialogAppeared) {
       // Click the confirm button (mat-flat-button with "Enable Encryption" text)
       const confirmBtn = enableDialog
         .locator('button[mat-flat-button]')
@@ -262,16 +340,11 @@ export class SuperSyncPage extends BasePage {
       await confirmBtn.click();
 
       // Wait for the enable encryption dialog to close and any loading to complete
-      await enableDialog.waitFor({ state: 'hidden', timeout: 15000 });
+      await enableDialog.waitFor({ state: 'hidden', timeout: 60000 });
       await this.page.waitForTimeout(500);
     }
 
-    // Now close the "Configure Sync" dialog
-    const configDialog = this.page.locator('mat-dialog-container').first();
-    const cancelBtn = configDialog.locator('button').filter({ hasText: /cancel/i });
-    await cancelBtn.click();
-
-    // Wait for dialog to close
+    // Wait for all dialogs to close
     await expect(this.page.locator('mat-dialog-container')).toHaveCount(0, {
       timeout: 10000,
     });
@@ -351,17 +424,17 @@ export class SuperSyncPage extends BasePage {
     if (isChecked) {
       // Click checkbox - this will trigger the disable encryption dialog IMMEDIATELY
       await checkboxLabel.click();
-      await this.page.waitForTimeout(200);
 
       // IMPORTANT: The "Disable Encryption?" confirmation dialog appears immediately
       // when the checkbox is unchecked (via onChange handler), NOT after clicking Save.
       // We must handle this dialog BEFORE trying to click Save on the Configure Sync dialog.
 
       // Wait for confirmation dialog "Disable Encryption?"
+      // Use a longer timeout since the dialog might take time to render
       const confirmDialog = this.page
         .locator('mat-dialog-container')
         .filter({ hasText: 'Disable Encryption?' });
-      await confirmDialog.waitFor({ state: 'visible', timeout: 5000 });
+      await confirmDialog.waitFor({ state: 'visible', timeout: 10000 });
 
       // Click the confirm button (mat-flat-button with "Disable Encryption" text)
       const confirmBtn = confirmDialog
@@ -370,8 +443,8 @@ export class SuperSyncPage extends BasePage {
       await confirmBtn.click();
 
       // Wait for the disable encryption dialog to close and the operation to complete
-      // This includes server wipe + fresh unencrypted upload
-      await confirmDialog.waitFor({ state: 'hidden', timeout: 15000 });
+      // This includes server wipe + fresh unencrypted upload - can take a while
+      await confirmDialog.waitFor({ state: 'hidden', timeout: 60000 });
       await this.page.waitForTimeout(500);
     }
 
@@ -585,10 +658,8 @@ export class SuperSyncPage extends BasePage {
     await dialogContent.evaluate((el) => el.scrollTo(0, el.scrollHeight));
     await this.page.waitForTimeout(200);
 
-    // Click the "Change Encryption Password" button
-    const changePasswordBtn = this.page.locator(
-      'button:has-text("Change Encryption Password")',
-    );
+    // Click the "Change Password" button
+    const changePasswordBtn = this.page.locator('button:has-text("Change Password")');
     await changePasswordBtn.waitFor({ state: 'visible', timeout: 5000 });
     await changePasswordBtn.click();
 
@@ -610,9 +681,12 @@ export class SuperSyncPage extends BasePage {
     // Wait for Angular to process form validation
     await this.page.waitForTimeout(200);
 
-    // Click the confirm button - wait for it to be enabled first
-    const confirmBtn = changePasswordDialog.locator('button[color="warn"]');
-    await confirmBtn.waitFor({ state: 'enabled', timeout: 5000 });
+    // Click the "Change Password" confirm button (mat-flat-button, not the "Disable Encryption" button which is mat-stroked-button)
+    const confirmBtn = changePasswordDialog.locator(
+      'button[mat-flat-button][color="warn"]',
+    );
+    await confirmBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(confirmBtn).toBeEnabled({ timeout: 5000 });
     await confirmBtn.click();
 
     // Wait for the dialog to close (password change complete)

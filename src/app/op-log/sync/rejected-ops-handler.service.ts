@@ -282,6 +282,16 @@ export class RejectedOpsHandlerService {
         'RejectedOpsHandlerService: Failed to download after concurrent modification detection',
         e,
       );
+      // Mark ops as failed so they can be retried on next sync, and re-throw
+      // so caller knows resolution failed
+      for (const { opId } of concurrentModificationOps) {
+        const entry = await this.opLogStore.getOpById(opId);
+        // Only reject if still pending (not synced or already rejected)
+        if (entry && !entry.syncedAt && !entry.rejectedAt) {
+          await this.opLogStore.markRejected([opId]);
+        }
+      }
+      throw e;
     }
 
     return mergedOpsCreated;

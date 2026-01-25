@@ -312,10 +312,17 @@ export const waitForTask = async (
         state: 'visible',
       });
       return; // Success
-    } catch {
+    } catch (error) {
       // Check if page is closed before waiting
       if (page.isClosed()) {
         throw new Error(`Page was closed while waiting for task "${taskName}"`);
+      }
+      // Only retry on timeout errors; re-throw other errors (page crashes, etc.)
+      const isTimeoutError =
+        error instanceof Error &&
+        (error.message.includes('Timeout') || error.name === 'TimeoutError');
+      if (!isTimeoutError) {
+        throw error;
       }
       // Wait a bit and retry
       await page.waitForTimeout(TASK_POLL_INTERVAL);
@@ -537,7 +544,8 @@ export const deleteTask = async (
   // Confirm deletion if dialog appears
   const confirmBtn = client.page.locator('mat-dialog-actions button:has-text("Delete")');
   const dialogAppeared = await confirmBtn
-    .isVisible({ timeout: UI_VISIBLE_TIMEOUT_SHORT })
+    .waitFor({ state: 'visible', timeout: UI_VISIBLE_TIMEOUT_SHORT })
+    .then(() => true)
     .catch(() => false);
 
   if (dialogAppeared) {
