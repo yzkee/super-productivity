@@ -63,6 +63,7 @@ describe('RemoteOpsProcessingService', () => {
       'getLatestFullStateOp',
       'getOpById',
       'markRejected',
+      'setProtectedClientIds',
     ]);
     // By default, treat all ops as new (return them as-is)
     opLogStoreSpy.filterNewOps.and.callFake((ops: any[]) => Promise.resolve(ops));
@@ -74,6 +75,8 @@ describe('RemoteOpsProcessingService', () => {
     opLogStoreSpy.getLatestFullStateOp.and.returnValue(Promise.resolve(undefined));
     // By default, mergeRemoteOpClocks succeeds
     opLogStoreSpy.mergeRemoteOpClocks.and.resolveTo();
+    // By default, setProtectedClientIds succeeds
+    opLogStoreSpy.setProtectedClientIds.and.resolveTo();
     vectorClockServiceSpy = jasmine.createSpyObj('VectorClockService', [
       'getEntityFrontier',
       'getSnapshotVectorClock',

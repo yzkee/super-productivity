@@ -228,6 +228,17 @@ export class SyncHydrationService {
       await this.opLogStore.setVectorClock(newClock);
       OpLog.normal('SyncHydrationService: Updated vector clock store after sync');
 
+      // 8b. Protect the SYNC_IMPORT's client ID from vector clock pruning
+      // This ensures the client ID that created the SYNC_IMPORT isn't pruned from future
+      // vector clocks (even if it has a low counter), preventing new ops from appearing
+      // CONCURRENT with the import instead of GREATER_THAN.
+      if (createSyncImportOp) {
+        await this.opLogStore.setProtectedClientIds([clientId]);
+        OpLog.normal(
+          `SyncHydrationService: Set protected client ID to ${clientId} (from SYNC_IMPORT)`,
+        );
+      }
+
       // 9. Dispatch loadAllData to update NgRx
       this.store.dispatch(loadAllData({ appDataComplete: dataToLoad }));
       OpLog.normal('SyncHydrationService: Dispatched loadAllData with synced data');

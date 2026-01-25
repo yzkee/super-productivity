@@ -55,6 +55,70 @@ export class OperationLogHydratorService {
   // Track if schema migration ran during this hydration (requires validation)
   private _migrationRanDuringHydration = false;
 
+  /**
+   * Finds the LAST full-state operation in an array and sets its client ID as protected.
+   * Uses reverse search because if multiple full-state ops exist, only the latest matters.
+   *
+   * This is critical for vector clock pruning: the SYNC_IMPORT client ID must be preserved
+   * in future vector clocks, otherwise pruning could remove it (if it has a low counter),
+   * causing new ops to appear CONCURRENT instead of GREATER_THAN with the import.
+   */
+  private async _setProtectedClientIdFromOps(ops: Operation[]): Promise<void> {
+    // Find LAST full-state op (not first) - if multiple imports exist, latest wins
+    for (let i = ops.length - 1; i >= 0; i--) {
+      const op = ops[i];
+      if (
+        op.opType === OpType.SyncImport ||
+        op.opType === OpType.BackupImport ||
+        op.opType === OpType.Repair
+      ) {
+        await this.opLogStore.setProtectedClientIds([op.clientId]);
+        OpLog.normal(
+          `OperationLogHydratorService: Set protected client ID to ${op.clientId} (from ${op.opType})`,
+        );
+        return;
+      }
+    }
+  }
+
+  /**
+   * MIGRATION: Ensures protectedClientIds is set if a full-state op exists in the log.
+   *
+   * This handles the case where a SYNC_IMPORT/BACKUP_IMPORT/REPAIR was processed with
+   * old code that didn't set protectedClientIds. Without this migration:
+   * 1. Vector clock pruning would remove the import client's entry (low counter)
+   * 2. New ops would have clocks missing the import client
+   * 3. Those ops would appear CONCURRENT with the import instead of GREATER_THAN
+   * 4. SyncImportFilterService would incorrectly filter them as "invalidated"
+   *
+   * This runs early in hydration, BEFORE any new operations are created.
+   */
+  private async _migrateProtectedClientIdsIfNeeded(): Promise<void> {
+    // Check if protectedClientIds is already set
+    const existingProtectedIds = await this.opLogStore.getProtectedClientIds();
+    if (existingProtectedIds.length > 0) {
+      OpLog.normal(
+        `OperationLogHydratorService: Protected client IDs already set: [${existingProtectedIds.join(', ')}]`,
+      );
+      return;
+    }
+
+    // Look for the latest full-state op in the entire ops log
+    const latestFullStateOp = await this.opLogStore.getLatestFullStateOp();
+    if (!latestFullStateOp) {
+      OpLog.normal(
+        'OperationLogHydratorService: No full-state op found in ops log, no migration needed',
+      );
+      return;
+    }
+
+    // MIGRATION: Set the protected client ID from the existing full-state op
+    await this.opLogStore.setProtectedClientIds([latestFullStateOp.clientId]);
+    OpLog.normal(
+      `OperationLogHydratorService: MIGRATION - Set protected client ID to ${latestFullStateOp.clientId} (from existing ${latestFullStateOp.opType})`,
+    );
+  }
+
   async hydrateStore(): Promise<void> {
     OpLog.normal('OperationLogHydratorService: Starting hydration...');
 
@@ -165,6 +229,11 @@ export class OperationLogHydratorService {
           );
         }
 
+        // MIGRATION: Ensure protectedClientIds is set if a full-state op exists.
+        // This handles the case where a SYNC_IMPORT was processed with old code that
+        // didn't set protectedClientIds. Must run BEFORE any new ops are created.
+        await this._migrateProtectedClientIdsIfNeeded();
+
         // 3. Hydrate NgRx with (possibly repaired) snapshot
         // Cast to any - stateToLoad is AppStateSnapshot which is runtime-compatible but TypeScript can't verify
         this.store.dispatch(loadAllData({ appDataComplete: stateToLoad as any }));
@@ -197,12 +266,23 @@ export class OperationLogHydratorService {
               // (e.g., TODAY_TAG repair) will have the correct merged clock.
               // Without this, those operations get stale clocks and are rejected by the server.
               await this.opLogStore.mergeRemoteOpClocks([lastOp]);
+              // FIX: Set protected client ID for vector clock pruning
+              // This ensures the full-state op's client ID isn't pruned from future clocks
+              await this.opLogStore.setProtectedClientIds([lastOp.clientId]);
+              OpLog.normal(
+                `OperationLogHydratorService: Set protected client ID to ${lastOp.clientId} (from ${lastOp.opType})`,
+              );
               this.store.dispatch(
                 loadAllData({ appDataComplete: tailStateToLoad as any }),
               );
             } else {
               // FIX: Same fix for the else branch
               await this.opLogStore.mergeRemoteOpClocks([lastOp]);
+              // FIX: Set protected client ID for vector clock pruning
+              await this.opLogStore.setProtectedClientIds([lastOp.clientId]);
+              OpLog.normal(
+                `OperationLogHydratorService: Set protected client ID to ${lastOp.clientId} (from ${lastOp.opType})`,
+              );
               this.store.dispatch(loadAllData({ appDataComplete: appData as any }));
             }
             // No snapshot save needed - full state ops already contain complete state
@@ -226,6 +306,8 @@ export class OperationLogHydratorService {
             // Merge replayed ops' clocks into local clock
             // This ensures subsequent ops have clocks that dominate these tail ops
             await this.opLogStore.mergeRemoteOpClocks(opsToReplay);
+            // FIX: Set protected client ID if any replayed op is a full-state op
+            await this._setProtectedClientIdFromOps(opsToReplay);
 
             // CHECKPOINT C: Validate state after replaying tail operations
             // Must validate BEFORE saving snapshot to avoid persisting corrupted state
@@ -261,6 +343,11 @@ export class OperationLogHydratorService {
           return;
         }
 
+        // MIGRATION: Ensure protectedClientIds is set if a full-state op exists.
+        // This handles the case where a SYNC_IMPORT was processed with old code that
+        // didn't set protectedClientIds. Must run BEFORE any new ops are created.
+        await this._migrateProtectedClientIdsIfNeeded();
+
         // Optimization: If last op is SyncImport or Repair, skip replay and load directly
         const lastOp = allOps[allOps.length - 1].op;
         const appData = this._extractFullStateFromOp(lastOp);
@@ -283,10 +370,20 @@ export class OperationLogHydratorService {
             // FIX: Merge vector clock BEFORE dispatching loadAllData
             // Same fix as the tail ops branch - prevents stale clock bug
             await this.opLogStore.mergeRemoteOpClocks([lastOp]);
+            // FIX: Set protected client ID for vector clock pruning
+            await this.opLogStore.setProtectedClientIds([lastOp.clientId]);
+            OpLog.normal(
+              `OperationLogHydratorService: Set protected client ID to ${lastOp.clientId} (from ${lastOp.opType})`,
+            );
             this.store.dispatch(loadAllData({ appDataComplete: stateToLoad as any }));
           } else {
             // FIX: Same fix for the else branch
             await this.opLogStore.mergeRemoteOpClocks([lastOp]);
+            // FIX: Set protected client ID for vector clock pruning
+            await this.opLogStore.setProtectedClientIds([lastOp.clientId]);
+            OpLog.normal(
+              `OperationLogHydratorService: Set protected client ID to ${lastOp.clientId} (from ${lastOp.opType})`,
+            );
             this.store.dispatch(loadAllData({ appDataComplete: appData as any }));
           }
           // No snapshot save needed - full state ops already contain complete state
@@ -308,6 +405,8 @@ export class OperationLogHydratorService {
 
           // Merge replayed ops' clocks into local clock
           await this.opLogStore.mergeRemoteOpClocks(opsToReplay);
+          // FIX: Set protected client ID if any replayed op is a full-state op
+          await this._setProtectedClientIdFromOps(opsToReplay);
 
           // CHECKPOINT C: Validate state after replaying all operations
           // Must validate BEFORE saving snapshot to avoid persisting corrupted state

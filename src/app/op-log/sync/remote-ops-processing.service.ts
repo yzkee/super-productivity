@@ -363,6 +363,23 @@ export class RemoteOpsProcessingService {
         // filtered by SyncImportFilterService as "invalidated by import".
         await this.opLogStore.mergeRemoteOpClocks(result.appliedOps);
 
+        // CRITICAL: Update protected client IDs for vector clock pruning.
+        // When a full-state op is applied, its client ID must be preserved in future
+        // vector clocks. Otherwise, pruning could remove it (if it has a low counter),
+        // causing new ops to appear CONCURRENT instead of GREATER_THAN with the import.
+        const appliedFullStateOp = result.appliedOps.find(
+          (op) =>
+            op.opType === OpType.SyncImport ||
+            op.opType === OpType.BackupImport ||
+            op.opType === OpType.Repair,
+        );
+        if (appliedFullStateOp) {
+          await this.opLogStore.setProtectedClientIds([appliedFullStateOp.clientId]);
+          OpLog.normal(
+            `RemoteOpsProcessingService: Updated protected client ID to ${appliedFullStateOp.clientId} (from ${appliedFullStateOp.opType})`,
+          );
+        }
+
         OpLog.normal(
           `RemoteOpsProcessingService: Applied and marked ${appliedSeqs.length} remote ops`,
         );

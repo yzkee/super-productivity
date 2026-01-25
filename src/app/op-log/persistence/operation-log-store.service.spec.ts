@@ -1348,6 +1348,32 @@ describe('OperationLogStoreService', () => {
       const clock = await service.getVectorClock();
       expect(clock).toEqual({});
     });
+
+    it('should preserve protectedClientIds when setting new clock', async () => {
+      // First, set up protected client IDs
+      await service.setProtectedClientIds(['protectedA', 'protectedB']);
+
+      // Set a new vector clock - this should NOT overwrite protected IDs
+      await service.setVectorClock({ clientX: 100 });
+
+      // Verify protected IDs are still there
+      const protectedIds = await service.getProtectedClientIds();
+      expect(protectedIds).toEqual(['protectedA', 'protectedB']);
+    });
+
+    it('should preserve protectedClientIds across multiple setVectorClock calls', async () => {
+      // Set protected IDs
+      await service.setProtectedClientIds(['importClient']);
+
+      // Multiple vector clock updates (simulating hydration and operation capture)
+      await service.setVectorClock({ clientA: 1 });
+      await service.setVectorClock({ clientA: 2, clientB: 1 });
+      await service.setVectorClock({ clientA: 3, clientB: 2, clientC: 1 });
+
+      // Protected IDs should still be preserved
+      const protectedIds = await service.getProtectedClientIds();
+      expect(protectedIds).toEqual(['importClient']);
+    });
   });
 
   describe('getVectorClockEntry', () => {
@@ -1491,6 +1517,39 @@ describe('OperationLogStoreService', () => {
       const clock = await service.getVectorClock();
       expect(clock!.testClient).toBeGreaterThanOrEqual(1);
       expect(clock!.testClient).toBeLessThanOrEqual(5);
+    });
+
+    it('should preserve protectedClientIds when updating vector clock with local ops', async () => {
+      // Set up protected client IDs (simulating a previous SYNC_IMPORT)
+      await service.setProtectedClientIds(['importClient']);
+
+      // Append a local operation with vector clock update
+      const op = createTestOperation({
+        vectorClock: { localClient: 1, importClient: 1 },
+      });
+      await service.appendWithVectorClockUpdate(op, 'local');
+
+      // Protected IDs should still be preserved
+      const protectedIds = await service.getProtectedClientIds();
+      expect(protectedIds).toEqual(['importClient']);
+    });
+
+    it('should preserve protectedClientIds across multiple local appends', async () => {
+      // Set up protected client IDs
+      await service.setProtectedClientIds(['syncImportClient']);
+
+      // Append multiple local operations
+      for (let i = 1; i <= 5; i++) {
+        const op = createTestOperation({
+          entityId: `task-${i}`,
+          vectorClock: { localClient: i, syncImportClient: 1 },
+        });
+        await service.appendWithVectorClockUpdate(op, 'local');
+      }
+
+      // Protected IDs should still be preserved
+      const protectedIds = await service.getProtectedClientIds();
+      expect(protectedIds).toEqual(['syncImportClient']);
     });
   });
 

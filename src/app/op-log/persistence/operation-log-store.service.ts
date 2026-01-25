@@ -32,6 +32,16 @@ import { runDbUpgrade } from './db-upgrade';
 interface VectorClockEntry {
   clock: VectorClock;
   lastUpdate: number;
+  /**
+   * Client IDs that should never be pruned from vector clocks.
+   * Used to preserve the SYNC_IMPORT/BACKUP_IMPORT/REPAIR client's entry,
+   * which is needed for correct filtering of ops created after the import.
+   *
+   * Without this, pruning could remove low-counter entries (like an import's
+   * client with counter=1), causing new ops to have clocks that appear
+   * CONCURRENT with the import instead of GREATER_THAN.
+   */
+  protectedClientIds?: string[];
 }
 
 /**
@@ -1063,9 +1073,15 @@ export class OperationLogStoreService {
    */
   async setVectorClock(clock: VectorClock): Promise<void> {
     await this._ensureInit();
+    // Preserve existing protectedClientIds when updating the clock
+    // This is important because setVectorClock is called during hydration,
+    // and we don't want to lose the protected IDs that were set by a previous
+    // SYNC_IMPORT/BACKUP_IMPORT/REPAIR operation.
+    const existingEntry = await this.db.get(STORE_NAMES.VECTOR_CLOCK, SINGLETON_KEY);
+    const protectedClientIds = existingEntry?.protectedClientIds ?? [];
     await this.db.put(
       STORE_NAMES.VECTOR_CLOCK,
-      { clock, lastUpdate: Date.now() },
+      { clock, lastUpdate: Date.now(), protectedClientIds },
       SINGLETON_KEY,
     );
     this._vectorClockCache = clock;
@@ -1144,6 +1160,44 @@ export class OperationLogStoreService {
   }
 
   /**
+   * Gets the protected client IDs that should never be pruned from vector clocks.
+   * These are client IDs from the latest SYNC_IMPORT/BACKUP_IMPORT/REPAIR operation.
+   *
+   * @returns Array of protected client IDs, or empty array if none set
+   */
+  async getProtectedClientIds(): Promise<string[]> {
+    await this._ensureInit();
+    const entry = await this.db.get(STORE_NAMES.VECTOR_CLOCK, SINGLETON_KEY);
+    return entry?.protectedClientIds ?? [];
+  }
+
+  /**
+   * Sets the protected client IDs that should never be pruned from vector clocks.
+   * Called after applying a full-state operation (SYNC_IMPORT/BACKUP_IMPORT/REPAIR)
+   * to ensure the import client's entry is preserved through future pruning.
+   *
+   * @param clientIds Client IDs to protect from pruning
+   */
+  async setProtectedClientIds(clientIds: string[]): Promise<void> {
+    await this._ensureInit();
+    const entry = await this.db.get(STORE_NAMES.VECTOR_CLOCK, SINGLETON_KEY);
+    if (entry) {
+      await this.db.put(
+        STORE_NAMES.VECTOR_CLOCK,
+        { ...entry, protectedClientIds: clientIds },
+        SINGLETON_KEY,
+      );
+    } else {
+      // No vector clock entry yet - create one with just the protected IDs
+      await this.db.put(
+        STORE_NAMES.VECTOR_CLOCK,
+        { clock: {}, lastUpdate: Date.now(), protectedClientIds: clientIds },
+        SINGLETON_KEY,
+      );
+    }
+  }
+
+  /**
    * Appends an operation AND updates the vector clock in a SINGLE atomic transaction.
    *
    * PERFORMANCE: This is the key optimization for mobile devices. Previously, each action
@@ -1189,8 +1243,14 @@ export class OperationLogStoreService {
     // 2. Update vector clock to match the operation's clock (only for local ops)
     // The op.vectorClock already contains the incremented value from the caller.
     // We store it as the current clock so subsequent operations can build on it.
+    // IMPORTANT: Preserve protectedClientIds when updating the clock
     if (source === 'local') {
-      await vcStore.put({ clock: op.vectorClock, lastUpdate: Date.now() }, SINGLETON_KEY);
+      const existingEntry = await vcStore.get(SINGLETON_KEY);
+      const protectedClientIds = existingEntry?.protectedClientIds ?? [];
+      await vcStore.put(
+        { clock: op.vectorClock, lastUpdate: Date.now(), protectedClientIds },
+        SINGLETON_KEY,
+      );
       this._vectorClockCache = op.vectorClock;
     }
 
