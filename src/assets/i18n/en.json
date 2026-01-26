@@ -1160,6 +1160,10 @@
         "MSG": "Your data required automatic repair ({{count}} issues fixed). This should not normally happen. If this occurs repeatedly, please report it.",
         "UNKNOWN_ERROR": "Unknown Sync Error: {{err}}"
       },
+      "D_DATA_REPAIR_CONFIRM": {
+        "TITLE": "Data Damage Detected",
+        "MSG": "Your data appears to be damaged. Would you like to attempt automatic repair? This may result in minor data loss."
+      },
       "SAFETY_BACKUP": {
         "BTN_CLEAR_ALL": "Clear All",
         "BTN_CREATE_MANUAL": "Create Manual Backup",

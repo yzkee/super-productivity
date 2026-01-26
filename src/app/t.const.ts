@@ -1201,6 +1201,10 @@ const T = {
         TITLE: 'F.SYNC.D_DATA_REPAIRED.TITLE',
         MSG: 'F.SYNC.D_DATA_REPAIRED.MSG',
       },
+      D_DATA_REPAIR_CONFIRM: {
+        TITLE: 'F.SYNC.D_DATA_REPAIR_CONFIRM.TITLE',
+        MSG: 'F.SYNC.D_DATA_REPAIR_CONFIRM.MSG',
+      },
     },
     TAG: {
       D_CREATE: {
