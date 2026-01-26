@@ -1,3 +1,39 @@
+## [17.0.3](https://github.com/super-productivity/super-productivity/compare/v17.0.2...v17.0.3) (2026-01-26)
+
+### Bug Fixes
+
+- **ci:** disable no-inline-html rule in wiki markdown linter ([0383476](https://github.com/super-productivity/super-productivity/commit/0383476927974e8c7a692765783dd417835d9f6f))
+- **config:** merge defaults for tasks config on data load ([f948186](https://github.com/super-productivity/super-productivity/commit/f94818641c5a034262c7c20081e9c85b07e7d5c4))
+- **config:** prevent crash when appFeatures is undefined ([e8e4ed6](https://github.com/super-productivity/super-productivity/commit/e8e4ed69138e0dba5c7a5f7fdc48f574ca5e468a)), closes [#6182](https://github.com/super-productivity/super-productivity/issues/6182)
+- **e2e:** add retry logic for flaky provider dropdown clicks ([7c1c2cd](https://github.com/super-productivity/super-productivity/commit/7c1c2cd3c1a637641ed024cb776811599a011da6))
+- **gitlab:** use null as default for project field ([3c6d036](https://github.com/super-productivity/super-productivity/commit/3c6d0369c6c383456162fd6ae733c75c781e3d12)), closes [#6138](https://github.com/super-productivity/super-productivity/issues/6138)
+- **markdown:** restore inline formatting and links for marked v17 ([02959b5](https://github.com/super-productivity/super-productivity/commit/02959b56ca6568dc575caf5dd30be00f81ea78bf)), closes [#6181](https://github.com/super-productivity/super-productivity/issues/6181)
+- **mobile-nav:** fix hamburger menu not working with background image ([61590fd](https://github.com/super-productivity/super-productivity/commit/61590fdc1b90eb41ca193aef53f658dbf4fb0b2b)), closes [#6177](https://github.com/super-productivity/super-productivity/issues/6177) [#6133](https://github.com/super-productivity/super-productivity/issues/6133)
+- **mobile:** prevent menu flash on Android by disabling swipe during animation ([ed8b9a5](https://github.com/super-productivity/super-productivity/commit/ed8b9a5f88ebe8e3b21625163cc6133429bc2008))
+- **sync:** distinguish permanent rejections from resolved conflicts ([e4d2a3a](https://github.com/super-productivity/super-productivity/commit/e4d2a3ac452a7a854333ad3807dccdc7bd4b7bfc))
+- **sync:** handle DELETE operations in StaleOperationResolverService ([6ece08c](https://github.com/super-productivity/super-productivity/commit/6ece08c51be7eb58db29f6cc279da0305ebd543a))
+- **sync:** improve hideExpression null safety and E2E test reliability ([8963b52](https://github.com/super-productivity/super-productivity/commit/8963b525a07b3b67124445f6d490c68248213321))
+- **sync:** preserve SYNC_IMPORT client ID through vector clock pruning ([91cab8e](https://github.com/super-productivity/super-productivity/commit/91cab8e97449afc80ab19d12d955d16707d9aba1))
+- **sync:** remove state mutation from cross-model validation ([bb7a3ec](https://github.com/super-productivity/super-productivity/commit/bb7a3ec2b1b6e46d24fdc71eb96c821a1d2fb095))
+- **sync:** return existingClock in conflict rejections to fix infinite loop ([100b8af](https://github.com/super-productivity/super-productivity/commit/100b8af5f2cb4569f277d7711442ab2023bb61fe))
+- **tasks:** allow subtask drag-drop reordering in Today/Tag views ([6ffc414](https://github.com/super-productivity/super-productivity/commit/6ffc414693268d6ed417af253a81e64e55cb721a))
+- **tasks:** handle undefined config in createNewTaskWithDefaults ([df3f68c](https://github.com/super-productivity/super-productivity/commit/df3f68c3a901773d50c6af98ca39fcefa170326c)), closes [#6199](https://github.com/super-productivity/super-productivity/issues/6199)
+- **ui:** restore filled icons for impact stars and play button ([95b969d](https://github.com/super-productivity/super-productivity/commit/95b969d1b381ad807fcbd0ff04dc34f9967c922c))
+
+### Features
+
+- **dropbox:** add Capacitor HTTP support for native platforms ([e0e0344](https://github.com/super-productivity/super-productivity/commit/e0e03446b4075c36d98cff7ac784dd4d096422d8))
+- **i18n:** update turkish ([#6170](https://github.com/super-productivity/super-productivity/issues/6170)) ([b058875](https://github.com/super-productivity/super-productivity/commit/b05887593e64176aa1dd226efbe8cc1bdbfd7e07))
+- **sync:** enhance vector clock management and improve error handling in sync process ([1138c2c](https://github.com/super-productivity/super-productivity/commit/1138c2c1c0b8d4ea5d5de1aa5b0a119136647917))
+- **sync:** re-enable repair system with user confirmation ([2108e69](https://github.com/super-productivity/super-productivity/commit/2108e69e0bbadbb5cbd8296b1079fd1e0371c699))
+- **tools:** enhance translation management script ([#6171](https://github.com/super-productivity/super-productivity/issues/6171)) ([bc3df77](https://github.com/super-productivity/super-productivity/commit/bc3df77e3f3f8e80e9822368497ef736d6230329))
+- **ui:** Desktop Full Screen Mode (F11) [#5851](https://github.com/super-productivity/super-productivity/issues/5851) ([#6183](https://github.com/super-productivity/super-productivity/issues/6183)) ([5a2b675](https://github.com/super-productivity/super-productivity/commit/5a2b6753832a23cebd502663459112e509dd9a4a))
+
+### Performance Improvements
+
+- **ci:** optimize E2E workflow with shared build and Playwright caching ([c0387f1](https://github.com/super-productivity/super-productivity/commit/c0387f12d2e05d7b7ae61cfd1e7e1364f665241f))
+- **e2e:** split scheduled CI into parallel jobs and reduce wait times ([e9b1b9c](https://github.com/super-productivity/super-productivity/commit/e9b1b9c34c1c89019ad2001715bd21edbf402971))
+
 ## [17.0.2](https://github.com/super-productivity/super-productivity/compare/v17.0.1...v17.0.2) (2026-01-25)
 
 ### Bug Fixes
