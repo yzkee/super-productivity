@@ -17,6 +17,16 @@ export type {
 } from '../core/types/sync-results.types';
 
 /**
+ * Result of handling rejected operations.
+ */
+export interface RejectionHandlingResult {
+  /** Number of merged ops created from conflict resolution (these need to be uploaded) */
+  mergedOpsCreated: number;
+  /** Number of operations that were permanently rejected (validation errors, etc.) */
+  permanentRejectionCount: number;
+}
+
+/**
  * Handles operations that were rejected by the server during upload.
  *
  * Responsibilities:
@@ -55,14 +65,14 @@ export class RejectedOpsHandlerService {
    *
    * @param rejectedOps - Operations rejected by the server with error messages
    * @param downloadCallback - Callback to trigger download for concurrent modification resolution
-   * @returns Number of merged ops created (caller should trigger follow-up upload if > 0)
+   * @returns Result with merged ops count and permanent rejection count
    */
   async handleRejectedOps(
     rejectedOps: RejectedOpInfo[],
     downloadCallback?: DownloadCallback,
-  ): Promise<number> {
+  ): Promise<RejectionHandlingResult> {
     if (rejectedOps.length === 0) {
-      return 0;
+      return { mergedOpsCreated: 0, permanentRejectionCount: 0 };
     }
 
     let mergedOpsCreated = 0;
@@ -174,7 +184,10 @@ export class RejectedOpsHandlerService {
       );
     }
 
-    return mergedOpsCreated;
+    return {
+      mergedOpsCreated,
+      permanentRejectionCount: permanentlyRejectedOps.length,
+    };
   }
 
   /**

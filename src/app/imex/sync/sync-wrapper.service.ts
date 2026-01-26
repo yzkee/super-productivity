@@ -299,10 +299,22 @@ export class SyncWrapperService {
         await this._opLogSyncService.uploadPendingOps(syncCapableProvider);
       }
 
-      // 4. Check for rejected full-state ops - this is a critical failure that should
-      // NOT be reported as "in sync" to the user
-      if (uploadResult?.rejectedCount && uploadResult.rejectedCount > 0) {
-        const hasPayloadError = uploadResult.rejectedOps?.some(
+      // 4. Check for permanent rejection failures - these are critical failures that should
+      // NOT be reported as "in sync" to the user.
+      //
+      // IMPORTANT: We check permanentRejectionCount, NOT rejectedCount.
+      // - Transient errors (INTERNAL_ERROR) will retry on next sync
+      // - Resolved conflicts (CONFLICT_CONCURRENT merged successfully) are not failures
+      // - Duplicate operations (already synced) are not failures
+      // Only permanent rejections (VALIDATION_ERROR, payload too large) should block success.
+      //
+      // Fall back to rejectedCount for backward compatibility if permanentRejectionCount is undefined.
+      const permanentFailures =
+        uploadResult?.permanentRejectionCount ?? uploadResult?.rejectedCount ?? 0;
+
+      if (permanentFailures > 0) {
+        // Check for payload errors first (special handling with alert)
+        const hasPayloadError = uploadResult?.rejectedOps?.some(
           (r) =>
             r.error?.includes('Payload too complex') ||
             r.error?.includes('Payload too large'),
@@ -311,7 +323,7 @@ export class SyncWrapperService {
         if (hasPayloadError) {
           SyncLog.err(
             'SyncWrapperService: Upload rejected - payload too large/complex',
-            uploadResult.rejectedOps,
+            uploadResult?.rejectedOps,
           );
           this._providerManager.setSyncStatus('ERROR');
           // Use alert for maximum visibility - this is a critical error
@@ -319,10 +331,10 @@ export class SyncWrapperService {
           return 'HANDLED_ERROR';
         }
 
-        // Other rejections - still shouldn't claim success
+        // Other permanent rejections - still shouldn't claim success
         SyncLog.err(
-          'SyncWrapperService: Upload had rejected operations, not marking as IN_SYNC',
-          uploadResult.rejectedOps,
+          `SyncWrapperService: Upload had ${permanentFailures} permanent rejection(s), not marking as IN_SYNC`,
+          uploadResult?.rejectedOps,
         );
         this._providerManager.setSyncStatus('ERROR');
         return 'HANDLED_ERROR';

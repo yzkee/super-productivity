@@ -21,6 +21,7 @@ import { RemoteOpsProcessingService } from './remote-ops-processing.service';
 import {
   DownloadResultForRejection,
   RejectedOpsHandlerService,
+  RejectionHandlingResult,
 } from './rejected-ops-handler.service';
 import { SyncHydrationService } from '../persistence/sync-hydration.service';
 import { SyncImportConflictDialogService } from './sync-import-conflict-dialog.service';
@@ -247,7 +248,10 @@ export class OperationLogSyncService {
     // even if processing throws. Otherwise rejected ops remain in pending
     // state and get re-uploaded infinitely.
     let localWinOpsCreated = 0;
-    let mergedOpsFromRejection = 0;
+    let rejectionResult: RejectionHandlingResult = {
+      mergedOpsCreated: 0,
+      permanentRejectionCount: 0,
+    };
     try {
       if (result.piggybackedOps.length > 0) {
         const processResult = await this.remoteOpsProcessingService.processRemoteOps(
@@ -263,11 +267,11 @@ export class OperationLogSyncService {
         forceFromSeq0?: boolean;
       }): Promise<DownloadResultForRejection> =>
         this.downloadRemoteOps(syncProvider, options);
-      mergedOpsFromRejection = await this.rejectedOpsHandlerService.handleRejectedOps(
+      rejectionResult = await this.rejectedOpsHandlerService.handleRejectedOps(
         result.rejectedOps,
         downloadCallback,
       );
-      localWinOpsCreated += mergedOpsFromRejection;
+      localWinOpsCreated += rejectionResult.mergedOpsCreated;
     }
 
     // Update pending ops status for UI indicator
@@ -280,7 +284,11 @@ export class OperationLogSyncService {
       result.piggybackHasOnlyUnencryptedData,
     );
 
-    return { ...result, localWinOpsCreated };
+    return {
+      ...result,
+      localWinOpsCreated,
+      permanentRejectionCount: rejectionResult.permanentRejectionCount,
+    };
   }
 
   /**

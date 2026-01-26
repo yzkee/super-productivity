@@ -63,9 +63,9 @@ describe('RejectedOpsHandlerService', () => {
   });
 
   describe('handleRejectedOps', () => {
-    it('should return 0 when no rejected ops provided', async () => {
+    it('should return zero counts when no rejected ops provided', async () => {
       const result = await service.handleRejectedOps([]);
-      expect(result).toBe(0);
+      expect(result).toEqual({ mergedOpsCreated: 0, permanentRejectionCount: 0 });
     });
 
     it('should skip already synced ops', async () => {
@@ -371,7 +371,7 @@ describe('RejectedOpsHandlerService', () => {
           [remoteClock],
           { snapshot: 1 },
         );
-        expect(result).toBe(1);
+        expect(result).toEqual({ mergedOpsCreated: 1, permanentRejectionCount: 0 });
       });
 
       it('should pass existingClock from rejection to stale resolver (FIX: encryption conflict loop)', async () => {

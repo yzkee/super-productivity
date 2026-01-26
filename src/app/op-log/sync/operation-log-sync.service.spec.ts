@@ -88,7 +88,10 @@ describe('OperationLogSyncService', () => {
     rejectedOpsHandlerServiceSpy = jasmine.createSpyObj('RejectedOpsHandlerService', [
       'handleRejectedOps',
     ]);
-    rejectedOpsHandlerServiceSpy.handleRejectedOps.and.resolveTo(0);
+    rejectedOpsHandlerServiceSpy.handleRejectedOps.and.resolveTo({
+      mergedOpsCreated: 0,
+      permanentRejectionCount: 0,
+    });
 
     writeFlushServiceSpy = jasmine.createSpyObj('OperationWriteFlushService', [
       'flushPendingWrites',
@@ -352,7 +355,7 @@ describe('OperationLogSyncService', () => {
           rejectedOpsHandlerServiceSpy.handleRejectedOps.and.callFake(
             async (_ops, callback) => {
               capturedCallback = callback;
-              return 0;
+              return { mergedOpsCreated: 0, permanentRejectionCount: 0 };
             },
           );
 
@@ -416,7 +419,10 @@ describe('OperationLogSyncService', () => {
           });
 
           // handleRejectedOps returns 3 merged ops created
-          rejectedOpsHandlerServiceSpy.handleRejectedOps.and.resolveTo(3);
+          rejectedOpsHandlerServiceSpy.handleRejectedOps.and.resolveTo({
+            mergedOpsCreated: 3,
+            permanentRejectionCount: 0,
+          });
 
           const result = await service.uploadPendingOps(mockProvider);
 
