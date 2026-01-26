@@ -1,3 +1,11 @@
+## [17.0.5](https://github.com/super-productivity/super-productivity/compare/v17.0.4...v17.0.5) (2026-01-26)
+
+### Bug Fixes
+
+- **android:** flush time tracking data when app goes to background [#6207](https://github.com/super-productivity/super-productivity/issues/6207) ([7c49cc2](https://github.com/super-productivity/super-productivity/commit/7c49cc2e6b13b657d0abfa89590595e8843fd8cd))
+- **open-project:** make legacy config fields optional for backward compatibility ([3534706](https://github.com/super-productivity/super-productivity/commit/3534706f165f6828430d3b5669454a4e48dea2c3))
+- **schedule:** apply dialog max-height to schedule task dialog only ([8f93529](https://github.com/super-productivity/super-productivity/commit/8f935294a5fd56a33bfa4dcf04fa2e76f99fd88b))
+
 ## [17.0.4](https://github.com/super-productivity/super-productivity/compare/v17.0.3...v17.0.4) (2026-01-26)
 
 ### Bug Fixes
