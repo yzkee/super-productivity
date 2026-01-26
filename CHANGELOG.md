@@ -1,3 +1,10 @@
+## [17.0.4](https://github.com/super-productivity/super-productivity/compare/v17.0.3...v17.0.4) (2026-01-26)
+
+### Bug Fixes
+
+- **focus-mode:** dispatch completeFocusSession when isManualBreakStart=true [#6206](https://github.com/super-productivity/super-productivity/issues/6206) ([070469f](https://github.com/super-productivity/super-productivity/commit/070469f23950251816799221e956d65de871626a))
+- schedule dialog height [#6187](https://github.com/super-productivity/super-productivity/issues/6187) ([550eede](https://github.com/super-productivity/super-productivity/commit/550eedefa80116c577f1f9caf9cd943d04688dea))
+
 ## [17.0.3](https://github.com/super-productivity/super-productivity/compare/v17.0.2...v17.0.3) (2026-01-26)
 
 ### Bug Fixes
