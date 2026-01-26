@@ -842,11 +842,11 @@ describe('workContext selectors', () => {
       });
     });
 
-    it('should exclude subtasks from repair', () => {
+    it('should exclude subtasks whose parent IS in Today list', () => {
       const parentTask = {
         id: 'parent',
         tagIds: [],
-        dueDay: todayStr,
+        dueDay: todayStr, // Parent IS in Today
         subTaskIds: ['subtask1'],
       } as Partial<TaskCopy> as TaskCopy;
       const subtask = {
@@ -857,7 +857,7 @@ describe('workContext selectors', () => {
         parentId: 'parent',
       } as Partial<TaskCopy> as TaskCopy;
 
-      // taskIds incorrectly includes subtask
+      // taskIds incorrectly includes subtask (should only have parent)
       const todayTagWithSubtask = {
         ...TODAY_TAG,
         taskIds: ['parent', 'subtask1'],
@@ -869,7 +869,77 @@ describe('workContext selectors', () => {
       const result = selectTodayTagRepair.projector(tagState, taskState);
       expect(result).toEqual({
         needsRepair: true,
-        repairedTaskIds: ['parent'], // subtask removed
+        repairedTaskIds: ['parent'], // subtask removed - it will appear nested under parent
+      });
+    });
+
+    it('should include subtasks whose parent is NOT in Today list', () => {
+      const parentTask = {
+        id: 'parent',
+        tagIds: [],
+        dueDay: '2000-01-01', // Parent is NOT in Today
+        subTaskIds: ['subtask1'],
+      } as Partial<TaskCopy> as TaskCopy;
+      const subtask = {
+        id: 'subtask1',
+        tagIds: [],
+        dueDay: todayStr, // Subtask IS in Today
+        subTaskIds: [],
+        parentId: 'parent',
+      } as Partial<TaskCopy> as TaskCopy;
+
+      // taskIds correctly includes subtask as top-level item
+      const todayTagWithSubtaskAsTopLevel = {
+        ...TODAY_TAG,
+        taskIds: ['subtask1'],
+      };
+
+      const tagState = fakeEntityStateFromArray([todayTagWithSubtaskAsTopLevel]);
+      const taskState = fakeEntityStateFromArray([parentTask, subtask]) as any;
+
+      const result = selectTodayTagRepair.projector(tagState, taskState);
+      // No repair needed - subtask should be included because parent is not in Today
+      expect(result).toBeNull();
+    });
+
+    it('should add missing subtasks whose parent is NOT in Today list', () => {
+      const parentTask = {
+        id: 'parent',
+        tagIds: [],
+        dueDay: '2000-01-01', // Parent is NOT in Today
+        subTaskIds: ['subtask1'],
+      } as Partial<TaskCopy> as TaskCopy;
+      const subtask = {
+        id: 'subtask1',
+        tagIds: [],
+        dueDay: todayStr, // Subtask IS in Today
+        subTaskIds: [],
+        parentId: 'parent',
+      } as Partial<TaskCopy> as TaskCopy;
+      const regularTask = {
+        id: 'task1',
+        tagIds: [],
+        dueDay: todayStr,
+        subTaskIds: [],
+      } as Partial<TaskCopy> as TaskCopy;
+
+      // taskIds is missing the subtask
+      const todayTagMissingSubtask = {
+        ...TODAY_TAG,
+        taskIds: ['task1'],
+      };
+
+      const tagState = fakeEntityStateFromArray([todayTagMissingSubtask]);
+      const taskState = fakeEntityStateFromArray([
+        parentTask,
+        subtask,
+        regularTask,
+      ]) as any;
+
+      const result = selectTodayTagRepair.projector(tagState, taskState);
+      expect(result).toEqual({
+        needsRepair: true,
+        repairedTaskIds: ['task1', 'subtask1'], // subtask added because parent not in Today
       });
     });
 
@@ -884,6 +954,185 @@ describe('workContext selectors', () => {
 
       const result = selectTodayTagRepair.projector(tagState, taskState);
       expect(result).toBeNull();
+    });
+
+    it('should handle duplicate task IDs in storedTaskIds gracefully', () => {
+      const task1 = {
+        id: 'task1',
+        tagIds: [],
+        dueDay: todayStr,
+        subTaskIds: [],
+      } as Partial<TaskCopy> as TaskCopy;
+
+      // Duplicate IDs in taskIds
+      const todayTagWithDuplicates = {
+        ...TODAY_TAG,
+        taskIds: ['task1', 'task1', 'task1'],
+      };
+
+      const tagState = fakeEntityStateFromArray([todayTagWithDuplicates]);
+      const taskState = fakeEntityStateFromArray([task1]) as any;
+
+      const result = selectTodayTagRepair.projector(tagState, taskState);
+      // All duplicates are valid (task1 has dueDay === today), so no repair needed
+      // The repair logic filters by tasksForTodaySet.has(id), which returns true for all
+      expect(result).toBeNull();
+    });
+
+    it('should handle task with parentId pointing to non-existent task', () => {
+      // Subtask whose parent doesn't exist in taskState
+      const orphanSubtask = {
+        id: 'orphan-sub',
+        tagIds: [],
+        dueDay: todayStr,
+        subTaskIds: [],
+        parentId: 'non-existent-parent',
+      } as Partial<TaskCopy> as TaskCopy;
+
+      const todayTagWithOrphan = {
+        ...TODAY_TAG,
+        taskIds: ['orphan-sub'],
+      };
+
+      const tagState = fakeEntityStateFromArray([todayTagWithOrphan]);
+      const taskState = fakeEntityStateFromArray([orphanSubtask]) as any;
+
+      const result = selectTodayTagRepair.projector(tagState, taskState);
+      // Orphan subtask's parent is not in allTasksWithDueToday, so subtask IS valid
+      expect(result).toBeNull();
+    });
+
+    it('should handle complex subtask hierarchy', () => {
+      // Parent with dueDay today
+      const parent = {
+        id: 'parent',
+        tagIds: [],
+        dueDay: todayStr,
+        subTaskIds: ['sub1'],
+      } as Partial<TaskCopy> as TaskCopy;
+
+      // Subtask of parent - should NOT be in today list (parent is)
+      const sub1 = {
+        id: 'sub1',
+        tagIds: [],
+        dueDay: todayStr,
+        subTaskIds: [],
+        parentId: 'parent',
+      } as Partial<TaskCopy> as TaskCopy;
+
+      // Another parent without dueDay today
+      const parent2 = {
+        id: 'parent2',
+        tagIds: [],
+        dueDay: '2000-01-01',
+        subTaskIds: ['sub2'],
+      } as Partial<TaskCopy> as TaskCopy;
+
+      // Subtask of parent2 - SHOULD be in today list (parent2 is not)
+      const sub2 = {
+        id: 'sub2',
+        tagIds: [],
+        dueDay: todayStr,
+        subTaskIds: [],
+        parentId: 'parent2',
+      } as Partial<TaskCopy> as TaskCopy;
+
+      const todayTag = {
+        ...TODAY_TAG,
+        taskIds: ['parent', 'sub2'], // Correct: parent and sub2 (whose parent is not today)
+      };
+
+      const tagState = fakeEntityStateFromArray([todayTag]);
+      const taskState = fakeEntityStateFromArray([parent, sub1, parent2, sub2]) as any;
+
+      const result = selectTodayTagRepair.projector(tagState, taskState);
+      // No repair needed - parent is valid, sub2 is valid (parent2 not in today)
+      expect(result).toBeNull();
+    });
+
+    it('should detect when subtask incorrectly appears alongside its parent', () => {
+      const parent = {
+        id: 'parent',
+        tagIds: [],
+        dueDay: todayStr,
+        subTaskIds: ['sub1'],
+      } as Partial<TaskCopy> as TaskCopy;
+
+      const sub1 = {
+        id: 'sub1',
+        tagIds: [],
+        dueDay: todayStr,
+        subTaskIds: [],
+        parentId: 'parent',
+      } as Partial<TaskCopy> as TaskCopy;
+
+      // Incorrectly includes sub1 alongside parent
+      const todayTagIncorrect = {
+        ...TODAY_TAG,
+        taskIds: ['parent', 'sub1'],
+      };
+
+      const tagState = fakeEntityStateFromArray([todayTagIncorrect]);
+      const taskState = fakeEntityStateFromArray([parent, sub1]) as any;
+
+      const result = selectTodayTagRepair.projector(tagState, taskState);
+      expect(result).toEqual({
+        needsRepair: true,
+        repairedTaskIds: ['parent'], // sub1 removed - it will appear nested under parent
+      });
+    });
+
+    it('should preserve ordering for valid subtasks when repairing', () => {
+      // Parent NOT in today
+      const parent = {
+        id: 'parent',
+        tagIds: [],
+        dueDay: '2000-01-01',
+        subTaskIds: ['sub1', 'sub2'],
+      } as Partial<TaskCopy> as TaskCopy;
+
+      const sub1 = {
+        id: 'sub1',
+        tagIds: [],
+        dueDay: todayStr,
+        subTaskIds: [],
+        parentId: 'parent',
+      } as Partial<TaskCopy> as TaskCopy;
+
+      const sub2 = {
+        id: 'sub2',
+        tagIds: [],
+        dueDay: todayStr,
+        subTaskIds: [],
+        parentId: 'parent',
+      } as Partial<TaskCopy> as TaskCopy;
+
+      const regularTask = {
+        id: 'task1',
+        tagIds: [],
+        dueDay: todayStr,
+        subTaskIds: [],
+      } as Partial<TaskCopy> as TaskCopy;
+
+      // Order: sub2, task1 (sub1 is missing)
+      const todayTag = {
+        ...TODAY_TAG,
+        taskIds: ['sub2', 'task1'],
+      };
+
+      const tagState = fakeEntityStateFromArray([todayTag]);
+      const taskState = fakeEntityStateFromArray([
+        parent,
+        sub1,
+        sub2,
+        regularTask,
+      ]) as any;
+
+      const result = selectTodayTagRepair.projector(tagState, taskState);
+      expect(result).toEqual({
+        needsRepair: true,
+        repairedTaskIds: ['sub2', 'task1', 'sub1'], // Preserve order, append missing sub1
+      });
     });
   });
 });

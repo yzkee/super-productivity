@@ -377,17 +377,38 @@ export const selectTodayTagRepair = createSelector(
     const todayStr = getDbDateStr();
     const storedTaskIds = todayTag.taskIds;
 
-    // Find all parent tasks where dueDay === today
-    const tasksForTodaySet = new Set<string>();
+    // First pass: find all tasks (including subtasks) where dueDay === today
+    const allTasksWithDueToday = new Set<string>();
     for (const id of taskState.ids) {
       const task = taskState.entities[id];
-      if (task && !task.parentId && task.dueDay === todayStr) {
+      if (task && task.dueDay === todayStr) {
+        allTasksWithDueToday.add(task.id);
+      }
+    }
+
+    // Second pass: find tasks that should appear as top-level items in Today list
+    // This includes:
+    // 1. Parent tasks with dueDay === today
+    // 2. Subtasks with dueDay === today whose parent does NOT have dueDay === today
+    const tasksForTodaySet = new Set<string>();
+    for (const id of allTasksWithDueToday) {
+      const task = taskState.entities[id];
+      if (!task) continue;
+
+      if (!task.parentId) {
+        // Parent task with dueDay === today
         tasksForTodaySet.add(task.id);
+      } else {
+        // Subtask: only include if parent is NOT in today list
+        // (otherwise it will appear nested under parent)
+        if (!allTasksWithDueToday.has(task.parentId)) {
+          tasksForTodaySet.add(task.id);
+        }
       }
     }
 
     // Check for inconsistencies:
-    // 1. storedTaskIds contains IDs where task.dueDay !== today (invalid)
+    // 1. storedTaskIds contains IDs where task is not valid for today (invalid)
     // 2. tasksForTodaySet contains IDs not in storedTaskIds (missing)
     const invalidInStored = storedTaskIds.filter((id) => !tasksForTodaySet.has(id));
     // Use Set for O(1) lookup instead of O(n) .includes()
