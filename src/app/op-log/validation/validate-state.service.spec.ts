@@ -286,50 +286,44 @@ describe('ValidateStateService', () => {
     });
 
     it('should pass skipLock option to repair service when callerHoldsLock is true', async () => {
-      const originalEnvProduction = environment.production;
-      (environment as any).production = false;
+      const state = createEmptyState();
+      mockStateSnapshotService.getStateSnapshot.and.returnValue(state as any);
 
-      try {
-        const invalidState = createEmptyState();
-        invalidState.menuTree = {
-          ...(invalidState.menuTree as MenuTreeState),
-          projectTree: [{ id: 'ORPHAN', k: MenuTreeKind.PROJECT }],
-        };
-        mockStateSnapshotService.getStateSnapshot.and.returnValue(invalidState as any);
+      // Mock validateAndRepair to return repaired state
+      spyOn(service, 'validateAndRepair').and.returnValue({
+        isValid: true,
+        wasRepaired: true,
+        repairedState: state,
+        repairSummary: { typeErrorsFixed: 1 } as any,
+      });
 
-        await service.validateAndRepairCurrentState('sync', { callerHoldsLock: true });
+      await service.validateAndRepairCurrentState('sync', { callerHoldsLock: true });
 
-        expect(mockRepairService.createRepairOperation).toHaveBeenCalledWith(
-          jasmine.anything(),
-          jasmine.anything(),
-          'test-client',
-          { skipLock: true },
-        );
-      } finally {
-        (environment as any).production = originalEnvProduction;
-      }
+      expect(mockRepairService.createRepairOperation).toHaveBeenCalledWith(
+        jasmine.anything(),
+        jasmine.anything(),
+        'test-client',
+        { skipLock: true },
+      );
     });
 
     it('should start/end hydration state for sync contexts', async () => {
-      const originalEnvProduction = environment.production;
-      (environment as any).production = false;
+      const state = createEmptyState();
+      mockStateSnapshotService.getStateSnapshot.and.returnValue(state as any);
 
-      try {
-        const invalidState = createEmptyState();
-        invalidState.menuTree = {
-          ...(invalidState.menuTree as MenuTreeState),
-          projectTree: [{ id: 'ORPHAN', k: MenuTreeKind.PROJECT }],
-        };
-        mockStateSnapshotService.getStateSnapshot.and.returnValue(invalidState as any);
+      // Mock validateAndRepair to return repaired state
+      spyOn(service, 'validateAndRepair').and.returnValue({
+        isValid: true,
+        wasRepaired: true,
+        repairedState: state,
+        repairSummary: { typeErrorsFixed: 1 } as any,
+      });
 
-        await service.validateAndRepairCurrentState('sync');
+      await service.validateAndRepairCurrentState('sync');
 
-        expect(mockHydrationStateService.startApplyingRemoteOps).toHaveBeenCalled();
-        expect(mockHydrationStateService.endApplyingRemoteOps).toHaveBeenCalled();
-        expect(mockHydrationStateService.startPostSyncCooldown).toHaveBeenCalled();
-      } finally {
-        (environment as any).production = originalEnvProduction;
-      }
+      expect(mockHydrationStateService.startApplyingRemoteOps).toHaveBeenCalled();
+      expect(mockHydrationStateService.endApplyingRemoteOps).toHaveBeenCalled();
+      expect(mockHydrationStateService.startPostSyncCooldown).toHaveBeenCalled();
     });
 
     it('should not start/end hydration state for non-sync contexts', async () => {
@@ -377,49 +371,41 @@ describe('ValidateStateService', () => {
     });
 
     it('should dispatch loadAllData with isRemote flag for sync contexts', async () => {
-      const originalEnvProduction = environment.production;
-      (environment as any).production = false;
+      const state = createEmptyState();
+      mockStateSnapshotService.getStateSnapshot.and.returnValue(state as any);
 
-      try {
-        const invalidState = createEmptyState();
-        invalidState.menuTree = {
-          ...(invalidState.menuTree as MenuTreeState),
-          projectTree: [{ id: 'ORPHAN', k: MenuTreeKind.PROJECT }],
-        };
-        mockStateSnapshotService.getStateSnapshot.and.returnValue(invalidState as any);
+      // Mock validateAndRepair to return repaired state
+      spyOn(service, 'validateAndRepair').and.returnValue({
+        isValid: true,
+        wasRepaired: true,
+        repairedState: state,
+        repairSummary: { typeErrorsFixed: 1 } as any,
+      });
 
-        await service.validateAndRepairCurrentState('sync');
+      await service.validateAndRepairCurrentState('sync');
 
-        expect(store.dispatch).toHaveBeenCalled();
-        const dispatchedAction = (store.dispatch as jasmine.Spy).calls.mostRecent()
-          .args[0];
-        expect(dispatchedAction.meta?.isRemote).toBeTrue();
-      } finally {
-        (environment as any).production = originalEnvProduction;
-      }
+      expect(store.dispatch).toHaveBeenCalled();
+      const dispatchedAction = (store.dispatch as jasmine.Spy).calls.mostRecent().args[0];
+      expect(dispatchedAction.meta?.isRemote).toBeTrue();
     });
 
     it('should dispatch loadAllData without isRemote flag for non-sync contexts', async () => {
-      const originalEnvProduction = environment.production;
-      (environment as any).production = false;
+      const state = createEmptyState();
+      mockStateSnapshotService.getStateSnapshot.and.returnValue(state as any);
 
-      try {
-        const invalidState = createEmptyState();
-        invalidState.menuTree = {
-          ...(invalidState.menuTree as MenuTreeState),
-          projectTree: [{ id: 'ORPHAN', k: MenuTreeKind.PROJECT }],
-        };
-        mockStateSnapshotService.getStateSnapshot.and.returnValue(invalidState as any);
+      // Mock validateAndRepair to return repaired state
+      spyOn(service, 'validateAndRepair').and.returnValue({
+        isValid: true,
+        wasRepaired: true,
+        repairedState: state,
+        repairSummary: { typeErrorsFixed: 1 } as any,
+      });
 
-        await service.validateAndRepairCurrentState('other-context');
+      await service.validateAndRepairCurrentState('other-context');
 
-        expect(store.dispatch).toHaveBeenCalled();
-        const dispatchedAction = (store.dispatch as jasmine.Spy).calls.mostRecent()
-          .args[0];
-        expect(dispatchedAction.meta?.isRemote).toBeFalsy();
-      } finally {
-        (environment as any).production = originalEnvProduction;
-      }
+      expect(store.dispatch).toHaveBeenCalled();
+      const dispatchedAction = (store.dispatch as jasmine.Spy).calls.mostRecent().args[0];
+      expect(dispatchedAction.meta?.isRemote).toBeFalsy();
     });
   });
 });
