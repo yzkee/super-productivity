@@ -122,6 +122,13 @@ export const globalConfigReducer = createReducer<GlobalConfigState>(
 
     return {
       ...appDataComplete.globalConfig,
+      // Merge defaults for tasks config to fill missing fields.
+      // This handles data from older app versions or synced snapshots that
+      // predate newly added fields (e.g., isAutoMarkParentAsDone, notesTemplate).
+      tasks: {
+        ...DEFAULT_GLOBAL_CONFIG.tasks,
+        ...appDataComplete.globalConfig.tasks,
+      },
       sync: {
         ...incomingSyncConfig,
         syncProvider,
