@@ -131,6 +131,14 @@ body .mat-mdc-dialog-surface {
   }
 }
 
+mat-dialog-container {
+  mat-dialog-content {
+    max-height: calc(
+      91vh - env(safe-area-inset-top) - env(safe-area-inset-bottom)
+    ) !important;
+  }
+}
+
 // FORMS
 // --------
 .mat-mdc-form-field {
