@@ -19,50 +19,23 @@ permissions:
   contents: read
 
 jobs:
-  # Job 1: Regular E2E tests (excludes WebDAV and SuperSync)
-  e2e-regular:
-    name: E2E Tests (Regular)
+  # Job 0: Build frontend once and share artifact
+  build:
+    name: Build Frontend
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 15
     env:
       UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
       UNSPLASH_CLIENT_ID: ${{ secrets.UNSPLASH_CLIENT_ID }}
 
     steps:
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
-        with:
-          node-version: 20
-
       - name: Check out Git repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
-      - name: Reconfigure git to use HTTP authentication
-        run: >
-          git config --global url."https://github.com/".insteadOf
-          ssh://git@github.com/
-
-      - name: Get npm cache directory
-        id: npm-cache-dir
-        run: |
-          echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5
-        id: npm-cache
-        with:
-          path: ${{ steps.npm-cache-dir.outputs.dir }}
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Install npm Packages
-        run: npm i
-
-      - name: Install Playwright Browsers
-        run: |
-          npx playwright install --with-deps chromium
-          npx playwright install-deps chromium
+      - name: Setup E2E Environment
+        uses: ./.github/actions/setup-e2e
 
       - run: npm run env
 
@@ -73,6 +46,38 @@ jobs:
         run: |
           test -f .tmp/angular-dist/browser/index.html || (echo "Build output missing" && exit 1)
           test -f .tmp/angular-dist/browser/assets/bundled-plugins/api-test-plugin/manifest.json || (echo "Plugin assets missing from build" && exit 1)
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: e2e-build-${{ github.run_id }}
+          path: .tmp/angular-dist
+          retention-days: 1
+
+  # Job 1: Regular E2E tests (excludes WebDAV and SuperSync)
+  e2e-regular:
+    name: E2E Tests (Regular)
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
+      UNSPLASH_CLIENT_ID: ${{ secrets.UNSPLASH_CLIENT_ID }}
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup E2E Environment
+        uses: ./.github/actions/setup-e2e
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: e2e-build-${{ github.run_id }}
+          path: .tmp/angular-dist
 
       - name: Run Regular E2E Tests
         run: npm run e2e:ci -- --grep-invert "@webdav|@supersync"
@@ -88,6 +93,7 @@ jobs:
   # Job 2: WebDAV E2E tests
   e2e-webdav:
     name: E2E Tests (WebDAV)
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -95,42 +101,19 @@ jobs:
       UNSPLASH_CLIENT_ID: ${{ secrets.UNSPLASH_CLIENT_ID }}
 
     steps:
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
-        with:
-          node-version: 20
-
       - name: Check out Git repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
-      - name: Reconfigure git to use HTTP authentication
-        run: >
-          git config --global url."https://github.com/".insteadOf
-          ssh://git@github.com/
+      - name: Setup E2E Environment
+        uses: ./.github/actions/setup-e2e
 
-      - name: Get npm cache directory
-        id: npm-cache-dir
-        run: |
-          echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5
-        id: npm-cache
+      - name: Download Build Artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          path: ${{ steps.npm-cache-dir.outputs.dir }}
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Install npm Packages
-        run: npm i
-
-      - name: Install Playwright Browsers
-        run: |
-          npx playwright install --with-deps chromium
-          npx playwright install-deps chromium
-
-      - run: npm run env
+          name: e2e-build-${{ github.run_id }}
+          path: .tmp/angular-dist
 
       - name: Create .env file for Docker Compose
         run: |
@@ -141,14 +124,6 @@ jobs:
           docker compose up -d webdav
           chmod +x ./scripts/wait-for-webdav.sh
           ./scripts/wait-for-webdav.sh
-
-      - name: Build Frontend for E2E
-        run: npm run buildFrontend:e2e
-
-      - name: Verify Build Output
-        run: |
-          test -f .tmp/angular-dist/browser/index.html || (echo "Build output missing" && exit 1)
-          test -f .tmp/angular-dist/browser/assets/bundled-plugins/api-test-plugin/manifest.json || (echo "Plugin assets missing from build" && exit 1)
 
       - name: Run WebDAV E2E Tests
         run: npm run e2e:ci -- --grep "@webdav"
@@ -175,6 +150,7 @@ jobs:
   # Job 3: SuperSync E2E tests
   e2e-supersync:
     name: E2E Tests (SuperSync)
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -182,42 +158,19 @@ jobs:
       UNSPLASH_CLIENT_ID: ${{ secrets.UNSPLASH_CLIENT_ID }}
 
     steps:
-      - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
-        with:
-          node-version: 20
-
       - name: Check out Git repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
 
-      - name: Reconfigure git to use HTTP authentication
-        run: >
-          git config --global url."https://github.com/".insteadOf
-          ssh://git@github.com/
+      - name: Setup E2E Environment
+        uses: ./.github/actions/setup-e2e
 
-      - name: Get npm cache directory
-        id: npm-cache-dir
-        run: |
-          echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
-
-      - uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5
-        id: npm-cache
+      - name: Download Build Artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          path: ${{ steps.npm-cache-dir.outputs.dir }}
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Install npm Packages
-        run: npm i
-
-      - name: Install Playwright Browsers
-        run: |
-          npx playwright install --with-deps chromium
-          npx playwright install-deps chromium
-
-      - run: npm run env
+          name: e2e-build-${{ github.run_id }}
+          path: .tmp/angular-dist
 
       - name: Create .env file for Docker Compose
         run: |
@@ -229,14 +182,6 @@ jobs:
           echo "⏳ Waiting for SuperSync server..."
           until curl -s http://localhost:1901/health > /dev/null 2>&1; do sleep 1; done
           echo "✓ SuperSync server ready!"
-
-      - name: Build Frontend for E2E
-        run: npm run buildFrontend:e2e
-
-      - name: Verify Build Output
-        run: |
-          test -f .tmp/angular-dist/browser/index.html || (echo "Build output missing" && exit 1)
-          test -f .tmp/angular-dist/browser/assets/bundled-plugins/api-test-plugin/manifest.json || (echo "Plugin assets missing from build" && exit 1)
 
       - name: Run SuperSync E2E Tests
         run: npm run e2e:ci -- --grep "@supersync"
