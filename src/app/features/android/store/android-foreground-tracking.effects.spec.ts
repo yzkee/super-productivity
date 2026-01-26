@@ -895,6 +895,183 @@ describe('AndroidForegroundTrackingEffects - flush await fix (issue #5842)', () 
   });
 });
 
+describe('AndroidForegroundTrackingEffects - flushOnPause logic (issue #6207)', () => {
+  /**
+   * Tests for the flushOnPause$ effect that ensures time tracking data
+   * is flushed to IndexedDB when the app goes to background.
+   * This prevents data loss if Android terminates the app while backgrounded.
+   */
+
+  let syncElapsedTimeSpy: jasmine.Spy;
+  let flushAccumulatedTimeSpy: jasmine.Spy;
+  let flushPendingOpsSpy: jasmine.Spy;
+
+  // Replicate the flushOnPause handler logic
+  // Note: The real _syncElapsedTimeForTask has internal try-catch that doesn't rethrow,
+  // so we model that behavior here with syncElapsedTimeWithErrorHandling
+  const handleOnPause = async (
+    currentTask: { id: string } | null,
+    syncElapsedTime: (taskId: string) => Promise<void>,
+    flushAccumulatedTime: () => void,
+    flushPendingOps: () => Promise<void>,
+  ): Promise<void> => {
+    // If there's a current task, sync elapsed time from native service first
+    // The real implementation's _syncElapsedTimeForTask has internal error handling
+    if (currentTask) {
+      await syncElapsedTime(currentTask.id);
+    }
+
+    // Flush accumulated time from TaskService (dispatches syncTimeSpent)
+    flushAccumulatedTime();
+
+    // Flush pending operations to IndexedDB to prevent data loss
+    await flushPendingOps();
+  };
+
+  // Helper that mirrors the real _syncElapsedTimeForTask error handling behavior
+  const handleOnPauseWithSyncErrorHandling = async (
+    currentTask: { id: string } | null,
+    syncElapsedTime: (taskId: string) => Promise<void>,
+    flushAccumulatedTime: () => void,
+    flushPendingOps: () => Promise<void>,
+    onSyncError?: (e: unknown) => void,
+  ): Promise<void> => {
+    // If there's a current task, sync elapsed time from native service first
+    // The real _syncElapsedTimeForTask catches errors internally and doesn't rethrow
+    if (currentTask) {
+      try {
+        await syncElapsedTime(currentTask.id);
+      } catch (e) {
+        // Real implementation logs and shows snackbar but doesn't rethrow
+        onSyncError?.(e);
+      }
+    }
+
+    // These always run regardless of sync errors
+    flushAccumulatedTime();
+    await flushPendingOps();
+  };
+
+  beforeEach(() => {
+    syncElapsedTimeSpy = jasmine.createSpy('syncElapsedTime').and.resolveTo(undefined);
+    flushAccumulatedTimeSpy = jasmine.createSpy('flushAccumulatedTime');
+    flushPendingOpsSpy = jasmine.createSpy('flushPendingOps').and.resolveTo(undefined);
+  });
+
+  it('should sync elapsed time when there is a current task', async () => {
+    const currentTask = { id: 'task-1' };
+
+    await handleOnPause(
+      currentTask,
+      syncElapsedTimeSpy,
+      flushAccumulatedTimeSpy,
+      flushPendingOpsSpy,
+    );
+
+    expect(syncElapsedTimeSpy).toHaveBeenCalledWith('task-1');
+    expect(flushAccumulatedTimeSpy).toHaveBeenCalledTimes(1);
+    expect(flushPendingOpsSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should NOT sync elapsed time when there is no current task', async () => {
+    await handleOnPause(
+      null,
+      syncElapsedTimeSpy,
+      flushAccumulatedTimeSpy,
+      flushPendingOpsSpy,
+    );
+
+    expect(syncElapsedTimeSpy).not.toHaveBeenCalled();
+    // Should still flush accumulated time and pending ops
+    expect(flushAccumulatedTimeSpy).toHaveBeenCalledTimes(1);
+    expect(flushPendingOpsSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should call operations in correct order: sync, flush accumulated, flush pending', async () => {
+    const currentTask = { id: 'task-1' };
+    const callOrder: string[] = [];
+
+    syncElapsedTimeSpy.and.callFake(async () => {
+      callOrder.push('sync');
+    });
+    flushAccumulatedTimeSpy.and.callFake(() => callOrder.push('flushAccumulated'));
+    flushPendingOpsSpy.and.callFake(async () => {
+      callOrder.push('flushPending');
+    });
+
+    await handleOnPause(
+      currentTask,
+      syncElapsedTimeSpy,
+      flushAccumulatedTimeSpy,
+      flushPendingOpsSpy,
+    );
+
+    expect(callOrder).toEqual(['sync', 'flushAccumulated', 'flushPending']);
+  });
+
+  it('should await flushPendingOps to ensure data is persisted before returning', async () => {
+    const currentTask = { id: 'task-1' };
+    let flushCompleted = false;
+
+    flushPendingOpsSpy.and.callFake(async () => {
+      // Simulate async flush taking time
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      flushCompleted = true;
+    });
+
+    await handleOnPause(
+      currentTask,
+      syncElapsedTimeSpy,
+      flushAccumulatedTimeSpy,
+      flushPendingOpsSpy,
+    );
+
+    // Verify flush completed before function returned
+    expect(flushCompleted).toBeTrue();
+  });
+
+  it('should still flush accumulated time and pending ops even when sync fails', async () => {
+    // This test models the real behavior: _syncElapsedTimeForTask has internal
+    // try-catch that catches errors and shows a snackbar, but doesn't rethrow.
+    // So flush operations should always run regardless of sync errors.
+    const currentTask = { id: 'task-1' };
+    const syncError = new Error('Sync failed');
+    let errorHandled = false;
+
+    syncElapsedTimeSpy.and.rejectWith(syncError);
+
+    await handleOnPauseWithSyncErrorHandling(
+      currentTask,
+      syncElapsedTimeSpy,
+      flushAccumulatedTimeSpy,
+      flushPendingOpsSpy,
+      () => {
+        errorHandled = true;
+      },
+    );
+
+    // Sync was called and error was handled internally
+    expect(syncElapsedTimeSpy).toHaveBeenCalled();
+    expect(errorHandled).toBeTrue();
+
+    // Flush operations should still run even after sync error
+    expect(flushAccumulatedTimeSpy).toHaveBeenCalledTimes(1);
+    expect(flushPendingOpsSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('should handle case with no task and still flush successfully', async () => {
+    await handleOnPause(
+      null,
+      syncElapsedTimeSpy,
+      flushAccumulatedTimeSpy,
+      flushPendingOpsSpy,
+    );
+
+    expect(flushAccumulatedTimeSpy).toHaveBeenCalledTimes(1);
+    expect(flushPendingOpsSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('AndroidForegroundTrackingEffects - enhanced error handling (issue #5842)', () => {
   /**
    * Tests for enhanced error handling in _syncElapsedTimeForTask:

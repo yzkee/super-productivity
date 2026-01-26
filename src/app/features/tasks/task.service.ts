@@ -306,6 +306,14 @@ export class TaskService {
     }
   }
 
+  /**
+   * Flush accumulated time tracking data to sync.
+   * Called before app goes to background or closes.
+   */
+  flushAccumulatedTimeSpent(): void {
+    this._flushAccumulatedTimeSpent();
+  }
+
   getAllParentWithoutTag$(tagId: string): Observable<Task[]> {
     return this._store.pipe(select(selectMainTasksWithoutTag, { tagId }));
   }

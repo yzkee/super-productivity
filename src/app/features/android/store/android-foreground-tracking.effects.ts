@@ -132,6 +132,37 @@ export class AndroidForegroundTrackingEffects {
     );
 
   /**
+   * When the app goes to background, flush accumulated time to prevent data loss.
+   * This ensures all tracked time is persisted to IndexedDB before the app
+   * potentially gets terminated by the OS.
+   */
+  flushOnPause$ =
+    IS_ANDROID_WEB_VIEW &&
+    createEffect(
+      () =>
+        androidInterface.onPause$.pipe(
+          withLatestFrom(this._store.select(selectCurrentTask)),
+          tap(async ([, currentTask]) => {
+            DroidLog.log('App going to background, flushing time tracking data');
+
+            // If there's a current task, sync elapsed time from native service first
+            if (currentTask) {
+              await this._syncElapsedTimeForTask(currentTask.id);
+            }
+
+            // Flush accumulated time from TaskService (dispatches syncTimeSpent)
+            this._taskService.flushAccumulatedTimeSpent();
+
+            // Flush pending operations to IndexedDB to prevent data loss
+            await this._flushPendingOperations();
+
+            DroidLog.log('Time tracking data flushed successfully');
+          }),
+        ),
+      { dispatch: false },
+    );
+
+  /**
    * Update the native service when timeSpent changes for the current task.
    * This handles the case where the user manually edits the time spent.
    */
