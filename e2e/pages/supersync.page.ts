@@ -80,6 +80,39 @@ export class SuperSyncPage extends BasePage {
   }
 
   /**
+   * Click the provider dropdown and select "SuperSync" with retry logic.
+   * Angular Material dropdowns can be flaky under load - the click may not register
+   * or the dropdown may close immediately. This method retries up to 3 times.
+   *
+   * @private
+   */
+  private async selectSuperSyncProviderWithRetry(): Promise<void> {
+    // Small delay to let Angular Material fully initialize the select component
+    await this.page.waitForTimeout(200);
+
+    const superSyncOption = this.page.locator('mat-option:has-text("SuperSync")');
+    let dropdownOpened = false;
+
+    for (let attempt = 0; attempt < 3 && !dropdownOpened; attempt++) {
+      if (attempt > 0) {
+        console.log(`[SuperSyncPage] Retrying dropdown click (attempt ${attempt + 1})`);
+      }
+      await this.providerSelect.click();
+      // Wait for dropdown options to appear (Angular Material animation)
+      dropdownOpened = await superSyncOption
+        .waitFor({ state: 'visible', timeout: 2000 })
+        .then(() => true)
+        .catch(() => false);
+    }
+
+    if (!dropdownOpened) {
+      throw new Error('Failed to open provider dropdown after 3 attempts');
+    }
+
+    await superSyncOption.click();
+  }
+
+  /**
    * Configure SuperSync with server URL and access token.
    * Uses right-click to open settings dialog (works even when sync is already configured).
    *
@@ -120,12 +153,8 @@ export class SuperSyncPage extends BasePage {
     // Wait for the provider select (indicates dialog is open)
     await this.providerSelect.waitFor({ state: 'visible', timeout: 10000 });
 
-    // Select "SuperSync" from provider dropdown
-    await this.providerSelect.click();
-    // Wait for dropdown options to appear (Angular Material animation)
-    const superSyncOption = this.page.locator('mat-option:has-text("SuperSync")');
-    await superSyncOption.waitFor({ state: 'visible', timeout: 5000 });
-    await superSyncOption.click();
+    // Select "SuperSync" from provider dropdown with retry logic
+    await this.selectSuperSyncProviderWithRetry();
     await this.page.waitForTimeout(500); // Wait for dropdown to close and form to update
 
     // IMPORTANT: The baseUrl field is now inside the "Advanced Config" collapsible section.
@@ -303,11 +332,7 @@ export class SuperSyncPage extends BasePage {
 
     // CRITICAL: Select "SuperSync" from provider dropdown to load current configuration
     // Without this, the form shows default/empty values instead of the actual current state
-    await this.providerSelect.click();
-    // Wait for dropdown options to appear (Angular Material animation)
-    const superSyncOption = this.page.locator('mat-option:has-text("SuperSync")');
-    await superSyncOption.waitFor({ state: 'visible', timeout: 5000 });
-    await superSyncOption.click();
+    await this.selectSuperSyncProviderWithRetry();
 
     // IMPORTANT: Wait for the provider change listener to complete loading the config
     // The listener is async and needs time to load provider config and update the form
@@ -424,11 +449,7 @@ export class SuperSyncPage extends BasePage {
 
     // CRITICAL: Select "SuperSync" from provider dropdown to load current configuration
     // Without this, the form shows default/empty values instead of the actual current state
-    await this.providerSelect.click();
-    // Wait for dropdown options to appear (Angular Material animation)
-    const superSyncOption = this.page.locator('mat-option:has-text("SuperSync")');
-    await superSyncOption.waitFor({ state: 'visible', timeout: 5000 });
-    await superSyncOption.click();
+    await this.selectSuperSyncProviderWithRetry();
 
     // IMPORTANT: Wait for the provider change listener to complete loading the config
     // The listener is async and needs time to load provider config and update the form
