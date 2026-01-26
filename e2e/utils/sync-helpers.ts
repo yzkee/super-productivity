@@ -165,8 +165,8 @@ export const waitForSyncComplete = async (
     // The icon is small (10px) and absolutely positioned, so use count() check
     const syncStateIcon = page.locator('.sync-btn mat-icon.sync-state-ico');
     if ((await syncStateIcon.count()) > 0) {
-      // Add extra wait to ensure IndexedDB writes complete and state settles
-      await page.waitForTimeout(500);
+      // Brief wait for any final state updates to flush through
+      await page.waitForTimeout(200);
       return 'success';
     }
 
@@ -180,8 +180,8 @@ export const waitForSyncComplete = async (
         // Final check - make sure sync button is still there and no error shown
         const syncBtnVisible = await syncPage.syncBtn.isVisible().catch(() => false);
         if (syncBtnVisible) {
-          // Add extra wait to ensure IndexedDB writes complete and state settles
-          await page.waitForTimeout(500);
+          // Brief wait for any final state updates to flush through
+          await page.waitForTimeout(200);
           return 'success';
         }
       }
@@ -207,7 +207,7 @@ export const waitForSyncComplete = async (
       }
     }
 
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(300);
   }
 
   throw new Error(`Sync timeout after ${timeout}ms: Success icon did not appear`);
