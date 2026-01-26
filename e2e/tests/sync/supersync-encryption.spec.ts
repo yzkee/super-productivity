@@ -105,11 +105,12 @@ test.describe('@supersync SuperSync Encryption', () => {
       // --- Client C: Attempt Download (Wrong Password) ---
       clientC = await createSimulatedClient(browser, baseURL!, 'C', testRunId);
 
-      // Setup with WRONG password
+      // Setup with WRONG password - don't wait for sync since it will fail
       await clientC.sync.setupSuperSync({
         ...baseConfig,
         isEncryptionEnabled: true,
         password: wrongPassword,
+        waitForInitialSync: false, // Sync will fail with wrong password
       });
 
       // Try to sync - expectation is that it completes (download happens) but processing fails

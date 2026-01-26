@@ -90,23 +90,47 @@ test.describe('@supersync @encryption Import with Encryption State Change', () =
 
       // Import the backup file (has encryption disabled)
       const backupPath = ImportPage.getFixturePath('test-backup.json');
-      await importPage.importBackupFile(backupPath);
+
+      // Set file on input (this triggers the import flow)
+      const fileInput = clientA.page.locator('file-imex input[type="file"]');
+      await fileInput.setInputFiles(backupPath);
+
+      // Handle "Encryption Settings Will Change" dialog that appears when
+      // importing a backup with different encryption settings
+      const encryptionChangeDialog = clientA.page.locator(
+        'mat-dialog-container:has-text("Encryption Settings Will Change")',
+      );
+      await encryptionChangeDialog.waitFor({ state: 'visible', timeout: 10000 });
+      console.log('[EncryptionChange] Encryption change dialog appeared');
+
+      const importAndChangeBtn = encryptionChangeDialog.locator(
+        'button:has-text("Import and Change Encryption")',
+      );
+      await importAndChangeBtn.click();
+      console.log('[EncryptionChange] Clicked Import and Change Encryption');
+
+      // Wait for dialog to close and import to complete
+      await encryptionChangeDialog.waitFor({ state: 'hidden', timeout: 15000 });
+
+      // Wait for import to complete - app redirects to TODAY tag
+      await clientA.page.waitForURL(/tag\/TODAY/, { timeout: 30000 });
       console.log('[EncryptionChange] Client A imported unencrypted backup');
 
-      // Reload page after import to ensure UI reflects the imported state
-      await clientA.page.reload();
+      // Navigate to work view
+      await clientA.page.goto('/#/work-view');
       await clientA.page.waitForLoadState('networkidle');
 
+      // Wait for imported tasks to be visible
+      await waitForTask(clientA.page, 'E2E Import Test - Active Task With Subtask');
+      console.log('[EncryptionChange] Client A has imported tasks visible after import');
+
       // Re-setup sync after import (import overwrites globalConfig)
-      // But now without encryption since the imported backup has encryption disabled
+      // Use encryption disabled since the imported backup has encryption disabled
       await clientA.sync.setupSuperSync({
         ...baseConfig,
         isEncryptionEnabled: false,
       });
-
-      // Wait for imported task to be visible
-      await waitForTask(clientA.page, 'E2E Import Test - Active Task With Subtask');
-      console.log('[EncryptionChange] Client A has imported tasks');
+      console.log('[EncryptionChange] Client A re-enabled sync without encryption');
 
       // ============ PHASE 3: Sync After Import ============
       console.log('[EncryptionChange] Phase 3: Client A syncing after import');
@@ -225,11 +249,31 @@ test.describe('@supersync @encryption Import with Encryption State Change', () =
       const importPage = new ImportPage(clientA.page);
       await importPage.navigateToImportPage();
       const backupPath = ImportPage.getFixturePath('test-backup.json');
-      await importPage.importBackupFile(backupPath);
 
-      // Reload and reconfigure without encryption
-      await clientA.page.reload();
+      // Set file on input (this triggers the import flow)
+      const fileInput = clientA.page.locator('file-imex input[type="file"]');
+      await fileInput.setInputFiles(backupPath);
+
+      // Handle "Encryption Settings Will Change" dialog
+      const encryptionChangeDialog = clientA.page.locator(
+        'mat-dialog-container:has-text("Encryption Settings Will Change")',
+      );
+      await encryptionChangeDialog.waitFor({ state: 'visible', timeout: 10000 });
+      const importAndChangeBtn = encryptionChangeDialog.locator(
+        'button:has-text("Import and Change Encryption")',
+      );
+      await importAndChangeBtn.click();
+      await encryptionChangeDialog.waitFor({ state: 'hidden', timeout: 15000 });
+
+      // Wait for import to complete - import redirects to TODAY tag
+      await clientA.page.waitForURL(/tag\/TODAY/, { timeout: 30000 });
+      await clientA.page.goto('/#/work-view');
       await clientA.page.waitForLoadState('networkidle');
+
+      // Wait for imported tasks BEFORE re-configuring sync
+      await waitForTask(clientA.page, 'E2E Import Test - Active Task With Subtask');
+
+      // Re-configure without encryption and sync
       await clientA.sync.setupSuperSync({
         ...baseConfig,
         isEncryptionEnabled: false,
@@ -244,8 +288,11 @@ test.describe('@supersync @encryption Import with Encryption State Change', () =
       });
       await clientB.sync.syncAndWait();
 
-      // Wait for both to have imported data
-      await waitForTask(clientA.page, 'E2E Import Test - Active Task With Subtask');
+      // Navigate to work view after setup
+      await clientB.page.goto('/#/work-view');
+      await clientB.page.waitForLoadState('networkidle');
+
+      // Wait for Client B to have imported data
       await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
 
       // ============ Bidirectional sync test ============

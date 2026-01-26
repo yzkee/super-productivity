@@ -89,7 +89,11 @@ test.describe('@supersync SuperSync Advanced', () => {
 
       // If the page needs a refresh to show all synced tasks, reload and wait
       // This handles bulk dispatch UI update timing issues
-      await clientB.page.reload();
+      // Use goto instead of reload - more reliable with service workers
+      await clientB.page.goto(clientB.page.url(), {
+        waitUntil: 'domcontentloaded',
+        timeout: 30000,
+      });
       await waitForAppReady(clientB.page);
       await waitForTask(clientB.page, `Task-${testRunId}-1`);
 
