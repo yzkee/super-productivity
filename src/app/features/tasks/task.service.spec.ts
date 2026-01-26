@@ -111,6 +111,7 @@ describe('TaskService', () => {
       }),
       misc: signal({ isShowProductivityTipLonger: false }),
       tasks: signal({ defaultProjectId: null }),
+      appFeatures: signal({ isTimeTrackingEnabled: true }),
     });
 
     const taskFocusServiceSpy = jasmine.createSpyObj('TaskFocusService', [''], {

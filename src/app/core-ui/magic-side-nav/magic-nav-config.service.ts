@@ -86,16 +86,16 @@ export class MagicNavConfigService {
   );
   private readonly _pluginMenuEntries = this._pluginBridge.menuEntries;
   private readonly isSchedulerEnabled = computed(
-    () => this._configService.cfg()?.appFeatures.isSchedulerEnabled,
+    () => this._configService.appFeatures().isSchedulerEnabled,
   );
   private readonly isPlannerEnabled = computed(
-    () => this._configService.cfg()?.appFeatures.isPlannerEnabled,
+    () => this._configService.appFeatures().isPlannerEnabled,
   );
   private readonly isBoardsEnabled = computed(
-    () => this._configService.cfg()?.appFeatures.isBoardsEnabled,
+    () => this._configService.appFeatures().isBoardsEnabled,
   );
   private readonly isDonatePageEnabled = computed(
-    () => this._configService.cfg()?.appFeatures.isDonatePageEnabled,
+    () => this._configService.appFeatures().isDonatePageEnabled,
   );
 
   constructor() {

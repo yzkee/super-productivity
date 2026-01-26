@@ -178,7 +178,7 @@ export class TaskService {
   allStartableTasks$: Observable<Task[]> = this._store.pipe(select(selectStartableTasks));
 
   isTimeTrackingEnabled = computed(
-    () => this._globalConfigService.cfg()?.appFeatures.isTimeTrackingEnabled,
+    () => this._globalConfigService.appFeatures().isTimeTrackingEnabled,
   );
 
   // META FIELDS

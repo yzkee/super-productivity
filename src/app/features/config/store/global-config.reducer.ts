@@ -1,6 +1,7 @@
 import { updateGlobalConfigSection } from './global-config.actions';
 import { createFeatureSelector, createReducer, createSelector, on } from '@ngrx/store';
 import {
+  AppFeaturesConfig,
   DominaModeConfig,
   EvaluationConfig,
   FocusModeConfig,
@@ -82,10 +83,14 @@ export const selectReminderConfig = createSelector(
   selectConfigFeatureState,
   (cfg): ReminderConfig => cfg?.reminder ?? DEFAULT_GLOBAL_CONFIG.reminder,
 );
+export const selectAppFeaturesConfig = createSelector(
+  selectConfigFeatureState,
+  (cfg): AppFeaturesConfig => cfg?.appFeatures ?? DEFAULT_GLOBAL_CONFIG.appFeatures,
+);
 export const selectIsFocusModeEnabled = createSelector(
   selectConfigFeatureState,
   (cfg): boolean =>
-    cfg?.appFeatures.isFocusModeEnabled ??
+    cfg?.appFeatures?.isFocusModeEnabled ??
     DEFAULT_GLOBAL_CONFIG.appFeatures.isFocusModeEnabled,
 );
 
