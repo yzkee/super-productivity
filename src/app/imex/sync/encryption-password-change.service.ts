@@ -37,9 +37,10 @@ export class EncryptionPasswordChangeService {
    *
    * Clean slate flow:
    * 1. Wait for any ongoing sync to complete and block new syncs
-   * 2. Create local clean slate (new client ID, fresh SYNC_IMPORT operation)
-   * 3. Update config with new encryption password
-   * 4. Upload with isCleanSlate=true flag (server deletes all data first)
+   * 2. Check for unsynced operations (inside lock to prevent race conditions)
+   * 3. Create local clean slate (new client ID, fresh SYNC_IMPORT operation)
+   * 4. Update config with new encryption password
+   * 5. Upload with isCleanSlate=true flag (server deletes all data first)
    *
    * This approach is simpler and more robust than the old approach because:
    * - Server deletion and upload happen atomically in one transaction
@@ -63,23 +64,23 @@ export class EncryptionPasswordChangeService {
       throw new Error('Sync provider does not support operation sync');
     }
 
-    // Check for unsynced user operations before proceeding.
-    // Exclude full-state operations (SYNC_IMPORT, BACKUP_IMPORT, REPAIR) as these are
-    // recovery/migration ops from failed attempts, not user work that would be lost.
-    const unsyncedOps = await this._opLogStore.getUnsynced();
-    const unsyncedUserOps = unsyncedOps.filter(
-      (entry) => !isFullStateOpType(entry.op.opType),
-    );
-    if (unsyncedUserOps.length > 0) {
-      throw new Error(
-        `Cannot change password: ${unsyncedUserOps.length} operation(s) have not been synced yet. ` +
-          'Please wait for sync to complete or manually trigger a sync before changing the password.',
-      );
-    }
-
     // Run the entire password change with sync blocked to prevent race conditions.
     // This waits for any ongoing sync to complete, then blocks new syncs.
     await this._syncWrapper.runWithSyncBlocked(async () => {
+      // CRITICAL: Check for unsynced operations INSIDE the lock to prevent race conditions.
+      // If we check outside, a background operation could add unsynced ops between
+      // the check and acquiring the lock, and those ops would be lost.
+      const unsyncedOps = await this._opLogStore.getUnsynced();
+      const unsyncedUserOps = unsyncedOps.filter(
+        (entry) => !isFullStateOpType(entry.op.opType),
+      );
+      if (unsyncedUserOps.length > 0) {
+        throw new Error(
+          `Cannot change password: ${unsyncedUserOps.length} operation(s) have not been synced yet. ` +
+            'Please wait for sync to complete or manually trigger a sync before changing the password.',
+        );
+      }
+
       // Get current config
       const existingCfg =
         (await syncProvider.privateCfg.load()) as SuperSyncPrivateCfg | null;
@@ -89,7 +90,20 @@ export class EncryptionPasswordChangeService {
       SyncLog.normal('EncryptionPasswordChangeService: Creating clean slate...');
       await this._cleanSlateService.createCleanSlate('ENCRYPTION_CHANGE');
 
-      // STEP 2: Update config with new password BEFORE upload
+      // STEP 2: Verify the SYNC_IMPORT was stored
+      // This catches any IndexedDB timing issues before we proceed
+      const pendingOps = await this._opLogStore.getUnsynced();
+      if (pendingOps.length === 0) {
+        throw new Error(
+          'Clean slate creation failed - no SYNC_IMPORT operation was stored. ' +
+            'This may indicate a database issue. Please try again.',
+        );
+      }
+      SyncLog.normal('EncryptionPasswordChangeService: Verified SYNC_IMPORT stored', {
+        pendingOpsCount: pendingOps.length,
+      });
+
+      // STEP 3: Update config with new password BEFORE upload
       // This ensures the upload will use the new password for encryption
       SyncLog.normal('EncryptionPasswordChangeService: Updating encryption config...');
       await syncProvider.setPrivateCfg({
@@ -103,7 +117,7 @@ export class EncryptionPasswordChangeService {
       // Clear cached adapters to ensure new encryption settings take effect
       this._wrappedProviderService.clearCache();
 
-      // STEP 3: Upload the SYNC_IMPORT with isCleanSlate=true flag
+      // STEP 4: Upload the SYNC_IMPORT with isCleanSlate=true flag
       // The server will delete all existing data before accepting the operation
       SyncLog.normal(
         'EncryptionPasswordChangeService: Uploading clean slate with new encryption...',
@@ -114,9 +128,7 @@ export class EncryptionPasswordChangeService {
         });
 
         if (result.uploadedCount === 0) {
-          throw new Error(
-            'No operations uploaded - clean slate may not have been created',
-          );
+          throw new Error('No operations uploaded - upload may have failed silently');
         }
 
         if (result.rejectedCount > 0) {
@@ -127,21 +139,24 @@ export class EncryptionPasswordChangeService {
 
         SyncLog.normal('EncryptionPasswordChangeService: Password change complete!');
       } catch (uploadError) {
+        // IMPORTANT: Do NOT revert the password config on upload failure.
+        // At this point:
+        // - Clean slate has been created (old operations cleared)
+        // - SYNC_IMPORT is stored locally (unencrypted in IndexedDB)
+        // - Config has new password
+        //
+        // If we revert to old password, the next sync attempt would encrypt the
+        // SYNC_IMPORT with the old password, but the user expects it to use the
+        // new password they entered. Keep the new password and let user retry.
         SyncLog.err(
-          'EncryptionPasswordChangeService: Upload failed - reverting password config',
+          'EncryptionPasswordChangeService: Upload failed - keeping new password config for retry',
           uploadError,
         );
 
-        // Revert the password change in local config
-        await syncProvider.setPrivateCfg(existingCfg as SuperSyncPrivateCfg);
-        this._derivedKeyCache.clearCache();
-        // Clear cached adapters since encryption settings were reverted
-        this._wrappedProviderService.clearCache();
-
         throw new Error(
-          `Password change failed: ${uploadError instanceof Error ? uploadError.message : uploadError}. ` +
-            'Local password has been reverted. IMPORTANT: Retry the password change before using normal sync ' +
-            'to avoid sync issues. If problems persist, you may need to re-import your data from backup.',
+          `Password change failed during upload: ${uploadError instanceof Error ? uploadError.message : uploadError}. ` +
+            'Your new password has been saved locally. Please click "Change Password" again with the SAME password to retry the upload. ' +
+            'If problems persist, you may need to re-import your data from backup.',
         );
       }
     });

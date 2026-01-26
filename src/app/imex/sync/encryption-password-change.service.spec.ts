@@ -72,9 +72,21 @@ describe('EncryptionPasswordChangeService', () => {
       },
     );
 
-    // Mock OperationLogStoreService - default to no unsynced operations
+    // Mock OperationLogStoreService
+    // First call: check for unsynced user ops (should return empty)
+    // Second call: verify SYNC_IMPORT was stored after clean slate
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', ['getUnsynced']);
-    mockOpLogStore.getUnsynced.and.returnValue(Promise.resolve([]));
+    let getUnsyncedCallCount = 0;
+    mockOpLogStore.getUnsynced.and.callFake((): any => {
+      getUnsyncedCallCount++;
+      if (getUnsyncedCallCount === 1) {
+        // First call: no unsynced user operations
+        return Promise.resolve([]);
+      } else {
+        // Second call: SYNC_IMPORT was created by clean slate
+        return Promise.resolve([{ seq: 1, op: { opType: OpType.SyncImport } }]);
+      }
+    });
 
     mockWrappedProviderService = jasmine.createSpyObj('WrappedProviderService', [
       'clearCache',
@@ -172,6 +184,7 @@ describe('EncryptionPasswordChangeService', () => {
     });
 
     it('should throw error if there are unsynced user operations', async () => {
+      // First call returns unsynced user operations - should throw before reaching second call
       mockOpLogStore.getUnsynced.and.returnValue(
         Promise.resolve([
           { seq: 1, op: { opType: OpType.Create } } as any,
@@ -188,7 +201,16 @@ describe('EncryptionPasswordChangeService', () => {
     });
 
     it('should proceed when there are no unsynced operations', async () => {
-      mockOpLogStore.getUnsynced.and.returnValue(Promise.resolve([]));
+      // First call: no unsynced ops, second call: SYNC_IMPORT stored
+      let callCount = 0;
+      mockOpLogStore.getUnsynced.and.callFake((): any => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve([]);
+        } else {
+          return Promise.resolve([{ seq: 1, op: { opType: OpType.SyncImport } }]);
+        }
+      });
 
       await service.changePassword(TEST_PASSWORD);
 
@@ -198,13 +220,21 @@ describe('EncryptionPasswordChangeService', () => {
 
     it('should ignore full-state operations (SYNC_IMPORT, BACKUP_IMPORT, REPAIR) when checking for unsynced ops', async () => {
       // Full-state operations from failed previous attempts should not block retry
-      mockOpLogStore.getUnsynced.and.returnValue(
-        Promise.resolve([
-          { seq: 1, op: { opType: OpType.SyncImport } } as any,
-          { seq: 2, op: { opType: OpType.BackupImport } } as any,
-          { seq: 3, op: { opType: OpType.Repair } } as any,
-        ]),
-      );
+      let callCount = 0;
+      mockOpLogStore.getUnsynced.and.callFake((): any => {
+        callCount++;
+        if (callCount === 1) {
+          // First call: only full-state ops (should be ignored)
+          return Promise.resolve([
+            { seq: 1, op: { opType: OpType.SyncImport } } as any,
+            { seq: 2, op: { opType: OpType.BackupImport } } as any,
+            { seq: 3, op: { opType: OpType.Repair } } as any,
+          ]);
+        } else {
+          // Second call: fresh SYNC_IMPORT from clean slate
+          return Promise.resolve([{ seq: 4, op: { opType: OpType.SyncImport } }]);
+        }
+      });
 
       await service.changePassword(TEST_PASSWORD);
 
@@ -213,6 +243,7 @@ describe('EncryptionPasswordChangeService', () => {
     });
 
     it('should throw error if there are unsynced user operations mixed with full-state ops', async () => {
+      // First call returns mixed ops - user op should cause throw
       mockOpLogStore.getUnsynced.and.returnValue(
         Promise.resolve([
           { seq: 1, op: { opType: OpType.SyncImport } } as any, // Ignored
@@ -227,36 +258,58 @@ describe('EncryptionPasswordChangeService', () => {
       expect(mockCleanSlateService.createCleanSlate).not.toHaveBeenCalled();
     });
 
-    it('should revert password config if upload fails', async () => {
+    it('should keep new password config if upload fails (for retry)', async () => {
       const originalConfig = {
         encryptKey: 'old-password',
         isEncryptionEnabled: true,
       };
       mockSyncProvider.privateCfg.load.and.returnValue(Promise.resolve(originalConfig));
 
+      // Setup two-call mock for getUnsynced
+      let callCount = 0;
+      mockOpLogStore.getUnsynced.and.callFake((): any => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve([]);
+        } else {
+          return Promise.resolve([{ seq: 1, op: { opType: OpType.SyncImport } }]);
+        }
+      });
+
       mockUploadService.uploadPendingOps.and.returnValue(
         Promise.reject(new Error('Upload failed')),
       );
 
       await expectAsync(service.changePassword(TEST_PASSWORD)).toBeRejectedWithError(
-        /Password change failed: Upload failed/,
+        /Password change failed during upload: Upload failed/,
       );
 
-      // Should have set password to new value initially
+      // Should have set password to new value
       expect(mockSyncProvider.setPrivateCfg).toHaveBeenCalledWith(
         jasmine.objectContaining({
           encryptKey: TEST_PASSWORD,
         }),
       );
 
-      // Should have reverted to old config
-      expect(mockSyncProvider.setPrivateCfg).toHaveBeenCalledWith(originalConfig);
+      // Should NOT revert - only one call to setPrivateCfg
+      expect(mockSyncProvider.setPrivateCfg).toHaveBeenCalledTimes(1);
 
-      // Should have cleared cache twice (once on change, once on revert)
-      expect(mockDerivedKeyCache.clearCache).toHaveBeenCalledTimes(2);
+      // Should have cleared cache only once (on change, not on revert)
+      expect(mockDerivedKeyCache.clearCache).toHaveBeenCalledTimes(1);
     });
 
     it('should throw error if no operations are uploaded', async () => {
+      // Setup two-call mock for getUnsynced
+      let callCount = 0;
+      mockOpLogStore.getUnsynced.and.callFake((): any => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve([]);
+        } else {
+          return Promise.resolve([{ seq: 1, op: { opType: OpType.SyncImport } }]);
+        }
+      });
+
       mockUploadService.uploadPendingOps.and.returnValue(
         Promise.resolve({
           uploadedCount: 0, // No ops uploaded!
@@ -267,11 +320,22 @@ describe('EncryptionPasswordChangeService', () => {
       );
 
       await expectAsync(service.changePassword(TEST_PASSWORD)).toBeRejectedWithError(
-        /No operations uploaded - clean slate may not have been created/,
+        /No operations uploaded - upload may have failed silently/,
       );
     });
 
     it('should throw error if operations are rejected by server', async () => {
+      // Setup two-call mock for getUnsynced
+      let callCount = 0;
+      mockOpLogStore.getUnsynced.and.callFake((): any => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve([]);
+        } else {
+          return Promise.resolve([{ seq: 1, op: { opType: OpType.SyncImport } }]);
+        }
+      });
+
       mockUploadService.uploadPendingOps.and.returnValue(
         Promise.resolve({
           uploadedCount: 1, // Some ops uploaded
@@ -288,6 +352,18 @@ describe('EncryptionPasswordChangeService', () => {
 
     it('should execute steps in correct order', async () => {
       const callOrder: string[] = [];
+
+      // Setup two-call mock for getUnsynced
+      let getUnsyncedCount = 0;
+      mockOpLogStore.getUnsynced.and.callFake((): any => {
+        getUnsyncedCount++;
+        callOrder.push(`getUnsynced(${getUnsyncedCount})`);
+        if (getUnsyncedCount === 1) {
+          return Promise.resolve([]);
+        } else {
+          return Promise.resolve([{ seq: 1, op: { opType: OpType.SyncImport } }]);
+        }
+      });
 
       mockCleanSlateService.createCleanSlate.and.callFake(async () => {
         callOrder.push('createCleanSlate');
@@ -318,7 +394,9 @@ describe('EncryptionPasswordChangeService', () => {
       await service.changePassword(TEST_PASSWORD);
 
       expect(callOrder).toEqual([
+        'getUnsynced(1)', // Check for unsynced user ops
         'createCleanSlate',
+        'getUnsynced(2)', // Verify SYNC_IMPORT was stored
         'setPrivateCfg',
         'clearDerivedKeyCache',
         'clearWrappedProviderCache',
@@ -408,10 +486,11 @@ describe('EncryptionPasswordChangeService', () => {
       );
     });
 
-    it('should clear caches twice on upload failure (change + revert)', async () => {
-      // When upload fails, we revert the password change. This test ensures
-      // both caches are cleared on both the initial change AND the revert.
-      // This prevents the caches from having stale keys for either password.
+    it('should clear caches once on upload failure (no revert)', async () => {
+      // When upload fails, we keep the new password config for retry.
+      // User must retry with the SAME password to complete the upload.
+      // This prevents inconsistent state where SYNC_IMPORT would be
+      // encrypted with old password but user expects new password.
 
       const originalConfig = {
         encryptKey: 'old-password',
@@ -419,17 +498,51 @@ describe('EncryptionPasswordChangeService', () => {
       };
       mockSyncProvider.privateCfg.load.and.returnValue(Promise.resolve(originalConfig));
 
+      // Setup two-call mock for getUnsynced
+      let callCount = 0;
+      mockOpLogStore.getUnsynced.and.callFake((): any => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve([]);
+        } else {
+          return Promise.resolve([{ seq: 1, op: { opType: OpType.SyncImport } }]);
+        }
+      });
+
       mockUploadService.uploadPendingOps.and.returnValue(
         Promise.reject(new Error('Network error')),
       );
 
       await expectAsync(service.changePassword(TEST_PASSWORD)).toBeRejected();
 
-      // Should have cleared caches twice:
-      // 1. After setting new password (before upload)
-      // 2. After reverting to old password (after upload failure)
-      expect(mockDerivedKeyCache.clearCache).toHaveBeenCalledTimes(2);
-      expect(mockWrappedProviderService.clearCache).toHaveBeenCalledTimes(2);
+      // Should have cleared caches only once (no revert):
+      // After setting new password (before upload attempt)
+      expect(mockDerivedKeyCache.clearCache).toHaveBeenCalledTimes(1);
+      expect(mockWrappedProviderService.clearCache).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw error if SYNC_IMPORT was not stored after clean slate', async () => {
+      // This catches IndexedDB timing issues where createCleanSlate completes
+      // but the SYNC_IMPORT operation wasn't actually stored
+      let callCount = 0;
+      mockOpLogStore.getUnsynced.and.callFake((): any => {
+        callCount++;
+        if (callCount === 1) {
+          return Promise.resolve([]); // No unsynced user ops
+        } else {
+          return Promise.resolve([]); // SYNC_IMPORT not stored (problem!)
+        }
+      });
+
+      await expectAsync(service.changePassword(TEST_PASSWORD)).toBeRejectedWithError(
+        /Clean slate creation failed - no SYNC_IMPORT operation was stored/,
+      );
+
+      // Should have created clean slate
+      expect(mockCleanSlateService.createCleanSlate).toHaveBeenCalled();
+
+      // Should NOT have updated config (failed before reaching that step)
+      expect(mockSyncProvider.setPrivateCfg).not.toHaveBeenCalled();
     });
 
     it('should generate new client ID via clean slate to prevent operation conflicts', async () => {
