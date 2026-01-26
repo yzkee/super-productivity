@@ -90,10 +90,18 @@ describe('markedOptionsFactory', () => {
 
   describe('link renderer', () => {
     it('should render link with target="_blank"', () => {
-      const result = options.renderer!.link({
+      // In marked v17, the link renderer receives tokens that need to be parsed
+      // We need to bind a mock parser context
+      const mockParser = {
+        parseInline: (tokens: any[]) =>
+          tokens.map((t: any) => t.raw || t.text || '').join(''),
+      };
+      const linkRenderer = options.renderer!.link.bind({ parser: mockParser });
+
+      const result = linkRenderer({
         href: 'http://example.com',
         title: 'Example',
-        text: 'Click here',
+        tokens: [{ type: 'text', raw: 'Click here', text: 'Click here' }],
       } as any);
       expect(result).toContain('target="_blank"');
       expect(result).toContain('href="http://example.com"');
@@ -102,35 +110,22 @@ describe('markedOptionsFactory', () => {
     });
 
     it('should handle empty title', () => {
-      const result = options.renderer!.link({
+      const mockParser = {
+        parseInline: (tokens: any[]) =>
+          tokens.map((t: any) => t.raw || t.text || '').join(''),
+      };
+      const linkRenderer = options.renderer!.link.bind({ parser: mockParser });
+
+      const result = linkRenderer({
         href: 'http://example.com',
         title: null,
-        text: 'Link',
+        tokens: [{ type: 'text', raw: 'Link', text: 'Link' }],
       } as any);
       expect(result).toContain('title=""');
     });
   });
 
-  describe('text renderer with URL auto-linking', () => {
-    it('should auto-link URLs in text', () => {
-      const result = options.renderer!.text({
-        text: 'Check out http://example.com for more info',
-        type: 'text',
-        raw: 'Check out http://example.com for more info',
-      } as any);
-      // The text renderer modifies the token and passes it to the original renderer
-      // which may HTML-escape the content, so we check for the href pattern
-      expect(result).toContain('http://example.com');
-      expect(result).toContain('href=');
-    });
-
-    it('should handle text without URLs', () => {
-      const result = options.renderer!.text({
-        text: 'Regular text without links',
-        type: 'text',
-        raw: 'Regular text without links',
-      } as any);
-      expect(result).not.toContain('href=');
-    });
-  });
+  // Note: URL auto-linking is handled automatically by marked v17 with gfm: true.
+  // We intentionally do NOT override renderer.text for this - the lexer converts
+  // URLs to link tokens before they reach the text renderer.
 });
