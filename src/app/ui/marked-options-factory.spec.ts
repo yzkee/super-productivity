@@ -1,4 +1,8 @@
-import { markedOptionsFactory } from './marked-options-factory';
+import {
+  markedOptionsFactory,
+  parseImageDimensionsFromTitle,
+  preprocessMarkdown,
+} from './marked-options-factory';
 
 describe('markedOptionsFactory', () => {
   let options: ReturnType<typeof markedOptionsFactory>;
@@ -125,7 +129,196 @@ describe('markedOptionsFactory', () => {
     });
   });
 
+  describe('image renderer', () => {
+    it('should render basic image with alt text', () => {
+      const result = options.renderer!.image({
+        href: 'http://example.com/image.png',
+        title: null,
+        text: 'Alt text',
+      } as any);
+      expect(result).toContain('src="http://example.com/image.png"');
+      expect(result).toContain('alt="Alt text"');
+      expect(result).toContain('loading="lazy"');
+    });
+
+    it('should render image with width and height from title', () => {
+      const result = options.renderer!.image({
+        href: 'http://example.com/image.png',
+        title: '200|150',
+        text: 'Sized image',
+      } as any);
+      expect(result).toContain('width="200"');
+      expect(result).toContain('height="150"');
+      expect(result).not.toContain('title=');
+    });
+
+    it('should render image with width only', () => {
+      const result = options.renderer!.image({
+        href: 'http://example.com/image.png',
+        title: '300|',
+        text: 'Width only',
+      } as any);
+      expect(result).toContain('width="300"');
+      expect(result).not.toContain('height=');
+    });
+
+    it('should render image with height only', () => {
+      const result = options.renderer!.image({
+        href: 'http://example.com/image.png',
+        title: '|250',
+        text: 'Height only',
+      } as any);
+      expect(result).toContain('height="250"');
+      expect(result).not.toContain('width=');
+    });
+
+    it('should render regular title when not in dimension format', () => {
+      const result = options.renderer!.image({
+        href: 'http://example.com/image.png',
+        title: 'A descriptive title',
+        text: 'Image',
+      } as any);
+      expect(result).toContain('title="A descriptive title"');
+      expect(result).not.toContain('width=');
+      expect(result).not.toContain('height=');
+    });
+
+    it('should handle null title', () => {
+      const result = options.renderer!.image({
+        href: 'http://example.com/image.png',
+        title: null,
+        text: 'No title',
+      } as any);
+      expect(result).not.toContain('title=');
+      expect(result).toContain('alt="No title"');
+    });
+  });
+
+  describe('paragraph renderer', () => {
+    it('should render simple paragraph', () => {
+      const mockParser = {
+        parseInline: (tokens: any[]) =>
+          tokens.map((t: any) => t.raw || t.text || '').join(''),
+      };
+      const paragraphRenderer = options.renderer!.paragraph.bind({ parser: mockParser });
+
+      const result = paragraphRenderer({
+        tokens: [{ type: 'text', raw: 'Simple paragraph', text: 'Simple paragraph' }],
+      } as any);
+      expect(result).toBe('<p>Simple paragraph</p>');
+    });
+
+    it('should convert h1. syntax to heading', () => {
+      const mockParser = {
+        parseInline: (tokens: any[]) =>
+          tokens.map((t: any) => t.raw || t.text || '').join(''),
+      };
+      const paragraphRenderer = options.renderer!.paragraph.bind({ parser: mockParser });
+
+      const result = paragraphRenderer({
+        tokens: [{ type: 'text', raw: 'h1. My Heading', text: 'h1. My Heading' }],
+      } as any);
+      expect(result).toBe('<h1> My Heading</h1>');
+    });
+
+    it('should convert h2. syntax to heading', () => {
+      const mockParser = {
+        parseInline: (tokens: any[]) =>
+          tokens.map((t: any) => t.raw || t.text || '').join(''),
+      };
+      const paragraphRenderer = options.renderer!.paragraph.bind({ parser: mockParser });
+
+      const result = paragraphRenderer({
+        tokens: [{ type: 'text', raw: 'h2. Subheading', text: 'h2. Subheading' }],
+      } as any);
+      expect(result).toBe('<h2> Subheading</h2>');
+    });
+  });
+
   // Note: URL auto-linking is handled automatically by marked v17 with gfm: true.
   // We intentionally do NOT override renderer.text for this - the lexer converts
   // URLs to link tokens before they reach the text renderer.
+});
+
+describe('parseImageDimensionsFromTitle', () => {
+  it('should parse width and height from title', () => {
+    const result = parseImageDimensionsFromTitle('200|150');
+    expect(result).toEqual({ width: '200', height: '150' });
+  });
+
+  it('should parse width only', () => {
+    const result = parseImageDimensionsFromTitle('300|');
+    expect(result).toEqual({ width: '300', height: undefined });
+  });
+
+  it('should parse height only', () => {
+    const result = parseImageDimensionsFromTitle('|250');
+    expect(result).toEqual({ width: undefined, height: '250' });
+  });
+
+  it('should return empty object for null title', () => {
+    const result = parseImageDimensionsFromTitle(null);
+    expect(result).toEqual({});
+  });
+
+  it('should return empty object for non-dimension format', () => {
+    const result = parseImageDimensionsFromTitle('A regular title');
+    expect(result).toEqual({});
+  });
+
+  it('should return empty object for empty string', () => {
+    const result = parseImageDimensionsFromTitle('');
+    expect(result).toEqual({});
+  });
+
+  it('should handle pipe only', () => {
+    const result = parseImageDimensionsFromTitle('|');
+    expect(result).toEqual({ width: undefined, height: undefined });
+  });
+});
+
+describe('preprocessMarkdown', () => {
+  it('should convert image sizing syntax to title format', () => {
+    const input = '![alt text](http://example.com/image.png =200x150)';
+    const result = preprocessMarkdown(input);
+    expect(result).toBe('![alt text](http://example.com/image.png "200|150")');
+  });
+
+  it('should handle width only', () => {
+    const input = '![alt](url.png =300x)';
+    const result = preprocessMarkdown(input);
+    expect(result).toBe('![alt](url.png "300|")');
+  });
+
+  it('should handle height only', () => {
+    const input = '![alt](url.png =x250)';
+    const result = preprocessMarkdown(input);
+    expect(result).toBe('![alt](url.png "|250")');
+  });
+
+  it('should handle multiple images in text', () => {
+    const input = 'Some text ![img1](a.png =100x100) more ![img2](b.png =200x200) end';
+    const result = preprocessMarkdown(input);
+    expect(result).toBe(
+      'Some text ![img1](a.png "100|100") more ![img2](b.png "200|200") end',
+    );
+  });
+
+  it('should not modify images without sizing syntax', () => {
+    const input = '![alt](http://example.com/image.png)';
+    const result = preprocessMarkdown(input);
+    expect(result).toBe('![alt](http://example.com/image.png)');
+  });
+
+  it('should not modify images with regular title', () => {
+    const input = '![alt](http://example.com/image.png "A title")';
+    const result = preprocessMarkdown(input);
+    expect(result).toBe('![alt](http://example.com/image.png "A title")');
+  });
+
+  it('should preserve other markdown content', () => {
+    const input = '# Header\n\n![img](url.png =50x50)\n\nParagraph';
+    const result = preprocessMarkdown(input);
+    expect(result).toBe('# Header\n\n![img](url.png "50|50")\n\nParagraph');
+  });
 });

@@ -78,11 +78,4 @@ export const initAppControlIpc = (): void => {
       });
     }
   });
-
-  ipcMain.on(IPC.TOGGLE_FULLSCREEN, () => {
-    const mainWin = getWin();
-    if (mainWin) {
-      mainWin.setFullScreen(!mainWin.isFullScreen());
-    }
-  });
 };
