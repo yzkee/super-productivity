@@ -134,6 +134,14 @@ export class SyncWrapperService {
     return this._isSyncInProgress$.getValue();
   }
 
+  /**
+   * Returns true if an encryption operation (password change, enable/disable) is in progress.
+   * Used by ImmediateUploadService to avoid uploading during critical encryption operations.
+   */
+  get isEncryptionOperationInProgress(): boolean {
+    return this._isEncryptionOperationInProgress$.getValue();
+  }
+
   // Expose shared user input wait state for other services (e.g., SyncTriggerService)
   isWaitingForUserInput$ = this._userInputWaitState.isWaitingForUserInput$;
 
@@ -468,27 +476,34 @@ export class SyncWrapperService {
 
     SyncLog.log('SyncWrapperService: forceUpload called - uploading local state');
 
-    try {
-      const rawProvider = this._providerManager.getActiveProvider();
-      const syncCapableProvider =
-        await this._wrappedProvider.getOperationSyncCapable(rawProvider);
+    // Block parallel syncs during force upload to prevent them from trying to
+    // download/decrypt old data with a potentially different encryption key.
+    // This is critical when forceUpload is triggered after password change.
+    await this.runWithSyncBlocked(async () => {
+      try {
+        const rawProvider = this._providerManager.getActiveProvider();
+        const syncCapableProvider =
+          await this._wrappedProvider.getOperationSyncCapable(rawProvider);
 
-      if (!syncCapableProvider) {
-        SyncLog.warn('SyncWrapperService: Cannot force upload - provider not available');
-        return;
+        if (!syncCapableProvider) {
+          SyncLog.warn(
+            'SyncWrapperService: Cannot force upload - provider not available',
+          );
+          return;
+        }
+
+        await this._opLogSyncService.forceUploadLocalState(syncCapableProvider);
+        this._providerManager.setSyncStatus('IN_SYNC');
+        SyncLog.log('SyncWrapperService: Force upload complete');
+      } catch (error) {
+        SyncLog.err('SyncWrapperService: Force upload failed:', error);
+        const errStr = getSyncErrorStr(error);
+        this._snackService.open({
+          msg: errStr,
+          type: 'ERROR',
+        });
       }
-
-      await this._opLogSyncService.forceUploadLocalState(syncCapableProvider);
-      this._providerManager.setSyncStatus('IN_SYNC');
-      SyncLog.log('SyncWrapperService: Force upload complete');
-    } catch (error) {
-      SyncLog.err('SyncWrapperService: Force upload failed:', error);
-      const errStr = getSyncErrorStr(error);
-      this._snackService.open({
-        msg: errStr,
-        type: 'ERROR',
-      });
-    }
+    });
   }
 
   async configuredAuthForSyncProviderIfNecessary(
