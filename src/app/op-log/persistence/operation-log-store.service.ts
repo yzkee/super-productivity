@@ -25,6 +25,7 @@ import {
 } from './db-keys.const';
 import { runDbUpgrade } from './db-upgrade';
 import { Log } from '../../core/log';
+import { vectorClockToString } from '../../core/util/vector-clock';
 
 /**
  * Vector clock entry stored in the vector_clock object store.
@@ -1139,9 +1140,25 @@ export class OperationLogStoreService {
     // Get current local clock
     const currentClock = (await this.getVectorClock()) ?? {};
 
+    // DIAGNOSTIC LOGGING: Log current clock before merge
+    Log.debug(
+      `[OpLogStore] mergeRemoteOpClocks: BEFORE merge\n` +
+        `  Current clock: ${vectorClockToString(currentClock)}\n` +
+        `  Merging ${ops.length} remote ops`,
+    );
+
     // Merge all remote ops' clocks into the local clock
     const mergedClock = { ...currentClock };
     for (const op of ops) {
+      // Log each op's clock being merged (especially important for SYNC_IMPORT)
+      if (op.opType === OpType.SyncImport || op.opType === OpType.BackupImport) {
+        Log.log(
+          `[OpLogStore] mergeRemoteOpClocks: Merging FULL-STATE op ${op.opType}\n` +
+            `  Op ID:         ${op.id}\n` +
+            `  Op clientId:   ${op.clientId}\n` +
+            `  Op clock:      ${vectorClockToString(op.vectorClock)}`,
+        );
+      }
       for (const [clientId, counter] of Object.entries(op.vectorClock)) {
         mergedClock[clientId] = Math.max(mergedClock[clientId] ?? 0, counter);
       }
@@ -1152,6 +1169,13 @@ export class OperationLogStoreService {
     // client ID, causing new ops to appear CONCURRENT with the import instead of GREATER_THAN
     const existingEntry = await this.db.get(STORE_NAMES.VECTOR_CLOCK, SINGLETON_KEY);
     const protectedClientIds = existingEntry?.protectedClientIds ?? [];
+
+    // DIAGNOSTIC LOGGING: Log merged clock after merge
+    Log.debug(
+      `[OpLogStore] mergeRemoteOpClocks: AFTER merge\n` +
+        `  Merged clock:        ${vectorClockToString(mergedClock)}\n` +
+        `  Protected clientIds: ${JSON.stringify(protectedClientIds)}`,
+    );
 
     // Update the vector clock store
     await this.db.put(

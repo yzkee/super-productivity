@@ -228,14 +228,15 @@ export class SyncHydrationService {
       await this.opLogStore.setVectorClock(newClock);
       OpLog.normal('SyncHydrationService: Updated vector clock store after sync');
 
-      // 8b. Protect the SYNC_IMPORT's client ID from vector clock pruning
-      // This ensures the client ID that created the SYNC_IMPORT isn't pruned from future
-      // vector clocks (even if it has a low counter), preventing new ops from appearing
-      // CONCURRENT with the import instead of GREATER_THAN.
+      // 8b. Protect ALL client IDs in the SYNC_IMPORT's vector clock from pruning
+      // This ensures all client IDs from the import aren't pruned from future vector clocks.
+      // If any are pruned, new ops would appear CONCURRENT with the import instead of GREATER_THAN.
+      // See RemoteOpsProcessingService.applyNonConflictingOps for detailed explanation.
       if (createSyncImportOp) {
-        await this.opLogStore.setProtectedClientIds([clientId]);
+        const protectedIds = Object.keys(newClock);
+        await this.opLogStore.setProtectedClientIds(protectedIds);
         OpLog.normal(
-          `SyncHydrationService: Set protected client ID to ${clientId} (from SYNC_IMPORT)`,
+          `SyncHydrationService: Set protected client IDs from SYNC_IMPORT: [${protectedIds.join(', ')}]`,
         );
       }
 

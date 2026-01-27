@@ -87,8 +87,13 @@ export class SuperSyncPage extends BasePage {
    * @private
    */
   private async selectSuperSyncProviderWithRetry(): Promise<void> {
-    // Small delay to let Angular Material fully initialize the select component
-    await this.page.waitForTimeout(200);
+    // Wait for Angular Material to fully initialize the select component
+    // and for any animations to complete
+    await this.page.waitForTimeout(300);
+
+    // Ensure the provider select is visible and scrolled into view
+    await this.providerSelect.scrollIntoViewIfNeeded();
+    await this.providerSelect.waitFor({ state: 'visible', timeout: 5000 });
 
     const superSyncOption = this.page.locator('mat-option:has-text("SuperSync")');
     let dropdownOpened = false;
@@ -96,11 +101,27 @@ export class SuperSyncPage extends BasePage {
     for (let attempt = 0; attempt < 3 && !dropdownOpened; attempt++) {
       if (attempt > 0) {
         console.log(`[SuperSyncPage] Retrying dropdown click (attempt ${attempt + 1})`);
+        // Wait between retries to let Angular settle
+        await this.page.waitForTimeout(500);
       }
+
+      // Ensure no animations are in progress before clicking
+      await this.page
+        .waitForFunction(
+          () =>
+            document.getAnimations().filter((a) => a.playState === 'running').length ===
+            0,
+          { timeout: 2000 },
+        )
+        .catch(() => {
+          // Ignore timeout - proceed anyway if animations can't be detected
+        });
+
       await this.providerSelect.click();
       // Wait for dropdown options to appear (Angular Material animation)
+      // Increased timeout from 2s to 3s for slow environments
       dropdownOpened = await superSyncOption
-        .waitFor({ state: 'visible', timeout: 2000 })
+        .waitFor({ state: 'visible', timeout: 3000 })
         .then(() => true)
         .catch(() => false);
     }
@@ -309,7 +330,8 @@ export class SuperSyncPage extends BasePage {
 
           if (spinnerAppeared) {
             // Spinner appeared, wait for it to disappear
-            await this.syncSpinner.waitFor({ state: 'hidden', timeout: 15000 });
+            // Increased timeout from 15s to 30s for multi-client scenarios under load
+            await this.syncSpinner.waitFor({ state: 'hidden', timeout: 30000 });
           }
 
           // Now wait for check icon to appear
@@ -559,7 +581,20 @@ export class SuperSyncPage extends BasePage {
       .catch(() => false);
 
     if (spinnerAppeared) {
-      await this.syncSpinner.waitFor({ state: 'hidden', timeout: 15000 });
+      // Increased timeout from 15s to 30s for multi-client scenarios under load
+      // Also check for error state to fail fast
+      const result = await Promise.race([
+        this.syncSpinner
+          .waitFor({ state: 'hidden', timeout: 30000 })
+          .then(() => 'hidden'),
+        this.syncErrorIcon
+          .waitFor({ state: 'visible', timeout: 30000 })
+          .then(() => 'error'),
+      ]);
+
+      if (result === 'error') {
+        throw new Error('Sync failed with error state during triggerSync()');
+      }
     }
 
     await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 10000 });
@@ -599,12 +634,13 @@ export class SuperSyncPage extends BasePage {
    * - Sync import conflicts (uses remote by default)
    *
    * @param options.useLocal - For conflicts, use local data instead of remote (default: false)
-   * @param options.timeout - Maximum time to wait for sync (default: 15000ms)
+   * @param options.timeout - Maximum time to wait for sync (default: 30000ms)
    */
   async syncAndWait(
     options: { useLocal?: boolean; timeout?: number } = {},
   ): Promise<void> {
-    const { useLocal = false, timeout = 15000 } = options;
+    // Increased default timeout from 15s to 30s for multi-client scenarios under load
+    const { useLocal = false, timeout = 30000 } = options;
 
     // Click sync button
     await this.syncBtn.click();

@@ -335,6 +335,19 @@ export class RemoteOpsProcessingService {
       );
     }
 
+    // DIAGNOSTIC: Check if any full-state ops will be applied
+    const fullStateOps = opsToApply.filter(
+      (op) =>
+        op.opType === OpType.SyncImport ||
+        op.opType === OpType.BackupImport ||
+        op.opType === OpType.Repair,
+    );
+    if (fullStateOps.length > 0) {
+      OpLog.log(
+        `RemoteOpsProcessingService: APPLYING FULL-STATE OP(s): ${fullStateOps.map((op) => `${op.opType} from ${op.clientId}`).join(', ')}`,
+      );
+    }
+
     // Store operations with pending status before applying (single transaction for performance)
     // If we crash after storing but before applying, these will be retried on startup
     if (opsToApply.length > 0) {
@@ -374,9 +387,18 @@ export class RemoteOpsProcessingService {
             op.opType === OpType.Repair,
         );
         if (appliedFullStateOp) {
-          await this.opLogStore.setProtectedClientIds([appliedFullStateOp.clientId]);
+          // CRITICAL FIX: Protect ALL client IDs in the import's vector clock, not just
+          // the import's own clientId. The import's vectorClock contains merged clocks
+          // from all clients at import time. If any of these are pruned from the local
+          // clock, new ops will appear CONCURRENT with the import instead of GREATER_THAN.
+          //
+          // Example: Import has {A_EemJ:1, B_HSxu:10342}. If we only protect B_HSxu,
+          // then A_EemJ gets pruned. New ops have {A_ypDK:6, B_HSxu:10714} (missing A_EemJ).
+          // Comparison: Import wins on A_EemJ (1>0), op wins on A_ypDK (6>0) → CONCURRENT!
+          const protectedIds = Object.keys(appliedFullStateOp.vectorClock);
+          await this.opLogStore.setProtectedClientIds(protectedIds);
           OpLog.normal(
-            `RemoteOpsProcessingService: Updated protected client ID to ${appliedFullStateOp.clientId} (from ${appliedFullStateOp.opType})`,
+            `RemoteOpsProcessingService: Updated protected client IDs from ${appliedFullStateOp.opType}: [${protectedIds.join(', ')}]`,
           );
         }
 
