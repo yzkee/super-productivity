@@ -206,6 +206,7 @@ export class OperationLogSyncService {
    */
   async uploadPendingOps(
     syncProvider: OperationSyncCapable,
+    options?: { skipPiggybackProcessing?: boolean; skipServerMigrationCheck?: boolean },
   ): Promise<UploadResult | null> {
     // CRITICAL: Ensure all pending write operations have completed before uploading.
     // The effect that writes operations uses concatMap for sequential processing,
@@ -228,9 +229,13 @@ export class OperationLogSyncService {
     // SERVER MIGRATION CHECK: Passed as callback to execute INSIDE the upload lock.
     // This prevents race conditions where multiple tabs could both detect migration
     // and create duplicate SYNC_IMPORT operations.
+    // Skip migration check for force uploads (e.g., after password change) to avoid
+    // DecryptError when downloading ops encrypted with a different key.
     const result = await this.uploadService.uploadPendingOps(syncProvider, {
-      preUploadCallback: () =>
-        this.serverMigrationService.checkAndHandleMigration(syncProvider),
+      preUploadCallback: options?.skipServerMigrationCheck
+        ? undefined
+        : () => this.serverMigrationService.checkAndHandleMigration(syncProvider),
+      skipPiggybackProcessing: options?.skipPiggybackProcessing,
     });
 
     // STEP 1: Process piggybacked ops FIRST
@@ -263,10 +268,10 @@ export class OperationLogSyncService {
       // handleRejectedOps may create merged ops for concurrent modifications
       // These need to be uploaded, so we add them to localWinOpsCreated
       // Pass a download callback so the handler can trigger downloads for concurrent mods
-      const downloadCallback = (options?: {
+      const downloadCallback = (downloadOptions?: {
         forceFromSeq0?: boolean;
       }): Promise<DownloadResultForRejection> =>
-        this.downloadRemoteOps(syncProvider, options);
+        this.downloadRemoteOps(syncProvider, downloadOptions);
       rejectionResult = await this.rejectedOpsHandlerService.handleRejectedOps(
         result.rejectedOps,
         downloadCallback,
@@ -646,7 +651,15 @@ export class OperationLogSyncService {
     });
 
     // Upload the SYNC_IMPORT (and any pending ops)
-    await this.uploadPendingOps(syncProvider);
+    // Skip piggybacked ops processing and server migration check because:
+    // 1. SYNC_IMPORT supersedes all previous ops anyway
+    // 2. Piggybacked ops may be encrypted with a different key (e.g., after password change)
+    //    which would cause DecryptError
+    // 3. Server migration check downloads ops which would fail with DecryptError if password changed
+    await this.uploadPendingOps(syncProvider, {
+      skipPiggybackProcessing: true,
+      skipServerMigrationCheck: true,
+    });
 
     OpLog.normal('OperationLogSyncService: Force upload complete.');
   }

@@ -242,7 +242,15 @@ export class OperationLogUploadService {
         }
 
         // Collect piggybacked new ops from other clients
-        if (response.newOps && response.newOps.length > 0) {
+        // SKIP if skipPiggybackProcessing is set - used for force upload scenarios
+        // where piggybacked ops may be encrypted with a different key (e.g., after password change)
+        if (options?.skipPiggybackProcessing) {
+          if (response.newOps && response.newOps.length > 0) {
+            OpLog.normal(
+              `OperationLogUploadService: Skipping ${response.newOps.length} piggybacked ops (skipPiggybackProcessing=true)`,
+            );
+          }
+        } else if (response.newOps && response.newOps.length > 0) {
           OpLog.normal(
             `OperationLogUploadService: Received ${response.newOps.length} piggybacked ops` +
               (response.hasMorePiggyback ? ' (more available on server)' : ''),

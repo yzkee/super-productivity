@@ -120,6 +120,21 @@ export interface UploadOptions {
    * Used for clean slate operations like encryption password changes or full imports.
    */
   isCleanSlate?: boolean;
+
+  /**
+   * If true, skip processing of piggybacked operations returned by the server.
+   * Used for force upload scenarios (like password changes) where piggybacked ops
+   * may be encrypted with a different key and would cause DecryptError.
+   * When SYNC_IMPORT is uploaded, piggybacked ops are irrelevant anyway as they'll be superseded.
+   */
+  skipPiggybackProcessing?: boolean;
+
+  /**
+   * If true, skip the server migration check (which downloads ops to verify server state).
+   * Used for force upload scenarios where we're intentionally overwriting remote data.
+   * Without this, the download would fail with DecryptError when password has changed.
+   */
+  skipServerMigrationCheck?: boolean;
 }
 
 /**

@@ -1084,6 +1084,9 @@
         "L_MANUAL_SYNC_ONLY": "Only sync manually (disable automatic sync)",
         "L_SYNC_PROVIDER": "Sync Provider",
         "TITLE": "Sync",
+        "FILE_BASED": {
+          "BTN_REMOVE_ENCRYPTION": "Remove Encryption"
+        },
         "WEB_DAV": {
           "CORS_INFO": "<strong>Making it work in a web browser:</strong> Allow Super Productivity to make CORS requests to your WebDAV server. This can have negative security implications! For Nextcloud, please refer to <a href='https://github.com/nextcloud/server/issues/3131'>this GitHub thread</a> for more information. One approach to make this work on mobile is allowing \"https://app.super-productivity.com\" via the Nextcloud app <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a>. Use at your own risk!</p>",
           "D_SYNC_FOLDER_PATH": "Path relative to the WebDAV server root where sync files will be stored (e.g. '/super-productivity' or '/'). This is NOT your server's internal directory path.",

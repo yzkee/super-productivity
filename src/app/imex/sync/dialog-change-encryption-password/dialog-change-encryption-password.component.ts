@@ -26,6 +26,12 @@ export interface ChangeEncryptionPasswordResult {
 
 export interface ChangeEncryptionPasswordDialogData {
   mode?: 'full' | 'disable-only';
+  /**
+   * Type of sync provider. Determines which disable method to call.
+   * - 'supersync': Uses disableEncryption() (deletes server data + uploads)
+   * - 'file-based': Uses disableEncryptionForFileBased() (just uploads unencrypted)
+   */
+  providerType?: 'supersync' | 'file-based';
 }
 
 @Component({
@@ -70,6 +76,7 @@ export class DialogChangeEncryptionPasswordComponent {
   isLoading = signal(false);
   isRemovingEncryption = signal(false);
   mode: 'full' | 'disable-only' = this._data?.mode || 'full';
+  providerType: 'supersync' | 'file-based' = this._data?.providerType || 'supersync';
 
   get passwordsMatch(): boolean {
     return this.newPassword === this.confirmPassword;
@@ -115,7 +122,12 @@ export class DialogChangeEncryptionPasswordComponent {
     this.isRemovingEncryption.set(true);
 
     try {
-      await this._encryptionDisableService.disableEncryption();
+      // Call appropriate disable method based on provider type
+      if (this.providerType === 'file-based') {
+        await this._encryptionDisableService.disableEncryptionForFileBased();
+      } else {
+        await this._encryptionDisableService.disableEncryption();
+      }
       this._snackService.open({
         type: 'SUCCESS',
         msg: T.F.SYNC.FORM.SUPER_SYNC.DISABLE_ENCRYPTION_SUCCESS,

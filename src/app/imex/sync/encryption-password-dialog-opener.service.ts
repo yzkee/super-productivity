@@ -23,11 +23,12 @@ export class EncryptionPasswordDialogOpenerService {
 
   openChangePasswordDialog(
     mode: 'full' | 'disable-only' = 'full',
+    providerType: 'supersync' | 'file-based' = 'supersync',
   ): Promise<ChangeEncryptionPasswordResult | undefined> {
     const dialogRef = this._matDialog.open(DialogChangeEncryptionPasswordComponent, {
       width: mode === 'disable-only' ? '450px' : '400px',
       disableClose: true,
-      data: { mode } as ChangeEncryptionPasswordDialogData,
+      data: { mode, providerType } as ChangeEncryptionPasswordDialogData,
     });
 
     return dialogRef.afterClosed().toPromise();
@@ -37,8 +38,19 @@ export class EncryptionPasswordDialogOpenerService {
    * Opens the unified change password dialog in disable-only mode.
    * @deprecated Use openChangePasswordDialog('disable-only') instead
    */
-  openDisableEncryptionDialog(): Promise<ChangeEncryptionPasswordResult | undefined> {
-    return this.openChangePasswordDialog('disable-only');
+  openDisableEncryptionDialog(
+    providerType: 'supersync' | 'file-based' = 'supersync',
+  ): Promise<ChangeEncryptionPasswordResult | undefined> {
+    return this.openChangePasswordDialog('disable-only', providerType);
+  }
+
+  /**
+   * Opens the disable encryption dialog for file-based providers.
+   */
+  openDisableEncryptionDialogForFileBased(): Promise<
+    ChangeEncryptionPasswordResult | undefined
+  > {
+    return this.openChangePasswordDialog('disable-only', 'file-based');
   }
 
   openEnableEncryptionDialog(
@@ -109,4 +121,18 @@ export const openEnableEncryptionDialog = (
     return Promise.resolve(undefined);
   }
   return dialogOpenerInstance.openEnableEncryptionDialog(encryptKey);
+};
+
+/**
+ * Opens the disable encryption dialog for file-based providers.
+ * Can be called from form config onClick handlers.
+ */
+export const openDisableEncryptionDialogForFileBased = (): Promise<
+  ChangeEncryptionPasswordResult | undefined
+> => {
+  if (!dialogOpenerInstance) {
+    console.error('EncryptionPasswordDialogOpenerService not initialized');
+    return Promise.resolve(undefined);
+  }
+  return dialogOpenerInstance.openDisableEncryptionDialogForFileBased();
 };
