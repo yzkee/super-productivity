@@ -224,8 +224,8 @@ describe('CleanSlateService', () => {
       await service.createCleanSlateFromImport(importedState, 'FULL_IMPORT');
 
       const appendedOp = mockOpLogStore.append.calls.mostRecent().args[0] as Operation;
-      // Should increment clock for new client (oldClient1: 5 → E_newC gets incremented value)
-      expect(appendedOp.vectorClock.E_newC).toBeGreaterThan(0);
+      // Should increment clock for new client (oldClient1: 5 → eNewC gets incremented value)
+      expect(appendedOp.vectorClock.eNewC).toBeGreaterThan(0);
     });
 
     it('should save snapshot with imported state', async () => {
@@ -259,12 +259,12 @@ describe('CleanSlateService', () => {
       expect(mockOpLogStore.setProtectedClientIds).toHaveBeenCalled();
 
       // The protected IDs should include ALL keys from the SYNC_IMPORT's vector clock
-      // The new clock will be: { ...multiClientClock, E_newC: increment }
+      // The new clock will be: { ...multiClientClock, eNewC: increment }
       const protectedIds = mockOpLogStore.setProtectedClientIds.calls.mostRecent()
         .args[0] as string[];
 
       // Should contain the new client ID
-      expect(protectedIds).toContain('E_newC');
+      expect(protectedIds).toContain('eNewC');
       // Should contain all the old client IDs from the merged clock
       expect(protectedIds).toContain('oldClient1');
       expect(protectedIds).toContain('oldClient2');
