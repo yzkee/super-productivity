@@ -16,6 +16,7 @@ import {
   SyncAlreadyInProgressError,
   LocalDataConflictError,
   WebCryptoNotAvailableError,
+  MissingRefreshTokenAPIError,
 } from '../../op-log/core/errors/sync-errors';
 import { SyncConfig } from '../../features/config/global-config.model';
 import { TranslateService } from '@ngx-translate/core';
@@ -365,6 +366,15 @@ export class SyncWrapperService {
           actionStr: T.F.SYNC.S.BTN_CONFIGURE,
         });
         return 'HANDLED_ERROR';
+      } else if (error instanceof MissingRefreshTokenAPIError) {
+        // Refresh token is missing or invalid - user needs to re-authenticate
+        this._snackService.open({
+          msg: T.F.SYNC.S.INCOMPLETE_CFG,
+          type: 'ERROR',
+          actionFn: async () => this._matDialog.open(DialogSyncInitialCfgComponent),
+          actionStr: T.F.SYNC.S.BTN_CONFIGURE,
+        });
+        return 'HANDLED_ERROR';
       } else if (error instanceof SyncInvalidTimeValuesError) {
         // Handle async dialog result properly to avoid silent error swallowing
         this._handleIncoherentTimestampsDialog();
@@ -567,6 +577,10 @@ export class SyncWrapperService {
       })
       .catch((err) => {
         SyncLog.err('Error handling incoherent timestamps dialog result:', err);
+        this._snackService.open({
+          type: 'ERROR',
+          msg: T.F.SYNC.S.DIALOG_RESULT_ERROR,
+        });
       });
   }
 
@@ -590,6 +604,10 @@ export class SyncWrapperService {
       })
       .catch((err) => {
         SyncLog.err('Error handling incomplete sync dialog result:', err);
+        this._snackService.open({
+          type: 'ERROR',
+          msg: T.F.SYNC.S.DIALOG_RESULT_ERROR,
+        });
       });
   }
 
