@@ -1,3 +1,30 @@
+## [17.0.6](https://github.com/super-productivity/super-productivity/compare/v17.0.5...v17.0.6) (2026-01-27)
+
+### Bug Fixes
+
+- **dropbox:** use hash-wasm fallback for PKCE on Android ([e2c585e](https://github.com/super-productivity/super-productivity/commit/e2c585ee45b77118256e794e2a03e683cda2dd6a))
+- **encryption:** use @noble/ciphers fallback for AES-GCM on mobile ([6dc00e4](https://github.com/super-productivity/super-productivity/commit/6dc00e442a7125f09666ba4496b75ce38bf09f44))
+- **issue-providers:** make newer fields optional for backwards compatibility ([5657308](https://github.com/super-productivity/super-productivity/commit/56573083ad685c197f74815d7fbd978f550a0826)), closes [#6215](https://github.com/super-productivity/super-productivity/issues/6215)
+- lint ([fb759a0](https://github.com/super-productivity/super-productivity/commit/fb759a0848612f7a74cd66aaa99eaef185290542))
+- **op-log:** remove noisy warning for empty entityChanges ([6f79209](https://github.com/super-productivity/super-productivity/commit/6f79209466d6cc9cf8f70f8037b79f322e1a8167))
+- **sync:** ensure all client IDs in vectorClock are protected during SYNC_IMPORT operations ([abffd4f](https://github.com/super-productivity/super-productivity/commit/abffd4f133a1888a265bbc64730f1a541c45fd97))
+- **sync:** ensure protected client IDs are set after SYNC_IMPORT to prevent pruning issues ([7f6c20a](https://github.com/super-productivity/super-productivity/commit/7f6c20a1c9ed06a8af3bc6db6002cd8d3607e529))
+- **sync:** handle duplicate operation IDs gracefully in appendBatch ([ab6df00](https://github.com/super-productivity/super-productivity/commit/ab6df00a72dc6ca43df1ff9e0f11f34c2808b609)), closes [#6213](https://github.com/super-productivity/super-productivity/issues/6213)
+- **sync:** handle MissingRefreshTokenAPIError for Dropbox re-auth ([48f9967](https://github.com/super-productivity/super-productivity/commit/48f9967cf59838758ac0be3a2fc58d990d940f3c)), closes [#6212](https://github.com/super-productivity/super-productivity/issues/6212)
+- **sync:** improve error visibility in SuperSync operations ([b911546](https://github.com/super-productivity/super-productivity/commit/b911546e53b4352152a2ea1277f6a507c1a2d63e))
+- **sync:** prevent ImmediateUploadService from triggering during encryption ops ([4acc7d6](https://github.com/super-productivity/super-productivity/commit/4acc7d6ca878bba3c12ba3a0dd6ac2f2c5ac2da8))
+- **sync:** prevent race condition in encryption password change ([ac700b6](https://github.com/super-productivity/super-productivity/commit/ac700b6eed6920c04f32b5092545e3caf6ac9452))
+- **sync:** show clear error when encryption unavailable on Android ([5f44e18](https://github.com/super-productivity/super-productivity/commit/5f44e18aa250d42c5490974e7f552dedc21fbff4))
+- **test:** update mock client ID references in clean-slate tests ([8983091](https://github.com/super-productivity/super-productivity/commit/89830910c5bdde59a4bc6c654527428fa19fe4ca))
+- **touch:** limit click blocking to submenu triggers only ([ebe72c1](https://github.com/super-productivity/super-productivity/commit/ebe72c14df513efcedce51e7eac9b432b8143080))
+
+### Features
+
+- **boards:** move tasks to and from backlog when dragging to a panel with backlogState set ([#6209](https://github.com/super-productivity/super-productivity/issues/6209)) ([3fc0be6](https://github.com/super-productivity/super-productivity/commit/3fc0be6924e15c70e04ba5e18de4102680f59136))
+- Copy Version Number [#5108](https://github.com/super-productivity/super-productivity/issues/5108) ([#6184](https://github.com/super-productivity/super-productivity/issues/6184)) ([2e20746](https://github.com/super-productivity/super-productivity/commit/2e20746fb8f7c6c0de3b759dde94cfefcb92e632))
+- **sync:** add encryption disable flow for file-based providers ([d67d340](https://github.com/super-productivity/super-productivity/commit/d67d340f0ebe4f8ea9ed351a9539236dff731603))
+- **sync:** make encryption actions explicit ([a1c9b7c](https://github.com/super-productivity/super-productivity/commit/a1c9b7cb93868558568a22db60cd9e807b8490d1))
+
 ## [17.0.5](https://github.com/super-productivity/super-productivity/compare/v17.0.4...v17.0.5) (2026-01-26)
 
 ### Bug Fixes
