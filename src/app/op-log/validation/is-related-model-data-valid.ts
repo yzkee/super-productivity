@@ -104,7 +104,9 @@ const _validityError = (errTxt: string, additionalInfo?: any): void => {
     if (environment.production) {
       try {
         PFLog.log('Validity Error Info string: ', JSON.stringify(additionalInfo));
-      } catch (e) {}
+      } catch (e) {
+        PFLog.warn('Failed to stringify validity error info:', e);
+      }
     }
   }
   if (errorCount <= 3) {

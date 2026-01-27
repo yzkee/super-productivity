@@ -132,7 +132,11 @@ export class SyncConfigService {
                 encryptKey: '',
               };
             })
-            .catch(() => {
+            .catch((e) => {
+              SyncLog.warn(
+                'Failed to load sync-config-default-override.json, using base config:',
+                e,
+              );
               return {
                 ...baseConfig,
                 encryptKey: '',

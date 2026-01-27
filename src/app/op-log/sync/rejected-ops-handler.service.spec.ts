@@ -8,7 +8,6 @@ import { OperationLogStoreService } from '../persistence/operation-log-store.ser
 import { SnackService } from '../../core/snack/snack.service';
 import { StaleOperationResolverService } from './stale-operation-resolver.service';
 import { Operation, OpType, ActionType } from '../core/operation.types';
-import { MAX_REJECTED_OPS_BEFORE_WARNING } from '../core/operation-log.const';
 import { T } from '../../t.const';
 
 describe('RejectedOpsHandlerService', () => {
@@ -110,9 +109,28 @@ describe('RejectedOpsHandlerService', () => {
       expect(opLogStoreSpy.markRejected).toHaveBeenCalledWith(['op-1']);
     });
 
-    it('should show snack warning when many ops are rejected', async () => {
+    it('should show snack warning when even 1 op is rejected', async () => {
+      const op = createOp({ id: 'op-1' });
+      opLogStoreSpy.getOpById.and.returnValue(Promise.resolve(mockEntry(op)));
+      opLogStoreSpy.markRejected.and.resolveTo();
+
+      await service.handleRejectedOps([
+        { opId: 'op-1', error: 'validation error', errorCode: 'VALIDATION_ERROR' },
+      ]);
+
+      expect(snackServiceSpy.open).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          type: 'ERROR',
+          msg: T.F.SYNC.S.UPLOAD_OPS_REJECTED,
+          translateParams: { count: 1 },
+        }),
+      );
+    });
+
+    it('should show snack warning with correct count when multiple ops are rejected', async () => {
+      const opCount = 10;
       const rejectedOps: Array<{ opId: string; error: string }> = [];
-      for (let i = 0; i < MAX_REJECTED_OPS_BEFORE_WARNING; i++) {
+      for (let i = 0; i < opCount; i++) {
         const op = createOp({ id: `op-${i}` });
         opLogStoreSpy.getOpById
           .withArgs(`op-${i}`)

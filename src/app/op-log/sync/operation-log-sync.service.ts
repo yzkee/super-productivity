@@ -831,9 +831,9 @@ export class OperationLogSyncService {
       'OperationLogSyncService: Local encryption config updated to match server state.',
     );
 
-    // Notify user
+    // Notify user - use WARNING since this is a security-relevant change
     this.snackService.open({
-      type: 'SUCCESS',
+      type: 'WARNING',
       msg: T.F.SYNC.S.ENCRYPTION_DISABLED_ON_OTHER_DEVICE,
     });
   }

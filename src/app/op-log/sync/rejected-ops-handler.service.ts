@@ -4,7 +4,6 @@ import { Operation, VectorClock } from '../core/operation.types';
 import { OpLog } from '../../core/log';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
-import { MAX_REJECTED_OPS_BEFORE_WARNING } from '../core/operation-log.const';
 import { StaleOperationResolverService } from './stale-operation-resolver.service';
 import { DownloadCallback, RejectedOpInfo } from '../core/types/sync-results.types';
 import { handleStorageQuotaError } from './sync-error-utils';
@@ -166,8 +165,8 @@ export class RejectedOpsHandlerService {
         `RejectedOpsHandlerService: Marked ${permanentlyRejectedOps.length} server-rejected ops as rejected`,
       );
 
-      // Notify user if significant number of ops were rejected without conflict resolution
-      if (permanentlyRejectedOps.length >= MAX_REJECTED_OPS_BEFORE_WARNING) {
+      // Notify user when any ops are permanently rejected
+      if (permanentlyRejectedOps.length > 0) {
         this.snackService.open({
           type: 'ERROR',
           msg: T.F.SYNC.S.UPLOAD_OPS_REJECTED,
