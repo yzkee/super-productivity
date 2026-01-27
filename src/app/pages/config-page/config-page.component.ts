@@ -48,6 +48,7 @@ import { ThemeSelectorComponent } from '../../core/theme/theme-selector/theme-se
 import { Log } from '../../core/log';
 import { downloadLogs } from '../../util/download';
 import { SnackService } from '../../core/snack/snack.service';
+import { ShareService } from '../../core/share/share.service';
 import { SyncWrapperService } from '../../imex/sync/sync-wrapper.service';
 import { UserProfileService } from '../../features/user-profile/user-profile.service';
 import { MatDialog } from '@angular/material/dialog';
@@ -86,6 +87,7 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
   private readonly _syncWrapperService = inject(SyncWrapperService);
   private readonly _pluginBridgeService = inject(PluginBridgeService);
   private readonly _snackService = inject(SnackService);
+  private readonly _shareService = inject(ShareService);
   private readonly _userProfileService = inject(UserProfileService);
   private readonly _matDialog = inject(MatDialog);
 
@@ -471,6 +473,16 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
       this._snackService.open('Logs downloaded to android documents folder');
     } catch (error) {
       this._snackService.open('Failed to download logs');
+    }
+  }
+
+  async copyVersionToClipboard(text: string): Promise<void> {
+    const result = await this._shareService.copyToClipboard(text, 'Version');
+    if (!result.success) {
+      this._snackService.open({
+        type: 'ERROR',
+        msg: T.PS.FAILED_TO_COPY_TO_CLIPBOARD,
+      });
     }
   }
 
