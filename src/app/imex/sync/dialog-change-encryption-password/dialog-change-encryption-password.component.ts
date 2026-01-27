@@ -18,6 +18,7 @@ import { EncryptionDisableService } from '../encryption-disable.service';
 import { SnackService } from '../../../core/snack/snack.service';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatDivider } from '@angular/material/divider';
+import { FileBasedEncryptionService } from '../file-based-encryption.service';
 
 export interface ChangeEncryptionPasswordResult {
   success: boolean;
@@ -57,6 +58,7 @@ export interface ChangeEncryptionPasswordDialogData {
 })
 export class DialogChangeEncryptionPasswordComponent {
   private _encryptionPasswordChangeService = inject(EncryptionPasswordChangeService);
+  private _fileBasedEncryptionService = inject(FileBasedEncryptionService);
   private _encryptionDisableService = inject(EncryptionDisableService);
   private _snackService = inject(SnackService);
   private _matDialogRef =
@@ -77,6 +79,10 @@ export class DialogChangeEncryptionPasswordComponent {
   isRemovingEncryption = signal(false);
   mode: 'full' | 'disable-only' = this._data?.mode || 'full';
   providerType: 'supersync' | 'file-based' = this._data?.providerType || 'supersync';
+  textKeys: Record<string, string> =
+    this.providerType === 'file-based'
+      ? T.F.SYNC.FORM.FILE_BASED
+      : T.F.SYNC.FORM.SUPER_SYNC;
 
   get passwordsMatch(): boolean {
     return this.newPassword === this.confirmPassword;
@@ -94,10 +100,14 @@ export class DialogChangeEncryptionPasswordComponent {
     this.isLoading.set(true);
 
     try {
-      await this._encryptionPasswordChangeService.changePassword(this.newPassword);
+      if (this.providerType === 'file-based') {
+        await this._fileBasedEncryptionService.changePassword(this.newPassword);
+      } else {
+        await this._encryptionPasswordChangeService.changePassword(this.newPassword);
+      }
       this._snackService.open({
         type: 'SUCCESS',
-        msg: T.F.SYNC.FORM.SUPER_SYNC.CHANGE_PASSWORD_SUCCESS,
+        msg: this.textKeys.CHANGE_PASSWORD_SUCCESS,
       });
       this._matDialogRef.close({ success: true });
     } catch (error) {
@@ -130,7 +140,7 @@ export class DialogChangeEncryptionPasswordComponent {
       }
       this._snackService.open({
         type: 'SUCCESS',
-        msg: T.F.SYNC.FORM.SUPER_SYNC.DISABLE_ENCRYPTION_SUCCESS,
+        msg: this.textKeys.DISABLE_ENCRYPTION_SUCCESS,
       });
       this._matDialogRef.close({ success: true, encryptionRemoved: true });
     } catch (error) {

@@ -13,7 +13,7 @@ import {
 /**
  * WebDAV (File-Based) Encryption Disable E2E Tests
  *
- * These tests verify the "Remove Encryption" flow for file-based sync providers.
+ * These tests verify the "Disable Encryption" flow for file-based sync providers.
  *
  * Flow:
  * 1. Client A sets up WebDAV sync with encryption enabled

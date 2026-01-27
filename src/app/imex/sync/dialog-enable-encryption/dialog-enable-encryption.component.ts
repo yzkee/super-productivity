@@ -15,9 +15,12 @@ import { SnackService } from '../../../core/snack/snack.service';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { SyncProviderManager } from '../../../op-log/sync-providers/provider-manager.service';
 import { SyncProviderId } from '../../../op-log/sync-providers/provider.const';
+import { isFileBasedProvider } from '../../../op-log/sync/operation-sync.util';
+import { FileBasedEncryptionService } from '../file-based-encryption.service';
 
 export interface EnableEncryptionDialogData {
   encryptKey: string;
+  providerType?: 'supersync' | 'file-based';
 }
 
 export interface EnableEncryptionResult {
@@ -41,6 +44,7 @@ export interface EnableEncryptionResult {
 })
 export class DialogEnableEncryptionComponent {
   private _encryptionEnableService = inject(EncryptionEnableService);
+  private _fileBasedEncryptionService = inject(FileBasedEncryptionService);
   private _snackService = inject(SnackService);
   private _providerManager = inject(SyncProviderManager);
   private _data = inject<EnableEncryptionDialogData>(MAT_DIALOG_DATA);
@@ -53,6 +57,11 @@ export class DialogEnableEncryptionComponent {
   isLoading = signal(false);
   canProceed = signal(true);
   errorReason = signal<string | null>(null);
+  providerType: 'supersync' | 'file-based' = this._data?.providerType || 'supersync';
+  textKeys: Record<string, string> =
+    this.providerType === 'file-based'
+      ? T.F.SYNC.FORM.FILE_BASED
+      : T.F.SYNC.FORM.SUPER_SYNC;
 
   constructor() {
     this._checkPreconditions();
@@ -63,19 +72,25 @@ export class DialogEnableEncryptionComponent {
 
     if (!provider) {
       this.canProceed.set(false);
-      this.errorReason.set(T.F.SYNC.FORM.SUPER_SYNC.ENABLE_ENCRYPTION_NOT_READY);
+      this.errorReason.set(this.textKeys.ENABLE_ENCRYPTION_NOT_READY);
       return;
     }
 
-    if (provider.id !== SyncProviderId.SuperSync) {
+    if (this.providerType === 'supersync') {
+      if (provider.id !== SyncProviderId.SuperSync) {
+        this.canProceed.set(false);
+        this.errorReason.set(this.textKeys.ENABLE_ENCRYPTION_SUPERSYNC_ONLY);
+        return;
+      }
+    } else if (!isFileBasedProvider(provider)) {
       this.canProceed.set(false);
-      this.errorReason.set(T.F.SYNC.FORM.SUPER_SYNC.ENABLE_ENCRYPTION_SUPERSYNC_ONLY);
+      this.errorReason.set(this.textKeys.ENABLE_ENCRYPTION_FILE_BASED_ONLY);
       return;
     }
 
     if (!this._data?.encryptKey) {
       this.canProceed.set(false);
-      this.errorReason.set(T.F.SYNC.FORM.SUPER_SYNC.ENABLE_ENCRYPTION_PASSWORD_REQUIRED);
+      this.errorReason.set(this.textKeys.ENABLE_ENCRYPTION_PASSWORD_REQUIRED);
       return;
     }
   }
@@ -88,10 +103,14 @@ export class DialogEnableEncryptionComponent {
     this.isLoading.set(true);
 
     try {
-      await this._encryptionEnableService.enableEncryption(this._data.encryptKey);
+      if (this.providerType === 'file-based') {
+        await this._fileBasedEncryptionService.enableEncryption(this._data.encryptKey);
+      } else {
+        await this._encryptionEnableService.enableEncryption(this._data.encryptKey);
+      }
       this._snackService.open({
         type: 'SUCCESS',
-        msg: T.F.SYNC.FORM.SUPER_SYNC.ENABLE_ENCRYPTION_SUCCESS,
+        msg: this.textKeys.ENABLE_ENCRYPTION_SUCCESS,
       });
       this._matDialogRef.close({ success: true });
     } catch (error) {

@@ -11,7 +11,9 @@ import {
   openDisableEncryptionDialog,
   openDisableEncryptionDialogForFileBased,
   openEnableEncryptionDialog,
+  openEnableEncryptionDialogForFileBased,
   openEncryptionPasswordChangeDialog,
+  openEncryptionPasswordChangeDialogForFileBased,
 } from '../../../imex/sync/encryption-password-dialog-opener.service';
 
 /**
@@ -234,103 +236,10 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
             field?.parent?.parent?.model.syncProvider !== LegacySyncProvider.SuperSync,
           props: { label: T.G.ADVANCED_CFG },
           fieldGroup: [
-            // E2E Encryption for SuperSync
-            {
-              key: 'isEncryptionEnabled',
-              type: 'checkbox',
-              className: 'e2e-isEncryptionEnabled',
-              templateOptions: {
-                label: T.F.SYNC.FORM.SUPER_SYNC.L_ENABLE_E2E_ENCRYPTION,
-                description: T.F.SYNC.FORM.SUPER_SYNC.E2E_ENCRYPTION_DESCRIPTION,
-              },
-              hooks: {
-                onInit: (field: FormlyFieldConfig) => {
-                  // Track previous value to detect changes
-                  let previousValue = field?.formControl?.value;
-                  // Guard to prevent multiple dialogs opening simultaneously
-                  let isDialogOpen = false;
-
-                  const subscription = field?.formControl?.valueChanges.subscribe(
-                    async (newValue) => {
-                      // Intercept when changing from true (enabled) to false (disabled)
-                      if (previousValue === true && newValue === false && !isDialogOpen) {
-                        isDialogOpen = true;
-                        try {
-                          // Open confirmation dialog
-                          const result = await openDisableEncryptionDialog();
-
-                          if (!result?.success) {
-                            // User cancelled - reset to true
-                            field?.formControl?.setValue(true, { emitEvent: false });
-                            previousValue = true;
-                            return;
-                          }
-                          // User confirmed and encryption was disabled successfully
-                          previousValue = newValue;
-                          // Clear encryptKey from form model to prevent stale data being saved
-                          if (field?.model) {
-                            field.model.encryptKey = '';
-                          }
-                        } finally {
-                          isDialogOpen = false;
-                        }
-                      }
-                      // Intercept when changing from false (disabled) to true (enabled)
-                      else if (
-                        previousValue === false &&
-                        newValue === true &&
-                        !isDialogOpen
-                      ) {
-                        // Get the encryption password from the model
-                        // The encryptKey field is a sibling in the same fieldGroup
-                        const encryptKey = field?.model?.encryptKey;
-
-                        if (!encryptKey) {
-                          // No password yet - just update previousValue
-                          // The user will need to enter a password and the dialog
-                          // will be triggered when they save the form
-                          previousValue = newValue;
-                          return;
-                        }
-
-                        isDialogOpen = true;
-                        try {
-                          // Open confirmation dialog with the encrypt key
-                          const result = await openEnableEncryptionDialog(encryptKey);
-
-                          if (!result?.success) {
-                            // User cancelled - reset to false
-                            field?.formControl?.setValue(false, { emitEvent: false });
-                            previousValue = false;
-                            return;
-                          }
-                          // User confirmed and encryption was enabled successfully
-                          previousValue = newValue;
-                        } finally {
-                          isDialogOpen = false;
-                        }
-                      } else if (!isDialogOpen) {
-                        previousValue = newValue;
-                      }
-                    },
-                  );
-
-                  // Store subscription for cleanup
-                  (field as any)._encryptionToggleSubscription = subscription;
-                },
-                onDestroy: (field: FormlyFieldConfig) => {
-                  // Clean up subscription to prevent memory leaks
-                  const subscription = (field as any)._encryptionToggleSubscription;
-                  if (subscription) {
-                    subscription.unsubscribe();
-                  }
-                },
-              },
-            },
-            // Encryption password field for SuperSync (shown when encryption enabled)
+            // Encryption password field for SuperSync (shown when encryption is disabled)
             {
               hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
-                !(field?.model?.isEncryptionEnabled ?? false),
+                field?.model?.isEncryptionEnabled ?? false,
               key: 'encryptKey',
               type: 'input',
               className: 'e2e-encryptKey',
@@ -338,19 +247,36 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
                 type: 'password',
                 label: T.F.SYNC.FORM.L_ENCRYPTION_PASSWORD,
               },
-              expressions: {
-                'props.required': (field: FormlyFieldConfig) =>
-                  field?.model?.isEncryptionEnabled,
-              },
             },
             {
               hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
-                !(field?.model?.isEncryptionEnabled ?? false),
+                field?.model?.isEncryptionEnabled ?? false,
               type: 'tpl',
               className: 'tpl warn-text',
               templateOptions: {
                 tag: 'div',
                 text: T.F.SYNC.FORM.SUPER_SYNC.ENCRYPTION_WARNING,
+              },
+            },
+            {
+              // Note: Using (m, v, field) signature for btn type fields to ensure
+              // hideExpression works correctly with the btn component.
+              // Using ?? false to ensure button stays hidden if field is undefined.
+              hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
+                field?.model?.isEncryptionEnabled ?? false,
+              type: 'btn',
+              className: 'e2e-enable-encryption-btn',
+              templateOptions: {
+                text: T.F.SYNC.FORM.SUPER_SYNC.BTN_ENABLE_ENCRYPTION,
+                btnType: 'primary',
+                onClick: async (field: FormlyFieldConfig) => {
+                  const encryptKey = field?.model?.encryptKey || '';
+                  const result = await openEnableEncryptionDialog(encryptKey);
+                  if (result?.success && field?.model) {
+                    field.model.isEncryptionEnabled = true;
+                  }
+                  return result?.success ? true : false;
+                },
               },
             },
             {
@@ -366,6 +292,27 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
                 onClick: async () => {
                   const result = await openEncryptionPasswordChangeDialog();
                   // Password is updated through the service, no need to update form
+                  return result?.success ? true : false;
+                },
+              },
+            },
+            {
+              // Note: Using (m, v, field) signature for btn type fields to ensure
+              // hideExpression works correctly with the btn component.
+              // Using ?? false to ensure button stays hidden if field is undefined.
+              hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
+                !(field?.model?.isEncryptionEnabled ?? false),
+              type: 'btn',
+              className: 'e2e-disable-encryption-btn',
+              templateOptions: {
+                text: T.F.SYNC.FORM.SUPER_SYNC.BTN_DISABLE_ENCRYPTION,
+                btnType: 'default',
+                onClick: async (field: FormlyFieldConfig) => {
+                  const result = await openDisableEncryptionDialog();
+                  if (result?.success && result?.encryptionRemoved && field?.model) {
+                    field.model.isEncryptionEnabled = false;
+                    field.model.encryptKey = '';
+                  }
                   return result?.success ? true : false;
                 },
               },
@@ -446,38 +393,23 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
             label: T.F.SYNC.FORM.L_ENABLE_COMPRESSION,
           },
         },
-        // Hide for SuperSync since it has dedicated E2E encryption fields above
-        {
-          hideExpression: (m: any, v: any, field: any) =>
-            field?.parent?.parent?.model.syncProvider === LegacySyncProvider.SuperSync,
-          key: 'isEncryptionEnabled',
-          type: 'checkbox',
-          templateOptions: {
-            label: T.F.SYNC.FORM.L_ENABLE_ENCRYPTION,
-          },
-          // Disable when encryption is already active (has encryptKey)
-          expressions: {
-            'props.disabled': (field: FormlyFieldConfig) => !!field?.model?.encryptKey,
-          },
-        },
-        // Encryption notes - show during setup (checkbox checked)
+        // Encryption notes - show before enabling encryption
         {
           hideExpression: (m: any, v: any, field: any) =>
             field?.parent?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
-            !m.isEncryptionEnabled,
+            m.isEncryptionEnabled,
           type: 'tpl',
-          className: `tpl`,
+          className: 'tpl',
           templateOptions: {
             tag: 'div',
             text: T.F.SYNC.FORM.L_ENCRYPTION_NOTES,
           },
         },
-        // Password input - show when encryption is enabled
-        // Note: resetOnHide is false to preserve the password value
+        // Password input - shown when encryption is disabled
         {
           hideExpression: (m: any, v: any, field: any) =>
             field?.parent?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
-            !m.isEncryptionEnabled,
+            m.isEncryptionEnabled,
           resetOnHide: false,
           key: 'encryptKey',
           type: 'input',
@@ -486,47 +418,73 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
             type: 'password',
             label: T.F.SYNC.FORM.L_ENCRYPTION_PASSWORD,
           },
-          expressions: {
-            'props.required': (field: FormlyFieldConfig) =>
-              field?.parent?.parent?.model?.syncProvider !==
-                LegacySyncProvider.SuperSync && field?.model?.isEncryptionEnabled,
-          },
         },
-        // Remove encryption button for file-based providers
-        // Shown when encryptKey is set (indicates encryption is active)
         {
           hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
             field?.parent?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
-            !m?.encryptKey,
+            m.isEncryptionEnabled,
           type: 'btn',
+          className: 'e2e-file-based-enable-encryption-btn',
           templateOptions: {
-            text: T.F.SYNC.FORM.FILE_BASED.BTN_REMOVE_ENCRYPTION,
+            text: T.F.SYNC.FORM.FILE_BASED.BTN_ENABLE_ENCRYPTION,
+            btnType: 'primary',
+            onClick: async (field: FormlyFieldConfig) => {
+              const encryptKey = field?.model?.encryptKey || '';
+              const result = await openEnableEncryptionDialogForFileBased(encryptKey);
+              if (result?.success && field?.model) {
+                field.model.isEncryptionEnabled = true;
+              }
+              return result?.success ? true : false;
+            },
+          },
+          expressions: {
+            'props.disabled': (field: FormlyFieldConfig) => !field?.model?.encryptKey,
+          },
+        },
+        {
+          hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
+            field?.parent?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
+            !m.isEncryptionEnabled,
+          type: 'btn',
+          className: 'e2e-file-based-change-password-btn',
+          templateOptions: {
+            text: T.F.SYNC.FORM.FILE_BASED.BTN_CHANGE_PASSWORD,
+            btnType: 'default',
+            onClick: async () => {
+              const result = await openEncryptionPasswordChangeDialogForFileBased();
+              return result?.success ? true : false;
+            },
+          },
+        },
+        {
+          hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
+            field?.parent?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
+            !m.isEncryptionEnabled,
+          type: 'btn',
+          className: 'e2e-file-based-disable-encryption-btn',
+          templateOptions: {
+            text: T.F.SYNC.FORM.FILE_BASED.BTN_DISABLE_ENCRYPTION,
             btnType: 'default',
             onClick: async (field: FormlyFieldConfig) => {
               const result = await openDisableEncryptionDialogForFileBased();
-              if (result?.success && result?.encryptionRemoved) {
-                // Find and update sibling form controls to reflect the new state
-                const parentGroup = field?.parent;
-                if (parentGroup?.fieldGroup) {
-                  for (const siblingField of parentGroup.fieldGroup) {
-                    if (siblingField.key === 'isEncryptionEnabled') {
-                      // Update checkbox without triggering the valueChanges subscriber
-                      siblingField.formControl?.setValue(false, { emitEvent: false });
-                    } else if (siblingField.key === 'encryptKey') {
-                      // Clear the password field
-                      siblingField.formControl?.setValue('', { emitEvent: false });
-                    }
-                  }
-                }
-                // Also update the model directly for consistency
-                if (field?.model) {
-                  field.model.isEncryptionEnabled = false;
-                  field.model.encryptKey = '';
-                }
-                return true;
+              if (result?.success && result?.encryptionRemoved && field?.model) {
+                field.model.isEncryptionEnabled = false;
+                field.model.encryptKey = '';
               }
-              return false;
+              return result?.success ? true : false;
             },
+          },
+        },
+        {
+          hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
+            field?.parent?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
+            !m.isEncryptionEnabled ||
+            !m?.encryptKey,
+          type: 'tpl',
+          className: 'tpl',
+          templateOptions: {
+            tag: 'div',
+            text: T.F.SYNC.FORM.FILE_BASED.PASSWORD_SET_INFO,
           },
         },
       ],

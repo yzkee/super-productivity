@@ -9,6 +9,7 @@ import {
 import { EncryptionPasswordChangeService } from '../encryption-password-change.service';
 import { SnackService } from '../../../core/snack/snack.service';
 import { EncryptionDisableService } from '../encryption-disable.service';
+import { FileBasedEncryptionService } from '../file-based-encryption.service';
 
 describe('DialogChangeEncryptionPasswordComponent', () => {
   let component: DialogChangeEncryptionPasswordComponent;
@@ -17,6 +18,7 @@ describe('DialogChangeEncryptionPasswordComponent', () => {
     MatDialogRef<DialogChangeEncryptionPasswordComponent, ChangeEncryptionPasswordResult>
   >;
   let mockEncryptionPasswordChangeService: jasmine.SpyObj<EncryptionPasswordChangeService>;
+  let mockFileBasedEncryptionService: jasmine.SpyObj<FileBasedEncryptionService>;
   let mockSnackService: jasmine.SpyObj<SnackService>;
   let mockEncryptionDisableService: jasmine.SpyObj<EncryptionDisableService>;
 
@@ -26,9 +28,13 @@ describe('DialogChangeEncryptionPasswordComponent', () => {
       'EncryptionPasswordChangeService',
       ['changePassword'],
     );
+    mockFileBasedEncryptionService = jasmine.createSpyObj('FileBasedEncryptionService', [
+      'changePassword',
+    ]);
     mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
     mockEncryptionDisableService = jasmine.createSpyObj('EncryptionDisableService', [
       'disableEncryption',
+      'disableEncryptionForFileBased',
     ]);
 
     await TestBed.configureTestingModule({
@@ -42,6 +48,10 @@ describe('DialogChangeEncryptionPasswordComponent', () => {
         {
           provide: EncryptionPasswordChangeService,
           useValue: mockEncryptionPasswordChangeService,
+        },
+        {
+          provide: FileBasedEncryptionService,
+          useValue: mockFileBasedEncryptionService,
         },
         { provide: SnackService, useValue: mockSnackService },
         { provide: EncryptionDisableService, useValue: mockEncryptionDisableService },

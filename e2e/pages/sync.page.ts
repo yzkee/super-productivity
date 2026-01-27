@@ -1,4 +1,4 @@
-import { type Page, type Locator } from '@playwright/test';
+import { type Page, type Locator, expect } from '@playwright/test';
 import { BasePage } from './base.page';
 
 export class SyncPage extends BasePage {
@@ -11,9 +11,9 @@ export class SyncPage extends BasePage {
   readonly saveBtn: Locator;
   readonly syncSpinner: Locator;
   readonly syncCheckIcon: Locator;
-  readonly encryptionCheckbox: Locator;
   readonly encryptionPasswordInput: Locator;
-  readonly removeEncryptionBtn: Locator;
+  readonly enableEncryptionBtn: Locator;
+  readonly disableEncryptionBtn: Locator;
 
   constructor(page: Page) {
     super(page);
@@ -27,13 +27,15 @@ export class SyncPage extends BasePage {
     this.syncSpinner = page.locator('.sync-btn mat-icon.spin');
     this.syncCheckIcon = page.locator('.sync-btn mat-icon.sync-state-ico');
     // Encryption-related locators (Advanced settings section)
-    this.encryptionCheckbox = page.locator(
-      'formly-field-checkbox input[type="checkbox"]',
-    );
     this.encryptionPasswordInput = page.locator(
-      'formly-field-input input[type="password"]',
+      '.e2e-file-based-encrypt-key input[type="password"]',
     );
-    this.removeEncryptionBtn = page.locator('button:has-text("Remove Encryption")');
+    this.enableEncryptionBtn = page.locator(
+      '.e2e-file-based-enable-encryption-btn button',
+    );
+    this.disableEncryptionBtn = page.locator(
+      '.e2e-file-based-disable-encryption-btn button',
+    );
   }
 
   async setupWebdavSync(config: {
@@ -181,17 +183,17 @@ export class SyncPage extends BasePage {
         await this.passwordInput.fill(config.password);
         await this.syncFolderInput.fill(config.syncFolderPath);
 
-        // Configure encryption if specified
-        if (config.isEncryptionEnabled && config.encryptionPassword) {
-          await this.expandAdvancedSettings();
-          await this.enableEncryption(config.encryptionPassword);
-        }
-
         // Save the configuration
         await this.saveBtn.click();
 
         // Wait for dialog to close
+        await dialog.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
         await this.page.waitForTimeout(500);
+
+        if (config.isEncryptionEnabled && config.encryptionPassword) {
+          await this.waitForSyncReady();
+          await this.enableEncryption(config.encryptionPassword);
+        }
         return; // Success - exit the method
       }
 
@@ -278,129 +280,57 @@ export class SyncPage extends BasePage {
   }
 
   /**
-   * Enables encryption in the sync settings form.
-   * Note: Advanced settings must be expanded first.
+   * Enables encryption for file-based providers.
    */
   async enableEncryption(password: string): Promise<void> {
-    // Find the encryption checkbox by its accessible name
-    const checkbox = this.page.getByRole('checkbox', { name: /encryption/i });
-    await checkbox.waitFor({ state: 'visible', timeout: 5000 });
+    await this.syncBtn.click({ button: 'right' });
+    const dialog = this.page.locator('mat-dialog-container, .mat-mdc-dialog-container');
+    await dialog.waitFor({ state: 'visible', timeout: 5000 });
 
-    const isChecked = await checkbox.isChecked().catch(() => false);
-    if (!isChecked) {
-      await checkbox.check({ force: true });
-      // Wait for Formly to re-evaluate hideExpressions and render the password field
-      await this.page.waitForTimeout(1000);
+    await this.expandAdvancedSettings();
+
+    const isEnabled = await this.disableEncryptionBtn.isVisible().catch(() => false);
+    if (isEnabled) {
+      await this.page.keyboard.press('Escape');
+      return;
     }
 
-    // Find the encryption password field
-    // Try CSS class selector first (more reliable), then role-based as fallback
-    const passwordFieldByClass = this.page.locator('.e2e-file-based-encrypt-key input');
-    const passwordFieldByRole = this.page.getByRole('textbox', {
-      name: /Encryption Password/i,
-    });
+    await this.encryptionPasswordInput.waitFor({ state: 'visible', timeout: 5000 });
+    await this.encryptionPasswordInput.fill(password);
 
-    const classCount = await passwordFieldByClass.count();
-    const passwordField = classCount > 0 ? passwordFieldByClass : passwordFieldByRole;
+    await this.enableEncryptionBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await expect(this.enableEncryptionBtn).toBeEnabled({ timeout: 5000 });
+    await this.enableEncryptionBtn.click();
 
-    await passwordField.waitFor({ state: 'visible', timeout: 5000 });
+    const enableDialog = this.page
+      .locator('mat-dialog-container')
+      .filter({ hasText: 'Enable Encryption?' });
+    const dialogAppeared = await enableDialog
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
 
-    // WORKAROUND: Formly has a bug where setting encryptKey triggers the checkbox's
-    // disabled expression, which causes Angular to uncheck the checkbox.
-    // This hides the password field since hideExpression depends on isEncryptionEnabled.
-    //
-    // Solution: Dispatch the input event to properly update Angular's form control,
-    // then immediately override Angular's DOM mutation that unchecks the checkbox.
-    // We use MutationObserver to catch and prevent the checkbox state change.
+    if (dialogAppeared) {
+      const confirmBtn = enableDialog
+        .locator('button[mat-flat-button]')
+        .filter({ hasText: /enable encryption/i });
+      await confirmBtn.click();
+      await enableDialog.waitFor({ state: 'hidden', timeout: 60000 });
+    }
 
-    await this.page.evaluate(
-      ({ pwd }) => {
-        const encryptCheckbox = Array.from(
-          document.querySelectorAll('input[type="checkbox"]'),
-        ).find((cb) => cb.id.includes('isEncryptionEnabled')) as HTMLInputElement | null;
+    await this.page.waitForTimeout(500);
 
-        const encryptPasswordField = Array.from(
-          document.querySelectorAll('input[type="password"]'),
-        ).find((f) =>
-          (f as HTMLInputElement).id.includes('encryptKey'),
-        ) as HTMLInputElement | null;
-
-        if (!encryptCheckbox || !encryptPasswordField) {
-          throw new Error('Fields not found');
-        }
-
-        // Set up a MutationObserver to IMMEDIATELY revert any checkbox unchecking
-        let observerActive = true;
-        const observer = new MutationObserver(() => {
-          if (observerActive && !encryptCheckbox.checked) {
-            encryptCheckbox.checked = true;
-          }
-        });
-
-        observer.observe(encryptCheckbox, {
-          attributes: true,
-          attributeFilter: ['checked'],
-        });
-
-        // Also observe the checkbox's DOM property directly using a getter/setter override
-        const originalCheckedDescriptor = Object.getOwnPropertyDescriptor(
-          HTMLInputElement.prototype,
-          'checked',
-        );
-        if (originalCheckedDescriptor) {
-          Object.defineProperty(encryptCheckbox, 'checked', {
-            get: function () {
-              return originalCheckedDescriptor.get?.call(this);
-            },
-            set: function (value) {
-              // Always set to true, ignore attempts to uncheck
-              if (observerActive) {
-                originalCheckedDescriptor.set?.call(this, true);
-              } else {
-                originalCheckedDescriptor.set?.call(this, value);
-              }
-            },
-            configurable: true,
-          });
-        }
-
-        // Now set the password value and dispatch events
-        encryptPasswordField.value = pwd;
-        encryptPasswordField.dispatchEvent(
-          new InputEvent('input', { bubbles: true, data: pwd }),
-        );
-
-        // Allow 2 microtasks for Angular to process
-        return new Promise<void>((resolve) => {
-          queueMicrotask(() => {
-            queueMicrotask(() => {
-              // Disable observer and restore original descriptor
-              observerActive = false;
-              observer.disconnect();
-              if (originalCheckedDescriptor) {
-                Object.defineProperty(
-                  encryptCheckbox,
-                  'checked',
-                  originalCheckedDescriptor,
-                );
-              }
-              // Final ensure checkbox is checked
-              encryptCheckbox.checked = true;
-              resolve();
-            });
-          });
-        });
-      },
-      { pwd: password },
-    );
-    // Wait for Angular to stabilize
-    await this.page.waitForTimeout(300);
+    await this.page.keyboard.press('Escape');
+    await dialog
+      .first()
+      .waitFor({ state: 'hidden', timeout: 5000 })
+      .catch(() => {});
   }
 
   /**
    * Disables encryption for file-based providers.
    * Opens the sync settings dialog, expands advanced settings,
-   * and clicks the "Remove Encryption" button.
+   * and clicks the "Disable Encryption" button.
    */
   async disableEncryptionForFileBased(): Promise<void> {
     // Open sync settings dialog using right-click
@@ -415,10 +345,8 @@ export class SyncPage extends BasePage {
     // Expand advanced settings
     await this.expandAdvancedSettings();
 
-    // Click "Remove Encryption" button (role-based selector for reliability)
-    const removeBtn = this.page.getByRole('button', { name: /Remove Encryption/i });
-    await removeBtn.waitFor({ state: 'visible', timeout: 5000 });
-    await removeBtn.click();
+    await this.disableEncryptionBtn.waitFor({ state: 'visible', timeout: 5000 });
+    await this.disableEncryptionBtn.click();
 
     // Wait for confirmation dialog to appear (it opens on top of the settings dialog)
     // The confirmation dialog is DialogChangeEncryptionPasswordComponent in 'disable-only' mode

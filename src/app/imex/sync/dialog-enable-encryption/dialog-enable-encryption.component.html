@@ -1,5 +1,5 @@
 <h1 mat-dialog-title>
-  {{ T.F.SYNC.FORM.SUPER_SYNC.ENABLE_ENCRYPTION_TITLE | translate }}
+  {{ textKeys.ENABLE_ENCRYPTION_TITLE | translate }}
 </h1>
 
 @if (!canProceed()) {
@@ -25,21 +25,21 @@
   <mat-dialog-content>
     <div class="warning-box">
       <mat-icon aria-hidden="true">warning</mat-icon>
-      <p>{{ T.F.SYNC.FORM.SUPER_SYNC.ENABLE_ENCRYPTION_WARNING | translate }}</p>
+      <p>{{ textKeys.ENABLE_ENCRYPTION_WARNING | translate }}</p>
     </div>
 
     <div class="info-section">
-      <h3>{{ T.F.SYNC.FORM.SUPER_SYNC.ENABLE_ENCRYPTION_WHAT_HAPPENS | translate }}</h3>
+      <h3>{{ textKeys.ENABLE_ENCRYPTION_WHAT_HAPPENS | translate }}</h3>
       <ul>
-        <li>{{ T.F.SYNC.FORM.SUPER_SYNC.ENABLE_ENCRYPTION_ITEM_1 | translate }}</li>
-        <li>{{ T.F.SYNC.FORM.SUPER_SYNC.ENABLE_ENCRYPTION_ITEM_2 | translate }}</li>
-        <li>{{ T.F.SYNC.FORM.SUPER_SYNC.ENABLE_ENCRYPTION_ITEM_3 | translate }}</li>
+        <li>{{ textKeys.ENABLE_ENCRYPTION_ITEM_1 | translate }}</li>
+        <li>{{ textKeys.ENABLE_ENCRYPTION_ITEM_2 | translate }}</li>
+        <li>{{ textKeys.ENABLE_ENCRYPTION_ITEM_3 | translate }}</li>
       </ul>
     </div>
 
     <p class="note">
       <mat-icon aria-hidden="true">info</mat-icon>
-      <span>{{ T.F.SYNC.FORM.SUPER_SYNC.ENABLE_ENCRYPTION_NOTE | translate }}</span>
+      <span>{{ textKeys.ENABLE_ENCRYPTION_NOTE | translate }}</span>
     </p>
   </mat-dialog-content>
 
@@ -67,7 +67,7 @@
       } @else {
         <ng-container>
           <mat-icon aria-hidden="true">lock</mat-icon>
-          {{ T.F.SYNC.FORM.SUPER_SYNC.BTN_ENABLE_ENCRYPTION | translate }}
+          {{ textKeys.BTN_ENABLE_ENCRYPTION | translate }}
         </ng-container>
       }
     </button>
