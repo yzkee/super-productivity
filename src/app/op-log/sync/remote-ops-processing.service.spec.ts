@@ -607,7 +607,9 @@ describe('RemoteOpsProcessingService', () => {
       expect(service.detectConflicts).not.toHaveBeenCalled();
     });
 
-    it('should call setProtectedClientIds when SYNC_IMPORT is applied', async () => {
+    it('should call setProtectedClientIds with ALL vectorClock keys when SYNC_IMPORT is applied', async () => {
+      // The import's vectorClock contains ALL clients known at import time
+      // ALL of these must be protected from pruning, not just the clientId
       const syncImportOp: Operation = {
         id: 'sync-import-1',
         opType: OpType.SyncImport,
@@ -615,7 +617,7 @@ describe('RemoteOpsProcessingService', () => {
         entityType: 'ALL',
         payload: {},
         clientId: 'importClientId',
-        vectorClock: { importClientId: 1 },
+        vectorClock: { importClientId: 1, otherClient: 5, thirdClient: 3 },
         timestamp: Date.now(),
         schemaVersion: 1,
       };
@@ -628,12 +630,19 @@ describe('RemoteOpsProcessingService', () => {
 
       await service.processRemoteOps([syncImportOp]);
 
-      expect(opLogStoreSpy.setProtectedClientIds).toHaveBeenCalledWith([
-        'importClientId',
-      ]);
+      // All keys from vectorClock must be protected, not just the clientId
+      expect(opLogStoreSpy.setProtectedClientIds).toHaveBeenCalledWith(
+        jasmine.arrayContaining(['importClientId', 'otherClient', 'thirdClient']),
+      );
+      // Verify we got exactly 3 keys
+      const calledWith = opLogStoreSpy.setProtectedClientIds.calls.mostRecent()
+        .args[0] as string[];
+      expect(calledWith.length).toBe(3);
     });
 
-    it('should call setProtectedClientIds when BACKUP_IMPORT is applied', async () => {
+    it('should call setProtectedClientIds with ALL vectorClock keys when BACKUP_IMPORT is applied', async () => {
+      // Same as SYNC_IMPORT: backup's vectorClock contains all known clients
+      // and all must be protected from pruning
       const backupImportOp: Operation = {
         id: 'backup-import-1',
         opType: OpType.BackupImport,
@@ -641,7 +650,7 @@ describe('RemoteOpsProcessingService', () => {
         entityType: 'ALL',
         payload: {},
         clientId: 'backupClientId',
-        vectorClock: { backupClientId: 1 },
+        vectorClock: { backupClientId: 1, deviceA: 10, deviceB: 7 },
         timestamp: Date.now(),
         schemaVersion: 1,
       };
@@ -654,9 +663,14 @@ describe('RemoteOpsProcessingService', () => {
 
       await service.processRemoteOps([backupImportOp]);
 
-      expect(opLogStoreSpy.setProtectedClientIds).toHaveBeenCalledWith([
-        'backupClientId',
-      ]);
+      // All keys from vectorClock must be protected
+      expect(opLogStoreSpy.setProtectedClientIds).toHaveBeenCalledWith(
+        jasmine.arrayContaining(['backupClientId', 'deviceA', 'deviceB']),
+      );
+      // Verify we got exactly 3 keys
+      const calledWith = opLogStoreSpy.setProtectedClientIds.calls.mostRecent()
+        .args[0] as string[];
+      expect(calledWith.length).toBe(3);
     });
 
     it('should NOT call setProtectedClientIds when no full-state op is applied', async () => {
