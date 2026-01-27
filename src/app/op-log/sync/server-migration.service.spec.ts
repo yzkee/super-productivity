@@ -613,8 +613,8 @@ describe('ServerMigrationService', () => {
       // The protected IDs should include ALL keys from the SYNC_IMPORT's vector clock:
       // merged clock = { test-client: 5, client-A: 1, client-B: 50, client-C: 100 }
       // then incremented = { test-client: 6, client-A: 1, client-B: 50, client-C: 100 }
-      const protectedIds =
-        opLogStoreSpy.setProtectedClientIds.calls.mostRecent().args[0] as string[];
+      const protectedIds = opLogStoreSpy.setProtectedClientIds.calls.mostRecent()
+        .args[0] as string[];
       expect(protectedIds).toContain('test-client');
       expect(protectedIds).toContain('client-A');
       expect(protectedIds).toContain('client-B');

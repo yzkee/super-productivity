@@ -1301,7 +1301,6 @@ describe('SyncImportFilterService', () => {
         const syncImportClock = {
           // eslint-disable-next-line @typescript-eslint/naming-convention
           A_3Xx3: 5,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           A_AMT3: 81,
           // eslint-disable-next-line @typescript-eslint/naming-convention
           A_EemJ: 1,
@@ -1336,7 +1335,6 @@ describe('SyncImportFilterService', () => {
             // All entries from import are preserved
             // eslint-disable-next-line @typescript-eslint/naming-convention
             A_3Xx3: 5,
-            // eslint-disable-next-line @typescript-eslint/naming-convention
             A_AMT3: 81,
             // eslint-disable-next-line @typescript-eslint/naming-convention
             A_EemJ: 1,
@@ -1368,7 +1366,6 @@ describe('SyncImportFilterService', () => {
         const syncImportClock = {
           // eslint-disable-next-line @typescript-eslint/naming-convention
           A_3Xx3: 5,
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           A_AMT3: 81,
           // eslint-disable-next-line @typescript-eslint/naming-convention
           A_EemJ: 1,
@@ -1403,7 +1400,6 @@ describe('SyncImportFilterService', () => {
           vectorClock: {
             // Only kept the highest counter entries (pruned to ~8 entries)
             // Missing: A_3Xx3, A_EemJ, A_wU5p, A_ypDK, B_bC8O (all with low counters)
-            // eslint-disable-next-line @typescript-eslint/naming-convention
             A_AMT3: 81,
             // eslint-disable-next-line @typescript-eslint/naming-convention
             A_Jxm0: 36, // Incremented from 35

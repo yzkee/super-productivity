@@ -5,7 +5,7 @@ import { VectorClockService } from '../sync/vector-clock.service';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { ClientIdService } from '../../core/util/client-id.service';
 import { PreMigrationBackupService } from './pre-migration-backup.service';
-import { OpType, Operation } from '../core/operation.types';
+import { Operation, OpType } from '../core/operation.types';
 import { ActionType } from '../core/action-types.enum';
 import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 
@@ -66,7 +66,7 @@ describe('CleanSlateService', () => {
     // Setup default mock responses
     mockStateSnapshotService.getStateSnapshotAsync.and.resolveTo(mockState as any);
     mockVectorClockService.getCurrentVectorClock.and.resolveTo(mockVectorClock);
-    mockClientIdService.generateNewClientId.and.resolveTo('E_newC');
+    mockClientIdService.generateNewClientId.and.resolveTo('eNewC');
     mockPreMigrationBackupService.createPreMigrationBackup.and.resolveTo();
     mockOpLogStore.clearAllOperations.and.resolveTo();
     mockOpLogStore.append.and.resolveTo(1);
@@ -100,21 +100,18 @@ describe('CleanSlateService', () => {
       expect(appendedOp.opType).toBe(OpType.SyncImport);
       expect(appendedOp.entityType).toBe('ALL');
       expect(appendedOp.payload).toBe(mockState);
-      expect(appendedOp.clientId).toBe('E_newC');
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      expect(appendedOp.vectorClock).toEqual({ E_newC: 1 });
+      expect(appendedOp.clientId).toBe('eNewC');
+      expect(appendedOp.vectorClock).toEqual({ eNewC: 1 });
       expect(appendedOp.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
 
       // Should update vector clock
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      expect(mockOpLogStore.setVectorClock).toHaveBeenCalledWith({ E_newC: 1 });
+      expect(mockOpLogStore.setVectorClock).toHaveBeenCalledWith({ eNewC: 1 });
 
       // Should save snapshot
       expect(mockOpLogStore.saveStateCache).toHaveBeenCalledWith({
         state: mockState,
         lastAppliedOpSeq: 0,
-        // eslint-disable-next-line @typescript-eslint/naming-convention
-        vectorClock: { E_newC: 1 },
+        vectorClock: { eNewC: 1 },
         compactedAt: jasmine.any(Number),
         schemaVersion: CURRENT_SCHEMA_VERSION,
       });
@@ -153,8 +150,7 @@ describe('CleanSlateService', () => {
       await service.createCleanSlate('ENCRYPTION_CHANGE');
 
       const appendedOp = mockOpLogStore.append.calls.mostRecent().args[0] as Operation;
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      expect(appendedOp.vectorClock).toEqual({ E_newC: 1 });
+      expect(appendedOp.vectorClock).toEqual({ eNewC: 1 });
     });
 
     it('should create operation with valid UUIDv7', async () => {
@@ -264,8 +260,8 @@ describe('CleanSlateService', () => {
 
       // The protected IDs should include ALL keys from the SYNC_IMPORT's vector clock
       // The new clock will be: { ...multiClientClock, E_newC: increment }
-      const protectedIds =
-        mockOpLogStore.setProtectedClientIds.calls.mostRecent().args[0] as string[];
+      const protectedIds = mockOpLogStore.setProtectedClientIds.calls.mostRecent()
+        .args[0] as string[];
 
       // Should contain the new client ID
       expect(protectedIds).toContain('E_newC');

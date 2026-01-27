@@ -10,7 +10,7 @@ import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
-import { Operation, OpType, ActionType } from '../core/operation.types';
+import { ActionType, Operation, OpType } from '../core/operation.types';
 import { uuidv7 } from '../../util/uuid-v7';
 import { OpLog } from '../../core/log';
 import { SYSTEM_TAG_IDS } from '../../features/tag/tag.const';
