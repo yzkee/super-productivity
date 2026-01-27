@@ -14,9 +14,7 @@ const KEY_LENGTH = 32;
 // - Android Capacitor: serves from http://localhost (not https)
 // - iOS Capacitor: capacitor:// scheme may not be recognized as secure
 //
-// When WebCrypto is unavailable, encryption operations will fail.
-// Call isCryptoSubtleAvailable() before attempting encryption to show
-// a clear error message to the user.
+// When WebCrypto is unavailable, we fall back to @noble/ciphers for AES-GCM.
 // ============================================================================
 
 /**
@@ -31,19 +29,130 @@ export const isCryptoSubtleAvailable = (): boolean => {
   );
 };
 
+// ============================================================================
+// CRYPTO STRATEGY PATTERN
+// ============================================================================
+// Abstracts the difference between WebCrypto and @noble/ciphers implementations.
+// This reduces code duplication and makes the codebase easier to maintain.
+
 /**
- * Holds a derived key along with its salt for reuse across operations.
- * Used to avoid expensive Argon2id key derivation for each operation.
- *
- * - When WebCrypto is available: `key` is a CryptoKey
- * - When WebCrypto is unavailable (mobile): `keyBytes` contains raw key bytes
- *   for use with @noble/ciphers fallback
+ * Discriminated union for derived key info.
+ * Type-safe: exactly one of the key types is present based on the 'type' discriminator.
  */
-export interface DerivedKeyInfo {
-  key?: CryptoKey;
-  keyBytes?: Uint8Array;
-  salt: Uint8Array;
+export type DerivedKeyInfo =
+  | { type: 'webcrypto'; key: CryptoKey; salt: Uint8Array }
+  | { type: 'fallback'; keyBytes: Uint8Array; salt: Uint8Array };
+
+/**
+ * Strategy interface for cryptographic operations.
+ * Implemented by WebCrypto and @noble/ciphers backends.
+ */
+interface CryptoStrategy {
+  encrypt(key: DerivedKeyInfo, iv: Uint8Array, data: Uint8Array): Promise<Uint8Array>;
+  decrypt(key: DerivedKeyInfo, iv: Uint8Array, data: Uint8Array): Promise<Uint8Array>;
+  deriveKey(password: string, salt: Uint8Array): Promise<DerivedKeyInfo>;
 }
+
+/**
+ * Derives raw key bytes using Argon2id.
+ * Used by both WebCrypto and @noble/ciphers strategies.
+ */
+const deriveKeyBytesArgon = async (
+  password: string,
+  salt: Uint8Array,
+): Promise<Uint8Array> => {
+  return await argon2id({
+    password: password,
+    salt: salt,
+    hashLength: KEY_LENGTH,
+    parallelism: 1,
+    iterations: 3,
+    memorySize: 65536, // 64 MB
+    outputType: 'binary',
+  });
+};
+
+/**
+ * WebCrypto strategy implementation.
+ * Uses native browser crypto APIs for best performance.
+ */
+const webCryptoStrategy: CryptoStrategy = {
+  encrypt: async (keyInfo, iv, data) => {
+    if (keyInfo.type !== 'webcrypto') {
+      throw new Error('WebCrypto strategy requires webcrypto key type');
+    }
+    const encrypted = await window.crypto.subtle.encrypt(
+      { name: ALGORITHM, iv: iv as Uint8Array<ArrayBuffer> },
+      keyInfo.key,
+      data as Uint8Array<ArrayBuffer>,
+    );
+    return new Uint8Array(encrypted);
+  },
+
+  decrypt: async (keyInfo, iv, data) => {
+    if (keyInfo.type !== 'webcrypto') {
+      throw new Error('WebCrypto strategy requires webcrypto key type');
+    }
+    const decrypted = await window.crypto.subtle.decrypt(
+      { name: ALGORITHM, iv: iv as Uint8Array<ArrayBuffer> },
+      keyInfo.key,
+      data as Uint8Array<ArrayBuffer>,
+    );
+    return new Uint8Array(decrypted);
+  },
+
+  deriveKey: async (password, salt) => {
+    const derivedBytes = await deriveKeyBytesArgon(password, salt);
+    const key = await window.crypto.subtle.importKey(
+      'raw',
+      derivedBytes.buffer as ArrayBuffer,
+      { name: ALGORITHM },
+      false,
+      ['encrypt', 'decrypt'],
+    );
+    return { type: 'webcrypto', key, salt };
+  },
+};
+
+/**
+ * @noble/ciphers fallback strategy implementation.
+ * Used when WebCrypto is unavailable (Android/iOS Capacitor).
+ *
+ * PERFORMANCE NOTE: For better mobile performance (~3-4x faster), consider
+ * implementing a native Capacitor plugin that uses platform crypto APIs
+ * (Android: javax.crypto.Cipher, iOS: CryptoKit).
+ * Current @noble/ciphers implementation is ~80ms for 500KB vs ~25ms native.
+ */
+const fallbackStrategy: CryptoStrategy = {
+  encrypt: async (keyInfo, iv, data) => {
+    if (keyInfo.type !== 'fallback') {
+      throw new Error('Fallback strategy requires fallback key type');
+    }
+    const aes = gcm(keyInfo.keyBytes, iv);
+    return aes.encrypt(data);
+  },
+
+  decrypt: async (keyInfo, iv, data) => {
+    if (keyInfo.type !== 'fallback') {
+      throw new Error('Fallback strategy requires fallback key type');
+    }
+    const aes = gcm(keyInfo.keyBytes, iv);
+    return aes.decrypt(data);
+  },
+
+  deriveKey: async (password, salt) => {
+    const keyBytes = await deriveKeyBytesArgon(password, salt);
+    return { type: 'fallback', keyBytes, salt };
+  },
+};
+
+/**
+ * Returns the appropriate crypto strategy based on environment.
+ * Exported for testing purposes.
+ */
+export const getCryptoStrategy = (): CryptoStrategy => {
+  return isCryptoSubtleAvailable() ? webCryptoStrategy : fallbackStrategy;
+};
 
 // ============================================================================
 // SESSION-LEVEL KEY CACHING
@@ -108,6 +217,10 @@ export const getSessionKeyCacheStats = (): {
   decryptKeyCount: sessionDecryptKeyCache.size,
 });
 
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
 export const base642ab = (base64: string): ArrayBuffer => {
   const binary_string = window.atob(base64);
   const len = binary_string.length;
@@ -123,6 +236,14 @@ export const ab2base64 = (buffer: ArrayBuffer): string => {
     .call(new Uint8Array(buffer), (byte: number) => String.fromCharCode(byte))
     .join('');
   return window.btoa(binary);
+};
+
+/**
+ * Generates cryptographically secure random bytes.
+ * Uses crypto.getRandomValues which is available even without crypto.subtle.
+ */
+const getRandomBytes = (length: number): Uint8Array<ArrayBuffer> => {
+  return window.crypto.getRandomValues(new Uint8Array(length));
 };
 
 // Minimum sizes for format detection
@@ -146,10 +267,13 @@ const detectFormat = (dataBuffer: ArrayBuffer): 'argon2' | 'legacy' | 'invalid' 
   return 'invalid';
 };
 
-// LEGACY FUNCTIONS
+// ============================================================================
+// LEGACY FUNCTIONS (PBKDF2)
+// ============================================================================
 // PBKDF2 functions are only kept for backward compatibility.
 // SECURITY NOTE: PBKDF2 with password-as-salt is cryptographically weak.
 // Use decryptWithMigration() to automatically re-encrypt legacy data with Argon2id.
+
 const _generateKey = async (password: string): Promise<CryptoKey> => {
   const enc = new TextEncoder();
   const passwordBuffer = enc.encode(password);
@@ -211,131 +335,33 @@ async function decryptLegacy(data: string, password: string): Promise<string> {
   return dec.decode(decryptedContent);
 }
 
-/**
- * Derives raw key bytes using Argon2id.
- * Used for both WebCrypto and @noble/ciphers paths.
- */
-const _deriveKeyBytesArgon = async (
-  password: string,
-  salt: Uint8Array,
-): Promise<Uint8Array> => {
-  const derivedBytes = await argon2id({
-    password: password,
-    salt: salt,
-    hashLength: KEY_LENGTH,
-    parallelism: 1,
-    iterations: 3,
-    memorySize: 65536, // 64 MB
-    outputType: 'binary',
-  });
-  return derivedBytes;
-};
-
-/**
- * Derives a CryptoKey from password using Argon2id.
- * Requires WebCrypto to be available.
- */
-const _deriveKeyArgon = async (
-  password: string,
-  salt: Uint8Array,
-): Promise<CryptoKey> => {
-  const derivedBytes = await _deriveKeyBytesArgon(password, salt);
-
-  return window.crypto.subtle.importKey(
-    'raw',
-    derivedBytes.buffer as ArrayBuffer,
-    { name: ALGORITHM },
-    false,
-    ['encrypt', 'decrypt'],
-  );
-};
-
 // ============================================================================
-// @noble/ciphers FALLBACK FUNCTIONS
+// MAIN ENCRYPTION/DECRYPTION FUNCTIONS
 // ============================================================================
-// Used when WebCrypto (crypto.subtle) is unavailable (Android/iOS Capacitor).
-// PERFORMANCE NOTE: For better mobile performance (~3-4x faster), consider
-// implementing a native Capacitor plugin that uses platform crypto APIs
-// (Android: javax.crypto.Cipher, iOS: CryptoKit).
-// Current @noble/ciphers implementation is ~80ms for 500KB vs ~25ms native.
-// See: https://github.com/nicoo/capacitor-native-crypto (reference)
-
-/**
- * Encrypts data using @noble/ciphers AES-GCM (fallback for mobile).
- */
-const fallbackEncryptAesGcm = (
-  keyBytes: Uint8Array,
-  iv: Uint8Array,
-  plaintext: Uint8Array,
-): Uint8Array => {
-  const aes = gcm(keyBytes, iv);
-  return aes.encrypt(plaintext);
-};
-
-/**
- * Decrypts data using @noble/ciphers AES-GCM (fallback for mobile).
- */
-const fallbackDecryptAesGcm = (
-  keyBytes: Uint8Array,
-  iv: Uint8Array,
-  ciphertext: Uint8Array,
-): Uint8Array => {
-  const aes = gcm(keyBytes, iv);
-  return aes.decrypt(ciphertext);
-};
-
-/**
- * Generates cryptographically secure random bytes.
- * Uses crypto.getRandomValues which is available even without crypto.subtle.
- */
-const getRandomBytes = (length: number): Uint8Array<ArrayBuffer> => {
-  return window.crypto.getRandomValues(new Uint8Array(length));
-};
 
 const decryptArgon = async (data: string, password: string): Promise<string> => {
+  const strategy = getCryptoStrategy();
   const dataBuffer = base642ab(data);
   const salt = new Uint8Array(dataBuffer, 0, SALT_LENGTH);
   const iv = new Uint8Array(dataBuffer, SALT_LENGTH, IV_LENGTH);
   const encryptedData = new Uint8Array(dataBuffer, SALT_LENGTH + IV_LENGTH);
 
-  if (isCryptoSubtleAvailable()) {
-    const key = await _deriveKeyArgon(password, salt);
-    const decryptedContent = await window.crypto.subtle.decrypt(
-      { name: ALGORITHM, iv: iv },
-      key,
-      encryptedData,
-    );
-    const dec = new TextDecoder();
-    return dec.decode(decryptedContent);
-  } else {
-    // Fallback to @noble/ciphers
-    const keyBytes = await _deriveKeyBytesArgon(password, salt);
-    const decryptedContent = fallbackDecryptAesGcm(keyBytes, iv, encryptedData);
-    const dec = new TextDecoder();
-    return dec.decode(decryptedContent);
-  }
+  const keyInfo = await strategy.deriveKey(password, salt);
+  const decryptedContent = await strategy.decrypt(keyInfo, iv, encryptedData);
+
+  const dec = new TextDecoder();
+  return dec.decode(decryptedContent);
 };
 
 export const encrypt = async (data: string, password: string): Promise<string> => {
+  const strategy = getCryptoStrategy();
   const enc = new TextEncoder();
   const dataBuffer = enc.encode(data);
   const salt = getRandomBytes(SALT_LENGTH);
   const iv = getRandomBytes(IV_LENGTH);
 
-  let encryptedContent: Uint8Array;
-  if (isCryptoSubtleAvailable()) {
-    const key = await _deriveKeyArgon(password, salt);
-    const encrypted = await window.crypto.subtle.encrypt(
-      { name: ALGORITHM, iv: iv },
-      key,
-      dataBuffer,
-    );
-    encryptedContent = new Uint8Array(encrypted);
-  } else {
-    // Fallback to @noble/ciphers
-    const keyBytes = await _deriveKeyBytesArgon(password, salt);
-    encryptedContent = fallbackEncryptAesGcm(keyBytes, iv, dataBuffer);
-  }
+  const keyInfo = await strategy.deriveKey(password, salt);
+  const encryptedContent = await strategy.encrypt(keyInfo, iv, dataBuffer);
 
   const buffer = new Uint8Array(SALT_LENGTH + IV_LENGTH + encryptedContent.byteLength);
   buffer.set(salt, 0);
@@ -408,8 +434,8 @@ export const decryptWithMigration = async (
  * Derives a key from password using Argon2id.
  * Returns the key (CryptoKey or raw bytes) and salt for reuse across multiple encrypt operations.
  *
- * - When WebCrypto is available: returns `key` as CryptoKey
- * - When WebCrypto is unavailable (mobile): returns `keyBytes` as raw Uint8Array
+ * - When WebCrypto is available: returns webcrypto type with CryptoKey
+ * - When WebCrypto is unavailable (mobile): returns fallback type with raw Uint8Array
  *
  * @param password The encryption password
  * @param salt Optional salt; if not provided, generates a random 16-byte salt
@@ -418,16 +444,9 @@ export const deriveKeyFromPassword = async (
   password: string,
   salt?: Uint8Array,
 ): Promise<DerivedKeyInfo> => {
+  const strategy = getCryptoStrategy();
   const actualSalt = salt ?? getRandomBytes(SALT_LENGTH);
-
-  if (isCryptoSubtleAvailable()) {
-    const key = await _deriveKeyArgon(password, actualSalt);
-    return { key, salt: actualSalt };
-  } else {
-    // Fallback: derive raw key bytes for use with @noble/ciphers
-    const keyBytes = await _deriveKeyBytesArgon(password, actualSalt);
-    return { keyBytes, salt: actualSalt };
-  }
+  return strategy.deriveKey(password, actualSalt);
 };
 
 /**
@@ -435,32 +454,19 @@ export const deriveKeyFromPassword = async (
  * encrypting multiple items since Argon2id key derivation is skipped.
  *
  * @param data Plaintext string to encrypt
- * @param keyInfo Pre-derived key with its salt (CryptoKey or raw bytes)
+ * @param keyInfo Pre-derived key with its salt
  * @returns Base64-encoded ciphertext with embedded salt and IV
  */
 export const encryptWithDerivedKey = async (
   data: string,
   keyInfo: DerivedKeyInfo,
 ): Promise<string> => {
+  const strategy = keyInfo.type === 'webcrypto' ? webCryptoStrategy : fallbackStrategy;
   const enc = new TextEncoder();
   const dataBuffer = enc.encode(data);
   const iv = getRandomBytes(IV_LENGTH);
 
-  let encryptedContent: Uint8Array;
-  if (keyInfo.key) {
-    // WebCrypto path
-    const encrypted = await window.crypto.subtle.encrypt(
-      { name: ALGORITHM, iv: iv },
-      keyInfo.key,
-      dataBuffer,
-    );
-    encryptedContent = new Uint8Array(encrypted);
-  } else if (keyInfo.keyBytes) {
-    // @noble/ciphers fallback
-    encryptedContent = fallbackEncryptAesGcm(keyInfo.keyBytes, iv, dataBuffer);
-  } else {
-    throw new Error('DerivedKeyInfo must have either key or keyBytes');
-  }
+  const encryptedContent = await strategy.encrypt(keyInfo, iv, dataBuffer);
 
   // Same format as encrypt(): [SALT (16 bytes)][IV (12 bytes)][ENCRYPTED_DATA]
   const buffer = new Uint8Array(SALT_LENGTH + IV_LENGTH + encryptedContent.byteLength);
@@ -519,33 +525,20 @@ export const encryptBatch = async (
  * and matches the keyInfo's salt.
  *
  * @param data Base64-encoded ciphertext
- * @param keyInfo Pre-derived key that matches the ciphertext's salt (CryptoKey or raw bytes)
+ * @param keyInfo Pre-derived key that matches the ciphertext's salt
  * @returns Decrypted plaintext string
  */
 export const decryptWithDerivedKey = async (
   data: string,
   keyInfo: DerivedKeyInfo,
 ): Promise<string> => {
+  const strategy = keyInfo.type === 'webcrypto' ? webCryptoStrategy : fallbackStrategy;
   const dataBuffer = base642ab(data);
   // Skip salt (first 16 bytes) since we already have the key
   const iv = new Uint8Array(dataBuffer, SALT_LENGTH, IV_LENGTH);
   const encryptedData = new Uint8Array(dataBuffer, SALT_LENGTH + IV_LENGTH);
 
-  let decryptedContent: Uint8Array;
-  if (keyInfo.key) {
-    // WebCrypto path
-    const decrypted = await window.crypto.subtle.decrypt(
-      { name: ALGORITHM, iv: iv },
-      keyInfo.key,
-      encryptedData,
-    );
-    decryptedContent = new Uint8Array(decrypted);
-  } else if (keyInfo.keyBytes) {
-    // @noble/ciphers fallback
-    decryptedContent = fallbackDecryptAesGcm(keyInfo.keyBytes, iv, encryptedData);
-  } else {
-    throw new Error('DerivedKeyInfo must have either key or keyBytes');
-  }
+  const decryptedContent = await strategy.decrypt(keyInfo, iv, encryptedData);
 
   const dec = new TextDecoder();
   return dec.decode(decryptedContent);
