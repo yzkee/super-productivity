@@ -292,6 +292,7 @@ export interface OperationSyncCapable {
     isPayloadEncrypted: boolean | undefined,
     opId: string,
     isCleanSlate?: boolean,
+    snapshotOpType?: RestorePointType,
   ): Promise<SnapshotUploadResponse>;
 
   /**

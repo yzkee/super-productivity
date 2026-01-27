@@ -1024,38 +1024,50 @@ describe('OperationLogHydratorService', () => {
         );
       });
 
-      it('should NOT migrate when protectedClientIds already set', async () => {
+      it('should NOT migrate when protectedClientIds already contains all vectorClock keys', async () => {
         const snapshot = createMockSnapshot();
+        const syncImportOp = createMockOperation('existing-import', OpType.SyncImport, {
+          clientId: 'existing_protected_client',
+          entityType: 'ALL',
+          payload: { appDataComplete: { task: {}, project: {} } },
+          vectorClock: { existing_protected_client: 1, other_protected_client: 5 },
+        });
         mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(snapshot));
         mockOpLogStore.getOpsAfterSeq.and.returnValue(Promise.resolve([]));
-        // Simulate: protectedClientIds is already set (new data, fix already applied)
+        // Simulate: protectedClientIds already has ALL required keys
         mockOpLogStore.getProtectedClientIds.and.returnValue(
-          Promise.resolve(['existing-protected-client']),
+          Promise.resolve(['existing_protected_client', 'other_protected_client']),
+        );
+        mockOpLogStore.getLatestFullStateOp.and.returnValue(
+          Promise.resolve(syncImportOp),
         );
 
         await service.hydrateStore();
 
-        // Migration should NOT call getLatestFullStateOp since IDs are already set
+        // Migration should check both but NOT call setProtectedClientIds since all keys are present
+        expect(mockOpLogStore.getLatestFullStateOp).toHaveBeenCalled();
         expect(mockOpLogStore.getProtectedClientIds).toHaveBeenCalled();
-        expect(mockOpLogStore.getLatestFullStateOp).not.toHaveBeenCalled();
+        // setProtectedClientIds should NOT be called since all required IDs are already protected
+        expect(mockOpLogStore.setProtectedClientIds).not.toHaveBeenCalled();
       });
 
       it('should NOT migrate when no full-state op exists in ops log', async () => {
         const snapshot = createMockSnapshot();
         mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(snapshot));
         mockOpLogStore.getOpsAfterSeq.and.returnValue(Promise.resolve([]));
-        // Simulate: no protectedClientIds
-        mockOpLogStore.getProtectedClientIds.and.returnValue(Promise.resolve([]));
-        // Simulate: no full-state op in the log
+        // Simulate: no full-state op in the log (checked first)
         mockOpLogStore.getLatestFullStateOp.and.returnValue(Promise.resolve(undefined));
+        // protectedClientIds won't be checked since there's no full-state op
+        mockOpLogStore.getProtectedClientIds.and.returnValue(Promise.resolve([]));
 
         await service.hydrateStore();
 
-        // Migration should check but not set anything
-        expect(mockOpLogStore.getProtectedClientIds).toHaveBeenCalled();
+        // Migration should check for full-state op first, then bail out since there's none
         expect(mockOpLogStore.getLatestFullStateOp).toHaveBeenCalled();
+        // getProtectedClientIds should NOT be called since we bail out early when no full-state op
+        expect(mockOpLogStore.getProtectedClientIds).not.toHaveBeenCalled();
         // No setProtectedClientIds call should be made from migration
-        // (only 0 calls from migration, may have calls from other paths)
+        expect(mockOpLogStore.setProtectedClientIds).not.toHaveBeenCalled();
       });
 
       it('should run migration in no-snapshot path too', async () => {
