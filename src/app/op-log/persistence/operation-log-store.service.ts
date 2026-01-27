@@ -24,6 +24,7 @@ import {
   OPS_INDEXES,
 } from './db-keys.const';
 import { runDbUpgrade } from './db-upgrade';
+import { Log } from '../../core/log';
 
 /**
  * Vector clock entry stored in the vector_clock object store.
@@ -274,6 +275,12 @@ export class OperationLogStoreService {
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {
         throw new StorageQuotaExceededError();
       }
+      // ConstraintError: duplicate operation ID - see issue #6213
+      if (e instanceof DOMException && e.name === 'ConstraintError') {
+        throw new Error(
+          '[OpLogStore] Duplicate operation detected (likely race condition). See #6213.',
+        );
+      }
       throw e;
     }
   }
@@ -320,7 +327,7 @@ export class OperationLogStoreService {
     } catch (e) {
       // Fallback for databases created before version 3 index migration
       // This handles the case where the bySourceAndStatus index doesn't exist
-      console.warn(
+      Log.warn(
         'OperationLogStoreService: bySourceAndStatus index not found, using fallback scan',
       );
       const allOps = await this.db.getAll(STORE_NAMES.OPS);
@@ -707,7 +714,7 @@ export class OperationLogStoreService {
       );
     } catch (e) {
       // Fallback for databases created before version 3 index migration
-      console.warn(
+      Log.warn(
         'OperationLogStoreService: bySourceAndStatus index not found, using fallback scan',
       );
       const allOps = await this.db.getAll(STORE_NAMES.OPS);

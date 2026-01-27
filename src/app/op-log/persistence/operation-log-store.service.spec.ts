@@ -724,6 +724,23 @@ describe('OperationLogStoreService', () => {
 
       expect(seqs).toEqual([]);
     });
+
+    it('should throw on duplicate operation IDs', async () => {
+      const ops = [createTestOperation(), createTestOperation()];
+
+      // Insert first time - should succeed
+      const seqs1 = await service.appendBatch(ops, 'remote');
+      expect(seqs1.length).toBe(2);
+
+      // Insert same ops again - should throw
+      await expectAsync(service.appendBatch(ops, 'remote')).toBeRejectedWithError(
+        /Duplicate operation detected/,
+      );
+
+      // Original ops should still be in store
+      const allOps = await service.getOpsAfterSeq(0);
+      expect(allOps.length).toBe(2);
+    });
   });
 
   describe('getOpById', () => {
