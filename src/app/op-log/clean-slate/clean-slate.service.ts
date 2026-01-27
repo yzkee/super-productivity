@@ -206,6 +206,17 @@ export class CleanSlateService {
     // 7. Update vector clock
     await this.opLogStore.setVectorClock(newClock);
 
+    // 7b. CRITICAL: Set protected client IDs to include ALL vector clock keys from the SYNC_IMPORT.
+    // This ensures all client IDs from the import aren't pruned from future vector clocks.
+    // Without this, when new ops are created, limitVectorClockSize() would prune low-counter
+    // entries, causing those ops to appear CONCURRENT with the import instead of GREATER_THAN.
+    // See ServerMigrationService.handleServerMigration for detailed explanation.
+    const protectedIds = Object.keys(newClock);
+    await this.opLogStore.setProtectedClientIds(protectedIds);
+    OpLog.normal(
+      `[CleanSlate] Set protected client IDs from SYNC_IMPORT: [${protectedIds.join(', ')}]`,
+    );
+
     // 8. Save snapshot
     await this.opLogStore.saveStateCache({
       state: importedState,

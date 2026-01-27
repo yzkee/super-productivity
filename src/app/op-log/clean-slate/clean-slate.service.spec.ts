@@ -38,6 +38,7 @@ describe('CleanSlateService', () => {
       'append',
       'setVectorClock',
       'saveStateCache',
+      'setProtectedClientIds',
     ]);
     mockClientIdService = jasmine.createSpyObj('ClientIdService', [
       'generateNewClientId',
@@ -71,6 +72,7 @@ describe('CleanSlateService', () => {
     mockOpLogStore.append.and.resolveTo(1);
     mockOpLogStore.setVectorClock.and.resolveTo();
     mockOpLogStore.saveStateCache.and.resolveTo();
+    mockOpLogStore.setProtectedClientIds.and.resolveTo();
   });
 
   describe('createCleanSlate', () => {
@@ -239,6 +241,54 @@ describe('CleanSlateService', () => {
           lastAppliedOpSeq: 0,
         }),
       );
+    });
+
+    it('should call setProtectedClientIds with all vector clock keys from SYNC_IMPORT', async () => {
+      // BUG FIX: After creating a SYNC_IMPORT locally, we must protect all vector clock keys.
+      // Without this, when new ops are created, limitVectorClockSize() would prune low-counter
+      // entries, causing those ops to appear CONCURRENT with the import instead of GREATER_THAN.
+      // This leads to the bug where other clients filter out legitimate ops.
+
+      // Setup: vector clock has multiple clients
+      const multiClientClock = {
+        oldClient1: 5,
+        oldClient2: 3,
+        oldClient3: 10,
+        oldClient4: 1,
+      };
+      mockVectorClockService.getCurrentVectorClock.and.resolveTo(multiClientClock);
+
+      await service.createCleanSlateFromImport(importedState, 'FULL_IMPORT');
+
+      expect(mockOpLogStore.setProtectedClientIds).toHaveBeenCalled();
+
+      // The protected IDs should include ALL keys from the SYNC_IMPORT's vector clock
+      // The new clock will be: { ...multiClientClock, E_newC: increment }
+      const protectedIds =
+        mockOpLogStore.setProtectedClientIds.calls.mostRecent().args[0] as string[];
+
+      // Should contain the new client ID
+      expect(protectedIds).toContain('E_newC');
+      // Should contain all the old client IDs from the merged clock
+      expect(protectedIds).toContain('oldClient1');
+      expect(protectedIds).toContain('oldClient2');
+      expect(protectedIds).toContain('oldClient3');
+      expect(protectedIds).toContain('oldClient4');
+    });
+
+    it('should set protected client IDs after setting vector clock', async () => {
+      const callOrder: string[] = [];
+      mockOpLogStore.setVectorClock.and.callFake(async () => {
+        callOrder.push('setVectorClock');
+      });
+      mockOpLogStore.setProtectedClientIds.and.callFake(async () => {
+        callOrder.push('setProtectedClientIds');
+      });
+
+      await service.createCleanSlateFromImport(importedState, 'FULL_IMPORT');
+
+      // setProtectedClientIds must be called after setVectorClock
+      expect(callOrder).toEqual(['setVectorClock', 'setProtectedClientIds']);
     });
 
     it('should continue if pre-migration backup fails', async () => {
