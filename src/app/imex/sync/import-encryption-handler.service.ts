@@ -6,6 +6,7 @@ import { SyncLog } from '../../core/log';
 import { AppDataComplete } from '../../op-log/model/model-config';
 import { OperationEncryptionService } from '../../op-log/sync/operation-encryption.service';
 import { SnapshotUploadService } from './snapshot-upload.service';
+import { isCryptoSubtleAvailable } from '../../op-log/encryption/encryption';
 
 export interface EncryptionStateChangeResult {
   encryptionStateChanged: boolean;
@@ -131,6 +132,20 @@ export class ImportEncryptionHandlerService {
     }
 
     const { syncProvider, existingCfg, state, vectorClock, clientId } = snapshotData;
+
+    // CRITICAL: Check crypto availability BEFORE deleting server data
+    // to prevent data loss if encryption will fail (only needed when enabling encryption)
+    if (isEncryptionEnabled && !isCryptoSubtleAvailable()) {
+      return {
+        encryptionStateChanged: false,
+        serverDataDeleted: false,
+        snapshotUploaded: false,
+        error:
+          'Cannot enable encryption: WebCrypto API is not available. ' +
+          'Encryption requires a secure context (HTTPS). ' +
+          'On Android, encryption is not supported.',
+      };
+    }
 
     try {
       // 1. Delete all server data (encrypted ops can't mix with unencrypted)

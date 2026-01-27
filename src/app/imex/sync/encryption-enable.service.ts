@@ -4,6 +4,8 @@ import { SyncLog } from '../../core/log';
 import { SnapshotUploadService } from './snapshot-upload.service';
 import { OperationEncryptionService } from '../../op-log/sync/operation-encryption.service';
 import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
+import { isCryptoSubtleAvailable } from '../../op-log/encryption/encryption';
+import { WebCryptoNotAvailableError } from '../../op-log/core/errors/sync-errors';
 
 const LOG_PREFIX = 'EncryptionEnableService';
 
@@ -36,6 +38,16 @@ export class EncryptionEnableService {
 
     if (!encryptKey) {
       throw new Error('Encryption key is required');
+    }
+
+    // CRITICAL: Check crypto availability BEFORE deleting server data
+    // to prevent data loss if encryption will fail
+    if (!isCryptoSubtleAvailable()) {
+      throw new WebCryptoNotAvailableError(
+        'Cannot enable encryption: WebCrypto API is not available. ' +
+          'Encryption requires a secure context (HTTPS). ' +
+          'On Android, encryption is not supported.',
+      );
     }
 
     // Gather all data needed for upload (validates provider)

@@ -15,6 +15,7 @@ import { toObservable } from '@angular/core/rxjs-interop';
 import {
   SyncAlreadyInProgressError,
   LocalDataConflictError,
+  WebCryptoNotAvailableError,
 } from '../../op-log/core/errors/sync-errors';
 import { SyncConfig } from '../../features/config/global-config.model';
 import { TranslateService } from '@ngx-translate/core';
@@ -407,6 +408,16 @@ export class SyncWrapperService {
         // File-based sync: Local data exists and remote snapshot would overwrite it
         // Show conflict dialog to let user choose between local and remote data
         return this._handleLocalDataConflict(error);
+      } else if (error instanceof WebCryptoNotAvailableError) {
+        // WebCrypto (crypto.subtle) is unavailable in insecure contexts
+        // (e.g., Android Capacitor serves from http://localhost)
+        this._providerManager.setSyncStatus('ERROR');
+        this._snackService.open({
+          msg: T.F.SYNC.S.WEB_CRYPTO_NOT_AVAILABLE,
+          type: 'ERROR',
+          config: { duration: 15000 },
+        });
+        return 'HANDLED_ERROR';
       } else if (this._isTimeoutError(error)) {
         this._snackService.open({
           msg: T.F.SYNC.S.TIMEOUT_ERROR,

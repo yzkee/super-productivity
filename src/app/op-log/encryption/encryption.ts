@@ -1,9 +1,49 @@
 import { argon2id } from 'hash-wasm';
+import { WebCryptoNotAvailableError } from '../core/errors/sync-errors';
 
 const ALGORITHM = 'AES-GCM' as const;
 const SALT_LENGTH = 16;
 const IV_LENGTH = 12;
 const KEY_LENGTH = 32;
+
+// ============================================================================
+// WEBCRYPTO AVAILABILITY CHECK
+// ============================================================================
+// WebCrypto (crypto.subtle) is unavailable in insecure contexts:
+// - Android Capacitor: serves from http://localhost (not https)
+// - iOS Capacitor: capacitor:// scheme may not be recognized as secure
+//
+// When WebCrypto is unavailable, encryption operations will fail.
+// Call isCryptoSubtleAvailable() before attempting encryption to show
+// a clear error message to the user.
+// ============================================================================
+
+/**
+ * Checks if WebCrypto API (crypto.subtle) is available in the current context.
+ * Returns false in insecure contexts (http://, some custom schemes like Android Capacitor).
+ */
+export const isCryptoSubtleAvailable = (): boolean => {
+  return (
+    typeof window !== 'undefined' &&
+    typeof window.crypto !== 'undefined' &&
+    typeof window.crypto.subtle !== 'undefined'
+  );
+};
+
+/**
+ * Throws WebCryptoNotAvailableError if crypto.subtle is not available.
+ * Call this at the start of encryption/decryption functions to fail fast
+ * with a clear error message.
+ */
+const assertCryptoSubtleAvailable = (): void => {
+  if (!isCryptoSubtleAvailable()) {
+    throw new WebCryptoNotAvailableError(
+      'WebCrypto API (crypto.subtle) is not available. ' +
+        'Encryption requires a secure context (HTTPS). ' +
+        'On Android, encryption is not supported.',
+    );
+  }
+};
 
 /**
  * Holds a derived CryptoKey along with its salt for reuse across operations.
@@ -209,6 +249,7 @@ const decryptArgon = async (data: string, password: string): Promise<string> => 
 };
 
 export const encrypt = async (data: string, password: string): Promise<string> => {
+  assertCryptoSubtleAvailable();
   const enc = new TextEncoder();
   const dataBuffer = enc.encode(data);
   const salt = window.crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
@@ -229,6 +270,7 @@ export const encrypt = async (data: string, password: string): Promise<string> =
 };
 
 export const decrypt = async (data: string, password: string): Promise<string> => {
+  assertCryptoSubtleAvailable();
   try {
     return await decryptArgon(data, password);
   } catch (e) {
@@ -296,6 +338,7 @@ export const deriveKeyFromPassword = async (
   password: string,
   salt?: Uint8Array,
 ): Promise<DerivedKeyInfo> => {
+  assertCryptoSubtleAvailable();
   const actualSalt = salt ?? window.crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
   const key = await _deriveKeyArgon(password, actualSalt);
   return { key, salt: actualSalt };
