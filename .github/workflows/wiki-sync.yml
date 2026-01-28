@@ -21,8 +21,6 @@ concurrency:
 
 permissions:
   contents: write
-  pull-requests: write
-  actions: write
 
 jobs:
   lint:
@@ -68,6 +66,7 @@ jobs:
 
   sync:
     name: (r)Sync
+    if: github.event_name == 'push'
     needs: lint
     runs-on: ubuntu-latest
     env:
