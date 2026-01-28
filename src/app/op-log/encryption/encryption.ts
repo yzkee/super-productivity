@@ -1,6 +1,7 @@
 import { argon2id } from 'hash-wasm';
 import { gcm } from '@noble/ciphers/aes.js';
 import { WebCryptoNotAvailableError } from '../core/errors/sync-errors';
+import { Log } from '../../core/log';
 
 const ALGORITHM = 'AES-GCM' as const;
 const SALT_LENGTH = 16;
@@ -319,9 +320,6 @@ async function decryptLegacy(data: string, password: string): Promise<string> {
     );
   }
 
-  console.warn(
-    '[DEPRECATION] Legacy PBKDF2 encryption detected. Consider re-syncing to migrate to Argon2id.',
-  );
   const dataBuffer = base642ab(data);
   const iv = new Uint8Array(dataBuffer, 0, IV_LENGTH);
   const encryptedData = new Uint8Array(dataBuffer, IV_LENGTH);
@@ -331,6 +329,13 @@ async function decryptLegacy(data: string, password: string): Promise<string> {
     key,
     encryptedData,
   );
+
+  // Only warn AFTER successful decryption, to avoid false positives when
+  // Argon2id decryption fails for other reasons (wrong password, corrupted data)
+  Log.warn(
+    '[DEPRECATION] Legacy PBKDF2 encryption detected. Consider re-syncing to migrate to Argon2id.',
+  );
+
   const dec = new TextDecoder();
   return dec.decode(decryptedContent);
 }
@@ -378,6 +383,8 @@ export const decrypt = async (data: string, password: string): Promise<string> =
     // Fallback to legacy decryption (pre-Argon2 format)
     // NOTE: Legacy PBKDF2 decryption requires WebCrypto. If WebCrypto is unavailable
     // and this is legacy data, the user will get a clear error.
+    // The deprecation warning is only emitted if legacy decryption SUCCEEDS,
+    // avoiding false positives when Argon2id fails for other reasons (wrong password).
     return await decryptLegacy(data, password);
   }
 };
@@ -415,7 +422,7 @@ export const decryptWithMigration = async (
     const plaintext = await decryptArgon(data, password);
     return { plaintext, wasLegacy: false };
   } catch (e) {
-    // Legacy PBKDF2 format - decrypt and prepare migration
+    // Fallback to legacy PBKDF2 format - decrypt and prepare migration
     const plaintext = await decryptLegacy(data, password);
     const migratedCiphertext = await encrypt(plaintext, password);
     return { plaintext, migratedCiphertext, wasLegacy: true };
