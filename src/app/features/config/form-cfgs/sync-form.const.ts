@@ -8,6 +8,7 @@ import { fileSyncDroid, fileSyncElectron } from '../../../op-log/model/model-con
 import { FormlyFieldConfig } from '@ngx-formly/core';
 import { IS_NATIVE_PLATFORM } from '../../../util/is-native-platform';
 import {
+  closeAllDialogs,
   openDisableEncryptionDialog,
   openDisableEncryptionDialogForFileBased,
   openEnableEncryptionDialog,
@@ -385,6 +386,8 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
                 if (!isSuperSync && field?.parent?.parent?.model) {
                   field.parent.parent.model.encryptKey = '';
                 }
+                // Close the parent settings dialog
+                closeAllDialogs();
               }
               return result?.success ? true : false;
             },

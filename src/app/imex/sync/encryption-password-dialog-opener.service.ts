@@ -21,6 +21,14 @@ import {
 export class EncryptionPasswordDialogOpenerService {
   private _matDialog = inject(MatDialog);
 
+  /**
+   * Closes all open dialogs. Useful after disabling encryption
+   * to close the parent settings dialog.
+   */
+  closeAllDialogs(): void {
+    this._matDialog.closeAll();
+  }
+
   openChangePasswordDialog(
     mode: 'full' | 'disable-only' = 'full',
     providerType: 'supersync' | 'file-based' = 'supersync',
@@ -179,4 +187,16 @@ export const openDisableEncryptionDialogForFileBased = (): Promise<
     return Promise.resolve(undefined);
   }
   return dialogOpenerInstance.openDisableEncryptionDialogForFileBased();
+};
+
+/**
+ * Closes all open dialogs. Useful after disabling encryption
+ * to close the parent settings dialog.
+ */
+export const closeAllDialogs = (): void => {
+  if (!dialogOpenerInstance) {
+    console.error('EncryptionPasswordDialogOpenerService not initialized');
+    return;
+  }
+  dialogOpenerInstance.closeAllDialogs();
 };
