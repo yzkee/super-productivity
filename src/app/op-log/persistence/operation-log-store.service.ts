@@ -273,14 +273,18 @@ export class OperationLogStoreService {
       await tx.done;
       return seqs;
     } catch (e) {
-      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-        throw new StorageQuotaExceededError();
-      }
-      // ConstraintError: duplicate operation ID - see issue #6213
+      // Cache is stale if we hit a constraint error - invalidate to force refresh
+      // This handles the case where a previous sync partially wrote ops before failing,
+      // leaving the cache out of sync with IndexedDB. See issue #6213.
       if (e instanceof DOMException && e.name === 'ConstraintError') {
+        this._appliedOpIdsCache = null;
+        this._cacheLastSeq = 0;
         throw new Error(
           '[OpLogStore] Duplicate operation detected (likely race condition). See #6213.',
         );
+      }
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        throw new StorageQuotaExceededError();
       }
       throw e;
     }

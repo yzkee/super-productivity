@@ -741,6 +741,67 @@ describe('OperationLogStoreService', () => {
       const allOps = await service.getOpsAfterSeq(0);
       expect(allOps.length).toBe(2);
     });
+
+    // =========================================================================
+    // Regression test: appliedOpIds cache must be invalidated on ConstraintError
+    // =========================================================================
+    // Issue #6213: When appendBatch throws ConstraintError, the appliedOpIds cache
+    // becomes stale (it doesn't know about ops from a previous failed sync).
+    // The cache must be invalidated so filterNewOps returns correct results.
+
+    it('should invalidate appliedOpIds cache on ConstraintError to fix sync retry (issue #6213)', async () => {
+      // Setup: Insert some ops initially
+      const existingOps = [createTestOperation(), createTestOperation()];
+      await service.appendBatch(existingOps, 'remote');
+
+      // Prime the appliedOpIds cache by calling filterNewOps
+      const appliedIds1 = await service.getAppliedOpIds();
+      expect(appliedIds1.size).toBe(2);
+
+      // Now try to insert a batch that includes a duplicate (simulating stale cache scenario)
+      const newOp = createTestOperation();
+      const mixedOps = [existingOps[0], newOp]; // One duplicate, one new
+
+      // This should throw ConstraintError
+      await expectAsync(service.appendBatch(mixedOps, 'remote')).toBeRejectedWithError(
+        /Duplicate operation detected/,
+      );
+
+      // After the error, filterNewOps should still work correctly
+      // The cache should have been invalidated, so it will rebuild from IndexedDB
+      const newOps = await service.filterNewOps(mixedOps);
+
+      // Only the new op should be returned (the duplicate should be filtered out)
+      expect(newOps.length).toBe(1);
+      expect(newOps[0].id).toBe(newOp.id);
+    });
+
+    it('should allow successful retry after ConstraintError invalidates cache (issue #6213)', async () => {
+      // Simulate: ops were written in a previous session but cache doesn't know about them
+      const previouslyWrittenOps = [createTestOperation(), createTestOperation()];
+      await service.appendBatch(previouslyWrittenOps, 'remote');
+
+      // Prime cache
+      await service.getAppliedOpIds();
+
+      // First sync attempt: mix of duplicates and new ops - fails
+      const newOp = createTestOperation();
+      const firstAttemptOps = [previouslyWrittenOps[0], newOp];
+      await expectAsync(
+        service.appendBatch(firstAttemptOps, 'remote'),
+      ).toBeRejectedWithError(/Duplicate operation detected/);
+
+      // Retry: filter first, then append only new ops - should succeed
+      const trulyNewOps = await service.filterNewOps(firstAttemptOps);
+      expect(trulyNewOps.length).toBe(1);
+
+      const seqs = await service.appendBatch(trulyNewOps, 'remote');
+      expect(seqs.length).toBe(1);
+
+      // Verify final state
+      const allOps = await service.getOpsAfterSeq(0);
+      expect(allOps.length).toBe(3); // 2 original + 1 new
+    });
   });
 
   describe('getOpById', () => {
