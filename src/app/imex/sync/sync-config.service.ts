@@ -147,10 +147,30 @@ export class SyncConfigService {
 
       const prop = PROP_MAP_TO_FORM[currentProviderCfg.providerId];
 
+      // For SuperSync, extract isEncryptionEnabled from privateCfg
+      // This is needed because the form's hideExpression checks field.model.isEncryptionEnabled
+      const isEncryptionEnabled =
+        currentProviderCfg.providerId === SyncProviderId.SuperSync
+          ? (currentProviderCfg.privateCfg as { isEncryptionEnabled?: boolean } | null)
+              ?.isEncryptionEnabled ?? false
+          : baseConfig.isEncryptionEnabled ?? false;
+
+      // DEBUG: Log the encryption state
+      SyncLog.log(
+        'syncSettingsForm$ - isEncryptionEnabled:',
+        isEncryptionEnabled,
+        'providerId:',
+        currentProviderCfg.providerId,
+        'privateCfg.isEncryptionEnabled:',
+        (currentProviderCfg.privateCfg as { isEncryptionEnabled?: boolean } | null)
+          ?.isEncryptionEnabled,
+      );
+
       // Create config with provider-specific settings
       const result: SyncConfig = {
         ...baseConfig,
         encryptKey: currentProviderCfg?.privateCfg?.encryptKey || '',
+        isEncryptionEnabled,
         // Reset provider-specific configs to defaults first
         localFileSync: DEFAULT_GLOBAL_CONFIG.sync.localFileSync,
         webDav: DEFAULT_GLOBAL_CONFIG.sync.webDav,
