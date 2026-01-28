@@ -100,10 +100,11 @@ export class FileBasedEncryptionService {
       throw new Error(`Snapshot upload failed: ${result.error}`);
     }
 
-    await provider.setPrivateCfg({
+    const newConfig = {
       ...existingCfg,
       encryptKey,
-    });
+    };
+    await this._providerManager.setProviderConfig(provider.id, newConfig);
 
     this._globalConfigService.updateSection('sync', {
       isEncryptionEnabled: true,
