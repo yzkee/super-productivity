@@ -189,95 +189,6 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
       }),
     },
 
-    // SuperSync provider form fields
-    // NOTE: We use hideExpression on individual fields instead of the fieldGroup
-    // because Formly doesn't include values from hidden fieldGroups in the model output
-    {
-      key: 'superSync',
-      fieldGroup: [
-        {
-          hideExpression: (m, v, field) =>
-            field?.parent?.parent?.model.syncProvider !== LegacySyncProvider.SuperSync,
-          type: 'btn',
-          templateOptions: {
-            text: T.F.SYNC.FORM.SUPER_SYNC.BTN_GET_TOKEN,
-            tooltip: T.F.SYNC.FORM.SUPER_SYNC.LOGIN_INSTRUCTIONS,
-            btnType: 'primary',
-            centerBtn: true,
-            onClick: (field: any) => {
-              const baseUrl = field.model.baseUrl;
-              if (baseUrl) {
-                window.open(baseUrl, '_blank');
-              } else {
-                alert('Please enter a Server URL first');
-              }
-            },
-          },
-        },
-        {
-          hideExpression: (m, v, field) =>
-            field?.parent?.parent?.model.syncProvider !== LegacySyncProvider.SuperSync,
-          key: 'accessToken',
-          type: 'textarea',
-          className: 'e2e-accessToken',
-          templateOptions: {
-            label: T.F.SYNC.FORM.SUPER_SYNC.L_ACCESS_TOKEN,
-            description: T.F.SYNC.FORM.SUPER_SYNC.ACCESS_TOKEN_DESCRIPTION,
-            rows: 3,
-          },
-          expressions: {
-            'props.required': (field: FormlyFieldConfig) =>
-              field?.parent?.parent?.model?.syncProvider === LegacySyncProvider.SuperSync,
-          },
-        },
-        // Advanced settings for SuperSync
-        {
-          type: 'collapsible',
-          hideExpression: (m, v, field) =>
-            field?.parent?.parent?.model.syncProvider !== LegacySyncProvider.SuperSync,
-          props: { label: T.G.ADVANCED_CFG },
-          fieldGroup: [
-            // Enable encryption button for SuperSync (shown when encryption is disabled)
-            {
-              // Note: Using (m, v, field) signature for btn type fields to ensure
-              // hideExpression works correctly with the btn component.
-              // Using ?? false to ensure button stays hidden if field is undefined.
-              hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
-                field?.model?.isEncryptionEnabled ?? false,
-              type: 'btn',
-              className: 'e2e-enable-encryption-btn',
-              templateOptions: {
-                text: T.F.SYNC.FORM.SUPER_SYNC.BTN_ENABLE_ENCRYPTION,
-                btnType: 'primary',
-                onClick: async (field: FormlyFieldConfig) => {
-                  const result = await openEnableEncryptionDialog();
-                  if (result?.success && field?.model) {
-                    field.model.isEncryptionEnabled = true;
-                  }
-                  return result?.success ? true : false;
-                },
-              },
-            },
-            // Server URL
-            {
-              key: 'baseUrl',
-              type: 'input',
-              className: 'e2e-baseUrl',
-              templateOptions: {
-                label: T.F.SYNC.FORM.SUPER_SYNC.L_SERVER_URL,
-                description: T.F.SYNC.FORM.SUPER_SYNC.SERVER_URL_DESCRIPTION,
-              },
-              expressions: {
-                'props.required': (field: FormlyFieldConfig) =>
-                  field?.parent?.parent?.parent?.model?.syncProvider ===
-                  LegacySyncProvider.SuperSync,
-              },
-            },
-          ],
-        },
-      ],
-    },
-
     {
       key: 'syncInterval',
       type: 'duration',
@@ -407,6 +318,95 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
               return result?.success ? true : false;
             },
           },
+        },
+      ],
+    },
+
+    // SuperSync provider form fields
+    // NOTE: We use hideExpression on individual fields instead of the fieldGroup
+    // because Formly doesn't include values from hidden fieldGroups in the model output
+    {
+      key: 'superSync',
+      fieldGroup: [
+        {
+          hideExpression: (m, v, field) =>
+            field?.parent?.parent?.model.syncProvider !== LegacySyncProvider.SuperSync,
+          type: 'btn',
+          templateOptions: {
+            text: T.F.SYNC.FORM.SUPER_SYNC.BTN_GET_TOKEN,
+            tooltip: T.F.SYNC.FORM.SUPER_SYNC.LOGIN_INSTRUCTIONS,
+            btnType: 'primary',
+            centerBtn: true,
+            onClick: (field: any) => {
+              const baseUrl = field.model.baseUrl;
+              if (baseUrl) {
+                window.open(baseUrl, '_blank');
+              } else {
+                alert('Please enter a Server URL first');
+              }
+            },
+          },
+        },
+        {
+          hideExpression: (m, v, field) =>
+            field?.parent?.parent?.model.syncProvider !== LegacySyncProvider.SuperSync,
+          key: 'accessToken',
+          type: 'textarea',
+          className: 'e2e-accessToken',
+          templateOptions: {
+            label: T.F.SYNC.FORM.SUPER_SYNC.L_ACCESS_TOKEN,
+            description: T.F.SYNC.FORM.SUPER_SYNC.ACCESS_TOKEN_DESCRIPTION,
+            rows: 3,
+          },
+          expressions: {
+            'props.required': (field: FormlyFieldConfig) =>
+              field?.parent?.parent?.model?.syncProvider === LegacySyncProvider.SuperSync,
+          },
+        },
+        // Advanced settings for SuperSync
+        {
+          type: 'collapsible',
+          hideExpression: (m, v, field) =>
+            field?.parent?.parent?.model.syncProvider !== LegacySyncProvider.SuperSync,
+          props: { label: T.G.ADVANCED_CFG },
+          fieldGroup: [
+            // Enable encryption button for SuperSync (shown when encryption is disabled)
+            {
+              // Note: Using (m, v, field) signature for btn type fields to ensure
+              // hideExpression works correctly with the btn component.
+              // Using ?? false to ensure button stays hidden if field is undefined.
+              hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
+                field?.model?.isEncryptionEnabled ?? false,
+              type: 'btn',
+              className: 'e2e-enable-encryption-btn',
+              templateOptions: {
+                text: T.F.SYNC.FORM.SUPER_SYNC.BTN_ENABLE_ENCRYPTION,
+                btnType: 'primary',
+                onClick: async (field: FormlyFieldConfig) => {
+                  const result = await openEnableEncryptionDialog();
+                  if (result?.success && field?.model) {
+                    field.model.isEncryptionEnabled = true;
+                  }
+                  return result?.success ? true : false;
+                },
+              },
+            },
+            // Server URL
+            {
+              key: 'baseUrl',
+              type: 'input',
+              className: 'e2e-baseUrl',
+              templateOptions: {
+                label: T.F.SYNC.FORM.SUPER_SYNC.L_SERVER_URL,
+                description: T.F.SYNC.FORM.SUPER_SYNC.SERVER_URL_DESCRIPTION,
+              },
+              expressions: {
+                'props.required': (field: FormlyFieldConfig) =>
+                  field?.parent?.parent?.parent?.model?.syncProvider ===
+                  LegacySyncProvider.SuperSync,
+              },
+            },
+          ],
         },
       ],
     },

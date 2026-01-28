@@ -1031,7 +1031,6 @@
           "PASSWORDS_DONT_MATCH": "Parolalar eşleşmiyor",
           "PASSWORD_MIN_LENGTH": "Parola en az 8 karakter olmalı",
           "BTN_CHANGE_PASSWORD": "Parolayı Değiştir",
-          "PASSWORD_SET_INFO": "✓ Şifreleme parolası ayarlandı. Güncellemek için 'Parolayı Değiştir' düğmesini kullanın.",
           "L_REMOVE_ENCRYPTION": "Veya Şifrelemeyi Kaldır",
           "REMOVE_ENCRYPTION_WARNING": "Şifrelemeyi kaldırmak tüm sunucu verilerini silecek ve verilerinizi şifrelemeden yeniden yükleyecektir. Tüm cihazlar yeniden yapılandırma yapacaktır.",
           "DISABLE_ENCRYPTION_TITLE": "Şifrelemeyi Devre Dışı Bırak?",

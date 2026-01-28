@@ -9,12 +9,14 @@ import {
 } from '../../op-log/sync-providers/provider.interface';
 import { SuperSyncPrivateCfg } from '../../op-log/sync-providers/super-sync/super-sync.model';
 import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
+import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
 
 describe('EncryptionEnableService', () => {
   let service: EncryptionEnableService;
   let mockSnapshotUploadService: jasmine.SpyObj<SnapshotUploadService>;
   let mockEncryptionService: jasmine.SpyObj<OperationEncryptionService>;
   let mockWrappedProviderService: jasmine.SpyObj<WrappedProviderService>;
+  let mockProviderManager: jasmine.SpyObj<SyncProviderManager>;
   let mockSyncProvider: jasmine.SpyObj<
     SyncProviderServiceInterface<SyncProviderId> & OperationSyncCapable
   >;
@@ -62,12 +64,18 @@ describe('EncryptionEnableService', () => {
       'clearCache',
     ]);
 
+    mockProviderManager = jasmine.createSpyObj('SyncProviderManager', [
+      'setProviderConfig',
+    ]);
+    mockProviderManager.setProviderConfig.and.resolveTo();
+
     TestBed.configureTestingModule({
       providers: [
         EncryptionEnableService,
         { provide: SnapshotUploadService, useValue: mockSnapshotUploadService },
         { provide: OperationEncryptionService, useValue: mockEncryptionService },
         { provide: WrappedProviderService, useValue: mockWrappedProviderService },
+        { provide: SyncProviderManager, useValue: mockProviderManager },
       ],
     });
 
@@ -86,20 +94,21 @@ describe('EncryptionEnableService', () => {
 
       expect(mockSyncProvider.deleteAllData).toHaveBeenCalledTimes(1);
       expect(mockSyncProvider.deleteAllData).toHaveBeenCalledBefore(
-        mockSyncProvider.setPrivateCfg,
+        mockProviderManager.setProviderConfig,
       );
     });
 
     it('should update config with encryption enabled BEFORE upload', async () => {
       await service.enableEncryption('my-secret-key');
 
-      expect(mockSyncProvider.setPrivateCfg).toHaveBeenCalledWith(
+      expect(mockProviderManager.setProviderConfig).toHaveBeenCalledWith(
+        SyncProviderId.SuperSync,
         jasmine.objectContaining({
           encryptKey: 'my-secret-key',
           isEncryptionEnabled: true,
         }),
       );
-      expect(mockSyncProvider.setPrivateCfg).toHaveBeenCalledBefore(
+      expect(mockProviderManager.setProviderConfig).toHaveBeenCalledBefore(
         mockSnapshotUploadService.uploadSnapshot,
       );
     });
@@ -140,14 +149,14 @@ describe('EncryptionEnableService', () => {
 
       await expectAsync(service.enableEncryption('my-secret-key')).toBeRejected();
 
-      // Should have called setPrivateCfg twice:
+      // Should have called setProviderConfig twice:
       // 1. Enable encryption before upload
       // 2. Revert to unencrypted on failure
-      expect(mockSyncProvider.setPrivateCfg).toHaveBeenCalledTimes(2);
+      expect(mockProviderManager.setProviderConfig).toHaveBeenCalledTimes(2);
 
       // Second call should revert to unencrypted state
-      const revertCall = mockSyncProvider.setPrivateCfg.calls.mostRecent();
-      expect(revertCall.args[0]).toEqual(
+      const revertCall = mockProviderManager.setProviderConfig.calls.mostRecent();
+      expect(revertCall.args[1]).toEqual(
         jasmine.objectContaining({
           encryptKey: undefined,
           isEncryptionEnabled: false,
@@ -172,7 +181,7 @@ describe('EncryptionEnableService', () => {
       await expectAsync(service.enableEncryption('my-secret-key')).toBeRejected();
 
       // Second call should revert
-      expect(mockSyncProvider.setPrivateCfg).toHaveBeenCalledTimes(2);
+      expect(mockProviderManager.setProviderConfig).toHaveBeenCalledTimes(2);
     });
   });
 });

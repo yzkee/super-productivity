@@ -511,33 +511,29 @@ export class SuperSyncPage extends BasePage {
       return;
     }
 
-    // Enable encryption via explicit action
-    await this.encryptionPasswordInput.waitFor({ state: 'visible', timeout: 5000 });
-    await this.encryptionPasswordInput.fill(password);
+    // Enable encryption by clicking the "Enable Encryption" button which opens a dialog
     await this.enableEncryptionBtn.waitFor({ state: 'visible', timeout: 5000 });
     await this.enableEncryptionBtn.click();
 
-    // Wait for any confirmation dialogs that might appear
-    const enableDialog = this.page
-      .locator('mat-dialog-container')
-      .filter({ hasText: 'Enable Encryption?' });
-    const enableDialogAppeared = await enableDialog
-      .waitFor({ state: 'visible', timeout: 3000 })
-      .then(() => true)
-      .catch(() => false);
+    // Wait for the Enable Encryption dialog to appear
+    const enableEncryptionDialog = this.page.locator('dialog-enable-encryption');
+    await enableEncryptionDialog.waitFor({ state: 'visible', timeout: 5000 });
 
-    if (enableDialogAppeared) {
-      // Click the confirm button (mat-flat-button with "Enable Encryption" text)
-      const confirmBtn = enableDialog
-        .locator('button[mat-flat-button]')
-        .filter({ hasText: /enable/i });
-      // Wait for button to be visible and clickable (dialog animation may delay rendering)
-      await confirmBtn.waitFor({ state: 'visible', timeout: 10000 });
-      await confirmBtn.click();
+    // Fill in the password fields
+    const passwordInput = enableEncryptionDialog
+      .locator('input[type="password"]')
+      .first();
+    const confirmPasswordInput = enableEncryptionDialog
+      .locator('input[type="password"]')
+      .nth(1);
+    await passwordInput.fill(password);
+    await confirmPasswordInput.fill(password);
 
-      // Wait for the enable encryption dialog to close
-      await enableDialog.waitFor({ state: 'hidden', timeout: 60000 });
-    }
+    // Click the confirm button (has mat-flat-button and text includes "Enable")
+    const confirmBtn = enableEncryptionDialog.locator(
+      'button[mat-flat-button]:has-text("Enable")',
+    );
+    await confirmBtn.click();
 
     await this.page.waitForTimeout(500);
 
@@ -933,27 +929,60 @@ export class SuperSyncPage extends BasePage {
     await this.syncBtn.click({ button: 'right' });
     await this.providerSelect.waitFor({ state: 'visible', timeout: 10000 });
 
-    // Expand "Advanced settings" collapsible to access change password button
-    const advancedCollapsible = this.page.locator(
-      '.collapsible-header:has-text("Advanced")',
-    );
-    await advancedCollapsible.waitFor({ state: 'visible', timeout: 5000 });
+    // Wait for the form to initialize and load the current configuration
+    // The encryption-status-box should be visible when isEncryptionEnabled is true
+    await this.page.waitForTimeout(500);
 
-    // Check if already expanded
-    const isExpanded = await this.disableEncryptionBtn.isVisible().catch(() => false);
-    if (!isExpanded) {
-      await advancedCollapsible.click();
-      await this.disableEncryptionBtn.waitFor({ state: 'visible', timeout: 3000 });
-    }
-
-    // Scroll down to find the change password button
+    // Scroll down to find the change password button in the encryption-status-box
     const dialogContent = this.page.locator('mat-dialog-content');
     await dialogContent.evaluate((el) => el.scrollTo(0, el.scrollHeight));
     await this.page.waitForTimeout(200);
 
-    // Click the "Change Password" button
-    const changePasswordBtn = this.page.locator('button:has-text("Change Password")');
-    await changePasswordBtn.waitFor({ state: 'visible', timeout: 5000 });
+    // Click the "Change Password" button (using e2e selector)
+    // If the button isn't visible, try re-selecting SuperSync to force config reload
+    const changePasswordBtn = this.page.locator('.e2e-change-password-btn button');
+
+    // First try: wait for button with shorter timeout
+    let isButtonVisible = await changePasswordBtn
+      .waitFor({ state: 'visible', timeout: 3000 })
+      .then(() => true)
+      .catch(() => false);
+
+    // If not visible, re-select SuperSync to force provider config reload
+    if (!isButtonVisible) {
+      console.log(
+        '[SuperSyncPage] Change password button not visible, re-selecting provider...',
+      );
+      await this.selectSuperSyncProviderWithRetry();
+      await this.page.waitForTimeout(1500); // Wait for async config load
+
+      // Scroll again after provider change
+      await dialogContent.evaluate((el) => el.scrollTo(0, el.scrollHeight));
+      await this.page.waitForTimeout(200);
+
+      // Second try: wait with longer timeout
+      isButtonVisible = await changePasswordBtn
+        .waitFor({ state: 'visible', timeout: 5000 })
+        .then(() => true)
+        .catch(() => false);
+    }
+
+    // If still not visible, throw a helpful error
+    if (!isButtonVisible) {
+      // Log what we can see for debugging
+      const enableBtnVisible = await this.enableEncryptionBtn
+        .isVisible()
+        .catch(() => false);
+      const disableBtnVisible = await this.disableEncryptionBtn
+        .isVisible()
+        .catch(() => false);
+      throw new Error(
+        `Change password button not visible after retries. ` +
+          `Enable btn visible: ${enableBtnVisible}, Disable btn visible: ${disableBtnVisible}. ` +
+          `This suggests isEncryptionEnabled is false in the form model.`,
+      );
+    }
+
     await changePasswordBtn.click();
 
     // Wait for the change password dialog to appear

@@ -4,6 +4,8 @@ import { SyncLog } from '../../core/log';
 import { SnapshotUploadService } from './snapshot-upload.service';
 import { OperationEncryptionService } from '../../op-log/sync/operation-encryption.service';
 import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
+import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
+import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { isCryptoSubtleAvailable } from '../../op-log/encryption/encryption';
 import { WebCryptoNotAvailableError } from '../../op-log/core/errors/sync-errors';
 
@@ -25,6 +27,7 @@ export class EncryptionEnableService {
   private _snapshotUploadService = inject(SnapshotUploadService);
   private _encryptionService = inject(OperationEncryptionService);
   private _wrappedProviderService = inject(WrappedProviderService);
+  private _providerManager = inject(SyncProviderManager);
 
   /**
    * Enables encryption by deleting all server data
@@ -60,12 +63,16 @@ export class EncryptionEnableService {
 
     // Update local config BEFORE upload - enable encryption and set the key
     // This must happen BEFORE upload so the upload uses the new key
+    // IMPORTANT: Use providerManager.setProviderConfig() instead of direct setPrivateCfg()
+    // to ensure the currentProviderPrivateCfg$ observable is updated, which is needed
+    // for the form to correctly show isEncryptionEnabled state.
     SyncLog.normal(`${LOG_PREFIX}: Updating local config...`);
-    await syncProvider.setPrivateCfg({
+    const newConfig = {
       ...existingCfg,
       encryptKey,
       isEncryptionEnabled: true,
-    } as SuperSyncPrivateCfg);
+    } as SuperSyncPrivateCfg;
+    await this._providerManager.setProviderConfig(SyncProviderId.SuperSync, newConfig);
 
     // Clear cached adapters to ensure new encryption settings take effect
     this._wrappedProviderService.clearCache();
@@ -108,11 +115,17 @@ export class EncryptionEnableService {
         uploadError,
       );
 
-      await syncProvider.setPrivateCfg({
+      // Use providerManager.setProviderConfig() to update both the stored config
+      // AND the currentProviderPrivateCfg$ observable for proper form state
+      const revertConfig = {
         ...existingCfg,
         encryptKey: undefined,
         isEncryptionEnabled: false,
-      } as SuperSyncPrivateCfg);
+      } as SuperSyncPrivateCfg;
+      await this._providerManager.setProviderConfig(
+        SyncProviderId.SuperSync,
+        revertConfig,
+      );
 
       // Clear cached adapters since encryption settings were reverted
       this._wrappedProviderService.clearCache();
