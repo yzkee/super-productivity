@@ -338,15 +338,30 @@ export class SyncConfigService {
       providerId === SyncProviderId.SuperSync &&
       (oldConfig as { isEncryptionEnabled?: boolean })?.isEncryptionEnabled === false;
 
+    const savedEncryptKey = (oldConfig as { encryptKey?: string })?.encryptKey ?? '';
+
+    // Resolve encryptKey based on provider type:
+    // - SuperSync: encryptKey is managed via dedicated dialogs (EnableEncryption, ChangePassword,
+    //   HandleDecryptError), NOT via the form. Always preserve savedEncryptKey unless disabled.
+    // - File-based providers (WebDAV, LocalFile, Dropbox): encryptKey can be set via form,
+    //   so use settings.encryptKey as fallback for new configs.
+    let resolvedEncryptKey: string;
+    if (isEncryptionDisabledInSavedConfig) {
+      resolvedEncryptKey = '';
+    } else if (providerId === SyncProviderId.SuperSync) {
+      // For SuperSync, only use form if explicitly provided, otherwise preserve saved
+      resolvedEncryptKey = (nonEmptyFormValues?.encryptKey as string) || savedEncryptKey;
+    } else {
+      // For file-based providers, use form values with settings.encryptKey as fallback
+      resolvedEncryptKey =
+        (nonEmptyFormValues?.encryptKey as string) || settings.encryptKey || '';
+    }
+
     const configWithDefaults = {
       ...PROVIDER_FIELD_DEFAULTS[providerId],
       ...oldConfig,
       ...nonEmptyFormValues, // Only non-empty values overwrite saved config
-      // Clear encryptKey when encryption is disabled (saved config is source of truth)
-      // Otherwise use provider specific key if available, then fallback to root key
-      encryptKey: isEncryptionDisabledInSavedConfig
-        ? ''
-        : (nonEmptyFormValues?.encryptKey as string) || settings.encryptKey || '',
+      encryptKey: resolvedEncryptKey,
     };
 
     // Check if encryption settings changed to clear cached keys
