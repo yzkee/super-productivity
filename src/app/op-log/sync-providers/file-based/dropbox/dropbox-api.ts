@@ -295,6 +295,7 @@ export class DropboxApi {
 
     if (!refreshToken) {
       PFLog.critical('Dropbox: No refresh token available');
+      await this._clearTokensIfPresent(privateCfg);
       throw new MissingRefreshTokenAPIError();
     }
 
@@ -322,6 +323,14 @@ export class DropboxApi {
         });
 
         if (response.status < 200 || response.status >= 300) {
+          if (
+            response.status === 400 ||
+            response.status === 401 ||
+            response.status === 403
+          ) {
+            await this._clearTokensIfPresent(privateCfg);
+            throw new MissingRefreshTokenAPIError();
+          }
           throw new HttpNotOkAPIError(
             new Response(JSON.stringify(response.data), { status: response.status }),
           );
@@ -339,6 +348,14 @@ export class DropboxApi {
         });
 
         if (!response.ok) {
+          if (
+            response.status === 400 ||
+            response.status === 401 ||
+            response.status === 403
+          ) {
+            await this._clearTokensIfPresent(privateCfg);
+            throw new MissingRefreshTokenAPIError();
+          }
           throw new HttpNotOkAPIError(response);
         }
 
@@ -355,6 +372,19 @@ export class DropboxApi {
       PFLog.critical('Failed to refresh Dropbox access token', e);
       throw e;
     }
+  }
+
+  private async _clearTokensIfPresent(
+    privateCfg: { accessToken?: string; refreshToken?: string } | null,
+  ): Promise<void> {
+    if (!privateCfg) {
+      return;
+    }
+    await this._parent.privateCfg.setComplete({
+      ...privateCfg,
+      accessToken: '',
+      refreshToken: '',
+    });
   }
 
   /**
