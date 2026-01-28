@@ -400,6 +400,33 @@ export class RemoteOpsProcessingService {
           OpLog.normal(
             `RemoteOpsProcessingService: Updated protected client IDs from ${appliedFullStateOp.opType}: [${protectedIds.join(', ')}]`,
           );
+
+          // CRITICAL FIX: Clear older full-state ops AFTER successfully storing the new one.
+          // This prevents the scenario where:
+          // 1. Client A has old SYNC_IMPORT from client X with minimal clock {X:1}
+          // 2. Client B uploads new SYNC_IMPORT with its own minimal clock
+          // 3. Client A downloads and stores B's SYNC_IMPORT
+          // 4. Without clearing, getLatestFullStateOpEntry might return X's old import
+          //    (if it has a higher UUIDv7 timestamp)
+          // 5. New operations appear CONCURRENT with X's import and get filtered
+          //
+          // We clear AFTER storing (not before) to ensure crash safety.
+          // We exclude the newly stored full-state op IDs so we don't delete what we just added.
+          const newFullStateOpIds = result.appliedOps
+            .filter(
+              (op) =>
+                op.opType === OpType.SyncImport ||
+                op.opType === OpType.BackupImport ||
+                op.opType === OpType.Repair,
+            )
+            .map((op) => op.id);
+          const clearedCount =
+            await this.opLogStore.clearFullStateOpsExcept(newFullStateOpIds);
+          if (clearedCount > 0) {
+            OpLog.normal(
+              `RemoteOpsProcessingService: Cleared ${clearedCount} old full-state op(s) after applying new one.`,
+            );
+          }
         }
 
         OpLog.normal(

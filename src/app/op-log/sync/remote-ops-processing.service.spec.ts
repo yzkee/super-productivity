@@ -64,6 +64,8 @@ describe('RemoteOpsProcessingService', () => {
       'getOpById',
       'markRejected',
       'setProtectedClientIds',
+      'clearFullStateOps',
+      'clearFullStateOpsExcept',
     ]);
     // By default, treat all ops as new (return them as-is)
     opLogStoreSpy.filterNewOps.and.callFake((ops: any[]) => Promise.resolve(ops));
@@ -77,6 +79,10 @@ describe('RemoteOpsProcessingService', () => {
     opLogStoreSpy.mergeRemoteOpClocks.and.resolveTo();
     // By default, setProtectedClientIds succeeds
     opLogStoreSpy.setProtectedClientIds.and.resolveTo();
+    // By default, clearFullStateOps returns 0 (no ops cleared)
+    opLogStoreSpy.clearFullStateOps.and.resolveTo(0);
+    // By default, clearFullStateOpsExcept returns 0 (no ops cleared)
+    opLogStoreSpy.clearFullStateOpsExcept.and.resolveTo(0);
     vectorClockServiceSpy = jasmine.createSpyObj('VectorClockService', [
       'getEntityFrontier',
       'getSnapshotVectorClock',
@@ -700,6 +706,74 @@ describe('RemoteOpsProcessingService', () => {
       await service.processRemoteOps([regularOp]);
 
       expect(opLogStoreSpy.setProtectedClientIds).not.toHaveBeenCalled();
+    });
+
+    it('should call clearFullStateOpsExcept when SYNC_IMPORT is applied to prevent stale import filtering', async () => {
+      // This test verifies the fix for the scenario where:
+      // 1. Client A has old SYNC_IMPORT from client X with minimal clock {X:1}
+      // 2. Client B uploads new SYNC_IMPORT
+      // 3. Client A downloads B's SYNC_IMPORT but still has X's old one stored
+      // 4. If X's import has a higher UUIDv7, getLatestFullStateOpEntry returns it
+      // 5. New operations appear CONCURRENT with X's import and get filtered
+      //
+      // The fix clears old full-state ops AFTER storing the new one (for crash safety),
+      // excluding the newly stored ID so we don't delete what we just added.
+      const syncImportOp: Operation = {
+        id: 'sync-import-1',
+        opType: OpType.SyncImport,
+        actionType: '[All] Load All Data' as ActionType,
+        entityType: 'ALL',
+        payload: {},
+        clientId: 'client-1',
+        vectorClock: { client1: 1 },
+        timestamp: Date.now(),
+        schemaVersion: 1,
+      };
+
+      opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
+      opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
+      opLogStoreSpy.clearFullStateOpsExcept.and.returnValue(Promise.resolve(2)); // Had 2 old ops
+      operationApplierServiceSpy.applyOperations.and.returnValue(
+        Promise.resolve({ appliedOps: [syncImportOp] }),
+      );
+
+      await service.processRemoteOps([syncImportOp]);
+
+      // Verify clearFullStateOpsExcept was called AFTER the new SYNC_IMPORT is stored,
+      // with the new import ID excluded to preserve it
+      expect(opLogStoreSpy.clearFullStateOpsExcept).toHaveBeenCalledWith([
+        'sync-import-1',
+      ]);
+    });
+
+    it('should NOT call clearFullStateOpsExcept when regular ops are applied', async () => {
+      const regularOp: Operation = {
+        id: 'regular-op-1',
+        opType: OpType.Update,
+        actionType: '[Task] Update Task' as ActionType,
+        entityType: 'TASK',
+        entityId: 'task-1',
+        payload: { title: 'Test' },
+        clientId: 'client1',
+        vectorClock: { client1: 1 },
+        timestamp: Date.now(),
+        schemaVersion: 1,
+      };
+
+      opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
+      opLogStoreSpy.getUnsyncedByEntity.and.returnValue(Promise.resolve(new Map()));
+      vectorClockServiceSpy.getEntityFrontier.and.returnValue(Promise.resolve(new Map()));
+      vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
+      opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
+      opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
+      operationApplierServiceSpy.applyOperations.and.returnValue(
+        Promise.resolve({ appliedOps: [regularOp] }),
+      );
+
+      await service.processRemoteOps([regularOp]);
+
+      // clearFullStateOpsExcept should NOT be called for regular ops
+      expect(opLogStoreSpy.clearFullStateOpsExcept).not.toHaveBeenCalled();
     });
 
     describe('SYNC_IMPORT filter metadata return fields', () => {

@@ -517,6 +517,62 @@ export class OperationLogStoreService {
     return opsToDelete.length;
   }
 
+  /**
+   * Deletes all full-state operations (SYNC_IMPORT, BACKUP_IMPORT, REPAIR) from the local store,
+   * EXCEPT for the operation(s) with the specified ID(s).
+   *
+   * This is used when applying a new remote full-state operation. After successfully storing
+   * the new full-state op, we remove the old ones to prevent them from being used for filtering.
+   *
+   * The problem this solves:
+   * 1. Client A has old SYNC_IMPORT from client X with minimal clock {X:1}
+   * 2. Client B uploads new SYNC_IMPORT
+   * 3. Client A downloads and stores B's SYNC_IMPORT
+   * 4. Without clearing, getLatestFullStateOpEntry might return X's old import (if newer by UUIDv7)
+   * 5. New operations would appear CONCURRENT with X's import and get filtered
+   *
+   * @param excludeIds - IDs of operations to NOT delete (typically the newly stored import)
+   * @returns Number of operations deleted
+   */
+  async clearFullStateOpsExcept(excludeIds: string[]): Promise<number> {
+    await this._ensureInit();
+
+    const excludeIdSet = new Set(excludeIds);
+    const opsToDelete: string[] = [];
+
+    // Find all full-state ops except the excluded ones
+    let cursor = await this.db.transaction(STORE_NAMES.OPS).store.openCursor();
+
+    while (cursor) {
+      const entry = decodeStoredEntry(cursor.value);
+      const isFullStateOp =
+        entry.op.opType === OpType.SyncImport ||
+        entry.op.opType === OpType.BackupImport ||
+        entry.op.opType === OpType.Repair;
+
+      if (isFullStateOp && !excludeIdSet.has(entry.op.id)) {
+        opsToDelete.push(entry.op.id);
+      }
+
+      cursor = await cursor.continue();
+    }
+
+    // Delete them in a write transaction
+    if (opsToDelete.length > 0) {
+      const tx = this.db.transaction(STORE_NAMES.OPS, 'readwrite');
+      for (const id of opsToDelete) {
+        await tx.store
+          .index(OPS_INDEXES.BY_ID)
+          .openCursor(id)
+          .then((c) => c?.delete());
+      }
+      await tx.done;
+      this._invalidateUnsyncedCache();
+    }
+
+    return opsToDelete.length;
+  }
+
   async getUnsynced(): Promise<OperationLogEntry[]> {
     await this._ensureInit();
 
