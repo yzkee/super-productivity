@@ -28,6 +28,35 @@
       <p>{{ textKeys.ENABLE_ENCRYPTION_WARNING | translate }}</p>
     </div>
 
+    <div class="password-fields">
+      <mat-form-field appearance="outline">
+        <mat-label>{{ T.F.SYNC.FORM.L_ENCRYPTION_PASSWORD | translate }}</mat-label>
+        <input
+          matInput
+          type="password"
+          [(ngModel)]="password"
+          autocomplete="new-password"
+        />
+      </mat-form-field>
+
+      <mat-form-field appearance="outline">
+        <mat-label>{{ textKeys.L_CONFIRM_PASSWORD | translate }}</mat-label>
+        <input
+          matInput
+          type="password"
+          [(ngModel)]="confirmPassword"
+          autocomplete="new-password"
+        />
+      </mat-form-field>
+
+      @if (passwordError) {
+        <div class="password-error">
+          <mat-icon aria-hidden="true">error</mat-icon>
+          <span>{{ passwordError | translate }}</span>
+        </div>
+      }
+    </div>
+
     <div class="info-section">
       <h3>{{ textKeys.ENABLE_ENCRYPTION_WHAT_HAPPENS | translate }}</h3>
       <ul>
@@ -56,7 +85,7 @@
       mat-flat-button
       color="warn"
       type="button"
-      [disabled]="isLoading()"
+      [disabled]="isLoading() || !isPasswordValid"
       (click)="confirm()"
     >
       @if (isLoading()) {

@@ -17,9 +17,12 @@ import { SyncProviderManager } from '../../../op-log/sync-providers/provider-man
 import { SyncProviderId } from '../../../op-log/sync-providers/provider.const';
 import { isFileBasedProvider } from '../../../op-log/sync/operation-sync.util';
 import { FileBasedEncryptionService } from '../file-based-encryption.service';
+import { FormsModule } from '@angular/forms';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
+import { MatInput } from '@angular/material/input';
 
 export interface EnableEncryptionDialogData {
-  encryptKey: string;
+  encryptKey?: string;
   providerType?: 'supersync' | 'file-based';
 }
 
@@ -40,6 +43,10 @@ export interface EnableEncryptionResult {
     MatIcon,
     TranslatePipe,
     MatProgressSpinner,
+    FormsModule,
+    MatFormField,
+    MatLabel,
+    MatInput,
   ],
 })
 export class DialogEnableEncryptionComponent {
@@ -47,7 +54,9 @@ export class DialogEnableEncryptionComponent {
   private _fileBasedEncryptionService = inject(FileBasedEncryptionService);
   private _snackService = inject(SnackService);
   private _providerManager = inject(SyncProviderManager);
-  private _data = inject<EnableEncryptionDialogData>(MAT_DIALOG_DATA);
+  private _data = inject<EnableEncryptionDialogData | null>(MAT_DIALOG_DATA, {
+    optional: true,
+  });
   private _matDialogRef =
     inject<MatDialogRef<DialogEnableEncryptionComponent, EnableEncryptionResult>>(
       MatDialogRef,
@@ -63,8 +72,32 @@ export class DialogEnableEncryptionComponent {
       ? T.F.SYNC.FORM.FILE_BASED
       : T.F.SYNC.FORM.SUPER_SYNC;
 
+  // Password fields for the dialog
+  password = '';
+  confirmPassword = '';
+
+  // Minimum password length requirement
+  readonly MIN_PASSWORD_LENGTH = 8;
+
   constructor() {
     this._checkPreconditions();
+  }
+
+  get isPasswordValid(): boolean {
+    return (
+      this.password.length >= this.MIN_PASSWORD_LENGTH &&
+      this.password === this.confirmPassword
+    );
+  }
+
+  get passwordError(): string | null {
+    if (this.password && this.password.length < this.MIN_PASSWORD_LENGTH) {
+      return this.textKeys.PASSWORD_MIN_LENGTH;
+    }
+    if (this.confirmPassword && this.password !== this.confirmPassword) {
+      return this.textKeys.PASSWORDS_DONT_MATCH;
+    }
+    return null;
   }
 
   private _checkPreconditions(): void {
@@ -87,16 +120,10 @@ export class DialogEnableEncryptionComponent {
       this.errorReason.set(this.textKeys.ENABLE_ENCRYPTION_FILE_BASED_ONLY);
       return;
     }
-
-    if (!this._data?.encryptKey) {
-      this.canProceed.set(false);
-      this.errorReason.set(this.textKeys.ENABLE_ENCRYPTION_PASSWORD_REQUIRED);
-      return;
-    }
   }
 
   async confirm(): Promise<void> {
-    if (this.isLoading() || !this.canProceed()) {
+    if (this.isLoading() || !this.canProceed() || !this.isPasswordValid) {
       return;
     }
 
@@ -104,9 +131,9 @@ export class DialogEnableEncryptionComponent {
 
     try {
       if (this.providerType === 'file-based') {
-        await this._fileBasedEncryptionService.enableEncryption(this._data.encryptKey);
+        await this._fileBasedEncryptionService.enableEncryption(this.password);
       } else {
-        await this._encryptionEnableService.enableEncryption(this._data.encryptKey);
+        await this._encryptionEnableService.enableEncryption(this.password);
       }
       this._snackService.open({
         type: 'SUCCESS',
