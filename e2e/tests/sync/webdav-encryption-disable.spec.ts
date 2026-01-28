@@ -8,6 +8,7 @@ import {
   createSyncFolder,
   waitForSyncComplete,
   generateSyncFolderName,
+  closeContextsSafely,
 } from '../../utils/sync-helpers';
 
 /**
@@ -153,7 +154,6 @@ test.describe('@webdav @encryption WebDAV Encryption Disable', () => {
     console.log('[EncryptDisable] ✓ Encryption disabled successfully!');
 
     // Cleanup
-    await contextA.close();
-    await contextB.close();
+    await closeContextsSafely(contextA, contextB);
   });
 });

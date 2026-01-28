@@ -254,3 +254,37 @@ export const simulateNetworkFailure = async (page: Page): Promise<void> => {
 export const restoreNetwork = async (page: Page): Promise<void> => {
   await page.unroute('**/127.0.0.1:2345/**');
 };
+
+/**
+ * Safely close multiple browser contexts with proper error handling
+ * for Playwright trace file race conditions.
+ *
+ * When tests pass on retry with `trace: 'retain-on-failure'`, trace files
+ * may still be writing asynchronously while context disposal happens synchronously.
+ * This causes ENOENT errors that fail otherwise-passing tests.
+ *
+ * @param contexts - Browser contexts to close (null/undefined values are ignored)
+ */
+export const closeContextsSafely = async (
+  ...contexts: (BrowserContext | null | undefined)[]
+): Promise<void> => {
+  for (const context of contexts) {
+    if (!context) continue;
+    try {
+      await context.close();
+    } catch (error) {
+      if (error instanceof Error) {
+        const ignorableErrors = [
+          'ENOENT',
+          'Target page, context or browser has been closed',
+          'Protocol error',
+          'End of central directory record',
+        ];
+        if (!ignorableErrors.some((msg) => error.message.includes(msg))) {
+          throw error;
+        }
+        // Silently ignore trace-related cleanup errors
+      }
+    }
+  }
+};
