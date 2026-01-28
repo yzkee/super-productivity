@@ -279,56 +279,6 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
                 },
               },
             },
-            {
-              // Note: Using (m, v, field) signature for btn type fields to ensure
-              // hideExpression works correctly with the btn component.
-              // Using ?? false to ensure button stays hidden if field is undefined.
-              hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
-                !(field?.model?.isEncryptionEnabled ?? false),
-              type: 'btn',
-              templateOptions: {
-                text: T.F.SYNC.FORM.SUPER_SYNC.BTN_CHANGE_PASSWORD,
-                btnType: 'default',
-                onClick: async () => {
-                  const result = await openEncryptionPasswordChangeDialog();
-                  // Password is updated through the service, no need to update form
-                  return result?.success ? true : false;
-                },
-              },
-            },
-            {
-              // Note: Using (m, v, field) signature for btn type fields to ensure
-              // hideExpression works correctly with the btn component.
-              // Using ?? false to ensure button stays hidden if field is undefined.
-              hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
-                !(field?.model?.isEncryptionEnabled ?? false),
-              type: 'btn',
-              className: 'e2e-disable-encryption-btn',
-              templateOptions: {
-                text: T.F.SYNC.FORM.SUPER_SYNC.BTN_DISABLE_ENCRYPTION,
-                btnType: 'default',
-                onClick: async (field: FormlyFieldConfig) => {
-                  const result = await openDisableEncryptionDialog();
-                  if (result?.success && result?.encryptionRemoved && field?.model) {
-                    field.model.isEncryptionEnabled = false;
-                    field.model.encryptKey = '';
-                  }
-                  return result?.success ? true : false;
-                },
-              },
-            },
-            {
-              // Using ?? false to ensure message stays hidden if field is undefined
-              hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
-                !(field?.model?.isEncryptionEnabled ?? false) ||
-                !(field?.model?.encryptKey ?? false),
-              type: 'tpl',
-              className: 'tpl',
-              templateOptions: {
-                tag: 'div',
-                text: T.F.SYNC.FORM.SUPER_SYNC.PASSWORD_SET_INFO,
-              },
-            },
             // Server URL
             {
               key: 'baseUrl',
@@ -376,6 +326,71 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
       templateOptions: {
         label: T.F.SYNC.FORM.L_MANUAL_SYNC_ONLY,
       },
+    },
+
+    // Encryption status box - shown when encryption is enabled (for any provider)
+    {
+      hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
+        !(field?.parent?.model?.isEncryptionEnabled ?? false),
+      className: 'encryption-status-box',
+      fieldGroup: [
+        {
+          type: 'tpl',
+          className: 'tpl',
+          templateOptions: {
+            tag: 'div',
+            class: 'password-set-info',
+            text: T.F.SYNC.FORM.PASSWORD_SET_INFO,
+          },
+        },
+        {
+          type: 'btn',
+          className: 'e2e-change-password-btn',
+          templateOptions: {
+            text: T.F.SYNC.FORM.BTN_CHANGE_PASSWORD,
+            btnType: 'primary',
+            btnStyle: 'stroked',
+            onClick: async (field: FormlyFieldConfig) => {
+              const isSuperSync =
+                field?.parent?.parent?.model?.syncProvider ===
+                LegacySyncProvider.SuperSync;
+              const result = isSuperSync
+                ? await openEncryptionPasswordChangeDialog()
+                : await openEncryptionPasswordChangeDialogForFileBased();
+              return result?.success ? true : false;
+            },
+          },
+        },
+        {
+          type: 'btn',
+          className: 'e2e-disable-encryption-btn',
+          templateOptions: {
+            text: T.F.SYNC.FORM.BTN_DISABLE_ENCRYPTION,
+            btnType: 'primary',
+            btnStyle: 'stroked',
+            onClick: async (field: FormlyFieldConfig) => {
+              const isSuperSync =
+                field?.parent?.parent?.model?.syncProvider ===
+                LegacySyncProvider.SuperSync;
+              const result = isSuperSync
+                ? await openDisableEncryptionDialog()
+                : await openDisableEncryptionDialogForFileBased();
+              if (
+                result?.success &&
+                result?.encryptionRemoved &&
+                field?.parent?.parent?.model
+              ) {
+                field.parent.parent.model.isEncryptionEnabled = false;
+                // Also clear encryptKey if we're in file-based provider context
+                if (!isSuperSync && field?.parent?.parent?.model) {
+                  field.parent.parent.model.encryptKey = '';
+                }
+              }
+              return result?.success ? true : false;
+            },
+          },
+        },
+      ],
     },
 
     // COMMON SETTINGS
@@ -439,52 +454,6 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
           },
           expressions: {
             'props.disabled': (field: FormlyFieldConfig) => !field?.model?.encryptKey,
-          },
-        },
-        {
-          hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
-            field?.parent?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
-            !m.isEncryptionEnabled,
-          type: 'btn',
-          className: 'e2e-file-based-change-password-btn',
-          templateOptions: {
-            text: T.F.SYNC.FORM.FILE_BASED.BTN_CHANGE_PASSWORD,
-            btnType: 'default',
-            onClick: async () => {
-              const result = await openEncryptionPasswordChangeDialogForFileBased();
-              return result?.success ? true : false;
-            },
-          },
-        },
-        {
-          hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
-            field?.parent?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
-            !m.isEncryptionEnabled,
-          type: 'btn',
-          className: 'e2e-file-based-disable-encryption-btn',
-          templateOptions: {
-            text: T.F.SYNC.FORM.FILE_BASED.BTN_DISABLE_ENCRYPTION,
-            btnType: 'default',
-            onClick: async (field: FormlyFieldConfig) => {
-              const result = await openDisableEncryptionDialogForFileBased();
-              if (result?.success && result?.encryptionRemoved && field?.model) {
-                field.model.isEncryptionEnabled = false;
-                field.model.encryptKey = '';
-              }
-              return result?.success ? true : false;
-            },
-          },
-        },
-        {
-          hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
-            field?.parent?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
-            !m.isEncryptionEnabled ||
-            !m?.encryptKey,
-          type: 'tpl',
-          className: 'tpl',
-          templateOptions: {
-            tag: 'div',
-            text: T.F.SYNC.FORM.FILE_BASED.PASSWORD_SET_INFO,
           },
         },
       ],
