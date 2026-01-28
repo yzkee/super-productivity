@@ -80,7 +80,7 @@ jobs:
           path: .tmp/angular-dist
 
       - name: Run Regular E2E Tests
-        run: npm run e2e:ci -- --grep-invert "@webdav|@supersync"
+        run: npm run e2e:ci
 
       - name: Upload E2E Results on Failure
         if: ${{ failure() }}
@@ -126,7 +126,7 @@ jobs:
           ./scripts/wait-for-webdav.sh
 
       - name: Run WebDAV E2E Tests
-        run: npm run e2e:ci -- --grep "@webdav"
+        run: npm run e2e:all -- --grep "@webdav"
 
       - name: Stop Docker Services
         if: always()
@@ -184,7 +184,7 @@ jobs:
           echo "✓ SuperSync server ready!"
 
       - name: Run SuperSync E2E Tests
-        run: npm run e2e:ci -- --grep "@supersync"
+        run: npm run e2e:all -- --grep "@supersync"
 
       - name: Stop Docker Services
         if: always()
