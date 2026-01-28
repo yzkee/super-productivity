@@ -4,7 +4,11 @@ import { GlobalConfigService } from '../../features/config/global-config.service
 import { combineLatest, from, Observable, of } from 'rxjs';
 import { SyncConfig } from '../../features/config/global-config.model';
 import { switchMap, tap } from 'rxjs/operators';
-import { PrivateCfgByProviderId, SyncProviderId } from '../../op-log/sync-exports';
+import {
+  CurrentProviderPrivateCfg,
+  PrivateCfgByProviderId,
+  SyncProviderId,
+} from '../../op-log/sync-exports';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 import { SyncLog } from '../../core/log';
 import { DerivedKeyCacheService } from '../../op-log/encryption/derived-key-cache.service';
@@ -91,6 +95,43 @@ export class SyncConfigService {
 
   private _lastSettings: SyncConfig | null = null;
 
+  private _deriveEncryptionState(
+    baseConfig: SyncConfig,
+    currentProviderCfg: CurrentProviderPrivateCfg | null,
+  ): { isEncryptionEnabled: boolean; encryptKey: string } {
+    if (!currentProviderCfg) {
+      return {
+        isEncryptionEnabled: baseConfig.isEncryptionEnabled ?? false,
+        encryptKey: '',
+      };
+    }
+
+    const privateCfg = currentProviderCfg.privateCfg as {
+      encryptKey?: string;
+      isEncryptionEnabled?: boolean;
+    } | null;
+    if (!privateCfg) {
+      return {
+        isEncryptionEnabled: baseConfig.isEncryptionEnabled ?? false,
+        encryptKey: '',
+      };
+    }
+
+    const encryptKey = privateCfg.encryptKey ?? '';
+
+    if (currentProviderCfg.providerId === SyncProviderId.SuperSync) {
+      return {
+        isEncryptionEnabled: privateCfg.isEncryptionEnabled ?? false,
+        encryptKey,
+      };
+    }
+
+    return {
+      isEncryptionEnabled: !!encryptKey,
+      encryptKey,
+    };
+  }
+
   readonly syncSettingsForm$: Observable<SyncConfig> = combineLatest([
     this._globalConfigService.sync$,
     this._providerManager.currentProviderPrivateCfg$,
@@ -147,17 +188,10 @@ export class SyncConfigService {
 
       const prop = PROP_MAP_TO_FORM[currentProviderCfg.providerId];
 
-      const providerEncryptKey = (
-        currentProviderCfg.privateCfg as { encryptKey?: string } | null
-      )?.encryptKey;
-
-      // For SuperSync, extract isEncryptionEnabled from privateCfg
-      // For file-based providers, treat encryptKey as the source of truth
-      const isEncryptionEnabled =
-        currentProviderCfg.providerId === SyncProviderId.SuperSync
-          ? ((currentProviderCfg.privateCfg as { isEncryptionEnabled?: boolean } | null)
-              ?.isEncryptionEnabled ?? false)
-          : !!providerEncryptKey || (baseConfig.isEncryptionEnabled ?? false);
+      const { isEncryptionEnabled, encryptKey } = this._deriveEncryptionState(
+        baseConfig,
+        currentProviderCfg,
+      );
 
       // DEBUG: Log the encryption state
       SyncLog.log(
@@ -166,7 +200,7 @@ export class SyncConfigService {
         'providerId:',
         currentProviderCfg.providerId,
         'privateCfg.encryptKey:',
-        providerEncryptKey,
+        encryptKey,
         'privateCfg.isEncryptionEnabled:',
         (currentProviderCfg.privateCfg as { isEncryptionEnabled?: boolean } | null)
           ?.isEncryptionEnabled,
@@ -175,7 +209,7 @@ export class SyncConfigService {
       // Create config with provider-specific settings
       const result: SyncConfig = {
         ...baseConfig,
-        encryptKey: currentProviderCfg?.privateCfg?.encryptKey || '',
+        encryptKey,
         isEncryptionEnabled,
         // Reset provider-specific configs to defaults first
         localFileSync: DEFAULT_GLOBAL_CONFIG.sync.localFileSync,
@@ -224,6 +258,9 @@ export class SyncConfigService {
     }
 
     await this._providerManager.setProviderConfig(activeProvider.id, newConfig);
+
+    // Ensure global config reflects encryption enabled when password is entered
+    this._globalConfigService.updateSection('sync', { isEncryptionEnabled: true });
 
     // Clear cached encryption keys to force re-derivation with new password
     this._derivedKeyCache.clearCache();

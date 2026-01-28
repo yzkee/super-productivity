@@ -51,7 +51,10 @@ export class EncryptionPasswordChangeService {
    * @param newPassword - The new encryption password
    * @throws Error if sync provider is not SuperSync or not ready
    */
-  async changePassword(newPassword: string): Promise<void> {
+  async changePassword(
+    newPassword: string,
+    options?: { allowUnsyncedOps?: boolean },
+  ): Promise<void> {
     SyncLog.normal('EncryptionPasswordChangeService: Starting password change...');
 
     // Get the sync provider
@@ -74,10 +77,16 @@ export class EncryptionPasswordChangeService {
       const unsyncedUserOps = unsyncedOps.filter(
         (entry) => !isFullStateOpType(entry.op.opType),
       );
-      if (unsyncedUserOps.length > 0) {
+      if (unsyncedUserOps.length > 0 && !options?.allowUnsyncedOps) {
         throw new Error(
           `Cannot change password: ${unsyncedUserOps.length} operation(s) have not been synced yet. ` +
             'Please wait for sync to complete or manually trigger a sync before changing the password.',
+        );
+      }
+      if (unsyncedUserOps.length > 0 && options?.allowUnsyncedOps) {
+        SyncLog.warn(
+          `EncryptionPasswordChangeService: Proceeding with password change despite ` +
+            `${unsyncedUserOps.length} unsynced operation(s) (force overwrite).`,
         );
       }
 

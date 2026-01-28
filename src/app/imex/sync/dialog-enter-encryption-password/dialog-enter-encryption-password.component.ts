@@ -82,6 +82,7 @@ export class DialogEnterEncryptionPasswordComponent {
         type: 'ERROR',
         msg: T.F.SYNC.S.PERSIST_FAILED,
       });
+    } finally {
       this.isLoading.set(false);
     }
   }

@@ -66,6 +66,7 @@ export class DialogSyncInitialCfgComponent implements AfterViewInit {
     syncProvider: null,
     syncInterval: 300000,
     encryptKey: '',
+    isEncryptionEnabled: false,
     localFileSync: {},
     webDav: {},
     superSync: {},
@@ -135,6 +136,8 @@ export class DialogSyncInitialCfgComponent implements AfterViewInit {
               providerSpecificUpdate = {
                 superSync: privateCfg as any,
                 encryptKey: privateCfg.encryptKey || '',
+                // SuperSync stores isEncryptionEnabled in privateCfg, not globalCfg
+                isEncryptionEnabled: (privateCfg as any).isEncryptionEnabled || false,
               };
             } else if (newProvider === LegacySyncProvider.WebDAV && privateCfg) {
               providerSpecificUpdate = {
@@ -214,6 +217,8 @@ export class DialogSyncInitialCfgComponent implements AfterViewInit {
   }
 
   updateTmpCfg(cfg: SyncConfig): void {
-    this._tmpUpdatedCfg = cfg;
+    // Use Object.assign to preserve the object reference for Formly
+    // This ensures Formly detects changes to the model
+    Object.assign(this._tmpUpdatedCfg, cfg);
   }
 }

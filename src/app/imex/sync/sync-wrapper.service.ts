@@ -672,6 +672,9 @@ export class SyncWrapperService {
       if (result?.password) {
         // Password was entered and saved, re-sync
         this.sync();
+      } else if (result?.forceOverwrite) {
+        // Force overwrite succeeded; reflect synced status
+        this._providerManager.setSyncStatus('IN_SYNC');
       } else {
         // User cancelled - set status to unknown
         this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
