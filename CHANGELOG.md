@@ -1,3 +1,32 @@
+## [17.0.7](https://github.com/super-productivity/super-productivity/compare/v17.0.6...v17.0.7) (2026-01-28)
+
+### Bug Fixes
+
+- **e2e:** resolve flaky WebDAV tests and fix encryption test failures ([a37d0ea](https://github.com/super-productivity/super-productivity/commit/a37d0eac4f4e37e130991ff70d453353e72f7b36))
+- emit legacy PBKDF2 deprecation warning only after successful decryption ([2ed0e59](https://github.com/super-productivity/super-productivity/commit/2ed0e59d730e2d4017a3149c0908038babdc8e52))
+- **markdown:** prevent duplicate checkbox rendering in markdown ([#6229](https://github.com/super-productivity/super-productivity/issues/6229)) ([b3c548e](https://github.com/super-productivity/super-productivity/commit/b3c548e67821078270963665efff933606c2f47a)), closes [#6228](https://github.com/super-productivity/super-productivity/issues/6228) [#6228](https://github.com/super-productivity/super-productivity/issues/6228)
+- remove debug logging and fix isLoading reset in encryption dialog ([e3b517d](https://github.com/super-productivity/super-productivity/commit/e3b517d177e88d0a50f0e62ad780888903abf868))
+- **simple-counter:** preserve order when reordering counters in settings ([98f4009](https://github.com/super-productivity/super-productivity/commit/98f40093d6ac37466b08d4e726ce834c3e7014aa)), closes [#6232](https://github.com/super-productivity/super-productivity/issues/6232)
+- **sync:** allow force overwrite on encryption password ([e260cea](https://github.com/super-productivity/super-productivity/commit/e260ceab805101d609720c844dc6f3b085f80090))
+- **sync:** clear dropbox tokens when sync disabled ([d7ff5a5](https://github.com/super-productivity/super-productivity/commit/d7ff5a5faccaf94561f614e355a12d4e369f8645))
+- **sync:** clear old full-state ops when new SYNC_IMPORT is applied ([04f30d9](https://github.com/super-productivity/super-productivity/commit/04f30d9af5cecb413f4c81677810bcef59d01bf8))
+- **sync:** ensure server deletes existing data before accepting new SYNC_IMPORT ([07b1e97](https://github.com/super-productivity/super-productivity/commit/07b1e97b97a34d6722076c08a1a0f9dd0672cf27))
+- **sync:** handle dropbox refresh auth failure ([cc6f04f](https://github.com/super-productivity/super-productivity/commit/cc6f04fd9319450a4047f1516d5b3922fcfb1ff4))
+- **sync:** handle encryption password entry ([64a3e64](https://github.com/super-productivity/super-productivity/commit/64a3e64dd6eeff8129a758f4b28ba4a06503ce9c))
+- **sync:** invalidate appliedOpIds cache on ConstraintError ([a712e43](https://github.com/super-productivity/super-productivity/commit/a712e434b2f0dc270419437f07ff7fcf48b04bd0)), closes [#6213](https://github.com/super-productivity/super-productivity/issues/6213)
+- **sync:** preserve SuperSync encryption password from race condition ([47050c0](https://github.com/super-productivity/super-productivity/commit/47050c0658556ab849dfff1684c9bfd613803ee1))
+- **sync:** prevent archive corruption during "Keep local" conflict resolution ([4402575](https://github.com/super-productivity/super-productivity/commit/440257518730e744e09cde99b7fcfd1028e26a77))
+- **sync:** reflect file-based encryption state in UI ([7d84a36](https://github.com/super-productivity/super-productivity/commit/7d84a36b4b82f07fb9a9af8be459ce1c3fa98dfa))
+- **sync:** translate WebDAV 412 error for retry mechanism ([edcb2cb](https://github.com/super-productivity/super-productivity/commit/edcb2cbc1854a17dcf6bca6e5b7dab758b50fcb3)), closes [#6218](https://github.com/super-productivity/super-productivity/issues/6218)
+- **sync:** update currentProviderPrivateCfg$ observable when enabling encryption ([be11a4a](https://github.com/super-productivity/super-productivity/commit/be11a4aef195ba277990ce0081bd9c13175ba35d))
+- **ui:** add missing checkbox renderer for marked options ([699c034](https://github.com/super-productivity/super-productivity/commit/699c0348bcd1842dd61f229e8108f9d294ff973f))
+- use providerManager.setProviderConfig to prevent file-based encryption password loss ([db6de98](https://github.com/super-productivity/super-productivity/commit/db6de985820fc22647f63a6b929b05dada0c013e))
+
+### Features
+
+- **sync:** close parent settings dialog after disabling encryption ([730addc](https://github.com/super-productivity/super-productivity/commit/730addc181390f306b4126ac08e6257be0aac8b9))
+- **sync:** unify encryption status UI into a styled box ([bd99d4a](https://github.com/super-productivity/super-productivity/commit/bd99d4a907ab5e57387d1d3c754cf9823b08df5b))
+
 ## [17.0.6](https://github.com/super-productivity/super-productivity/compare/v17.0.5...v17.0.6) (2026-01-27)
 
 ### Bug Fixes
