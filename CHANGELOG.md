@@ -1,3 +1,9 @@
+## [17.0.8](https://github.com/super-productivity/super-productivity/compare/v17.0.7...v17.0.8) (2026-01-28)
+
+### Bug Fixes
+
+- **ci:** remove redundant grep-invert args from e2e command ([08cfa55](https://github.com/super-productivity/super-productivity/commit/08cfa556bddd37084287d2a04f270dc669cb7ed3))
+
 ## [17.0.7](https://github.com/super-productivity/super-productivity/compare/v17.0.6...v17.0.7) (2026-01-28)
 
 ### Bug Fixes
