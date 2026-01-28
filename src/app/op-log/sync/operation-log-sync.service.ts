@@ -656,9 +656,13 @@ export class OperationLogSyncService {
     // 2. Piggybacked ops may be encrypted with a different key (e.g., after password change)
     //    which would cause DecryptError
     // 3. Server migration check downloads ops which would fail with DecryptError if password changed
-    await this.uploadPendingOps(syncProvider, {
+    //
+    // Use isCleanSlate=true to ensure server deletes ALL existing data before accepting
+    // the new SYNC_IMPORT. This is critical for recovery scenarios like decrypt errors
+    // where the server may have data encrypted with a different password.
+    await this.uploadService.uploadPendingOps(syncProvider, {
       skipPiggybackProcessing: true,
-      skipServerMigrationCheck: true,
+      isCleanSlate: true,
     });
 
     OpLog.normal('OperationLogSyncService: Force upload complete.');

@@ -1096,6 +1096,23 @@ describe('OperationLogSyncService', () => {
         error,
       );
     });
+
+    it('should upload with isCleanSlate=true to delete server data before accepting new data', async () => {
+      // This is critical for recovery scenarios like decrypt errors where the server
+      // may have data encrypted with a different password. Clean slate ensures the
+      // server deletes ALL existing data before accepting the new SYNC_IMPORT.
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await service.forceUploadLocalState(mockProvider);
+
+      expect(uploadServiceSpy.uploadPendingOps).toHaveBeenCalledWith(mockProvider, {
+        skipPiggybackProcessing: true,
+        isCleanSlate: true,
+      });
+    });
   });
 
   describe('forceDownloadRemoteState', () => {
