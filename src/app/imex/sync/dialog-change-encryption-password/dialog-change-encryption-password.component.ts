@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import {
   MAT_DIALOG_DATA,
-  MatDialog,
   MatDialogActions,
   MatDialogContent,
   MatDialogRef,
@@ -20,7 +19,6 @@ import { SnackService } from '../../../core/snack/snack.service';
 import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatDivider } from '@angular/material/divider';
 import { FileBasedEncryptionService } from '../file-based-encryption.service';
-import { DialogConfirmComponent } from '../../../ui/dialog-confirm/dialog-confirm.component';
 
 export interface ChangeEncryptionPasswordResult {
   success: boolean;
@@ -63,7 +61,6 @@ export class DialogChangeEncryptionPasswordComponent {
   private _fileBasedEncryptionService = inject(FileBasedEncryptionService);
   private _encryptionDisableService = inject(EncryptionDisableService);
   private _snackService = inject(SnackService);
-  private _matDialog = inject(MatDialog);
   private _matDialogRef =
     inject<
       MatDialogRef<
@@ -95,7 +92,7 @@ export class DialogChangeEncryptionPasswordComponent {
     return this.newPassword.length >= 8 && this.passwordsMatch;
   }
 
-  async confirm(options?: { allowUnsyncedOps?: boolean }): Promise<void> {
+  async confirm(): Promise<void> {
     if (!this.isValid || this.isLoading()) {
       return;
     }
@@ -106,10 +103,10 @@ export class DialogChangeEncryptionPasswordComponent {
       if (this.providerType === 'file-based') {
         await this._fileBasedEncryptionService.changePassword(this.newPassword);
       } else {
-        await this._encryptionPasswordChangeService.changePassword(
-          this.newPassword,
-          options,
-        );
+        // Always allow unsynced ops since password change does a clean slate + overwrite anyway
+        await this._encryptionPasswordChangeService.changePassword(this.newPassword, {
+          allowUnsyncedOps: true,
+        });
       }
       this._snackService.open({
         type: 'SUCCESS',
@@ -123,27 +120,6 @@ export class DialogChangeEncryptionPasswordComponent {
         msg: `Failed to change password: ${message}`,
       });
       this.isLoading.set(false);
-    }
-  }
-
-  async confirmForceOverwrite(): Promise<void> {
-    if (this.providerType !== 'supersync' || !this.isValid || this.isLoading()) {
-      return;
-    }
-
-    const confirmed = await this._matDialog
-      .open(DialogConfirmComponent, {
-        data: {
-          title: this.textKeys.FORCE_OVERWRITE_TITLE,
-          message: this.textKeys.FORCE_OVERWRITE_CONFIRM,
-          okTxt: this.textKeys.BTN_FORCE_OVERWRITE,
-        },
-      })
-      .afterClosed()
-      .toPromise();
-
-    if (confirmed) {
-      await this.confirm({ allowUnsyncedOps: true });
     }
   }
 

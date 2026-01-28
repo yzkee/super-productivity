@@ -1,8 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { MatDialogRef } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
-import { of } from 'rxjs';
 import {
   DialogChangeEncryptionPasswordComponent,
   ChangeEncryptionPasswordResult,
@@ -22,7 +21,6 @@ describe('DialogChangeEncryptionPasswordComponent', () => {
   let mockFileBasedEncryptionService: jasmine.SpyObj<FileBasedEncryptionService>;
   let mockSnackService: jasmine.SpyObj<SnackService>;
   let mockEncryptionDisableService: jasmine.SpyObj<EncryptionDisableService>;
-  let mockMatDialog: jasmine.SpyObj<MatDialog>;
 
   beforeEach(async () => {
     mockDialogRef = jasmine.createSpyObj('MatDialogRef', ['close']);
@@ -38,7 +36,6 @@ describe('DialogChangeEncryptionPasswordComponent', () => {
       'disableEncryption',
       'disableEncryptionForFileBased',
     ]);
-    mockMatDialog = jasmine.createSpyObj('MatDialog', ['open']);
 
     await TestBed.configureTestingModule({
       imports: [
@@ -58,7 +55,6 @@ describe('DialogChangeEncryptionPasswordComponent', () => {
         },
         { provide: SnackService, useValue: mockSnackService },
         { provide: EncryptionDisableService, useValue: mockEncryptionDisableService },
-        { provide: MatDialog, useValue: mockMatDialog },
       ],
     }).compileComponents();
 
@@ -143,7 +139,7 @@ describe('DialogChangeEncryptionPasswordComponent', () => {
       // After success, dialog closes, loading state may or may not be reset
     });
 
-    it('should call changePassword and close dialog on success', async () => {
+    it('should call changePassword with allowUnsyncedOps and close dialog on success', async () => {
       component.newPassword = 'password123';
       component.confirmPassword = 'password123';
       mockEncryptionPasswordChangeService.changePassword.and.returnValue(
@@ -154,7 +150,7 @@ describe('DialogChangeEncryptionPasswordComponent', () => {
 
       expect(mockEncryptionPasswordChangeService.changePassword).toHaveBeenCalledWith(
         'password123',
-        undefined,
+        { allowUnsyncedOps: true },
       );
       expect(mockSnackService.open).toHaveBeenCalledWith(
         jasmine.objectContaining({ type: 'SUCCESS' }),
@@ -196,38 +192,6 @@ describe('DialogChangeEncryptionPasswordComponent', () => {
           msg: 'Failed to change password: Unknown error',
         }),
       );
-    });
-  });
-
-  describe('confirmForceOverwrite', () => {
-    it('should confirm and force overwrite with allowUnsyncedOps', async () => {
-      component.newPassword = 'password123';
-      component.confirmPassword = 'password123';
-      mockEncryptionPasswordChangeService.changePassword.and.returnValue(
-        Promise.resolve(),
-      );
-      const confirmDialogRef = jasmine.createSpyObj('MatDialogRef', ['afterClosed']);
-      confirmDialogRef.afterClosed.and.returnValue(of(true));
-      mockMatDialog.open.and.returnValue(confirmDialogRef);
-
-      await component.confirmForceOverwrite();
-
-      expect(mockEncryptionPasswordChangeService.changePassword).toHaveBeenCalledWith(
-        'password123',
-        { allowUnsyncedOps: true },
-      );
-    });
-
-    it('should not proceed when confirmation is cancelled', async () => {
-      component.newPassword = 'password123';
-      component.confirmPassword = 'password123';
-      const confirmDialogRef = jasmine.createSpyObj('MatDialogRef', ['afterClosed']);
-      confirmDialogRef.afterClosed.and.returnValue(of(false));
-      mockMatDialog.open.and.returnValue(confirmDialogRef);
-
-      await component.confirmForceOverwrite();
-
-      expect(mockEncryptionPasswordChangeService.changePassword).not.toHaveBeenCalled();
     });
   });
 
