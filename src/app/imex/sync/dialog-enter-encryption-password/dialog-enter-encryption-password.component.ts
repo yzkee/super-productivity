@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { NgIf } from '@angular/common';
 import {
   MatDialogActions,
   MatDialogContent,
@@ -43,7 +42,6 @@ export interface EnterEncryptionPasswordResult {
     MatButton,
     MatIcon,
     TranslatePipe,
-    NgIf,
   ],
 })
 export class DialogEnterEncryptionPasswordComponent {

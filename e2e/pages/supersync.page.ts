@@ -251,7 +251,6 @@ export class SuperSyncPage extends BasePage {
       await this.page.waitForTimeout(1000);
 
       // Define locators for all possible dialogs
-      const passwordDialog = this.page.locator('dialog-enter-encryption-password');
       const decryptErrorDialog = this.page.locator('dialog-handle-decrypt-error');
 
       // Check which dialog appeared (if any)
@@ -401,7 +400,6 @@ export class SuperSyncPage extends BasePage {
       // When waitForInitialSync is false but encryption is needed,
       // we need to handle the password dialog that appears when receiving encrypted data
       // This is used for testing wrong password scenarios
-      const passwordDialog = this.page.locator('dialog-enter-encryption-password');
       const decryptErrorDialog = this.page.locator('dialog-handle-decrypt-error');
 
       // Wait for password dialog to appear (server has encrypted data)
@@ -693,9 +691,18 @@ export class SuperSyncPage extends BasePage {
         .locator('formly-collapsible.isExpanded')
         .count();
 
-      console.log(
-        `[DisableEncryption] After expand - enableBtn: ${enableBtn}, disableBtn: ${disableBtn}, changeBtn: ${changeBtn}, advancedContent: ${advancedContent}, encryptKeyInput: ${encryptKeyInput}, selectedProvider: ${selectedProvider}, formlyFieldsInCollapsible: ${formlyFieldsInCollapsible}, hiddenFormlyFields: ${hiddenFormlyFields}, collapsiblePanel: ${collapsiblePanel}, isCollapsibleExpanded: ${isCollapsibleExpanded}`,
-      );
+      console.log('[DisableEncryption] After expand', {
+        enableBtn,
+        disableBtn,
+        changeBtn,
+        advancedContent,
+        encryptKeyInput,
+        selectedProvider,
+        formlyFieldsInCollapsible,
+        hiddenFormlyFields,
+        collapsiblePanel,
+        isCollapsibleExpanded,
+      });
 
       await this.disableEncryptionBtn.waitFor({ state: 'visible', timeout: 3000 });
     }
