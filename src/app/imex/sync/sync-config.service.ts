@@ -193,19 +193,6 @@ export class SyncConfigService {
         currentProviderCfg,
       );
 
-      // DEBUG: Log the encryption state
-      SyncLog.log(
-        'syncSettingsForm$ - isEncryptionEnabled:',
-        isEncryptionEnabled,
-        'providerId:',
-        currentProviderCfg.providerId,
-        'privateCfg.encryptKey:',
-        encryptKey,
-        'privateCfg.isEncryptionEnabled:',
-        (currentProviderCfg.privateCfg as { isEncryptionEnabled?: boolean } | null)
-          ?.isEncryptionEnabled,
-      );
-
       // Create config with provider-specific settings
       const result: SyncConfig = {
         ...baseConfig,

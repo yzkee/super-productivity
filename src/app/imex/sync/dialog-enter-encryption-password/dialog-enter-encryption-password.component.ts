@@ -117,6 +117,7 @@ export class DialogEnterEncryptionPasswordComponent {
         type: 'ERROR',
         msg: `Failed to overwrite server data: ${message}`,
       });
+    } finally {
       this.isLoading.set(false);
     }
   }
