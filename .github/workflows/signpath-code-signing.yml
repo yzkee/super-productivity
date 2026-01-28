@@ -42,7 +42,8 @@ jobs:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
           project-slug: ${{ secrets.SIGNPATH_PROJECT_SLUG }}
-          signing-policy-slug: 'release-signing'
+          #          signing-policy-slug: 'release-signing'
+          signing-policy-slug: 'test-signing'
           artifact-configuration-slug: 'setup'
           github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
           output-artifact-directory: '.tmp/app-builds-signed/'
