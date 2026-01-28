@@ -23,7 +23,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           New-Item -ItemType Directory -Force -Path .tmp/app-builds | Out-Null
-          gh release download "${{ inputs.tag }}" --dir ".tmp/app-builds" --pattern "*.exe" --pattern "*.blockmap" --pattern "latest*.yml"
+          gh release download "${{ inputs.tag }}" --repo "${{ github.repository }}" --dir ".tmp/app-builds" --pattern "*.exe" --pattern "*.blockmap" --pattern "latest*.yml"
           if (-not (Get-ChildItem -Path .tmp/app-builds -Filter *.exe)) {
             Write-Error "No .exe assets found for tag ${{ inputs.tag }}"
           }
