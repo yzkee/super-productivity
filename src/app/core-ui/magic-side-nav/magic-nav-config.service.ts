@@ -33,6 +33,7 @@ import {
   MenuTreeViewNode,
 } from '../../features/menu-tree/store/menu-tree.model';
 import { GlobalConfigService } from '../../features/config/global-config.service';
+import { IS_IOS_NATIVE } from '../../util/is-native-platform';
 
 @Injectable({
   providedIn: 'root',
@@ -221,7 +222,8 @@ export class MagicNavConfigService {
       },
 
       // Help Menu (rendered as mat-menu)
-      ...(this.isDonatePageEnabled()
+      // Not allowed to display donation stuff on iOS per App Store guidelines
+      ...(this.isDonatePageEnabled() && !IS_IOS_NATIVE
         ? [
             {
               type: 'route',
@@ -252,13 +254,18 @@ export class MagicNavConfigService {
             icon: 'bug_report',
             action: () => this._openBugReport(),
           },
-          {
-            type: 'href',
-            id: 'help-contribute',
-            label: T.MH.HM.CONTRIBUTE,
-            icon: 'volunteer_activism',
-            href: 'https://github.com/super-productivity/super-productivity/blob/master/CONTRIBUTING.md',
-          },
+          // Not allowed to display donation stuff on iOS per App Store guidelines
+          ...(!IS_IOS_NATIVE
+            ? [
+                {
+                  type: 'href' as const,
+                  id: 'help-contribute',
+                  label: T.MH.HM.CONTRIBUTE,
+                  icon: 'volunteer_activism',
+                  href: 'https://github.com/super-productivity/super-productivity/blob/master/CONTRIBUTING.md',
+                },
+              ]
+            : []),
           {
             type: 'href',
             id: 'help-reddit',
