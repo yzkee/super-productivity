@@ -104,7 +104,7 @@ describe('taskSharedSchedulingMetaReducer', () => {
       );
     });
 
-    it('should set dueDay to undefined when scheduling for a different day', () => {
+    it('should set dueDay to the target day when scheduling for a different day', () => {
       const testState = createStateWithExistingTasks(['task1'], [], [], ['task1']);
       // eslint-disable-next-line no-mixed-operators
       const tomorrowTimestamp = Date.now() + 24 * 60 * 60 * 1000;
@@ -112,11 +112,32 @@ describe('taskSharedSchedulingMetaReducer', () => {
 
       metaReducer(testState, action);
       expectStateUpdate(
-        expectTaskUpdate('task1', { dueWithTime: tomorrowTimestamp, dueDay: undefined }),
+        expectTaskUpdate('task1', {
+          dueWithTime: tomorrowTimestamp,
+          dueDay: getDbDateStr(tomorrowTimestamp),
+        }),
         action,
         mockReducer,
         testState,
       );
+    });
+
+    it('BUG REPRO: task scheduled for tomorrow should NOT have dueDay=undefined', () => {
+      // This test demonstrates the bug: when scheduling for tomorrow with time,
+      // dueDay was being set to undefined instead of the target day
+      const testState = createStateWithExistingTasks(['task1'], [], [], []);
+      // eslint-disable-next-line no-mixed-operators
+      const tomorrowTimestamp = Date.now() + 24 * 60 * 60 * 1000;
+      const action = createScheduleAction({}, tomorrowTimestamp);
+
+      metaReducer(testState, action);
+      const updatedState = mockReducer.calls.mostRecent().args[0];
+      const updatedTask = updatedState[TASK_FEATURE_NAME].entities.task1;
+
+      // The bug was: dueDay was set to undefined
+      // The fix: dueDay should be the date string of the scheduled time
+      expect(updatedTask.dueDay).toBe(getDbDateStr(tomorrowTimestamp));
+      expect(updatedTask.dueDay).not.toBeUndefined();
     });
   });
 

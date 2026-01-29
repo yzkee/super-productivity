@@ -62,7 +62,7 @@ const handleScheduleTaskWithTime = (
         id: task.id,
         changes: {
           dueWithTime,
-          dueDay: isScheduledForToday ? getDbDateStr() : undefined,
+          dueDay: getDbDateStr(dueWithTime),
           remindAt,
         },
       },

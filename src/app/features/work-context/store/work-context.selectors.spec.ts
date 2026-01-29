@@ -478,7 +478,7 @@ describe('workContext selectors', () => {
       expect(result).toEqual(['task1']); // Should be included via dueWithTime fallback
     });
 
-    it('should include task with dueWithTime for today but stale dueDay (fallback)', () => {
+    it('should NOT include task with dueWithTime for today when dueDay is set to different date (dueDay is authoritative)', () => {
       // Create a timestamp for today (e.g., 8:00 AM today)
       const today = new Date();
       today.setHours(8, 0, 0, 0);
@@ -487,8 +487,8 @@ describe('workContext selectors', () => {
       const taskWithStaleDueDay = {
         id: 'task1',
         tagIds: [],
-        dueDay: '2000-01-01', // Stale dueDay (not today)
-        dueWithTime: todayTimestamp, // But has dueWithTime for today
+        dueDay: '2000-01-01', // dueDay is set to a different date - this is authoritative
+        dueWithTime: todayTimestamp, // dueWithTime for today is ignored when dueDay is set
         subTaskIds: [],
       } as Partial<TaskCopy> as TaskCopy;
 
@@ -501,7 +501,7 @@ describe('workContext selectors', () => {
       const taskState = fakeEntityStateFromArray([taskWithStaleDueDay]) as any;
 
       const result = selectTodayTaskIds.projector(tagState, taskState);
-      expect(result).toEqual(['task1']); // Should be included via dueWithTime fallback
+      expect(result).toEqual([]); // dueDay is authoritative - task is NOT in today
     });
 
     it('should NOT include task with dueWithTime for tomorrow (no fallback)', () => {
@@ -591,6 +591,75 @@ describe('workContext selectors', () => {
 
       const result = selectTodayTaskIds.projector(tagState, taskState);
       expect(result).toEqual(['task1', 'task2']); // Both included, task2 appended
+    });
+
+    // BUG REPRODUCTION: Task scheduled for tomorrow should NOT appear in today
+    it('BUG REPRO: task with dueWithTime for today but dueDay=tomorrow should NOT be in today list', () => {
+      // This simulates a state inconsistency where dueWithTime might somehow be for "today"
+      // but dueDay is explicitly set to tomorrow. dueDay should take precedence.
+      const today = new Date();
+      today.setHours(8, 0, 0, 0);
+      const todayTimestamp = today.getTime();
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+
+      const taskWithConflictingState = {
+        id: 'task1',
+        tagIds: [],
+        dueDay: tomorrowStr, // Explicitly set to tomorrow
+        dueWithTime: todayTimestamp, // But dueWithTime is for today (inconsistent)
+        subTaskIds: [],
+      } as Partial<TaskCopy> as TaskCopy;
+
+      const todayTagEmpty = {
+        ...TODAY_TAG,
+        taskIds: [],
+      };
+
+      const tagState = fakeEntityStateFromArray([todayTagEmpty]);
+      const taskState = fakeEntityStateFromArray([taskWithConflictingState]) as any;
+
+      const result = selectTodayTaskIds.projector(tagState, taskState);
+      // When dueDay is explicitly set to tomorrow, task should NOT appear in today
+      // dueDay takes precedence over dueWithTime for determining "today" membership
+      expect(result).toEqual([]);
+    });
+
+    it('BUG REPRO: task scheduled for tomorrow via dialog should NOT appear in today', () => {
+      // This is the exact bug scenario:
+      // 1. Task starts in "today" list (dueDay = today)
+      // 2. User schedules it for tomorrow via schedule dialog
+      // 3. After fix: dueDay should be updated to tomorrow
+      // 4. Task should NOT appear in today's list
+
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(9, 0, 0, 0);
+      const tomorrowTimestamp = tomorrow.getTime();
+      const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+
+      // Task that was scheduled for tomorrow - with the FIX, dueDay should be tomorrow
+      const taskScheduledForTomorrow = {
+        id: 'task1',
+        tagIds: [],
+        dueDay: tomorrowStr, // After fix: dueDay is set to tomorrow
+        dueWithTime: tomorrowTimestamp, // Scheduled for 9am tomorrow
+        subTaskIds: [],
+      } as Partial<TaskCopy> as TaskCopy;
+
+      const todayTagEmpty = {
+        ...TODAY_TAG,
+        taskIds: [], // Task was removed from today tag when scheduled for future
+      };
+
+      const tagState = fakeEntityStateFromArray([todayTagEmpty]);
+      const taskState = fakeEntityStateFromArray([taskScheduledForTomorrow]) as any;
+
+      const result = selectTodayTaskIds.projector(tagState, taskState);
+      // Task should NOT appear in today (it's scheduled for tomorrow)
+      expect(result).toEqual([]);
     });
   });
 

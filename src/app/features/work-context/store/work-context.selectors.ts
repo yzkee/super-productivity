@@ -60,7 +60,7 @@ const computeOrderedTaskIdsForToday = (
       }
       // Fallback: check dueWithTime if dueDay doesn't match
       // This catches tasks scheduled for today that may have stale/missing dueDay
-      else if (task.dueWithTime && isToday(task.dueWithTime)) {
+      else if (task.dueWithTime && isToday(task.dueWithTime) && !task.dueDay) {
         tasksForToday.push(taskId);
       }
     }
