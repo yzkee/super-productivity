@@ -78,6 +78,156 @@ describe('markedOptionsFactory', () => {
       } as any);
       expect(result).toMatch(/<\/span> Spaced item<\/li>/);
     });
+
+    // Tests for gapped and nested lists (issue #6244)
+    // In marked v17, loose lists (with blank lines) have block-level tokens like paragraph
+    describe('gapped and nested lists (issue #6244)', () => {
+      // Mock parser that handles both parse() and parseInline()
+      const createMockParser = (): {
+        parse: (tokens: any[]) => string;
+        parseInline: (tokens: any[]) => string;
+      } => ({
+        parse: (tokens: any[]) =>
+          tokens
+            .map((t: any) => {
+              // Handle paragraph tokens (block-level)
+              if (t.type === 'paragraph' && t.tokens) {
+                return `<p>${t.tokens.map((inner: any) => inner.raw || inner.text || '').join('')}</p>`;
+              }
+              // Handle list tokens (nested lists)
+              if (t.type === 'list') {
+                return '<ul><li>nested item</li></ul>';
+              }
+              return t.raw || t.text || '';
+            })
+            .join(''),
+        parseInline: (tokens: any[]) =>
+          tokens.map((t: any) => t.raw || t.text || '').join(''),
+      });
+
+      it('should render gapped checklist items without error and without p tags', () => {
+        const mockParser = createMockParser();
+        const listitemRenderer = options.renderer!.listitem.bind({ parser: mockParser });
+
+        // Loose list items have paragraph tokens instead of raw text
+        // For task items, the paragraph should be unwrapped to keep checkbox on same line
+        const result = listitemRenderer({
+          text: '',
+          task: true,
+          checked: false,
+          tokens: [
+            {
+              type: 'paragraph',
+              tokens: [{ type: 'text', raw: 'First item', text: 'First item' }],
+            },
+          ],
+        } as any);
+
+        expect(result).toContain('checkbox-wrapper');
+        expect(result).toContain('First item');
+        expect(result).not.toContain('undefined');
+        // Task items should NOT have <p> tags to keep checkbox and text on same line
+        expect(result).not.toContain('<p>');
+      });
+
+      it('should render gapped regular list items without error', () => {
+        const mockParser = createMockParser();
+        const listitemRenderer = options.renderer!.listitem.bind({ parser: mockParser });
+
+        const result = listitemRenderer({
+          text: '',
+          task: false,
+          checked: undefined,
+          tokens: [
+            {
+              type: 'paragraph',
+              tokens: [{ type: 'text', raw: 'Loose item', text: 'Loose item' }],
+            },
+          ],
+        } as any);
+
+        expect(result).toBe('<li><p>Loose item</p></li>');
+      });
+
+      it('should render nested list items without error', () => {
+        const mockParser = createMockParser();
+        const listitemRenderer = options.renderer!.listitem.bind({ parser: mockParser });
+
+        const result = listitemRenderer({
+          text: '',
+          task: false,
+          checked: undefined,
+          tokens: [
+            { type: 'text', raw: 'Parent item', text: 'Parent item' },
+            { type: 'list', items: [{ text: 'nested item' }] },
+          ],
+        } as any);
+
+        expect(result).toContain('Parent item');
+        expect(result).toContain('<ul>');
+        expect(result).toContain('nested item');
+      });
+
+      it('should render gapped checklist with inline formatting', () => {
+        // Mock parse() that produces <p> wrapped content with inline formatting
+        const mockParser = {
+          parse: (tokens: any[]): string =>
+            tokens
+              .map((t: any) => {
+                if (t.type === 'paragraph' && t.tokens) {
+                  return `<p>${t.tokens
+                    .map((inner: any) => {
+                      if (inner.type === 'strong')
+                        return `<strong>${inner.text}</strong>`;
+                      return inner.raw || inner.text || '';
+                    })
+                    .join('')}</p>`;
+                }
+                return t.raw || t.text || '';
+              })
+              .join(''),
+          parseInline: (tokens: any[]): string =>
+            tokens.map((t: any) => t.raw || t.text || '').join(''),
+        };
+        const listitemRenderer = options.renderer!.listitem.bind({ parser: mockParser });
+
+        const result = listitemRenderer({
+          text: '',
+          task: true,
+          checked: true,
+          tokens: [
+            {
+              type: 'paragraph',
+              tokens: [
+                { type: 'text', raw: 'Task with ', text: 'Task with ' },
+                { type: 'strong', raw: '**bold**', text: 'bold' },
+              ],
+            },
+          ],
+        } as any);
+
+        expect(result).toContain('checkbox-wrapper');
+        expect(result).toContain('done');
+        expect(result).toContain('<strong>bold</strong>');
+        // Task items should NOT have <p> tags (stripped by post-processing)
+        expect(result).not.toContain('<p>');
+      });
+
+      it('should still render tight lists correctly', () => {
+        const mockParser = createMockParser();
+        const listitemRenderer = options.renderer!.listitem.bind({ parser: mockParser });
+
+        // Tight list items have inline tokens directly (no paragraph wrapper)
+        const result = listitemRenderer({
+          text: 'Tight item',
+          task: false,
+          checked: undefined,
+          tokens: [{ type: 'text', raw: 'Tight item', text: 'Tight item' }],
+        } as any);
+
+        expect(result).toBe('<li>Tight item</li>');
+      });
+    });
   });
 
   describe('link renderer', () => {

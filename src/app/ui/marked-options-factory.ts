@@ -50,7 +50,9 @@ export const markedOptionsFactory = (): MarkedOptions => {
   // The listitem renderer below handles checkbox rendering for task items.
   // Overriding both causes duplicate checkboxes (see GitHub issue #6228).
 
-  // In marked v17, we need to use this.parser.parseInline(tokens) to render inline content
+  // In marked v17, list items can contain block-level tokens (e.g., paragraph) when the list
+  // is "loose" (has blank lines between items). Use parse() instead of parseInline() to handle
+  // both block and inline tokens correctly. See GitHub issue #6244.
   // Using a regular function to access 'this'
   renderer.listitem = function ({
     text,
@@ -64,9 +66,18 @@ export const markedOptionsFactory = (): MarkedOptions => {
     tokens: any[];
   }) {
     // In marked v17, task list items need to manually prepend the checkbox
-    // Parse tokens to get rendered text with inline formatting (bold, italic, links, etc.)
-    const renderedText = tokens ? this.parser.parseInline(tokens) : text;
+    // Use parse() to handle both block tokens (paragraph in loose lists) and inline tokens
+    let renderedText = tokens ? this.parser.parse(tokens) : text;
+
     if (task) {
+      // For task items, strip outer <p></p> wrapper to keep checkbox and text on same line.
+      // Loose lists wrap content in <p> tags which pushes text to new line after checkbox.
+      // Only strip if it's a simple wrapper (no nested block content).
+      const strippedText = renderedText.replace(/^<p>([\s\S]*)<\/p>\n?$/, '$1');
+      if (strippedText !== renderedText && !strippedText.includes('<p>')) {
+        renderedText = strippedText;
+      }
+
       const isChecked = checked === true;
       const checkboxHtml = `<span class="checkbox material-icons">${isChecked ? 'check_box' : 'check_box_outline_blank'}</span>`;
       return `<li class="checkbox-wrapper ${isChecked ? 'done' : 'undone'}">${checkboxHtml} ${renderedText}</li>`;
