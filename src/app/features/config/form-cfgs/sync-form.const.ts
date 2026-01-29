@@ -136,6 +136,13 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
       key: 'localFileSync',
       fieldGroup: [
         {
+          type: 'tpl',
+          templateOptions: {
+            tag: 'p',
+            text: T.F.SYNC.FORM.LOCAL_FILE.INFO_TEXT,
+          },
+        },
+        {
           type: 'btn',
           key: 'syncFolderPath',
           templateOptions: {
@@ -158,6 +165,13 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
       resetOnHide: true,
       key: 'localFileSync',
       fieldGroup: [
+        {
+          type: 'tpl',
+          templateOptions: {
+            tag: 'p',
+            text: T.F.SYNC.FORM.LOCAL_FILE.INFO_TEXT,
+          },
+        },
         {
           type: 'btn',
           key: 'safFolderUri',

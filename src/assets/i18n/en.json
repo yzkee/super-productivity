@@ -1013,6 +1013,7 @@
           "L_SYNC_FILE_NAME": "Sync File Name"
         },
         "LOCAL_FILE": {
+          "INFO_TEXT": "Local File sync stores data in a folder on your device. <strong>Important:</strong> Do not use file-syncing tools like Syncthing, Resilio, or similar to sync this folder between devices - they can cause conflicts. For multi-device sync, use WebDAV, Dropbox, or SuperSync instead.",
           "L_SYNC_FILE_PATH_PERMISSION_VALIDATION": "Needs file access permission",
           "L_SYNC_FOLDER_PATH": "Sync folder path"
         },
