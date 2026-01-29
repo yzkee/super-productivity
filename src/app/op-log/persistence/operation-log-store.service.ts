@@ -23,6 +23,10 @@ import {
   BACKUP_KEY,
   OPS_INDEXES,
 } from './db-keys.const';
+import {
+  DUPLICATE_OPERATION_ERROR_MSG,
+  OPERATION_LOG_STORE_NOT_INITIALIZED,
+} from './op-log-errors.const';
 import { runDbUpgrade } from './db-upgrade';
 import { Log } from '../../core/log';
 import { vectorClockToString } from '../../core/util/vector-clock';
@@ -198,7 +202,7 @@ export class OperationLogStoreService {
       // or make methods async-ready (they are already async).
       // But we can't await in a getter.
       // Let's change the pattern: check in every method.
-      throw new Error('OperationLogStore not initialized. Ensure init() is called.');
+      throw new Error(OPERATION_LOG_STORE_NOT_INITIALIZED);
     }
     return this._db;
   }
@@ -279,9 +283,7 @@ export class OperationLogStoreService {
       if (e instanceof DOMException && e.name === 'ConstraintError') {
         this._appliedOpIdsCache = null;
         this._cacheLastSeq = 0;
-        throw new Error(
-          '[OpLogStore] Duplicate operation detected (likely race condition). See #6213.',
-        );
+        throw new Error(DUPLICATE_OPERATION_ERROR_MSG);
       }
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {
         throw new StorageQuotaExceededError();

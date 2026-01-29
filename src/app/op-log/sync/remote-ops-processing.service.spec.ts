@@ -28,6 +28,7 @@ import {
 } from '../../core/util/vector-clock';
 import { toEntityKey } from '../util/entity-key.util';
 import { T } from '../../t.const';
+import { DUPLICATE_OPERATION_ERROR_MSG } from '../persistence/op-log-errors.const';
 
 describe('RemoteOpsProcessingService', () => {
   let service: RemoteOpsProcessingService;
@@ -1175,9 +1176,7 @@ describe('RemoteOpsProcessingService', () => {
 
         // Setup: appendBatch always throws duplicate error (both attempts fail)
         opLogStoreSpy.appendBatch.and.rejectWith(
-          new Error(
-            '[OpLogStore] Duplicate operation detected (likely race condition). See #6213.',
-          ),
+          new Error(DUPLICATE_OPERATION_ERROR_MSG),
         );
 
         // After retry, error propagates up, sync fails
@@ -1231,9 +1230,7 @@ describe('RemoteOpsProcessingService', () => {
         opLogStoreSpy.appendBatch.and.callFake(async (ops: any[]) => {
           appendCallCount++;
           if (appendCallCount === 1) {
-            throw new Error(
-              '[OpLogStore] Duplicate operation detected (likely race condition). See #6213.',
-            );
+            throw new Error(DUPLICATE_OPERATION_ERROR_MSG);
           }
           return ops.map((_: any, i: number) => i + 1);
         });

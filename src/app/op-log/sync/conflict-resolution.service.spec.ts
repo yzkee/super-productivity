@@ -7,6 +7,7 @@ import { SnackService } from '../../core/snack/snack.service';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { of } from 'rxjs';
 import { ActionType, EntityConflict, OpType, Operation } from '../core/operation.types';
+import { DUPLICATE_OPERATION_ERROR_MSG } from '../persistence/op-log-errors.const';
 
 describe('ConflictResolutionService', () => {
   let service: ConflictResolutionService;
@@ -1497,9 +1498,7 @@ describe('ConflictResolutionService', () => {
         mockOpLogStore.appendBatch.and.callFake(async () => {
           appendCallCount++;
           if (appendCallCount === 1) {
-            throw new Error(
-              '[OpLogStore] Duplicate operation detected (likely race condition). See #6213.',
-            );
+            throw new Error(DUPLICATE_OPERATION_ERROR_MSG);
           }
           return [1];
         });
@@ -1529,9 +1528,7 @@ describe('ConflictResolutionService', () => {
         mockOpLogStore.filterNewOps.and.callFake(async (ops: Operation[]) => ops);
         // appendBatch always throws (both original and retry fail)
         mockOpLogStore.appendBatch.and.rejectWith(
-          new Error(
-            '[OpLogStore] Duplicate operation detected (likely race condition). See #6213.',
-          ),
+          new Error(DUPLICATE_OPERATION_ERROR_MSG),
         );
 
         await expectAsync(

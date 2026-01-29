@@ -18,6 +18,7 @@ import {
   SchemaMigrationService,
 } from '../persistence/schema-migration.service';
 import { SnackService } from '../../core/snack/snack.service';
+import { DUPLICATE_OPERATION_ERROR_PATTERN } from '../persistence/op-log-errors.const';
 import { T } from '../../t.const';
 import { LOCK_NAMES } from '../core/operation-log.const';
 import { LockService } from './lock.service';
@@ -335,7 +336,7 @@ export class RemoteOpsProcessingService {
     try {
       opsToApply = await this._filterAndAppendOps(ops, opIdToSeq);
     } catch (e) {
-      if (e instanceof Error && e.message.includes('Duplicate operation detected')) {
+      if (e instanceof Error && e.message.includes(DUPLICATE_OPERATION_ERROR_PATTERN)) {
         OpLog.warn(
           'RemoteOpsProcessingService: Duplicate detected, retrying with fresh filter (issue #6213 recovery)',
         );

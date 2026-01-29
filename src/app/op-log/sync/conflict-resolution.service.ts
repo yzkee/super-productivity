@@ -17,6 +17,7 @@ import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { MAX_CONFLICT_RETRY_ATTEMPTS } from '../core/operation-log.const';
+import { DUPLICATE_OPERATION_ERROR_PATTERN } from '../persistence/op-log-errors.const';
 import {
   compareVectorClocks,
   mergeVectorClocks,
@@ -1047,7 +1048,7 @@ export class ConflictResolutionService {
     try {
       return await attemptFilterAndAppend();
     } catch (e) {
-      if (e instanceof Error && e.message.includes('Duplicate operation detected')) {
+      if (e instanceof Error && e.message.includes(DUPLICATE_OPERATION_ERROR_PATTERN)) {
         OpLog.warn(
           'ConflictResolutionService: Duplicate detected, retrying with fresh filter (issue #6213 recovery)',
         );
