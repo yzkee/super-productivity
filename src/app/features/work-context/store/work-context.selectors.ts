@@ -49,18 +49,21 @@ const computeOrderedTaskIdsForToday = (
   const todayStr = getDbDateStr();
   const storedOrder = todayTag?.taskIds || [];
 
-  // Find all tasks where dueDay === today OR dueWithTime is for today
+  // Find all tasks where dueWithTime is for today OR dueDay === today
+  // Priority: dueWithTime takes precedence over dueDay (mutual exclusivity pattern)
   const tasksForToday: string[] = [];
   for (const taskId of Object.keys(taskEntities)) {
     const task = taskEntities[taskId];
     if (task) {
-      // Check dueDay first (primary source of truth)
-      if (task.dueDay === todayStr) {
-        tasksForToday.push(taskId);
+      // Check dueWithTime first (takes priority - mutual exclusivity)
+      if (task.dueWithTime) {
+        if (isToday(task.dueWithTime)) {
+          tasksForToday.push(taskId);
+        }
+        // If dueWithTime is set but not for today, skip (don't check dueDay)
       }
-      // Fallback: check dueWithTime if dueDay doesn't match
-      // This catches tasks scheduled for today that may have stale/missing dueDay
-      else if (task.dueWithTime && isToday(task.dueWithTime) && !task.dueDay) {
+      // Fallback: check dueDay only if dueWithTime is not set
+      else if (task.dueDay === todayStr) {
         tasksForToday.push(taskId);
       }
     }
@@ -377,19 +380,30 @@ export const selectTodayTagRepair = createSelector(
     const todayStr = getDbDateStr();
     const storedTaskIds = todayTag.taskIds;
 
-    // First pass: find all tasks (including subtasks) where dueDay === today
+    // First pass: find all tasks (including subtasks) that are "due today"
+    // Priority: dueWithTime takes precedence over dueDay (mutual exclusivity pattern)
     const allTasksWithDueToday = new Set<string>();
     for (const id of taskState.ids) {
       const task = taskState.entities[id];
-      if (task && task.dueDay === todayStr) {
-        allTasksWithDueToday.add(task.id);
+      if (task) {
+        // Check dueWithTime first (takes priority)
+        if (task.dueWithTime) {
+          if (isToday(task.dueWithTime)) {
+            allTasksWithDueToday.add(task.id);
+          }
+          // If dueWithTime is set but not for today, skip (don't check dueDay)
+        }
+        // Fallback: check dueDay only if dueWithTime is not set
+        else if (task.dueDay === todayStr) {
+          allTasksWithDueToday.add(task.id);
+        }
       }
     }
 
     // Second pass: find tasks that should appear as top-level items in Today list
     // This includes:
-    // 1. Parent tasks with dueDay === today
-    // 2. Subtasks with dueDay === today whose parent does NOT have dueDay === today
+    // 1. Parent tasks that are "due today" (via dueWithTime or dueDay)
+    // 2. Subtasks that are "due today" whose parent is NOT also "due today"
     const tasksForTodaySet = new Set<string>();
     for (const id of allTasksWithDueToday) {
       const task = taskState.entities[id];

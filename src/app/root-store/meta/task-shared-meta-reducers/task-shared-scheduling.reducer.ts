@@ -62,7 +62,7 @@ const handleScheduleTaskWithTime = (
         id: task.id,
         changes: {
           dueWithTime,
-          dueDay: getDbDateStr(dueWithTime),
+          dueDay: undefined, // Mutual exclusivity: dueWithTime clears dueDay
           remindAt,
         },
       },
