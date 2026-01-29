@@ -46,11 +46,9 @@ export const preprocessMarkdown = (markdown: string): string => {
 export const markedOptionsFactory = (): MarkedOptions => {
   const renderer = new MarkedRenderer();
 
-  // Custom checkbox renderer for Material icons
-  renderer.checkbox = ({ checked }: { checked: boolean }) => {
-    const icon = checked ? 'check_box' : 'check_box_outline_blank';
-    return `<span class="checkbox material-icons">${icon}</span>`;
-  };
+  // Note: We intentionally do NOT override renderer.checkbox here.
+  // The listitem renderer below handles checkbox rendering for task items.
+  // Overriding both causes duplicate checkboxes (see GitHub issue #6228).
 
   // In marked v17, we need to use this.parser.parseInline(tokens) to render inline content
   // Using a regular function to access 'this'

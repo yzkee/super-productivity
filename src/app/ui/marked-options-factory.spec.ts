@@ -17,20 +17,8 @@ describe('markedOptionsFactory', () => {
     expect(options.gfm).toBe(true);
   });
 
-  describe('checkbox renderer', () => {
-    it('should render unchecked checkbox with material icon', () => {
-      const result = options.renderer!.checkbox({ checked: false } as any);
-      expect(result).toContain('check_box_outline_blank');
-      expect(result).toContain('class="checkbox material-icons"');
-    });
-
-    it('should render checked checkbox with material icon', () => {
-      const result = options.renderer!.checkbox({ checked: true } as any);
-      expect(result).toContain('check_box');
-      expect(result).not.toContain('check_box_outline_blank');
-      expect(result).toContain('class="checkbox material-icons"');
-    });
-  });
+  // Note: No separate checkbox renderer test - checkboxes are rendered by the listitem renderer
+  // to avoid duplicate checkboxes (see GitHub issue #6228)
 
   describe('listitem renderer', () => {
     it('should render regular list item without checkbox', () => {
