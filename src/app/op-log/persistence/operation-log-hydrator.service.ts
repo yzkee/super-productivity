@@ -16,6 +16,8 @@ import { StateSnapshotService, AppStateSnapshot } from '../backup/state-snapshot
 import { Operation, OpType, RepairPayload } from '../core/operation.types';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
+import { IndexedDBOpenError } from '../core/errors/indexed-db-open.error';
+import { alertDialog } from '../../util/native-dialogs';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { OperationApplierService } from '../apply/operation-applier.service';
 import { HydrationStateService } from '../apply/hydration-state.service';
@@ -469,10 +471,24 @@ export class OperationLogHydratorService {
       await this.retryFailedRemoteOps();
     } catch (e) {
       OpLog.err('OperationLogHydratorService: Error during hydration', e);
+
+      // Handle IndexedDB open failure with specific guidance
+      if (e instanceof IndexedDBOpenError) {
+        this._showIndexedDBOpenError(e);
+        throw e;
+      }
+
       try {
         await this.recoveryService.attemptRecovery();
       } catch (recoveryErr) {
         OpLog.err('OperationLogHydratorService: Recovery also failed', recoveryErr);
+
+        // Check if recovery failed due to IndexedDB issue
+        if (recoveryErr instanceof IndexedDBOpenError) {
+          this._showIndexedDBOpenError(recoveryErr);
+          throw recoveryErr;
+        }
+
         this.snackService.open({
           type: 'ERROR',
           msg: T.F.SYNC.S.HYDRATION_FAILED,
@@ -724,5 +740,49 @@ export class OperationLogHydratorService {
    */
   private async _runLegacyMigrationIfNeeded(): Promise<void> {
     // No-op: placeholder for future migrations
+  }
+
+  /**
+   * Shows a helpful error dialog when IndexedDB fails to open.
+   * Provides platform-specific guidance for "backing store" errors.
+   * Also logs full error details to console for debugging.
+   *
+   * @see https://github.com/johannesjo/super-productivity/issues/6255
+   */
+  private _showIndexedDBOpenError(error: IndexedDBOpenError): void {
+    // Log full error details to console for debugging (can be copied by users)
+    OpLog.err(
+      'IndexedDB open failed after all retries. Original error:',
+      error.originalError,
+    );
+
+    const originalMsg =
+      error.originalError instanceof Error
+        ? error.originalError.message
+        : String(error.originalError);
+
+    let message =
+      'Database Error - Cannot Load Data\n\n' +
+      'Super Productivity cannot open its database. ' +
+      'This may be caused by:\n\n' +
+      '- Low disk space\n' +
+      '- Temporary file lock (try closing other tabs)\n' +
+      '- Storage corruption\n\n';
+
+    if (error.isBackingStoreError) {
+      message +=
+        'Recovery steps:\n' +
+        '1. Close ALL browser tabs and windows\n' +
+        '2. Restart the app\n' +
+        '3. If using Linux Snap, try: snap set core experimental.refresh-app-awareness=true\n' +
+        '4. If issue persists, check available disk space\n\n';
+    }
+
+    message +=
+      'If the problem continues after restart, your browser storage may need to be cleared.\n\n' +
+      `Technical details: ${originalMsg}\n\n` +
+      '(Check browser console for full error details)';
+
+    alertDialog(message);
   }
 }

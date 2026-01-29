@@ -41,3 +41,21 @@ export const OPERATION_LOG_STORE_NOT_INITIALIZED =
  */
 export const ARCHIVE_STORE_NOT_INITIALIZED =
   'ArchiveStoreService not initialized. Ensure _ensureInit() is called.';
+
+// ============================================================================
+// IndexedDB Open Errors (Issue #6255)
+// ============================================================================
+
+/**
+ * Error thrown when IndexedDB fails to open after all retry attempts.
+ * @see https://github.com/johannesjo/super-productivity/issues/6255
+ */
+export const IDB_OPEN_ERROR_MSG =
+  '[OpLogStore] Failed to open IndexedDB after multiple retries. See #6255.';
+
+/**
+ * Pattern to detect "backing store" errors from the browser.
+ * These errors indicate storage-level issues (disk I/O, file locks, corruption).
+ * Used for heuristic error detection to show platform-specific guidance.
+ */
+export const IDB_BACKING_STORE_PATTERN = 'backing store';
