@@ -204,12 +204,204 @@ test.describe('@supersync @encryption Import with Encryption State Change', () =
    * - Client imports a backup that has encryption enabled
    * - Server should be wiped and encrypted snapshot uploaded
    *
-   * Note: This test requires a backup file with encryption enabled.
-   * For now, we skip this test as we need to create such a fixture.
+   * Setup: Client A with unencrypted sync
+   *
+   * Actions:
+   * 1. Client A sets up SuperSync without encryption
+   * 2. Client A creates task "UnencryptedTask" and syncs
+   * 3. Client A imports backup (has encryption enabled in globalConfig.sync)
+   * 4. After import, user must provide encryption password for sync
+   * 5. Server data should be wiped and encrypted snapshot uploaded
+   * 6. Client B sets up SuperSync WITH encryption using same password
+   * 7. Client B syncs and should get imported data
+   *
+   * Verify:
+   * - Client A has imported tasks (not UnencryptedTask)
+   * - Client B can sync WITH encryption and has imported tasks
+   * - No encryption errors occur
    */
-  test.skip('Import encrypted backup while unencrypted sync is active', async () => {
-    // This test requires an encrypted backup fixture
-    // TODO: Create test-backup-encrypted.json with encryption settings
+  test('Import encrypted backup while unencrypted sync is active', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    const uniqueId = Date.now();
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
+
+    try {
+      const user = await createTestUser(testRunId);
+      const baseConfig = getSuperSyncConfig(user);
+      const encryptionPassword = `pass-${testRunId}`;
+
+      // ============ PHASE 1: Setup Client A WITHOUT Encryption ============
+      console.log(
+        '[EncryptionChange-Reverse] Phase 1: Setting up Client A without encryption',
+      );
+
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync({
+        ...baseConfig,
+        isEncryptionEnabled: false,
+      });
+
+      // Create and sync unencrypted task
+      const unencryptedTask = `UnencryptedTask-${uniqueId}`;
+      await clientA.workView.addTask(unencryptedTask);
+      await clientA.sync.syncAndWait();
+      console.log(
+        `[EncryptionChange-Reverse] Client A created unencrypted: ${unencryptedTask}`,
+      );
+
+      // Verify task exists
+      await waitForTask(clientA.page, unencryptedTask);
+
+      // ============ PHASE 2: Import Encrypted Backup ============
+      console.log(
+        '[EncryptionChange-Reverse] Phase 2: Client A importing encrypted backup',
+      );
+
+      // Navigate to import page
+      const importPage = new ImportPage(clientA.page);
+      await importPage.navigateToImportPage();
+
+      // Import the encrypted backup file (has encryption enabled in globalConfig.sync)
+      const backupPath = ImportPage.getFixturePath('test-backup-encrypted.json');
+
+      // Set file on input (this triggers the import flow)
+      const fileInput = clientA.page.locator('file-imex input[type="file"]');
+      await fileInput.setInputFiles(backupPath);
+
+      // The "Encryption Settings Will Change" dialog may or may not appear.
+      // It depends on whether the app detects the encryption mismatch.
+      // Wait to see if either the dialog appears or the import completes directly.
+      const encryptionChangeDialog = clientA.page.locator(
+        'mat-dialog-container:has-text("Encryption Settings Will Change")',
+      );
+
+      const importOutcome = await Promise.race([
+        encryptionChangeDialog
+          .waitFor({ state: 'visible', timeout: 10000 })
+          .then(() => 'encryption_dialog' as const),
+        clientA.page
+          .waitForURL(/tag\/TODAY/, { timeout: 10000 })
+          .then(() => 'import_completed' as const),
+      ]).catch(() => 'timeout' as const);
+
+      if (importOutcome === 'encryption_dialog') {
+        console.log('[EncryptionChange-Reverse] Encryption change dialog appeared');
+        const importAndChangeBtn = encryptionChangeDialog.locator(
+          'button:has-text("Import and Change Encryption")',
+        );
+        await importAndChangeBtn.click();
+        console.log('[EncryptionChange-Reverse] Clicked Import and Change Encryption');
+        await encryptionChangeDialog.waitFor({ state: 'hidden', timeout: 15000 });
+        await clientA.page.waitForURL(/tag\/TODAY/, { timeout: 30000 });
+      } else if (importOutcome === 'import_completed') {
+        console.log(
+          '[EncryptionChange-Reverse] Import completed without encryption dialog',
+        );
+      } else {
+        // Timeout - check if import actually completed
+        const currentUrl = clientA.page.url();
+        if (currentUrl.includes('tag/TODAY')) {
+          console.log('[EncryptionChange-Reverse] Import completed (detected via URL)');
+        } else {
+          throw new Error(
+            `Import timed out waiting for dialog or completion. Current URL: ${currentUrl}`,
+          );
+        }
+      }
+      console.log('[EncryptionChange-Reverse] Client A imported encrypted backup');
+
+      // Navigate to work view
+      await clientA.page.goto('/#/work-view');
+      await clientA.page.waitForLoadState('networkidle');
+
+      // Wait for imported tasks to be visible
+      await waitForTask(clientA.page, 'E2E Import Test - Encrypted Task With Subtask');
+      console.log(
+        '[EncryptionChange-Reverse] Client A has imported tasks visible after import',
+      );
+
+      // Re-setup sync after import with encryption enabled
+      // The backup had isEncryptionEnabled: true, so we need to provide a password
+      await clientA.sync.setupSuperSync({
+        ...baseConfig,
+        isEncryptionEnabled: true,
+        password: encryptionPassword,
+      });
+      console.log('[EncryptionChange-Reverse] Client A re-enabled sync with encryption');
+
+      // ============ PHASE 3: Sync After Import ============
+      console.log('[EncryptionChange-Reverse] Phase 3: Client A syncing after import');
+
+      await clientA.sync.syncAndWait();
+      console.log('[EncryptionChange-Reverse] Client A synced successfully');
+
+      // ============ PHASE 4: Client B Syncs With Encryption ============
+      console.log('[EncryptionChange-Reverse] Phase 4: Client B syncing with encryption');
+
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      // Setup WITH encryption - should work since import enabled encryption
+      await clientB.sync.setupSuperSync({
+        ...baseConfig,
+        isEncryptionEnabled: true,
+        password: encryptionPassword,
+      });
+
+      await clientB.sync.syncAndWait();
+      console.log('[EncryptionChange-Reverse] Client B synced successfully');
+
+      // ============ PHASE 5: Verify Clean Slate ============
+      console.log(
+        '[EncryptionChange-Reverse] Phase 5: Verifying encryption state change',
+      );
+
+      // Navigate to work view on both clients
+      await clientA.page.goto('/#/work-view');
+      await clientA.page.waitForLoadState('networkidle');
+      await clientB.page.goto('/#/work-view');
+      await clientB.page.waitForLoadState('networkidle');
+
+      // Wait for imported task to appear on both
+      await waitForTask(clientA.page, 'E2E Import Test - Encrypted Task With Subtask');
+      await waitForTask(clientB.page, 'E2E Import Test - Encrypted Task With Subtask');
+
+      // CRITICAL: Original unencrypted task should be GONE
+      const unencryptedTaskOnA = clientA.page.locator(
+        `task:has-text("${unencryptedTask}")`,
+      );
+      const unencryptedTaskOnB = clientB.page.locator(
+        `task:has-text("${unencryptedTask}")`,
+      );
+
+      await expect(unencryptedTaskOnA).not.toBeVisible({ timeout: 5000 });
+      await expect(unencryptedTaskOnB).not.toBeVisible({ timeout: 5000 });
+      console.log('[EncryptionChange-Reverse] Original unencrypted task is GONE');
+
+      // Verify imported tasks are present on both clients
+      const importedTaskOnA = clientA.page.locator(
+        'task:has-text("E2E Import Test - Encrypted Task With Subtask")',
+      );
+      const importedTaskOnB = clientB.page.locator(
+        'task:has-text("E2E Import Test - Encrypted Task With Subtask")',
+      );
+
+      await expect(importedTaskOnA).toBeVisible({ timeout: 5000 });
+      await expect(importedTaskOnB).toBeVisible({ timeout: 5000 });
+      console.log('[EncryptionChange-Reverse] Both clients have imported tasks');
+
+      // Verify no encryption errors on Client B
+      const hasError = await clientB.sync.hasSyncError();
+      expect(hasError).toBe(false);
+      console.log('[EncryptionChange-Reverse] No encryption errors on Client B');
+
+      console.log('[EncryptionChange-Reverse] Import encrypted backup test PASSED!');
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
   });
 
   /**

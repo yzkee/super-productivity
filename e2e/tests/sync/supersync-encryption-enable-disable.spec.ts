@@ -279,9 +279,17 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
    * Other clients must use fresh browser contexts to join with the new encryption state,
    * as reconfiguring an existing client would trigger its own clean slate.
    *
-   * SKIPPED: This test is flaky due to form state management issues when rapidly
-   * toggling encryption on the same client. The core functionality is covered by
-   * the "Enabling encryption" and "Disabling encryption" tests.
+   * SKIPPED: This test is flaky because the Angular Material form doesn't reliably
+   * reload its state when rapidly opening/closing the sync config dialog after
+   * encryption state changes. The Advanced collapsible content doesn't always
+   * render the correct encryption buttons after disable → re-enable.
+   *
+   * The core encryption functionality IS verified by:
+   * - "Disabling encryption triggers clean slate and other clients adapt" test
+   * - "Enabling encryption triggers clean slate and other clients require password" test
+   * These two tests cover both directions (enable and disable), and together verify
+   * that the encryption mechanism works correctly. Multiple toggles on the same client
+   * is an edge case that doesn't add significant coverage.
    */
   test.skip('Multiple encryption state changes work correctly', async ({
     browser,
@@ -291,6 +299,20 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
     const uniqueId = Date.now();
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
+
+    // Helper to wait for network to be idle and sync to stabilize
+    const waitForSyncStability = async (
+      client: SimulatedE2EClient,
+      phase: string,
+    ): Promise<void> => {
+      await client.page.waitForLoadState('networkidle');
+      // Verify sync is in a good state (not spinning, not error)
+      const syncState = await client.sync.getSyncState();
+      console.log(`[MultipleChanges] ${phase} - Sync state: ${syncState}`);
+      if (syncState === 'error') {
+        throw new Error(`Sync error detected in ${phase}`);
+      }
+    };
 
     try {
       const user = await createTestUser(testRunId);
@@ -310,6 +332,7 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       const task1 = `Task1-${uniqueId}`;
       await clientA.workView.addTask(task1);
       await clientA.sync.syncAndWait();
+      await waitForSyncStability(clientA, 'Phase 1 - after task1 sync');
 
       // Fresh Client B joins unencrypted
       clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
@@ -329,10 +352,13 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       console.log('[MultipleChanges] Phase 2: Enabling encryption');
 
       await clientA.sync.enableEncryption(password1);
+      // Wait for clean slate operation to complete and sync to stabilize
+      await waitForSyncStability(clientA, 'Phase 2 - after enabling encryption');
 
       const task2 = `Task2-${uniqueId}`;
       await clientA.workView.addTask(task2);
       await clientA.sync.syncAndWait();
+      await waitForSyncStability(clientA, 'Phase 2 - after task2 sync');
 
       // Fresh Client B joins with encryption
       clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
@@ -353,10 +379,13 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       console.log('[MultipleChanges] Phase 3: Disabling encryption');
 
       await clientA.sync.disableEncryption();
+      // Wait for clean slate operation to complete and sync to stabilize
+      await waitForSyncStability(clientA, 'Phase 3 - after disabling encryption');
 
       const task3 = `Task3-${uniqueId}`;
       await clientA.workView.addTask(task3);
       await clientA.sync.syncAndWait();
+      await waitForSyncStability(clientA, 'Phase 3 - after task3 sync');
 
       // Fresh Client B joins without encryption
       clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
@@ -376,10 +405,13 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       console.log('[MultipleChanges] Phase 4: Re-enabling with different password');
 
       await clientA.sync.enableEncryption(password2);
+      // Wait for clean slate operation to complete and sync to stabilize
+      await waitForSyncStability(clientA, 'Phase 4 - after re-enabling encryption');
 
       const task4 = `Task4-${uniqueId}`;
       await clientA.workView.addTask(task4);
       await clientA.sync.syncAndWait();
+      await waitForSyncStability(clientA, 'Phase 4 - after task4 sync');
 
       // Fresh Client B joins with NEW password
       clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
@@ -412,7 +444,7 @@ test.describe('@supersync @encryption Encryption Enable/Disable', () => {
       expect(hasErrorA).toBe(false);
       expect(hasErrorB).toBe(false);
 
-      console.log('[MultipleChanges] ✓ Multiple encryption state changes work!');
+      console.log('[MultipleChanges] Multiple encryption state changes work!');
     } finally {
       if (clientA) await closeClient(clientA);
       if (clientB) await closeClient(clientB);
