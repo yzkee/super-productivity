@@ -21,6 +21,7 @@ import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { ArchiveModel } from '../../features/archive/archive.model';
 import { ArchiveDbAdapter } from '../../core/persistence/archive-db-adapter.service';
 import { OpType } from '../core/operation.types';
+import { confirmDialog } from '../../util/native-dialogs';
 
 /**
  * Creates an empty ArchiveModel with default values.
@@ -522,7 +523,7 @@ export class ArchiveOperationHandler {
           // Skip writing empty archive - preserve local
         } else if (action.meta.opType === OpType.BackupImport) {
           // BACKUP_IMPORT is an explicit user action - ask for confirmation
-          const confirmed = window.confirm(
+          const confirmed = confirmDialog(
             `This backup has empty archives, but you have ${existingCount} archived tasks locally. ` +
               'Restoring will delete your archived data. Continue?',
           );
@@ -556,7 +557,7 @@ export class ArchiveOperationHandler {
           shouldWriteArchiveOld = false;
         } else if (action.meta.opType === OpType.BackupImport) {
           // BACKUP_IMPORT is an explicit user action - ask for confirmation
-          const confirmed = window.confirm(
+          const confirmed = confirmDialog(
             `This backup has empty old archives, but you have ${existingCount} old archived tasks locally. ` +
               'Restoring will delete your old archived data. Continue?',
           );

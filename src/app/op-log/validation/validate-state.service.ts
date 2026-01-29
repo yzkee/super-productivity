@@ -14,6 +14,7 @@ import { AppDataComplete } from '../model/model-config';
 import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
 import { HydrationStateService } from '../apply/hydration-state.service';
 import { T } from '../../t.const';
+import { alertDialog, confirmDialog } from '../../util/native-dialogs';
 
 /**
  * Result of validating application state.
@@ -264,7 +265,7 @@ export class ValidateStateService {
       T.F.SYNC.D_DATA_REPAIR_CONFIRM.TITLE,
     );
     const confirmMsg = this.translateService.instant(T.F.SYNC.D_DATA_REPAIR_CONFIRM.MSG);
-    const userConfirmed = confirm(`${confirmTitle}\n\n${confirmMsg}`);
+    const userConfirmed = confirmDialog(`${confirmTitle}\n\n${confirmMsg}`);
 
     if (!userConfirmed) {
       OpLog.warn('[ValidateStateService] User declined repair');
@@ -292,7 +293,7 @@ export class ValidateStateService {
       if (!revalidationResult.isValid) {
         OpLog.err('[ValidateStateService] State still invalid after repair');
         // Notify user that repair failed - they confirmed but it didn't work
-        alert(
+        alertDialog(
           'Repair attempted but failed to fully fix data issues. ' +
             'Please try restoring from a backup or contact support.',
         );

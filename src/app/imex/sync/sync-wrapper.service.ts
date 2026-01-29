@@ -55,6 +55,7 @@ import { DialogIncoherentTimestampsErrorComponent } from './dialog-incoherent-ti
 import { SyncLog } from '../../core/log';
 import { promiseTimeout } from '../../util/promise-timeout';
 import { devError } from '../../util/dev-error';
+import { alertDialog, confirmDialog } from '../../util/native-dialogs';
 import { UserInputWaitStateService } from './user-input-wait-state.service';
 import { LegacySyncProvider } from './legacy-sync-provider.model';
 import { SYNC_WAIT_TIMEOUT_MS, SYNC_REINIT_DELAY_MS } from './sync.const';
@@ -336,8 +337,8 @@ export class SyncWrapperService {
             uploadResult?.rejectedOps,
           );
           this._providerManager.setSyncStatus('ERROR');
-          // Use alert for maximum visibility - this is a critical error
-          alert(this._translateService.instant(T.F.SYNC.S.ERROR_PAYLOAD_TOO_LARGE));
+          // Use alertDialog for maximum visibility - this is a critical error
+          alertDialog(this._translateService.instant(T.F.SYNC.S.ERROR_PAYLOAD_TOO_LARGE));
           return 'HANDLED_ERROR';
         }
 
@@ -845,7 +846,7 @@ export class SyncWrapperService {
   }
 
   private _c(str: string): boolean {
-    return confirm(this._translateService.instant(str));
+    return confirmDialog(this._translateService.instant(str));
   }
 
   private _isPermissionError(error: unknown): boolean {

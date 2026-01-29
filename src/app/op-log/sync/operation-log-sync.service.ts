@@ -30,6 +30,7 @@ import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { StateSnapshotService } from '../backup/state-snapshot.service';
 import { INBOX_PROJECT } from '../../features/project/project.const';
 import { SYSTEM_TAG_IDS } from '../../features/tag/tag.const';
+import { confirmDialog } from '../../util/native-dialogs';
 
 /**
  * Type guard for NgRx entity state (has an `ids` array).
@@ -627,7 +628,7 @@ export class OperationLogSyncService {
         count: opCount,
       },
     );
-    return window.confirm(`${title}\n\n${message}`);
+    return confirmDialog(`${title}\n\n${message}`);
   }
 
   /**

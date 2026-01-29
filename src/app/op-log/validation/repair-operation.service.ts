@@ -17,6 +17,7 @@ import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service'
 import { devError } from '../../util/dev-error';
 import { TranslateService } from '@ngx-translate/core';
 import { LOCK_NAMES } from '../core/operation-log.const';
+import { alertDialog } from '../../util/native-dialogs';
 
 /**
  * Service responsible for creating REPAIR operations.
@@ -125,7 +126,7 @@ export class RepairOperationService {
     const msg = this.translateService.instant(T.F.SYNC.D_DATA_REPAIRED.MSG, {
       count: totalFixes.toString(),
     });
-    alert(`${title}\n\n${msg}`);
+    alertDialog(`${title}\n\n${msg}`);
   }
 
   /**

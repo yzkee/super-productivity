@@ -9,6 +9,7 @@ import { environment } from '../../../../../environments/environment';
 import { SyncProviderManager } from '../../../../op-log/sync-providers/provider-manager.service';
 import { DropboxPrivateCfg, SyncProviderId } from '../../../../op-log/sync-exports';
 import { LegacySyncProvider } from '../../legacy-sync-provider.model';
+import { confirmDialog } from '../../../../util/native-dialogs';
 
 @Injectable()
 export class DropboxEffects {
@@ -37,7 +38,7 @@ export class DropboxEffects {
           if (!existingConfig?.accessToken && !existingConfig?.refreshToken) {
             return;
           }
-          if (!environment.production && !confirm('DEV: Delete Dropbox Tokens?')) {
+          if (!environment.production && !confirmDialog('DEV: Delete Dropbox Tokens?')) {
             return;
           }
           await this._providerManager.setProviderConfig(SyncProviderId.Dropbox, {

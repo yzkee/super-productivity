@@ -16,6 +16,7 @@ import {
   openEncryptionPasswordChangeDialog,
   openEncryptionPasswordChangeDialogForFileBased,
 } from '../../../imex/sync/encryption-password-dialog-opener.service';
+import { alertDialog } from '../../../util/native-dialogs';
 
 /**
  * Creates form fields for WebDAV-based sync providers.
@@ -356,7 +357,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
               if (baseUrl) {
                 window.open(baseUrl, '_blank');
               } else {
-                alert('Please enter a Server URL first');
+                alertDialog('Please enter a Server URL first');
               }
             },
           },
