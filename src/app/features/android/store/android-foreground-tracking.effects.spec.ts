@@ -1128,17 +1128,15 @@ describe('AndroidForegroundTrackingEffects - syncTimeSpent dispatch (issue #6207
       const duration = nativeData.elapsedMs - currentTimeSpent;
 
       // Handle negative duration (service crash/reset)
+      // Keep app value to prevent data loss - just reset tracking interval
       if (duration < 0) {
-        addTimeSpent(task, nativeData.elapsedMs, todayStr);
-        // FIX: Also dispatch syncTimeSpent to capture in operation log
-        dispatch({ taskId: task.id, date: todayStr, duration: nativeData.elapsedMs });
         resetTrackingStart();
         return;
       }
 
       if (duration > 0) {
         addTimeSpent(task, duration, todayStr);
-        // FIX: Also dispatch syncTimeSpent to capture in operation log
+        // Also dispatch syncTimeSpent to capture in operation log
         dispatch({ taskId: task.id, date: todayStr, duration });
         resetTrackingStart();
       }
@@ -1193,7 +1191,7 @@ describe('AndroidForegroundTrackingEffects - syncTimeSpent dispatch (issue #6207
     });
   });
 
-  it('should dispatch syncTimeSpent after addTimeSpent for negative duration (native reset)', async () => {
+  it('should NOT dispatch syncTimeSpent for negative duration (keeps app value)', async () => {
     const nativeElapsed = 30000; // 30 seconds (native service restarted)
     const appTimeSpent = 600000; // 10 minutes
 
@@ -1214,19 +1212,11 @@ describe('AndroidForegroundTrackingEffects - syncTimeSpent dispatch (issue #6207
       '2024-01-01',
     );
 
-    // For negative duration, use native elapsed value directly
-    expect(addTimeSpentSpy).toHaveBeenCalledWith(
-      { id: 'task-1', timeSpent: appTimeSpent },
-      nativeElapsed,
-      '2024-01-01',
-    );
-
-    // Key assertion: syncTimeSpent dispatched with native elapsed value
-    expect(dispatchSpy).toHaveBeenCalledWith({
-      taskId: 'task-1',
-      date: '2024-01-01',
-      duration: nativeElapsed,
-    });
+    // For negative duration, keep app value - don't update time
+    expect(addTimeSpentSpy).not.toHaveBeenCalled();
+    expect(dispatchSpy).not.toHaveBeenCalled();
+    // Should still reset tracking start to prevent double-counting
+    expect(resetTrackingStartSpy).toHaveBeenCalledTimes(1);
   });
 
   it('should NOT dispatch syncTimeSpent when duration is zero', async () => {
@@ -1370,8 +1360,8 @@ describe('AndroidForegroundTrackingEffects - enhanced error handling (issue #584
       const duration = nativeData.elapsedMs - currentTimeSpent;
 
       // Handle negative duration (service crash/reset)
+      // Keep app value to prevent data loss - just reset tracking interval
       if (duration < 0) {
-        addTimeSpent(task, nativeData.elapsedMs, todayStr);
         resetTrackingStart();
         return;
       }
@@ -1394,7 +1384,7 @@ describe('AndroidForegroundTrackingEffects - enhanced error handling (issue #584
     snackOpenSpy = jasmine.createSpy('snackService.open');
   });
 
-  it('should handle negative duration by trusting native service value', async () => {
+  it('should handle negative duration by keeping app value to prevent data loss', async () => {
     const nativeElapsed = 30000; // 30 seconds (native service crashed and restarted)
     const appTimeSpent = 600000; // 10 minutes (app has more time)
     const elapsedJson = JSON.stringify({ taskId: 'task-1', elapsedMs: nativeElapsed });
@@ -1413,12 +1403,9 @@ describe('AndroidForegroundTrackingEffects - enhanced error handling (issue #584
       '2024-01-01',
     );
 
-    // Should add the native elapsed value directly (not the negative duration)
-    expect(addTimeSpentSpy).toHaveBeenCalledWith(
-      { id: 'task-1', timeSpent: appTimeSpent },
-      nativeElapsed,
-      '2024-01-01',
-    );
+    // Should NOT update time - keep app's higher value to prevent data loss
+    expect(addTimeSpentSpy).not.toHaveBeenCalled();
+    // Should still reset tracking start to prevent double-counting
     expect(resetTrackingStartSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -1484,7 +1471,8 @@ describe('AndroidForegroundTrackingEffects - enhanced error handling (issue #584
     );
 
     // Should handle gracefully without user notification (logged as warning)
-    expect(addTimeSpentSpy).toHaveBeenCalled();
+    // App value is preserved - no update needed
+    expect(addTimeSpentSpy).not.toHaveBeenCalled();
     expect(resetTrackingStartSpy).toHaveBeenCalled();
     expect(snackOpenSpy).not.toHaveBeenCalled();
   });

@@ -349,29 +349,25 @@ export class AndroidForegroundTrackingEffects {
       });
 
       // Handle negative duration (clock skew or service crash)
+      // When native has less time than app, keep the app's value to prevent data loss.
+      // This can happen if the native service crashed and restarted.
       if (duration < 0) {
-        DroidLog.warn('Native time less than app time - possible service crash', {
-          taskId,
-          nativeElapsed: nativeData.elapsedMs,
-          currentTimeSpent,
-          duration,
-        });
-        // Fallback: Trust the native service, reset to its value
-        // This prevents data loss if the native service crashed and restarted
-        this._taskService.addTimeSpent(
-          task,
-          nativeData.elapsedMs,
-          this._dateService.todayStr(),
+        DroidLog.warn(
+          'Native time less than app time - keeping app value to prevent data loss',
+          {
+            taskId,
+            nativeElapsed: nativeData.elapsedMs,
+            currentTimeSpent,
+            duration,
+          },
         );
-        // Also dispatch syncTimeSpent to capture in operation log
-        // addTimeSpent only updates local state, syncTimeSpent creates the operation
-        this._store.dispatch(
-          syncTimeSpent({
-            taskId: task.id,
-            date: this._dateService.todayStr(),
-            duration: nativeData.elapsedMs,
-          }),
+        // Don't update time - app has more accurate/higher value
+        // Update native service to show correct time in notification
+        this._safeNativeCall(
+          () => androidInterface.updateTrackingService?.(currentTimeSpent),
+          'Failed to update tracking service after negative duration',
         );
+        // Reset tracking interval to prevent double-counting
         this._globalTrackingIntervalService.resetTrackingStart();
         return;
       }
