@@ -314,35 +314,30 @@ export class ConflictResolutionService {
 
     // ─────────────────────────────────────────────────────────────────────────
     // Batch process remote-wins ops: filter duplicates and append in batch
+    // Uses retry to handle race condition (issue #6213)
     // ─────────────────────────────────────────────────────────────────────────
     if (remoteWinsOps.length > 0) {
-      const newRemoteWinsOps = await this.opLogStore.filterNewOps(remoteWinsOps);
-      const skippedCount = remoteWinsOps.length - newRemoteWinsOps.length;
+      const result = await this._filterAndAppendOpsWithRetry(remoteWinsOps, 'remote', {
+        pendingApply: true,
+      });
+      const skippedCount = remoteWinsOps.length - result.ops.length;
       if (skippedCount > 0) {
         OpLog.verbose(
           `ConflictResolutionService: Skipping ${skippedCount} duplicate ops (LWW remote)`,
         );
       }
-      if (newRemoteWinsOps.length > 0) {
-        const seqs = await this.opLogStore.appendBatch(newRemoteWinsOps, 'remote', {
-          pendingApply: true,
-        });
-        for (let i = 0; i < newRemoteWinsOps.length; i++) {
-          allStoredOps.push({ id: newRemoteWinsOps[i].id, seq: seqs[i] });
-          allOpsToApply.push(newRemoteWinsOps[i]);
-        }
+      for (let i = 0; i < result.ops.length; i++) {
+        allStoredOps.push({ id: result.ops[i].id, seq: result.seqs[i] });
+        allOpsToApply.push(result.ops[i]);
       }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Batch process local-wins remote ops: filter duplicates and append in batch
+    // Uses retry to handle race condition (issue #6213)
     // ─────────────────────────────────────────────────────────────────────────
     if (localWinsRemoteOps.length > 0) {
-      const newLocalWinsRemoteOps =
-        await this.opLogStore.filterNewOps(localWinsRemoteOps);
-      if (newLocalWinsRemoteOps.length > 0) {
-        await this.opLogStore.appendBatch(newLocalWinsRemoteOps, 'remote');
-      }
+      await this._filterAndAppendOpsWithRetry(localWinsRemoteOps, 'remote');
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -377,15 +372,17 @@ export class ConflictResolutionService {
 
     // ─────────────────────────────────────────────────────────────────────────
     // STEP 3: Add non-conflicting remote ops to the batch
+    // Uses retry to handle race condition (issue #6213)
     // ─────────────────────────────────────────────────────────────────────────
-    const newNonConflictingOps = await this.opLogStore.filterNewOps(nonConflictingOps);
-    if (newNonConflictingOps.length > 0) {
-      const seqs = await this.opLogStore.appendBatch(newNonConflictingOps, 'remote', {
-        pendingApply: true,
-      });
-      for (let i = 0; i < newNonConflictingOps.length; i++) {
-        allStoredOps.push({ id: newNonConflictingOps[i].id, seq: seqs[i] });
-        allOpsToApply.push(newNonConflictingOps[i]);
+    if (nonConflictingOps.length > 0) {
+      const result = await this._filterAndAppendOpsWithRetry(
+        nonConflictingOps,
+        'remote',
+        { pendingApply: true },
+      );
+      for (let i = 0; i < result.ops.length; i++) {
+        allStoredOps.push({ id: result.ops[i].id, seq: result.seqs[i] });
+        allOpsToApply.push(result.ops[i]);
       }
     }
 
@@ -1016,5 +1013,47 @@ export class ConflictResolutionService {
 
     // Default: manual - let user decide
     return 'manual';
+  }
+
+  /**
+   * Filters out already-applied ops and appends new ones to the store, with retry on duplicate detection.
+   * Handles the race condition where filterNewOps uses a stale cache (issue #6213).
+   *
+   * @param ops - Operations to filter and potentially append
+   * @param source - Source of operations ('local' or 'remote')
+   * @param options - Options for appendBatch (e.g., pendingApply)
+   * @returns Object containing the filtered ops and their sequence numbers (if applicable)
+   */
+  private async _filterAndAppendOpsWithRetry(
+    ops: Operation[],
+    source: 'local' | 'remote',
+    options?: { pendingApply?: boolean },
+  ): Promise<{ ops: Operation[]; seqs: number[] }> {
+    const attemptFilterAndAppend = async (): Promise<{
+      ops: Operation[];
+      seqs: number[];
+    }> => {
+      const filteredOps = await this.opLogStore.filterNewOps(ops);
+      if (filteredOps.length === 0) {
+        return { ops: [], seqs: [] };
+      }
+      // Only pass options if defined to maintain original call signature
+      const seqs = options
+        ? await this.opLogStore.appendBatch(filteredOps, source, options)
+        : await this.opLogStore.appendBatch(filteredOps, source);
+      return { ops: filteredOps, seqs };
+    };
+
+    try {
+      return await attemptFilterAndAppend();
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('Duplicate operation detected')) {
+        OpLog.warn(
+          'ConflictResolutionService: Duplicate detected, retrying with fresh filter (issue #6213 recovery)',
+        );
+        return await attemptFilterAndAppend();
+      }
+      throw e;
+    }
   }
 }

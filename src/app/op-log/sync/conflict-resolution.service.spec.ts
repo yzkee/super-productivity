@@ -1467,6 +1467,103 @@ describe('ConflictResolutionService', () => {
         ]);
       });
     });
+
+    // =========================================================================
+    // Issue #6213: Duplicate operation error handling with retry
+    // =========================================================================
+    describe('duplicate operation error handling (issue #6213)', () => {
+      it('should retry once on duplicate error and succeed when cache is refreshed', async () => {
+        const now = Date.now();
+        const conflicts: EntityConflict[] = [
+          createConflict(
+            'task-1',
+            [createOpWithTimestamp('local-1', 'client-a', now - 1000)],
+            [createOpWithTimestamp('remote-1', 'client-b', now)],
+          ),
+        ];
+
+        let filterCallCount = 0;
+        let appendCallCount = 0;
+
+        // First filterNewOps: returns all ops (stale cache)
+        // Second filterNewOps: returns empty (cache now fresh, ops already exist)
+        mockOpLogStore.filterNewOps.and.callFake(async (ops: Operation[]) => {
+          filterCallCount++;
+          if (filterCallCount === 1) return ops; // Stale cache
+          return []; // Fresh cache - ops already exist
+        });
+
+        // First appendBatch: throws duplicate error
+        mockOpLogStore.appendBatch.and.callFake(async () => {
+          appendCallCount++;
+          if (appendCallCount === 1) {
+            throw new Error(
+              '[OpLogStore] Duplicate operation detected (likely race condition). See #6213.',
+            );
+          }
+          return [1];
+        });
+
+        mockOperationApplier.applyOperations.and.resolveTo({ appliedOps: [] });
+
+        // Should complete successfully with retry
+        await service.autoResolveConflictsLWW(conflicts);
+
+        // Should have retried - filterNewOps called at least twice for remoteWinsOps
+        expect(mockOpLogStore.filterNewOps).toHaveBeenCalledTimes(2);
+        // appendBatch only called once (retry's filterNewOps returned [])
+        expect(mockOpLogStore.appendBatch).toHaveBeenCalledTimes(1);
+      });
+
+      it('should fail if retry also throws duplicate error', async () => {
+        const now = Date.now();
+        const conflicts: EntityConflict[] = [
+          createConflict(
+            'task-1',
+            [createOpWithTimestamp('local-1', 'client-a', now - 1000)],
+            [createOpWithTimestamp('remote-1', 'client-b', now)],
+          ),
+        ];
+
+        // filterNewOps always returns the ops (simulating persistent cache issue)
+        mockOpLogStore.filterNewOps.and.callFake(async (ops: Operation[]) => ops);
+        // appendBatch always throws (both original and retry fail)
+        mockOpLogStore.appendBatch.and.rejectWith(
+          new Error(
+            '[OpLogStore] Duplicate operation detected (likely race condition). See #6213.',
+          ),
+        );
+
+        await expectAsync(
+          service.autoResolveConflictsLWW(conflicts),
+        ).toBeRejectedWithError(/Duplicate operation detected/);
+
+        // Should have tried twice total (original + 1 retry)
+        expect(mockOpLogStore.appendBatch).toHaveBeenCalledTimes(2);
+        expect(mockOpLogStore.filterNewOps).toHaveBeenCalledTimes(2);
+      });
+
+      it('should NOT retry for non-duplicate errors', async () => {
+        const now = Date.now();
+        const conflicts: EntityConflict[] = [
+          createConflict(
+            'task-1',
+            [createOpWithTimestamp('local-1', 'client-a', now - 1000)],
+            [createOpWithTimestamp('remote-1', 'client-b', now)],
+          ),
+        ];
+
+        mockOpLogStore.filterNewOps.and.callFake(async (ops: Operation[]) => ops);
+        mockOpLogStore.appendBatch.and.rejectWith(new Error('Some other database error'));
+
+        await expectAsync(
+          service.autoResolveConflictsLWW(conflicts),
+        ).toBeRejectedWithError(/Some other database error/);
+
+        // Should NOT have retried - only one call
+        expect(mockOpLogStore.appendBatch).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 
   describe('_deepEqual', () => {

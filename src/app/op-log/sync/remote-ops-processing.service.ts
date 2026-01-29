@@ -326,35 +326,24 @@ export class RemoteOpsProcessingService {
     // Map op ID to seq for marking partial success
     const opIdToSeq = new Map<string, number>();
 
-    // Filter out duplicates in a single batch (more efficient than N individual hasOp calls)
-    const opsToApply = await this.opLogStore.filterNewOps(ops);
-    const duplicateCount = ops.length - opsToApply.length;
-    if (duplicateCount > 0) {
-      OpLog.verbose(
-        `RemoteOpsProcessingService: Skipping ${duplicateCount} duplicate op(s)`,
-      );
-    }
-
-    // DIAGNOSTIC: Check if any full-state ops will be applied
-    const fullStateOps = opsToApply.filter(
-      (op) =>
-        op.opType === OpType.SyncImport ||
-        op.opType === OpType.BackupImport ||
-        op.opType === OpType.Repair,
-    );
-    if (fullStateOps.length > 0) {
-      OpLog.log(
-        `RemoteOpsProcessingService: APPLYING FULL-STATE OP(s): ${fullStateOps.map((op) => `${op.opType} from ${op.clientId}`).join(', ')}`,
-      );
-    }
-
-    // Store operations with pending status before applying (single transaction for performance)
-    // If we crash after storing but before applying, these will be retried on startup
-    if (opsToApply.length > 0) {
-      const seqs = await this.opLogStore.appendBatch(opsToApply, 'remote', {
-        pendingApply: true,
-      });
-      opsToApply.forEach((op, i) => opIdToSeq.set(op.id, seqs[i]));
+    // Filter and append ops, with retry on duplicate detection (issue #6213)
+    // The race condition: filterNewOps may return ops as "new" using a stale cache,
+    // but another concurrent sync wrote them before appendBatch runs.
+    // When this happens, appendBatch throws "Duplicate operation detected" and
+    // invalidates the cache. We retry once with the now-fresh cache.
+    let opsToApply: Operation[];
+    try {
+      opsToApply = await this._filterAndAppendOps(ops, opIdToSeq);
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('Duplicate operation detected')) {
+        OpLog.warn(
+          'RemoteOpsProcessingService: Duplicate detected, retrying with fresh filter (issue #6213 recovery)',
+        );
+        // Cache was invalidated by appendBatch, retry with fresh filter
+        opsToApply = await this._filterAndAppendOps(ops, opIdToSeq);
+      } else {
+        throw e;
+      }
     }
 
     // Apply only NON-duplicate ops to NgRx store
@@ -465,6 +454,53 @@ export class RemoteOpsProcessingService {
         throw result.failedOp.error;
       }
     }
+  }
+
+  /**
+   * Filters out already-applied ops and appends new ones to the store.
+   * Extracted as a helper to enable retry on duplicate detection (issue #6213).
+   *
+   * @param ops - Operations to filter and potentially append
+   * @param opIdToSeq - Map to populate with op ID -> sequence number mappings
+   * @returns The operations that were actually appended (after filtering)
+   * @throws If appendBatch fails (including "Duplicate operation detected" error)
+   */
+  private async _filterAndAppendOps(
+    ops: Operation[],
+    opIdToSeq: Map<string, number>,
+  ): Promise<Operation[]> {
+    // Filter out duplicates in a single batch (more efficient than N individual hasOp calls)
+    const opsToApply = await this.opLogStore.filterNewOps(ops);
+    const duplicateCount = ops.length - opsToApply.length;
+    if (duplicateCount > 0) {
+      OpLog.verbose(
+        `RemoteOpsProcessingService: Skipping ${duplicateCount} duplicate op(s)`,
+      );
+    }
+
+    // DIAGNOSTIC: Check if any full-state ops will be applied
+    const fullStateOps = opsToApply.filter(
+      (op) =>
+        op.opType === OpType.SyncImport ||
+        op.opType === OpType.BackupImport ||
+        op.opType === OpType.Repair,
+    );
+    if (fullStateOps.length > 0) {
+      OpLog.log(
+        `RemoteOpsProcessingService: APPLYING FULL-STATE OP(s): ${fullStateOps.map((op) => `${op.opType} from ${op.clientId}`).join(', ')}`,
+      );
+    }
+
+    // Store operations with pending status before applying (single transaction for performance)
+    // If we crash after storing but before applying, these will be retried on startup
+    if (opsToApply.length > 0) {
+      const seqs = await this.opLogStore.appendBatch(opsToApply, 'remote', {
+        pendingApply: true,
+      });
+      opsToApply.forEach((op, i) => opIdToSeq.set(op.id, seqs[i]));
+    }
+
+    return opsToApply;
   }
 
   /**

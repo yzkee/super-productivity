@@ -1156,6 +1156,97 @@ describe('RemoteOpsProcessingService', () => {
         { callerHoldsLock: false },
       );
     });
+
+    // =========================================================================
+    // Issue #6213: Duplicate operation error handling
+    // =========================================================================
+    // These tests verify the race condition where filterNewOps returns ops as "new"
+    // but appendBatch fails because another sync wrote them in between.
+
+    describe('duplicate operation error handling (issue #6213)', () => {
+      it('should retry once and still fail if both attempts throw duplicate error', async () => {
+        const remoteOps: Operation[] = [
+          createFullOp({ id: 'op-1', vectorClock: { client1: 1 } }),
+          createFullOp({ id: 'op-2', vectorClock: { client1: 2 } }),
+        ];
+
+        // Setup: filterNewOps always returns all ops (simulating persistent cache issue)
+        opLogStoreSpy.filterNewOps.and.returnValue(Promise.resolve(remoteOps));
+
+        // Setup: appendBatch always throws duplicate error (both attempts fail)
+        opLogStoreSpy.appendBatch.and.rejectWith(
+          new Error(
+            '[OpLogStore] Duplicate operation detected (likely race condition). See #6213.',
+          ),
+        );
+
+        // After retry, error propagates up, sync fails
+        await expectAsync(
+          service.applyNonConflictingOps(remoteOps),
+        ).toBeRejectedWithError(/Duplicate operation detected/);
+
+        // Should have retried once (2 calls total)
+        expect(opLogStoreSpy.appendBatch).toHaveBeenCalledTimes(2);
+        expect(opLogStoreSpy.filterNewOps).toHaveBeenCalledTimes(2);
+      });
+
+      it('should NOT retry for non-duplicate errors', async () => {
+        const remoteOps: Operation[] = [
+          createFullOp({ id: 'op-1', vectorClock: { client1: 1 } }),
+        ];
+
+        opLogStoreSpy.filterNewOps.and.returnValue(Promise.resolve(remoteOps));
+        opLogStoreSpy.appendBatch.and.rejectWith(new Error('Some other database error'));
+
+        await expectAsync(
+          service.applyNonConflictingOps(remoteOps),
+        ).toBeRejectedWithError(/Some other database error/);
+
+        // Should NOT have retried - only one call
+        expect(opLogStoreSpy.appendBatch).toHaveBeenCalledTimes(1);
+      });
+
+      // This test verifies the retry behavior for issue #6213.
+      // When appendBatch throws "Duplicate operation detected", the service should
+      // retry with a fresh filterNewOps call (cache was invalidated by appendBatch).
+      it('should retry once on duplicate error and succeed when cache is refreshed', async () => {
+        const remoteOps: Operation[] = [
+          createFullOp({ id: 'op-1', vectorClock: { client1: 1 } }),
+          createFullOp({ id: 'op-2', vectorClock: { client1: 2 } }),
+        ];
+
+        let appendCallCount = 0;
+        let filterCallCount = 0;
+
+        // First filterNewOps: returns all ops (stale cache)
+        // Second filterNewOps: returns empty (cache now fresh, ops already exist)
+        opLogStoreSpy.filterNewOps.and.callFake(async () => {
+          filterCallCount++;
+          if (filterCallCount === 1) return remoteOps; // Stale cache
+          return []; // Fresh cache - ops already exist
+        });
+
+        // First appendBatch: throws duplicate error
+        // Second appendBatch: would succeed (but won't be called since filterNewOps returns [])
+        opLogStoreSpy.appendBatch.and.callFake(async (ops: any[]) => {
+          appendCallCount++;
+          if (appendCallCount === 1) {
+            throw new Error(
+              '[OpLogStore] Duplicate operation detected (likely race condition). See #6213.',
+            );
+          }
+          return ops.map((_: any, i: number) => i + 1);
+        });
+
+        // After fix: should complete successfully with retry
+        await service.applyNonConflictingOps(remoteOps);
+
+        // Should have retried - filterNewOps called twice
+        expect(opLogStoreSpy.filterNewOps).toHaveBeenCalledTimes(2);
+        // appendBatch only called once (retry's filterNewOps returned [])
+        expect(opLogStoreSpy.appendBatch).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 
   describe('validateAfterSync', () => {
