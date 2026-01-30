@@ -533,11 +533,18 @@ export class FileBasedSyncAdapterService {
           FILE_BASED_SYNC_CONSTANTS.FILE_VERSION,
         );
 
+      const isServerRevInconsistent = freshRev === revToMatch;
+      if (isServerRevInconsistent) {
+        OpLog.warn(
+          'FileBasedSyncAdapter: Rev unchanged after re-download, server has inconsistent timestamp handling. Force-uploading.',
+        );
+      }
+
       await provider.uploadFile(
         FILE_BASED_SYNC_CONSTANTS.SYNC_FILE,
         freshUploadData,
         freshRev,
-        false,
+        isServerRevInconsistent,
       );
 
       OpLog.normal('FileBasedSyncAdapter: Retry upload successful');
