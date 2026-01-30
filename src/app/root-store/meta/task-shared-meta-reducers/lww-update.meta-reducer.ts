@@ -2,7 +2,12 @@ import { Action, ActionReducer, MetaReducer } from '@ngrx/store';
 import { EntityAdapter } from '@ngrx/entity';
 import { RootState } from '../../root-state';
 import { EntityType } from '../../../op-log/core/operation.types';
-import { getEntityConfig, isAdapterEntity } from '../../../op-log/core/entity-registry';
+import {
+  getEntityConfig,
+  isAdapterEntity,
+  isSingletonEntity,
+} from '../../../op-log/core/entity-registry';
+import { devError } from '../../../util/dev-error';
 import {
   PROJECT_FEATURE_NAME,
   projectAdapter,
@@ -377,18 +382,16 @@ export const lwwUpdateMetaReducer: MetaReducer = (
     const entityType = match[1] as EntityType;
     const config = getEntityConfig(entityType);
 
-    if (!config || !isAdapterEntity(config)) {
-      OpLog.warn(
-        `lwwUpdateMetaReducer: Unknown or non-adapter entity type: ${entityType}`,
-      );
+    if (!config) {
+      OpLog.warn(`lwwUpdateMetaReducer: Unknown entity type: ${entityType}`);
+      devError(`lwwUpdateMetaReducer: Unknown entity type: ${entityType}`);
       return reducer(state, action);
     }
 
-    const { featureName, adapter } = config;
-    if (!featureName || !adapter) {
-      OpLog.warn(
-        `lwwUpdateMetaReducer: Missing featureName or adapter for: ${entityType}`,
-      );
+    const { featureName } = config;
+    if (!featureName) {
+      OpLog.warn(`lwwUpdateMetaReducer: Missing featureName for: ${entityType}`);
+      devError(`lwwUpdateMetaReducer: Missing featureName for: ${entityType}`);
       return reducer(state, action);
     }
 
@@ -397,6 +400,7 @@ export const lwwUpdateMetaReducer: MetaReducer = (
 
     if (!featureState) {
       OpLog.warn(`lwwUpdateMetaReducer: Feature state not found: ${featureName}`);
+      devError(`lwwUpdateMetaReducer: Feature state not found: ${featureName}`);
       return reducer(state, action);
     }
 
@@ -407,6 +411,28 @@ export const lwwUpdateMetaReducer: MetaReducer = (
       if (key !== 'type' && key !== 'meta') {
         entityData[key] = actionAny[key];
       }
+    }
+
+    // Singleton entities: replace entire feature state with the winning data
+    if (isSingletonEntity(config)) {
+      const updatedState: RootState = {
+        ...rootState,
+        [featureName]: { ...entityData },
+      };
+      return reducer(updatedState, action);
+    }
+
+    if (!isAdapterEntity(config)) {
+      OpLog.warn(`lwwUpdateMetaReducer: Unsupported storage pattern for: ${entityType}`);
+      devError(`lwwUpdateMetaReducer: Unsupported storage pattern for: ${entityType}`);
+      return reducer(state, action);
+    }
+
+    const { adapter } = config;
+    if (!adapter) {
+      OpLog.warn(`lwwUpdateMetaReducer: Missing adapter for: ${entityType}`);
+      devError(`lwwUpdateMetaReducer: Missing adapter for: ${entityType}`);
+      return reducer(state, action);
     }
 
     if (!entityData['id']) {

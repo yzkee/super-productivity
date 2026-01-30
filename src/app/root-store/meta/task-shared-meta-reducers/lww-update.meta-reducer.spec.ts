@@ -313,12 +313,131 @@ describe('lwwUpdateMetaReducer', () => {
       };
 
       spyOn(OpLog, 'warn');
-      reducer(state, action);
+      // devError throws in non-production; catch it so we can verify the warning
+      try {
+        reducer(state, action);
+      } catch {
+        // Expected: devError throws in test environment
+      }
 
       expect(OpLog.warn).toHaveBeenCalledWith(
-        jasmine.stringMatching(/Unknown or non-adapter entity type: UNKNOWN_ENTITY/),
+        jasmine.stringMatching(/Unknown entity type: UNKNOWN_ENTITY/),
       );
-      expect(mockReducer).toHaveBeenCalledWith(state, action);
+    });
+  });
+
+  describe('singleton entity LWW Updates', () => {
+    const createMockStateWithSingletons = (): Partial<RootState> =>
+      ({
+        ...createMockState(),
+        globalConfig: {
+          misc: {
+            isDisableAnimations: false,
+            isDisableCelebration: false,
+          },
+          sound: { isEnabled: true },
+        },
+        timeTracking: {
+          currentSessionTime: 0,
+          isTrackingReminder: true,
+        },
+      }) as unknown as Partial<RootState>;
+
+    it('should replace globalConfig state with LWW winning data', () => {
+      const state = createMockStateWithSingletons();
+      const action = {
+        type: '[GLOBAL_CONFIG] LWW Update',
+        misc: {
+          isDisableAnimations: true,
+          isDisableCelebration: true,
+        },
+        sound: { isEnabled: false },
+        meta: {
+          isPersistent: true,
+          entityType: 'GLOBAL_CONFIG',
+          isRemote: true,
+        },
+      };
+
+      reducer(state, action);
+
+      expect(mockReducer).toHaveBeenCalled();
+      const updatedState = mockReducer.calls.mostRecent().args[0] as Record<
+        string,
+        unknown
+      >;
+      const globalConfig = updatedState['globalConfig'] as Record<string, unknown>;
+      expect(globalConfig).toBeDefined();
+      expect(
+        (globalConfig['misc'] as Record<string, unknown>)['isDisableAnimations'],
+      ).toBe(true);
+      expect(
+        (globalConfig['misc'] as Record<string, unknown>)['isDisableCelebration'],
+      ).toBe(true);
+      expect((globalConfig['sound'] as Record<string, unknown>)['isEnabled']).toBe(false);
+    });
+
+    it('should replace timeTracking state with LWW winning data', () => {
+      const state = createMockStateWithSingletons();
+      const action = {
+        type: '[TIME_TRACKING] LWW Update',
+        currentSessionTime: 5000,
+        isTrackingReminder: false,
+        meta: {
+          isPersistent: true,
+          entityType: 'TIME_TRACKING',
+          isRemote: true,
+        },
+      };
+
+      reducer(state, action);
+
+      expect(mockReducer).toHaveBeenCalled();
+      const updatedState = mockReducer.calls.mostRecent().args[0] as Record<
+        string,
+        unknown
+      >;
+      const timeTracking = updatedState['timeTracking'] as Record<string, unknown>;
+      expect(timeTracking).toBeDefined();
+      expect(timeTracking['currentSessionTime']).toBe(5000);
+      expect(timeTracking['isTrackingReminder']).toBe(false);
+    });
+
+    it('should not require id field for singleton entities', () => {
+      const state = createMockStateWithSingletons();
+      const action = {
+        type: '[GLOBAL_CONFIG] LWW Update',
+        misc: { isDisableAnimations: true },
+        meta: { isPersistent: true, entityType: 'GLOBAL_CONFIG', isRemote: true },
+      };
+
+      spyOn(OpLog, 'warn');
+      reducer(state, action);
+
+      expect(OpLog.warn).not.toHaveBeenCalledWith(
+        jasmine.stringMatching(/Entity data has no id/),
+      );
+      expect(mockReducer).toHaveBeenCalled();
+    });
+
+    it('should strip type and meta from applied singleton state', () => {
+      const state = createMockStateWithSingletons();
+      const action = {
+        type: '[GLOBAL_CONFIG] LWW Update',
+        misc: { isDisableAnimations: true },
+        meta: { isPersistent: true, entityType: 'GLOBAL_CONFIG', isRemote: true },
+      };
+
+      reducer(state, action);
+
+      expect(mockReducer).toHaveBeenCalled();
+      const updatedState = mockReducer.calls.mostRecent().args[0] as Record<
+        string,
+        unknown
+      >;
+      const globalConfig = updatedState['globalConfig'] as Record<string, unknown>;
+      expect(globalConfig['type']).toBeUndefined();
+      expect(globalConfig['meta']).toBeUndefined();
     });
   });
 
