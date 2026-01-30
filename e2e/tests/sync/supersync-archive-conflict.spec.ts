@@ -152,4 +152,110 @@ test.describe('@supersync Archive Conflict Resolution', () => {
       if (clientB) await closeClient(clientB);
     }
   });
+
+  /**
+   * Test B: LWW Update does not resurrect archived tasks (Bug B)
+   *
+   * Scenario:
+   * 1. Client A creates Task-1, syncs
+   * 2. Client B syncs (gets task)
+   * 3. Client A marks Task-1 done, archives it
+   * 4. Client B renames Task-1 (NO sync — rename timestamp is NEWER than archive)
+   * 5. Client A syncs (uploads archive)
+   * 6. Client B syncs (downloads moveToArchive, has local rename pending)
+   *    → With fix: archive wins, rename discarded
+   *    → Without fix: rename wins LWW → LWW Update recreates task
+   *
+   * Expected: Task NOT visible in active list, appears in worklog.
+   */
+  test('LWW Update should not resurrect archived tasks @supersync', async ({
+    browser,
+    baseURL,
+    testRunId,
+  }) => {
+    const uniqueId = Date.now();
+    let clientA: SimulatedE2EClient | null = null;
+    let clientB: SimulatedE2EClient | null = null;
+
+    try {
+      const user = await createTestUser(testRunId);
+      const syncConfig = getSuperSyncConfig(user);
+
+      // ============ PHASE 1: Client A creates task and syncs ============
+      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      await clientA.sync.setupSuperSync(syncConfig);
+
+      const taskName = `BugB-T1-${uniqueId}`;
+
+      await clientA.workView.addTask(taskName);
+      console.log(`[BugB] Client A created task: ${taskName}`);
+
+      await clientA.sync.syncAndWait();
+      console.log('[BugB] Client A synced (uploaded task)');
+
+      // ============ PHASE 2: Client B downloads task ============
+      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      await clientB.sync.setupSuperSync(syncConfig);
+      await clientB.sync.syncAndWait();
+
+      await waitForTask(clientB.page, taskName);
+      console.log('[BugB] Client B received task');
+
+      // ============ PHASE 3: Client A marks task done and archives ============
+      // Archive happens FIRST so its timestamp is OLDER than the rename below.
+      await markTaskDone(clientA, taskName);
+      console.log('[BugB] Client A marked task as done');
+
+      await archiveDoneTasks(clientA);
+      console.log('[BugB] Client A archived done tasks');
+
+      // ============ PHASE 4: Client B renames task (NO sync) ============
+      // Rename happens AFTER archive, so its timestamp is NEWER.
+      // Without the fix, the rename would win LWW and create an LWW Update
+      // that resurrects the archived task (Bug B).
+      // With the fix, archive wins regardless of timestamps.
+      const taskRenamed = `BugB-T1-renamed-${uniqueId}`;
+      await renameTask(clientB, taskName, taskRenamed);
+      console.log(`[BugB] Client B renamed ${taskName} → ${taskRenamed} (not synced)`);
+
+      // ============ PHASE 5: Client A syncs (uploads archive) ============
+      await clientA.sync.syncAndWait();
+      console.log('[BugB] Client A synced (uploaded archive)');
+
+      // ============ PHASE 5: Client B syncs ============
+      // Downloads moveToArchive; has local rename pending.
+      // With fix: archive wins, rename is discarded.
+      await clientB.sync.syncAndWait();
+      console.log('[BugB] Client B synced (downloaded archive + conflict resolution)');
+
+      // Extra sync rounds for convergence
+      await clientA.sync.syncAndWait();
+      await clientB.sync.syncAndWait();
+      await clientA.sync.syncAndWait();
+      console.log('[BugB] Extra sync rounds for convergence');
+
+      // ============ PHASE 6: Verify task NOT in active task list ============
+      await navigateToWorkView(clientA);
+      await navigateToWorkView(clientB);
+
+      await expectTaskNotVisible(clientA, taskName);
+      console.log('[BugB] Client A: task not visible in active list');
+
+      await expectTaskNotVisible(clientB, taskRenamed);
+      await expectTaskNotVisible(clientB, taskName);
+      console.log('[BugB] Client B: task not visible in active list');
+
+      // ============ PHASE 7: Verify task IN worklog ============
+      await expectTaskInWorklog(clientA, taskName);
+      console.log('[BugB] Client A: task found in worklog');
+
+      await expectTaskInWorklog(clientB, taskName);
+      console.log('[BugB] Client B: task found in worklog');
+
+      console.log('[BugB] ✓ Test B passed: LWW Update did not resurrect archived task');
+    } finally {
+      if (clientA) await closeClient(clientA);
+      if (clientB) await closeClient(clientB);
+    }
+  });
 });

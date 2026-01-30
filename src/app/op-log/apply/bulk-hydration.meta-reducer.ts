@@ -1,6 +1,14 @@
 import { Action, ActionReducer } from '@ngrx/store';
 import { bulkApplyOperations } from './bulk-hydration.action';
 import { convertOpToAction } from './operation-converter.util';
+import { ActionType } from '../core/operation.types';
+import { OpLog } from '../../core/log';
+
+/**
+ * Regex to match LWW Update action types.
+ * Matches patterns like '[TASK] LWW Update', '[PROJECT] LWW Update', etc.
+ */
+const LWW_UPDATE_REGEX = /^\[([A-Z_]+)\] LWW Update$/;
 
 /**
  * Meta-reducer that applies multiple operations in a single reducer pass.
@@ -37,8 +45,37 @@ export const bulkOperationsMetaReducer = <T>(
     if (action.type === bulkApplyOperations.type) {
       const { operations } = action as ReturnType<typeof bulkApplyOperations>;
 
+      // Pre-scan: collect entity IDs being archived in this batch.
+      // LWW Update ops for these entities must be skipped to prevent
+      // lwwUpdateMetaReducer.addOne() from resurrecting archived tasks.
+      const archivingEntityIds = new Set<string>();
+      for (const op of operations) {
+        if (op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE) {
+          if (op.entityIds) {
+            for (const id of op.entityIds) {
+              archivingEntityIds.add(id);
+            }
+          } else if (op.entityId) {
+            archivingEntityIds.add(op.entityId);
+          }
+        }
+      }
+
       let currentState = state;
       for (const op of operations) {
+        // Skip LWW Updates for entities archived in this same batch
+        if (
+          archivingEntityIds.size > 0 &&
+          LWW_UPDATE_REGEX.test(op.actionType) &&
+          op.entityId &&
+          archivingEntityIds.has(op.entityId)
+        ) {
+          OpLog.normal(
+            `bulkOperationsMetaReducer: Skipping LWW Update for ` +
+              `${op.entityType}:${op.entityId} — entity archived in same batch`,
+          );
+          continue;
+        }
         const opAction = convertOpToAction(op);
         currentState = reducer(currentState, opAction);
       }

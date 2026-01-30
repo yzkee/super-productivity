@@ -570,6 +570,36 @@ export class ConflictResolutionService {
     const resolutions: LWWResolution[] = [];
 
     for (const conflict of conflicts) {
+      // ── moveToArchive always wins over field-level updates ──
+      // Archive is an explicit user intent ("I'm done with these tasks").
+      // Allowing field-level updates (rename, time tracking) to win via LWW
+      // would create LWW Update ops that resurrect archived entities via
+      // lwwUpdateMetaReducer.addOne() (Bug B).
+      const localHasArchive = conflict.localOps.some(
+        (op) => op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+      );
+      const remoteHasArchive = conflict.remoteOps.some(
+        (op) => op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+      );
+
+      if (localHasArchive || remoteHasArchive) {
+        if (remoteHasArchive) {
+          // Remote archive wins — will be applied normally
+          resolutions.push({ conflict, winner: 'remote' });
+        } else {
+          // Local archive wins — re-create archive op with merged clock.
+          const localWinOp = await this._createArchiveWinOp(conflict);
+          resolutions.push({ conflict, winner: 'local', localWinOp });
+        }
+        OpLog.normal(
+          `ConflictResolutionService: Archive wins over field-level update ` +
+            `(${remoteHasArchive ? 'remote' : 'local'} archive) for ` +
+            `${conflict.entityType}:${conflict.entityId}`,
+        );
+        continue;
+      }
+
+      // ── Normal LWW timestamp comparison ──
       // Get max timestamp from each side
       const localMaxTimestamp = Math.max(...conflict.localOps.map((op) => op.timestamp));
       const remoteMaxTimestamp = Math.max(
@@ -674,6 +704,45 @@ export class ConflictResolutionService {
       newClock,
       preservedTimestamp,
     );
+  }
+
+  /**
+   * Creates a replacement archive operation with merged vector clock.
+   * Used when local moveToArchive wins a conflict — the original op will be
+   * rejected, so we create a new one with a clock that dominates all parties.
+   */
+  private async _createArchiveWinOp(
+    conflict: EntityConflict,
+  ): Promise<Operation | undefined> {
+    const clientId = await this.clientIdProvider.loadClientId();
+    if (!clientId) {
+      OpLog.err('ConflictResolutionService: Cannot create archive-win op - no client ID');
+      return undefined;
+    }
+
+    const archiveOp = conflict.localOps.find(
+      (op) => op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+    )!;
+
+    const allClocks = [
+      ...conflict.localOps.map((op) => op.vectorClock),
+      ...conflict.remoteOps.map((op) => op.vectorClock),
+    ];
+    const newClock = this.mergeAndIncrementClocks(allClocks, clientId);
+
+    return {
+      id: uuidv7(),
+      actionType: archiveOp.actionType,
+      opType: archiveOp.opType,
+      entityType: archiveOp.entityType,
+      entityId: archiveOp.entityId,
+      entityIds: archiveOp.entityIds,
+      payload: archiveOp.payload,
+      clientId,
+      vectorClock: newClock,
+      timestamp: archiveOp.timestamp,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+    };
   }
 
   /**

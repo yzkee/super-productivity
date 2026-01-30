@@ -740,6 +740,53 @@ describe('StaleOperationResolverService', () => {
         expect(regularResult!.entityId).toBe('task-3');
       });
 
+      it('should use current clientId (not original) for re-created moveToArchive op', async () => {
+        const archiveOp = createMockMoveToArchiveOperation(
+          'op-archive-1',
+          ['task-1'],
+          { clientA: 5 },
+          1000,
+        );
+        // Original op has clientId='original-client' (from createMockMoveToArchiveOperation)
+        // Current client is TEST_CLIENT_ID
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
+
+        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+
+        const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+          .args[0] as Operation;
+        expect(appendedOp.clientId).toBe(TEST_CLIENT_ID);
+        expect(appendedOp.clientId).not.toBe('original-client');
+      });
+
+      it('should merge snapshotVectorClock and extraClocks into moveToArchive vector clock', async () => {
+        const archiveOp = createMockMoveToArchiveOperation(
+          'op-archive-1',
+          ['task-1'],
+          { archive: 1 },
+          1000,
+        );
+        const snapshotVectorClock: VectorClock = { snapshot: 5 };
+        const extraClocks: VectorClock[] = [{ extra: 3 }];
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
+
+        await service.resolveStaleLocalOps(
+          [{ opId: 'op-archive-1', op: archiveOp }],
+          extraClocks,
+          snapshotVectorClock,
+        );
+
+        const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+          .args[0] as Operation;
+        // Clock should include entries from snapshot, extra, archive op, and be incremented
+        expect(appendedOp.vectorClock['snapshot']).toBe(5);
+        expect(appendedOp.vectorClock['extra']).toBe(3);
+        expect(appendedOp.vectorClock['archive']).toBeGreaterThanOrEqual(1);
+        expect(appendedOp.vectorClock[TEST_CLIENT_ID]).toBeDefined();
+      });
+
       it('should use CURRENT_SCHEMA_VERSION for re-created op', async () => {
         const archiveOp = createMockMoveToArchiveOperation('op-archive-1', ['task-1'], {
           clientA: 5,

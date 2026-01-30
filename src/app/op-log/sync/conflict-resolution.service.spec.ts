@@ -8,6 +8,7 @@ import { ValidateStateService } from '../validation/validate-state.service';
 import { of } from 'rxjs';
 import { ActionType, EntityConflict, OpType, Operation } from '../core/operation.types';
 import { DUPLICATE_OPERATION_ERROR_MSG } from '../persistence/op-log-errors.const';
+import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
 
 describe('ConflictResolutionService', () => {
   let service: ConflictResolutionService;
@@ -16,6 +17,9 @@ describe('ConflictResolutionService', () => {
   let mockOpLogStore: jasmine.SpyObj<OperationLogStoreService>;
   let mockSnackService: jasmine.SpyObj<SnackService>;
   let mockValidateStateService: jasmine.SpyObj<ValidateStateService>;
+  let mockClientIdProvider: { loadClientId: jasmine.Spy };
+
+  const TEST_CLIENT_ID = 'test-client-123';
 
   const createMockOp = (id: string, clientId: string): Operation => ({
     id,
@@ -56,6 +60,11 @@ describe('ConflictResolutionService', () => {
     mockValidateStateService = jasmine.createSpyObj('ValidateStateService', [
       'validateAndRepairCurrentState',
     ]);
+    mockClientIdProvider = {
+      loadClientId: jasmine
+        .createSpy('loadClientId')
+        .and.returnValue(Promise.resolve(TEST_CLIENT_ID)),
+    };
 
     TestBed.configureTestingModule({
       providers: [
@@ -65,6 +74,7 @@ describe('ConflictResolutionService', () => {
         { provide: OperationLogStoreService, useValue: mockOpLogStore },
         { provide: SnackService, useValue: mockSnackService },
         { provide: ValidateStateService, useValue: mockValidateStateService },
+        { provide: CLIENT_ID_PROVIDER, useValue: mockClientIdProvider },
       ],
     });
     service = TestBed.inject(ConflictResolutionService);
@@ -1951,6 +1961,296 @@ describe('ConflictResolutionService', () => {
         jasmine.any(Object),
       );
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['local-1']);
+    });
+  });
+
+  // =========================================================================
+  // Archive conflict resolution (Bug B prevention)
+  // =========================================================================
+  describe('archive conflict resolution', () => {
+    const createOpWithTimestamp = (
+      id: string,
+      clientId: string,
+      timestamp: number,
+      opType: OpType = OpType.Update,
+      entityId: string = 'task-1',
+    ): Operation => ({
+      id,
+      clientId,
+      actionType: 'test' as ActionType,
+      opType,
+      entityType: 'TASK',
+      entityId,
+      payload: { source: clientId, timestamp },
+      vectorClock: { [clientId]: 1 },
+      timestamp,
+      schemaVersion: 1,
+    });
+
+    const createArchiveOp = (
+      id: string,
+      clientId: string,
+      timestamp: number,
+      entityId: string = 'task-1',
+      entityIds: string[] = ['task-1'],
+    ): Operation => ({
+      id,
+      clientId,
+      actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+      opType: OpType.Update,
+      entityType: 'TASK',
+      entityId,
+      entityIds,
+      payload: {
+        actionPayload: {
+          tasks: entityIds.map((eid) => ({ id: eid, title: `Task ${eid}` })),
+        },
+        entityChanges: [],
+      },
+      vectorClock: { [clientId]: 1 },
+      timestamp,
+      schemaVersion: 1,
+    });
+
+    const createConflict = (
+      entityId: string,
+      localOps: Operation[],
+      remoteOps: Operation[],
+    ): EntityConflict => ({
+      entityType: 'TASK',
+      entityId,
+      localOps,
+      remoteOps,
+      suggestedResolution: 'manual',
+    });
+
+    beforeEach(() => {
+      mockOpLogStore.hasOp.and.resolveTo(false);
+      mockOpLogStore.append.and.callFake((op: Operation) => Promise.resolve(1));
+      mockOpLogStore.appendWithVectorClockUpdate.and.callFake((op: Operation) =>
+        Promise.resolve(1),
+      );
+      mockOpLogStore.markApplied.and.resolveTo(undefined);
+      mockOpLogStore.markRejected.and.resolveTo(undefined);
+    });
+
+    it('should resolve remote moveToArchive as winner over local UPDATE (regardless of timestamps)', async () => {
+      const now = Date.now();
+      // Local UPDATE has NEWER timestamp, but remote archive should still win
+      const conflicts: EntityConflict[] = [
+        createConflict(
+          'task-1',
+          [createOpWithTimestamp('local-upd', 'client-a', now)],
+          [createArchiveOp('remote-archive', 'client-b', now - 5000)],
+        ),
+      ];
+
+      mockOperationApplier.applyOperations.and.resolveTo({
+        appliedOps: conflicts[0].remoteOps,
+      });
+
+      await service.autoResolveConflictsLWW(conflicts);
+
+      // Remote archive should win — applied as remote op
+      expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+        jasmine.arrayContaining([jasmine.objectContaining({ id: 'remote-archive' })]),
+        'remote',
+        jasmine.any(Object),
+      );
+      // Local ops should be rejected
+      expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['local-upd']);
+    });
+
+    it('should resolve local moveToArchive as winner over remote UPDATE (regardless of timestamps)', async () => {
+      const now = Date.now();
+      // Remote UPDATE has NEWER timestamp, but local archive should still win
+      const conflicts: EntityConflict[] = [
+        createConflict(
+          'task-1',
+          [createArchiveOp('local-archive', 'client-a', now - 5000)],
+          [createOpWithTimestamp('remote-upd', 'client-b', now)],
+        ),
+      ];
+
+      await service.autoResolveConflictsLWW(conflicts);
+
+      // Local archive wins — remote op should be rejected
+      expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['remote-upd']);
+      // Local archive op should be rejected (will be replaced by new archive op)
+      expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['local-archive']);
+      // New archive op should be appended
+      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+        }),
+        'local',
+      );
+    });
+
+    it('should create replacement archive op with merged clock when local archive wins', async () => {
+      const now = Date.now();
+      const conflicts: EntityConflict[] = [
+        createConflict(
+          'task-1',
+          [createArchiveOp('local-archive', 'client-a', now - 5000)],
+          [createOpWithTimestamp('remote-upd', 'client-b', now)],
+        ),
+      ];
+
+      await service.autoResolveConflictsLWW(conflicts);
+
+      const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+        .args[0] as Operation;
+      // Merged clock should include entries from both sides and be incremented
+      expect(appendedOp.vectorClock['client-a']).toBeGreaterThanOrEqual(1);
+      expect(appendedOp.vectorClock['client-b']).toBeGreaterThanOrEqual(1);
+      expect(appendedOp.vectorClock[TEST_CLIENT_ID]).toBeGreaterThanOrEqual(1);
+    });
+
+    it('should preserve original payload and entityIds in replacement archive op', async () => {
+      const now = Date.now();
+      const archiveOp = createArchiveOp('local-archive', 'client-a', now, 'task-1', [
+        'task-1',
+        'task-2',
+        'task-3',
+      ]);
+      const conflicts: EntityConflict[] = [
+        createConflict(
+          'task-1',
+          [archiveOp],
+          [createOpWithTimestamp('remote-upd', 'client-b', now + 5000)],
+        ),
+      ];
+
+      await service.autoResolveConflictsLWW(conflicts);
+
+      const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+        .args[0] as Operation;
+      expect(appendedOp.payload).toEqual(archiveOp.payload);
+      expect(appendedOp.entityIds).toEqual(['task-1', 'task-2', 'task-3']);
+      expect(appendedOp.entityId).toBe('task-1');
+      expect(appendedOp.timestamp).toBe(now);
+    });
+
+    it('should still use normal LWW timestamp comparison for non-archive conflicts', async () => {
+      const now = Date.now();
+      // Normal UPDATE vs UPDATE conflict — no archive involved
+      const conflicts: EntityConflict[] = [
+        createConflict(
+          'task-1',
+          [createOpWithTimestamp('local-upd', 'client-a', now)],
+          [createOpWithTimestamp('remote-upd', 'client-b', now - 1000)],
+        ),
+      ];
+
+      await service.autoResolveConflictsLWW(conflicts);
+
+      // Local wins by timestamp — normal LWW behavior
+      expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['local-upd']);
+      expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['remote-upd']);
+    });
+
+    it('should not create local-win op when clientId is unavailable', async () => {
+      const now = Date.now();
+      mockClientIdProvider.loadClientId.and.returnValue(Promise.resolve(null));
+
+      const conflicts: EntityConflict[] = [
+        createConflict(
+          'task-1',
+          [createArchiveOp('local-archive', 'client-a', now)],
+          [createOpWithTimestamp('remote-upd', 'client-b', now + 5000)],
+        ),
+      ];
+
+      const result = await service.autoResolveConflictsLWW(conflicts);
+
+      // No local-win op should be created (clientId unavailable)
+      expect(mockOpLogStore.appendWithVectorClockUpdate).not.toHaveBeenCalled();
+      expect(result.localWinOpsCreated).toBe(0);
+    });
+
+    it('should handle local ops with both moveToArchive and regular update in same conflict', async () => {
+      const now = Date.now();
+      // Local side has a regular update AND a moveToArchive for the same entity
+      const conflicts: EntityConflict[] = [
+        createConflict(
+          'task-1',
+          [
+            createOpWithTimestamp('local-upd', 'client-a', now - 10000),
+            createArchiveOp('local-archive', 'client-a', now),
+          ],
+          [createOpWithTimestamp('remote-upd', 'client-b', now + 5000)],
+        ),
+      ];
+
+      await service.autoResolveConflictsLWW(conflicts);
+
+      // Archive should still win — both local ops rejected, archive re-created
+      expect(mockOpLogStore.markRejected).toHaveBeenCalledWith([
+        'local-upd',
+        'local-archive',
+      ]);
+      expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['remote-upd']);
+      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+        }),
+        'local',
+      );
+    });
+
+    it('should use normal LWW for archive vs DELETE conflict (archive is not special against DELETE)', async () => {
+      const now = Date.now();
+      // Local archive, remote DELETE — archive special-casing only applies against
+      // field-level UPDATEs, not DELETEs. DELETE conflicts use normal LWW.
+      const conflicts: EntityConflict[] = [
+        createConflict(
+          'task-1',
+          [createArchiveOp('local-archive', 'client-a', now)],
+          [
+            {
+              ...createOpWithTimestamp('remote-del', 'client-b', now - 1000),
+              opType: OpType.Delete,
+            },
+          ],
+        ),
+      ];
+
+      await service.autoResolveConflictsLWW(conflicts);
+
+      // Archive should still win — it has moveToArchive, so archive-wins logic kicks in
+      // regardless of remote op type
+      expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['remote-del']);
+      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+        }),
+        'local',
+      );
+    });
+
+    it('should resolve as remote when both sides have moveToArchive', async () => {
+      const now = Date.now();
+      const conflicts: EntityConflict[] = [
+        createConflict(
+          'task-1',
+          [createArchiveOp('local-archive', 'client-a', now)],
+          [createArchiveOp('remote-archive', 'client-b', now - 1000)],
+        ),
+      ];
+
+      mockOperationApplier.applyOperations.and.resolveTo({
+        appliedOps: conflicts[0].remoteOps,
+      });
+
+      await service.autoResolveConflictsLWW(conflicts);
+
+      // Remote archive wins (both have archive → remote preferred)
+      expect(mockOpLogStore.appendBatch).toHaveBeenCalledWith(
+        jasmine.arrayContaining([jasmine.objectContaining({ id: 'remote-archive' })]),
+        'remote',
+        jasmine.any(Object),
+      );
     });
   });
 });
