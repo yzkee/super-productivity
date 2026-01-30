@@ -609,7 +609,7 @@ export class FileBasedSyncAdapterService {
     }
 
     // Step 2: Build merged sync data
-    const { newData, existingOps, mergedOps } = await this._buildMergedSyncData(
+    const { newData, existingOps } = await this._buildMergedSyncData(
       currentData,
       ops,
       clientId,
@@ -631,7 +631,10 @@ export class FileBasedSyncAdapterService {
     this._clearCachedSyncData(providerKey);
     this._expectedSyncVersions.set(providerKey, finalSyncVersion);
 
-    const latestSeq = mergedOps.length;
+    // Use finalSyncVersion (NOT mergedOps.length) to match download behavior (see line ~791).
+    // mergedOps.length is the total ops count, which can be much larger than syncVersion
+    // after many syncs, causing false "Server sequence decreased" warnings.
+    const latestSeq = finalSyncVersion;
 
     // Step 5: Collect piggybacked ops
     const newOps = this._collectPiggybackedOps(existingOps, providerKey, clientId);
