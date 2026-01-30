@@ -265,7 +265,11 @@ export const createWindow = async ({
 
 // isMaximized() can return an incorrect value after hide() — this is a known issue on certain platforms/configurations (electron#27838).
 // to ensure maximized window state is restored reliably across all platforms, we manually track maximized state before hiding
-export let wasMaximizedBeforeHide: boolean = false;
+let wasMaximizedBeforeHide: boolean = false;
+export const getWasMaximizedBeforeHide = (): boolean => wasMaximizedBeforeHide;
+export const setWasMaximizedBeforeHide = (value: boolean): void => {
+  wasMaximizedBeforeHide = value;
+};
 
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 function initWinEventListeners(app: Electron.App): void {
@@ -316,11 +320,11 @@ function initWinEventListeners(app: Electron.App): void {
 
   // Handle maximize and unmaximize events to change wasMaximizedBeforeHide flag accordingly
   mainWin.on('maximize', () => {
-    wasMaximizedBeforeHide = true;
+    setWasMaximizedBeforeHide(true);
   });
 
   mainWin.on('unmaximize', () => {
-    wasMaximizedBeforeHide = false;
+    setWasMaximizedBeforeHide(false);
   });
 }
 
@@ -395,7 +399,7 @@ const appCloseHandler = (app: App): void => {
     if (!getIsQuiting()) {
       event.preventDefault();
       if (getIsMinimizeToTray()) {
-        wasMaximizedBeforeHide = mainWin.isMaximized();
+        setWasMaximizedBeforeHide(mainWin.isMaximized());
         mainWin.hide();
         showOverlayWindow();
         return;
@@ -434,7 +438,7 @@ const appMinimizeHandler = (app: App): void => {
     mainWin.on('minimize', (event: Event) => {
       if (getIsMinimizeToTray()) {
         event.preventDefault();
-        wasMaximizedBeforeHide = mainWin.isMaximized();
+        setWasMaximizedBeforeHide(mainWin.isMaximized());
         mainWin.hide();
         showOverlayWindow();
       } else {

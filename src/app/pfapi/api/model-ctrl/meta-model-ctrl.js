@@ -1,3 +1,10 @@
+/**
+ * @deprecated LEGACY CODE — do not modify.
+ *
+ * This is compiled JS from the old PFAPI sync system (TypeScript sources have been removed).
+ * It is kept solely for backward-compatibility during migration to the new operation-log
+ * sync system (src/app/op-log/). Safe to delete once all users have migrated.
+ */
 'use strict';
 var __assign =
   (this && this.__assign) ||

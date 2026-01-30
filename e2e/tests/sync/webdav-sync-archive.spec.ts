@@ -452,9 +452,9 @@ test.describe('@webdav WebDAV Archive Sync', () => {
     console.log('[Archive Edit] Both clients synced again for eventual consistency');
 
     // --- Verify final state ---
-    // LWW behavior: The operation with the later timestamp wins.
-    // Since Client A archived first, then Client B edited (later timestamp),
-    // B's edit operation wins, and the task remains active (not archived).
+    // With archive-wins rule, archive always wins regardless of timestamps.
+    // Archive is an explicit user intent ("I'm done with these tasks"),
+    // so it takes priority over concurrent edits.
     const taskCountA = await pageA.locator('task').count();
     const taskCountB = await pageB.locator('task').count();
 
@@ -462,15 +462,12 @@ test.describe('@webdav WebDAV Archive Sync', () => {
       `[Archive Edit] Final state: A=${taskCountA} tasks, B=${taskCountB} tasks`,
     );
 
-    // Both clients should have consistent state after multiple syncs
-    expect(taskCountA).toBe(taskCountB);
+    // With archive-wins rule, archive always wins regardless of timestamps
+    expect(taskCountA).toBe(0);
+    expect(taskCountB).toBe(0);
 
-    // With LWW, if the edit has a later timestamp than the archive,
-    // the task should remain visible (edit wins over archive)
-    // If both have 0, archive won. If both have 1, edit won.
-    // Either outcome is valid as long as they're consistent.
     console.log(
-      `[Archive Edit] ✓ Archive vs edit conflict resolved - ${taskCountA === 0 ? 'archive won' : 'edit won'}`,
+      `[Archive Edit] ✓ Archive vs edit conflict resolved - archive won (as expected)`,
     );
 
     // Cleanup

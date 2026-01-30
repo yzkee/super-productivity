@@ -2413,4 +2413,149 @@ describe('ConflictResolutionService', () => {
       );
     });
   });
+
+  describe('archive-wins rule', () => {
+    it('should resolve local moveToArchive winning over remote UPDATE with later timestamp', async () => {
+      const localArchiveOp: Operation = {
+        id: 'local-archive-1',
+        clientId: TEST_CLIENT_ID,
+        actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+        opType: OpType.Update,
+        entityType: 'TASK',
+        entityId: 'task-1',
+        payload: { task: { id: 'task-1', title: 'Archived Task' } },
+        vectorClock: { [TEST_CLIENT_ID]: 1 },
+        timestamp: 1000,
+        schemaVersion: 1,
+      };
+
+      const remoteUpdateOp: Operation = {
+        id: 'remote-update-1',
+        clientId: 'remoteClient',
+        actionType: 'test-update' as ActionType,
+        opType: OpType.Update,
+        entityType: 'TASK',
+        entityId: 'task-1',
+        payload: { source: 'remoteClient' },
+        vectorClock: { remoteClient: 1 },
+        timestamp: 2000, // Later timestamp — would win under normal LWW
+        schemaVersion: 1,
+      };
+
+      const conflicts: EntityConflict[] = [
+        {
+          entityType: 'TASK',
+          entityId: 'task-1',
+          localOps: [localArchiveOp],
+          remoteOps: [remoteUpdateOp],
+          suggestedResolution: 'manual',
+        },
+      ];
+
+      mockStore.select.and.returnValue(of(undefined));
+
+      const result = await service.autoResolveConflictsLWW(conflicts);
+
+      // Local archive wins — a new op should be created
+      expect(result.localWinOpsCreated).toBe(1);
+      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalled();
+    });
+
+    it('should resolve remote moveToArchive winning over local UPDATE with later timestamp', async () => {
+      const localUpdateOp: Operation = {
+        id: 'local-update-1',
+        clientId: TEST_CLIENT_ID,
+        actionType: 'test-update' as ActionType,
+        opType: OpType.Update,
+        entityType: 'TASK',
+        entityId: 'task-1',
+        payload: { source: TEST_CLIENT_ID },
+        vectorClock: { [TEST_CLIENT_ID]: 1 },
+        timestamp: 2000, // Later timestamp — would win under normal LWW
+        schemaVersion: 1,
+      };
+
+      const remoteArchiveOp: Operation = {
+        id: 'remote-archive-1',
+        clientId: 'remoteClient',
+        actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+        opType: OpType.Update,
+        entityType: 'TASK',
+        entityId: 'task-1',
+        payload: { task: { id: 'task-1', title: 'Archived Task' } },
+        vectorClock: { remoteClient: 1 },
+        timestamp: 1000,
+        schemaVersion: 1,
+      };
+
+      const conflicts: EntityConflict[] = [
+        {
+          entityType: 'TASK',
+          entityId: 'task-1',
+          localOps: [localUpdateOp],
+          remoteOps: [remoteArchiveOp],
+          suggestedResolution: 'manual',
+        },
+      ];
+
+      mockOperationApplier.applyOperations.and.resolveTo({
+        appliedOps: [remoteArchiveOp],
+      });
+
+      const result = await service.autoResolveConflictsLWW(conflicts);
+
+      // Remote archive wins — no local-win op created
+      expect(result.localWinOpsCreated).toBe(0);
+      // Remote archive op should be applied
+      expect(mockOperationApplier.applyOperations).toHaveBeenCalled();
+      // Local op should be rejected
+      expect(mockOpLogStore.markRejected).toHaveBeenCalled();
+    });
+
+    it('should resolve local moveToArchive winning over remote DELETE with later timestamp', async () => {
+      const localArchiveOp: Operation = {
+        id: 'local-archive-1',
+        clientId: TEST_CLIENT_ID,
+        actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+        opType: OpType.Update,
+        entityType: 'TASK',
+        entityId: 'task-1',
+        payload: { task: { id: 'task-1', title: 'Archived Task' } },
+        vectorClock: { [TEST_CLIENT_ID]: 1 },
+        timestamp: 1000,
+        schemaVersion: 1,
+      };
+
+      const remoteDeleteOp: Operation = {
+        id: 'remote-delete-1',
+        clientId: 'remoteClient',
+        actionType: 'test-delete' as ActionType,
+        opType: OpType.Delete,
+        entityType: 'TASK',
+        entityId: 'task-1',
+        payload: { source: 'remoteClient' },
+        vectorClock: { remoteClient: 1 },
+        timestamp: 2000, // Later timestamp — would win under normal LWW
+        schemaVersion: 1,
+      };
+
+      const conflicts: EntityConflict[] = [
+        {
+          entityType: 'TASK',
+          entityId: 'task-1',
+          localOps: [localArchiveOp],
+          remoteOps: [remoteDeleteOp],
+          suggestedResolution: 'manual',
+        },
+      ];
+
+      mockStore.select.and.returnValue(of(undefined));
+
+      const result = await service.autoResolveConflictsLWW(conflicts);
+
+      // Local archive wins over remote DELETE
+      expect(result.localWinOpsCreated).toBe(1);
+      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalled();
+    });
+  });
 });

@@ -159,6 +159,7 @@ export class IssueProviderTabComponent implements OnDestroy, AfterViewInit {
                 this.isLoading.set(false);
                 return of(true);
               }),
+              tap(() => this.isLoading.set(false)),
               map((trueOnErrorOrItems) => {
                 if (trueOnErrorOrItems === true) {
                   return [];

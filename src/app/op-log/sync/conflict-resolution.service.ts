@@ -30,6 +30,7 @@ import { devError } from '../../util/dev-error';
 import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
 import {
   getEntityConfig,
+  getPayloadKey,
   isAdapterEntity,
   isSingletonEntity,
   isMapEntity,
@@ -572,11 +573,11 @@ export class ConflictResolutionService {
     const resolutions: LWWResolution[] = [];
 
     for (const conflict of conflicts) {
-      // ── moveToArchive always wins over field-level updates ──
+      // ── moveToArchive always wins over other operations ──
       // Archive is an explicit user intent ("I'm done with these tasks").
-      // Allowing field-level updates (rename, time tracking) to win via LWW
-      // would create LWW Update ops that resurrect archived entities via
-      // lwwUpdateMetaReducer.addOne() (Bug B).
+      // Allowing other operations (field-level updates, deletes) to win via LWW
+      // would either resurrect archived entities via lwwUpdateMetaReducer.addOne()
+      // (Bug B) or lose archived data.
       const localHasArchive = conflict.localOps.some(
         (op) => op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
       );
@@ -594,7 +595,7 @@ export class ConflictResolutionService {
           resolutions.push({ conflict, winner: 'local', localWinOp });
         }
         OpLog.normal(
-          `ConflictResolutionService: Archive wins over field-level update ` +
+          `ConflictResolutionService: Archive wins over concurrent operation ` +
             `(${remoteHasArchive ? 'remote' : 'local'} archive) for ` +
             `${conflict.entityType}:${conflict.entityId}`,
         );
@@ -779,7 +780,8 @@ export class ConflictResolutionService {
     // For TAG: payload.tag
     // etc.
     const payload = deleteOp.payload as Record<string, unknown>;
-    const entityKey = conflict.entityType.toLowerCase();
+    const entityKey =
+      getPayloadKey(conflict.entityType) || conflict.entityType.toLowerCase();
 
     return payload[entityKey];
   }
