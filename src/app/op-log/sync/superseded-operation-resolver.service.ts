@@ -15,16 +15,16 @@ import { uuidv7 } from '../../util/uuid-v7';
 import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 
 /**
- * Resolves stale local operations that were rejected due to concurrent modification.
+ * Resolves superseded local operations that were rejected due to concurrent modification.
  *
- * ## When Stale Operations Occur
+ * ## When Superseded Operations Occur
  * During sync, the server may reject local operations if their vector clocks
  * are dominated by operations from other clients. This means our local changes
  * are based on outdated state.
  *
  * ## Resolution Strategy
  * Instead of losing local changes, we:
- * 1. Mark the old pending ops as rejected (their clocks are stale)
+ * 1. Mark the old pending ops as rejected (their clocks are superseded)
  * 2. Create NEW ops with the current entity state and merged vector clocks
  * 3. The new ops will be uploaded on next sync cycle
  *
@@ -34,7 +34,7 @@ import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service'
 @Injectable({
   providedIn: 'root',
 })
-export class StaleOperationResolverService {
+export class SupersededOperationResolverService {
   private opLogStore = inject(OperationLogStoreService);
   private vectorClockService = inject(VectorClockService);
   private conflictResolutionService = inject(ConflictResolutionService);
@@ -68,27 +68,27 @@ export class StaleOperationResolverService {
   }
 
   /**
-   * Resolves stale local operations by creating new LWW Update operations.
+   * Resolves superseded local operations by creating new LWW Update operations.
    *
-   * @param staleOps - Operations that were rejected due to concurrent modification
+   * @param supersededOps - Operations that were rejected due to concurrent modification
    * @param extraClocks - Additional clocks to merge (from force download)
    * @param snapshotVectorClock - Aggregated clock from snapshot optimization (if available)
    * @returns Number of merged ops created
    */
-  async resolveStaleLocalOps(
-    staleOps: Array<{ opId: string; op: Operation }>,
+  async resolveSupersededLocalOps(
+    supersededOps: Array<{ opId: string; op: Operation }>,
     extraClocks?: VectorClock[],
     snapshotVectorClock?: VectorClock,
   ): Promise<number> {
     // Acquire lock to prevent race conditions with operation capture and other sync operations.
     // Without this lock, user actions during conflict resolution could write ops with
-    // stale vector clocks, leading to data corruption.
+    // superseded vector clocks, leading to data corruption.
     let result = 0;
     await this.lockService.request(LOCK_NAMES.OPERATION_LOG, async () => {
       const clientId = await this.clientIdProvider.loadClientId();
       if (!clientId) {
         OpLog.err(
-          'StaleOperationResolverService: Cannot resolve stale ops - no client ID',
+          'SupersededOperationResolverService: Cannot resolve superseded ops - no client ID',
         );
         return;
       }
@@ -101,7 +101,7 @@ export class StaleOperationResolverService {
       // This ensures we have the clocks from ops that were skipped during download
       if (snapshotVectorClock && Object.keys(snapshotVectorClock).length > 0) {
         OpLog.normal(
-          `StaleOperationResolverService: Merging snapshotVectorClock with ${Object.keys(snapshotVectorClock).length} entries`,
+          `SupersededOperationResolverService: Merging snapshotVectorClock with ${Object.keys(snapshotVectorClock).length} entries`,
         );
         globalClock = mergeVectorClocks(globalClock, snapshotVectorClock);
       }
@@ -110,7 +110,7 @@ export class StaleOperationResolverService {
       // This helps recover from situations where our local clock is missing entries
       if (extraClocks && extraClocks.length > 0) {
         OpLog.normal(
-          `StaleOperationResolverService: Merging ${extraClocks.length} clocks from force download`,
+          `SupersededOperationResolverService: Merging ${extraClocks.length} clocks from force download`,
         );
         for (const clock of extraClocks) {
           globalClock = mergeVectorClocks(globalClock, clock);
@@ -127,8 +127,8 @@ export class StaleOperationResolverService {
       // getCurrentEntityState() → undefined → discard, permanently losing the archive.
       // Instead, re-create the operation with a merged clock preserving the original payload.
       // NOTE: If a future action type also removes entities with OpType.Update, add it here.
-      const regularStaleOps: Array<{ opId: string; op: Operation }> = [];
-      for (const item of staleOps) {
+      const regularSupersededOps: Array<{ opId: string; op: Operation }> = [];
+      for (const item of supersededOps) {
         if (item.op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE) {
           // Re-create the archive operation with a merged vector clock.
           // The original payload is preserved exactly (MultiEntityPayload format with
@@ -146,21 +146,21 @@ export class StaleOperationResolverService {
           newOpsCreated.push(newOp);
           opsToReject.push(item.opId);
           OpLog.normal(
-            `StaleOperationResolverService: Created replacement moveToArchive op ${newOp.id} ` +
-              `with ${item.op.entityIds?.length ?? 0} tasks, replacing stale op ${item.opId}`,
+            `SupersededOperationResolverService: Created replacement moveToArchive op ${newOp.id} ` +
+              `with ${item.op.entityIds?.length ?? 0} tasks, replacing superseded op ${item.opId}`,
           );
         } else {
-          regularStaleOps.push(item);
+          regularSupersededOps.push(item);
         }
       }
 
       // Group remaining ops by entity to handle multiple ops for the same entity
       const opsByEntity = new Map<string, Array<{ opId: string; op: Operation }>>();
-      for (const item of regularStaleOps) {
+      for (const item of regularSupersededOps) {
         // Skip ops without entityId (shouldn't happen for entity-level ops)
         if (!item.op.entityId) {
           OpLog.warn(
-            `StaleOperationResolverService: Skipping stale op ${item.opId} - no entityId`,
+            `SupersededOperationResolverService: Skipping superseded op ${item.opId} - no entityId`,
           );
           continue;
         }
@@ -185,7 +185,7 @@ export class StaleOperationResolverService {
           clientId,
         );
 
-        // Check if all stale ops for this entity are DELETE operations
+        // Check if all superseded ops for this entity are DELETE operations
         const allOpsAreDeletes = entityOps.every((e) => e.op.opType === OpType.Delete);
 
         if (allOpsAreDeletes) {
@@ -204,8 +204,8 @@ export class StaleOperationResolverService {
           opsToReject.push(...entityOps.map((e) => e.opId));
 
           OpLog.normal(
-            `StaleOperationResolverService: Created replacement DELETE op for ${entityKey}, ` +
-              `replacing ${entityOps.length} stale DELETE op(s). New clock: ${JSON.stringify(newClock)}`,
+            `SupersededOperationResolverService: Created replacement DELETE op for ${entityKey}, ` +
+              `replacing ${entityOps.length} superseded DELETE op(s). New clock: ${JSON.stringify(newClock)}`,
           );
           continue;
         }
@@ -217,7 +217,7 @@ export class StaleOperationResolverService {
         );
         if (entityState === undefined) {
           OpLog.warn(
-            `StaleOperationResolverService: Cannot create update op - entity not found: ${entityKey}`,
+            `SupersededOperationResolverService: Cannot create update op - entity not found: ${entityKey}`,
           );
           // Still mark the ops as rejected, but track that changes were discarded
           opsToReject.push(...entityOps.map((e) => e.opId));
@@ -225,7 +225,7 @@ export class StaleOperationResolverService {
           continue;
         }
 
-        // Preserve the maximum timestamp from the stale ops being replaced.
+        // Preserve the maximum timestamp from the superseded ops being replaced.
         // This is critical for LWW conflict resolution: if we use Date.now(), the new op
         // would have a later timestamp than the original user action, causing it to
         // incorrectly win against concurrent ops that were actually made earlier.
@@ -245,8 +245,8 @@ export class StaleOperationResolverService {
         opsToReject.push(...entityOps.map((e) => e.opId));
 
         OpLog.normal(
-          `StaleOperationResolverService: Created LWW update op for ${entityKey}, ` +
-            `replacing ${entityOps.length} stale op(s). New clock: ${JSON.stringify(newClock)}`,
+          `SupersededOperationResolverService: Created LWW update op for ${entityKey}, ` +
+            `replacing ${entityOps.length} superseded op(s). New clock: ${JSON.stringify(newClock)}`,
         );
       }
 
@@ -254,7 +254,7 @@ export class StaleOperationResolverService {
       if (opsToReject.length > 0) {
         await this.opLogStore.markRejected(opsToReject);
         OpLog.normal(
-          `StaleOperationResolverService: Marked ${opsToReject.length} stale ops as rejected`,
+          `SupersededOperationResolverService: Marked ${opsToReject.length} superseded ops as rejected`,
         );
       }
 
@@ -263,7 +263,7 @@ export class StaleOperationResolverService {
       for (const op of newOpsCreated) {
         await this.opLogStore.appendWithVectorClockUpdate(op, 'local');
         OpLog.normal(
-          `StaleOperationResolverService: Appended LWW update op ${op.id} for ${op.entityType}:${op.entityId}`,
+          `SupersededOperationResolverService: Appended LWW update op ${op.id} for ${op.entityType}:${op.entityId}`,
         );
       }
 

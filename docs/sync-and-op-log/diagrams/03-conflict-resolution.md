@@ -206,7 +206,7 @@ flowchart TD
 
 When a SYNC_IMPORT or BACKUP_IMPORT operation is received, it represents an explicit user action to restore **all clients** to a specific point in time. Operations created without knowledge of the import are filtered out using vector clock comparison.
 
-### The Problem: Stale Operations After Import
+### The Problem: Superseded Operations After Import
 
 ```mermaid
 sequenceDiagram

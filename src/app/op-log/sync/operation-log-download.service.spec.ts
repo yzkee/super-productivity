@@ -1056,7 +1056,7 @@ describe('OperationLogDownloadService', () => {
                   serverSeq: 1,
                   receivedAt: Date.now(),
                   op: {
-                    id: 'op-stale',
+                    id: 'op-superseded',
                     clientId: 'c1',
                     actionType: '[Task] Add' as ActionType,
                     opType: OpType.Create,
@@ -1106,7 +1106,7 @@ describe('OperationLogDownloadService', () => {
 
           const result = await service.downloadRemoteOps(mockApiProvider);
 
-          // Should only contain the fresh op, not the stale one
+          // Should only contain the fresh op, not the superseded one
           expect(result.newOps.length).toBe(1);
           expect(result.newOps[0].id).toBe('op-fresh');
         });

@@ -174,7 +174,7 @@ Conflict detection uses vector clocks to determine causal relationships.
     │       │       │            │
     ▼       ▼       ▼            ▼
   Skip    Skip   Has local   TRUE CONFLICT
-  (dup)  (stale) pending?     → Collect
+  (dup) (superseded) pending?  → Collect
                     │
               ┌─────┴─────┐
               ▼           ▼
@@ -190,7 +190,7 @@ Conflict detection uses vector clocks to determine causal relationships.
 | Comparison     | Meaning           | Has Local Pending? | Action                   |
 | -------------- | ----------------- | ------------------ | ------------------------ |
 | `EQUAL`        | Same operation    | N/A                | Skip (duplicate)         |
-| `GREATER_THAN` | Local is newer    | N/A                | Skip (stale remote)      |
+| `GREATER_THAN` | Local is newer    | N/A                | Skip (superseded remote) |
 | `LESS_THAN`    | Remote is newer   | No                 | Apply remote             |
 | `LESS_THAN`    | Remote is newer   | Yes                | Apply (remote dominates) |
 | `CONCURRENT`   | Neither dominates | No                 | Apply remote             |
@@ -225,7 +225,7 @@ Last-Write-Wins automatically resolves conflicts using timestamps.
 │      │   • Current state from NgRx store                       │
 │      │   • Merged clock (all ops) + increment                  │
 │      │   • Preserved original timestamp                        │
-│      ├─ Reject old local ops (stale clocks)                    │
+│      ├─ Reject old local ops (superseded clocks)               │
 │      ├─ Store remote ops, mark rejected                        │
 │      └─ New op will sync on next cycle                         │
 │                                                                 │
@@ -250,13 +250,13 @@ Last-Write-Wins automatically resolves conflicts using timestamps.
 | Archive-wins rule                 | `moveToArchive` always wins over field-level updates, bypassing timestamps |
 | Preserve original timestamp       | Prevents unfair advantage in future conflicts                              |
 | Merge ALL clocks                  | New op dominates everything known                                          |
-| Reject ALL pending ops for entity | Prevents stale ops from being uploaded                                     |
+| Reject ALL pending ops for entity | Prevents superseded ops from being uploaded                                |
 | Mark rejected BEFORE applying     | Crash safety                                                               |
 | Remote wins on tie                | Server-authoritative                                                       |
 
-**Stale Operation Special Cases:**
+**Superseded Operation Special Cases:**
 
-| Operation Type  | Stale Handling                                                                                |
+| Operation Type  | Superseded Handling                                                                           |
 | --------------- | --------------------------------------------------------------------------------------------- |
 | Regular UPDATE  | Re-created with current entity state + merged clock                                           |
 | DELETE          | Re-created with original payload + merged clock (entity gone from store)                      |
@@ -265,7 +265,7 @@ Last-Write-Wins automatically resolves conflicts using timestamps.
 **Key Files:**
 
 - `conflict-resolution.service.ts` - LWW resolution + archive-wins rule
-- `stale-operation-resolver.service.ts` - Stale op handling (incl. moveToArchive special case)
+- `superseded-operation-resolver.service.ts` - Superseded op handling (incl. moveToArchive special case)
 
 ---
 

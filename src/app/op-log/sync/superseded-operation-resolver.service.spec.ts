@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { StaleOperationResolverService } from './stale-operation-resolver.service';
+import { SupersededOperationResolverService } from './superseded-operation-resolver.service';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { VectorClockService } from './vector-clock.service';
 import { ConflictResolutionService } from './conflict-resolution.service';
@@ -10,8 +10,8 @@ import { ActionType, Operation, OpType, EntityType } from '../core/operation.typ
 import { VectorClock } from '../../core/util/vector-clock';
 import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 
-describe('StaleOperationResolverService', () => {
-  let service: StaleOperationResolverService;
+describe('SupersededOperationResolverService', () => {
+  let service: SupersededOperationResolverService;
   let mockOpLogStore: jasmine.SpyObj<OperationLogStoreService>;
   let mockVectorClockService: jasmine.SpyObj<VectorClockService>;
   let mockConflictResolutionService: jasmine.SpyObj<ConflictResolutionService>;
@@ -106,7 +106,7 @@ describe('StaleOperationResolverService', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        StaleOperationResolverService,
+        SupersededOperationResolverService,
         { provide: OperationLogStoreService, useValue: mockOpLogStore },
         { provide: VectorClockService, useValue: mockVectorClockService },
         { provide: ConflictResolutionService, useValue: mockConflictResolutionService },
@@ -116,12 +116,12 @@ describe('StaleOperationResolverService', () => {
       ],
     });
 
-    service = TestBed.inject(StaleOperationResolverService);
+    service = TestBed.inject(SupersededOperationResolverService);
   });
 
-  describe('resolveStaleLocalOps', () => {
+  describe('resolveSupersededLocalOps', () => {
     it('should acquire sp_op_log lock before writing operations', async () => {
-      const staleOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
+      const supersededOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
       const entityState = { id: 'task-1', title: 'Test Task' };
 
       mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
@@ -129,7 +129,7 @@ describe('StaleOperationResolverService', () => {
         Promise.resolve(entityState),
       );
 
-      await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleOp }]);
+      await service.resolveSupersededLocalOps([{ opId: 'op-1', op: supersededOp }]);
 
       expect(mockLockService.request).toHaveBeenCalledTimes(1);
       expect(mockLockService.request).toHaveBeenCalledWith(
@@ -139,7 +139,7 @@ describe('StaleOperationResolverService', () => {
     });
 
     it('should execute all operations within the lock callback', async () => {
-      const staleOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
+      const supersededOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
       const entityState = { id: 'task-1', title: 'Test Task' };
       const callOrder: string[] = [];
 
@@ -165,7 +165,7 @@ describe('StaleOperationResolverService', () => {
         return 1;
       });
 
-      await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleOp }]);
+      await service.resolveSupersededLocalOps([{ opId: 'op-1', op: supersededOp }]);
 
       // Verify write operations happen inside the lock
       expect(callOrder).toEqual([
@@ -176,8 +176,8 @@ describe('StaleOperationResolverService', () => {
       ]);
     });
 
-    it('should return 0 when staleOps array is empty', async () => {
-      const result = await service.resolveStaleLocalOps([]);
+    it('should return 0 when supersededOps array is empty', async () => {
+      const result = await service.resolveSupersededLocalOps([]);
 
       expect(result).toBe(0);
       expect(mockOpLogStore.markRejected).not.toHaveBeenCalled();
@@ -188,20 +188,22 @@ describe('StaleOperationResolverService', () => {
     it('should return 0 when no client ID is available', async () => {
       mockClientIdProvider.loadClientId.and.returnValue(Promise.resolve(null));
 
-      const staleOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
-      const result = await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleOp }]);
+      const supersededOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
+      const result = await service.resolveSupersededLocalOps([
+        { opId: 'op-1', op: supersededOp },
+      ]);
 
       expect(result).toBe(0);
       expect(mockOpLogStore.markRejected).not.toHaveBeenCalled();
     });
 
     it('should skip ops without entityId and not create new ops for them', async () => {
-      const staleOpWithoutEntityId = createMockOperation('op-1', 'TASK', undefined, {
+      const supersededOpWithoutEntityId = createMockOperation('op-1', 'TASK', undefined, {
         clientA: 1,
       });
 
-      const result = await service.resolveStaleLocalOps([
-        { opId: 'op-1', op: staleOpWithoutEntityId },
+      const result = await service.resolveSupersededLocalOps([
+        { opId: 'op-1', op: supersededOpWithoutEntityId },
       ]);
 
       expect(result).toBe(0);
@@ -209,8 +211,14 @@ describe('StaleOperationResolverService', () => {
       expect(mockOpLogStore.appendWithVectorClockUpdate).not.toHaveBeenCalled();
     });
 
-    it('should create LWW Update op for a single stale op', async () => {
-      const staleOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 5 }, 1000);
+    it('should create LWW Update op for a single superseded op', async () => {
+      const supersededOp = createMockOperation(
+        'op-1',
+        'TASK',
+        'task-1',
+        { clientA: 5 },
+        1000,
+      );
       const entityState = { id: 'task-1', title: 'Test Task' };
 
       mockVectorClockService.getCurrentVectorClock.and.returnValue(
@@ -220,7 +228,9 @@ describe('StaleOperationResolverService', () => {
         Promise.resolve(entityState),
       );
 
-      const result = await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleOp }]);
+      const result = await service.resolveSupersededLocalOps([
+        { opId: 'op-1', op: supersededOp },
+      ]);
 
       expect(result).toBe(1);
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['op-1']);
@@ -237,22 +247,22 @@ describe('StaleOperationResolverService', () => {
       expect(appendedOp.timestamp).toBe(1000); // Preserved from original
     });
 
-    it('should create single merged op for multiple stale ops on same entity', async () => {
-      const staleOp1 = createMockOperation(
+    it('should create single merged op for multiple superseded ops on same entity', async () => {
+      const supersededOp1 = createMockOperation(
         'op-1',
         'TASK',
         'task-1',
         { clientA: 3 },
         1000,
       );
-      const staleOp2 = createMockOperation(
+      const supersededOp2 = createMockOperation(
         'op-2',
         'TASK',
         'task-1',
         { clientA: 4 },
         2000,
       );
-      const staleOp3 = createMockOperation(
+      const supersededOp3 = createMockOperation(
         'op-3',
         'TASK',
         'task-1',
@@ -268,31 +278,31 @@ describe('StaleOperationResolverService', () => {
         Promise.resolve(entityState),
       );
 
-      const result = await service.resolveStaleLocalOps([
-        { opId: 'op-1', op: staleOp1 },
-        { opId: 'op-2', op: staleOp2 },
-        { opId: 'op-3', op: staleOp3 },
+      const result = await service.resolveSupersededLocalOps([
+        { opId: 'op-1', op: supersededOp1 },
+        { opId: 'op-2', op: supersededOp2 },
+        { opId: 'op-3', op: supersededOp3 },
       ]);
 
-      expect(result).toBe(1); // Only ONE new op for all 3 stale ops
+      expect(result).toBe(1); // Only ONE new op for all 3 superseded ops
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['op-1', 'op-2', 'op-3']);
       expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledTimes(1);
 
       const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
         .args[0] as Operation;
-      // Timestamp should be max of all stale ops (2000)
+      // Timestamp should be max of all superseded ops (2000)
       expect(appendedOp.timestamp).toBe(2000);
     });
 
     it('should create separate ops for different entities', async () => {
-      const staleOp1 = createMockOperation(
+      const supersededOp1 = createMockOperation(
         'op-1',
         'TASK',
         'task-1',
         { clientA: 1 },
         1000,
       );
-      const staleOp2 = createMockOperation(
+      const supersededOp2 = createMockOperation(
         'op-2',
         'TASK',
         'task-2',
@@ -307,9 +317,9 @@ describe('StaleOperationResolverService', () => {
         },
       );
 
-      const result = await service.resolveStaleLocalOps([
-        { opId: 'op-1', op: staleOp1 },
-        { opId: 'op-2', op: staleOp2 },
+      const result = await service.resolveSupersededLocalOps([
+        { opId: 'op-1', op: supersededOp1 },
+        { opId: 'op-2', op: supersededOp2 },
       ]);
 
       expect(result).toBe(2);
@@ -318,14 +328,18 @@ describe('StaleOperationResolverService', () => {
     });
 
     it('should mark ops as rejected but not create new op when entity not found', async () => {
-      const staleOp = createMockOperation('op-1', 'TASK', 'deleted-task', { clientA: 1 });
+      const supersededOp = createMockOperation('op-1', 'TASK', 'deleted-task', {
+        clientA: 1,
+      });
 
       mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
       mockConflictResolutionService.getCurrentEntityState.and.returnValue(
         Promise.resolve(undefined),
       );
 
-      const result = await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleOp }]);
+      const result = await service.resolveSupersededLocalOps([
+        { opId: 'op-1', op: supersededOp },
+      ]);
 
       expect(result).toBe(0);
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['op-1']);
@@ -339,7 +353,7 @@ describe('StaleOperationResolverService', () => {
     });
 
     it('should merge snapshot vector clock when provided', async () => {
-      const staleOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
+      const supersededOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
       const entityState = { id: 'task-1' };
       const snapshotVectorClock: VectorClock = { clientX: 100, clientY: 50 };
 
@@ -350,15 +364,15 @@ describe('StaleOperationResolverService', () => {
         Promise.resolve(entityState),
       );
 
-      await service.resolveStaleLocalOps(
-        [{ opId: 'op-1', op: staleOp }],
+      await service.resolveSupersededLocalOps(
+        [{ opId: 'op-1', op: supersededOp }],
         undefined,
         snapshotVectorClock,
       );
 
       const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
         .args[0] as Operation;
-      // Clock should include entries from global clock, snapshot clock, stale op clock, and be incremented
+      // Clock should include entries from global clock, snapshot clock, superseded op clock, and be incremented
       expect(appendedOp.vectorClock['clientX']).toBe(100);
       expect(appendedOp.vectorClock['clientY']).toBe(50);
       expect(appendedOp.vectorClock['clientA']).toBeGreaterThanOrEqual(5);
@@ -366,7 +380,7 @@ describe('StaleOperationResolverService', () => {
     });
 
     it('should merge extra clocks from force download', async () => {
-      const staleOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
+      const supersededOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
       const entityState = { id: 'task-1' };
       const extraClocks: VectorClock[] = [{ clientP: 20 }, { clientQ: 30, clientP: 25 }];
 
@@ -375,7 +389,10 @@ describe('StaleOperationResolverService', () => {
         Promise.resolve(entityState),
       );
 
-      await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleOp }], extraClocks);
+      await service.resolveSupersededLocalOps(
+        [{ opId: 'op-1', op: supersededOp }],
+        extraClocks,
+      );
 
       const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
         .args[0] as Operation;
@@ -384,9 +401,9 @@ describe('StaleOperationResolverService', () => {
       expect(appendedOp.vectorClock['clientQ']).toBe(30);
     });
 
-    it('should preserve maximum timestamp from stale ops (not use Date.now())', async () => {
+    it('should preserve maximum timestamp from superseded ops (not use Date.now())', async () => {
       const oldTimestamp = 1609459200000; // 2021-01-01
-      const staleOp = createMockOperation(
+      const supersededOp = createMockOperation(
         'op-1',
         'TASK',
         'task-1',
@@ -400,7 +417,7 @@ describe('StaleOperationResolverService', () => {
         Promise.resolve(entityState),
       );
 
-      await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleOp }]);
+      await service.resolveSupersededLocalOps([{ opId: 'op-1', op: supersededOp }]);
 
       const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
         .args[0] as Operation;
@@ -409,8 +426,8 @@ describe('StaleOperationResolverService', () => {
       expect(appendedOp.timestamp).toBeLessThan(Date.now() - 1000000);
     });
 
-    it('should create vector clock that dominates global clock and stale op clocks', async () => {
-      const staleOp = createMockOperation('op-1', 'TASK', 'task-1', {
+    it('should create vector clock that dominates global clock and superseded op clocks', async () => {
+      const supersededOp = createMockOperation('op-1', 'TASK', 'task-1', {
         clientA: 10,
         clientB: 5,
       });
@@ -423,7 +440,7 @@ describe('StaleOperationResolverService', () => {
         Promise.resolve(entityState),
       );
 
-      await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleOp }]);
+      await service.resolveSupersededLocalOps([{ opId: 'op-1', op: supersededOp }]);
 
       const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
         .args[0] as Operation;
@@ -435,7 +452,9 @@ describe('StaleOperationResolverService', () => {
     });
 
     it('should use LWW Update action type for created ops', async () => {
-      const staleOp = createMockOperation('op-1', 'PROJECT', 'project-1', { clientA: 1 });
+      const supersededOp = createMockOperation('op-1', 'PROJECT', 'project-1', {
+        clientA: 1,
+      });
       const entityState = { id: 'project-1', title: 'My Project' };
 
       mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
@@ -443,7 +462,7 @@ describe('StaleOperationResolverService', () => {
         Promise.resolve(entityState),
       );
 
-      await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleOp }]);
+      await service.resolveSupersededLocalOps([{ opId: 'op-1', op: supersededOp }]);
 
       const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
         .args[0] as Operation;
@@ -451,7 +470,7 @@ describe('StaleOperationResolverService', () => {
     });
 
     it('should show snack notification when ops are created', async () => {
-      const staleOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
+      const supersededOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
       const entityState = { id: 'task-1' };
 
       mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
@@ -459,7 +478,7 @@ describe('StaleOperationResolverService', () => {
         Promise.resolve(entityState),
       );
 
-      await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleOp }]);
+      await service.resolveSupersededLocalOps([{ opId: 'op-1', op: supersededOp }]);
 
       expect(mockSnackService.open).toHaveBeenCalledWith(
         jasmine.objectContaining({
@@ -469,21 +488,21 @@ describe('StaleOperationResolverService', () => {
     });
 
     it('should handle mixed scenario: some entities found, some not', async () => {
-      const staleOp1 = createMockOperation(
+      const supersededOp1 = createMockOperation(
         'op-1',
         'TASK',
         'task-exists',
         { clientA: 1 },
         1000,
       );
-      const staleOp2 = createMockOperation(
+      const supersededOp2 = createMockOperation(
         'op-2',
         'TASK',
         'task-deleted',
         { clientA: 2 },
         2000,
       );
-      const staleOp3 = createMockOperation(
+      const supersededOp3 = createMockOperation(
         'op-3',
         'TASK',
         'task-exists-2',
@@ -501,10 +520,10 @@ describe('StaleOperationResolverService', () => {
         },
       );
 
-      const result = await service.resolveStaleLocalOps([
-        { opId: 'op-1', op: staleOp1 },
-        { opId: 'op-2', op: staleOp2 },
-        { opId: 'op-3', op: staleOp3 },
+      const result = await service.resolveSupersededLocalOps([
+        { opId: 'op-1', op: supersededOp1 },
+        { opId: 'op-2', op: supersededOp2 },
+        { opId: 'op-3', op: supersededOp3 },
       ]);
 
       expect(result).toBe(2); // Only 2 new ops (for existing entities)
@@ -513,7 +532,7 @@ describe('StaleOperationResolverService', () => {
     });
 
     it('should append ops with local source', async () => {
-      const staleOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
+      const supersededOp = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
       const entityState = { id: 'task-1' };
 
       mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
@@ -521,7 +540,7 @@ describe('StaleOperationResolverService', () => {
         Promise.resolve(entityState),
       );
 
-      await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleOp }]);
+      await service.resolveSupersededLocalOps([{ opId: 'op-1', op: supersededOp }]);
 
       expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledWith(
         jasmine.any(Object),
@@ -530,17 +549,17 @@ describe('StaleOperationResolverService', () => {
     });
 
     it('should generate unique UUIDs for new ops', async () => {
-      const staleOp1 = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
-      const staleOp2 = createMockOperation('op-2', 'TASK', 'task-2', { clientA: 2 });
+      const supersededOp1 = createMockOperation('op-1', 'TASK', 'task-1', { clientA: 1 });
+      const supersededOp2 = createMockOperation('op-2', 'TASK', 'task-2', { clientA: 2 });
 
       mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
       mockConflictResolutionService.getCurrentEntityState.and.returnValue(
         Promise.resolve({ id: 'test' }),
       );
 
-      await service.resolveStaleLocalOps([
-        { opId: 'op-1', op: staleOp1 },
-        { opId: 'op-2', op: staleOp2 },
+      await service.resolveSupersededLocalOps([
+        { opId: 'op-1', op: supersededOp1 },
+        { opId: 'op-2', op: supersededOp2 },
       ]);
 
       const calls = mockOpLogStore.appendWithVectorClockUpdate.calls.all();
@@ -589,7 +608,7 @@ describe('StaleOperationResolverService', () => {
           Promise.resolve({ clientA: 3, clientB: 2 }),
         );
 
-        const result = await service.resolveStaleLocalOps([
+        const result = await service.resolveSupersededLocalOps([
           { opId: 'op-archive-1', op: archiveOp },
         ]);
 
@@ -614,7 +633,9 @@ describe('StaleOperationResolverService', () => {
 
         mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
 
-        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+        await service.resolveSupersededLocalOps([
+          { opId: 'op-archive-1', op: archiveOp },
+        ]);
 
         const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
           .args[0] as Operation;
@@ -631,7 +652,9 @@ describe('StaleOperationResolverService', () => {
 
         mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
 
-        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+        await service.resolveSupersededLocalOps([
+          { opId: 'op-archive-1', op: archiveOp },
+        ]);
 
         const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
           .args[0] as Operation;
@@ -651,7 +674,9 @@ describe('StaleOperationResolverService', () => {
           Promise.resolve({ clientA: 8, clientC: 15 }),
         );
 
-        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+        await service.resolveSupersededLocalOps([
+          { opId: 'op-archive-1', op: archiveOp },
+        ]);
 
         const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
           .args[0] as Operation;
@@ -671,7 +696,9 @@ describe('StaleOperationResolverService', () => {
 
         mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
 
-        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+        await service.resolveSupersededLocalOps([
+          { opId: 'op-archive-1', op: archiveOp },
+        ]);
 
         const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
           .args[0] as Operation;
@@ -685,7 +712,9 @@ describe('StaleOperationResolverService', () => {
 
         mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
 
-        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+        await service.resolveSupersededLocalOps([
+          { opId: 'op-archive-1', op: archiveOp },
+        ]);
 
         expect(
           mockConflictResolutionService.getCurrentEntityState,
@@ -712,7 +741,7 @@ describe('StaleOperationResolverService', () => {
           Promise.resolve({ id: 'task-3', title: 'Regular Task' }),
         );
 
-        const result = await service.resolveStaleLocalOps([
+        const result = await service.resolveSupersededLocalOps([
           { opId: 'op-archive', op: archiveOp },
           { opId: 'op-regular', op: regularOp },
         ]);
@@ -752,7 +781,9 @@ describe('StaleOperationResolverService', () => {
 
         mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
 
-        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+        await service.resolveSupersededLocalOps([
+          { opId: 'op-archive-1', op: archiveOp },
+        ]);
 
         const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
           .args[0] as Operation;
@@ -772,7 +803,7 @@ describe('StaleOperationResolverService', () => {
 
         mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
 
-        await service.resolveStaleLocalOps(
+        await service.resolveSupersededLocalOps(
           [{ opId: 'op-archive-1', op: archiveOp }],
           extraClocks,
           snapshotVectorClock,
@@ -794,7 +825,9 @@ describe('StaleOperationResolverService', () => {
 
         mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
 
-        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+        await service.resolveSupersededLocalOps([
+          { opId: 'op-archive-1', op: archiveOp },
+        ]);
 
         const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
           .args[0] as Operation;
@@ -817,7 +850,7 @@ describe('StaleOperationResolverService', () => {
 
         mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
 
-        const result = await service.resolveStaleLocalOps([
+        const result = await service.resolveSupersededLocalOps([
           { opId: 'op-archive-1', op: archiveOp1 },
           { opId: 'op-archive-2', op: archiveOp2 },
         ]);
@@ -858,8 +891,8 @@ describe('StaleOperationResolverService', () => {
         schemaVersion: 1,
       });
 
-      it('should create replacement DELETE op for stale DELETE operation', async () => {
-        const staleDeleteOp = createMockDeleteOperation(
+      it('should create replacement DELETE op for superseded DELETE operation', async () => {
+        const supersededDeleteOp = createMockDeleteOperation(
           'op-1',
           'TASK',
           'task-1',
@@ -877,8 +910,8 @@ describe('StaleOperationResolverService', () => {
           Promise.resolve(undefined),
         );
 
-        const result = await service.resolveStaleLocalOps([
-          { opId: 'op-1', op: staleDeleteOp },
+        const result = await service.resolveSupersededLocalOps([
+          { opId: 'op-1', op: supersededDeleteOp },
         ]);
 
         expect(result).toBe(1);
@@ -900,15 +933,15 @@ describe('StaleOperationResolverService', () => {
         ).not.toHaveBeenCalled();
       });
 
-      it('should create single replacement DELETE for multiple stale DELETE ops on same entity', async () => {
-        const staleDeleteOp1 = createMockDeleteOperation(
+      it('should create single replacement DELETE for multiple superseded DELETE ops on same entity', async () => {
+        const supersededDeleteOp1 = createMockDeleteOperation(
           'op-1',
           'TASK',
           'task-1',
           { clientA: 3 },
           1000,
         );
-        const staleDeleteOp2 = createMockDeleteOperation(
+        const supersededDeleteOp2 = createMockDeleteOperation(
           'op-2',
           'TASK',
           'task-1',
@@ -920,19 +953,19 @@ describe('StaleOperationResolverService', () => {
           Promise.resolve({ clientB: 10 }),
         );
 
-        const result = await service.resolveStaleLocalOps([
-          { opId: 'op-1', op: staleDeleteOp1 },
-          { opId: 'op-2', op: staleDeleteOp2 },
+        const result = await service.resolveSupersededLocalOps([
+          { opId: 'op-1', op: supersededDeleteOp1 },
+          { opId: 'op-2', op: supersededDeleteOp2 },
         ]);
 
-        expect(result).toBe(1); // Only ONE new op for both stale DELETE ops
+        expect(result).toBe(1); // Only ONE new op for both superseded DELETE ops
         expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['op-1', 'op-2']);
         expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledTimes(1);
 
         const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
           .args[0] as Operation;
         expect(appendedOp.opType).toBe(OpType.Delete);
-        // Timestamp should be max of all stale ops (2000)
+        // Timestamp should be max of all superseded ops (2000)
         expect(appendedOp.timestamp).toBe(2000);
       });
 
@@ -942,7 +975,7 @@ describe('StaleOperationResolverService', () => {
           title: 'Important Task',
           notes: 'some notes',
         };
-        const staleDeleteOp: Operation = {
+        const supersededDeleteOp: Operation = {
           id: 'op-1',
           actionType: '[TASK] Delete Task' as ActionType,
           opType: OpType.Delete,
@@ -957,7 +990,9 @@ describe('StaleOperationResolverService', () => {
 
         mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
 
-        await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleDeleteOp }]);
+        await service.resolveSupersededLocalOps([
+          { opId: 'op-1', op: supersededDeleteOp },
+        ]);
 
         const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
           .args[0] as Operation;
@@ -966,7 +1001,7 @@ describe('StaleOperationResolverService', () => {
       });
 
       it('should merge vector clocks properly for DELETE ops', async () => {
-        const staleDeleteOp = createMockDeleteOperation('op-1', 'TASK', 'task-1', {
+        const supersededDeleteOp = createMockDeleteOperation('op-1', 'TASK', 'task-1', {
           clientA: 10,
           clientB: 5,
         });
@@ -975,7 +1010,9 @@ describe('StaleOperationResolverService', () => {
           Promise.resolve({ clientA: 8, clientC: 15 }),
         );
 
-        await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleDeleteOp }]);
+        await service.resolveSupersededLocalOps([
+          { opId: 'op-1', op: supersededDeleteOp },
+        ]);
 
         const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
           .args[0] as Operation;
@@ -987,14 +1024,14 @@ describe('StaleOperationResolverService', () => {
       });
 
       it('should handle DELETE ops alongside UPDATE ops for different entities', async () => {
-        const staleDeleteOp = createMockDeleteOperation(
+        const supersededDeleteOp = createMockDeleteOperation(
           'op-1',
           'TASK',
           'deleted-task',
           { clientA: 1 },
           1000,
         );
-        const staleUpdateOp = createMockOperation(
+        const supersededUpdateOp = createMockOperation(
           'op-2',
           'TASK',
           'existing-task',
@@ -1007,9 +1044,9 @@ describe('StaleOperationResolverService', () => {
           Promise.resolve({ id: 'existing-task', title: 'Existing' }),
         );
 
-        const result = await service.resolveStaleLocalOps([
-          { opId: 'op-1', op: staleDeleteOp },
-          { opId: 'op-2', op: staleUpdateOp },
+        const result = await service.resolveSupersededLocalOps([
+          { opId: 'op-1', op: supersededDeleteOp },
+          { opId: 'op-2', op: supersededUpdateOp },
         ]);
 
         expect(result).toBe(2); // One DELETE op + one UPDATE op
@@ -1027,13 +1064,15 @@ describe('StaleOperationResolverService', () => {
       });
 
       it('should show conflict resolution snack for DELETE ops', async () => {
-        const staleDeleteOp = createMockDeleteOperation('op-1', 'TASK', 'task-1', {
+        const supersededDeleteOp = createMockDeleteOperation('op-1', 'TASK', 'task-1', {
           clientA: 1,
         });
 
         mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
 
-        await service.resolveStaleLocalOps([{ opId: 'op-1', op: staleDeleteOp }]);
+        await service.resolveSupersededLocalOps([
+          { opId: 'op-1', op: supersededDeleteOp },
+        ]);
 
         expect(mockSnackService.open).toHaveBeenCalledWith(
           jasmine.objectContaining({

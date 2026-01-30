@@ -21,7 +21,7 @@ import { expectTaskNotVisible } from '../../utils/supersync-assertions';
  * conflict resolution during multi-client sync.
  *
  * Bug A: When moveToArchive is rejected by the server due to concurrent
- * edits from another client, the stale operation resolver permanently
+ * edits from another client, the superseded operation resolver permanently
  * discards it because the archived tasks no longer exist in the NgRx store.
  *
  * Prerequisites:

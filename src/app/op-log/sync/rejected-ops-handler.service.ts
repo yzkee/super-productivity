@@ -4,7 +4,7 @@ import { Operation, VectorClock } from '../core/operation.types';
 import { OpLog } from '../../core/log';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
-import { StaleOperationResolverService } from './stale-operation-resolver.service';
+import { SupersededOperationResolverService } from './superseded-operation-resolver.service';
 import { DownloadCallback, RejectedOpInfo } from '../core/types/sync-results.types';
 import { handleStorageQuotaError } from './sync-error-utils';
 
@@ -32,7 +32,7 @@ export interface RejectionHandlingResult {
  * - Categorizing rejections (permanent vs concurrent modification)
  * - Marking permanent rejections as rejected
  * - Resolving concurrent modifications by downloading and merging clocks
- * - Creating merged operations for stale local ops
+ * - Creating merged operations for superseded local ops
  *
  * This service is used by OperationLogSyncService after upload to handle
  * any operations that the server rejected.
@@ -43,7 +43,7 @@ export interface RejectionHandlingResult {
 export class RejectedOpsHandlerService {
   private opLogStore = inject(OperationLogStoreService);
   private snackService = inject(SnackService);
-  private staleOperationResolver = inject(StaleOperationResolverService);
+  private supersededOperationResolver = inject(SupersededOperationResolverService);
 
   /**
    * Handles operations that were rejected by the server.
@@ -133,12 +133,13 @@ export class RejectedOpsHandlerService {
       // Check if this is a conflict that needs resolution via merge
       // These happen when another client uploaded a conflicting operation.
       // Use errorCode for reliable detection (string matching is fragile).
-      // FIX: Also handle CONFLICT_STALE the same as CONFLICT_CONCURRENT.
-      // CONFLICT_STALE occurs when operations have incomplete vector clocks
-      // (e.g., due to stale clock bug) and should be resolved via merge, not rejected.
+      // FIX: Also handle CONFLICT_SUPERSEDED the same as CONFLICT_CONCURRENT.
+      // CONFLICT_SUPERSEDED occurs when operations have incomplete vector clocks
+      // (e.g., due to superseded clock bug) and should be resolved via merge, not rejected.
       const needsConflictResolution =
         rejected.errorCode === 'CONFLICT_CONCURRENT' ||
-        rejected.errorCode === 'CONFLICT_STALE';
+        rejected.errorCode === 'CONFLICT_SUPERSEDED' ||
+        rejected.errorCode === 'CONFLICT_STALE'; // TODO: remove after all servers are updated
 
       if (needsConflictResolution) {
         concurrentModificationOps.push({
@@ -254,7 +255,7 @@ export class RejectedOpsHandlerService {
 
           const forceDownloadResult = await downloadCallback({ forceFromSeq0: true });
 
-          // Use the clocks from force download to resolve stale ops
+          // Use the clocks from force download to resolve superseded ops
           // Also merge in entity clocks from server rejection responses
           const entityClocks = extractEntityClocks(stillPendingOps);
           if (
@@ -268,11 +269,12 @@ export class RejectedOpsHandlerService {
                   ? ` + ${entityClocks.length} entity clocks from rejection`
                   : ''),
             );
-            mergedOpsCreated += await this.staleOperationResolver.resolveStaleLocalOps(
-              stillPendingOps,
-              allExtraClocks,
-              forceDownloadResult.snapshotVectorClock,
-            );
+            mergedOpsCreated +=
+              await this.supersededOperationResolver.resolveSupersededLocalOps(
+                stillPendingOps,
+                allExtraClocks,
+                forceDownloadResult.snapshotVectorClock,
+              );
           } else if (forceDownloadResult.snapshotVectorClock || entityClocks.length > 0) {
             // Force download returned no individual clocks but we have snapshot clock or entity clocks
             OpLog.normal(
@@ -280,11 +282,12 @@ export class RejectedOpsHandlerService {
                 `${forceDownloadResult.snapshotVectorClock && entityClocks.length > 0 ? ' + ' : ''}` +
                 `${entityClocks.length > 0 ? `${entityClocks.length} entity clocks from rejection` : ''}`,
             );
-            mergedOpsCreated += await this.staleOperationResolver.resolveStaleLocalOps(
-              stillPendingOps,
-              entityClocks.length > 0 ? entityClocks : undefined,
-              forceDownloadResult.snapshotVectorClock,
-            );
+            mergedOpsCreated +=
+              await this.supersededOperationResolver.resolveSupersededLocalOps(
+                stillPendingOps,
+                entityClocks.length > 0 ? entityClocks : undefined,
+                forceDownloadResult.snapshotVectorClock,
+              );
           } else {
             // Force download returned no clocks but we have concurrent ops.
             // This is an unrecoverable edge case - cannot safely resolve without server clocks.
@@ -318,11 +321,12 @@ export class RejectedOpsHandlerService {
                 ? ` (including ${entityClocks.length} entity clocks from rejection)`
                 : ''),
           );
-          mergedOpsCreated += await this.staleOperationResolver.resolveStaleLocalOps(
-            stillPendingOps,
-            entityClocks.length > 0 ? entityClocks : undefined,
-            downloadResult.snapshotVectorClock,
-          );
+          mergedOpsCreated +=
+            await this.supersededOperationResolver.resolveSupersededLocalOps(
+              stillPendingOps,
+              entityClocks.length > 0 ? entityClocks : undefined,
+              downloadResult.snapshotVectorClock,
+            );
         }
       }
     } catch (e) {

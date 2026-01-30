@@ -590,7 +590,7 @@ export const MAX_VERSION_SKIP = 5; // Max versions ahead we'll attempt to load
            ┌───────────────────┼───────────────────┐
            ▼                   ▼                   ▼
     Load Snapshot         Replay Ops         Receive Remote Ops
-    (stale version)       (mixed versions)   (newer/older version)
+    (superseded version)       (mixed versions)   (newer/older version)
            │                   │                   │
            ▼                   ▼                   ▼
     Run migrations       Apply ops as-is     Migrate if needed
@@ -1430,15 +1430,15 @@ This is the **first level** of archive resurrection prevention. The **second lev
 - `src/app/op-log/sync/conflict-resolution.service.ts` — Archive-wins check and `_createArchiveWinOp()`
 - `src/app/op-log/apply/bulk-hydration.meta-reducer.ts` — Pre-scan archive filtering
 
-### Stale Operation Handling for moveToArchive
+### Superseded Operation Handling for moveToArchive
 
-The `StaleOperationResolverService` treats `moveToArchive` as a special case alongside DELETE operations. When a `moveToArchive` op is rejected by the server due to concurrent conflicts, it is **re-created with a merged vector clock** instead of being discarded.
+The `SupersededOperationResolverService` treats `moveToArchive` as a special case alongside DELETE operations. When a `moveToArchive` op is rejected by the server due to concurrent conflicts, it is **re-created with a merged vector clock** instead of being discarded.
 
-This is necessary because `moveToArchive` removes entities from the NgRx store (via the archive reducer), so `getCurrentEntityState()` returns `undefined` for archived entities. Without this special handling, the stale operation resolver would be unable to re-create the operation, and archived tasks would be lost.
+This is necessary because `moveToArchive` removes entities from the NgRx store (via the archive reducer), so `getCurrentEntityState()` returns `undefined` for archived entities. Without this special handling, the superseded operation resolver would be unable to re-create the operation, and archived tasks would be lost.
 
-**Implementation:** Before entity-by-entity processing, `StaleOperationResolverService` identifies bulk semantic operations like `moveToArchive` and re-creates them with the original payload and a merged vector clock, preserving the full task data in `MultiEntityPayload` format.
+**Implementation:** Before entity-by-entity processing, `SupersededOperationResolverService` identifies bulk semantic operations like `moveToArchive` and re-creates them with the original payload and a merged vector clock, preserving the full task data in `MultiEntityPayload` format.
 
-**Key file:** `src/app/op-log/sync/stale-operation-resolver.service.ts`
+**Key file:** `src/app/op-log/sync/superseded-operation-resolver.service.ts`
 
 ### Singleton Entity LWW Updates
 

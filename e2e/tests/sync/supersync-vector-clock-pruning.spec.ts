@@ -332,7 +332,7 @@ test.describe('@supersync @pruning Vector Clock Pruning Fix', () => {
   });
 
   // NOTE: The "Reload after SYNC_IMPORT" scenario is already covered by
-  // supersync-stale-clock-regression.spec.ts tests. That test verifies that
-  // reloading after receiving SYNC_IMPORT doesn't cause stale clock issues.
+  // supersync-superseded-clock-regression.spec.ts tests. That test verifies that
+  // reloading after receiving SYNC_IMPORT doesn't cause superseded clock issues.
   // Combined with the pruning fix verified above, the full scenario is covered.
 });

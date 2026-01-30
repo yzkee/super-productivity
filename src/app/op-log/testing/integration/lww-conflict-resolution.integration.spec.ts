@@ -478,7 +478,7 @@ describe('LWW Conflict Resolution Integration', () => {
     });
   });
 
-  describe('Stale pending ops handling', () => {
+  describe('Superseded pending ops handling', () => {
     it('should reject all pending ops for an entity when remote wins', async () => {
       const clientA = new TestClient('client-a-test');
 
