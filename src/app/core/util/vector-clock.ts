@@ -338,6 +338,22 @@ export const limitVectorClockSize = (
     return clock;
   }
 
+  const allPreserveIds = [currentClientId, ...protectedClientIds];
+
+  // Warn if we have more preserved IDs than MAX_VECTOR_CLOCK_SIZE.
+  // This means some "protected" IDs will be dropped, which could cause
+  // incorrect CONCURRENT comparisons with full-state operations.
+  if (allPreserveIds.length > MAX_VECTOR_CLOCK_SIZE) {
+    PFLog.warn(
+      'Vector clock pruning: preserveClientIds exceeds MAX_VECTOR_CLOCK_SIZE, some protected IDs will be dropped',
+      {
+        preserveCount: allPreserveIds.length,
+        maxSize: MAX_VECTOR_CLOCK_SIZE,
+        dropped: allPreserveIds.length - MAX_VECTOR_CLOCK_SIZE,
+      },
+    );
+  }
+
   PFLog.info('Vector clock pruning triggered', {
     originalSize: entries.length,
     maxSize: MAX_VECTOR_CLOCK_SIZE,
@@ -346,7 +362,7 @@ export const limitVectorClockSize = (
     pruned: entries.length - MAX_VECTOR_CLOCK_SIZE,
   });
 
-  return sharedLimitVectorClockSize(clock, [currentClientId, ...protectedClientIds]);
+  return sharedLimitVectorClockSize(clock, allPreserveIds);
 };
 
 /**
