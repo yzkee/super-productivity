@@ -100,7 +100,7 @@ export class RejectedOpsHandlerService {
       // INTERNAL_ERROR = transient server error (transaction rollback, DB issue, etc.)
       // These should be retried on next sync, not permanently rejected
       if (rejected.errorCode === 'INTERNAL_ERROR') {
-        OpLog.warn(
+        OpLog.normal(
           `RejectedOpsHandlerService: Transient error for op ${rejected.opId}, will retry: ${rejected.error || 'unknown'}`,
         );
         continue;
@@ -147,7 +147,7 @@ export class RejectedOpsHandlerService {
           op: entry.op,
           existingClock: rejected.existingClock,
         });
-        OpLog.warn(
+        OpLog.normal(
           `RejectedOpsHandlerService: Concurrent modification for ${entry.op.entityType}:${entry.op.entityId}, ` +
             `will resolve after download check`,
         );
@@ -203,7 +203,7 @@ export class RejectedOpsHandlerService {
   ): Promise<number> {
     let mergedOpsCreated = 0;
 
-    OpLog.warn(
+    OpLog.normal(
       `RejectedOpsHandlerService: ${concurrentModificationOps.length} ops had concurrent modifications. ` +
         `Triggering download to check for new remote ops...`,
     );
@@ -248,7 +248,7 @@ export class RejectedOpsHandlerService {
           // Normal download returned 0 ops but concurrent ops still pending.
           // This means our local clock is likely missing entries the server has.
           // Try a FORCE download from seq 0 to get ALL op clocks.
-          OpLog.warn(
+          OpLog.normal(
             `RejectedOpsHandlerService: Download returned no new ops but ${stillPendingOps.length} ` +
               `concurrent ops still pending. Forcing full download from seq 0...`,
           );
@@ -314,7 +314,7 @@ export class RejectedOpsHandlerService {
           // This can happen if downloaded ops were for different entities
           // Merge entity clocks from rejection responses into extraClocks
           const entityClocks = extractEntityClocks(stillPendingOps);
-          OpLog.warn(
+          OpLog.normal(
             `RejectedOpsHandlerService: Download got ${downloadResult.newOpsCount} ops but ${stillPendingOps.length} ` +
               `concurrent ops still pending. Resolving locally with merged clocks...` +
               (entityClocks.length > 0

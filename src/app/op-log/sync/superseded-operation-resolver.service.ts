@@ -167,7 +167,7 @@ export class SupersededOperationResolverService {
       for (const item of regularSupersededOps) {
         // Skip ops without entityId (shouldn't happen for entity-level ops)
         if (!item.op.entityId) {
-          OpLog.warn(
+          OpLog.normal(
             `SupersededOperationResolverService: Skipping superseded op ${item.opId} - no entityId`,
           );
           continue;
@@ -227,7 +227,7 @@ export class SupersededOperationResolverService {
           entityId,
         );
         if (entityState === undefined) {
-          OpLog.warn(
+          OpLog.normal(
             `SupersededOperationResolverService: Cannot create update op - entity not found: ${entityKey}`,
           );
           // Still mark the ops as rejected, but track that changes were discarded

@@ -329,7 +329,7 @@ export const limitVectorClockSize = (
   // Build set of clients to always preserve
   const alwaysPreserve = new Set([currentClientId, ...protectedClientIds]);
 
-  PFLog.warn('Vector clock pruning triggered', {
+  PFLog.info('Vector clock pruning triggered', {
     originalSize: entries.length,
     maxSize: MAX_VECTOR_CLOCK_SIZE,
     currentClientId,

@@ -1536,7 +1536,7 @@ describe('OperationLogDownloadService', () => {
           // Should have been triggered by the gapDetected path, not the alternative path
           expect(result.needsFullStateUpload).toBeTrue();
           // The warning should mention the gap-based detection
-          expect(OpLog.warn).toHaveBeenCalledWith(
+          expect(OpLog.normal).toHaveBeenCalledWith(
             jasmine.stringContaining('gap on empty server'),
           );
         });
