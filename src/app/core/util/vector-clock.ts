@@ -277,16 +277,29 @@ export const hasVectorClockChanges = (
     }
   }
 
-  // CRITICAL FIX: Check if reference has any clients missing from current
-  // This detects when a client's entry has been removed/corrupted
+  // Check if reference has any clients missing from current.
+  // This detects when a client's entry has been removed/corrupted.
+  // However, after legitimate pruning (limitVectorClockSize), low-counter entries
+  // are removed. When the current clock is at MAX size, missing keys are expected
+  // and don't indicate corruption — they were pruned away.
+  const currentSize = Object.keys(current!).length;
   for (const [clientId, refVal] of Object.entries(reference!)) {
     if (refVal > 0 && !(clientId in current!)) {
-      PFLog.error('Vector clock change detected: client missing from current', {
-        clientId,
-        refValue: refVal,
-        currentClock: vectorClockToString(current),
-        referenceClock: vectorClockToString(reference),
-      });
+      if (currentSize >= MAX_VECTOR_CLOCK_SIZE) {
+        // Current clock was likely pruned — missing keys are expected.
+        PFLog.verbose(
+          'Vector clock: reference client missing from current (likely pruned)',
+          { clientId, refValue: refVal },
+        );
+      } else {
+        // Current clock is small enough that pruning couldn't have removed this key.
+        PFLog.warn('Vector clock change detected: client missing from current', {
+          clientId,
+          refValue: refVal,
+          currentClock: vectorClockToString(current),
+          referenceClock: vectorClockToString(reference),
+        });
+      }
       return true;
     }
   }

@@ -1260,7 +1260,7 @@ describe('SyncWrapperService', () => {
         }),
       );
 
-      await service.sync();
+      const result = await service.sync();
 
       // 1 initial upload + 3 retries = 4 total calls
       expect(mockSyncService.uploadPendingOps).toHaveBeenCalledTimes(4);
@@ -1268,6 +1268,8 @@ describe('SyncWrapperService', () => {
       expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith(
         'UNKNOWN_OR_CHANGED',
       );
+      // Should return UpdateRemote to signal that unuploaded ops remain
+      expect(result).toBe(SyncStatus.UpdateRemote);
     });
 
     it('should exit early when retry returns localWinOpsCreated: 0', async () => {

@@ -228,7 +228,7 @@ describe('vector-clock', () => {
   });
 
   describe('compareVectorClocks - pruning-aware via shared implementation', () => {
-    it('should return GREATER_THAN (not false CONCURRENT) when both clocks at MAX size with different unique keys', () => {
+    it('should return CONCURRENT when both clocks at MAX size with non-shared keys on both sides', () => {
       // Build two max-size clocks: shared keys where a dominates, plus unique keys
       const a: Record<string, number> = {};
       const b: Record<string, number> = {};
@@ -242,8 +242,8 @@ describe('vector-clock', () => {
         b[`b_only_${i}`] = 100;
       }
 
-      // Pruning-aware: only shared keys compared -> a dominates -> GREATER_THAN
-      expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.GREATER_THAN);
+      // Non-shared keys on both sides make dominance ambiguous
+      expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.CONCURRENT);
     });
 
     it('should use all keys when only one clock is at MAX size', () => {
@@ -340,6 +340,30 @@ describe('vector-clock', () => {
       // Both >= MAX → pruning-aware. Shared keys equal.
       // Only one side has non-shared keys → stays EQUAL (not escalated).
       expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.EQUAL);
+    });
+
+    it('asymmetric pruning: one clock pruned, other naturally at MAX size (known limitation)', () => {
+      // Known limitation: A clock that naturally grew to MAX entries (without pruning)
+      // is indistinguishable from a pruned clock. When one side was genuinely pruned
+      // and the other naturally reached MAX, missing keys on the pruned side are treated
+      // as "possibly pruned" rather than "genuinely zero". This may produce
+      // GREATER_THAN instead of CONCURRENT for the non-pruned side's unique keys.
+      const a: Record<string, number> = {};
+      for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+        a[`client_${i}`] = 10;
+      }
+      const b: Record<string, number> = {};
+      for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE - 1; i++) {
+        b[`client_${i}`] = 5;
+      }
+      b['b_unique'] = 50;
+
+      expect(Object.keys(a).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+      expect(Object.keys(b).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+
+      // Both at MAX → pruning-aware mode.
+      // Shared keys: a dominates. b has non-shared key → CONCURRENT (safe direction).
+      expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.CONCURRENT);
     });
   });
 });

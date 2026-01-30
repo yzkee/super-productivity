@@ -278,14 +278,14 @@ opLog(2, 'Vector clock comparison', {
 
 ## Current Implementation Status
 
-| Feature                         | Status         | Notes                                  |
-| ------------------------------- | -------------- | -------------------------------------- |
-| Vector clock conflict detection | ✅ Implemented | Used by both PFAPI and Operation Log   |
-| Entity-level conflict detection | ✅ Implemented | Operation Log tracks per-entity clocks |
-| User conflict resolution UI     | ✅ Implemented | `DialogConflictResolutionComponent`    |
-| Client pruning (max 50 entries) | ✅ Implemented | `limitVectorClockSize()`               |
-| Overflow protection             | ✅ Implemented | Clocks reset at MAX_SAFE_INTEGER       |
-| Protected client IDs            | ✅ Implemented | Preserves all keys from full-state ops |
+| Feature                                     | Status         | Notes                                  |
+| ------------------------------------------- | -------------- | -------------------------------------- |
+| Vector clock conflict detection             | ✅ Implemented | Used by both PFAPI and Operation Log   |
+| Entity-level conflict detection             | ✅ Implemented | Operation Log tracks per-entity clocks |
+| User conflict resolution UI                 | ✅ Implemented | `DialogConflictResolutionComponent`    |
+| Client pruning (MAX_VECTOR_CLOCK_SIZE = 10) | ✅ Implemented | `limitVectorClockSize()`               |
+| Overflow protection                         | ✅ Implemented | Clocks reset at MAX_SAFE_INTEGER       |
+| Protected client IDs                        | ✅ Implemented | Preserves all keys from full-state ops |
 
 ## Protected Client IDs
 
