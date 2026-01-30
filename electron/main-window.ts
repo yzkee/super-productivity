@@ -396,7 +396,6 @@ const appCloseHandler = (app: App): void => {
       event.preventDefault();
       if (getIsMinimizeToTray()) {
         wasMaximizedBeforeHide = mainWin.isMaximized();
-        wasMaximizedBeforeHide = mainWin.isMaximized();
         mainWin.hide();
         showOverlayWindow();
         return;
@@ -435,7 +434,6 @@ const appMinimizeHandler = (app: App): void => {
     mainWin.on('minimize', (event: Event) => {
       if (getIsMinimizeToTray()) {
         event.preventDefault();
-        wasMaximizedBeforeHide = mainWin.isMaximized();
         wasMaximizedBeforeHide = mainWin.isMaximized();
         mainWin.hide();
         showOverlayWindow();
