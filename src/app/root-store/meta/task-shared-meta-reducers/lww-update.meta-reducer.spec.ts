@@ -465,6 +465,33 @@ describe('lwwUpdateMetaReducer', () => {
       expect(globalConfig['type']).toBeUndefined();
       expect(globalConfig['meta']).toBeUndefined();
     });
+
+    it('should not replace singleton state with empty data', () => {
+      const state = createMockStateWithSingletons();
+      // Action with only type and meta — no actual entity data
+      const action = {
+        type: '[GLOBAL_CONFIG] LWW Update',
+        meta: { isPersistent: true, entityType: 'GLOBAL_CONFIG', isRemote: true },
+      };
+
+      spyOn(OpLog, 'warn');
+      // Prevent devError from throwing (it calls alert + confirm → throws if true)
+      if (!jasmine.isSpy(window.alert)) {
+        spyOn(window, 'alert');
+      }
+      if (!jasmine.isSpy(window.confirm)) {
+        spyOn(window, 'confirm').and.returnValue(false);
+      } else {
+        (window.confirm as jasmine.Spy).and.returnValue(false);
+      }
+      reducer(state, action);
+
+      expect(OpLog.warn).toHaveBeenCalledWith(
+        jasmine.stringMatching(/Empty singleton data/),
+      );
+      // State should be passed through unchanged
+      expect(mockReducer).toHaveBeenCalledWith(state, action);
+    });
   });
 
   describe('null/undefined state', () => {

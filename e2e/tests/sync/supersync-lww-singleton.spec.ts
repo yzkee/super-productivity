@@ -32,18 +32,17 @@ const navigateToMiscSettings = async (page: Page, forceReload = false): Promise<
   if (forceReload) {
     // Navigate away first to destroy the config component, then back
     await page.goto('/#/tag/TODAY/tasks');
-    await page.waitForTimeout(500);
+    await page.waitForURL(/tag\/TODAY/);
   }
   await page.goto('/#/config');
   await page.waitForURL(/config/);
-  await page.waitForTimeout(1000);
 
   // "Misc Settings" is a collapsible section in the General tab (default tab).
   const miscCollapsible = page.locator(
     'collapsible:has(.collapsible-title:has-text("Misc"))',
   );
-  await miscCollapsible.scrollIntoViewIfNeeded();
   await miscCollapsible.waitFor({ state: 'visible', timeout: 10000 });
+  await miscCollapsible.scrollIntoViewIfNeeded();
 
   // Expand if collapsed (host element gets .isExpanded class when expanded)
   const isExpanded = await miscCollapsible.evaluate((el: Element) =>
@@ -51,7 +50,10 @@ const navigateToMiscSettings = async (page: Page, forceReload = false): Promise<
   );
   if (!isExpanded) {
     await miscCollapsible.locator('.collapsible-header').click();
-    await page.waitForTimeout(500);
+    // Wait for the collapsible panel to appear (conditionally rendered via @if)
+    await miscCollapsible
+      .locator('.collapsible-panel')
+      .waitFor({ state: 'visible', timeout: 5000 });
   }
 };
 
@@ -64,8 +66,17 @@ const toggleSetting = async (page: Page, labelText: string): Promise<void> => {
     .filter({ hasText: labelText })
     .first();
   await toggle.scrollIntoViewIfNeeded();
+  // Capture current checked state before clicking
+  const wasChecked = await toggle.evaluate((el: Element) =>
+    el.className.includes('checked'),
+  );
   await toggle.click();
-  await page.waitForTimeout(300);
+  // Wait for toggle state to change
+  if (wasChecked) {
+    await expect(toggle).not.toHaveClass(/checked/, { timeout: 5000 });
+  } else {
+    await expect(toggle).toHaveClass(/checked/, { timeout: 5000 });
+  }
 };
 
 /**
@@ -151,8 +162,6 @@ test.describe('@supersync SuperSync LWW Singleton Conflict Resolution', () => {
       await toggleSetting(clientA.page, 'Disable celebration');
       console.log('[LWW-Singleton] Client A toggled both settings ON');
 
-      // Wait for state to settle then sync
-      await clientA.page.waitForTimeout(500);
       await clientA.sync.syncAndWait();
       console.log('[LWW-Singleton] Client A synced (initial)');
 
@@ -172,7 +181,6 @@ test.describe('@supersync SuperSync LWW Singleton Conflict Resolution', () => {
 
       // 4. Client B toggles "Disable all animations" OFF (earlier timestamp)
       await toggleSetting(clientB.page, 'Disable all animations');
-      await clientB.page.waitForTimeout(500);
       console.log(
         '[LWW-Singleton] Client B toggled animations OFF (B: anim=OFF, celeb=ON)',
       );
@@ -186,7 +194,6 @@ test.describe('@supersync SuperSync LWW Singleton Conflict Resolution', () => {
 
       // 7. Client A toggles "Disable celebration" OFF (later timestamp)
       await toggleSetting(clientA.page, 'Disable celebration');
-      await clientA.page.waitForTimeout(500);
       console.log(
         '[LWW-Singleton] Client A toggled celebration OFF (A: anim=ON, celeb=OFF)',
       );

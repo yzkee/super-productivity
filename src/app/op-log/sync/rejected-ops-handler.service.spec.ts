@@ -331,6 +331,41 @@ describe('RejectedOpsHandlerService', () => {
 
         expect(downloadCallback).toHaveBeenCalled();
       });
+
+      it('should handle deprecated CONFLICT_STALE the same as CONFLICT_SUPERSEDED (backward compatibility)', async () => {
+        // BACKWARD COMPAT: Older servers may return CONFLICT_STALE instead of CONFLICT_SUPERSEDED.
+        // Both should trigger the same merge resolution path.
+        const op = createOp({ id: 'stale-op-1' });
+        opLogStoreSpy.getOpById.and.returnValue(Promise.resolve(mockEntry(op)));
+        downloadCallback.and.callFake(async (options) => {
+          if (options?.forceFromSeq0) {
+            return {
+              newOpsCount: 0,
+              allOpClocks: [{ serverClient: 10 }],
+              snapshotVectorClock: { serverClient: 10 },
+            } as DownloadResultForRejection;
+          }
+          return { newOpsCount: 0 } as DownloadResultForRejection;
+        });
+        supersededOperationResolverSpy.resolveSupersededLocalOps.and.resolveTo(1);
+
+        await service.handleRejectedOps(
+          [
+            {
+              opId: 'stale-op-1',
+              error: 'Stale operation',
+              errorCode: 'CONFLICT_STALE',
+            },
+          ],
+          downloadCallback,
+        );
+
+        // CONFLICT_STALE should trigger resolution, NOT permanent rejection
+        expect(
+          supersededOperationResolverSpy.resolveSupersededLocalOps,
+        ).toHaveBeenCalled();
+        expect(opLogStoreSpy.markRejected).not.toHaveBeenCalled();
+      });
     });
 
     describe('concurrent modification handling', () => {

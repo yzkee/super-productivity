@@ -409,6 +409,11 @@ export const lwwUpdateMetaReducer: MetaReducer = (
 
     // Singleton entities: replace entire feature state with the winning data
     if (isSingletonEntity(config)) {
+      if (Object.keys(entityData).length === 0) {
+        OpLog.warn(`lwwUpdateMetaReducer: Empty singleton data for: ${entityType}`);
+        devError(`lwwUpdateMetaReducer: Empty singleton data for: ${entityType}`);
+        return reducer(state, action);
+      }
       const updatedState: RootState = {
         ...rootState,
         [featureName]: { ...entityData },
