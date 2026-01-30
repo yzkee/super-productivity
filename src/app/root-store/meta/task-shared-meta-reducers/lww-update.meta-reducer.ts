@@ -1,12 +1,12 @@
 import { Action, ActionReducer, MetaReducer } from '@ngrx/store';
 import { EntityAdapter } from '@ngrx/entity';
 import { RootState } from '../../root-state';
-import { EntityType } from '../../../op-log/core/operation.types';
 import {
   getEntityConfig,
   isAdapterEntity,
   isSingletonEntity,
 } from '../../../op-log/core/entity-registry';
+import { getLwwEntityType } from '../../../op-log/core/lww-update-action-types';
 import { devError } from '../../../util/dev-error';
 import {
   PROJECT_FEATURE_NAME,
@@ -24,12 +24,6 @@ import { Task } from '../../../features/tasks/task.model';
 import { unique } from '../../../util/unique';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { OpLog } from '../../../core/log';
-
-/**
- * Regex to match LWW Update action types.
- * Matches patterns like '[TASK] LWW Update', '[PROJECT] LWW Update', etc.
- */
-const LWW_UPDATE_REGEX = /^\[([A-Z_]+)\] LWW Update$/;
 
 /**
  * Updates project.taskIds arrays when a task's projectId changes via LWW Update.
@@ -373,13 +367,11 @@ export const lwwUpdateMetaReducer: MetaReducer = (
   return (state: unknown, action: Action) => {
     if (!state) return reducer(state, action);
 
-    const match = action.type.match(LWW_UPDATE_REGEX);
-    if (!match) {
+    const entityType = getLwwEntityType(action.type);
+    if (!entityType) {
       // Not an LWW Update action, pass through
       return reducer(state, action);
     }
-
-    const entityType = match[1] as EntityType;
     const config = getEntityConfig(entityType);
 
     if (!config) {

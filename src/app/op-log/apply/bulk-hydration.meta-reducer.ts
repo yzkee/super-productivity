@@ -2,13 +2,8 @@ import { Action, ActionReducer } from '@ngrx/store';
 import { bulkApplyOperations } from './bulk-hydration.action';
 import { convertOpToAction } from './operation-converter.util';
 import { ActionType } from '../core/operation.types';
+import { isLwwUpdateActionType } from '../core/lww-update-action-types';
 import { OpLog } from '../../core/log';
-
-/**
- * Regex to match LWW Update action types.
- * Matches patterns like '[TASK] LWW Update', '[PROJECT] LWW Update', etc.
- */
-const LWW_UPDATE_REGEX = /^\[([A-Z_]+)\] LWW Update$/;
 
 /**
  * Meta-reducer that applies multiple operations in a single reducer pass.
@@ -66,7 +61,7 @@ export const bulkOperationsMetaReducer = <T>(
         // Skip LWW Updates for entities archived in this same batch
         if (
           archivingEntityIds.size > 0 &&
-          LWW_UPDATE_REGEX.test(op.actionType) &&
+          isLwwUpdateActionType(op.actionType) &&
           op.entityId &&
           archivingEntityIds.has(op.entityId)
         ) {

@@ -8,6 +8,7 @@ import {
   OpType,
   VectorClock,
 } from '../core/operation.types';
+import { toLwwUpdateActionType } from '../core/lww-update-action-types';
 import { OperationApplierService } from '../apply/operation-applier.service';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { OpLog } from '../../core/log';
@@ -121,7 +122,7 @@ export class ConflictResolutionService {
     // created during conflict resolution to carry the winning local state to remote clients.
     return {
       id: uuidv7(),
-      actionType: `[${entityType}] LWW Update` as ActionType,
+      actionType: toLwwUpdateActionType(entityType),
       opType: OpType.Update,
       entityType,
       entityId,
@@ -806,7 +807,7 @@ export class ConflictResolutionService {
         return {
           ...remoteOp,
           // Convert to LWW Update action type so lwwUpdateMetaReducer can recreate the entity
-          actionType: `[${remoteOp.entityType}] LWW Update` as ActionType,
+          actionType: toLwwUpdateActionType(remoteOp.entityType),
         };
       }
       return remoteOp;

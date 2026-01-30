@@ -305,7 +305,7 @@ describe('lwwUpdateMetaReducer', () => {
   });
 
   describe('unknown entity types', () => {
-    it('should warn and pass through for unknown entity types', () => {
+    it('should pass through for unknown entity types without warning', () => {
       const state = createMockState();
       const action = {
         type: '[UNKNOWN_ENTITY] LWW Update',
@@ -314,15 +314,10 @@ describe('lwwUpdateMetaReducer', () => {
         meta: { isPersistent: true, entityType: 'UNKNOWN_ENTITY', entityId: 'unknown-1' },
       };
 
-      spyOn(OpLog, 'warn');
-      // Prevent devError from throwing: window.confirm is globally spied
-      // in test.ts with returnValue(true), which makes devError throw.
-      (window.confirm as jasmine.Spy).and.returnValue(false);
+      // Unknown entity types are not in the LWW_UPDATE_ACTION_TYPES set,
+      // so they silently pass through as non-LWW actions.
       reducer(state, action);
 
-      expect(OpLog.warn).toHaveBeenCalledWith(
-        jasmine.stringMatching(/Unknown entity type: UNKNOWN_ENTITY/),
-      );
       expect(mockReducer).toHaveBeenCalledWith(state, action);
     });
   });
