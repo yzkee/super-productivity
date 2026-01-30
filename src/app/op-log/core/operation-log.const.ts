@@ -206,7 +206,7 @@ export const DOWNLOAD_PAGE_SIZE = 500;
  * When exceeded, pruning keeps the most active clients (highest counter values).
  * The current client is always preserved regardless of activity level.
  */
-export const MAX_VECTOR_CLOCK_SIZE = 8;
+export const MAX_VECTOR_CLOCK_SIZE = 10;
 
 /**
  * Minimum length for client IDs in vector clocks.
