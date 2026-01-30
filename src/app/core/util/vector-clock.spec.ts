@@ -226,4 +226,45 @@ describe('vector-clock', () => {
       expect(comparison).toBe(VectorClockComparison.GREATER_THAN);
     });
   });
+
+  describe('compareVectorClocks - pruning-aware via shared implementation', () => {
+    it('should return GREATER_THAN (not false CONCURRENT) when both clocks at MAX size with different unique keys', () => {
+      // Build two max-size clocks: shared keys where a dominates, plus unique keys
+      const a: Record<string, number> = {};
+      const b: Record<string, number> = {};
+      const half = Math.floor(MAX_VECTOR_CLOCK_SIZE / 2);
+      for (let i = 0; i < half; i++) {
+        a[`shared_${i}`] = 10;
+        b[`shared_${i}`] = 5;
+      }
+      for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE - half; i++) {
+        a[`a_only_${i}`] = 100;
+        b[`b_only_${i}`] = 100;
+      }
+
+      // Pruning-aware: only shared keys compared -> a dominates -> GREATER_THAN
+      expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.GREATER_THAN);
+    });
+
+    it('should use all keys when only one clock is at MAX size', () => {
+      const a: Record<string, number> = {};
+      for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+        a[`client_${i}`] = 10;
+      }
+      // b is small with a unique key
+      const b = { client_0: 5, unique: 100 };
+
+      // Not both at MAX -> all keys used -> CONCURRENT
+      // (a > b on client_1..9, b > a on unique)
+      expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.CONCURRENT);
+    });
+
+    it('should use all keys when neither clock is at MAX size', () => {
+      const a = { x: 5 };
+      const b = { y: 5 };
+
+      // Both small -> all keys -> CONCURRENT
+      expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.CONCURRENT);
+    });
+  });
 });

@@ -1239,4 +1239,128 @@ describe('SyncWrapperService', () => {
       expect(service['_isTimeoutError'](errorObj)).toBe(true);
     });
   });
+
+  describe('_sync() - LWW retry loop limit', () => {
+    it('should stop after MAX_LWW_REUPLOAD_RETRIES when upload always returns localWinOpsCreated', async () => {
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.resolve({
+          newOpsCount: 0,
+          serverMigrationHandled: false,
+          localWinOpsCreated: 0,
+        }),
+      );
+      // Upload always returns localWinOpsCreated: 2 (never resolves)
+      mockSyncService.uploadPendingOps.and.returnValue(
+        Promise.resolve({
+          uploadedCount: 2,
+          rejectedCount: 0,
+          piggybackedOps: [],
+          rejectedOps: [],
+          localWinOpsCreated: 2,
+        }),
+      );
+
+      await service.sync();
+
+      // 1 initial upload + 3 retries = 4 total calls
+      expect(mockSyncService.uploadPendingOps).toHaveBeenCalledTimes(4);
+      // Should set UNKNOWN_OR_CHANGED since ops remain pending
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith(
+        'UNKNOWN_OR_CHANGED',
+      );
+    });
+
+    it('should exit early when retry returns localWinOpsCreated: 0', async () => {
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.resolve({
+          newOpsCount: 0,
+          serverMigrationHandled: false,
+          localWinOpsCreated: 0,
+        }),
+      );
+
+      let uploadCallCount = 0;
+      mockSyncService.uploadPendingOps.and.callFake(async () => {
+        uploadCallCount++;
+        return {
+          uploadedCount: 2,
+          rejectedCount: 0,
+          piggybackedOps: [],
+          rejectedOps: [],
+          // First call returns 1, second call returns 0 -> exits loop
+          localWinOpsCreated: uploadCallCount <= 1 ? 1 : 0,
+        };
+      });
+
+      const result = await service.sync();
+
+      // 1 initial upload + 1 retry (which returns 0) = 2 total
+      // The retry returns 0 so no more retries needed
+      expect(mockSyncService.uploadPendingOps).toHaveBeenCalledTimes(2);
+      expect(result).toBe(SyncStatus.InSync);
+    });
+
+    it('should treat null reupload result as 0 localWinOpsCreated and exit loop', async () => {
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.resolve({
+          newOpsCount: 0,
+          serverMigrationHandled: false,
+          localWinOpsCreated: 0,
+        }),
+      );
+
+      let uploadCallCount = 0;
+      mockSyncService.uploadPendingOps.and.callFake(async () => {
+        uploadCallCount++;
+        if (uploadCallCount === 1) {
+          return {
+            uploadedCount: 1,
+            rejectedCount: 0,
+            piggybackedOps: [],
+            rejectedOps: [],
+            localWinOpsCreated: 2,
+          };
+        }
+        // Second call returns null (e.g., fresh client scenario)
+        return null;
+      });
+
+      const result = await service.sync();
+
+      // 1 initial + 1 retry (returns null -> treated as 0) = 2 total
+      expect(mockSyncService.uploadPendingOps).toHaveBeenCalledTimes(2);
+      expect(result).toBe(SyncStatus.InSync);
+    });
+
+    it('should enter while loop when both download and upload produce LWW ops', async () => {
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.resolve({
+          newOpsCount: 5,
+          serverMigrationHandled: false,
+          localWinOpsCreated: 2, // download produced LWW ops
+        }),
+      );
+
+      let uploadCallCount = 0;
+      mockSyncService.uploadPendingOps.and.callFake(async () => {
+        uploadCallCount++;
+        return {
+          uploadedCount: 3,
+          rejectedCount: 0,
+          piggybackedOps: [],
+          rejectedOps: [],
+          // First upload also produces LWW ops, subsequent do not
+          localWinOpsCreated: uploadCallCount === 1 ? 1 : 0,
+        };
+      });
+
+      const result = await service.sync();
+
+      // pendingLwwOps = download(2) + upload(1) = 3
+      // Retry 1: upload returns 0 -> exits loop
+      // Total uploads: 1 initial + 1 retry = 2
+      expect(mockSyncService.uploadPendingOps).toHaveBeenCalledTimes(2);
+      expect(result).toBe(SyncStatus.InSync);
+    });
+  });
 });
