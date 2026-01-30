@@ -404,7 +404,9 @@ export const lwwUpdateMetaReducer: MetaReducer = (
       return reducer(state, action);
     }
 
-    // Extract entity data from action (exclude 'type' and 'meta')
+    // Extract entity data from action (exclude 'type' and 'meta').
+    // NOTE: This assumes no entity state has top-level 'type' or 'meta' keys.
+    // If a singleton or adapter state gains such a key, it would be silently dropped.
     const actionAny = action as unknown as Record<string, unknown>;
     const entityData: Record<string, unknown> = {};
     for (const key of Object.keys(actionAny)) {

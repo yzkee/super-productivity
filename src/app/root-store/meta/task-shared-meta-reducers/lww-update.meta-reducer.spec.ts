@@ -9,6 +9,8 @@ import { Project } from '../../../features/project/project.model';
 import { Tag } from '../../../features/tag/tag.model';
 import { TODAY_TAG } from '../../../features/tag/tag.const';
 import { OpLog } from '../../../core/log';
+import { CONFIG_FEATURE_NAME } from '../../../features/config/store/global-config.reducer';
+import { TIME_TRACKING_FEATURE_KEY } from '../../../features/time-tracking/store/time-tracking.reducer';
 
 describe('lwwUpdateMetaReducer', () => {
   const mockReducer = jasmine.createSpy('reducer');
@@ -313,16 +315,15 @@ describe('lwwUpdateMetaReducer', () => {
       };
 
       spyOn(OpLog, 'warn');
-      // devError throws in non-production; catch it so we can verify the warning
-      try {
-        reducer(state, action);
-      } catch {
-        // Expected: devError throws in test environment
-      }
+      // Prevent devError from throwing: window.confirm is globally spied
+      // in test.ts with returnValue(true), which makes devError throw.
+      (window.confirm as jasmine.Spy).and.returnValue(false);
+      reducer(state, action);
 
       expect(OpLog.warn).toHaveBeenCalledWith(
         jasmine.stringMatching(/Unknown entity type: UNKNOWN_ENTITY/),
       );
+      expect(mockReducer).toHaveBeenCalledWith(state, action);
     });
   });
 
@@ -366,7 +367,7 @@ describe('lwwUpdateMetaReducer', () => {
         string,
         unknown
       >;
-      const globalConfig = updatedState['globalConfig'] as Record<string, unknown>;
+      const globalConfig = updatedState[CONFIG_FEATURE_NAME] as Record<string, unknown>;
       expect(globalConfig).toBeDefined();
       expect(
         (globalConfig['misc'] as Record<string, unknown>)['isDisableAnimations'],
@@ -375,6 +376,28 @@ describe('lwwUpdateMetaReducer', () => {
         (globalConfig['misc'] as Record<string, unknown>)['isDisableCelebration'],
       ).toBe(true);
       expect((globalConfig['sound'] as Record<string, unknown>)['isEnabled']).toBe(false);
+    });
+
+    it('should fully replace state, not merge with existing', () => {
+      const state = createMockStateWithSingletons();
+      const action = {
+        type: '[GLOBAL_CONFIG] LWW Update',
+        misc: { isDisableAnimations: true },
+        meta: { isPersistent: true, entityType: 'GLOBAL_CONFIG', isRemote: true },
+      };
+
+      reducer(state, action);
+
+      expect(mockReducer).toHaveBeenCalled();
+      const updatedState = mockReducer.calls.mostRecent().args[0] as Record<
+        string,
+        unknown
+      >;
+      const globalConfig = updatedState[CONFIG_FEATURE_NAME] as Record<string, unknown>;
+      // 'sound' was in the original state but not in the action payload — it must be gone
+      expect(globalConfig['sound']).toBeUndefined();
+      // 'misc' was in the payload — it must be present
+      expect(globalConfig['misc']).toBeDefined();
     });
 
     it('should replace timeTracking state with LWW winning data', () => {
@@ -397,7 +420,10 @@ describe('lwwUpdateMetaReducer', () => {
         string,
         unknown
       >;
-      const timeTracking = updatedState['timeTracking'] as Record<string, unknown>;
+      const timeTracking = updatedState[TIME_TRACKING_FEATURE_KEY] as Record<
+        string,
+        unknown
+      >;
       expect(timeTracking).toBeDefined();
       expect(timeTracking['currentSessionTime']).toBe(5000);
       expect(timeTracking['isTrackingReminder']).toBe(false);
@@ -417,7 +443,12 @@ describe('lwwUpdateMetaReducer', () => {
       expect(OpLog.warn).not.toHaveBeenCalledWith(
         jasmine.stringMatching(/Entity data has no id/),
       );
-      expect(mockReducer).toHaveBeenCalled();
+      const updatedState = mockReducer.calls.mostRecent().args[0] as Record<
+        string,
+        unknown
+      >;
+      const globalConfig = updatedState[CONFIG_FEATURE_NAME] as Record<string, unknown>;
+      expect(globalConfig['misc']).toBeDefined();
     });
 
     it('should strip type and meta from applied singleton state', () => {
@@ -435,7 +466,7 @@ describe('lwwUpdateMetaReducer', () => {
         string,
         unknown
       >;
-      const globalConfig = updatedState['globalConfig'] as Record<string, unknown>;
+      const globalConfig = updatedState[CONFIG_FEATURE_NAME] as Record<string, unknown>;
       expect(globalConfig['type']).toBeUndefined();
       expect(globalConfig['meta']).toBeUndefined();
     });

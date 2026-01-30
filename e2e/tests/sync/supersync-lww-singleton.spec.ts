@@ -140,6 +140,13 @@ test.describe('@supersync SuperSync LWW Singleton Conflict Resolution', () => {
 
       // 2. Client A navigates to Misc settings and toggles both settings ON
       await navigateToMiscSettings(clientA.page);
+
+      // Verify default state before toggling (both should be OFF)
+      const aAnimDefault = await isSettingChecked(clientA.page, 'Disable all animations');
+      const aCelebDefault = await isSettingChecked(clientA.page, 'Disable celebration');
+      expect(aAnimDefault).toBe(false);
+      expect(aCelebDefault).toBe(false);
+
       await toggleSetting(clientA.page, 'Disable all animations');
       await toggleSetting(clientA.page, 'Disable celebration');
       console.log('[LWW-Singleton] Client A toggled both settings ON');
