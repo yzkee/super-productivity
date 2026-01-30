@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
-import { Operation, OpType, VectorClock } from '../core/operation.types';
+import { ActionType, Operation, OpType, VectorClock } from '../core/operation.types';
 import { mergeVectorClocks } from '../../core/util/vector-clock';
 import { OpLog } from '../../core/log';
 import { ConflictResolutionService } from './conflict-resolution.service';
@@ -41,6 +41,31 @@ export class StaleOperationResolverService {
   private lockService = inject(LockService);
   private snackService = inject(SnackService);
   private clientIdProvider = inject(CLIENT_ID_PROVIDER);
+
+  /**
+   * Re-creates an operation with a merged vector clock, preserving its original payload.
+   * Used for operations whose entities are no longer in the NgRx store (DELETE, moveToArchive).
+   */
+  private _recreateOpWithMergedClock(
+    sourceOp: Operation,
+    vectorClock: VectorClock,
+    clientId: string,
+    timestamp: number,
+  ): Operation {
+    return {
+      id: uuidv7(),
+      actionType: sourceOp.actionType,
+      opType: sourceOp.opType,
+      entityType: sourceOp.entityType,
+      entityId: sourceOp.entityId,
+      entityIds: sourceOp.entityIds,
+      payload: sourceOp.payload,
+      clientId,
+      vectorClock,
+      timestamp,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+    };
+  }
 
   /**
    * Resolves stale local operations by creating new LWW Update operations.
@@ -92,9 +117,46 @@ export class StaleOperationResolverService {
         }
       }
 
-      // Group ops by entity to handle multiple ops for the same entity
-      const opsByEntity = new Map<string, Array<{ opId: string; op: Operation }>>();
+      const opsToReject: string[] = [];
+      const newOpsCreated: Operation[] = [];
+
+      // Handle bulk semantic operations BEFORE entity-by-entity grouping.
+      // moveToArchive uses OpType.Update but its reducer removes entities from the NgRx store
+      // (via deleteTaskHelper). This is the ONLY action with this pattern — all other entity
+      // removals use OpType.Delete (handled below). The normal resolution path would call
+      // getCurrentEntityState() → undefined → discard, permanently losing the archive.
+      // Instead, re-create the operation with a merged clock preserving the original payload.
+      // NOTE: If a future action type also removes entities with OpType.Update, add it here.
+      const regularStaleOps: Array<{ opId: string; op: Operation }> = [];
       for (const item of staleOps) {
+        if (item.op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE) {
+          // Re-create the archive operation with a merged vector clock.
+          // The original payload is preserved exactly (MultiEntityPayload format with
+          // actionPayload.tasks containing full task data for remote archive writes).
+          const newClock = this.conflictResolutionService.mergeAndIncrementClocks(
+            [globalClock, item.op.vectorClock],
+            clientId,
+          );
+          const newOp = this._recreateOpWithMergedClock(
+            item.op,
+            newClock,
+            clientId,
+            item.op.timestamp,
+          );
+          newOpsCreated.push(newOp);
+          opsToReject.push(item.opId);
+          OpLog.normal(
+            `StaleOperationResolverService: Created replacement moveToArchive op ${newOp.id} ` +
+              `with ${item.op.entityIds?.length ?? 0} tasks, replacing stale op ${item.opId}`,
+          );
+        } else {
+          regularStaleOps.push(item);
+        }
+      }
+
+      // Group remaining ops by entity to handle multiple ops for the same entity
+      const opsByEntity = new Map<string, Array<{ opId: string; op: Operation }>>();
+      for (const item of regularStaleOps) {
         // Skip ops without entityId (shouldn't happen for entity-level ops)
         if (!item.op.entityId) {
           OpLog.warn(
@@ -108,9 +170,6 @@ export class StaleOperationResolverService {
         }
         opsByEntity.get(entityKey)!.push(item);
       }
-
-      const opsToReject: string[] = [];
-      const newOpsCreated: Operation[] = [];
       let discardedChangesCount = 0;
 
       for (const [entityKey, entityOps] of opsByEntity) {
@@ -133,21 +192,13 @@ export class StaleOperationResolverService {
           // For DELETE operations, we can't get current state (entity is deleted).
           // Create a new DELETE operation with merged clock instead of UPDATE.
           // Use the first op's actionType and payload since they're self-contained.
-          const deleteOp = entityOps[0].op;
           const preservedTimestamp = Math.max(...entityOps.map((e) => e.op.timestamp));
-
-          const newDeleteOp: Operation = {
-            id: uuidv7(),
-            actionType: deleteOp.actionType, // Preserve original actionType (e.g., '[Task] Delete Task')
-            opType: OpType.Delete,
-            entityType,
-            entityId,
-            payload: deleteOp.payload, // Preserve original payload (contains entity data)
+          const newDeleteOp = this._recreateOpWithMergedClock(
+            entityOps[0].op,
+            newClock,
             clientId,
-            vectorClock: newClock,
-            timestamp: preservedTimestamp,
-            schemaVersion: CURRENT_SCHEMA_VERSION,
-          };
+            preservedTimestamp,
+          );
 
           newOpsCreated.push(newDeleteOp);
           opsToReject.push(...entityOps.map((e) => e.opId));

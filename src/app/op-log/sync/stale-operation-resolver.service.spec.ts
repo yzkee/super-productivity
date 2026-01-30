@@ -8,6 +8,7 @@ import { SnackService } from '../../core/snack/snack.service';
 import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
 import { ActionType, Operation, OpType, EntityType } from '../core/operation.types';
 import { VectorClock } from '../../core/util/vector-clock';
+import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 
 describe('StaleOperationResolverService', () => {
   let service: StaleOperationResolverService;
@@ -549,6 +550,245 @@ describe('StaleOperationResolverService', () => {
       expect(op1.id).not.toBe(op2.id);
       expect(op1.id).not.toBe('op-1'); // New ID, not reusing original
       expect(op2.id).not.toBe('op-2');
+    });
+
+    describe('moveToArchive operation handling', () => {
+      const createMockMoveToArchiveOperation = (
+        id: string,
+        entityIds: string[],
+        vectorClock: VectorClock,
+        timestamp: number = Date.now(),
+      ): Operation => ({
+        id,
+        actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+        opType: OpType.Update,
+        entityType: 'TASK',
+        entityId: entityIds[0],
+        entityIds,
+        payload: {
+          actionPayload: {
+            tasks: entityIds.map((eid) => ({ id: eid, title: `Task ${eid}` })),
+          },
+          entityChanges: [],
+        },
+        clientId: 'original-client',
+        vectorClock,
+        timestamp,
+        schemaVersion: 1,
+      });
+
+      it('should re-create moveToArchive op instead of discarding it', async () => {
+        const archiveOp = createMockMoveToArchiveOperation(
+          'op-archive-1',
+          ['task-1', 'task-2'],
+          { clientA: 5 },
+          1000,
+        );
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(
+          Promise.resolve({ clientA: 3, clientB: 2 }),
+        );
+
+        const result = await service.resolveStaleLocalOps([
+          { opId: 'op-archive-1', op: archiveOp },
+        ]);
+
+        expect(result).toBe(1);
+        expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['op-archive-1']);
+        expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledTimes(1);
+
+        const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+          .args[0] as Operation;
+        expect(appendedOp.actionType).toBe(ActionType.TASK_SHARED_MOVE_TO_ARCHIVE);
+        expect(appendedOp.opType).toBe(OpType.Update);
+        expect(appendedOp.entityType).toBe('TASK');
+      });
+
+      it('should preserve original payload exactly', async () => {
+        const archiveOp = createMockMoveToArchiveOperation(
+          'op-archive-1',
+          ['task-1', 'task-2'],
+          { clientA: 5 },
+          1000,
+        );
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
+
+        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+
+        const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+          .args[0] as Operation;
+        expect(appendedOp.payload).toEqual(archiveOp.payload);
+      });
+
+      it('should preserve entityId and entityIds in new operation', async () => {
+        const archiveOp = createMockMoveToArchiveOperation(
+          'op-archive-1',
+          ['task-1', 'task-2', 'task-3'],
+          { clientA: 5 },
+          1000,
+        );
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
+
+        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+
+        const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+          .args[0] as Operation;
+        expect(appendedOp.entityId).toBe('task-1');
+        expect(appendedOp.entityIds).toEqual(['task-1', 'task-2', 'task-3']);
+      });
+
+      it('should create merged vector clock that dominates global and original clocks', async () => {
+        const archiveOp = createMockMoveToArchiveOperation(
+          'op-archive-1',
+          ['task-1'],
+          { clientA: 10, clientB: 5 },
+          1000,
+        );
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(
+          Promise.resolve({ clientA: 8, clientC: 15 }),
+        );
+
+        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+
+        const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+          .args[0] as Operation;
+        expect(appendedOp.vectorClock['clientA']).toBeGreaterThanOrEqual(10);
+        expect(appendedOp.vectorClock['clientB']).toBeGreaterThanOrEqual(5);
+        expect(appendedOp.vectorClock['clientC']).toBeGreaterThanOrEqual(15);
+        expect(appendedOp.vectorClock[TEST_CLIENT_ID]).toBeGreaterThanOrEqual(1);
+      });
+
+      it('should preserve original timestamp', async () => {
+        const archiveOp = createMockMoveToArchiveOperation(
+          'op-archive-1',
+          ['task-1'],
+          { clientA: 5 },
+          1609459200000,
+        );
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
+
+        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+
+        const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+          .args[0] as Operation;
+        expect(appendedOp.timestamp).toBe(1609459200000);
+      });
+
+      it('should NOT call getCurrentEntityState for moveToArchive ops', async () => {
+        const archiveOp = createMockMoveToArchiveOperation('op-archive-1', ['task-1'], {
+          clientA: 5,
+        });
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
+
+        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+
+        expect(
+          mockConflictResolutionService.getCurrentEntityState,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('should handle mixed batch: moveToArchive + regular ops', async () => {
+        const archiveOp = createMockMoveToArchiveOperation(
+          'op-archive',
+          ['task-1', 'task-2'],
+          { clientA: 5 },
+          1000,
+        );
+        const regularOp = createMockOperation(
+          'op-regular',
+          'TASK',
+          'task-3',
+          { clientA: 3 },
+          2000,
+        );
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
+        mockConflictResolutionService.getCurrentEntityState.and.returnValue(
+          Promise.resolve({ id: 'task-3', title: 'Regular Task' }),
+        );
+
+        const result = await service.resolveStaleLocalOps([
+          { opId: 'op-archive', op: archiveOp },
+          { opId: 'op-regular', op: regularOp },
+        ]);
+
+        expect(result).toBe(2);
+        expect(mockOpLogStore.markRejected).toHaveBeenCalledWith([
+          'op-archive',
+          'op-regular',
+        ]);
+        expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledTimes(2);
+
+        const calls = mockOpLogStore.appendWithVectorClockUpdate.calls.all();
+        const ops = calls.map((c) => c.args[0] as Operation);
+
+        const archiveResult = ops.find(
+          (op) => op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+        );
+        const regularResult = ops.find(
+          (op) => op.actionType !== ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+        );
+
+        expect(archiveResult).toBeDefined();
+        expect(archiveResult!.entityIds).toEqual(['task-1', 'task-2']);
+        expect(regularResult).toBeDefined();
+        expect(regularResult!.entityId).toBe('task-3');
+      });
+
+      it('should use CURRENT_SCHEMA_VERSION for re-created op', async () => {
+        const archiveOp = createMockMoveToArchiveOperation('op-archive-1', ['task-1'], {
+          clientA: 5,
+        });
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
+
+        await service.resolveStaleLocalOps([{ opId: 'op-archive-1', op: archiveOp }]);
+
+        const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+          .args[0] as Operation;
+        expect(appendedOp.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
+      });
+
+      it('should handle multiple moveToArchive ops in the same batch independently', async () => {
+        const archiveOp1 = createMockMoveToArchiveOperation(
+          'op-archive-1',
+          ['task-1'],
+          { clientA: 3 },
+          1000,
+        );
+        const archiveOp2 = createMockMoveToArchiveOperation(
+          'op-archive-2',
+          ['task-2', 'task-3'],
+          { clientA: 5 },
+          2000,
+        );
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
+
+        const result = await service.resolveStaleLocalOps([
+          { opId: 'op-archive-1', op: archiveOp1 },
+          { opId: 'op-archive-2', op: archiveOp2 },
+        ]);
+
+        expect(result).toBe(2);
+        expect(mockOpLogStore.markRejected).toHaveBeenCalledWith([
+          'op-archive-1',
+          'op-archive-2',
+        ]);
+        expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledTimes(2);
+
+        const calls = mockOpLogStore.appendWithVectorClockUpdate.calls.all();
+        const ops = calls.map((c) => c.args[0] as Operation);
+
+        expect(ops[0].entityIds).toEqual(['task-1']);
+        expect(ops[1].entityIds).toEqual(['task-2', 'task-3']);
+        expect(ops[0].id).not.toBe(ops[1].id);
+      });
     });
 
     describe('DELETE operation handling', () => {
