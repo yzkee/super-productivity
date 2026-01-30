@@ -2,6 +2,7 @@ import {
   limitVectorClockSize,
   VectorClockComparison,
   compareVectorClocks,
+  hasVectorClockChanges,
 } from './vector-clock';
 import { MAX_VECTOR_CLOCK_SIZE } from '../../op-log/core/operation-log.const';
 
@@ -364,6 +365,72 @@ describe('vector-clock', () => {
       // Both at MAX → pruning-aware mode.
       // Shared keys: a dominates. b has non-shared key → CONCURRENT (safe direction).
       expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.CONCURRENT);
+    });
+  });
+
+  describe('hasVectorClockChanges', () => {
+    it('should return false when current equals reference', () => {
+      const clock = { clientA: 5, clientB: 3 };
+      expect(hasVectorClockChanges(clock, clock)).toBe(false);
+    });
+
+    it('should return false when both are null', () => {
+      expect(hasVectorClockChanges(null, null)).toBe(false);
+    });
+
+    it('should return false when both are empty', () => {
+      expect(hasVectorClockChanges({}, {})).toBe(false);
+    });
+
+    it('should return true when current has higher counter than reference', () => {
+      const current = { clientA: 6, clientB: 3 };
+      const reference = { clientA: 5, clientB: 3 };
+      expect(hasVectorClockChanges(current, reference)).toBe(true);
+    });
+
+    it('should return true when current has a new client not in reference', () => {
+      const current = { clientA: 5, clientB: 3, clientC: 1 };
+      const reference = { clientA: 5, clientB: 3 };
+      expect(hasVectorClockChanges(current, reference)).toBe(true);
+    });
+
+    it('should return true when current is non-empty and reference is null', () => {
+      expect(hasVectorClockChanges({ clientA: 1 }, null)).toBe(true);
+    });
+
+    it('should return true when current is null and reference is non-empty', () => {
+      expect(hasVectorClockChanges(null, { clientA: 1 })).toBe(true);
+    });
+
+    it('should return true when reference has a client missing from current (below MAX size)', () => {
+      const current = { clientA: 5 };
+      const reference = { clientA: 5, clientB: 3 };
+      expect(hasVectorClockChanges(current, reference)).toBe(true);
+    });
+
+    it('should return true when reference has a client missing from current at MAX size (pruned)', () => {
+      // Build current clock at MAX_VECTOR_CLOCK_SIZE
+      const current: Record<string, number> = {};
+      for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+        current[`client_${i}`] = 10;
+      }
+      // Reference has a key not in current
+      const reference: Record<string, number> = { ...current, extra_client: 5 };
+      delete reference['client_0'];
+
+      expect(Object.keys(current).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+      expect(hasVectorClockChanges(current, reference)).toBe(true);
+    });
+
+    it('should return false when current has equal or lower counters than reference', () => {
+      const current = { clientA: 5, clientB: 3 };
+      const reference = { clientA: 5, clientB: 4 };
+      // current clientB (3) < reference clientB (4), but no current counter is higher
+      // and reference has no missing clients from current
+      // However, clientB is lower in current → that's not a "change" in current
+      // The missing direction: reference has clientB:4, current has clientB:3
+      // hasVectorClockChanges checks if current > reference for any key, not the reverse
+      expect(hasVectorClockChanges(current, reference)).toBe(false);
     });
   });
 });

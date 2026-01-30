@@ -217,6 +217,13 @@ export { MAX_VECTOR_CLOCK_SIZE } from '@sp/shared-schema';
 export const MIN_CLIENT_ID_LENGTH = 5;
 
 /**
+ * Maximum retry attempts for re-uploading LWW (Last-Writer-Wins) local-win operations.
+ * After this many retries, the sync reports UNKNOWN_OR_CHANGED and retries on next sync.
+ * Default: 3
+ */
+export const MAX_LWW_REUPLOAD_RETRIES = 3;
+
+/**
  * Duration in milliseconds to suppress selector-based effects after sync completes.
  * This prevents "repair" effects from creating redundant operations based on
  * freshly-synced state that looks like it needs repair.

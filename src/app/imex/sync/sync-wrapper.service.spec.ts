@@ -25,6 +25,7 @@ import {
   SyncAlreadyInProgressError,
   LocalDataConflictError,
 } from '../../op-log/core/errors/sync-errors';
+import { MAX_LWW_REUPLOAD_RETRIES } from '../../op-log/core/operation-log.const';
 import { LegacySyncProvider } from './legacy-sync-provider.model';
 
 describe('SyncWrapperService', () => {
@@ -1262,8 +1263,10 @@ describe('SyncWrapperService', () => {
 
       const result = await service.sync();
 
-      // 1 initial upload + 3 retries = 4 total calls
-      expect(mockSyncService.uploadPendingOps).toHaveBeenCalledTimes(4);
+      // 1 initial upload + MAX_LWW_REUPLOAD_RETRIES retries
+      expect(mockSyncService.uploadPendingOps).toHaveBeenCalledTimes(
+        1 + MAX_LWW_REUPLOAD_RETRIES,
+      );
       // Should set UNKNOWN_OR_CHANGED since ops remain pending
       expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith(
         'UNKNOWN_OR_CHANGED',

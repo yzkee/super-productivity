@@ -18,6 +18,7 @@ import {
   WebCryptoNotAvailableError,
   MissingRefreshTokenAPIError,
 } from '../../op-log/core/errors/sync-errors';
+import { MAX_LWW_REUPLOAD_RETRIES } from '../../op-log/core/operation-log.const';
 import { SyncConfig } from '../../features/config/global-config.model';
 import { TranslateService } from '@ngx-translate/core';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
@@ -300,7 +301,6 @@ export class SyncWrapperService {
       }
 
       // 3. If LWW created local-win ops, upload them (with retry limit to prevent infinite loops)
-      const MAX_LWW_REUPLOAD_RETRIES = 3;
       let lwwRetries = 0;
       let pendingLwwOps =
         (downloadResult.localWinOpsCreated ?? 0) +
