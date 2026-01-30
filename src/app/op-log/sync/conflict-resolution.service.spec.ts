@@ -7,8 +7,10 @@ import { SnackService } from '../../core/snack/snack.service';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { of } from 'rxjs';
 import { ActionType, EntityConflict, OpType, Operation } from '../core/operation.types';
+import { VectorClock } from '../../core/util/vector-clock';
 import { DUPLICATE_OPERATION_ERROR_MSG } from '../persistence/op-log-errors.const';
 import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
+import { MAX_VECTOR_CLOCK_SIZE } from '../core/operation-log.const';
 
 describe('ConflictResolutionService', () => {
   let service: ConflictResolutionService;
@@ -2252,6 +2254,162 @@ describe('ConflictResolutionService', () => {
         jasmine.arrayContaining([jasmine.objectContaining({ id: 'remote-archive' })]),
         'remote',
         jasmine.any(Object),
+      );
+    });
+  });
+
+  describe('vector clock pruning in conflict resolution', () => {
+    const createOpWithLargeClock = (
+      id: string,
+      clientId: string,
+      timestamp: number,
+      vectorClock: VectorClock,
+      entityId: string = 'task-1',
+    ): Operation => ({
+      id,
+      clientId,
+      actionType: 'test' as ActionType,
+      opType: OpType.Update,
+      entityType: 'TASK',
+      entityId,
+      payload: { source: clientId },
+      vectorClock,
+      timestamp,
+      schemaVersion: 1,
+    });
+
+    const createLargeClock = (
+      prefix: string,
+      count: number,
+      valueStart: number = 1,
+    ): VectorClock => {
+      const clock: VectorClock = {};
+      for (let i = 1; i <= count; i++) {
+        clock[`${prefix}-${i}`] = valueStart + i - 1;
+      }
+      return clock;
+    };
+
+    beforeEach(() => {
+      mockOpLogStore.hasOp.and.resolveTo(false);
+      mockOpLogStore.append.and.callFake((op: Operation) => Promise.resolve(1));
+      mockOpLogStore.appendWithVectorClockUpdate.and.callFake((op: Operation) =>
+        Promise.resolve(1),
+      );
+      mockOpLogStore.markApplied.and.resolveTo(undefined);
+      mockOpLogStore.markRejected.and.resolveTo(undefined);
+    });
+
+    it('should prune local-win update op clock to MAX_VECTOR_CLOCK_SIZE', async () => {
+      const now = Date.now();
+      const localClock = createLargeClock('local', 6, 1);
+      const remoteClock = createLargeClock('remote', 6, 10);
+
+      const conflicts: EntityConflict[] = [
+        {
+          entityType: 'TASK',
+          entityId: 'task-1',
+          localOps: [createOpWithLargeClock('local-1', 'client-a', now, localClock)],
+          remoteOps: [
+            createOpWithLargeClock('remote-1', 'client-b', now - 1000, remoteClock),
+          ],
+          suggestedResolution: 'manual',
+        },
+      ];
+
+      // Mock store to return entity state for getCurrentEntityState
+      mockStore.select.and.returnValue(of({ id: 'task-1', title: 'Test Task' }));
+
+      await service.autoResolveConflictsLWW(conflicts);
+
+      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalled();
+      const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+        .args[0] as Operation;
+      expect(Object.keys(appendedOp.vectorClock).length).toBeLessThanOrEqual(
+        MAX_VECTOR_CLOCK_SIZE,
+      );
+      expect(appendedOp.vectorClock[TEST_CLIENT_ID]).toBeDefined();
+    });
+
+    it('should prune archive-win op clock to MAX_VECTOR_CLOCK_SIZE', async () => {
+      const now = Date.now();
+      const archiveClock = createLargeClock('archive', 6, 1);
+      const remoteClock = createLargeClock('remote', 6, 10);
+
+      const conflicts: EntityConflict[] = [
+        {
+          entityType: 'TASK',
+          entityId: 'task-1',
+          localOps: [
+            {
+              id: 'local-archive',
+              clientId: 'client-a',
+              actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+              opType: OpType.Update,
+              entityType: 'TASK',
+              entityId: 'task-1',
+              entityIds: ['task-1'],
+              payload: {
+                actionPayload: { tasks: [{ id: 'task-1' }] },
+                entityChanges: [],
+              },
+              vectorClock: archiveClock,
+              timestamp: now,
+              schemaVersion: 1,
+            },
+          ],
+          remoteOps: [
+            createOpWithLargeClock('remote-upd', 'client-b', now + 5000, remoteClock),
+          ],
+          suggestedResolution: 'manual',
+        },
+      ];
+
+      await service.autoResolveConflictsLWW(conflicts);
+
+      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalled();
+      const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+        .args[0] as Operation;
+      expect(Object.keys(appendedOp.vectorClock).length).toBeLessThanOrEqual(
+        MAX_VECTOR_CLOCK_SIZE,
+      );
+      expect(appendedOp.vectorClock[TEST_CLIENT_ID]).toBeDefined();
+    });
+
+    it('should preserve protected client IDs during pruning of local-win ops', async () => {
+      const protectedId = 'protected-sync-import-client';
+      mockOpLogStore.getProtectedClientIds.and.resolveTo([protectedId]);
+
+      const now = Date.now();
+      // Protected client has the lowest counter, should still be preserved
+      const localClock: VectorClock = { [protectedId]: 1 };
+      for (let i = 1; i <= 5; i++) {
+        localClock[`high-local-${i}`] = i * 100;
+      }
+      const remoteClock = createLargeClock('remote', 5, 50);
+
+      const conflicts: EntityConflict[] = [
+        {
+          entityType: 'TASK',
+          entityId: 'task-1',
+          localOps: [createOpWithLargeClock('local-1', 'client-a', now, localClock)],
+          remoteOps: [
+            createOpWithLargeClock('remote-1', 'client-b', now - 1000, remoteClock),
+          ],
+          suggestedResolution: 'manual',
+        },
+      ];
+
+      mockStore.select.and.returnValue(of({ id: 'task-1', title: 'Test Task' }));
+
+      await service.autoResolveConflictsLWW(conflicts);
+
+      const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+        .args[0] as Operation;
+      expect(appendedOp.vectorClock[protectedId]).toBeDefined();
+      expect(appendedOp.vectorClock[TEST_CLIENT_ID]).toBeDefined();
+      expect(Object.keys(appendedOp.vectorClock).length).toBeLessThanOrEqual(
+        MAX_VECTOR_CLOCK_SIZE,
       );
     });
   });

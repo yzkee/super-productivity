@@ -9,6 +9,7 @@ import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
 import { ActionType, Operation, OpType, EntityType } from '../core/operation.types';
 import { VectorClock } from '../../core/util/vector-clock';
 import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
+import { MAX_VECTOR_CLOCK_SIZE } from '../core/operation-log.const';
 
 describe('SupersededOperationResolverService', () => {
   let service: SupersededOperationResolverService;
@@ -1080,6 +1081,170 @@ describe('SupersededOperationResolverService', () => {
           jasmine.objectContaining({
             translateParams: { localWins: 1, remoteWins: 0 },
           }),
+        );
+      });
+    });
+
+    describe('vector clock pruning', () => {
+      const createLargeClock = (
+        prefix: string,
+        count: number,
+        valueStart: number = 1,
+      ): VectorClock => {
+        const clock: VectorClock = {};
+        for (let i = 1; i <= count; i++) {
+          clock[`${prefix}-${i}`] = valueStart + i - 1;
+        }
+        return clock;
+      };
+
+      it('should prune merged clock to MAX_VECTOR_CLOCK_SIZE for entity resolution ops', async () => {
+        const globalClock = createLargeClock('global', 6, 1);
+        const opClock = createLargeClock('op', 6, 10);
+        const supersededOp = createMockOperation('op-1', 'TASK', 'task-1', opClock, 1000);
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(
+          Promise.resolve(globalClock),
+        );
+        mockConflictResolutionService.getCurrentEntityState.and.returnValue(
+          Promise.resolve({ id: 'task-1' }),
+        );
+
+        await service.resolveSupersededLocalOps([{ opId: 'op-1', op: supersededOp }]);
+
+        const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+          .args[0] as Operation;
+        expect(Object.keys(appendedOp.vectorClock).length).toBeLessThanOrEqual(
+          MAX_VECTOR_CLOCK_SIZE,
+        );
+      });
+
+      it('should prune merged clock to MAX_VECTOR_CLOCK_SIZE for moveToArchive ops', async () => {
+        const globalClock = createLargeClock('global', 6, 1);
+        const opClock = createLargeClock('op', 6, 10);
+
+        const archiveOp: Operation = {
+          id: 'op-archive',
+          actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+          opType: OpType.Update,
+          entityType: 'TASK',
+          entityId: 'task-1',
+          entityIds: ['task-1'],
+          payload: {
+            actionPayload: { tasks: [{ id: 'task-1' }] },
+            entityChanges: [],
+          },
+          clientId: 'original-client',
+          vectorClock: opClock,
+          timestamp: 1000,
+          schemaVersion: 1,
+        };
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(
+          Promise.resolve(globalClock),
+        );
+
+        await service.resolveSupersededLocalOps([{ opId: 'op-archive', op: archiveOp }]);
+
+        const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+          .args[0] as Operation;
+        expect(Object.keys(appendedOp.vectorClock).length).toBeLessThanOrEqual(
+          MAX_VECTOR_CLOCK_SIZE,
+        );
+      });
+
+      it('should prune merged clock to MAX_VECTOR_CLOCK_SIZE for DELETE ops', async () => {
+        const globalClock = createLargeClock('global', 6, 1);
+        const opClock = createLargeClock('op', 6, 10);
+
+        const deleteOp: Operation = {
+          id: 'op-delete',
+          actionType: '[TASK] Delete Task' as ActionType,
+          opType: OpType.Delete,
+          entityType: 'TASK',
+          entityId: 'task-1',
+          payload: { id: 'task-1' },
+          clientId: 'original-client',
+          vectorClock: opClock,
+          timestamp: 1000,
+          schemaVersion: 1,
+        };
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(
+          Promise.resolve(globalClock),
+        );
+
+        await service.resolveSupersededLocalOps([{ opId: 'op-delete', op: deleteOp }]);
+
+        const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+          .args[0] as Operation;
+        expect(Object.keys(appendedOp.vectorClock).length).toBeLessThanOrEqual(
+          MAX_VECTOR_CLOCK_SIZE,
+        );
+      });
+
+      it('should always preserve current client ID during pruning', async () => {
+        // Global clock has 10 high-value clients; TEST_CLIENT_ID will have the lowest counter
+        const globalClock = createLargeClock('high', 10, 100);
+        const supersededOp = createMockOperation(
+          'op-1',
+          'TASK',
+          'task-1',
+          { extra: 200 },
+          1000,
+        );
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(
+          Promise.resolve(globalClock),
+        );
+        mockConflictResolutionService.getCurrentEntityState.and.returnValue(
+          Promise.resolve({ id: 'task-1' }),
+        );
+
+        await service.resolveSupersededLocalOps([{ opId: 'op-1', op: supersededOp }]);
+
+        const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+          .args[0] as Operation;
+        expect(appendedOp.vectorClock[TEST_CLIENT_ID]).toBeDefined();
+        expect(Object.keys(appendedOp.vectorClock).length).toBeLessThanOrEqual(
+          MAX_VECTOR_CLOCK_SIZE,
+        );
+      });
+
+      it('should preserve protected client IDs during pruning', async () => {
+        const protectedId = 'protected-sync-import-client';
+        mockOpLogStore.getProtectedClientIds.and.returnValue(
+          Promise.resolve([protectedId]),
+        );
+
+        // Protected client has the lowest counter, should still be preserved
+        const globalClock: VectorClock = { [protectedId]: 1 };
+        for (let i = 1; i <= 10; i++) {
+          globalClock[`high-${i}`] = i * 100;
+        }
+        const supersededOp = createMockOperation(
+          'op-1',
+          'TASK',
+          'task-1',
+          { extra: 50 },
+          1000,
+        );
+
+        mockVectorClockService.getCurrentVectorClock.and.returnValue(
+          Promise.resolve(globalClock),
+        );
+        mockConflictResolutionService.getCurrentEntityState.and.returnValue(
+          Promise.resolve({ id: 'task-1' }),
+        );
+
+        await service.resolveSupersededLocalOps([{ opId: 'op-1', op: supersededOp }]);
+
+        const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
+          .args[0] as Operation;
+        expect(appendedOp.vectorClock[protectedId]).toBeDefined();
+        expect(appendedOp.vectorClock[TEST_CLIENT_ID]).toBeDefined();
+        expect(Object.keys(appendedOp.vectorClock).length).toBeLessThanOrEqual(
+          MAX_VECTOR_CLOCK_SIZE,
         );
       });
     });
