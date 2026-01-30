@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { ActionType, Operation, OpType, VectorClock } from '../core/operation.types';
-import { mergeVectorClocks } from '../../core/util/vector-clock';
+import { mergeVectorClocks, limitVectorClockSize } from '../../core/util/vector-clock';
 import { OpLog } from '../../core/log';
 import { ConflictResolutionService } from './conflict-resolution.service';
 import { VectorClockService } from './vector-clock.service';
@@ -117,6 +117,9 @@ export class SupersededOperationResolverService {
         }
       }
 
+      // Load protected client IDs (e.g., from latest SYNC_IMPORT) to preserve during pruning
+      const protectedClientIds = await this.opLogStore.getProtectedClientIds();
+
       const opsToReject: string[] = [];
       const newOpsCreated: Operation[] = [];
 
@@ -133,9 +136,14 @@ export class SupersededOperationResolverService {
           // Re-create the archive operation with a merged vector clock.
           // The original payload is preserved exactly (MultiEntityPayload format with
           // actionPayload.tasks containing full task data for remote archive writes).
-          const newClock = this.conflictResolutionService.mergeAndIncrementClocks(
+          const mergedClock = this.conflictResolutionService.mergeAndIncrementClocks(
             [globalClock, item.op.vectorClock],
             clientId,
+          );
+          const newClock = limitVectorClockSize(
+            mergedClock,
+            clientId,
+            protectedClientIds,
           );
           const newOp = this._recreateOpWithMergedClock(
             item.op,
@@ -180,10 +188,13 @@ export class SupersededOperationResolverService {
 
         // Start with the global clock, merge in local pending ops' clocks, and increment
         const allClocks = [globalClock, ...entityOps.map(({ op }) => op.vectorClock)];
-        const newClock = this.conflictResolutionService.mergeAndIncrementClocks(
+        const mergedClock = this.conflictResolutionService.mergeAndIncrementClocks(
           allClocks,
           clientId,
         );
+        // Prune to match what the regular capture pipeline produces, preventing
+        // infinite rejection loops when server compares pruned vs unpruned clocks
+        const newClock = limitVectorClockSize(mergedClock, clientId, protectedClientIds);
 
         // Check if all superseded ops for this entity are DELETE operations
         const allOpsAreDeletes = entityOps.every((e) => e.op.opType === OpType.Delete);

@@ -54,8 +54,10 @@ describe('ConflictResolutionService', () => {
       'getUnsyncedByEntity',
       'filterNewOps',
       'mergeRemoteOpClocks',
+      'getProtectedClientIds',
     ]);
     mockOpLogStore.mergeRemoteOpClocks.and.resolveTo(undefined);
+    mockOpLogStore.getProtectedClientIds.and.resolveTo([]);
     mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
     mockValidateStateService = jasmine.createSpyObj('ValidateStateService', [
       'validateAndRepairCurrentState',

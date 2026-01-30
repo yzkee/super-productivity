@@ -22,6 +22,7 @@ import { DUPLICATE_OPERATION_ERROR_PATTERN } from '../persistence/op-log-errors.
 import {
   compareVectorClocks,
   incrementVectorClock,
+  limitVectorClockSize,
   mergeVectorClocks,
   VectorClockComparison,
 } from '../../core/util/vector-clock';
@@ -689,7 +690,11 @@ export class ConflictResolutionService {
       ...conflict.localOps.map((op) => op.vectorClock),
       ...conflict.remoteOps.map((op) => op.vectorClock),
     ];
-    const newClock = this.mergeAndIncrementClocks(allClocks, clientId);
+    const mergedClock = this.mergeAndIncrementClocks(allClocks, clientId);
+    // Prune to match what the regular capture pipeline produces, preventing
+    // infinite rejection loops when server compares pruned vs unpruned clocks
+    const protectedClientIds = await this.opLogStore.getProtectedClientIds();
+    const newClock = limitVectorClockSize(mergedClock, clientId, protectedClientIds);
 
     // Preserve the maximum timestamp from local ops.
     // This is critical for LWW semantics: we're creating a new op to carry the
@@ -729,7 +734,11 @@ export class ConflictResolutionService {
       ...conflict.localOps.map((op) => op.vectorClock),
       ...conflict.remoteOps.map((op) => op.vectorClock),
     ];
-    const newClock = this.mergeAndIncrementClocks(allClocks, clientId);
+    const mergedClock = this.mergeAndIncrementClocks(allClocks, clientId);
+    // Prune to match what the regular capture pipeline produces, preventing
+    // infinite rejection loops when server compares pruned vs unpruned clocks
+    const protectedClientIds = await this.opLogStore.getProtectedClientIds();
+    const newClock = limitVectorClockSize(mergedClock, clientId, protectedClientIds);
 
     return {
       id: uuidv7(),
