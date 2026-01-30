@@ -147,9 +147,10 @@ export const compareVectorClocks = (
     return VectorClockComparison.GREATER_THAN;
   }
 
-  // Delegate to shared implementation and convert string result to enum
+  // Delegate to shared implementation and convert string result to enum.
+  // Safe cast: shared implementation returns the same string literals as enum values.
   const result = sharedCompareVectorClocks(a!, b!);
-  return VectorClockComparison[result];
+  return result as VectorClockComparison;
 };
 
 /**

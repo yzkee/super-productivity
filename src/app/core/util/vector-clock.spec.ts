@@ -326,7 +326,7 @@ describe('vector-clock', () => {
       expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.EQUAL);
     });
 
-    it('should preserve shared-key result when only one side has non-shared keys', () => {
+    it('should return CONCURRENT when only one side has non-shared keys and shared keys are equal', () => {
       const a: Record<string, number> = {};
       const b: Record<string, number> = {};
       for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE; i++) {
@@ -339,8 +339,9 @@ describe('vector-clock', () => {
       }
 
       // Both >= MAX → pruning-aware. Shared keys equal.
-      // Only one side has non-shared keys → stays EQUAL (not escalated).
-      expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.EQUAL);
+      // One side has non-shared keys → CONCURRENT (safe direction).
+      // Non-shared keys may represent real causal knowledge the other side lacks.
+      expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.CONCURRENT);
     });
 
     it('asymmetric pruning: one clock pruned, other naturally at MAX size (known limitation)', () => {
