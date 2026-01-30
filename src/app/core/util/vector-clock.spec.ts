@@ -266,5 +266,36 @@ describe('vector-clock', () => {
       // Both small -> all keys -> CONCURRENT
       expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.CONCURRENT);
     });
+
+    it('should return CONCURRENT when both clocks at MAX but completely disjoint keys', () => {
+      const a: Record<string, number> = {};
+      const b: Record<string, number> = {};
+      for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+        a[`a_client_${i}`] = i + 1;
+        b[`b_client_${i}`] = i + 1;
+      }
+
+      // No shared keys at all — independent client populations
+      expect(Object.keys(a).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+      expect(Object.keys(b).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+      expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.CONCURRENT);
+    });
+
+    it('should use ALL keys when one clock is at MAX and other is at MAX-1', () => {
+      const a: Record<string, number> = {};
+      for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+        a[`client_${i}`] = 10;
+      }
+      const b: Record<string, number> = {};
+      for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE - 2; i++) {
+        b[`client_${i}`] = 5;
+      }
+      b['unique_b'] = 100;
+
+      // Only a is at MAX, so all keys are used (no pruning-aware mode)
+      expect(Object.keys(a).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+      expect(Object.keys(b).length).toBe(MAX_VECTOR_CLOCK_SIZE - 1);
+      expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.CONCURRENT);
+    });
   });
 });

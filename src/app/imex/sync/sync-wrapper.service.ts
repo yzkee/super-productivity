@@ -322,7 +322,7 @@ export class SyncWrapperService {
         );
         // Don't claim IN_SYNC — there are known unuploaded ops.
         this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
-        return SyncStatus.InSync;
+        return SyncStatus.UpdateRemote;
       }
 
       // 4. Check for permanent rejection failures - these are critical failures that should
