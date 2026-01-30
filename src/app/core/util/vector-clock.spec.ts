@@ -297,5 +297,49 @@ describe('vector-clock', () => {
       expect(Object.keys(b).length).toBe(MAX_VECTOR_CLOCK_SIZE - 1);
       expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.CONCURRENT);
     });
+
+    it('should return CONCURRENT when shared keys equal but both sides have non-shared keys', () => {
+      const a: Record<string, number> = {};
+      const b: Record<string, number> = {};
+      for (let i = 0; i < 5; i++) {
+        a[`shared_${i}`] = 10;
+        b[`shared_${i}`] = 10;
+      }
+      for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE - 5; i++) {
+        a[`a_only_${i}`] = 50;
+        b[`b_only_${i}`] = 50;
+      }
+
+      // Non-shared keys on both sides → genuinely different causal histories → CONCURRENT
+      expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.CONCURRENT);
+    });
+
+    it('should return EQUAL when fully-shared keys at MAX size are identical', () => {
+      const a: Record<string, number> = {};
+      const b: Record<string, number> = {};
+      for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+        a[`client_${i}`] = 10;
+        b[`client_${i}`] = 10;
+      }
+
+      expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.EQUAL);
+    });
+
+    it('should preserve shared-key result when only one side has non-shared keys', () => {
+      const a: Record<string, number> = {};
+      const b: Record<string, number> = {};
+      for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+        a[`shared_${i}`] = 10;
+        b[`shared_${i}`] = 10;
+      }
+      // Only a has extra keys
+      for (let i = 0; i < 3; i++) {
+        a[`a_only_${i}`] = 100;
+      }
+
+      // Both >= MAX → pruning-aware. Shared keys equal.
+      // Only one side has non-shared keys → stays EQUAL (not escalated).
+      expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.EQUAL);
+    });
   });
 });
