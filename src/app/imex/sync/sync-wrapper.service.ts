@@ -299,15 +299,27 @@ export class SyncWrapperService {
         );
       }
 
-      // 3. If LWW created local-win ops, upload them
-      const totalLocalWinOps =
+      // 3. If LWW created local-win ops, upload them (with retry limit to prevent infinite loops)
+      const MAX_LWW_REUPLOAD_RETRIES = 3;
+      let lwwRetries = 0;
+      let pendingLwwOps =
         (downloadResult.localWinOpsCreated ?? 0) +
         (uploadResult?.localWinOpsCreated ?? 0);
-      if (totalLocalWinOps > 0) {
+      while (pendingLwwOps > 0 && lwwRetries < MAX_LWW_REUPLOAD_RETRIES) {
+        lwwRetries++;
         SyncLog.log(
-          `SyncWrapperService: Re-uploading ${totalLocalWinOps} local-win op(s) from LWW...`,
+          `SyncWrapperService: Re-uploading ${pendingLwwOps} local-win op(s) from LWW ` +
+            `(attempt ${lwwRetries}/${MAX_LWW_REUPLOAD_RETRIES})...`,
         );
-        await this._opLogSyncService.uploadPendingOps(syncCapableProvider);
+        const reuploadResult =
+          await this._opLogSyncService.uploadPendingOps(syncCapableProvider);
+        pendingLwwOps = reuploadResult?.localWinOpsCreated ?? 0;
+      }
+      if (pendingLwwOps > 0) {
+        SyncLog.warn(
+          `SyncWrapperService: LWW re-upload still has ${pendingLwwOps} pending ops after ` +
+            `${MAX_LWW_REUPLOAD_RETRIES} retries. Will retry on next sync.`,
+        );
       }
 
       // 4. Check for permanent rejection failures - these are critical failures that should

@@ -3,11 +3,10 @@ import {
   VectorClock as SharedVectorClock,
   compareVectorClocks as sharedCompareVectorClocks,
   mergeVectorClocks as sharedMergeVectorClocks,
-} from '@sp/shared-schema';
-import {
+  limitVectorClockSize as sharedLimitVectorClockSize,
   MAX_VECTOR_CLOCK_SIZE,
-  MIN_CLIENT_ID_LENGTH,
-} from '../../op-log/core/operation-log.const';
+} from '@sp/shared-schema';
+import { MIN_CLIENT_ID_LENGTH } from '../../op-log/core/operation-log.const';
 
 /**
  * Vector Clock implementation for distributed synchronization
@@ -295,8 +294,6 @@ export const hasVectorClockChanges = (
   return false;
 };
 
-// MAX_VECTOR_CLOCK_SIZE imported from operation-log.const.ts
-
 /**
  * Metrics for vector clock operations
  */
@@ -307,7 +304,9 @@ export interface VectorClockMetrics {
 }
 
 /**
- * Limits the size of a vector clock by keeping only the most active clients
+ * Limits the size of a vector clock by keeping only the most active clients.
+ * Wraps the shared implementation from @sp/shared-schema with client-side logging.
+ *
  * @param clock The vector clock to limit
  * @param currentClientId The current client's ID (always preserved)
  * @param protectedClientIds Additional client IDs to always preserve (e.g., from latest SYNC_IMPORT).
@@ -321,13 +320,9 @@ export const limitVectorClockSize = (
   protectedClientIds: string[] = [],
 ): VectorClock => {
   const entries = Object.entries(clock);
-
   if (entries.length <= MAX_VECTOR_CLOCK_SIZE) {
     return clock;
   }
-
-  // Build set of clients to always preserve
-  const alwaysPreserve = new Set([currentClientId, ...protectedClientIds]);
 
   PFLog.info('Vector clock pruning triggered', {
     originalSize: entries.length,
@@ -337,27 +332,7 @@ export const limitVectorClockSize = (
     pruned: entries.length - MAX_VECTOR_CLOCK_SIZE,
   });
 
-  // Sort by value (descending) to keep most active clients
-  entries.sort(([, a], [, b]) => b - a);
-
-  // Always keep preserved clients first
-  const limited: VectorClock = {};
-  for (const id of alwaysPreserve) {
-    if (clock[id] !== undefined) {
-      limited[id] = clock[id];
-    }
-  }
-
-  // Add top active non-preserved clients up to limit
-  let count = Object.keys(limited).length;
-  for (const [clientId, value] of entries) {
-    if (!alwaysPreserve.has(clientId) && count < MAX_VECTOR_CLOCK_SIZE) {
-      limited[clientId] = value;
-      count++;
-    }
-  }
-
-  return limited;
+  return sharedLimitVectorClockSize(clock, [currentClientId, ...protectedClientIds]);
 };
 
 /**

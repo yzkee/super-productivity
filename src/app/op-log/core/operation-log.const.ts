@@ -205,8 +205,10 @@ export const DOWNLOAD_PAGE_SIZE = 500;
  * Maximum number of clients to track in a vector clock.
  * When exceeded, pruning keeps the most active clients (highest counter values).
  * The current client is always preserved regardless of activity level.
+ *
+ * Re-exported from @sp/shared-schema to ensure client and server use the same value.
  */
-export const MAX_VECTOR_CLOCK_SIZE = 10;
+export { MAX_VECTOR_CLOCK_SIZE } from '@sp/shared-schema';
 
 /**
  * Minimum length for client IDs in vector clocks.

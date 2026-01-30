@@ -108,19 +108,18 @@ export class OperationApplierService {
         }
       }
     } finally {
-      this.hydrationState.endApplyingRemoteOps();
-
-      // Process any user actions that were buffered during sync replay.
-      // These get fresh vector clocks that include the newly-applied remote ops.
-      // Do this before cooldown starts so deferred actions are persisted promptly.
-      await this.injector.get(OperationLogEffects).processDeferredActions();
-
-      // Start post-sync cooldown to suppress selector-based effects
-      // that might fire due to freshly-synced state changes.
+      // Start cooldown BEFORE ending remote ops flag to eliminate the timing gap
+      // where isInSyncWindow() returns false and selector-based effects can fire.
       // Only needed for remote ops - local hydration doesn't cause the timing gap issue.
       if (!isLocalHydration) {
         this.hydrationState.startPostSyncCooldown();
       }
+
+      this.hydrationState.endApplyingRemoteOps();
+
+      // Process any user actions that were buffered during sync replay.
+      // These get fresh vector clocks that include the newly-applied remote ops.
+      await this.injector.get(OperationLogEffects).processDeferredActions();
     }
 
     OpLog.normal('OperationApplierService: Finished applying operations.');
