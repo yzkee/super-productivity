@@ -320,6 +320,9 @@ export class SyncWrapperService {
           `SyncWrapperService: LWW re-upload still has ${pendingLwwOps} pending ops after ` +
             `${MAX_LWW_REUPLOAD_RETRIES} retries. Will retry on next sync.`,
         );
+        // Don't claim IN_SYNC — there are known unuploaded ops.
+        this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
+        return SyncStatus.InSync;
       }
 
       // 4. Check for permanent rejection failures - these are critical failures that should

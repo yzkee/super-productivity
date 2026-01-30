@@ -111,8 +111,13 @@ export class OperationApplierService {
       // Start cooldown BEFORE ending remote ops flag to eliminate the timing gap
       // where isInSyncWindow() returns false and selector-based effects can fire.
       // Only needed for remote ops - local hydration doesn't cause the timing gap issue.
+      // Wrapped in try-catch so endApplyingRemoteOps() always runs even if this fails.
       if (!isLocalHydration) {
-        this.hydrationState.startPostSyncCooldown();
+        try {
+          this.hydrationState.startPostSyncCooldown();
+        } catch (e) {
+          OpLog.err('OperationApplierService: startPostSyncCooldown failed', e);
+        }
       }
 
       this.hydrationState.endApplyingRemoteOps();
