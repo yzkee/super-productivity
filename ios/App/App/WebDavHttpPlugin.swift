@@ -79,8 +79,12 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
             }
 
             let bodyString: String
-            if let responseData = responseData {
-                bodyString = String(data: responseData, encoding: .utf8) ?? ""
+            if let responseData = responseData, !responseData.isEmpty {
+                guard let decoded = String(data: responseData, encoding: .utf8) else {
+                    call.reject("Failed to decode response as UTF-8 (\(responseData.count) bytes)", "DECODE_ERROR")
+                    return
+                }
+                bodyString = decoded
             } else {
                 bodyString = ""
             }
