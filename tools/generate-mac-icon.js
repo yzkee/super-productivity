@@ -4,9 +4,13 @@
  * Generate macOS app icon with squircle mask from existing PNG source.
  *
  * macOS does not automatically apply a squircle mask to .icns icons —
- * the shape must be baked into the image. This script applies an
- * Apple-standard squircle (rounded rect with ~18% corner radius)
- * to the square source icon and generates build/icon.icns.
+ * the shape must be baked into the image. This script applies Apple's
+ * continuous-corner rounded rectangle (the "squircle") to the square
+ * source icon and generates build/icon.icns.
+ *
+ * The bezier curve constants are reverse-engineered from iOS
+ * UIBezierPath(roundedRect:cornerRadius:) by Liam Rosenfeld.
+ * See: https://liamrosenfeld.com/posts/apple_icon_quest/
  *
  * The .icns file is assembled directly from PNG buffers (no native tools needed).
  */
@@ -29,10 +33,53 @@ const ICNS_TYPES = [
   { osType: 'icp4', size: 16 },
 ];
 
-function squircleSvg(size) {
-  const radius = Math.round(size * 0.18);
-  return `<svg width="${size}" height="${size}">
-  <rect x="0" y="0" width="${size}" height="${size}" rx="${radius}" ry="${radius}" fill="white"/>
+// Apple's corner radius: 185.4px at 824x824, scaled to full canvas
+const CORNER_RADIUS_RATIO = 185.4 / 824;
+
+/**
+ * Generate an SVG path for Apple's continuous-corner rounded rectangle.
+ *
+ * Unlike a standard SVG rounded rect (which uses circular arcs), this uses
+ * cubic bezier curves with continuous curvature — the transition from
+ * straight edge to curve is gradual, not abrupt.
+ *
+ * Constants from UIBezierPath(roundedRect:cornerRadius:) reverse-engineering.
+ */
+function continuousRoundedRectSvg(size) {
+  const cr = Math.round(size * CORNER_RADIUS_RATIO);
+
+  // Helper functions matching the Swift implementation
+  const tl = (x, y) => [x * cr, y * cr];
+  const tr = (x, y) => [size - x * cr, y * cr];
+  const br = (x, y) => [size - x * cr, size - y * cr];
+  const bl = (x, y) => [x * cr, size - y * cr];
+
+  const p = (pt) => `${pt[0].toFixed(2)} ${pt[1].toFixed(2)}`;
+
+  // Build SVG path using Apple's continuous-corner bezier curves
+  const d = [
+    `M ${p(tl(1.528665, 0))}`,
+    `L ${p(tr(1.528665, 0))}`,
+    `C ${p(tr(1.08849296, 0))} ${p(tr(0.86840694, 0))} ${p(tr(0.63149379, 0.07491139))}`,
+    `C ${p(tr(0.37282383, 0.16905956))} ${p(tr(0.16905956, 0.37282383))} ${p(tr(0.07491139, 0.63149379))}`,
+    `C ${p(tr(0, 0.86840694))} ${p(tr(0, 1.08849296))} ${p(tr(0, 1.52866498))}`,
+    `L ${p(br(0, 1.528665))}`,
+    `C ${p(br(0, 1.08849296))} ${p(br(0, 0.86840694))} ${p(br(0.07491139, 0.63149379))}`,
+    `C ${p(br(0.16905956, 0.37282383))} ${p(br(0.37282383, 0.16905956))} ${p(br(0.63149379, 0.07491139))}`,
+    `C ${p(br(0.86840694, 0))} ${p(br(1.08849296, 0))} ${p(br(1.52866498, 0))}`,
+    `L ${p(bl(1.528665, 0))}`,
+    `C ${p(bl(1.08849296, 0))} ${p(bl(0.86840694, 0))} ${p(bl(0.63149379, 0.07491139))}`,
+    `C ${p(bl(0.37282383, 0.16905956))} ${p(bl(0.16905956, 0.37282383))} ${p(bl(0.07491139, 0.63149379))}`,
+    `C ${p(bl(0, 0.86840694))} ${p(bl(0, 1.08849296))} ${p(bl(0, 1.52866498))}`,
+    `L ${p(tl(0, 1.528665))}`,
+    `C ${p(tl(0, 1.08849296))} ${p(tl(0, 0.86840694))} ${p(tl(0.07491139, 0.63149379))}`,
+    `C ${p(tl(0.16905956, 0.37282383))} ${p(tl(0.37282383, 0.16905956))} ${p(tl(0.63149379, 0.07491139))}`,
+    `C ${p(tl(0.86840694, 0))} ${p(tl(1.08849296, 0))} ${p(tl(1.52866498, 0))}`,
+    'Z',
+  ].join(' ');
+
+  return `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+  <path d="${d}" fill="white"/>
 </svg>`;
 }
 
@@ -71,7 +118,7 @@ function buildIcns(entries) {
 }
 
 async function generateMacIcon() {
-  console.log('Generating macOS app icon with squircle mask...\n');
+  console.log('Generating macOS app icon with continuous-corner squircle mask...\n');
 
   if (!fs.existsSync(SOURCE_PNG)) {
     throw new Error(`Source PNG not found: ${SOURCE_PNG}`);
@@ -81,7 +128,7 @@ async function generateMacIcon() {
   const entries = [];
 
   for (const { osType, size } of ICNS_TYPES) {
-    const svg = squircleSvg(size);
+    const svg = continuousRoundedRectSvg(size);
 
     const pngBuffer = await sharp(SOURCE_PNG)
       .resize(size, size, { fit: 'cover', position: 'center' })
