@@ -351,6 +351,19 @@ export class SuperSyncProvider
 
   // === Private Helper Methods ===
 
+  private async _handleTokenRefresh(
+    refreshedToken: string | null | undefined,
+  ): Promise<void> {
+    if (!refreshedToken) return;
+    try {
+      await this.privateCfg.updatePartial({ accessToken: refreshedToken });
+    } catch (e) {
+      SyncLog.warn(this.logLabel, 'Failed to store refreshed token', {
+        error: (e as Error).message,
+      });
+    }
+  }
+
   private async _cfgOrError(): Promise<SuperSyncPrivateCfg> {
     // Note: SyncCredentialStore.load() has its own in-memory caching
     const cfg = await this.privateCfg.load();
@@ -363,16 +376,14 @@ export class SuperSyncProvider
   /**
    * Generates a storage key unique to this server URL to avoid conflicts
    * when switching between different accounts or servers.
+   * Only uses baseUrl for the hash — users don't share a browser's IndexedDB,
+   * so per-user separation isn't needed. This prevents token refreshes from
+   * resetting lastServerSeq (which would cause full re-downloads).
    */
   private async _getServerSeqKey(): Promise<string> {
     // Note: SyncCredentialStore.load() has its own in-memory caching
     const cfg = await this.privateCfg.load();
-    const baseUrl = cfg?.baseUrl ?? 'default';
-    // Include accessToken in the hash so different users on the same server
-    // get separate lastServerSeq tracking. This ensures server migration detection
-    // works correctly when switching between accounts on the same server.
-    const accessToken = cfg?.accessToken ?? '';
-    const identifier = `${baseUrl}|${accessToken}`;
+    const identifier = cfg?.baseUrl ?? 'default';
     const hash = identifier
       .split('')
       .reduce((acc, char) => ((acc << 5) - acc + char.charCodeAt(0)) | 0, 0)
@@ -504,6 +515,8 @@ export class SuperSyncProvider
       const data = (await response.json()) as T;
       clearTimeout(timeoutId);
 
+      await this._handleTokenRefresh(response.headers.get('x-refreshed-token'));
+
       // Log slow requests
       const duration = Date.now() - startTime;
       if (duration > 30000) {
@@ -577,6 +590,10 @@ export class SuperSyncProvider
         throw new Error(`SuperSync API error: ${response.status} - ${errorData}`);
       }
 
+      await this._handleTokenRefresh(
+        response.headers['x-refreshed-token'] || response.headers['X-Refreshed-Token'],
+      );
+
       // Log slow requests
       const duration = Date.now() - startTime;
       if (duration > 30000) {
@@ -637,6 +654,8 @@ export class SuperSyncProvider
       // CRITICAL: Read response body BEFORE clearing timeout
       const data = (await response.json()) as T;
       clearTimeout(timeoutId);
+
+      await this._handleTokenRefresh(response.headers.get('x-refreshed-token'));
 
       // Log slow requests
       const duration = Date.now() - startTime;
@@ -724,6 +743,10 @@ export class SuperSyncProvider
         this._checkHttpStatus(response.status, errorData);
         throw new Error(`SuperSync API error: ${response.status} - ${errorData}`);
       }
+
+      await this._handleTokenRefresh(
+        response.headers['x-refreshed-token'] || response.headers['X-Refreshed-Token'],
+      );
 
       // Log slow requests
       const duration = Date.now() - startTime;

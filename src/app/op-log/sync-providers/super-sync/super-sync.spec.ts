@@ -9,6 +9,9 @@ import {
 import { SyncOperation } from '../provider.interface';
 import { SyncLog } from '../../../core/log';
 
+// HTTP header name used by the server to return a refreshed JWT token
+const REFRESHED_TOKEN_HEADER = 'x-refreshed-token';
+
 // Helper to convert Blob to Uint8Array
 const blobToUint8Array = async (blob: Blob): Promise<Uint8Array> => {
   const arrayBuffer = await blob.arrayBuffer();
@@ -36,6 +39,36 @@ const decompressBase64Gzip = async (base64: string): Promise<string> => {
     bytes[i] = binaryString.charCodeAt(i);
   }
   return decompressGzip(bytes);
+};
+
+/**
+ * Builds a header map with an optional refreshed token value.
+ * Uses bracket notation to avoid lint errors on hyphenated keys.
+ */
+const buildHeaderMap = (
+  refreshedToken: string | null = null,
+): Record<string, string | null> => {
+  const map: Record<string, string | null> = {};
+  map[REFRESHED_TOKEN_HEADER] = refreshedToken;
+  return map;
+};
+
+/**
+ * Creates a mock fetch Response with the given JSON data and optional refreshed token.
+ * Includes `headers.get()` by default to support `_handleTokenRefresh`.
+ */
+const createMockFetchResponse = (
+  jsonData: unknown,
+  refreshedToken: string | null = null,
+): Response => {
+  const headerMap = buildHeaderMap(refreshedToken);
+  return {
+    ok: true,
+    json: () => Promise.resolve(jsonData),
+    headers: {
+      get: (name: string) => headerMap[name.toLowerCase()] ?? null,
+    },
+  } as unknown as Response;
 };
 
 describe('SuperSyncProvider', () => {
@@ -72,6 +105,7 @@ describe('SuperSyncProvider', () => {
     mockPrivateCfgStore = jasmine.createSpyObj('SyncCredentialStore', [
       'load',
       'setComplete',
+      'updatePartial',
     ]);
 
     provider = new SuperSyncProvider();
@@ -164,10 +198,9 @@ describe('SuperSyncProvider', () => {
     it('should invalidate caches so subsequent calls load fresh config', async () => {
       mockPrivateCfgStore.setComplete.and.returnValue(Promise.resolve());
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ ops: [], hasMore: false, latestSeq: 0 }),
-        } as Response),
+        Promise.resolve(
+          createMockFetchResponse({ ops: [], hasMore: false, latestSeq: 0 }),
+        ),
       );
 
       // First config
@@ -196,10 +229,9 @@ describe('SuperSyncProvider', () => {
       // but SyncCredentialStore returns cached value after first load.
       mockPrivateCfgStore.load.and.returnValue(Promise.resolve(testConfig));
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ ops: [], hasMore: false, latestSeq: 0 }),
-        } as Response),
+        Promise.resolve(
+          createMockFetchResponse({ ops: [], hasMore: false, latestSeq: 0 }),
+        ),
       );
 
       // Call multiple methods that use _cfgOrError
@@ -268,12 +300,7 @@ describe('SuperSyncProvider', () => {
         latestSeq: 1,
       };
 
-      fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockResponse),
-        } as Response),
-      );
+      fetchSpy.and.returnValue(Promise.resolve(createMockFetchResponse(mockResponse)));
 
       const ops = [createMockOperation()];
       const result = await provider.uploadOps(ops, 'client-1');
@@ -297,17 +324,13 @@ describe('SuperSyncProvider', () => {
       mockPrivateCfgStore.load.and.returnValue(Promise.resolve(testConfig));
 
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              results: [],
-              latestSeq: 5,
-              newOps: [
-                { serverSeq: 3, op: createMockOperation(), receivedAt: Date.now() },
-              ],
-            }),
-        } as Response),
+        Promise.resolve(
+          createMockFetchResponse({
+            results: [],
+            latestSeq: 5,
+            newOps: [{ serverSeq: 3, op: createMockOperation(), receivedAt: Date.now() }],
+          }),
+        ),
       );
 
       await provider.uploadOps([createMockOperation()], 'client-1', 2);
@@ -351,10 +374,7 @@ describe('SuperSyncProvider', () => {
       );
 
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ results: [], latestSeq: 0 }),
-        } as Response),
+        Promise.resolve(createMockFetchResponse({ results: [], latestSeq: 0 })),
       );
 
       await provider.uploadOps([createMockOperation()], 'client-1');
@@ -374,12 +394,7 @@ describe('SuperSyncProvider', () => {
         latestSeq: 1,
       };
 
-      fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockResponse),
-        } as Response),
-      );
+      fetchSpy.and.returnValue(Promise.resolve(createMockFetchResponse(mockResponse)));
 
       const result = await provider.downloadOps(0);
 
@@ -394,10 +409,9 @@ describe('SuperSyncProvider', () => {
       mockPrivateCfgStore.load.and.returnValue(Promise.resolve(testConfig));
 
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ ops: [], hasMore: false, latestSeq: 0 }),
-        } as Response),
+        Promise.resolve(
+          createMockFetchResponse({ ops: [], hasMore: false, latestSeq: 0 }),
+        ),
       );
 
       await provider.downloadOps(0, 'client-1');
@@ -410,10 +424,9 @@ describe('SuperSyncProvider', () => {
       mockPrivateCfgStore.load.and.returnValue(Promise.resolve(testConfig));
 
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ ops: [], hasMore: false, latestSeq: 0 }),
-        } as Response),
+        Promise.resolve(
+          createMockFetchResponse({ ops: [], hasMore: false, latestSeq: 0 }),
+        ),
       );
 
       await provider.downloadOps(0, undefined, 100);
@@ -426,10 +439,9 @@ describe('SuperSyncProvider', () => {
       mockPrivateCfgStore.load.and.returnValue(Promise.resolve(testConfig));
 
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ ops: [], hasMore: false, latestSeq: 0 }),
-        } as Response),
+        Promise.resolve(
+          createMockFetchResponse({ ops: [], hasMore: false, latestSeq: 0 }),
+        ),
       );
 
       await provider.downloadOps(5, 'client-1', 50);
@@ -615,10 +627,9 @@ describe('SuperSyncProvider', () => {
       // already has its own in-memory caching. Each operation calls load() directly.
       mockPrivateCfgStore.load.and.returnValue(Promise.resolve(testConfig));
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ ops: [], hasMore: false, latestSeq: 0 }),
-        } as Response),
+        Promise.resolve(
+          createMockFetchResponse({ ops: [], hasMore: false, latestSeq: 0 }),
+        ),
       );
       await provider.downloadOps(0);
       expect(mockPrivateCfgStore.load).toHaveBeenCalledTimes(1);
@@ -642,10 +653,9 @@ describe('SuperSyncProvider', () => {
 
       // Third call should succeed - config reloaded from SyncCredentialStore
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ ops: [], hasMore: false, latestSeq: 0 }),
-        } as Response),
+        Promise.resolve(
+          createMockFetchResponse({ ops: [], hasMore: false, latestSeq: 0 }),
+        ),
       );
       await provider.downloadOps(0);
       // Each operation calls load() directly (SyncCredentialStore handles caching)
@@ -733,12 +743,7 @@ describe('SuperSyncProvider', () => {
         newOps: [{ serverSeq: 3, op: createMockOperation(), receivedAt: Date.now() }],
       };
 
-      fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockResponse),
-        } as Response),
-      );
+      fetchSpy.and.returnValue(Promise.resolve(createMockFetchResponse(mockResponse)));
 
       const result = await provider.uploadOps([createMockOperation()], 'client-1', 2);
 
@@ -765,12 +770,7 @@ describe('SuperSyncProvider', () => {
         latestSeq: 5,
       };
 
-      fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockResponse),
-        } as Response),
-      );
+      fetchSpy.and.returnValue(Promise.resolve(createMockFetchResponse(mockResponse)));
 
       const result = await provider.uploadOps([createMockOperation()], 'client-1');
 
@@ -793,12 +793,7 @@ describe('SuperSyncProvider', () => {
         latestSeq: 5,
       };
 
-      fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockResponse),
-        } as Response),
-      );
+      fetchSpy.and.returnValue(Promise.resolve(createMockFetchResponse(mockResponse)));
 
       const result = await provider.uploadOps([createMockOperation()], 'client-1');
 
@@ -823,12 +818,7 @@ describe('SuperSyncProvider', () => {
         latestSeq: 11,
       };
 
-      fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockResponse),
-        } as Response),
-      );
+      fetchSpy.and.returnValue(Promise.resolve(createMockFetchResponse(mockResponse)));
 
       const ops = [
         createMockOperation({ id: 'op-1' }),
@@ -867,12 +857,7 @@ describe('SuperSyncProvider', () => {
         hasMorePiggyback: true,
       };
 
-      fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockResponse),
-        } as Response),
-      );
+      fetchSpy.and.returnValue(Promise.resolve(createMockFetchResponse(mockResponse)));
 
       const result = await provider.uploadOps([createMockOperation()], 'client-1', 4);
 
@@ -884,7 +869,7 @@ describe('SuperSyncProvider', () => {
     });
   });
 
-  describe('server URL key generation', () => {
+  describe('server URL key generation (_getServerSeqKey)', () => {
     it('should generate different keys for different URLs', async () => {
       const capturedKeys: string[] = [];
       localStorageSpy.getItem.and.callFake((key: string) => {
@@ -897,6 +882,7 @@ describe('SuperSyncProvider', () => {
       const mockStore1 = jasmine.createSpyObj('SyncCredentialStore', [
         'load',
         'setComplete',
+        'updatePartial',
       ]);
       provider1.privateCfg = mockStore1;
       mockStore1.load.and.returnValue(
@@ -909,6 +895,7 @@ describe('SuperSyncProvider', () => {
       const mockStore2 = jasmine.createSpyObj('SyncCredentialStore', [
         'load',
         'setComplete',
+        'updatePartial',
       ]);
       provider2.privateCfg = mockStore2;
       mockStore2.load.and.returnValue(
@@ -919,46 +906,50 @@ describe('SuperSyncProvider', () => {
       expect(capturedKeys[0]).not.toBe(capturedKeys[1]);
     });
 
-    it('should generate different keys for different access tokens on same server', async () => {
+    it('should return the same key when accessToken changes but baseUrl stays the same', async () => {
+      // Token refreshes should NOT reset lastServerSeq, so the key must be
+      // independent of the access token.
       const capturedKeys: string[] = [];
       localStorageSpy.getItem.and.callFake((key: string) => {
         capturedKeys.push(key);
         return null;
       });
 
-      // First user - use fresh provider
+      // First call with token-1
       const provider1 = new SuperSyncProvider();
       const mockStore1 = jasmine.createSpyObj('SyncCredentialStore', [
         'load',
         'setComplete',
+        'updatePartial',
       ]);
       provider1.privateCfg = mockStore1;
       mockStore1.load.and.returnValue(
         Promise.resolve({
           ...testConfig,
           baseUrl: 'https://server.com',
-          accessToken: 'token-user-1',
+          accessToken: 'token-1',
         }),
       );
       await provider1.getLastServerSeq();
 
-      // Second user - use fresh provider (same server, different token)
+      // Second call with token-2 on the same server
       const provider2 = new SuperSyncProvider();
       const mockStore2 = jasmine.createSpyObj('SyncCredentialStore', [
         'load',
         'setComplete',
+        'updatePartial',
       ]);
       provider2.privateCfg = mockStore2;
       mockStore2.load.and.returnValue(
         Promise.resolve({
           ...testConfig,
           baseUrl: 'https://server.com',
-          accessToken: 'token-user-2',
+          accessToken: 'token-2',
         }),
       );
       await provider2.getLastServerSeq();
 
-      expect(capturedKeys[0]).not.toBe(capturedKeys[1]);
+      expect(capturedKeys[0]).toBe(capturedKeys[1]);
     });
 
     it('should use default key when config is missing', async () => {
@@ -973,6 +964,150 @@ describe('SuperSyncProvider', () => {
     });
   });
 
+  describe('_handleTokenRefresh', () => {
+    it('should call updatePartial with the new token when a non-empty token is provided', async () => {
+      mockPrivateCfgStore.updatePartial.and.returnValue(Promise.resolve());
+
+      await (provider as any)._handleTokenRefresh('new-jwt-token');
+
+      expect(mockPrivateCfgStore.updatePartial).toHaveBeenCalledWith({
+        accessToken: 'new-jwt-token',
+      });
+    });
+
+    it('should not call updatePartial when token is null', async () => {
+      await (provider as any)._handleTokenRefresh(null);
+
+      expect(mockPrivateCfgStore.updatePartial).not.toHaveBeenCalled();
+    });
+
+    it('should not call updatePartial when token is undefined', async () => {
+      await (provider as any)._handleTokenRefresh(undefined);
+
+      expect(mockPrivateCfgStore.updatePartial).not.toHaveBeenCalled();
+    });
+
+    it('should not call updatePartial when token is empty string', async () => {
+      await (provider as any)._handleTokenRefresh('');
+
+      expect(mockPrivateCfgStore.updatePartial).not.toHaveBeenCalled();
+    });
+
+    it('should not throw when updatePartial throws', async () => {
+      mockPrivateCfgStore.updatePartial.and.returnValue(
+        Promise.reject(new Error('IndexedDB write failed')),
+      );
+
+      // Should not throw -- error is caught silently
+      await expectAsync(
+        (provider as any)._handleTokenRefresh('new-token'),
+      ).toBeResolved();
+    });
+  });
+
+  describe('token refresh in fetch methods', () => {
+    beforeEach(() => {
+      mockPrivateCfgStore.load.and.returnValue(Promise.resolve(testConfig));
+      mockPrivateCfgStore.updatePartial.and.returnValue(Promise.resolve());
+    });
+
+    it('should store refreshed token from _fetchApi response (downloadOps)', async () => {
+      // Arrange
+      fetchSpy.and.returnValue(
+        Promise.resolve(
+          createMockFetchResponse(
+            { ops: [], hasMore: false, latestSeq: 0 },
+            'refreshed-jwt-abc',
+          ),
+        ),
+      );
+
+      // Act
+      await provider.downloadOps(0);
+
+      // Assert
+      expect(mockPrivateCfgStore.updatePartial).toHaveBeenCalledWith({
+        accessToken: 'refreshed-jwt-abc',
+      });
+    });
+
+    it('should not call updatePartial when x-refreshed-token header is absent from _fetchApi', async () => {
+      // Arrange -- no x-refreshed-token header (default null)
+      fetchSpy.and.returnValue(
+        Promise.resolve(
+          createMockFetchResponse({ ops: [], hasMore: false, latestSeq: 0 }),
+        ),
+      );
+
+      // Act
+      await provider.downloadOps(0);
+
+      // Assert
+      expect(mockPrivateCfgStore.updatePartial).not.toHaveBeenCalled();
+    });
+
+    it('should store refreshed token from _fetchApiCompressed response (uploadOps)', async () => {
+      // Arrange
+      fetchSpy.and.returnValue(
+        Promise.resolve(
+          createMockFetchResponse(
+            { results: [], latestSeq: 0 },
+            'refreshed-compressed-token',
+          ),
+        ),
+      );
+
+      // Act
+      await provider.uploadOps([createMockOperation()], 'client-1');
+
+      // Assert
+      expect(mockPrivateCfgStore.updatePartial).toHaveBeenCalledWith({
+        accessToken: 'refreshed-compressed-token',
+      });
+    });
+
+    it('should not call updatePartial when x-refreshed-token header is absent from _fetchApiCompressed', async () => {
+      // Arrange -- no x-refreshed-token header (default null)
+      fetchSpy.and.returnValue(
+        Promise.resolve(createMockFetchResponse({ results: [], latestSeq: 0 })),
+      );
+
+      // Act
+      await provider.uploadOps([createMockOperation()], 'client-1');
+
+      // Assert
+      expect(mockPrivateCfgStore.updatePartial).not.toHaveBeenCalled();
+    });
+
+    it('should store refreshed token after uploadSnapshot succeeds via _fetchApiCompressed', async () => {
+      // Arrange
+      fetchSpy.and.returnValue(
+        Promise.resolve(
+          createMockFetchResponse(
+            { accepted: true, serverSeq: 5 },
+            'snapshot-refreshed-token',
+          ),
+        ),
+      );
+
+      // Act
+      await provider.uploadSnapshot(
+        {},
+        'client-1',
+        'recovery',
+        {},
+        1,
+        undefined,
+        'test-op-id',
+      );
+
+      // Assert
+      expect(mockPrivateCfgStore.updatePartial).toHaveBeenCalledWith({
+        accessToken: 'snapshot-refreshed-token',
+      });
+    });
+  });
+
   describe('uploadSnapshot', () => {
     it('should upload snapshot with gzip compression', async () => {
       mockPrivateCfgStore.load.and.returnValue(Promise.resolve(testConfig));
@@ -982,12 +1117,7 @@ describe('SuperSyncProvider', () => {
         serverSeq: 5,
       };
 
-      fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockResponse),
-        } as Response),
-      );
+      fetchSpy.and.returnValue(Promise.resolve(createMockFetchResponse(mockResponse)));
 
       const state = { tasks: [{ id: 'task-1', title: 'Test' }] };
       const vectorClock: Record<string, number> = {};
@@ -1017,10 +1147,7 @@ describe('SuperSyncProvider', () => {
       mockPrivateCfgStore.load.and.returnValue(Promise.resolve(testConfig));
 
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ accepted: true }),
-        } as Response),
+        Promise.resolve(createMockFetchResponse({ accepted: true })),
       );
 
       await provider.uploadSnapshot(
@@ -1047,10 +1174,7 @@ describe('SuperSyncProvider', () => {
       let capturedBody: Blob | null = null;
       fetchSpy.and.callFake(async (_url: string, options: RequestInit) => {
         capturedBody = options.body as Blob;
-        return {
-          ok: true,
-          json: () => Promise.resolve({ accepted: true }),
-        } as Response;
+        return createMockFetchResponse({ accepted: true });
       });
 
       const state = { tasks: [] };
@@ -1129,10 +1253,7 @@ describe('SuperSyncProvider', () => {
 
       for (const reason of reasons) {
         fetchSpy.and.returnValue(
-          Promise.resolve({
-            ok: true,
-            json: () => Promise.resolve({ accepted: true }),
-          } as Response),
+          Promise.resolve(createMockFetchResponse({ accepted: true })),
         );
 
         await provider.uploadSnapshot(
@@ -1159,10 +1280,7 @@ describe('SuperSyncProvider', () => {
       let capturedBody: Blob | null = null;
       fetchSpy.and.callFake(async (_url: string, options: RequestInit) => {
         capturedBody = options.body as Blob;
-        return {
-          ok: true,
-          json: () => Promise.resolve({ accepted: true }),
-        } as Response;
+        return createMockFetchResponse({ accepted: true });
       });
 
       // Create a large repetitive payload (compresses well)
@@ -1296,10 +1414,7 @@ describe('SuperSyncProvider', () => {
       mockPrivateCfgStore.load.and.returnValue(Promise.resolve(testConfig));
 
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ results: [], latestSeq: 0 }),
-        } as Response),
+        Promise.resolve(createMockFetchResponse({ results: [], latestSeq: 0 })),
       );
 
       await webProvider.uploadOps([createMockOperation()], 'client-1');
@@ -1355,10 +1470,7 @@ describe('SuperSyncProvider', () => {
       const clearTimeoutSpy = spyOn(window, 'clearTimeout');
 
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ ops: [], latestSeq: 100 }),
-        } as Response),
+        Promise.resolve(createMockFetchResponse({ ops: [], latestSeq: 100 })),
       );
 
       await provider.downloadOps(0, 'client-1');
@@ -1387,10 +1499,7 @@ describe('SuperSyncProvider', () => {
 
     it('should pass AbortSignal to fetch', async () => {
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ ops: [], latestSeq: 0 }),
-        } as Response),
+        Promise.resolve(createMockFetchResponse({ ops: [], latestSeq: 0 })),
       );
 
       await provider.downloadOps(0, 'client-1');
@@ -1427,10 +1536,7 @@ describe('SuperSyncProvider', () => {
 
     it('should not log warning for fast requests', async () => {
       fetchSpy.and.returnValue(
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve({ ops: [], latestSeq: 100 }),
-        } as Response),
+        Promise.resolve(createMockFetchResponse({ ops: [], latestSeq: 100 })),
       );
 
       await provider.downloadOps(0, 'client-1');
