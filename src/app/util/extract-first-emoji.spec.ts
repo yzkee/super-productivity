@@ -19,6 +19,17 @@ describe('extractFirstEmoji', () => {
     expect(extractFirstEmoji('')).toBe('');
   });
 
+  it('should not treat plain # or digits as emoji', () => {
+    expect(extractFirstEmoji('#channel')).toBe('');
+    expect(extractFirstEmoji('3 items')).toBe('');
+  });
+
+  it('should handle null/undefined/non-string gracefully', () => {
+    expect(extractFirstEmoji(null as any)).toBe('');
+    expect(extractFirstEmoji(undefined as any)).toBe('');
+    expect(extractFirstEmoji(123 as any)).toBe('');
+  });
+
   it('should handle edge cases', () => {
     expect(extractFirstEmoji('   ')).toBe('');
     expect(extractFirstEmoji('😀')).toBe('😀');
@@ -80,6 +91,21 @@ describe('isSingleEmoji', () => {
     expect(isSingleEmoji('')).toBe(false);
   });
 
+  it('should return false for plain # or digits', () => {
+    expect(isSingleEmoji('#')).toBe(false);
+    expect(isSingleEmoji('3')).toBe(false);
+  });
+
+  it('should handle null/undefined/non-string gracefully', () => {
+    expect(isSingleEmoji(null as any)).toBe(false);
+    expect(isSingleEmoji(undefined as any)).toBe(false);
+    expect(isSingleEmoji(123 as any)).toBe(false);
+  });
+
+  it('should return true for variation selector emoji', () => {
+    expect(isSingleEmoji('❤️')).toBe(true);
+  });
+
   it('should handle edge cases', () => {
     expect(isSingleEmoji('   ')).toBe(false);
     expect(isSingleEmoji('😀 ')).toBe(true); // Trimming removes the space
@@ -133,6 +159,11 @@ describe('containsEmoji', () => {
     expect(containsEmoji('folder')).toBe(false);
     expect(containsEmoji('')).toBe(false);
     expect(containsEmoji('   ')).toBe(false);
+  });
+
+  it('should return false for plain # or digits', () => {
+    expect(containsEmoji('#channel')).toBe(false);
+    expect(containsEmoji('dial 1')).toBe(false);
   });
 
   it('should handle complex emojis', () => {
