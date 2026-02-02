@@ -29,6 +29,27 @@ describe('extractFirstEmoji', () => {
     expect(extractFirstEmoji('👍🏻👍🏿')).toBe('👍🏻');
     expect(extractFirstEmoji('👋🏽 Hello')).toBe('👋🏽');
   });
+
+  it('should handle ZWJ (Zero-Width Joiner) emojis', () => {
+    expect(extractFirstEmoji('🧑‍💻 coding')).toBe('🧑‍💻');
+    expect(extractFirstEmoji('👨‍👩‍👧‍👦 family')).toBe('👨‍👩‍👧‍👦');
+    expect(extractFirstEmoji('🏳️‍🌈 pride')).toBe('🏳️‍🌈');
+    expect(extractFirstEmoji('👩‍🔬 scientist')).toBe('👩‍🔬');
+  });
+
+  it('should handle flag emojis', () => {
+    expect(extractFirstEmoji('🇺🇸 USA')).toBe('🇺🇸');
+    expect(extractFirstEmoji('🇩🇪 Germany')).toBe('🇩🇪');
+  });
+
+  it('should handle keycap emojis', () => {
+    expect(extractFirstEmoji('#️⃣ number')).toBe('#️⃣');
+    expect(extractFirstEmoji('0️⃣ zero')).toBe('0️⃣');
+  });
+
+  it('should handle ZWJ emojis with skin tone', () => {
+    expect(extractFirstEmoji('👩🏽‍💻 developer')).toBe('👩🏽‍💻');
+  });
 });
 
 describe('isSingleEmoji', () => {
@@ -63,6 +84,33 @@ describe('isSingleEmoji', () => {
     expect(isSingleEmoji('   ')).toBe(false);
     expect(isSingleEmoji('😀 ')).toBe(true); // Trimming removes the space
   });
+
+  it('should return true for ZWJ emojis', () => {
+    expect(isSingleEmoji('🧑‍💻')).toBe(true);
+    expect(isSingleEmoji('👨‍👩‍👧‍👦')).toBe(true);
+    expect(isSingleEmoji('🏳️‍🌈')).toBe(true);
+    expect(isSingleEmoji('👩‍🔬')).toBe(true);
+  });
+
+  it('should return true for flag emojis', () => {
+    expect(isSingleEmoji('🇺🇸')).toBe(true);
+    expect(isSingleEmoji('🇩🇪')).toBe(true);
+  });
+
+  it('should return true for keycap emojis', () => {
+    expect(isSingleEmoji('#️⃣')).toBe(true);
+    expect(isSingleEmoji('0️⃣')).toBe(true);
+  });
+
+  it('should return true for ZWJ emojis with skin tone', () => {
+    expect(isSingleEmoji('👩🏽‍💻')).toBe(true);
+  });
+
+  it('should return false for abusive ZWJ chains', () => {
+    // Create an artificially long ZWJ chain (20 emojis joined)
+    const abuse = Array(20).fill('🧑').join('\u200D');
+    expect(isSingleEmoji(abuse)).toBe(false);
+  });
 });
 
 describe('containsEmoji', () => {
@@ -91,6 +139,15 @@ describe('containsEmoji', () => {
     expect(containsEmoji('Love ❤️ you')).toBe(true);
     expect(containsEmoji('Great job 👍🏻')).toBe(true);
     expect(containsEmoji('Star ⭐ rating')).toBe(true);
+  });
+
+  it('should detect ZWJ emojis in mixed text', () => {
+    expect(containsEmoji('The 🧑‍💻 is coding')).toBe(true);
+    expect(containsEmoji('Family: 👨‍👩‍👧‍👦')).toBe(true);
+  });
+
+  it('should detect keycap emojis in mixed text', () => {
+    expect(containsEmoji('Press #️⃣ to continue')).toBe(true);
   });
 
   it('should handle null/undefined gracefully', () => {
