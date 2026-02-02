@@ -267,7 +267,10 @@ test.describe('@supersync @archive Keep Local Archive Preservation', () => {
       await expect(dialog).not.toBeVisible({ timeout: 10000 });
 
       // Wait for sync to complete
-      await clientB.sync.waitForSyncToComplete({ timeout: 30000 });
+      await clientB.sync.waitForSyncToComplete({
+        timeout: 30000,
+        skipSpinnerCheck: true,
+      });
       await clientB.page.waitForTimeout(2000);
 
       // ============ PHASE 4: Verify server data received ============

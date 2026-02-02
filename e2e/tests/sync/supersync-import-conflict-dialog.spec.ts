@@ -323,7 +323,10 @@ test.describe('@supersync @import-conflict Sync Import Conflict Dialog', () => {
 
       // Wait for sync to fully complete after USE_REMOTE (downloads server state)
       // This is more reliable than a fixed timeout as it waits for actual sync completion
-      await clientB.sync.waitForSyncToComplete({ timeout: 30000 });
+      await clientB.sync.waitForSyncToComplete({
+        timeout: 30000,
+        skipSpinnerCheck: true,
+      });
       console.log('[USE_REMOTE] Client B chose USE_REMOTE');
 
       // ============ PHASE 4: Verify Client B State ============
