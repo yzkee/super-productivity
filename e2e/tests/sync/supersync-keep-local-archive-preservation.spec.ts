@@ -62,8 +62,8 @@ test.describe('@supersync @archive Keep Local Archive Preservation', () => {
     browser,
     baseURL,
     testRunId,
-  }, testInfo) => {
-    testInfo.setTimeout(180000);
+  }) => {
+    test.slow();
     const uniqueId = Date.now();
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
@@ -214,8 +214,8 @@ test.describe('@supersync @archive Keep Local Archive Preservation', () => {
     browser,
     baseURL,
     testRunId,
-  }, testInfo) => {
-    testInfo.setTimeout(180000);
+  }) => {
+    test.slow();
     const uniqueId = Date.now();
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
@@ -319,8 +319,8 @@ test.describe('@supersync @archive Keep Local Archive Preservation', () => {
     browser,
     baseURL,
     testRunId,
-  }, testInfo) => {
-    testInfo.setTimeout(180000);
+  }) => {
+    test.slow();
     const uniqueId = Date.now();
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
