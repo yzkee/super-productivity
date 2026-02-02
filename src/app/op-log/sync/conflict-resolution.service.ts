@@ -581,7 +581,7 @@ export class ConflictResolutionService {
     const entitiesWithLocalArchive = new Set<string>();
     const entitiesWithRemoteArchive = new Set<string>();
     for (const conflict of conflicts) {
-      const entityKey = `${conflict.entityType}:${conflict.entityId}`;
+      const entityKey = toEntityKey(conflict.entityType, conflict.entityId);
       if (
         conflict.localOps.some(
           (op) => op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
@@ -604,7 +604,7 @@ export class ConflictResolutionService {
       // Allowing other operations (field-level updates, deletes) to win via LWW
       // would either resurrect archived entities via lwwUpdateMetaReducer.addOne()
       // (Bug B) or lose archived data.
-      const entityKey = `${conflict.entityType}:${conflict.entityId}`;
+      const entityKey = toEntityKey(conflict.entityType, conflict.entityId);
       const localHasArchive = entitiesWithLocalArchive.has(entityKey);
       const remoteHasArchive = entitiesWithRemoteArchive.has(entityKey);
 
@@ -624,7 +624,12 @@ export class ConflictResolutionService {
             const localWinOp = await this._createArchiveWinOp(conflict);
             resolutions.push({ conflict, winner: 'local', localWinOp });
           } else {
-            resolutions.push({ conflict, winner: 'remote' });
+            // Entity is being archived locally — don't apply remote ops for
+            // non-archive conflicts to avoid transient entity resurrection via
+            // lwwUpdateMetaReducer.addOne(). Resolve as local-wins without a
+            // localWinOp: local ops get rejected (superseded by the archive-win
+            // op from the sibling conflict), remote ops get stored but not applied.
+            resolutions.push({ conflict, winner: 'local' });
           }
         }
         OpLog.normal(

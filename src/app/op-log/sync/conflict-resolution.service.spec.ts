@@ -2256,6 +2256,48 @@ describe('ConflictResolutionService', () => {
         jasmine.any(Object),
       );
     });
+
+    it('should prevent entity resurrection when multiple conflicts exist for same entity with local archive', async () => {
+      const now = Date.now();
+      // Two conflicts for the same entity (task-1):
+      // - Conflict 1: local archive vs remote field update
+      // - Conflict 2: local field update vs remote field update (no archive in THIS conflict)
+      // Pre-scan detects that task-1 has a local archive across ALL conflicts.
+      // Conflict 2 must NOT apply remote ops (which would resurrect the archived entity).
+      const conflicts: EntityConflict[] = [
+        createConflict(
+          'task-1',
+          [createArchiveOp('local-archive', 'client-a', now)],
+          [createOpWithTimestamp('remote-status-update', 'client-b', now + 5000)],
+        ),
+        createConflict(
+          'task-1',
+          [createOpWithTimestamp('local-title-update', 'client-a', now - 1000)],
+          [createOpWithTimestamp('remote-notes-update', 'client-b', now + 5000)],
+        ),
+      ];
+
+      const result = await service.autoResolveConflictsLWW(conflicts);
+
+      // Archive-win op should be created (from Conflict 1)
+      expect(result.localWinOpsCreated).toBe(1);
+      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+        }),
+        'local',
+      );
+
+      // No remote ops should be applied to the store — both conflicts resolve
+      // as local-wins, so allOpsToApply is empty and applyOperations is never called.
+      // This prevents remote-notes-update from resurrecting the entity via addOne().
+      expect(mockOperationApplier.applyOperations).not.toHaveBeenCalled();
+
+      // Both sets of remote ops should be rejected (stored for history but not applied)
+      expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(
+        jasmine.arrayContaining(['remote-status-update', 'remote-notes-update']),
+      );
+    });
   });
 
   describe('vector clock pruning in conflict resolution', () => {

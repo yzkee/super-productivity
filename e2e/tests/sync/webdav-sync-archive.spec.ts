@@ -455,7 +455,9 @@ test.describe('@webdav WebDAV Archive Sync', () => {
     // With archive-wins rule, archive always wins regardless of timestamps.
     // Archive is an explicit user intent ("I'm done with these tasks"),
     // so it takes priority over concurrent edits.
-    // Navigate to force Angular to recreate the component tree with fresh state
+    // TODO: Navigation is a workaround for Angular not re-rendering task list
+    // after remote sync ops are applied to NgRx. Investigate whether the root
+    // cause is in HydrationStateService cooldown or change detection.
     await pageA.goto('/#/tag/TODAY/tasks');
     await pageA.waitForLoadState('networkidle');
     await workViewPageA.waitForTaskList();

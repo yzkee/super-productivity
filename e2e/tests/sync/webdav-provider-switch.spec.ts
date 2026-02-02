@@ -414,7 +414,9 @@ test.describe('@webdav WebDAV Provider Switch', () => {
     await syncPageC.triggerSync();
     await waitForSyncComplete(pageC, syncPageC);
 
-    // Navigate to force Angular to render synced tasks
+    // TODO: Navigation is a workaround for Angular not re-rendering task list
+    // after remote sync ops are applied to NgRx. Investigate whether the root
+    // cause is in HydrationStateService cooldown or change detection.
     await pageC.goto('/#/tag/TODAY/tasks');
     await pageC.waitForLoadState('networkidle');
     await workViewPageC.waitForTaskList();
@@ -453,7 +455,7 @@ test.describe('@webdav WebDAV Provider Switch', () => {
     await syncPageC.triggerSync();
     await waitForSyncComplete(pageC, syncPageC);
 
-    // Navigate to force Angular to recreate the component tree with fresh state
+    // TODO: Navigation workaround — see comment above for pageC's first sync
     await pageC.goto('/#/tag/TODAY/tasks');
     await pageC.waitForLoadState('networkidle');
     await workViewPageC.waitForTaskList();
@@ -469,7 +471,7 @@ test.describe('@webdav WebDAV Provider Switch', () => {
     await syncPageA.triggerSync();
     await waitForSyncComplete(pageA, syncPageA);
 
-    // Navigate all clients to force fresh component trees
+    // TODO: Navigation workaround — see comment above for pageC's first sync
     await pageA.goto('/#/tag/TODAY/tasks');
     await pageA.waitForLoadState('networkidle');
     await workViewPageA.waitForTaskList();

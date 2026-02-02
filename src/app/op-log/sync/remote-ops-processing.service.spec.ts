@@ -124,8 +124,9 @@ describe('RemoteOpsProcessingService', () => {
           const appliedFrontier = ctx.appliedFrontierByEntity.get(entityKey);
 
           // Build local frontier
-          const entityExistedAtSnapshot =
-            ctx.snapshotEntityKeys === undefined || ctx.snapshotEntityKeys.has(entityKey);
+          const entityExistedAtSnapshot = ctx.snapshotEntityKeys
+            ? ctx.snapshotEntityKeys.has(entityKey)
+            : appliedFrontier !== undefined;
           const fallbackClock = entityExistedAtSnapshot ? ctx.snapshotVectorClock : {};
           const baselineClock = appliedFrontier || fallbackClock || {};
           const allClocks = [
