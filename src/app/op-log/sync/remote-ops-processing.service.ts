@@ -550,7 +550,7 @@ export class RemoteOpsProcessingService {
     const CONFLICT_CHECK_BATCH_SIZE = 100;
     for (let i = 0; i < remoteOps.length; i++) {
       const remoteOp = remoteOps[i];
-      const result = this.conflictResolutionService.checkOpForConflicts(remoteOp, {
+      const result = await this.conflictResolutionService.checkOpForConflicts(remoteOp, {
         localPendingOpsByEntity,
         appliedFrontierByEntity,
         snapshotVectorClock,

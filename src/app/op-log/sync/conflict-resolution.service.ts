@@ -915,7 +915,7 @@ export class ConflictResolutionService {
    * @param ctx - Context containing local state for conflict detection
    * @returns Object indicating if op is superseded/duplicate and any detected conflict
    */
-  checkOpForConflicts(
+  async checkOpForConflicts(
     remoteOp: Operation,
     ctx: {
       localPendingOpsByEntity: Map<string, Operation[]>;
@@ -924,7 +924,7 @@ export class ConflictResolutionService {
       snapshotEntityKeys: Set<string> | undefined;
       hasNoSnapshotClock: boolean;
     },
-  ): { isSupersededOrDuplicate: boolean; conflict: EntityConflict | null } {
+  ): Promise<{ isSupersededOrDuplicate: boolean; conflict: EntityConflict | null }> {
     const entityIdsToCheck =
       remoteOp.entityIds || (remoteOp.entityId ? [remoteOp.entityId] : []);
 
@@ -932,7 +932,7 @@ export class ConflictResolutionService {
       const entityKey = toEntityKey(remoteOp.entityType, entityId);
       const localOpsForEntity = ctx.localPendingOpsByEntity.get(entityKey) || [];
 
-      const result = this._checkEntityForConflict(remoteOp, entityId, entityKey, {
+      const result = await this._checkEntityForConflict(remoteOp, entityId, entityKey, {
         localOpsForEntity,
         appliedFrontier: ctx.appliedFrontierByEntity.get(entityKey),
         snapshotVectorClock: ctx.snapshotVectorClock,
@@ -954,7 +954,7 @@ export class ConflictResolutionService {
   /**
    * Checks a single entity for conflict with a remote operation.
    */
-  private _checkEntityForConflict(
+  private async _checkEntityForConflict(
     remoteOp: Operation,
     entityId: string,
     entityKey: string,
@@ -965,7 +965,7 @@ export class ConflictResolutionService {
       snapshotEntityKeys: Set<string> | undefined;
       hasNoSnapshotClock: boolean;
     },
-  ): { isSupersededOrDuplicate: boolean; conflict: EntityConflict | null } {
+  ): Promise<{ isSupersededOrDuplicate: boolean; conflict: EntityConflict | null }> {
     const localFrontier = this._buildEntityFrontier(entityKey, ctx);
     const localFrontierIsEmpty = Object.keys(localFrontier).length === 0;
 
@@ -999,8 +999,24 @@ export class ConflictResolutionService {
       return { isSupersededOrDuplicate: true, conflict: null };
     }
 
-    // No pending ops = no conflict possible
+    // No pending local ops
     if (ctx.localOpsForEntity.length === 0) {
+      if (vcComparison === VectorClockComparison.CONCURRENT) {
+        // CONCURRENT + no pending ops = entity may have been archived/deleted
+        // by an already-synced operation. Check current state.
+        const entityState = await this.getCurrentEntityState(
+          remoteOp.entityType,
+          entityId,
+        );
+        if (entityState === undefined || entityState === null) {
+          OpLog.normal(
+            `ConflictResolutionService: Skipping CONCURRENT remote op ${remoteOp.id} ` +
+              `for ${remoteOp.entityType}:${entityId} - entity no longer in state ` +
+              `(archive/delete wins over concurrent update)`,
+          );
+          return { isSupersededOrDuplicate: true, conflict: null };
+        }
+      }
       return { isSupersededOrDuplicate: false, conflict: null };
     }
 
