@@ -274,7 +274,17 @@ export const selectCurrentTaskParentOrCurrent = createSelector(
   },
 );
 
-export const selectAllTasks = createSelector(selectTaskFeatureState, selectAll);
+export const selectAllTasks = createSelector(
+  selectTaskFeatureState,
+  (state: TaskState): Task[] => {
+    const all = selectAll(state);
+    const filtered = all.filter((task): task is Task => !!task);
+    if (filtered.length !== all.length) {
+      devError('selectAllTasks: found undefined entities in task state');
+    }
+    return filtered;
+  },
+);
 
 export const selectAllTasksWithSubTasks = createSelector(
   selectAllTasks,
