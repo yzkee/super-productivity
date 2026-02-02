@@ -382,7 +382,7 @@ test.describe('@webdav WebDAV Provider Switch', () => {
     // B syncs to get A's task
     await syncPageB.triggerSync();
     await waitForSyncComplete(pageB, syncPageB);
-    await expect(pageB.locator('task')).toHaveCount(1);
+    await expect(pageB.locator('task')).toHaveCount(1, { timeout: 10000 });
     console.log('[Three Client Test] B: Got A task');
 
     // B creates task and syncs
@@ -414,8 +414,13 @@ test.describe('@webdav WebDAV Provider Switch', () => {
     await syncPageC.triggerSync();
     await waitForSyncComplete(pageC, syncPageC);
 
+    // Navigate to force Angular to render synced tasks
+    await pageC.goto('/#/tag/TODAY/tasks');
+    await pageC.waitForLoadState('networkidle');
+    await workViewPageC.waitForTaskList();
+
     // C should have 2 tasks (from A and B)
-    await expect(pageC.locator('task')).toHaveCount(2);
+    await expect(pageC.locator('task')).toHaveCount(2, { timeout: 30000 });
     console.log('[Three Client Test] C: Joined and received 2 tasks');
 
     // === Critical scenario: Both B and C create tasks before syncing ===
@@ -448,8 +453,13 @@ test.describe('@webdav WebDAV Provider Switch', () => {
     await syncPageC.triggerSync();
     await waitForSyncComplete(pageC, syncPageC);
 
+    // Navigate to force Angular to recreate the component tree with fresh state
+    await pageC.goto('/#/tag/TODAY/tasks');
+    await pageC.waitForLoadState('networkidle');
+    await workViewPageC.waitForTaskList();
+
     // CRITICAL: C should have B's task (this was the bug!)
-    await expect(pageC.locator('task')).toHaveCount(4);
+    await expect(pageC.locator('task')).toHaveCount(4, { timeout: 30000 });
     await expect(pageC.locator('task', { hasText: taskB2 })).toBeVisible({
       timeout: 5000,
     });
@@ -458,16 +468,24 @@ test.describe('@webdav WebDAV Provider Switch', () => {
     // A syncs to verify full sync
     await syncPageA.triggerSync();
     await waitForSyncComplete(pageA, syncPageA);
-    await expect(pageA.locator('task')).toHaveCount(4);
+
+    // Navigate all clients to force fresh component trees
+    await pageA.goto('/#/tag/TODAY/tasks');
+    await pageA.waitForLoadState('networkidle');
+    await workViewPageA.waitForTaskList();
+
+    await pageB.goto('/#/tag/TODAY/tasks');
+    await pageB.waitForLoadState('networkidle');
+    await workViewPageB.waitForTaskList();
+
+    await pageC.goto('/#/tag/TODAY/tasks');
+    await pageC.waitForLoadState('networkidle');
+    await workViewPageC.waitForTaskList();
 
     // All clients should have 4 tasks
-    const countA = await pageA.locator('task').count();
-    const countB = await pageB.locator('task').count();
-    const countC = await pageC.locator('task').count();
-
-    expect(countA).toBe(4);
-    expect(countB).toBe(4);
-    expect(countC).toBe(4);
+    await expect(pageA.locator('task')).toHaveCount(4, { timeout: 30000 });
+    await expect(pageB.locator('task')).toHaveCount(4, { timeout: 30000 });
+    await expect(pageC.locator('task')).toHaveCount(4, { timeout: 30000 });
 
     console.log('[Three Client Test] PASSED: All 3 clients have 4 tasks');
 

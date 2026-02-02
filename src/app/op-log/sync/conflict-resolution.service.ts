@@ -572,27 +572,60 @@ export class ConflictResolutionService {
   ): Promise<LWWResolution[]> {
     const resolutions: LWWResolution[] = [];
 
+    // ── Pre-scan: find entities with archive ops in ANY conflict ──
+    // Multiple conflicts can exist for the same entity (e.g., field updates + archive).
+    // When any conflict for an entity involves an archive op, ALL conflicts for that
+    // entity must resolve as archive-wins. Otherwise, non-archive conflicts would
+    // resolve via normal LWW, potentially creating local-win update ops that
+    // resurrect the archived entity via lwwUpdateMetaReducer.addOne().
+    const entitiesWithLocalArchive = new Set<string>();
+    const entitiesWithRemoteArchive = new Set<string>();
+    for (const conflict of conflicts) {
+      const entityKey = `${conflict.entityType}:${conflict.entityId}`;
+      if (
+        conflict.localOps.some(
+          (op) => op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+        )
+      ) {
+        entitiesWithLocalArchive.add(entityKey);
+      }
+      if (
+        conflict.remoteOps.some(
+          (op) => op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+        )
+      ) {
+        entitiesWithRemoteArchive.add(entityKey);
+      }
+    }
+
     for (const conflict of conflicts) {
       // ── moveToArchive always wins over other operations ──
       // Archive is an explicit user intent ("I'm done with these tasks").
       // Allowing other operations (field-level updates, deletes) to win via LWW
       // would either resurrect archived entities via lwwUpdateMetaReducer.addOne()
       // (Bug B) or lose archived data.
-      const localHasArchive = conflict.localOps.some(
-        (op) => op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
-      );
-      const remoteHasArchive = conflict.remoteOps.some(
-        (op) => op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
-      );
+      const entityKey = `${conflict.entityType}:${conflict.entityId}`;
+      const localHasArchive = entitiesWithLocalArchive.has(entityKey);
+      const remoteHasArchive = entitiesWithRemoteArchive.has(entityKey);
 
       if (localHasArchive || remoteHasArchive) {
         if (remoteHasArchive) {
           // Remote archive wins — will be applied normally
           resolutions.push({ conflict, winner: 'remote' });
         } else {
-          // Local archive wins — re-create archive op with merged clock.
-          const localWinOp = await this._createArchiveWinOp(conflict);
-          resolutions.push({ conflict, winner: 'local', localWinOp });
+          // Local archive wins. Only create the archive-win op for the conflict
+          // that actually contains the archive action. For other conflicts affecting
+          // the same entity, resolve as remote to reject local ops (the entity is
+          // being archived, so these local updates are irrelevant).
+          const thisConflictHasArchive = conflict.localOps.some(
+            (op) => op.actionType === ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
+          );
+          if (thisConflictHasArchive) {
+            const localWinOp = await this._createArchiveWinOp(conflict);
+            resolutions.push({ conflict, winner: 'local', localWinOp });
+          } else {
+            resolutions.push({ conflict, winner: 'remote' });
+          }
         }
         OpLog.normal(
           `ConflictResolutionService: Archive wins over concurrent operation ` +
@@ -1050,9 +1083,15 @@ export class ConflictResolutionService {
       snapshotEntityKeys: Set<string> | undefined;
     },
   ): VectorClock {
-    // Use snapshot clock only for entities that existed at snapshot time
-    const entityExistedAtSnapshot =
-      ctx.snapshotEntityKeys === undefined || ctx.snapshotEntityKeys.has(entityKey);
+    // Use snapshot clock only for entities that existed at snapshot time.
+    // When snapshotEntityKeys is undefined (old format), only use the snapshot
+    // clock if we have an applied frontier for this entity. Without both
+    // snapshotEntityKeys AND appliedFrontier, using the snapshot clock would
+    // inflate the frontier for genuinely NEW entities (never seen locally),
+    // causing their remote ops to be incorrectly discarded as superseded/concurrent.
+    const entityExistedAtSnapshot = ctx.snapshotEntityKeys
+      ? ctx.snapshotEntityKeys.has(entityKey)
+      : ctx.appliedFrontier !== undefined;
     const fallbackClock = entityExistedAtSnapshot ? ctx.snapshotVectorClock : {};
     const baselineClock = ctx.appliedFrontier || fallbackClock || {};
 
