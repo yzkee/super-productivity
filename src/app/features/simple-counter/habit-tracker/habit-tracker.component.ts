@@ -19,7 +19,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogSimpleCounterEditComponent } from '../dialog-simple-counter-edit/dialog-simple-counter-edit.component';
 import { DialogSimpleCounterEditSettingsComponent } from '../dialog-simple-counter-edit-settings/dialog-simple-counter-edit-settings.component';
-import { MsToStringPipe } from '../../../ui/duration/ms-to-string.pipe';
 import { EMPTY_SIMPLE_COUNTER } from '../simple-counter.const';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { loadFromRealLs, saveToRealLs } from '../../../core/persistence/local-storage';
@@ -33,7 +32,6 @@ import { LS } from '../../../core/persistence/storage-keys.const';
     TranslateModule,
     MatButtonModule,
     MatIconModule,
-    MsToStringPipe,
     MatTooltipModule,
   ],
   templateUrl: './habit-tracker.component.html',
