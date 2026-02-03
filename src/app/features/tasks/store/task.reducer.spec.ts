@@ -516,6 +516,75 @@ describe('Task Reducer', () => {
       // The removed tasks should be moved to the beginning while maintaining their relative order
       expect(state.ids).toEqual(['task2', 'task4', 'task1', 'task3']);
     });
+
+    it('should ignore all invalid IDs and leave state unchanged', () => {
+      if (jasmine.isSpy(window.confirm)) {
+        (window.confirm as jasmine.Spy).and.returnValue(false);
+      } else {
+        spyOn(window, 'confirm').and.returnValue(false);
+      }
+      if (!jasmine.isSpy(window.alert)) {
+        spyOn(window, 'alert');
+      }
+
+      const action = TaskSharedActions.removeTasksFromTodayTag({
+        taskIds: ['nonexistent1', 'nonexistent2'],
+      });
+      const state = taskReducer(stateWithTasks, action);
+
+      expect(state.ids).toEqual(stateWithTasks.ids);
+      expect(state.entities).toEqual(stateWithTasks.entities);
+    });
+
+    it('should filter out invalid IDs and only reorder valid ones', () => {
+      if (jasmine.isSpy(window.confirm)) {
+        (window.confirm as jasmine.Spy).and.returnValue(false);
+      } else {
+        spyOn(window, 'confirm').and.returnValue(false);
+      }
+      if (!jasmine.isSpy(window.alert)) {
+        spyOn(window, 'alert');
+      }
+
+      const stateWithOrderedTasks: TaskState = {
+        ...initialTaskState,
+        ids: ['task1', 'task2', 'task3', 'task4'],
+        entities: {
+          task1: createTask('task1'),
+          task2: createTask('task2'),
+          task3: createTask('task3'),
+          task4: createTask('task4'),
+        },
+      };
+
+      const action = TaskSharedActions.removeTasksFromTodayTag({
+        taskIds: ['task2', 'nonexistent', 'task4'],
+      });
+      const state = taskReducer(stateWithOrderedTasks, action);
+
+      expect(state.ids).toEqual(['task2', 'task4', 'task1', 'task3']);
+      expect(state.entities['task2']).toBeDefined();
+      expect(state.entities['task4']).toBeDefined();
+      expect(state.entities['nonexistent' as any]).toBeUndefined();
+    });
+
+    it('should call devError when orphan IDs are detected', () => {
+      if (jasmine.isSpy(window.confirm)) {
+        (window.confirm as jasmine.Spy).and.returnValue(false);
+      } else {
+        spyOn(window, 'confirm').and.returnValue(false);
+      }
+      const alertSpy = jasmine.isSpy(window.alert)
+        ? (window.alert as jasmine.Spy)
+        : spyOn(window, 'alert');
+
+      const action = TaskSharedActions.removeTasksFromTodayTag({
+        taskIds: ['nonexistent1'],
+      });
+      taskReducer(stateWithTasks, action);
+
+      expect(alertSpy).toHaveBeenCalled();
+    });
   });
 
   describe('TaskSharedActions.addTagToTask', () => {
