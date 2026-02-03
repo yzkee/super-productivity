@@ -296,6 +296,7 @@ test.describe('@webdav WebDAV Archive Sync', () => {
     await pageA.waitForTimeout(300);
     await expect(taskPageA.getTaskByText(taskName).first()).toHaveClass(/isDone/);
     await archiveDoneTasks(pageA);
+    await waitForArchivePersistence(pageA);
     await expect(pageA.locator('task')).toHaveCount(0);
     console.log('[Archive Same] Client A archived task');
 
@@ -307,6 +308,7 @@ test.describe('@webdav WebDAV Archive Sync', () => {
     await pageB.waitForTimeout(300);
     await expect(taskPageB.getTaskByText(taskName).first()).toHaveClass(/isDone/);
     await archiveDoneTasks(pageB);
+    await waitForArchivePersistence(pageB);
     await expect(pageB.locator('task')).toHaveCount(0);
     console.log('[Archive Same] Client B archived task (concurrent)');
 
