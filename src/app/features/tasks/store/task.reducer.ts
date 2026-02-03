@@ -669,6 +669,7 @@ export const taskReducer = createReducer<TaskState>(
         changes: {
           dueDay: day,
           dueWithTime: undefined,
+          remindAt: undefined,
         },
       },
       state,

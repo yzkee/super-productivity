@@ -6,6 +6,7 @@ import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions'
 import { INBOX_PROJECT } from '../../project/project.const';
 import { TimeTrackingActions } from '../../time-tracking/store/time-tracking.actions';
 import { _resetDevErrorState } from '../../../util/dev-error';
+import { PlannerActions } from '../../planner/store/planner.actions';
 
 describe('Task Reducer', () => {
   const createTask = (id: string, partial: Partial<Task> = {}): Task => ({
@@ -830,6 +831,34 @@ describe('Task Reducer', () => {
 
       // Current task should be cleared since orphan subtask was removed
       expect(state.currentTaskId).toBeNull();
+    });
+  });
+
+  describe('PlannerActions.planTaskForDay', () => {
+    it('should clear remindAt when rescheduling a task', () => {
+      const taskWithReminder = createTask('task-remind', {
+        remindAt: Date.now() - 60000,
+        dueDay: '2024-01-01',
+      });
+      const stateWithReminder: TaskState = {
+        ...initialTaskState,
+        ids: ['task-remind'],
+        entities: {
+          'task-remind': taskWithReminder,
+        },
+        currentTaskId: null,
+      };
+
+      const action = PlannerActions.planTaskForDay({
+        task: taskWithReminder,
+        day: '2024-01-02',
+      });
+
+      const result = taskReducer(stateWithReminder, action);
+
+      expect(result.entities['task-remind']!.remindAt).toBeUndefined();
+      expect(result.entities['task-remind']!.dueDay).toBe('2024-01-02');
+      expect(result.entities['task-remind']!.dueWithTime).toBeUndefined();
     });
   });
 });
