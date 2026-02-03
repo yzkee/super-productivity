@@ -5,6 +5,7 @@ import * as fromActions from './task.actions';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
 import { INBOX_PROJECT } from '../../project/project.const';
 import { TimeTrackingActions } from '../../time-tracking/store/time-tracking.actions';
+import { _resetDevErrorState } from '../../../util/dev-error';
 
 describe('Task Reducer', () => {
   const createTask = (id: string, partial: Partial<Task> = {}): Task => ({
@@ -569,6 +570,7 @@ describe('Task Reducer', () => {
     });
 
     it('should call devError when orphan IDs are detected', () => {
+      _resetDevErrorState();
       if (jasmine.isSpy(window.confirm)) {
         (window.confirm as jasmine.Spy).and.returnValue(false);
       } else {
