@@ -30,19 +30,19 @@ test.describe('App Features', () => {
       locator: (page: Page) => page.getByRole('menuitem', { name: 'Boards' }),
     },
     {
-      label: 'Schedule Day Panel',
+      label: 'Schedule day panel',
       locator: (page: Page) => page.locator('.e2e-toggle-schedule-day-panel'),
     },
     {
-      label: 'Issues Panel',
+      label: 'Issues panel',
       locator: (page: Page) => page.locator('.e2e-toggle-issue-provider-panel'),
     },
     {
-      label: 'Project Notes',
+      label: 'Project notes',
       locator: (page: Page) => page.locator('.e2e-toggle-notes-btn'),
     },
     {
-      label: 'Sync Button',
+      label: 'Sync button',
       locator: (page: Page) => page.locator('.sync-btn'),
     },
   ].forEach((feature) => {
