@@ -14,7 +14,7 @@ import {
   TooManyRequestsAPIError,
   UploadRevToMatchMismatchAPIError,
 } from '../../../core/errors/sync-errors';
-import { PFLog } from '../../../../core/log';
+import { SyncLog } from '../../../../core/log';
 import { SyncProviderServiceInterface } from '../../provider.interface';
 import { SyncProviderId } from '../../provider.const';
 import { tryCatchInlineAsync } from '../../../../util/try-catch-inline';
@@ -100,7 +100,7 @@ export class DropboxApi {
    * List folder contents
    */
   async listFiles(path: string): Promise<string[]> {
-    PFLog.normal(`${DropboxApi.L}.listFiles() for path: ${path}`);
+    SyncLog.normal(`${DropboxApi.L}.listFiles() for path: ${path}`);
     try {
       const response = await this._request({
         method: 'POST',
@@ -116,7 +116,7 @@ export class DropboxApi {
         .filter((entry) => entry['.tag'] === 'file') // Only return files
         .map((entry) => entry.path_lower); // Return full path in lower case
     } catch (e) {
-      PFLog.critical(`${DropboxApi.L}.listFiles() error for path: ${path}`, e);
+      SyncLog.critical(`${DropboxApi.L}.listFiles() error for path: ${path}`, e);
       this._checkCommonErrors(e, path);
       throw e;
     }
@@ -140,7 +140,7 @@ export class DropboxApi {
       });
       return response.json();
     } catch (e) {
-      PFLog.critical(`${DropboxApi.L}.getMetaData() error for path: ${path}`, e);
+      SyncLog.critical(`${DropboxApi.L}.getMetaData() error for path: ${path}`, e);
       this._checkCommonErrors(e, path);
       throw e;
     }
@@ -183,7 +183,7 @@ export class DropboxApi {
 
       return { meta, data: data as unknown as T };
     } catch (e) {
-      PFLog.critical(`${DropboxApi.L}.download() error for path: ${path}`, e);
+      SyncLog.critical(`${DropboxApi.L}.download() error for path: ${path}`, e);
       this._checkCommonErrors(e, path);
       throw e;
     }
@@ -236,7 +236,7 @@ export class DropboxApi {
 
       return result;
     } catch (e) {
-      PFLog.critical(`${DropboxApi.L}.upload() error for path: ${path}`, e);
+      SyncLog.critical(`${DropboxApi.L}.upload() error for path: ${path}`, e);
       this._checkCommonErrors(e, path);
       throw e;
     }
@@ -255,7 +255,7 @@ export class DropboxApi {
       });
       return response.json();
     } catch (e) {
-      PFLog.critical(`${DropboxApi.L}.remove() error for path: ${path}`, e);
+      SyncLog.critical(`${DropboxApi.L}.remove() error for path: ${path}`, e);
       this._checkCommonErrors(e, path);
       throw e;
     }
@@ -278,7 +278,7 @@ export class DropboxApi {
       });
       return response.json();
     } catch (e) {
-      PFLog.critical(`${DropboxApi.L}.checkUser() error`, e);
+      SyncLog.critical(`${DropboxApi.L}.checkUser() error`, e);
       this._checkCommonErrors(e, 'check/user');
       throw e;
     }
@@ -288,13 +288,13 @@ export class DropboxApi {
    * Refresh access token using refresh token
    */
   async updateAccessTokenFromRefreshTokenIfAvailable(): Promise<void> {
-    PFLog.normal(`${DropboxApi.L}.updateAccessTokenFromRefreshTokenIfAvailable()`);
+    SyncLog.normal(`${DropboxApi.L}.updateAccessTokenFromRefreshTokenIfAvailable()`);
 
     const privateCfg = await this._parent.privateCfg.load();
     const refreshToken = privateCfg?.refreshToken;
 
     if (!refreshToken) {
-      PFLog.critical('Dropbox: No refresh token available');
+      SyncLog.critical('Dropbox: No refresh token available');
       await this._clearTokensIfPresent(privateCfg);
       throw new MissingRefreshTokenAPIError();
     }
@@ -362,14 +362,14 @@ export class DropboxApi {
         data = (await response.json()) as TokenResponse;
       }
 
-      PFLog.normal('Dropbox: Refresh access token Response', data);
+      SyncLog.normal('Dropbox: Refresh access token Response', data);
 
       await this._parent.privateCfg.updatePartial({
         accessToken: data.access_token,
         refreshToken: data.refresh_token || privateCfg?.refreshToken,
       });
     } catch (e) {
-      PFLog.critical('Failed to refresh Dropbox access token', e);
+      SyncLog.critical('Failed to refresh Dropbox access token', e);
       throw e;
     }
   }
@@ -470,7 +470,7 @@ export class DropboxApi {
         expiresAt: +data.expires_in * 1000 + Date.now(),
       };
     } catch (e) {
-      PFLog.critical(`${DropboxApi.L}.getTokensFromAuthCode() error`, e);
+      SyncLog.critical(`${DropboxApi.L}.getTokensFromAuthCode() error`, e);
       throw e;
     }
   }
@@ -530,7 +530,7 @@ export class DropboxApi {
     }
 
     try {
-      PFLog.log(`${DropboxApi.L}._requestNative() ${method} ${requestUrl}`);
+      SyncLog.log(`${DropboxApi.L}._requestNative() ${method} ${requestUrl}`);
 
       const capacitorResponse = await CapacitorHttp.request({
         url: requestUrl,
@@ -570,7 +570,7 @@ export class DropboxApi {
 
       return response;
     } catch (e) {
-      PFLog.critical(`${DropboxApi.L}._requestNative() error for ${url}`, e);
+      SyncLog.critical(`${DropboxApi.L}._requestNative() error for ${url}`, e);
       this._checkCommonErrors(e, url);
       throw e;
     }
@@ -693,7 +693,7 @@ export class DropboxApi {
 
       return response;
     } catch (e) {
-      PFLog.critical(`${DropboxApi.L}._request() error for ${url}`, e);
+      SyncLog.critical(`${DropboxApi.L}._request() error for ${url}`, e);
       this._checkCommonErrors(e, url);
       throw e;
     }
@@ -773,7 +773,7 @@ export class DropboxApi {
     return new Promise((resolve, reject) => {
       setTimeout(
         () => {
-          PFLog.normal(`Too many requests ${path}, retrying in ${retryAfter}s...`);
+          SyncLog.normal(`Too many requests ${path}, retrying in ${retryAfter}s...`);
           originalRequestExecutor()
             .then(resolve as (value: unknown) => void)
             .catch(reject);
