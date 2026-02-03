@@ -19,6 +19,10 @@ import { SyncProviderServiceInterface } from '../../provider.interface';
 import { SyncProviderId } from '../../provider.const';
 import { tryCatchInlineAsync } from '../../../../util/try-catch-inline';
 import { IS_ANDROID_WEB_VIEW } from '../../../../util/is-android-web-view';
+import {
+  executeNativeRequestWithRetry,
+  isTransientNetworkError,
+} from '../../native-http-retry';
 
 interface DropboxApiOptions {
   method: HttpMethod;
@@ -72,16 +76,11 @@ type DropboxWriteMode =
   | { '.tag': 'overwrite' }
   | { '.tag': 'update'; update: string };
 
-/**
- * Max retries for transient network errors (e.g., iOS NSURLErrorNetworkConnectionLost).
- * iOS NSURLSession does NOT auto-retry POST requests (non-idempotent per RFC 7231).
- * Retries are safe for Dropbox uploads: conditional writes (mode: 'update' with revToMatch
- * or mode: 'add') ensure duplicates fail with UploadRevToMatchMismatchAPIError,
- * which is already handled by _uploadWithRetry() in file-based-sync-adapter.service.ts.
- * @see https://developer.apple.com/library/archive/qa/qa1941/_index.html
- */
-const NATIVE_REQUEST_MAX_RETRIES = 2;
+/** Timeout for data transfer requests (uploads/downloads) — 120s */
 const NATIVE_REQUEST_READ_TIMEOUT = 120000;
+
+/** Timeout for auth endpoints (token refresh, token exchange) — 30s */
+const NATIVE_AUTH_READ_TIMEOUT = 30000;
 
 /**
  * API class for Dropbox integration
@@ -320,18 +319,20 @@ export class DropboxApi {
       let data: TokenResponse;
 
       if (this.isNativePlatform) {
-        // Use CapacitorHttp on native platforms
-        const response = await CapacitorHttp.request({
-          url: 'https://api.dropbox.com/oauth2/token',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+        // Use CapacitorHttp on native platforms, with retry for transient errors
+        const response = await executeNativeRequestWithRetry(
+          {
+            url: 'https://api.dropbox.com/oauth2/token',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            },
+            data: bodyParams,
+            responseType: 'json',
+            readTimeout: NATIVE_AUTH_READ_TIMEOUT,
           },
-          data: bodyParams,
-          responseType: 'json',
-          connectTimeout: 30000,
-          readTimeout: NATIVE_REQUEST_READ_TIMEOUT,
-        });
+          DropboxApi.L,
+        );
 
         if (response.status < 200 || response.status >= 300) {
           if (
@@ -426,7 +427,8 @@ export class DropboxApi {
       let data: TokenResponse;
 
       if (this.isNativePlatform) {
-        // Use CapacitorHttp on native platforms
+        // No retry wrapper here: this is a one-time user-initiated auth code exchange.
+        // If it fails, the user retries the OAuth flow manually.
         const response = await CapacitorHttp.request({
           url: 'https://api.dropboxapi.com/oauth2/token',
           method: 'POST',
@@ -436,7 +438,7 @@ export class DropboxApi {
           data: stringify(bodyParams),
           responseType: 'json',
           connectTimeout: 30000,
-          readTimeout: NATIVE_REQUEST_READ_TIMEOUT,
+          readTimeout: NATIVE_AUTH_READ_TIMEOUT,
         });
 
         if (response.status < 200 || response.status >= 300) {
@@ -793,8 +795,7 @@ export class DropboxApi {
 
   /**
    * Execute a CapacitorHttp request with retry logic for transient network errors.
-   * Only network-level errors thrown by CapacitorHttp are retried;
-   * HTTP response errors (401, 404, etc.) are handled by the caller.
+   * Delegates to the shared retry utility.
    */
   private async _executeNativeRequestWithRetry(config: {
     url: string;
@@ -802,60 +803,23 @@ export class DropboxApi {
     headers: Record<string, string>;
     data: string | undefined;
   }): Promise<HttpResponse> {
-    let lastError: unknown = new Error('All retry attempts exhausted');
-    for (let attempt = 0; attempt <= NATIVE_REQUEST_MAX_RETRIES; attempt++) {
-      try {
-        return await CapacitorHttp.request({
-          url: config.url,
-          method: config.method,
-          headers: config.headers,
-          data: config.data,
-          responseType: 'text',
-          connectTimeout: 30000,
-          readTimeout: NATIVE_REQUEST_READ_TIMEOUT,
-        });
-      } catch (retryErr) {
-        lastError = retryErr;
-        if (
-          attempt < NATIVE_REQUEST_MAX_RETRIES &&
-          this._isTransientNetworkError(retryErr)
-        ) {
-          const delayMs = 1000 * (attempt + 1);
-          SyncLog.warn(
-            `${DropboxApi.L}._requestNative() transient network error, ` +
-              `retrying in ${delayMs}ms (attempt ${attempt + 1}/${NATIVE_REQUEST_MAX_RETRIES})`,
-            retryErr,
-          );
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
-          continue;
-        }
-        throw retryErr;
-      }
-    }
-    throw lastError;
+    return executeNativeRequestWithRetry(
+      {
+        url: config.url,
+        method: config.method,
+        headers: config.headers,
+        data: config.data,
+        readTimeout: NATIVE_REQUEST_READ_TIMEOUT,
+      },
+      DropboxApi.L,
+    );
   }
 
   /**
-   * Checks if an error is a transient network error that should be retried.
-   * Matches iOS NSError localizedDescription strings from URLSession failures:
-   * - NSURLErrorNetworkConnectionLost (-1005): "The network connection was lost."
-   * - NSURLErrorTimedOut (-1001): "The request timed out."
-   * - NSURLErrorNotConnectedToInternet (-1009): "The Internet connection appears to be offline."
-   * - NSURLErrorCannotFindHost (-1003): "A server with the specified hostname could not be found."
-   * - NSURLErrorCannotConnectToHost (-1004): "Could not connect to the server."
+   * Delegates to the shared isTransientNetworkError utility.
    */
   _isTransientNetworkError(e: unknown): boolean {
-    const message = (e instanceof Error ? e.message : String(e)).toLowerCase();
-    return (
-      message.includes('network connection was lost') ||
-      message.includes('timed out') ||
-      message.includes('not connected to the internet') ||
-      message.includes('internet connection appears to be offline') ||
-      message.includes('cannot find host') ||
-      message.includes('hostname could not be found') ||
-      message.includes('cannot connect to host') ||
-      message.includes('could not connect to the server')
-    );
+    return isTransientNetworkError(e);
   }
 
   /**
