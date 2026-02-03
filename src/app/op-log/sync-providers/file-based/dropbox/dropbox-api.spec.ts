@@ -563,6 +563,108 @@ describe('DropboxApi', () => {
       ).toBeRejectedWithError('Dropbox: Invalid access token response');
     });
   });
+
+  describe('_isTransientNetworkError', () => {
+    it('should return true for NSURLErrorNetworkConnectionLost', () => {
+      expect(
+        dropboxApi._isTransientNetworkError(
+          new Error('The network connection was lost.'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should return true for NSURLErrorTimedOut', () => {
+      expect(
+        dropboxApi._isTransientNetworkError(new Error('The request timed out.')),
+      ).toBe(true);
+    });
+
+    it('should return true for NSURLErrorNotConnectedToInternet localized description', () => {
+      expect(
+        dropboxApi._isTransientNetworkError(
+          new Error('The Internet connection appears to be offline.'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should return true for NSURLErrorNotConnectedToInternet domain description', () => {
+      expect(
+        dropboxApi._isTransientNetworkError(new Error('not connected to the internet')),
+      ).toBe(true);
+    });
+
+    it('should return true for NSURLErrorCannotFindHost localized description', () => {
+      expect(
+        dropboxApi._isTransientNetworkError(
+          new Error('A server with the specified hostname could not be found.'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should return true for NSURLErrorCannotFindHost domain description', () => {
+      expect(dropboxApi._isTransientNetworkError(new Error('cannot find host'))).toBe(
+        true,
+      );
+    });
+
+    it('should return true for NSURLErrorCannotConnectToHost localized description', () => {
+      expect(
+        dropboxApi._isTransientNetworkError(
+          new Error('Could not connect to the server.'),
+        ),
+      ).toBe(true);
+    });
+
+    it('should return true for NSURLErrorCannotConnectToHost domain description', () => {
+      expect(
+        dropboxApi._isTransientNetworkError(new Error('cannot connect to host')),
+      ).toBe(true);
+    });
+
+    it('should return false for auth errors', () => {
+      expect(dropboxApi._isTransientNetworkError(new Error('Unauthorized'))).toBe(false);
+    });
+
+    it('should return false for arbitrary errors', () => {
+      expect(
+        dropboxApi._isTransientNetworkError(new Error('Something unexpected happened')),
+      ).toBe(false);
+    });
+
+    it('should return false for HTTP status errors', () => {
+      expect(dropboxApi._isTransientNetworkError(new Error('HTTP 409 Conflict'))).toBe(
+        false,
+      );
+    });
+
+    it('should return true for non-Error string with transient message', () => {
+      expect(dropboxApi._isTransientNetworkError('network connection was lost')).toBe(
+        true,
+      );
+    });
+
+    it('should return false for non-Error string without transient message', () => {
+      expect(dropboxApi._isTransientNetworkError('some other string')).toBe(false);
+    });
+
+    it('should be case-insensitive', () => {
+      expect(
+        dropboxApi._isTransientNetworkError(new Error('THE NETWORK CONNECTION WAS LOST')),
+      ).toBe(true);
+    });
+
+    it('should return false for null', () => {
+      expect(dropboxApi._isTransientNetworkError(null)).toBe(false);
+    });
+
+    it('should return false for undefined', () => {
+      expect(dropboxApi._isTransientNetworkError(undefined)).toBe(false);
+    });
+
+    it('should return false for empty string', () => {
+      expect(dropboxApi._isTransientNetworkError('')).toBe(false);
+    });
+  });
 });
 
 // Note: We're skipping these tests because CapacitorHttp.request cannot be

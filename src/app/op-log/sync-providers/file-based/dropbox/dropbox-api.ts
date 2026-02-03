@@ -73,6 +73,17 @@ type DropboxWriteMode =
   | { '.tag': 'update'; update: string };
 
 /**
+ * Max retries for transient network errors (e.g., iOS NSURLErrorNetworkConnectionLost).
+ * iOS NSURLSession does NOT auto-retry POST requests (non-idempotent per RFC 7231).
+ * Retries are safe for Dropbox uploads: conditional writes (mode: 'update' with revToMatch
+ * or mode: 'add') ensure duplicates fail with UploadRevToMatchMismatchAPIError,
+ * which is already handled by _uploadWithRetry() in file-based-sync-adapter.service.ts.
+ * @see https://developer.apple.com/library/archive/qa/qa1941/_index.html
+ */
+const NATIVE_REQUEST_MAX_RETRIES = 2;
+const NATIVE_REQUEST_READ_TIMEOUT = 120000;
+
+/**
  * API class for Dropbox integration
  */
 export class DropboxApi {
@@ -319,7 +330,7 @@ export class DropboxApi {
           data: bodyParams,
           responseType: 'json',
           connectTimeout: 30000,
-          readTimeout: 60000,
+          readTimeout: NATIVE_REQUEST_READ_TIMEOUT,
         });
 
         if (response.status < 200 || response.status >= 300) {
@@ -425,7 +436,7 @@ export class DropboxApi {
           data: stringify(bodyParams),
           responseType: 'json',
           connectTimeout: 30000,
-          readTimeout: 60000,
+          readTimeout: NATIVE_REQUEST_READ_TIMEOUT,
         });
 
         if (response.status < 200 || response.status >= 300) {
@@ -532,14 +543,11 @@ export class DropboxApi {
     try {
       SyncLog.log(`${DropboxApi.L}._requestNative() ${method} ${requestUrl}`);
 
-      const capacitorResponse = await CapacitorHttp.request({
+      const capacitorResponse = await this._executeNativeRequestWithRetry({
         url: requestUrl,
         method,
         headers: requestHeaders,
         data: requestData,
-        responseType: 'text', // Ensure consistent text response
-        connectTimeout: 30000,
-        readTimeout: 60000,
       });
 
       // Handle token refresh
@@ -781,6 +789,73 @@ export class DropboxApi {
         (retryAfter + EXTRA_WAIT) * 1000,
       );
     });
+  }
+
+  /**
+   * Execute a CapacitorHttp request with retry logic for transient network errors.
+   * Only network-level errors thrown by CapacitorHttp are retried;
+   * HTTP response errors (401, 404, etc.) are handled by the caller.
+   */
+  private async _executeNativeRequestWithRetry(config: {
+    url: string;
+    method: HttpMethod;
+    headers: Record<string, string>;
+    data: string | undefined;
+  }): Promise<HttpResponse> {
+    let lastError: unknown = new Error('All retry attempts exhausted');
+    for (let attempt = 0; attempt <= NATIVE_REQUEST_MAX_RETRIES; attempt++) {
+      try {
+        return await CapacitorHttp.request({
+          url: config.url,
+          method: config.method,
+          headers: config.headers,
+          data: config.data,
+          responseType: 'text',
+          connectTimeout: 30000,
+          readTimeout: NATIVE_REQUEST_READ_TIMEOUT,
+        });
+      } catch (retryErr) {
+        lastError = retryErr;
+        if (
+          attempt < NATIVE_REQUEST_MAX_RETRIES &&
+          this._isTransientNetworkError(retryErr)
+        ) {
+          const delayMs = 1000 * (attempt + 1);
+          SyncLog.warn(
+            `${DropboxApi.L}._requestNative() transient network error, ` +
+              `retrying in ${delayMs}ms (attempt ${attempt + 1}/${NATIVE_REQUEST_MAX_RETRIES})`,
+            retryErr,
+          );
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          continue;
+        }
+        throw retryErr;
+      }
+    }
+    throw lastError;
+  }
+
+  /**
+   * Checks if an error is a transient network error that should be retried.
+   * Matches iOS NSError localizedDescription strings from URLSession failures:
+   * - NSURLErrorNetworkConnectionLost (-1005): "The network connection was lost."
+   * - NSURLErrorTimedOut (-1001): "The request timed out."
+   * - NSURLErrorNotConnectedToInternet (-1009): "The Internet connection appears to be offline."
+   * - NSURLErrorCannotFindHost (-1003): "A server with the specified hostname could not be found."
+   * - NSURLErrorCannotConnectToHost (-1004): "Could not connect to the server."
+   */
+  _isTransientNetworkError(e: unknown): boolean {
+    const message = (e instanceof Error ? e.message : String(e)).toLowerCase();
+    return (
+      message.includes('network connection was lost') ||
+      message.includes('timed out') ||
+      message.includes('not connected to the internet') ||
+      message.includes('internet connection appears to be offline') ||
+      message.includes('cannot find host') ||
+      message.includes('hostname could not be found') ||
+      message.includes('cannot connect to host') ||
+      message.includes('could not connect to the server')
+    );
   }
 
   /**
