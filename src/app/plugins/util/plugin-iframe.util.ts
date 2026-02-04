@@ -2,6 +2,7 @@ import { PluginBridgeService } from '../plugin-bridge.service';
 import { PluginBaseCfg, PluginManifest } from '../plugin-api.model';
 import { PluginIframeMessageType } from '@super-productivity/plugin-api';
 import { PluginLog } from '../../core/log';
+import { PLUGIN_UI_KIT_CSS } from './plugin-ui-kit.css';
 
 /**
  * Simplified plugin iframe utilities following KISS principles.
@@ -59,7 +60,7 @@ export const createPluginCssInjection = (): string => {
         --scrollbar-thumb: ${getVar('--scrollbar-thumb')};
         --scrollbar-thumb-hover: ${getVar('--scrollbar-thumb-hover')};
         --scrollbar-track: ${getVar('--scrollbar-track')};
-        
+
         /* Shadow system */
         --whiteframe-shadow-1dp: ${getVar('--whiteframe-shadow-1dp')};
         --whiteframe-shadow-2dp: ${getVar('--whiteframe-shadow-2dp')};
@@ -69,7 +70,7 @@ export const createPluginCssInjection = (): string => {
         --whiteframe-shadow-8dp: ${getVar('--whiteframe-shadow-8dp')};
         --whiteframe-shadow-12dp: ${getVar('--whiteframe-shadow-12dp')};
         --whiteframe-shadow-24dp: ${getVar('--whiteframe-shadow-24dp')};
-        
+
         /* Spacing system */
         --s: ${getVar('--s')};
         --s-quarter: ${getVar('--s-quarter')};
@@ -77,7 +78,7 @@ export const createPluginCssInjection = (): string => {
         --s2: ${getVar('--s2')};
         --s3: ${getVar('--s3')};
         --s4: ${getVar('--s4')};
-        
+
         /* Transition system */
         --transition-duration-xs: ${getVar('--transition-duration-xs')};
         --transition-duration-s: ${getVar('--transition-duration-s')};
@@ -85,7 +86,10 @@ export const createPluginCssInjection = (): string => {
         --transition-duration-l: ${getVar('--transition-duration-l')};
         --transition-standard: ${getVar('--transition-standard')};
         --ani-standard-timing: ${getVar('--ani-standard-timing')};
-        
+
+        /* Font stack */
+        --font-primary-stack: ${getVar('--font-primary-stack')};
+
         /* Task-related variables */
         --task-first-line-min-height: ${getVar('--task-first-line-min-height')};
         --task-icon-default-opacity: ${getVar('--task-icon-default-opacity')};
@@ -113,6 +117,7 @@ export const createPluginCssInjection = (): string => {
       body {
         background: transparent;
         color: var(--text-color);
+        font-family: var(--font-primary-stack);
       }
 
       /* Custom scrollbar styles for plugins */
@@ -385,16 +390,19 @@ const activeBlobUrls = new Set<string>();
 export const createPluginIframeUrl = (config: PluginIframeConfig): string => {
   const apiScript = createPluginApiScript(config);
   const cssInjection = createPluginCssInjection();
+  const fullCssInjection =
+    cssInjection + (config.manifest.uiKit !== false ? PLUGIN_UI_KIT_CSS : '');
 
-  // Inject CSS in head
+  // Inject CSS at start of head so plugin styles come later and win by source order
   let html = config.indexHtml;
-  const headEnd = html.toLowerCase().lastIndexOf('</head>');
+  const headMatch = html.match(/<head[^>]*>/i);
 
-  if (headEnd !== -1) {
-    html = html.slice(0, headEnd) + cssInjection + html.slice(headEnd);
+  if (headMatch) {
+    const insertPos = headMatch.index! + headMatch[0].length;
+    html = html.slice(0, insertPos) + fullCssInjection + html.slice(insertPos);
   } else {
     // If no head tag, inject at beginning
-    html = cssInjection + html;
+    html = fullCssInjection + html;
   }
 
   // Inject API script before closing body tag
