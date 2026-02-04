@@ -2978,6 +2978,98 @@ describe('ConflictResolutionService', () => {
         projectId: 'proj-1',
       });
     });
+
+    it('should fall back when local DELETE is bulk deleteTasks (only taskIds, no entity)', () => {
+      // deleteTasks action payload: { taskIds: string[] } — no full entity
+      const conflict = createConflict(
+        'task-1',
+        [
+          {
+            ...createOpWithTimestamp('local-del', 'client-a', Date.now() - 1000),
+            opType: OpType.Delete,
+            payload: { taskIds: ['task-1', 'task-2'] },
+          },
+        ],
+        [
+          {
+            ...createOpWithTimestamp('remote-upd', 'client-b', Date.now()),
+            opType: OpType.Update,
+            payload: { task: { id: 'task-1', changes: { title: 'Updated' } } },
+          },
+        ],
+      );
+
+      const result = (service as any)._convertToLWWUpdatesIfNeeded(conflict);
+
+      expect(result.length).toBe(1);
+      expect(result[0].actionType).toBe('[TASK] LWW Update');
+      // Fallback: original payload preserved (no merged entity)
+      expect(result[0].payload).toEqual({
+        task: { id: 'task-1', changes: { title: 'Updated' } },
+      });
+    });
+
+    it('should fall back when local DELETE payload has no recognizable entity structure', () => {
+      const conflict = createConflict(
+        'task-1',
+        [
+          {
+            ...createOpWithTimestamp('local-del', 'client-a', Date.now() - 1000),
+            opType: OpType.Delete,
+            payload: { someUnrelatedKey: 'value' },
+          },
+        ],
+        [
+          {
+            ...createOpWithTimestamp('remote-upd', 'client-b', Date.now()),
+            opType: OpType.Update,
+            payload: { task: { id: 'task-1', changes: { notes: 'New notes' } } },
+          },
+        ],
+      );
+
+      const result = (service as any)._convertToLWWUpdatesIfNeeded(conflict);
+
+      expect(result[0].actionType).toBe('[TASK] LWW Update');
+      // Original remote payload kept as-is when fallback triggers
+      expect(result[0].payload).toEqual({
+        task: { id: 'task-1', changes: { notes: 'New notes' } },
+      });
+    });
+
+    it('should produce merged entity with top-level id when base entity is available', () => {
+      // This verifies the happy path produces a payload that
+      // lwwUpdateMetaReducer can consume (requires top-level `id`)
+      const fullEntity = {
+        id: 'task-1',
+        title: 'Original',
+        projectId: 'proj-1',
+      };
+
+      const conflict = createConflict(
+        'task-1',
+        [
+          {
+            ...createOpWithTimestamp('local-del', 'client-a', Date.now() - 1000),
+            opType: OpType.Delete,
+            payload: { task: fullEntity },
+          },
+        ],
+        [
+          {
+            ...createOpWithTimestamp('remote-upd', 'client-b', Date.now()),
+            opType: OpType.Update,
+            payload: { task: { id: 'task-1', changes: { title: 'New' } } },
+          },
+        ],
+      );
+
+      const result = (service as any)._convertToLWWUpdatesIfNeeded(conflict);
+
+      // Merged payload has top-level `id` — required by lwwUpdateMetaReducer
+      expect(result[0].payload.id).toBe('task-1');
+      expect(typeof result[0].payload.id).toBe('string');
+    });
   });
 
   describe('_extractEntityFromPayload', () => {

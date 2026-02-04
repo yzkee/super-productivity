@@ -49,7 +49,6 @@ export const createPluginCssInjection = (): string => {
         --divider-color: ${getVar('--divider-color')};
         --extra-border-color: ${getVar('--extra-border-color')};
         --select-hover-bg: ${getVar('--select-hover-bg')};
-        --text-color-muted: ${getVar('--text-color-muted')};
         --c-primary: ${getVar('--c-primary')};
         --c-accent: ${getVar('--c-accent')};
         --c-warn: ${getVar('--c-warn')};

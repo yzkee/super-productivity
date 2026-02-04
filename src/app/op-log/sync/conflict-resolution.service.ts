@@ -881,10 +881,14 @@ export class ConflictResolutionService {
           };
         }
 
-        // Fallback: can't get base entity, log warning
-        OpLog.warn(
+        // Fallback: can't get base entity — the LWW Update keeps the original
+        // UPDATE payload which may lack a top-level `id`, causing lwwUpdateMetaReducer
+        // to skip the update. This is the pre-existing behavior; the merged-entity
+        // path above is the fix. Log with payload shape for diagnostics.
+        OpLog.error(
           `ConflictResolutionService: Cannot extract base entity from local DELETE for ` +
-            `${remoteOp.entityType}:${remoteOp.entityId}. LWW Update may have incomplete data.`,
+            `${remoteOp.entityType}:${remoteOp.entityId}. LWW Update may have incomplete data. ` +
+            `Local DELETE payload keys: ${localDeleteOp ? JSON.stringify(Object.keys(extractActionPayload(localDeleteOp.payload))) : 'N/A'}`,
         );
         return {
           ...remoteOp,
