@@ -250,7 +250,7 @@ export type GlobalConfigState = Readonly<{
   schedule: ScheduleConfig;
   dominaMode: DominaModeConfig;
   focusMode: FocusModeConfig;
-  clipboardImages: ClipboardImagesConfig;
+  clipboardImages?: ClipboardImagesConfig;
 
   sync: SyncConfig;
   dailySummaryNote?: DailySummaryNote;

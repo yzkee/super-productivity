@@ -78,7 +78,8 @@ export const selectFocusModeConfig = createSelector(
 );
 export const selectClipboardImagesConfig = createSelector(
   selectConfigFeatureState,
-  (cfg): ClipboardImagesConfig => cfg.clipboardImages,
+  (cfg): ClipboardImagesConfig =>
+    cfg?.clipboardImages ?? DEFAULT_GLOBAL_CONFIG.clipboardImages!,
 );
 export const selectPomodoroConfig = createSelector(
   selectConfigFeatureState,
