@@ -19,7 +19,7 @@ import {
 } from '../global-config.model';
 import { ProjectCfgFormKey } from '../../project/project.model';
 import { IS_ELECTRON } from '../../../app.constants';
-import { MatFormField, MatHint, MatLabel } from '@angular/material/form-field';
+import { MatFormField, MatLabel } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
 import { DialogClipboardImagesManagerComponent } from './dialog-clipboard-images-manager/dialog-clipboard-images-manager.component';
@@ -36,7 +36,6 @@ import { getDefaultClipboardImagesPath } from '../../../util/get-default-clipboa
     TranslatePipe,
     MatFormField,
     MatLabel,
-    MatHint,
     MatInput,
     FormsModule,
   ],

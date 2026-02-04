@@ -11,7 +11,6 @@ import { MatIcon } from '@angular/material/icon';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SnackService } from '../../../core/snack/snack.service';
-import { AsyncPipe } from '@angular/common';
 
 @Component({
   // selector: 'dialog-add-note',
@@ -32,7 +31,6 @@ import { AsyncPipe } from '@angular/common';
     MatButton,
     MatIconButton,
     TranslatePipe,
-    AsyncPipe,
   ],
 })
 export class DialogAddNoteComponent extends DialogFullscreenMarkdownComponent {
