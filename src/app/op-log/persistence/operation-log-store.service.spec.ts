@@ -883,6 +883,20 @@ describe('OperationLogStoreService', () => {
       const storedOps = await service.getOpsAfterSeq(0);
       expect(storedOps[0].applicationStatus).toBe('pending');
     });
+
+    it('should handle intra-batch duplicates (same op ID twice in one call)', async () => {
+      const op = createTestOperation();
+      const ops = [op, op]; // Same op twice
+
+      const result = await service.appendBatchSkipDuplicates(ops, 'remote');
+
+      expect(result.seqs.length).toBe(1);
+      expect(result.writtenOps.length).toBe(1);
+      expect(result.skippedCount).toBe(1);
+
+      const storedOps = await service.getOpsAfterSeq(0);
+      expect(storedOps.length).toBe(1);
+    });
   });
 
   describe('getOpById', () => {

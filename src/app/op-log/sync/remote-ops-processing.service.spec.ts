@@ -51,7 +51,6 @@ describe('RemoteOpsProcessingService', () => {
       'getUnsynced',
       'hasOp',
       'append',
-      'appendBatch',
       'appendBatchSkipDuplicates',
       'appendWithVectorClockUpdate',
       'markApplied',
@@ -59,7 +58,6 @@ describe('RemoteOpsProcessingService', () => {
       'mergeRemoteOpClocks',
       'getUnsyncedByEntity',
       'getOpsAfterSeq',
-      'filterNewOps',
       'getLatestFullStateOp',
       'getOpById',
       'markRejected',
@@ -67,12 +65,6 @@ describe('RemoteOpsProcessingService', () => {
       'clearFullStateOps',
       'clearFullStateOpsExcept',
     ]);
-    // By default, treat all ops as new (return them as-is)
-    opLogStoreSpy.filterNewOps.and.callFake((ops: any[]) => Promise.resolve(ops));
-    // By default, appendBatch returns sequential seq numbers starting from 1
-    opLogStoreSpy.appendBatch.and.callFake((ops: any[]) =>
-      Promise.resolve(ops.map((_: any, i: number) => i + 1)),
-    );
     // By default, appendBatchSkipDuplicates writes all ops (no duplicates)
     opLogStoreSpy.appendBatchSkipDuplicates.and.callFake((ops: any[]) =>
       Promise.resolve({
@@ -342,7 +334,7 @@ describe('RemoteOpsProcessingService', () => {
 
       await service.processRemoteOps(remoteOps);
 
-      // Only op1 should be applied (appendBatch called with single-element array)
+      // Only op1 should be applied (appendBatchSkipDuplicates called with single-element array)
       expect(opLogStoreSpy.appendBatchSkipDuplicates).toHaveBeenCalledWith(
         [remoteOps[0]],
         'remote',
@@ -373,7 +365,7 @@ describe('RemoteOpsProcessingService', () => {
 
       await service.processRemoteOps(remoteOps);
 
-      // op1 and op3 should be processed (appendBatch called with array of both)
+      // op1 and op3 should be processed (appendBatchSkipDuplicates called with array of both)
       expect(opLogStoreSpy.appendBatchSkipDuplicates).toHaveBeenCalledWith(
         [remoteOps[0], remoteOps[2]],
         'remote',
@@ -429,7 +421,7 @@ describe('RemoteOpsProcessingService', () => {
       // (used for potential dependency warnings in future enhancements)
       await service.processRemoteOps(remoteOps);
 
-      // Only op1 should be applied (appendBatch called with single-element array)
+      // Only op1 should be applied (appendBatchSkipDuplicates called with single-element array)
       expect(opLogStoreSpy.appendBatchSkipDuplicates).toHaveBeenCalledWith(
         [remoteOps[0]],
         'remote',
@@ -507,7 +499,7 @@ describe('RemoteOpsProcessingService', () => {
         }),
       );
 
-      // Should still process the ops (appendBatch called with both ops)
+      // Should still process the ops (appendBatchSkipDuplicates called with both ops)
       expect(opLogStoreSpy.appendBatchSkipDuplicates).toHaveBeenCalledWith(
         remoteOps,
         'remote',

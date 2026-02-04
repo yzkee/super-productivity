@@ -47,14 +47,12 @@ describe('ConflictResolutionService', () => {
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', [
       'hasOp',
       'append',
-      'appendBatch',
       'appendBatchSkipDuplicates',
       'appendWithVectorClockUpdate',
       'markApplied',
       'markRejected',
       'markFailed',
       'getUnsyncedByEntity',
-      'filterNewOps',
       'mergeRemoteOpClocks',
       'getProtectedClientIds',
     ]);
@@ -87,12 +85,6 @@ describe('ConflictResolutionService', () => {
     mockOperationApplier.applyOperations.and.resolveTo({ appliedOps: [] });
     mockValidateStateService.validateAndRepairCurrentState.and.resolveTo(true);
     mockOpLogStore.getUnsyncedByEntity.and.resolveTo(new Map());
-    // By default, treat all ops as new (return them as-is)
-    mockOpLogStore.filterNewOps.and.callFake((ops: Operation[]) => Promise.resolve(ops));
-    // By default, appendBatch returns sequential seq numbers starting from 1
-    mockOpLogStore.appendBatch.and.callFake((ops: Operation[]) =>
-      Promise.resolve(ops.map((_, i) => i + 1)),
-    );
     // By default, appendBatchSkipDuplicates writes all ops (no duplicates)
     mockOpLogStore.appendBatchSkipDuplicates.and.callFake((ops: Operation[]) =>
       Promise.resolve({

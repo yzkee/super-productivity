@@ -334,11 +334,6 @@ export class OperationLogStoreService {
   }
 
   /**
-   * Marks operations as successfully applied.
-   * Called after remote operations have been dispatched to NgRx.
-   * Also handles transitioning 'failed' ops to 'applied' when retrying succeeds.
-   */
-  /**
    * Appends operations to the store, silently skipping any that already exist.
    *
    * Unlike appendBatch(), this method does NOT throw on duplicate operations.
@@ -413,6 +408,11 @@ export class OperationLogStoreService {
     }
   }
 
+  /**
+   * Marks operations as successfully applied.
+   * Called after remote operations have been dispatched to NgRx.
+   * Also handles transitioning 'failed' ops to 'applied' when retrying succeeds.
+   */
   async markApplied(seqs: number[]): Promise<void> {
     await this._ensureInit();
     const tx = this.db.transaction(STORE_NAMES.OPS, 'readwrite');
