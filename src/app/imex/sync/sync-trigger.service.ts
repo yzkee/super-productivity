@@ -190,7 +190,16 @@ export class SyncTriggerService {
       }
       return merge(
         this._isInitialSyncDoneManual$.asObservable().pipe(filter((isDone) => isDone)),
-        timer(MAX_WAIT_FOR_INITIAL_SYNC).pipe(mapTo(true)),
+        timer(MAX_WAIT_FOR_INITIAL_SYNC).pipe(
+          // When timeout fires, wait for conflict dialog to close if it's open
+          switchMap(() =>
+            this._syncWrapperService.isWaitingForUserInput$.pipe(
+              filter((isWaiting) => !isWaiting),
+              first(),
+            ),
+          ),
+          mapTo(true),
+        ),
       ).pipe(first());
     }),
     concatMap(() => this._dataInitStateService.isAllDataLoadedInitially$),
