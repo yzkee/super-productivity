@@ -894,6 +894,7 @@
         "L_ICON": "Icon",
         "L_ICON_ON": "Icon when toggled on",
         "L_IS_ENABLED": "Enabled",
+        "L_IS_HIDE_BUTTON": "Hide toolbar button",
         "L_TITLE": "Title",
         "L_TRACK_STREAKS": "Track streaks",
         "L_TYPE": "Type",
