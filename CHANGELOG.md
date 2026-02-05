@@ -1,3 +1,16 @@
+## [17.1.1](https://github.com/super-productivity/super-productivity/compare/v17.1.0...v17.1.1) (2026-02-05)
+
+### Bug Fixes
+
+- **ci:** use macos-15 runner for iOS build to fix Xcode compatibility ([#6366](https://github.com/super-productivity/super-productivity/issues/6366)) ([be3f673](https://github.com/super-productivity/super-productivity/commit/be3f6735889b0f04332802477ffa759eef47e3db))
+- **icons:** resolve macOS icon black edge artifacts ([8b645c3](https://github.com/super-productivity/super-productivity/commit/8b645c33eab6810dba5aa63d67c1c2ee9a9cf3e7)), closes [#6323](https://github.com/super-productivity/super-productivity/issues/6323)
+- **schedule:** show repeat projections in month view ([be064f7](https://github.com/super-productivity/super-productivity/commit/be064f7cf3e721df1a6b412dcbc2252821d17a01)), closes [#6312](https://github.com/super-productivity/super-productivity/issues/6312)
+- **tasks:** prevent duplicate task creation on rapid Enter key presses ([d54e458](https://github.com/super-productivity/super-productivity/commit/d54e45840472dca55c4cf5aac1f91cd4d5321a70))
+
+### Features
+
+- improve styling for schedule-month.component.html ([fc02bae](https://github.com/super-productivity/super-productivity/commit/fc02baec9863af6703b4932a78a166eb2fe8805b))
+
 # [17.1.0](https://github.com/super-productivity/super-productivity/compare/v17.0.12...v17.1.0) (2026-02-04)
 
 ### Bug Fixes
