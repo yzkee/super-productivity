@@ -287,6 +287,7 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
   private _focusTimeout?: number;
   private _autocompleteTimeout?: number;
   private _processingAutocompleteSelection = false;
+  private _isAddingTask = false;
 
   ngOnInit(): void {
     this._setProjectInitially();
@@ -400,7 +401,7 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
 
   // Public methods
   async addTask(): Promise<void> {
-    if (this._processingAutocompleteSelection) {
+    if (this._processingAutocompleteSelection || this._isAddingTask) {
       return;
     }
 
@@ -418,90 +419,95 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
     const title = currentState.cleanText || this.stateService.inputTxt().trim();
     if (!title) return;
 
-    const state = this.stateService.state();
-    let finalTagIds = [...state.tagIds, ...state.tagIdsFromTxt];
+    this._isAddingTask = true;
+    try {
+      const state = this.stateService.state();
+      let finalTagIds = [...state.tagIds, ...state.tagIdsFromTxt];
 
-    if (this.hasNewTags()) {
-      const shouldCreateNewTags = await this._confirmNewTags();
-      if (shouldCreateNewTags) {
-        const newTagIds = await this._createNewTags(state.newTagTitles);
-        finalTagIds = [...finalTagIds, ...newTagIds];
+      if (this.hasNewTags()) {
+        const shouldCreateNewTags = await this._confirmNewTags();
+        if (shouldCreateNewTags) {
+          const newTagIds = await this._createNewTags(state.newTagTitles);
+          finalTagIds = [...finalTagIds, ...newTagIds];
+        }
       }
-    }
 
-    // Filter out tags to remove if specified
-    const tagsToRemoveList = this.tagsToRemove();
-    if (tagsToRemoveList && tagsToRemoveList.length > 0) {
-      finalTagIds = finalTagIds.filter((tagId) => !tagsToRemoveList.includes(tagId));
-    }
+      // Filter out tags to remove if specified
+      const tagsToRemoveList = this.tagsToRemove();
+      if (tagsToRemoveList && tagsToRemoveList.length > 0) {
+        finalTagIds = finalTagIds.filter((tagId) => !tagsToRemoveList.includes(tagId));
+      }
 
-    const additionalFields = this.additionalFields();
-    const taskData: Partial<TaskCopy> = {
-      ...additionalFields,
-      projectId: state.projectId,
-      tagIds: additionalFields?.tagIds
-        ? unique([...finalTagIds, ...additionalFields.tagIds])
-        : finalTagIds,
-      // needs to be 0
-      timeEstimate: state.estimate || 0,
-      attachments:
-        state.attachments.length > 0
-          ? state.attachments
-          : additionalFields?.attachments || [],
-    };
+      const additionalFields = this.additionalFields();
+      const taskData: Partial<TaskCopy> = {
+        ...additionalFields,
+        projectId: state.projectId,
+        tagIds: additionalFields?.tagIds
+          ? unique([...finalTagIds, ...additionalFields.tagIds])
+          : finalTagIds,
+        // needs to be 0
+        timeEstimate: state.estimate || 0,
+        attachments:
+          state.attachments.length > 0
+            ? state.attachments
+            : additionalFields?.attachments || [],
+      };
 
-    if (state.spent) {
-      taskData.timeSpentOnDay = state.spent;
-    }
+      if (state.spent) {
+        taskData.timeSpentOnDay = state.spent;
+      }
 
-    if (state.date) {
-      // Parse date components to create date in local timezone
-      // This avoids timezone issues when parsing date strings like "2024-01-15"
-      const [year, month, day] = state.date.split('-').map(Number);
-      const date = new Date(year, month - 1, day);
+      if (state.date) {
+        // Parse date components to create date in local timezone
+        // This avoids timezone issues when parsing date strings like "2024-01-15"
+        const [year, month, day] = state.date.split('-').map(Number);
+        const date = new Date(year, month - 1, day);
 
-      if (state.time) {
-        // TODO we need to add unit tests to confirm this works
-        const [hours, minutes] = state.time.split(':').map(Number);
-        date.setHours(hours, minutes, 0, 0);
-        taskData.dueWithTime = date.getTime();
-        taskData.hasPlannedTime = true;
+        if (state.time) {
+          // TODO we need to add unit tests to confirm this works
+          const [hours, minutes] = state.time.split(':').map(Number);
+          date.setHours(hours, minutes, 0, 0);
+          taskData.dueWithTime = date.getTime();
+          taskData.hasPlannedTime = true;
+        } else {
+          taskData.dueDay = state.date;
+        }
       } else {
-        taskData.dueDay = state.date;
+        // Explicitly set dueDay to undefined when no date is selected
+        // This prevents automatic assignment of today's date in TODAY context
+        taskData.dueDay = undefined;
       }
-    } else {
-      // Explicitly set dueDay to undefined when no date is selected
-      // This prevents automatic assignment of today's date in TODAY context
-      taskData.dueDay = undefined;
+
+      Log.x(taskData);
+
+      const taskId = this._taskService.add(
+        title,
+        this.isAddToBacklog(),
+        taskData,
+        this.isAddToBottom(),
+      );
+
+      if (taskData.dueWithTime) {
+        this._taskService
+          .getByIdOnce$(taskId)
+          .pipe(timeout(1000))
+          .subscribe((task) => {
+            this._taskService.scheduleTask(
+              task,
+              taskData.dueWithTime!,
+              state.remindOption ??
+                this._globalConfigService.cfg()?.reminder.defaultTaskRemindOption ??
+                DEFAULT_GLOBAL_CONFIG.reminder.defaultTaskRemindOption!,
+              this.isAddToBacklog(),
+            );
+          });
+      }
+
+      this.afterTaskAdd.emit({ taskId, isAddToBottom: this.isAddToBottom() });
+      this._resetAfterAdd();
+    } finally {
+      this._isAddingTask = false;
     }
-
-    Log.x(taskData);
-
-    const taskId = this._taskService.add(
-      title,
-      this.isAddToBacklog(),
-      taskData,
-      this.isAddToBottom(),
-    );
-
-    if (taskData.dueWithTime) {
-      this._taskService
-        .getByIdOnce$(taskId)
-        .pipe(timeout(1000))
-        .subscribe((task) => {
-          this._taskService.scheduleTask(
-            task,
-            taskData.dueWithTime!,
-            state.remindOption ??
-              this._globalConfigService.cfg()?.reminder.defaultTaskRemindOption ??
-              DEFAULT_GLOBAL_CONFIG.reminder.defaultTaskRemindOption!,
-            this.isAddToBacklog(),
-          );
-        });
-    }
-
-    this.afterTaskAdd.emit({ taskId, isAddToBottom: this.isAddToBottom() });
-    this._resetAfterAdd();
   }
 
   onTaskSuggestionActivated(suggestion: AddTaskSuggestion | null): void {
