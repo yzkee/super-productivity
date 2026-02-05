@@ -71,7 +71,7 @@ public class WebDavHttpPlugin: CAPPlugin, CAPBridgedPlugin {
                 return
             }
 
-            let responseHeaders = JSObject()
+            var responseHeaders = JSObject()
             for (key, value) in httpResponse.allHeaderFields {
                 if let keyStr = key as? String, let valueStr = value as? String {
                     responseHeaders[keyStr.lowercased()] = valueStr
