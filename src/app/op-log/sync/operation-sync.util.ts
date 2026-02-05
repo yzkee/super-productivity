@@ -36,11 +36,13 @@ export const isFileBasedProvider = (
   return FILE_BASED_PROVIDER_IDS.has(provider.id);
 };
 
+const VALID_OP_TYPES = new Set<string>(Object.values(OpType));
+
 /**
  * Convert a SyncOperation (from API response) to an Operation (local format).
  */
 export const syncOpToOperation = (syncOp: SyncOperation): Operation => {
-  if (!Object.values(OpType).includes(syncOp.opType as OpType)) {
+  if (!VALID_OP_TYPES.has(syncOp.opType)) {
     throw new Error(`Invalid opType from server: '${syncOp.opType}'`);
   }
 

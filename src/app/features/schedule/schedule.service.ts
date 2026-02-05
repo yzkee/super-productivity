@@ -283,6 +283,7 @@ const isTaskWithPlannedForDay = (
   (ev.type === SVEType.TaskPlannedForDay ||
     ev.type === SVEType.SplitTaskPlannedForDay ||
     ev.type === SVEType.SplitTask ||
+    ev.type === SVEType.ScheduledTask ||
     ev.type === SVEType.Task) &&
   ev.data != null &&
   'plannedForDay' in ev.data &&
@@ -312,7 +313,11 @@ const isTaskWithDueDay = (
   'dueDay' in ev.data &&
   typeof ev.data.dueDay === 'string';
 
-const isRepeatProjection = (ev: ScheduleEvent): boolean =>
+const isRepeatProjection = (
+  ev: ScheduleEvent,
+): ev is ScheduleEvent & {
+  type: SVEType.RepeatProjection | SVEType.ScheduledRepeatProjection;
+} =>
   ev.type === SVEType.RepeatProjection || ev.type === SVEType.ScheduledRepeatProjection;
 
 type TimelineTasks = {
