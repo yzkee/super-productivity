@@ -1,7 +1,8 @@
 name: iOS App Store Release on Release
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - v*
   workflow_dispatch:
     inputs: {}
 
@@ -11,9 +12,6 @@ jobs:
     env:
       UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
       UNSPLASH_CLIENT_ID: ${{ secrets.UNSPLASH_CLIENT_ID }}
-
-    # TODO: Re-enable pre-release skip once workflow is tested
-    # if: '!github.event.release.prerelease'
 
     steps:
       - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
