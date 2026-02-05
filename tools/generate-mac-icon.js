@@ -130,11 +130,22 @@ async function generateMacIcon() {
   for (const { osType, size } of ICNS_TYPES) {
     const svg = continuousRoundedRectSvg(size);
 
-    const pngBuffer = await sharp(SOURCE_PNG)
+    // Step 1: Resize and apply squircle mask
+    // NOTE: Must output to PNG buffer before flatten. When chained directly,
+    // Sharp's internal pipeline doesn't properly preserve alpha channel data
+    // between dest-in composite and flatten, causing edge pixels to retain
+    // the original icon color instead of blending with the background.
+    // See: https://github.com/super-productivity/super-productivity/issues/6323
+    const maskedPng = await sharp(SOURCE_PNG)
       .resize(size, size, { fit: 'cover', position: 'center' })
       .composite([{ input: Buffer.from(svg), blend: 'dest-in' }])
+      .png()
+      .toBuffer();
+
+    // Step 2: Flatten with white background (properly blends alpha at edges)
+    // Note: flatten() already removes alpha, so removeAlpha() is not needed
+    const pngBuffer = await sharp(maskedPng)
       .flatten({ background: { r: 255, g: 255, b: 255 } })
-      .removeAlpha()
       .png()
       .toBuffer();
 
