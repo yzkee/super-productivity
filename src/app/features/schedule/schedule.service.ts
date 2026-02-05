@@ -255,16 +255,20 @@ export class ScheduleService {
       }
     }
 
-    // RepeatProjection types
+    // RepeatProjection types - check ev.plannedForDay first (set on view entry),
+    // then fall back to data.plannedForDay for backwards compatibility
     if (
-      (ev.type === SVEType.RepeatProjection ||
-        ev.type === SVEType.ScheduledRepeatProjection) &&
-      data &&
-      'plannedForDay' in data
+      ev.type === SVEType.RepeatProjection ||
+      ev.type === SVEType.ScheduledRepeatProjection
     ) {
-      const plannedForDay = (data as { plannedForDay: unknown }).plannedForDay;
-      if (typeof plannedForDay === 'string') {
-        return plannedForDay;
+      if (ev.plannedForDay) {
+        return ev.plannedForDay;
+      }
+      if (data && 'plannedForDay' in data) {
+        const plannedForDay = (data as { plannedForDay: unknown }).plannedForDay;
+        if (typeof plannedForDay === 'string') {
+          return plannedForDay;
+        }
       }
     }
 

@@ -155,6 +155,7 @@ describe('mapToScheduleDays()', () => {
           id: 'wSs2q4YWkZZjthJrUeIos_2024-08-05',
           start: 1722841200000,
           type: 'ScheduledRepeatProjection',
+          plannedForDay: '2024-08-05',
         },
         {
           data: {
@@ -182,6 +183,7 @@ describe('mapToScheduleDays()', () => {
           id: 'lmjFQzTdJh8aSak3cu9SN_2024-08-05',
           start: 1722842100000,
           type: 'RepeatProjection',
+          plannedForDay: '2024-08-05',
         },
         {
           data: {
@@ -209,6 +211,7 @@ describe('mapToScheduleDays()', () => {
           id: 'Foclw2saS0jZ3LfLVM5fd_2024-08-05',
           start: 1722843900000,
           type: 'RepeatProjection',
+          plannedForDay: '2024-08-05',
         },
         {
           data: {
@@ -236,6 +239,7 @@ describe('mapToScheduleDays()', () => {
           id: 'QRZ1qaGbKJSO-1-RoIh7F_2024-08-05',
           start: 1722845100000,
           type: 'RepeatProjection',
+          plannedForDay: '2024-08-05',
         },
       ],
       isToday: false,

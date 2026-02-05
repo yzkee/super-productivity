@@ -10,6 +10,7 @@ export interface ScheduleEvent {
   startHours: number;
   timeLeftInHours: number;
   dayOfMonth?: number;
+  plannedForDay?: string;
   data?: SVE['data'];
   overlap?: { count: number; offset: number };
 }

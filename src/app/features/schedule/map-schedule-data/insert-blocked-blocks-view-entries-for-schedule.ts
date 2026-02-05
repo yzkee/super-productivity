@@ -378,5 +378,6 @@ export const createSplitRepeat = ({
     duration: duration,
     splitIndex,
     data: taskRepeatCfg,
+    plannedForDay: dayDate,
   };
 };

@@ -126,6 +126,7 @@ const createViewEntriesForNonScheduledRepeatProjections = (
       start: time,
       data: taskRepeatCfg,
       duration: taskRepeatCfg.defaultEstimate || 0,
+      plannedForDay: dayDate,
     });
 
     lastTime = time;

@@ -152,6 +152,7 @@ describe('createViewEntriesForBlock()', () => {
         start: 1000,
         duration: 2000,
         type: 'ScheduledRepeatProjection',
+        plannedForDay: 'DD',
       },
       {
         data: { endTime: '10:00', startTime: '9:00' },

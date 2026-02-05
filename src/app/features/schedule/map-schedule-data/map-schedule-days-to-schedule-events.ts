@@ -61,6 +61,7 @@ export const mapScheduleDaysToScheduleEvents = (
           timeLeftInHours,
           style: `grid-column: ${dayIndex + 2};  grid-row: ${startRow} / span ${rowSpan}`,
           data: entry.data,
+          plannedForDay: entry.plannedForDay,
         });
 
         let overlapCount = 0;

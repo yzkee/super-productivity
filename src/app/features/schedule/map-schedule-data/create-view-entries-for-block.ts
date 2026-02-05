@@ -26,6 +26,7 @@ export const createViewEntriesForBlock = (
         type: SVEType.ScheduledRepeatProjection,
         data: repeatCfg,
         duration: repeatCfg.defaultEstimate || 0,
+        plannedForDay: dayDate,
       });
     } else if (entry.type === BlockedBlockType.CalendarEvent) {
       const calendarEvent = entry.data;
@@ -65,6 +66,7 @@ export const createViewEntriesForBlock = (
         type: SVEType.RepeatProjectionSplitContinuedLast,
         data: repeatCfg,
         duration: entry.end - entry.start,
+        plannedForDay: dayDate,
       });
     }
   });
