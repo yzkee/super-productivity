@@ -9,6 +9,8 @@ import { selectPlannerDayMap } from '../planner/store/planner.selectors';
 import { of } from 'rxjs';
 import { CalendarIntegrationService } from '../calendar-integration/calendar-integration.service';
 import { TaskService } from '../tasks/task.service';
+import { ScheduleEvent } from './schedule.model';
+import { SVEType } from './schedule.const';
 
 describe('ScheduleService', () => {
   let service: ScheduleService;
@@ -474,6 +476,141 @@ describe('ScheduleService', () => {
       expect(result).toContain('other-month');
 
       jasmine.clock().uninstall();
+    });
+  });
+
+  describe('getEventDayStr', () => {
+    const createMockEvent = (
+      type: SVEType,
+      plannedForDay?: string,
+      data?: ScheduleEvent['data'],
+    ): ScheduleEvent => ({
+      id: 'test-id',
+      type,
+      style: '',
+      startHours: 9,
+      timeLeftInHours: 1,
+      plannedForDay,
+      data,
+    });
+
+    it('should return plannedForDay for RepeatProjection events', () => {
+      const event = createMockEvent(SVEType.RepeatProjection, '2026-02-15');
+      const result = service.getEventDayStr(event);
+      expect(result).toBe('2026-02-15');
+    });
+
+    it('should return plannedForDay for ScheduledRepeatProjection events', () => {
+      const event = createMockEvent(SVEType.ScheduledRepeatProjection, '2026-03-20');
+      const result = service.getEventDayStr(event);
+      expect(result).toBe('2026-03-20');
+    });
+
+    it('should return null for RepeatProjection without plannedForDay', () => {
+      const event = createMockEvent(SVEType.RepeatProjection, undefined, {
+        id: 'repeat-cfg-id',
+        defaultEstimate: 3600000,
+      } as ScheduleEvent['data']);
+      const result = service.getEventDayStr(event);
+      expect(result).toBeNull();
+    });
+
+    it('should return plannedForDay from data for RepeatProjection if ev.plannedForDay is missing', () => {
+      const event = createMockEvent(SVEType.RepeatProjection, undefined, {
+        plannedForDay: '2026-04-10',
+      } as unknown as ScheduleEvent['data']);
+      const result = service.getEventDayStr(event);
+      expect(result).toBe('2026-04-10');
+    });
+  });
+
+  describe('getEventsForDay', () => {
+    it('should filter events by plannedForDay for repeat projections', () => {
+      const events: ScheduleEvent[] = [
+        {
+          id: 'repeat-1',
+          type: SVEType.RepeatProjection,
+          style: '',
+          startHours: 9,
+          timeLeftInHours: 1,
+          plannedForDay: '2026-02-15',
+        },
+        {
+          id: 'repeat-2',
+          type: SVEType.ScheduledRepeatProjection,
+          style: '',
+          startHours: 10,
+          timeLeftInHours: 0.5,
+          plannedForDay: '2026-02-16',
+        },
+        {
+          id: 'repeat-3',
+          type: SVEType.RepeatProjection,
+          style: '',
+          startHours: 11,
+          timeLeftInHours: 2,
+          plannedForDay: '2026-02-15',
+        },
+      ];
+
+      const result = service.getEventsForDay('2026-02-15', events);
+
+      expect(result.length).toBe(2);
+      expect(result[0].id).toBe('repeat-1');
+      expect(result[1].id).toBe('repeat-3');
+    });
+
+    it('should return empty array when no events match the day', () => {
+      const events: ScheduleEvent[] = [
+        {
+          id: 'repeat-1',
+          type: SVEType.RepeatProjection,
+          style: '',
+          startHours: 9,
+          timeLeftInHours: 1,
+          plannedForDay: '2026-02-15',
+        },
+      ];
+
+      const result = service.getEventsForDay('2026-02-20', events);
+
+      expect(result.length).toBe(0);
+    });
+  });
+
+  describe('hasEventsForDay', () => {
+    it('should return true when repeat projections exist for the day', () => {
+      const events: ScheduleEvent[] = [
+        {
+          id: 'repeat-1',
+          type: SVEType.RepeatProjection,
+          style: '',
+          startHours: 9,
+          timeLeftInHours: 1,
+          plannedForDay: '2026-02-15',
+        },
+      ];
+
+      const result = service.hasEventsForDay('2026-02-15', events);
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false when no repeat projections exist for the day', () => {
+      const events: ScheduleEvent[] = [
+        {
+          id: 'repeat-1',
+          type: SVEType.RepeatProjection,
+          style: '',
+          startHours: 9,
+          timeLeftInHours: 1,
+          plannedForDay: '2026-02-15',
+        },
+      ];
+
+      const result = service.hasEventsForDay('2026-02-20', events);
+
+      expect(result).toBe(false);
     });
   });
 });
