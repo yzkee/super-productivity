@@ -1,4 +1,4 @@
-import { ActionType, Operation } from '../core/operation.types';
+import { ActionType, OpType, Operation } from '../core/operation.types';
 import {
   SyncProviderServiceInterface,
   OperationSyncCapable,
@@ -40,6 +40,10 @@ export const isFileBasedProvider = (
  * Convert a SyncOperation (from API response) to an Operation (local format).
  */
 export const syncOpToOperation = (syncOp: SyncOperation): Operation => {
+  if (!Object.values(OpType).includes(syncOp.opType as OpType)) {
+    throw new Error(`Invalid opType from server: '${syncOp.opType}'`);
+  }
+
   return {
     id: syncOp.id,
     clientId: syncOp.clientId,
