@@ -1,3 +1,9 @@
+## [17.1.2](https://github.com/super-productivity/super-productivity/compare/v17.1.1...v17.1.2) (2026-02-05)
+
+### Bug Fixes
+
+- **ios:** make responseHeaders mutable to fix Swift compilation error ([15a12e5](https://github.com/super-productivity/super-productivity/commit/15a12e56c53fb6af7e86df139edbe567d0e86a2b))
+
 ## [17.1.1](https://github.com/super-productivity/super-productivity/compare/v17.1.0...v17.1.1) (2026-02-05)
 
 ### Bug Fixes
