@@ -18,9 +18,6 @@
       >
         <div class="month-day-header">
           <span class="month-day-number">{{ day | localeDate: 'd' }}</span>
-          @if (hasEventsForDay(day)) {
-            <span class="event-dot"></span>
-          }
         </div>
         <div class="month-day-events">
           @for (ev of getEventsForDay(day); track ev.id) {
