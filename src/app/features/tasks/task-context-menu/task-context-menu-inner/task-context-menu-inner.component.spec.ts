@@ -85,6 +85,7 @@ describe('TaskContextMenuInnerComponent', () => {
   });
 
   afterEach(() => {
+    selectTaskByIdWithSubTaskData.release();
     store.resetSelectors();
   });
 
