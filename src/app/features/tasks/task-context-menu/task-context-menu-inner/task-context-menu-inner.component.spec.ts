@@ -84,6 +84,10 @@ describe('TaskContextMenuInnerComponent', () => {
     store = TestBed.inject(MockStore);
   });
 
+  afterEach(() => {
+    store.resetSelectors();
+  });
+
   describe('duplicate()', () => {
     it('should duplicate subtasks with timeEstimate and notes', fakeAsync(() => {
       const mockTask = {
