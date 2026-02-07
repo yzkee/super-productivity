@@ -388,7 +388,15 @@ export class SyncWrapperService {
         error instanceof MissingRefreshTokenAPIError ||
         error instanceof MissingCredentialsSPError
       ) {
-        // Credentials missing, invalid, or refresh token expired - user needs to (re-)configure
+        // Clear stale auth credentials so isReady() returns false and re-auth dialog opens
+        if (providerId) {
+          try {
+            await this._providerManager.clearAuthCredentials(providerId);
+          } catch (clearError) {
+            SyncLog.err('Failed to clear stale auth credentials:', clearError);
+          }
+        }
+
         this._snackService.open({
           msg: T.F.SYNC.S.INCOMPLETE_CFG,
           type: 'ERROR',
