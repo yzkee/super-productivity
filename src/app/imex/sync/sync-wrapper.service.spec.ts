@@ -17,6 +17,7 @@ import { UserInputWaitStateService } from './user-input-wait-state.service';
 import { SuperSyncStatusService } from '../../op-log/sync/super-sync-status.service';
 import {
   AuthFailSPError,
+  MissingCredentialsSPError,
   PotentialCorsError,
   SyncProviderId,
   SyncStatus,
@@ -24,6 +25,7 @@ import {
 import {
   SyncAlreadyInProgressError,
   LocalDataConflictError,
+  MissingRefreshTokenAPIError,
 } from '../../op-log/core/errors/sync-errors';
 import { MAX_LWW_REUPLOAD_RETRIES } from '../../op-log/core/operation-log.const';
 import { LegacySyncProvider } from './legacy-sync-provider.model';
@@ -531,6 +533,38 @@ describe('SyncWrapperService', () => {
     it('should handle AuthFailSPError with config dialog action', async () => {
       mockSyncService.downloadRemoteOps.and.returnValue(
         Promise.reject(new AuthFailSPError()),
+      );
+
+      const result = await service.sync();
+
+      expect(result).toBe('HANDLED_ERROR');
+      expect(mockSnackService.open).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          type: 'ERROR',
+          actionFn: jasmine.any(Function),
+        }),
+      );
+    });
+
+    it('should handle MissingCredentialsSPError with config dialog action', async () => {
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.reject(new MissingCredentialsSPError('Dropbox no token')),
+      );
+
+      const result = await service.sync();
+
+      expect(result).toBe('HANDLED_ERROR');
+      expect(mockSnackService.open).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          type: 'ERROR',
+          actionFn: jasmine.any(Function),
+        }),
+      );
+    });
+
+    it('should handle MissingRefreshTokenAPIError with config dialog action', async () => {
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.reject(new MissingRefreshTokenAPIError()),
       );
 
       const result = await service.sync();

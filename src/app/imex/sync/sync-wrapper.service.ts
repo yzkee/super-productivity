@@ -31,6 +31,7 @@ import {
   DecryptError,
   DecryptNoPasswordError,
   LockPresentError,
+  MissingCredentialsSPError,
   NoRemoteModelFile,
   PotentialCorsError,
   RevMismatchForModelError,
@@ -382,16 +383,12 @@ export class SyncWrapperService {
           config: { duration: 12000 },
         });
         return 'HANDLED_ERROR';
-      } else if (error instanceof AuthFailSPError) {
-        this._snackService.open({
-          msg: T.F.SYNC.S.INCOMPLETE_CFG,
-          type: 'ERROR',
-          actionFn: async () => this._matDialog.open(DialogSyncInitialCfgComponent),
-          actionStr: T.F.SYNC.S.BTN_CONFIGURE,
-        });
-        return 'HANDLED_ERROR';
-      } else if (error instanceof MissingRefreshTokenAPIError) {
-        // Refresh token is missing or invalid - user needs to re-authenticate
+      } else if (
+        error instanceof AuthFailSPError ||
+        error instanceof MissingRefreshTokenAPIError ||
+        error instanceof MissingCredentialsSPError
+      ) {
+        // Credentials missing, invalid, or refresh token expired - user needs to (re-)configure
         this._snackService.open({
           msg: T.F.SYNC.S.INCOMPLETE_CFG,
           type: 'ERROR',
