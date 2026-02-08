@@ -1,3 +1,9 @@
+## [17.1.5](https://github.com/super-productivity/super-productivity/compare/v17.1.4...v17.1.5) (2026-02-08)
+
+### Bug Fixes
+
+- **build:** keep GitHub release as draft so all platform jobs can upload ([814d314](https://github.com/super-productivity/super-productivity/commit/814d314c231549f2e2c57119bc8d29c9618b71a6))
+
 ## [17.1.4](https://github.com/super-productivity/super-productivity/compare/v17.1.3...v17.1.4) (2026-02-08)
 
 ### Bug Fixes
