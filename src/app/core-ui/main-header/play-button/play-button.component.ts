@@ -35,6 +35,9 @@ import { distinctUntilChanged, observeOn } from 'rxjs/operators';
         <div
           @fade
           class="current-task-title"
+          (click)="openTaskDetail()"
+          matTooltip="{{ T.MH.SHOW_TRACKED_TASK | translate }}"
+          matTooltipPosition="below"
         >
           <div class="title">{{ task.title }}</div>
           @if (currentTaskContext(); as taskContext) {
@@ -178,6 +181,7 @@ import { distinctUntilChanged, observeOn } from 'rxjs/operators';
         background: var(--bg-lighter);
         font-size: 13px;
         z-index: 5;
+        cursor: pointer;
 
         @media (max-width: 1080px) {
           display: none;
@@ -264,6 +268,13 @@ export class PlayButtonComponent implements OnInit, OnDestroy {
           }
         }),
     );
+  }
+
+  openTaskDetail(): void {
+    const id = this.currentTaskId();
+    if (id) {
+      this.taskService.setSelectedId(id);
+    }
   }
 
   ngOnDestroy(): void {
