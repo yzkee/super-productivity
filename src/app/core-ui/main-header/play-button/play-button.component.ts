@@ -22,9 +22,10 @@ import { T } from '../../../t.const';
 import { Task } from '../../../features/tasks/task.model';
 import { WorkContext } from '../../../features/work-context/work-context.model';
 import { TaskService } from '../../../features/tasks/task.service';
-import { animationFrameScheduler, first, Subscription } from 'rxjs';
+import { animationFrameScheduler, Subscription } from 'rxjs';
 import { distinctUntilChanged, observeOn } from 'rxjs/operators';
 import { Router } from '@angular/router';
+import { TODAY_TAG } from '../../../features/tag/tag.const';
 
 @Component({
   selector: 'play-button',
@@ -273,16 +274,12 @@ export class PlayButtonComponent implements OnInit, OnDestroy {
   }
 
   navigateToCurrentTask(): void {
-    this.taskService.currentTaskParentOrCurrent$.pipe(first()).subscribe((task) => {
-      if (!task) {
-        return;
-      }
-      if (task.projectId) {
-        this._router.navigate([`project/${task.projectId}/tasks`]);
-      } else if (task.tagIds[0]) {
-        this._router.navigate([`tag/${task.tagIds[0]}/tasks`]);
-      }
-    });
+    const taskId = this.currentTaskId();
+    if (taskId) {
+      this._router.navigate([`tag/${TODAY_TAG.id}/tasks`], {
+        queryParams: { focusItem: taskId },
+      });
+    }
   }
 
   ngOnDestroy(): void {
