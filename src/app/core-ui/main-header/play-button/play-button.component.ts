@@ -24,8 +24,7 @@ import { WorkContext } from '../../../features/work-context/work-context.model';
 import { TaskService } from '../../../features/tasks/task.service';
 import { animationFrameScheduler, Subscription } from 'rxjs';
 import { distinctUntilChanged, observeOn } from 'rxjs/operators';
-import { Router } from '@angular/router';
-import { TODAY_TAG } from '../../../features/tag/tag.const';
+import { NavigateToTaskService } from '../../navigate-to-task/navigate-to-task.service';
 
 @Component({
   selector: 'play-button',
@@ -218,7 +217,7 @@ import { TODAY_TAG } from '../../../features/tag/tag.const';
 export class PlayButtonComponent implements OnInit, OnDestroy {
   private _renderer = inject(Renderer2);
   private _cd = inject(ChangeDetectorRef);
-  private _router = inject(Router);
+  private _navigateToTaskService = inject(NavigateToTaskService);
 
   readonly T = T;
   readonly taskService = inject(TaskService);
@@ -276,9 +275,7 @@ export class PlayButtonComponent implements OnInit, OnDestroy {
   navigateToCurrentTask(): void {
     const taskId = this.currentTaskId();
     if (taskId) {
-      this._router.navigate([`tag/${TODAY_TAG.id}/tasks`], {
-        queryParams: { focusItem: taskId },
-      });
+      this._navigateToTaskService.navigate(taskId);
     }
   }
 
