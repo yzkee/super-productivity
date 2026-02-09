@@ -7,6 +7,7 @@ import {
   OperationLogEntry,
   OpType,
 } from '../core/operation.types';
+import { MAX_VECTOR_CLOCK_SIZE } from '../core/operation-log.const';
 
 describe('SyncImportFilterService', () => {
   let service: SyncImportFilterService;
@@ -1275,6 +1276,714 @@ describe('SyncImportFilterService', () => {
         expect(result.filteringImport!.id).toBe('019afd68-0050-7000-0000-000000000000');
       });
     });
+
+    /* eslint-disable @typescript-eslint/naming-convention */
+    describe('BUG FIX: Server-side pruning causes new client ops to appear CONCURRENT with import', () => {
+      /**
+       * This test suite covers the bug where a NEW client (born after a SYNC_IMPORT)
+       * has its operations silently dropped by other clients.
+       *
+       * THE BUG:
+       * 1. SYNC_IMPORT exists with exactly MAX_VECTOR_CLOCK_SIZE (10) entries in its clock
+       * 2. New client (e.g., mobile A_DReS) receives import, merges clock → 11 entries
+       * 3. Server prunes to 10 entries (drops one inherited entry like A_Zw6o:88)
+       * 4. Other clients download the op and compare with import:
+       *    - Both clocks have 10 entries → pruning-aware mode
+       *    - 9 shared keys are all equal
+       *    - Each side has 1 unique key (A_DReS in op, A_Zw6o in import)
+       *    - compareVectorClocks returns CONCURRENT
+       * 5. SyncImportFilterService drops CONCURRENT ops → mobile changes lost!
+       *
+       * THE FIX:
+       * When an op appears CONCURRENT with the import, check if it's a pruning artifact:
+       * - Op's clientId is NOT in import's clock (new client born after import)
+       * - ALL shared vector clock keys have op values >= import values
+       * If both conditions are true, the CONCURRENT is from server-side pruning and
+       * the op should be KEPT.
+       */
+
+      // Helper: build a clock with exactly N entries
+      const buildClock = (entries: Record<string, number>): Record<string, number> =>
+        entries;
+
+      it('should KEEP ops from new client when CONCURRENT is caused by server-side pruning (exact bug scenario)', async () => {
+        // SYNC_IMPORT with exactly MAX_VECTOR_CLOCK_SIZE entries
+        const importClock = buildClock({
+          A_bw1h: 227,
+          A_wU5p: 95,
+          A_Zw6o: 88,
+          B_HSxu: 10774,
+          B_pr52: 3642,
+          BCL_174: 117821,
+          BCLmd3: 4990,
+          BCLmd4: 80215,
+          BCLmdt: 653096,
+          BCM_mhq: 2659,
+        });
+        expect(Object.keys(importClock).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+
+        const syncImport = createOp({
+          id: '019c4290-0a51-7184-0000-000000000000',
+          opType: OpType.SyncImport,
+          clientId: 'B_pr52',
+          entityType: 'ALL',
+          vectorClock: importClock,
+        });
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 3,
+            op: syncImport,
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // New mobile client A_DReS (NOT in import's clock) creates op after
+        // receiving import. Server pruned A_Zw6o:88, added A_DReS:1.
+        const mobileOp = createOp({
+          id: '019c42a0-0001-7000-0000-000000000000',
+          opType: OpType.Create,
+          clientId: 'A_DReS',
+          entityId: 'new-task-1',
+          actionType: '[Task Shared] addTask' as ActionType,
+          vectorClock: buildClock({
+            A_DReS: 1,
+            A_bw1h: 227,
+            A_wU5p: 95,
+            // A_Zw6o: 88 was PRUNED by server
+            B_HSxu: 10774,
+            B_pr52: 3642,
+            BCL_174: 117821,
+            BCLmd3: 4990,
+            BCLmd4: 80215,
+            BCLmdt: 653096,
+            BCM_mhq: 2659,
+          }),
+        });
+        expect(Object.keys(mobileOp.vectorClock).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+
+        const result = await service.filterOpsInvalidatedBySyncImport([mobileOp]);
+
+        // FIX: Op should be KEPT - A_DReS is a new client that inherited the import's
+        // clock. The CONCURRENT result is a pruning artifact, not genuine concurrency.
+        expect(result.validOps.length).toBe(1);
+        expect(result.validOps[0].clientId).toBe('A_DReS');
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
+      it('should KEEP multiple ops from new client after import (server pruned different entries)', async () => {
+        const importClock = buildClock({
+          A_bw1h: 227,
+          A_wU5p: 95,
+          A_Zw6o: 88,
+          B_HSxu: 10774,
+          B_pr52: 3642,
+          BCL_174: 117821,
+          BCLmd3: 4990,
+          BCLmd4: 80215,
+          BCLmdt: 653096,
+          BCM_mhq: 2659,
+        });
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 3,
+            op: createOp({
+              id: '019c4290-0a51-7184-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'B_pr52',
+              entityType: 'ALL',
+              vectorClock: importClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        const ops = [
+          createOp({
+            id: '019c42a0-0001-7000-0000-000000000000',
+            opType: OpType.Create,
+            clientId: 'A_DReS',
+            entityId: 'task-1',
+            vectorClock: buildClock({
+              A_DReS: 1,
+              A_bw1h: 227,
+              A_wU5p: 95,
+              B_HSxu: 10774,
+              B_pr52: 3642,
+              BCL_174: 117821,
+              BCLmd3: 4990,
+              BCLmd4: 80215,
+              BCLmdt: 653096,
+              BCM_mhq: 2659,
+            }),
+          }),
+          createOp({
+            id: '019c42a0-0002-7000-0000-000000000000',
+            opType: OpType.Update,
+            clientId: 'A_DReS',
+            entityId: 'task-1',
+            vectorClock: buildClock({
+              A_DReS: 2,
+              A_bw1h: 227,
+              A_wU5p: 95,
+              B_HSxu: 10774,
+              B_pr52: 3642,
+              BCL_174: 117821,
+              BCLmd3: 4990,
+              BCLmd4: 80215,
+              BCLmdt: 653096,
+              BCM_mhq: 2659,
+            }),
+          }),
+        ];
+
+        const result = await service.filterOpsInvalidatedBySyncImport(ops);
+
+        expect(result.validOps.length).toBe(2);
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
+      it('should KEEP op from new client when shared keys are GREATER than import (post-import activity)', async () => {
+        const importClock = buildClock({
+          A_bw1h: 227,
+          A_wU5p: 95,
+          A_Zw6o: 88,
+          B_HSxu: 10774,
+          B_pr52: 3642,
+          BCL_174: 117821,
+          BCLmd3: 4990,
+          BCLmd4: 80215,
+          BCLmdt: 653096,
+          BCM_mhq: 2659,
+        });
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 3,
+            op: createOp({
+              id: '019c4290-0a51-7184-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'B_pr52',
+              entityType: 'ALL',
+              vectorClock: importClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // New client saw more ops from B_pr52 after the import
+        const mobileOp = createOp({
+          id: '019c42a0-0001-7000-0000-000000000000',
+          opType: OpType.Create,
+          clientId: 'A_DReS',
+          entityId: 'task-1',
+          vectorClock: buildClock({
+            A_DReS: 3,
+            A_bw1h: 227,
+            A_wU5p: 95,
+            B_HSxu: 10774,
+            B_pr52: 3650, // GREATER than import's 3642
+            BCL_174: 117821,
+            BCLmd3: 4990,
+            BCLmd4: 80215,
+            BCLmdt: 653096,
+            BCM_mhq: 2659,
+          }),
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([mobileOp]);
+
+        expect(result.validOps.length).toBe(1);
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
+      it('should still FILTER ops from new client with NO shared keys (genuinely unknown)', async () => {
+        const importClock = buildClock({
+          clientA: 5,
+          clientB: 10,
+        });
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: createOp({
+              id: '019c4290-0a51-7184-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'clientA',
+              entityType: 'ALL',
+              vectorClock: importClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // Genuinely unknown client - no shared keys with import at all
+        const unknownOp = createOp({
+          id: '019c42a0-0001-7000-0000-000000000000',
+          opType: OpType.Create,
+          clientId: 'clientNew',
+          entityId: 'task-1',
+          vectorClock: { clientNew: 5 },
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([unknownOp]);
+
+        // Should still be filtered - no evidence this client saw the import
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(1);
+      });
+
+      it('should still FILTER ops from new client with shared keys but LOWER values (genuinely concurrent)', async () => {
+        const importClock = buildClock({
+          clientA: 100,
+          clientB: 200,
+          clientC: 300,
+        });
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: createOp({
+              id: '019c4290-0a51-7184-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'clientA',
+              entityType: 'ALL',
+              vectorClock: importClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // New client has shared keys but LOWER values than import
+        // This means the client saw older ops from these clients, NOT the import
+        const genuinelyConcurrentOp = createOp({
+          id: '019c42a0-0001-7000-0000-000000000000',
+          opType: OpType.Create,
+          clientId: 'clientNew',
+          entityId: 'task-1',
+          vectorClock: {
+            clientNew: 5,
+            clientA: 50, // LOWER than import's 100
+            clientB: 200, // EQUAL
+          },
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([
+          genuinelyConcurrentOp,
+        ]);
+
+        // Should be filtered - client has LESS knowledge than import for clientA
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(1);
+      });
+
+      it('should still FILTER ops from client that IS in import clock (not a new client)', async () => {
+        const importClock = buildClock({
+          A_bw1h: 227,
+          A_wU5p: 95,
+          A_Zw6o: 88,
+          B_HSxu: 10774,
+          B_pr52: 3642,
+          BCL_174: 117821,
+          BCLmd3: 4990,
+          BCLmd4: 80215,
+          BCLmdt: 653096,
+          BCM_mhq: 2659,
+        });
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 3,
+            op: createOp({
+              id: '019c4290-0a51-7184-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'B_pr52',
+              entityType: 'ALL',
+              vectorClock: importClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // Client A_bw1h IS in import's clock - this is an existing client, not new.
+        // Even though shared keys are equal, the pruning-artifact heuristic should NOT apply.
+        const existingClientOp = createOp({
+          id: '019c42a0-0001-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'A_bw1h',
+          entityId: 'task-1',
+          vectorClock: buildClock({
+            A_bw1h: 228,
+            A_wU5p: 95,
+            B_HSxu: 10774,
+            B_pr52: 3642,
+            BCL_174: 117821,
+            BCLmd3: 4990,
+            BCLmd4: 80215,
+            BCLmdt: 653096,
+            BCM_mhq: 2659,
+            A_Zw6o: 88,
+          }),
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([existingClientOp]);
+
+        // This should be KEPT via normal GREATER_THAN comparison (A_bw1h: 228 > 227)
+        // The pruning artifact check is not needed here - normal comparison handles it
+        expect(result.validOps.length).toBe(1);
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
+      it('should KEEP op from new client even when import is in the same batch', async () => {
+        const importClock = buildClock({
+          A_bw1h: 227,
+          A_wU5p: 95,
+          A_Zw6o: 88,
+          B_HSxu: 10774,
+          B_pr52: 3642,
+          BCL_174: 117821,
+          BCLmd3: 4990,
+          BCLmd4: 80215,
+          BCLmdt: 653096,
+          BCM_mhq: 2659,
+        });
+
+        const syncImport = createOp({
+          id: '019c4290-0a51-7184-0000-000000000000',
+          opType: OpType.SyncImport,
+          clientId: 'B_pr52',
+          entityType: 'ALL',
+          vectorClock: importClock,
+        });
+
+        const mobileOp = createOp({
+          id: '019c42a0-0001-7000-0000-000000000000',
+          opType: OpType.Create,
+          clientId: 'A_DReS',
+          entityId: 'task-1',
+          vectorClock: buildClock({
+            A_DReS: 1,
+            A_bw1h: 227,
+            A_wU5p: 95,
+            B_HSxu: 10774,
+            B_pr52: 3642,
+            BCL_174: 117821,
+            BCLmd3: 4990,
+            BCLmd4: 80215,
+            BCLmdt: 653096,
+            BCM_mhq: 2659,
+          }),
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([
+          syncImport,
+          mobileOp,
+        ]);
+
+        expect(result.validOps.length).toBe(2); // import + mobile op
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
+      it('should FILTER op from new client when import has fewer entries than MAX (no server pruning possible)', async () => {
+        // Import has only 5 entries (below MAX_VECTOR_CLOCK_SIZE = 10).
+        // Server pruning only triggers when clock exceeds MAX, so the op's
+        // missing entry (clientE) was genuinely never seen, not pruned.
+        const importClock = buildClock({
+          clientA: 100,
+          clientB: 200,
+          clientC: 300,
+          clientD: 400,
+          clientE: 500,
+        });
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: createOp({
+              id: '019c4290-0a51-7184-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'clientA',
+              entityType: 'ALL',
+              vectorClock: importClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // New client with shared keys >= import BUT import < MAX entries.
+        // Since server wouldn't prune a 6-entry clock, the missing clientE
+        // means genuine concurrency, not a pruning artifact.
+        const newClientOp = createOp({
+          id: '019c42a0-0001-7000-0000-000000000000',
+          opType: OpType.Create,
+          clientId: 'clientNew',
+          entityId: 'task-1',
+          vectorClock: buildClock({
+            clientNew: 1,
+            clientA: 100,
+            clientB: 200,
+            clientC: 300,
+            clientD: 400,
+            // clientE missing - genuinely not seen (not pruned)
+          }),
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([newClientOp]);
+
+        // Should be FILTERED - import is below MAX, no pruning artifact possible
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(1);
+      });
+
+      it('should KEEP ops from new client when MULTIPLE entries were pruned (2+ entries dropped)', async () => {
+        // Import has MAX entries. New client inherits clock, sees 2 more new clients,
+        // resulting in MAX+3 entries. Server prunes back to MAX, dropping 3 import entries.
+        const importClock = buildClock({
+          A_bw1h: 227,
+          A_wU5p: 95,
+          A_Zw6o: 88,
+          B_HSxu: 10774,
+          B_pr52: 3642,
+          BCL_174: 117821,
+          BCLmd3: 4990,
+          BCLmd4: 80215,
+          BCLmdt: 653096,
+          BCM_mhq: 2659,
+        });
+        expect(Object.keys(importClock).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 3,
+            op: createOp({
+              id: '019c4290-0a51-7184-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'B_pr52',
+              entityType: 'ALL',
+              vectorClock: importClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // New client added 3 entries (A_DReS, A_newX, A_newY) making 13 total.
+        // Server pruned 3 import entries (A_Zw6o, A_wU5p, BCM_mhq) back to MAX.
+        // Only 7 shared keys remain (8 inherited - 1 not present = 7).
+        const mobileOp = createOp({
+          id: '019c42a0-0001-7000-0000-000000000000',
+          opType: OpType.Create,
+          clientId: 'A_DReS',
+          entityId: 'task-1',
+          vectorClock: buildClock({
+            A_DReS: 1,
+            A_newX: 5,
+            A_newY: 3,
+            A_bw1h: 227,
+            // A_wU5p: 95 was PRUNED
+            // A_Zw6o: 88 was PRUNED
+            B_HSxu: 10774,
+            B_pr52: 3642,
+            BCL_174: 117821,
+            BCLmd3: 4990,
+            BCLmd4: 80215,
+            BCLmdt: 653096,
+            // BCM_mhq: 2659 was PRUNED
+          }),
+        });
+        expect(Object.keys(mobileOp.vectorClock).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+
+        const result = await service.filterOpsInvalidatedBySyncImport([mobileOp]);
+
+        // Should be KEPT - 7 shared keys all >= import, new client, import at MAX
+        expect(result.validOps.length).toBe(1);
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
+      it('should KEEP op from new client even when op clock has fewer than MAX entries', async () => {
+        // Import has MAX entries. New client creates an op with fewer than MAX entries
+        // (e.g., server pruned heavily or client only inherited a subset).
+        // compareVectorClocks does NOT enter pruning-aware mode here (only one side at MAX),
+        // but still returns CONCURRENT. The pruning artifact heuristic should still detect it.
+        const importClock = buildClock({
+          A_bw1h: 227,
+          A_wU5p: 95,
+          A_Zw6o: 88,
+          B_HSxu: 10774,
+          B_pr52: 3642,
+          BCL_174: 117821,
+          BCLmd3: 4990,
+          BCLmd4: 80215,
+          BCLmdt: 653096,
+          BCM_mhq: 2659,
+        });
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 3,
+            op: createOp({
+              id: '019c4290-0a51-7184-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'B_pr52',
+              entityType: 'ALL',
+              vectorClock: importClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // Op has only 6 entries: own clientId + 5 inherited entries
+        // (heavy pruning or partial inheritance scenario)
+        const mobileOp = createOp({
+          id: '019c42a0-0001-7000-0000-000000000000',
+          opType: OpType.Create,
+          clientId: 'A_DReS',
+          entityId: 'task-1',
+          vectorClock: buildClock({
+            A_DReS: 1,
+            B_HSxu: 10774,
+            B_pr52: 3642,
+            BCL_174: 117821,
+            BCLmdt: 653096,
+            BCM_mhq: 2659,
+          }),
+        });
+        expect(Object.keys(mobileOp.vectorClock).length).toBe(6); // < MAX
+
+        const result = await service.filterOpsInvalidatedBySyncImport([mobileOp]);
+
+        // Should be KEPT - new client, import at MAX, 5 shared keys all >= import values
+        expect(result.validOps.length).toBe(1);
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
+      it('should still FILTER ops from new client with NO shared keys when import is at MAX', async () => {
+        // Import has MAX entries but op has zero overlap - tests criteria #3
+        // at MAX size (not short-circuited by criteria #2)
+        const importClock = buildClock({
+          A_bw1h: 227,
+          A_wU5p: 95,
+          A_Zw6o: 88,
+          B_HSxu: 10774,
+          B_pr52: 3642,
+          BCL_174: 117821,
+          BCLmd3: 4990,
+          BCLmd4: 80215,
+          BCLmdt: 653096,
+          BCM_mhq: 2659,
+        });
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 3,
+            op: createOp({
+              id: '019c4290-0a51-7184-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'B_pr52',
+              entityType: 'ALL',
+              vectorClock: importClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // Completely unknown client with no shared keys
+        const unknownOp = createOp({
+          id: '019c42a0-0001-7000-0000-000000000000',
+          opType: OpType.Create,
+          clientId: 'Z_unknown',
+          entityId: 'task-1',
+          vectorClock: { Z_unknown: 5 },
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([unknownOp]);
+
+        // Should be FILTERED - no shared keys means no evidence of seeing import
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(1);
+      });
+
+      it('should still FILTER ops from new client with LOWER shared keys when import is at MAX', async () => {
+        // Import has MAX entries, op has shared keys but LOWER values - tests criteria #4
+        // at MAX size (not short-circuited by criteria #2)
+        const importClock = buildClock({
+          A_bw1h: 227,
+          A_wU5p: 95,
+          A_Zw6o: 88,
+          B_HSxu: 10774,
+          B_pr52: 3642,
+          BCL_174: 117821,
+          BCLmd3: 4990,
+          BCLmd4: 80215,
+          BCLmdt: 653096,
+          BCM_mhq: 2659,
+        });
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 3,
+            op: createOp({
+              id: '019c4290-0a51-7184-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'B_pr52',
+              entityType: 'ALL',
+              vectorClock: importClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // New client has shared keys but saw OLDER state than import
+        const staleOp = createOp({
+          id: '019c42a0-0001-7000-0000-000000000000',
+          opType: OpType.Create,
+          clientId: 'A_stale',
+          entityId: 'task-1',
+          vectorClock: buildClock({
+            A_stale: 5,
+            A_bw1h: 100, // LOWER than import's 227
+            B_HSxu: 10774,
+            B_pr52: 3642,
+            BCL_174: 117821,
+            BCLmd3: 4990,
+            BCLmd4: 80215,
+            BCLmdt: 653096,
+            BCM_mhq: 2659,
+            A_wU5p: 95,
+          }),
+        });
+        expect(Object.keys(staleOp.vectorClock).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+
+        const result = await service.filterOpsInvalidatedBySyncImport([staleOp]);
+
+        // Should be FILTERED - shared key A_bw1h (100 < 227) proves stale knowledge
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(1);
+      });
+    });
+    /* eslint-enable @typescript-eslint/naming-convention */
 
     describe('Bug Scenario: Pruned vector clock causes false CONCURRENT classification', () => {
       /**

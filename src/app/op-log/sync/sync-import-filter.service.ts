@@ -3,9 +3,11 @@ import { OperationLogStoreService } from '../persistence/operation-log-store.ser
 import { Operation, OpType } from '../core/operation.types';
 import {
   compareVectorClocks,
+  VectorClock,
   VectorClockComparison,
   vectorClockToString,
 } from '../../core/util/vector-clock';
+import { MAX_VECTOR_CLOCK_SIZE } from '../core/operation-log.const';
 import { OpLog } from '../../core/log';
 
 /**
@@ -188,6 +190,23 @@ export class SyncImportFilterService {
       ) {
         // Op was created by a client that had knowledge of the import
         validOps.push(op);
+      } else if (
+        comparison === VectorClockComparison.CONCURRENT &&
+        this._isLikelyPruningArtifact(
+          op.vectorClock,
+          op.clientId,
+          latestImport.vectorClock,
+        )
+      ) {
+        // Op appears CONCURRENT but is from a new client that inherited the import's
+        // clock. Server-side pruning dropped an import entry, making the clocks look
+        // concurrent when the op actually has full causal knowledge of the import.
+        OpLog.normal(
+          `SyncImportFilterService: KEEPING op ${op.id} (${op.actionType}) despite CONCURRENT comparison.\n` +
+            `  Client ${op.clientId} not in import clock - new client after import.\n` +
+            `  All shared vector clock keys are >= import values (pruning artifact).`,
+        );
+        validOps.push(op);
       } else {
         // CONCURRENT or LESS_THAN: Op was created without knowledge of import
         // Filter it to ensure clean slate semantics
@@ -208,5 +227,63 @@ export class SyncImportFilterService {
       filteringImport: latestImport,
       isLocalUnsyncedImport,
     };
+  }
+
+  /**
+   * Detects whether a CONCURRENT comparison result is a pruning artifact rather
+   * than genuine concurrency.
+   *
+   * When a new client joins after a SYNC_IMPORT that already has MAX_VECTOR_CLOCK_SIZE
+   * entries, the new client's ops get an (MAX+1)-entry clock. The server prunes this
+   * back to MAX, dropping one inherited entry. When other clients compare this pruned
+   * clock with the import's clock, both have MAX entries with different unique keys,
+   * causing compareVectorClocks to return CONCURRENT even though the op was created
+   * AFTER the import with full causal knowledge.
+   *
+   * Detection criteria (all must be true):
+   * 1. Op's clientId is NOT in import's clock → client was born after the import
+   * 2. Import clock has >= MAX_VECTOR_CLOCK_SIZE entries (pruning only happens at MAX)
+   * 3. There are shared keys between the clocks
+   * 4. ALL shared keys have op values >= import values → client inherited import's knowledge
+   */
+  private _isLikelyPruningArtifact(
+    opClock: VectorClock,
+    opClientId: string,
+    importClock: VectorClock,
+  ): boolean {
+    // If the op's clientId exists in the import's clock, the client existed before
+    // the import. CONCURRENT is genuine - the client created ops without seeing it.
+    if (opClientId in importClock) {
+      return false;
+    }
+
+    // Server-side pruning (limitVectorClockSize) only drops entries when the clock
+    // exceeds MAX_VECTOR_CLOCK_SIZE. If the import has fewer entries, the server
+    // wouldn't have pruned the new client's clock, so CONCURRENT is genuine.
+    const importKeyCount = Object.keys(importClock).length;
+    if (importKeyCount < MAX_VECTOR_CLOCK_SIZE) {
+      return false;
+    }
+
+    // Find shared keys between op and import clocks
+    const opKeys = Object.keys(opClock);
+    const sharedKeys = opKeys.filter((k) => k in importClock);
+
+    // Need shared keys to make this determination. If there are none,
+    // the op has no evidence of having seen the import.
+    if (sharedKeys.length === 0) {
+      return false;
+    }
+
+    // All shared keys must have op values >= import values.
+    // If any shared key has op < import, the client has LESS knowledge
+    // than the import for that client, meaning genuine concurrency.
+    for (const key of sharedKeys) {
+      if (opClock[key] < importClock[key]) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }
