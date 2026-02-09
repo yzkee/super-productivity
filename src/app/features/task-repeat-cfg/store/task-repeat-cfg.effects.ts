@@ -43,6 +43,21 @@ import { remindOptionToMilliseconds } from '../../tasks/util/remind-option-to-mi
 import { devError } from '../../../util/dev-error';
 import { getFirstRepeatOccurrence } from './get-first-repeat-occurrence.util';
 
+const SCHEDULE_AFFECTING_FIELDS: (keyof TaskRepeatCfgCopy)[] = [
+  'startDate',
+  'repeatCycle',
+  'repeatEvery',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+  'order',
+  'isPaused',
+];
+
 @Injectable()
 export class TaskRepeatCfgEffects {
   private _localActions$ = inject(LOCAL_ACTIONS);
@@ -178,7 +193,16 @@ export class TaskRepeatCfgEffects {
           }
         }
 
-        this._updateRegularTaskInstance(task, taskRepeatCfg, taskRepeatCfg);
+        // For timed tasks, strip scheduling fields from changes to prevent
+        // double-scheduling. addRepeatCfgToTaskUpdateTask$ already handles
+        // scheduling via scheduleTaskWithTime with the correct target date.
+        // Without this guard, _updateRegularTaskInstance dispatches a second
+        // scheduleTaskWithTime using new Date() (today), overwriting the
+        // correct future date set by the other effect.
+        const changesForUpdate = isTimedTask
+          ? ({ ...taskRepeatCfg, startTime: undefined, remindAt: undefined } as any)
+          : taskRepeatCfg;
+        this._updateRegularTaskInstance(task, changesForUpdate, taskRepeatCfg as any);
 
         return { task, isFirstOccurrenceToday_, firstOccurrenceStr, isTimedTask };
       }),
@@ -194,6 +218,95 @@ export class TaskRepeatCfgEffects {
           day: firstOccurrenceStr,
         }),
       ),
+    ),
+  );
+
+  /**
+   * Reschedules the live task instance when schedule-affecting fields of a repeat config are updated.
+   * This mirrors the scheduling logic in updateTaskAfterMakingItRepeatable$ / addRepeatCfgToTaskUpdateTask$
+   * but triggers on config edits rather than initial creation.
+   */
+  rescheduleTaskOnRepeatCfgUpdate$ = createEffect(() =>
+    this._localActions$.pipe(
+      ofType(updateTaskRepeatCfg),
+      filter(({ taskRepeatCfg }) => {
+        const changes = taskRepeatCfg.changes as Partial<TaskRepeatCfgCopy>;
+        return SCHEDULE_AFFECTING_FIELDS.some((field) => field in changes);
+      }),
+      switchMap(({ taskRepeatCfg }) => {
+        const cfgId = taskRepeatCfg.id as string;
+        return this._taskRepeatCfgService.getTaskRepeatCfgById$(cfgId).pipe(
+          first(),
+          switchMap((fullCfg) => {
+            if (fullCfg.isPaused) {
+              return EMPTY;
+            }
+            return this._taskService.getTasksByRepeatCfgId$(cfgId).pipe(
+              first(),
+              switchMap((liveInstances) => {
+                const undoneInstances = liveInstances.filter((t) => !t.isDone);
+                if (undoneInstances.length === 0) {
+                  return EMPTY;
+                }
+                const task = undoneInstances.reduce((a, b) =>
+                  a.created > b.created ? a : b,
+                );
+
+                const firstOccurrence = getFirstRepeatOccurrence(fullCfg, new Date());
+                const firstOccurrenceStr = firstOccurrence
+                  ? getDbDateStr(firstOccurrence)
+                  : getDbDateStr(new Date());
+
+                // Update lastTaskCreationDay on the config
+                this._taskRepeatCfgService.updateTaskRepeatCfg(cfgId, {
+                  lastTaskCreationDay: firstOccurrenceStr,
+                  lastTaskCreation: firstOccurrence?.getTime() || Date.now(),
+                });
+
+                const isTimedTask = !!(fullCfg.startTime && fullCfg.remindAt);
+                const isFirstOccurrenceToday_ = firstOccurrence
+                  ? isToday(firstOccurrence)
+                  : true;
+
+                if (isTimedTask) {
+                  const targetDayTimestamp = firstOccurrence
+                    ? firstOccurrence.getTime()
+                    : Date.now();
+                  const dateTime = getDateTimeFromClockString(
+                    fullCfg.startTime as string,
+                    targetDayTimestamp,
+                  );
+                  const scheduledForToday = isToday(dateTime);
+
+                  return rxOf(
+                    TaskSharedActions.scheduleTaskWithTime({
+                      task,
+                      dueWithTime: dateTime,
+                      remindAt: remindOptionToMilliseconds(
+                        dateTime,
+                        fullCfg.remindAt as TaskReminderOptionId,
+                      ),
+                      isMoveToBacklog: false,
+                      isSkipAutoRemoveFromToday: scheduledForToday,
+                    }),
+                  );
+                }
+
+                if (!isFirstOccurrenceToday_ && firstOccurrence) {
+                  return rxOf(
+                    PlannerActions.planTaskForDay({
+                      task: task as TaskCopy,
+                      day: firstOccurrenceStr,
+                    }),
+                  );
+                }
+
+                return EMPTY;
+              }),
+            );
+          }),
+        );
+      }),
     ),
   );
 
