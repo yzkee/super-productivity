@@ -245,6 +245,13 @@ export class SyncImportFilterService {
    * 2. Import clock has >= MAX_VECTOR_CLOCK_SIZE entries (pruning only happens at MAX)
    * 3. There are shared keys between the clocks
    * 4. ALL shared keys have op values >= import values → client inherited import's knowledge
+   *
+   * Known limitation: A false positive is theoretically possible if the import clock
+   * itself was pruned and a genuinely concurrent client's ID happened to be among the
+   * pruned entries. In that scenario the client would appear "born after" the import
+   * (criterion 1) even though it existed before. This is unlikely in practice because
+   * it requires the concurrent client to be one of the oldest (least-recently-updated)
+   * entries in the import clock at the time of pruning.
    */
   private _isLikelyPruningArtifact(
     opClock: VectorClock,

@@ -94,18 +94,11 @@ export const waitForPluginManagementInit = async (
     await page.waitForSelector('.page-settings', { state: 'visible', timeout: 10000 });
 
     // Navigate to the Plugins tab
-    await page.evaluate(() => {
-      const pluginsTab = Array.from(
-        document.querySelectorAll('mat-tab-header .mat-mdc-tab'),
-      ).find((tab) => {
-        const icon = tab.querySelector('mat-icon');
-        return icon?.textContent?.trim() === 'extension';
-      });
-
-      if (pluginsTab) {
-        (pluginsTab as HTMLElement).click();
-      }
-    });
+    const pluginsTab = page.locator(
+      'mat-tab-header .mat-mdc-tab:has(mat-icon:has-text("extension"))',
+    );
+    await pluginsTab.waitFor({ state: 'visible', timeout: 10000 });
+    await pluginsTab.click();
 
     // Expand plugin section if collapsed and scroll it into view
     await page.waitForSelector('.plugin-section', { state: 'visible', timeout: 5000 });

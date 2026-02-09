@@ -271,12 +271,11 @@ export class TaskViewCustomizerService {
     // Factor for bidirectional for sorting
     const factor = order === SORT_ORDER.DESC ? -1 : 1;
 
+    const collator = new Intl.Collator(this._languageService.detect(), {
+      sensitivity: 'base',
+      numeric: true,
+    });
     const sortByTitle = (a: string, b: string, multiplier = 1): number => {
-      const collator = new Intl.Collator(this._languageService.detect(), {
-        sensitivity: 'base',
-        numeric: true,
-      });
-
       return collator.compare(a, b) * multiplier;
     };
 

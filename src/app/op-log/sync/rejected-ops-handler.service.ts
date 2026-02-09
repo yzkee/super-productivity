@@ -410,7 +410,15 @@ export class RejectedOpsHandlerService {
   }
 
   private _getEntityKey(op: Operation): string {
-    const entityId = op.entityId || op.entityIds?.[0] || '*';
+    const entityId = op.entityId || op.entityIds?.[0];
+    if (!entityId) {
+      OpLog.warn(
+        '[RejectedOpsHandler] Operation has no entityId/entityIds, using wildcard key',
+        op.actionType,
+        op.entityType,
+      );
+      return `${op.entityType}:*`;
+    }
     return `${op.entityType}:${entityId}`;
   }
 }
