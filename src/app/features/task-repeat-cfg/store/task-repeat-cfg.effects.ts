@@ -15,6 +15,7 @@ import {
 import { addTaskRepeatCfgToTask, updateTaskRepeatCfg } from './task-repeat-cfg.actions';
 import { Task, TaskCopy, TaskReminderOptionId } from '../../tasks/task.model';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
+import { PlannerActions } from '../../planner/store/planner.actions';
 import { TaskService } from '../../tasks/task.service';
 import { TaskRepeatCfgService } from '../task-repeat-cfg.service';
 import { TaskRepeatCfg, TaskRepeatCfgCopy } from '../task-repeat-cfg.model';
@@ -141,45 +142,49 @@ export class TaskRepeatCfgEffects {
         );
       }),
       map(({ task, taskRepeatCfg, subTaskTemplates }) => {
-        // Calculate the correct first occurrence date (#5594)
-        // and update both the task's dueDay and the repeat config's lastTaskCreationDay
         const firstOccurrence = getFirstRepeatOccurrence(
           taskRepeatCfg as TaskRepeatCfg,
           new Date(),
         );
-
         const firstOccurrenceStr = firstOccurrence
           ? getDbDateStr(firstOccurrence)
           : getDbDateStr(new Date());
+        const isFirstOccurrenceToday_ = firstOccurrence ? isToday(firstOccurrence) : true;
 
         // Update repeat config with subtask templates AND the correct lastTaskCreationDay
-        // Setting lastTaskCreationDay to first occurrence indicates a task exists for that day
         this._taskRepeatCfgService.updateTaskRepeatCfg(taskRepeatCfg.id, {
           subTaskTemplates,
           lastTaskCreationDay: firstOccurrenceStr,
           lastTaskCreation: firstOccurrence?.getTime() || Date.now(),
         });
 
-        // Update task's dueDay if it differs from first occurrence
-        const currentDueDay = task.dueDay || getDbDateStr(task.created);
-        if (currentDueDay !== firstOccurrenceStr) {
+        if (!isFirstOccurrenceToday_ && firstOccurrence) {
+          // FUTURE FIRST OCCURRENCE:
+          // Update created to match what the repeat processor would set (noon on
+          // first occurrence day). This prevents duplicate creation via the
+          // created-date check in _getActionsForTaskRepeatCfg (service.ts:217-219).
           this._taskService.update(task.id, {
-            dueDay: firstOccurrenceStr,
+            created: firstOccurrence.getTime(),
           });
+          // dueDay + planner + Today tag removal handled by planTaskForDay action
+        } else {
+          // TODAY FIRST OCCURRENCE:
+          // Update dueDay if it differs
+          const currentDueDay = task.dueDay || getDbDateStr(task.created);
+          if (currentDueDay !== firstOccurrenceStr) {
+            this._taskService.update(task.id, { dueDay: firstOccurrenceStr });
+          }
         }
 
         this._updateRegularTaskInstance(task, taskRepeatCfg, taskRepeatCfg);
 
-        // Return action to remove from Today if first occurrence is not today (#5594)
-        // This handles the case where startTime/remindAt are not set, so the
-        // addRepeatCfgToTaskUpdateTask$ effect doesn't fire
-        const isFirstOccurrenceToday = firstOccurrence ? isToday(firstOccurrence) : true;
-        return { task, isFirstOccurrenceToday };
+        return { task, isFirstOccurrenceToday_, firstOccurrenceStr };
       }),
-      filter(({ isFirstOccurrenceToday }) => !isFirstOccurrenceToday),
-      map(({ task }) =>
-        TaskSharedActions.removeTasksFromTodayTag({
-          taskIds: [task.id],
+      filter(({ isFirstOccurrenceToday_ }) => !isFirstOccurrenceToday_),
+      map(({ task, firstOccurrenceStr }) =>
+        PlannerActions.planTaskForDay({
+          task: task as TaskCopy,
+          day: firstOccurrenceStr,
         }),
       ),
     ),
