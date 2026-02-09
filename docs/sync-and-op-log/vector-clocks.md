@@ -319,6 +319,39 @@ The client (`SupersededOperationResolverService`) also does NOT prune merged clo
 
 **Safety net:** `RejectedOpsHandlerService` tracks resolution attempts per entity. After `MAX_CONCURRENT_RESOLUTION_ATTEMPTS` (3) failures for the same entity, ops are permanently rejected to break any remaining loop scenarios.
 
+### SYNC_IMPORT Pruning Artifact Detection
+
+Even with the server pruning after comparison, there is a second scenario where pruning causes false `CONCURRENT` results — this time in the client-side `SyncImportFilterService`.
+
+**The scenario:**
+
+1. Client A performs a SYNC_IMPORT whose vectorClock already has MAX (10) entries
+2. A new Client K joins after the import, inheriting the import's clock and adding its own ID → 11 entries
+3. Client K uploads ops; the server prunes the stored clock back to 10 entries, dropping one inherited entry (e.g., `F`)
+4. When another client downloads these ops and runs `SyncImportFilterService.filterOpsInvalidatedBySyncImport()`, it compares:
+   - Op clock: `{A:5, B:3, C:7, D:2, E:4, G:6, H:8, I:3, J:2, K:1}` (MAX entries, missing `F`)
+   - Import clock: `{A:5, B:3, C:7, D:2, E:4, F:1, G:6, H:8, I:3, J:2}` (MAX entries, has `F`)
+5. `compareVectorClocks` returns `CONCURRENT` because `F` is a "B-only" key — but the op actually has full causal knowledge of the import
+
+**Without the fix:** Client K's ops are silently filtered as "invalidated by SYNC_IMPORT", causing silent data loss for the new client.
+
+**The heuristic — `_isLikelyPruningArtifact()`:**
+
+The `SyncImportFilterService` detects this false CONCURRENT and keeps the op. All four criteria must be true:
+
+| Criterion                                              | Rationale                                       |
+| ------------------------------------------------------ | ----------------------------------------------- |
+| 1. Op's `clientId` is NOT in the import's clock        | Client was born after the import (new client)   |
+| 2. Import clock has >= `MAX_VECTOR_CLOCK_SIZE` entries | Pruning only happens when clocks are at MAX     |
+| 3. There are shared keys between op and import clocks  | Op must show evidence of having seen the import |
+| 4. ALL shared keys have op values >= import values     | Client inherited the import's full knowledge    |
+
+If all four criteria hold, the `CONCURRENT` result is treated as a pruning artifact and the op is kept (treated as `GREATER_THAN`).
+
+**Why this is safe:** A genuinely concurrent op (from a client that existed before the import but didn't see it) will fail criterion 1 (its `clientId` would be in the import's clock) or criterion 4 (it would have lower values for keys it didn't sync).
+
+**Reference:** `SyncImportFilterService._isLikelyPruningArtifact()` in `src/app/op-log/sync/sync-import-filter.service.ts`.
+
 ### Key Files
 
 | File                                                                 | Role                                              |
@@ -328,6 +361,7 @@ The client (`SupersededOperationResolverService`) also does NOT prune merged clo
 | `packages/super-sync-server/src/sync/services/validation.service.ts` | Server: sanitizes but does NOT prune              |
 | `src/app/op-log/sync/superseded-operation-resolver.service.ts`       | Client: does NOT prune conflict resolution clocks |
 | `src/app/op-log/sync/rejected-ops-handler.service.ts`                | Client: retry limit safety net                    |
+| `src/app/op-log/sync/sync-import-filter.service.ts`                  | Client: pruning artifact detection in SYNC_IMPORT |
 
 ## Current Implementation Status
 
@@ -341,6 +375,7 @@ The client (`SupersededOperationResolverService`) also does NOT prune merged clo
 | Overflow protection                         | ✅ Implemented | Clocks throw error at MAX_SAFE_INTEGER |
 | Protected client IDs                        | ✅ Implemented | Preserves all keys from full-state ops |
 | Concurrent resolution retry limit           | ✅ Implemented | MAX_CONCURRENT_RESOLUTION_ATTEMPTS = 3 |
+| SYNC_IMPORT pruning artifact detection      | ✅ Implemented | `_isLikelyPruningArtifact()` heuristic |
 
 ## Protected Client IDs
 
