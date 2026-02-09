@@ -511,6 +511,72 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
       });
     });
 
+    it('should NOT dispatch planTaskForDay for timed tasks with future first occurrence (handled by addRepeatCfgToTaskUpdateTask$)', (done) => {
+      // When startTime && remindAt are set, addRepeatCfgToTaskUpdateTask$ handles
+      // scheduling via scheduleTaskWithTime. planTaskForDay would overwrite dueWithTime.
+      const today = new Date();
+      const todayStr = getDbDateStr(today);
+      const todayDayOfWeek = today.getDay();
+
+      // Pick a weekday that is 3 days from now (guaranteed future)
+      const targetDayOfWeek = (todayDayOfWeek + 3) % 7;
+
+      const taskCreatedToday: TaskWithSubTasks = {
+        ...mockTask,
+        subTasks: [],
+        dueDay: todayStr,
+        created: today.getTime(),
+      };
+
+      const weeklyRepeatCfg: TaskRepeatCfgCopy = {
+        ...mockRepeatCfg,
+        repeatCycle: 'WEEKLY',
+        repeatEvery: 1,
+        startDate: todayStr,
+        sunday: targetDayOfWeek === 0,
+        monday: targetDayOfWeek === 1,
+        tuesday: targetDayOfWeek === 2,
+        wednesday: targetDayOfWeek === 3,
+        thursday: targetDayOfWeek === 4,
+        friday: targetDayOfWeek === 5,
+        saturday: targetDayOfWeek === 6,
+      };
+
+      const firstOccurrence = getFirstRepeatOccurrence(
+        weeklyRepeatCfg as any,
+        new Date(),
+      )!;
+
+      const action = addTaskRepeatCfgToTask({
+        taskRepeatCfg: weeklyRepeatCfg,
+        taskId: 'parent-task-id',
+        startTime: '10:00',
+        remindAt: TaskReminderOptionId.AtStart,
+      });
+
+      actions$ = of(action);
+      taskService.getByIdWithSubTaskData$.and.returnValue(of(taskCreatedToday));
+
+      spyOn(effects as any, '_updateRegularTaskInstance');
+
+      // Effect should NOT emit planTaskForDay for timed tasks
+      let emitted = false;
+      effects.updateTaskAfterMakingItRepeatable$.subscribe(() => {
+        emitted = true;
+      });
+
+      setTimeout(() => {
+        expect(emitted).toBe(false);
+
+        // Should still update created (duplicate prevention) and lastTaskCreationDay
+        expect(taskService.update).toHaveBeenCalledWith('parent-task-id', {
+          created: firstOccurrence.getTime(),
+        });
+        expect(taskRepeatCfgService.updateTaskRepeatCfg).toHaveBeenCalled();
+        done();
+      }, 0);
+    });
+
     it('should handle Mon/Wed/Fri pattern correctly for both today and future (#6433)', (done) => {
       const today = new Date();
       const todayStr = getDbDateStr(today);

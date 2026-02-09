@@ -112,7 +112,7 @@ export class TaskRepeatCfgEffects {
   updateTaskAfterMakingItRepeatable$ = createEffect(() =>
     this._localActions$.pipe(
       ofType(addTaskRepeatCfgToTask),
-      switchMap(({ taskRepeatCfg, taskId }) => {
+      switchMap(({ taskRepeatCfg, taskId, startTime, remindAt }) => {
         return this._taskService.getByIdWithSubTaskData$(taskId).pipe(
           first(),
           map((taskWithSubTasks) => {
@@ -128,6 +128,7 @@ export class TaskRepeatCfgEffects {
                 task: taskWithoutSubs,
                 taskRepeatCfg,
                 subTaskTemplates: [],
+                isTimedTask: !!(startTime && remindAt),
               };
             }
 
@@ -137,11 +138,12 @@ export class TaskRepeatCfgEffects {
               task: taskWithoutSubs,
               taskRepeatCfg,
               subTaskTemplates,
+              isTimedTask: !!(startTime && remindAt),
             };
           }),
         );
       }),
-      map(({ task, taskRepeatCfg, subTaskTemplates }) => {
+      map(({ task, taskRepeatCfg, subTaskTemplates, isTimedTask }) => {
         const firstOccurrence = getFirstRepeatOccurrence(
           taskRepeatCfg as TaskRepeatCfg,
           new Date(),
@@ -178,9 +180,14 @@ export class TaskRepeatCfgEffects {
 
         this._updateRegularTaskInstance(task, taskRepeatCfg, taskRepeatCfg);
 
-        return { task, isFirstOccurrenceToday_, firstOccurrenceStr };
+        return { task, isFirstOccurrenceToday_, firstOccurrenceStr, isTimedTask };
       }),
-      filter(({ isFirstOccurrenceToday_ }) => !isFirstOccurrenceToday_),
+      // Skip planTaskForDay for timed tasks — addRepeatCfgToTaskUpdateTask$ handles
+      // those via scheduleTaskWithTime. planTaskForDay would overwrite dueWithTime.
+      filter(
+        ({ isFirstOccurrenceToday_, isTimedTask }) =>
+          !isFirstOccurrenceToday_ && !isTimedTask,
+      ),
       map(({ task, firstOccurrenceStr }) =>
         PlannerActions.planTaskForDay({
           task: task as TaskCopy,
