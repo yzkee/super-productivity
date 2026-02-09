@@ -293,6 +293,15 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
                         translateParams: { url: result.fullUrl },
                       });
 
+                      // Save settings after successful connection test
+                      const fullSyncModel = _field?.parent?.parent?.model;
+                      if (fullSyncModel) {
+                        await this.syncSettingsService.updateSettingsFromForm(
+                          fullSyncModel,
+                          true,
+                        );
+                      }
+
                       // Test conditional header support
                       const testPath = `${webDavCfg.syncFolderPath || '/'}/.sp-header-test-${Date.now()}`;
                       try {
