@@ -82,9 +82,7 @@ export class RejectedOpsHandlerService {
   ): Promise<RejectionHandlingResult> {
     if (rejectedOps.length === 0) {
       // No rejections = sync is healthy, reset resolution attempt counters
-      if (this._resolutionAttemptsByEntity.size > 0) {
-        this._resolutionAttemptsByEntity.clear();
-      }
+      this._resolutionAttemptsByEntity.clear();
       return { mergedOpsCreated: 0, permanentRejectionCount: 0 };
     }
 
@@ -179,28 +177,27 @@ export class RejectedOpsHandlerService {
       OpLog.normal(
         `RejectedOpsHandlerService: Marked ${permanentlyRejectedOps.length} server-rejected ops as rejected`,
       );
-
-      // Notify user when any ops are permanently rejected
-      if (permanentlyRejectedOps.length > 0) {
-        this.snackService.open({
-          type: 'ERROR',
-          msg: T.F.SYNC.S.UPLOAD_OPS_REJECTED,
-          translateParams: { count: permanentlyRejectedOps.length },
-        });
-      }
+      this.snackService.open({
+        type: 'ERROR',
+        msg: T.F.SYNC.S.UPLOAD_OPS_REJECTED,
+        translateParams: { count: permanentlyRejectedOps.length },
+      });
     }
 
     // For concurrent modifications: try download first, then resolve locally if needed
+    let retryExceededCount = 0;
     if (concurrentModificationOps.length > 0 && downloadCallback) {
-      mergedOpsCreated = await this._resolveConcurrentModifications(
+      const result = await this._resolveConcurrentModifications(
         concurrentModificationOps,
         downloadCallback,
       );
+      mergedOpsCreated = result.mergedOpsCreated;
+      retryExceededCount = result.retryExceededCount;
     }
 
     return {
       mergedOpsCreated,
-      permanentRejectionCount: permanentlyRejectedOps.length,
+      permanentRejectionCount: permanentlyRejectedOps.length + retryExceededCount,
     };
   }
 
@@ -214,7 +211,7 @@ export class RejectedOpsHandlerService {
       existingClock?: VectorClock;
     }>,
     downloadCallback: DownloadCallback,
-  ): Promise<number> {
+  ): Promise<{ mergedOpsCreated: number; retryExceededCount: number }> {
     let mergedOpsCreated = 0;
 
     // Check resolution attempt counts per entity to prevent infinite loops.
@@ -233,8 +230,7 @@ export class RejectedOpsHandlerService {
     }> = [];
 
     for (const item of concurrentModificationOps) {
-      const entityId = item.op.entityId || item.op.entityIds?.[0] || '*';
-      const entityKey = `${item.op.entityType}:${entityId}`;
+      const entityKey = this._getEntityKey(item.op);
       const attempts = (this._resolutionAttemptsByEntity.get(entityKey) ?? 0) + 1;
       this._resolutionAttemptsByEntity.set(entityKey, attempts);
 
@@ -259,14 +255,12 @@ export class RejectedOpsHandlerService {
       });
       // Clean up tracking for rejected entities
       for (const item of opsExceededRetries) {
-        const entityId = item.op.entityId || item.op.entityIds?.[0] || '*';
-        const entityKey = `${item.op.entityType}:${entityId}`;
-        this._resolutionAttemptsByEntity.delete(entityKey);
+        this._resolutionAttemptsByEntity.delete(this._getEntityKey(item.op));
       }
     }
 
     if (opsToResolve.length === 0) {
-      return 0;
+      return { mergedOpsCreated: 0, retryExceededCount: opsExceededRetries.length };
     }
 
     OpLog.normal(
@@ -412,6 +406,11 @@ export class RejectedOpsHandlerService {
       throw e;
     }
 
-    return mergedOpsCreated;
+    return { mergedOpsCreated, retryExceededCount: opsExceededRetries.length };
+  }
+
+  private _getEntityKey(op: Operation): string {
+    const entityId = op.entityId || op.entityIds?.[0] || '*';
+    return `${op.entityType}:${entityId}`;
   }
 }

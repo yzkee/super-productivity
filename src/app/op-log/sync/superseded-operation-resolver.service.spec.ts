@@ -45,7 +45,6 @@ describe('SupersededOperationResolverService', () => {
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', [
       'markRejected',
       'appendWithVectorClockUpdate',
-      'getProtectedClientIds',
     ]);
     mockVectorClockService = jasmine.createSpyObj('VectorClockService', [
       'getCurrentVectorClock',
@@ -67,7 +66,6 @@ describe('SupersededOperationResolverService', () => {
     mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
     mockOpLogStore.markRejected.and.returnValue(Promise.resolve());
     mockOpLogStore.appendWithVectorClockUpdate.and.returnValue(Promise.resolve(1));
-    mockOpLogStore.getProtectedClientIds.and.returnValue(Promise.resolve([]));
     // Mock lock service to execute the callback immediately
     mockLockService.request.and.callFake(
       (_lockName: string, callback: () => Promise<any>) => callback(),
@@ -1215,9 +1213,6 @@ describe('SupersededOperationResolverService', () => {
 
       it('should include all client IDs in unpruned merged clock', async () => {
         const protectedId = 'protected-sync-import-client';
-        mockOpLogStore.getProtectedClientIds.and.returnValue(
-          Promise.resolve([protectedId]),
-        );
 
         const globalClock: VectorClock = { [protectedId]: 1 };
         for (let i = 1; i <= 10; i++) {
@@ -1251,16 +1246,13 @@ describe('SupersededOperationResolverService', () => {
       it('should include existingClock client IDs in unpruned merged clock', async () => {
         // Simulate scenario where existingClock has server entity client IDs
         // that must be preserved for the server to see GREATER_THAN (not CONCURRENT).
-        const protectedIds = Array.from(
+        const clientIds = Array.from(
           { length: MAX_VECTOR_CLOCK_SIZE },
-          (_, i) => `protected-${i}`,
-        );
-        mockOpLogStore.getProtectedClientIds.and.returnValue(
-          Promise.resolve(protectedIds),
+          (_, i) => `client-${i}`,
         );
 
         const globalClock: VectorClock = {};
-        for (const id of protectedIds) {
+        for (const id of clientIds) {
           globalClock[id] = 5;
         }
         globalClock['serverEntityClient'] = 7; // Server entity clock entry
@@ -1299,10 +1291,6 @@ describe('SupersededOperationResolverService', () => {
           { length: MAX_VECTOR_CLOCK_SIZE },
           (_, i) => `protected-${i}`,
         );
-        mockOpLogStore.getProtectedClientIds.and.returnValue(
-          Promise.resolve(protectedIds),
-        );
-
         const globalClock: VectorClock = {};
         for (const id of protectedIds) {
           globalClock[id] = 5;
