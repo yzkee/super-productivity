@@ -54,7 +54,7 @@ const SCHEDULE_AFFECTING_FIELDS: (keyof TaskRepeatCfgCopy)[] = [
   'friday',
   'saturday',
   'sunday',
-  'order',
+  'order', // controls top/bottom placement of created tasks, which affects rescheduling behavior
   'isPaused',
 ];
 
@@ -199,10 +199,14 @@ export class TaskRepeatCfgEffects {
         // Without this guard, _updateRegularTaskInstance dispatches a second
         // scheduleTaskWithTime using new Date() (today), overwriting the
         // correct future date set by the other effect.
-        const changesForUpdate = isTimedTask
-          ? ({ ...taskRepeatCfg, startTime: undefined, remindAt: undefined } as any)
+        const changesForUpdate: Partial<TaskRepeatCfgCopy> = isTimedTask
+          ? { ...taskRepeatCfg, startTime: undefined, remindAt: undefined }
           : taskRepeatCfg;
-        this._updateRegularTaskInstance(task, changesForUpdate, taskRepeatCfg as any);
+        this._updateRegularTaskInstance(
+          task,
+          changesForUpdate as Partial<TaskRepeatCfgCopy>,
+          taskRepeatCfg as TaskRepeatCfgCopy,
+        );
 
         return { task, isFirstOccurrenceToday_, firstOccurrenceStr, isTimedTask };
       }),

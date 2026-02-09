@@ -40,6 +40,8 @@ export class TaskViewCustomizerService {
   private _projectService = inject(ProjectService);
   private _tagService = inject(TagService);
   private _languageService = inject(LanguageService);
+  private _collator: Intl.Collator | null = null;
+  private _collatorLocale: string | null = null;
 
   public selectedSort = signal<SortOption>(
     lsGetJSON<SortOption>(LS.TASK_VIEW_CUSTOMIZER_SORT, DEFAULT_OPTIONS.sort) ??
@@ -271,10 +273,15 @@ export class TaskViewCustomizerService {
     // Factor for bidirectional for sorting
     const factor = order === SORT_ORDER.DESC ? -1 : 1;
 
-    const collator = new Intl.Collator(this._languageService.detect(), {
-      sensitivity: 'base',
-      numeric: true,
-    });
+    const locale = this._languageService.detect();
+    if (!this._collator || this._collatorLocale !== locale) {
+      this._collator = new Intl.Collator(locale, {
+        sensitivity: 'base',
+        numeric: true,
+      });
+      this._collatorLocale = locale;
+    }
+    const collator = this._collator;
     const sortByTitle = (a: string, b: string, multiplier = 1): number => {
       return collator.compare(a, b) * multiplier;
     };

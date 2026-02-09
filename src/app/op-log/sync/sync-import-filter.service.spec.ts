@@ -1923,6 +1923,82 @@ describe('SyncImportFilterService', () => {
         expect(result.invalidatedOps.length).toBe(1);
       });
 
+      it('should document known false positive: concurrent client whose ID was pruned from import clock', async () => {
+        // KNOWN LIMITATION: If the import clock itself was pruned and a genuinely
+        // concurrent client's ID happened to be among the pruned entries, the heuristic
+        // incorrectly keeps the op. The concurrent client appears "born after" the import
+        // (criterion 1 satisfied) even though it existed before the import.
+        //
+        // This is unlikely in practice because it requires the concurrent client to be
+        // one of the oldest (least-recently-updated) entries in the import clock at the
+        // time of pruning.
+        const importClock = buildClock({
+          A_bw1h: 227,
+          A_wU5p: 95,
+          // A_old1 was pruned from the import clock (was an old entry with low counter)
+          // A_old1 is actually a pre-existing concurrent client, not a new client
+          B_HSxu: 10774,
+          B_pr52: 3642,
+          BCL_174: 117821,
+          BCLmd3: 4990,
+          BCLmd4: 80215,
+          BCLmdt: 653096,
+          BCM_mhq: 2659,
+          B_xtra: 500,
+        });
+        expect(Object.keys(importClock).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 3,
+            op: createOp({
+              id: '019c4290-0a51-7184-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'B_pr52',
+              entityType: 'ALL',
+              vectorClock: importClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // A_old1 is a genuinely concurrent client (existed before import) whose ID
+        // was pruned from the import clock. Its op inherits some shared keys from
+        // a previous sync, making it look like a post-import client to the heuristic.
+        const concurrentOp = createOp({
+          id: '019c42a0-0001-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'A_old1',
+          entityId: 'task-1',
+          vectorClock: buildClock({
+            A_old1: 50,
+            A_bw1h: 227,
+            A_wU5p: 95,
+            B_HSxu: 10774,
+            B_pr52: 3642,
+            BCL_174: 117821,
+            BCLmd3: 4990,
+            BCLmd4: 80215,
+            BCLmdt: 653096,
+            BCM_mhq: 2659,
+          }),
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([concurrentOp]);
+
+        // FALSE POSITIVE: The heuristic incorrectly keeps this op because:
+        // 1. A_old1 is not in import clock (pruned) → looks like "born after import"
+        // 2. Import has MAX entries → pruning was possible
+        // 3. All shared keys are >= import values → looks like inherited knowledge
+        // In reality, A_old1 existed before the import and is genuinely concurrent.
+        // This is an accepted trade-off: keeping a concurrent op is safer than
+        // dropping a legitimate post-import op.
+        expect(result.validOps.length).toBe(1);
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
       it('should still FILTER ops from new client with LOWER shared keys when import is at MAX', async () => {
         // Import has MAX entries, op has shared keys but LOWER values - tests criteria #4
         // at MAX size (not short-circuited by criteria #2)

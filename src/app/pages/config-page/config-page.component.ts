@@ -293,7 +293,8 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
                         translateParams: { url: result.fullUrl },
                       });
 
-                      // Save settings after successful connection test
+                      // Save settings after successful connection test.
+                      // Formly hierarchy: _field (button) → parent (group wrapper) → parent (root form) → model
                       const fullSyncModel = _field?.parent?.parent?.model;
                       if (fullSyncModel) {
                         await this.syncSettingsService.updateSettingsFromForm(

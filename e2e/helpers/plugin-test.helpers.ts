@@ -81,6 +81,8 @@ export const waitForPluginAssets = async (
  */
 export const waitForPluginManagementInit = async (
   page: Page,
+  // 30s timeout needed: plugin management init includes navigation to settings,
+  // tab loading, and plugin card rendering which is slow in CI environments
   timeout: number = 30000,
 ): Promise<boolean> => {
   try {
