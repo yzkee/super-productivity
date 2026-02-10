@@ -484,6 +484,52 @@ describe('PlannerService', () => {
     });
   });
 
+  describe('resetScrollState', () => {
+    it('should reset daysToShow to initial count after loadMoreDays', (done) => {
+      service.daysToShow$.pipe(first()).subscribe((initialDays) => {
+        expect(initialDays.length).toBe(15);
+
+        service.loadMoreDays();
+
+        setTimeout(() => {
+          service.daysToShow$.pipe(first()).subscribe((moreDays) => {
+            expect(moreDays.length).toBe(22);
+
+            service.resetScrollState();
+
+            service.daysToShow$.pipe(first()).subscribe((resetDays) => {
+              expect(resetDays.length).toBe(15);
+              done();
+            });
+          });
+        }, 10);
+      });
+    });
+
+    it('should set isLoadingMore$ to false after reset', () => {
+      service.loadMoreDays();
+      expect(service.isLoadingMore$.value).toBe(true);
+
+      service.resetScrollState();
+      expect(service.isLoadingMore$.value).toBe(false);
+    });
+
+    it('should cancel pending loadMoreDays timeout so count is not inflated', (done) => {
+      service.loadMoreDays();
+
+      // Reset immediately before the timeout fires
+      service.resetScrollState();
+
+      setTimeout(() => {
+        service.daysToShow$.pipe(first()).subscribe((days) => {
+          expect(days.length).toBe(15);
+          expect(service.isLoadingMore$.value).toBe(false);
+          done();
+        });
+      }, 10);
+    });
+  });
+
   describe('Mobile-specific day loading', () => {
     it('should use AUTO_LOAD_INCREMENT of 7 days when loading more', (done) => {
       // Test with the existing service (desktop, 15 days)
