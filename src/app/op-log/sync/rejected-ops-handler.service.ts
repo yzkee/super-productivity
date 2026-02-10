@@ -8,6 +8,7 @@ import { SupersededOperationResolverService } from './superseded-operation-resol
 import { DownloadCallback, RejectedOpInfo } from '../core/types/sync-results.types';
 import { handleStorageQuotaError } from './sync-error-utils';
 import { MAX_CONCURRENT_RESOLUTION_ATTEMPTS } from '../core/operation-log.const';
+import { toEntityKey } from '../util/entity-key.util';
 
 // Re-export for consumers that import from this service
 export type {
@@ -229,11 +230,22 @@ export class RejectedOpsHandlerService {
       existingClock?: VectorClock;
     }> = [];
 
+    // Increment once per unique entity in this batch, not once per op.
+    // Without dedup, 4 ops for the same entity would burn 4 attempts in one cycle.
+    const entityKeysInBatch = new Set<string>();
     for (const item of concurrentModificationOps) {
       const entityKey = this._getEntityKey(item.op);
-      const attempts = (this._resolutionAttemptsByEntity.get(entityKey) ?? 0) + 1;
-      this._resolutionAttemptsByEntity.set(entityKey, attempts);
+      if (!entityKeysInBatch.has(entityKey)) {
+        entityKeysInBatch.add(entityKey);
+        const attempts = (this._resolutionAttemptsByEntity.get(entityKey) ?? 0) + 1;
+        this._resolutionAttemptsByEntity.set(entityKey, attempts);
+      }
+    }
 
+    // Classify each op based on its entity's attempt count
+    for (const item of concurrentModificationOps) {
+      const entityKey = this._getEntityKey(item.op);
+      const attempts = this._resolutionAttemptsByEntity.get(entityKey) ?? 0;
       if (attempts > MAX_CONCURRENT_RESOLUTION_ATTEMPTS) {
         opsExceededRetries.push(item);
       } else {
@@ -417,8 +429,8 @@ export class RejectedOpsHandlerService {
         op.actionType,
         op.entityType,
       );
-      return `${op.entityType}:*`;
+      return toEntityKey(op.entityType, '*');
     }
-    return `${op.entityType}:${entityId}`;
+    return toEntityKey(op.entityType, entityId);
   }
 }

@@ -3,6 +3,7 @@ import {
   RejectedOpsHandlerService,
   DownloadCallback,
   DownloadResultForRejection,
+  RejectedOpInfo,
 } from './rejected-ops-handler.service';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { SnackService } from '../../core/snack/snack.service';
@@ -592,6 +593,180 @@ describe('RejectedOpsHandlerService', () => {
             msg: T.F.SYNC.S.CONFLICT_RESOLUTION_FAILED,
           }),
         );
+      });
+
+      it('should count multiple ops for the same entity in one batch as a single resolution attempt', async () => {
+        // REGRESSION TEST: When 4 ops for TASK:abc arrive in one batch,
+        // the counter should increment once (not 4 times), so the entity
+        // gets MAX_CONCURRENT_RESOLUTION_ATTEMPTS full cycles before rejection.
+        opLogStoreSpy.markRejected.and.resolveTo();
+        supersededOperationResolverSpy.resolveSupersededLocalOps.and.resolveTo(1);
+
+        // Send a batch of 4 ops for the same entity in a single call
+        const batchOps: RejectedOpInfo[] = [];
+        for (let i = 0; i < 4; i++) {
+          const opId = `batch-op-${i}`;
+          const op = createOp({
+            id: opId,
+            entityType: 'TASK',
+            entityId: 'same-entity',
+          });
+          opLogStoreSpy.getOpById
+            .withArgs(opId)
+            .and.returnValue(Promise.resolve(mockEntry(op)));
+          batchOps.push({
+            opId,
+            error: 'concurrent',
+            errorCode: 'CONFLICT_CONCURRENT' as const,
+          });
+        }
+
+        downloadCallback.and.callFake(async (options) => {
+          if (options?.forceFromSeq0) {
+            return {
+              newOpsCount: 0,
+              allOpClocks: [{ remoteClient: 2 }],
+            } as DownloadResultForRejection;
+          }
+          return { newOpsCount: 0 } as DownloadResultForRejection;
+        });
+
+        // First batch: should resolve all 4 ops (1 attempt counted)
+        await service.handleRejectedOps(batchOps, downloadCallback);
+
+        expect(opLogStoreSpy.markRejected).not.toHaveBeenCalled();
+        expect(
+          supersededOperationResolverSpy.resolveSupersededLocalOps,
+        ).toHaveBeenCalled();
+
+        // Verify all 4 batch ops were passed to the resolver (not silently dropped)
+        const resolverArgs =
+          supersededOperationResolverSpy.resolveSupersededLocalOps.calls.mostRecent()
+            .args[0];
+        expect(resolverArgs.length).toBe(4);
+        expect(resolverArgs.map((o: { opId: string }) => o.opId)).toEqual([
+          'batch-op-0',
+          'batch-op-1',
+          'batch-op-2',
+          'batch-op-3',
+        ]);
+
+        // Send MAX_CONCURRENT_RESOLUTION_ATTEMPTS - 1 more single-op batches
+        for (let i = 1; i < MAX_CONCURRENT_RESOLUTION_ATTEMPTS; i++) {
+          supersededOperationResolverSpy.resolveSupersededLocalOps.calls.reset();
+          const opId = `followup-op-${i}`;
+          const op = createOp({
+            id: opId,
+            entityType: 'TASK',
+            entityId: 'same-entity',
+          });
+          opLogStoreSpy.getOpById.and.returnValue(Promise.resolve(mockEntry(op)));
+
+          await service.handleRejectedOps(
+            [{ opId, error: 'concurrent', errorCode: 'CONFLICT_CONCURRENT' }],
+            downloadCallback,
+          );
+        }
+
+        // Should still not be rejected (exactly at MAX_CONCURRENT_RESOLUTION_ATTEMPTS)
+        expect(opLogStoreSpy.markRejected).not.toHaveBeenCalled();
+
+        // One more attempt should exceed the limit
+        const finalOp = createOp({
+          id: 'final-op',
+          entityType: 'TASK',
+          entityId: 'same-entity',
+        });
+        opLogStoreSpy.getOpById.and.returnValue(Promise.resolve(mockEntry(finalOp)));
+
+        await service.handleRejectedOps(
+          [{ opId: 'final-op', error: 'concurrent', errorCode: 'CONFLICT_CONCURRENT' }],
+          downloadCallback,
+        );
+
+        expect(opLogStoreSpy.markRejected).toHaveBeenCalledWith(['final-op']);
+      });
+
+      it('should count each entity independently within a mixed-entity batch', async () => {
+        opLogStoreSpy.markRejected.and.resolveTo();
+        supersededOperationResolverSpy.resolveSupersededLocalOps.and.resolveTo(1);
+
+        // Build a batch with 2 ops for entity-A and 2 ops for entity-B
+        const batchOps: RejectedOpInfo[] = [];
+        for (const entityId of ['entity-A', 'entity-B']) {
+          for (let i = 0; i < 2; i++) {
+            const opId = `op-${entityId}-${i}`;
+            const op = createOp({ id: opId, entityType: 'TASK', entityId });
+            opLogStoreSpy.getOpById
+              .withArgs(opId)
+              .and.returnValue(Promise.resolve(mockEntry(op)));
+            batchOps.push({
+              opId,
+              error: 'concurrent',
+              errorCode: 'CONFLICT_CONCURRENT',
+            });
+          }
+        }
+
+        downloadCallback.and.callFake(async (options) => {
+          if (options?.forceFromSeq0) {
+            return {
+              newOpsCount: 0,
+              allOpClocks: [{ remoteClient: 2 }],
+            } as DownloadResultForRejection;
+          }
+          return { newOpsCount: 0 } as DownloadResultForRejection;
+        });
+
+        // Send MAX_CONCURRENT_RESOLUTION_ATTEMPTS mixed batches
+        for (let cycle = 0; cycle < MAX_CONCURRENT_RESOLUTION_ATTEMPTS; cycle++) {
+          supersededOperationResolverSpy.resolveSupersededLocalOps.calls.reset();
+
+          // Re-configure getOpById for each cycle (new op IDs)
+          const cycleOps: RejectedOpInfo[] = [];
+          for (const entityId of ['entity-A', 'entity-B']) {
+            for (let i = 0; i < 2; i++) {
+              const opId = `op-${entityId}-cycle${cycle}-${i}`;
+              const op = createOp({ id: opId, entityType: 'TASK', entityId });
+              opLogStoreSpy.getOpById
+                .withArgs(opId)
+                .and.returnValue(Promise.resolve(mockEntry(op)));
+              cycleOps.push({
+                opId,
+                error: 'concurrent',
+                errorCode: 'CONFLICT_CONCURRENT',
+              });
+            }
+          }
+
+          await service.handleRejectedOps(cycleOps, downloadCallback);
+        }
+
+        // Both entities at exactly MAX — should NOT be rejected yet
+        expect(opLogStoreSpy.markRejected).not.toHaveBeenCalled();
+
+        // One more cycle pushes both entities over the limit
+        const finalOps: RejectedOpInfo[] = [];
+        for (const entityId of ['entity-A', 'entity-B']) {
+          const opId = `op-${entityId}-final`;
+          const op = createOp({ id: opId, entityType: 'TASK', entityId });
+          opLogStoreSpy.getOpById
+            .withArgs(opId)
+            .and.returnValue(Promise.resolve(mockEntry(op)));
+          finalOps.push({
+            opId,
+            error: 'concurrent',
+            errorCode: 'CONFLICT_CONCURRENT',
+          });
+        }
+
+        await service.handleRejectedOps(finalOps, downloadCallback);
+
+        // Both entities' ops should be permanently rejected
+        expect(opLogStoreSpy.markRejected).toHaveBeenCalledWith([
+          'op-entity-A-final',
+          'op-entity-B-final',
+        ]);
       });
 
       it('should track resolution attempts per entity independently (entity A limit does not affect entity B)', async () => {

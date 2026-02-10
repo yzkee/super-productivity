@@ -287,7 +287,7 @@ Vector clocks are bounded to `MAX_VECTOR_CLOCK_SIZE` (10) entries to prevent unb
 
 ### Pruning-Aware Comparison
 
-When **both** clocks being compared have >= `MAX_VECTOR_CLOCK_SIZE` entries, `compareVectorClocks()` switches to "pruning-aware mode" to avoid false `CONCURRENT` results from cross-client pruning asymmetry:
+When **both** clocks being compared have exactly `MAX_VECTOR_CLOCK_SIZE` entries (`===`, not `>=`, because a clock with more than MAX entries was never pruned), `compareVectorClocks()` switches to "pruning-aware mode" to avoid false `CONCURRENT` results from cross-client pruning asymmetry:
 
 - Only **shared keys** (present in both clocks) are compared
 - If the winning side's opponent has **non-shared keys** (keys only in the other clock), the result is conservatively `CONCURRENT` instead of `GREATER_THAN`/`LESS_THAN`
