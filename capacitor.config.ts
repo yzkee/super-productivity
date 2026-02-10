@@ -19,7 +19,7 @@ const config: CapacitorConfig = {
     },
     StatusBar: {
       // Status bar overlays webview (iOS)
-      overlaysWebView: false,
+      overlaysWebView: true,
     },
   },
   ios: {
