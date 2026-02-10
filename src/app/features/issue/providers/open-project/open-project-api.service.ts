@@ -40,7 +40,7 @@ interface OpenProjectRequestParams {
   data?: unknown;
   params?: Record<string, string | number>;
   headers?: Record<string, string>;
-  responseType?: string;
+  responseType?: 'arraybuffer' | 'blob' | 'json' | 'text';
 }
 
 @Injectable({
@@ -361,19 +361,16 @@ export class OpenProjectApiService {
       },
     };
 
-    const bodyArg = params.data ? [params.data] : [];
-
-    const allArgs = [
-      ...bodyArg,
-      {
-        headers: new HttpHeaders(p.headers),
-        params: new HttpParams({ fromObject: p.params }),
-        reportProgress: false,
-        observe: 'response',
-        responseType: params.responseType,
-      },
-    ];
-    const req = new HttpRequest(p.method!, p.url, ...allArgs);
+    const init = {
+      headers: new HttpHeaders(p.headers),
+      params: new HttpParams({ fromObject: p.params }),
+      reportProgress: false,
+      observe: 'response' as const,
+      responseType: params.responseType,
+    };
+    const req = params.data
+      ? new HttpRequest(p.method as string, p.url, params.data, init)
+      : new HttpRequest(p.method as string, p.url, init);
     return this._http.request(req).pipe(
       // Filter out HttpEventType.Sent (type: 0) events to only process actual responses
       filter((res) => !(res === Object(res) && res.type === 0)),
