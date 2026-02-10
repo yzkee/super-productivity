@@ -104,10 +104,10 @@
   }
 }
 
-// iOS-specific: remove double safe-area padding
-// Body already handles safe area, so nav doesn't need its own
+// iOS: nav extends its background into the home indicator area,
+// padding keeps buttons above it
 :host-context(.isIOS) .mobile-bottom-nav {
-  padding-bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 // Material Design touch target improvements
