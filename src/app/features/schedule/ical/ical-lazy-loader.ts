@@ -3,7 +3,9 @@
  * The ical.js library is ~76KB and only needed for calendar integration.
  */
 
-type ICalModule = typeof import('ical.js');
+// ical.js types don't correctly expose the runtime ICAL namespace API
+// (parse, Component, Time, Timezone, TimezoneService, helpers, stringify, etc.)
+type ICalModule = any;
 
 let icalModule: ICalModule | null = null;
 
