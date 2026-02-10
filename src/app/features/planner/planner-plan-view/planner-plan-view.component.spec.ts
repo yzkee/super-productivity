@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PlannerPlanViewComponent } from './planner-plan-view.component';
 import { PlannerService } from '../planner.service';
-import { provideMockStore } from '@ngrx/store/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { BehaviorSubject, of } from 'rxjs';
 import { selectUndoneOverdue } from '../../tasks/store/task.selectors';
 
@@ -29,6 +29,10 @@ describe('PlannerPlanViewComponent', () => {
 
     fixture = TestBed.createComponent(PlannerPlanViewComponent);
     fixture.detectChanges();
+  });
+
+  afterEach(() => {
+    TestBed.inject(MockStore).resetSelectors();
   });
 
   it('should call resetScrollState on destroy', () => {
