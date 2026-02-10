@@ -3,6 +3,7 @@ import { OperationLogStoreService } from '../persistence/operation-log-store.ser
 import { Operation, OpType } from '../core/operation.types';
 import {
   compareVectorClocks,
+  limitVectorClockSize,
   VectorClock,
   VectorClockComparison,
   vectorClockToString,
@@ -211,6 +212,17 @@ export class SyncImportFilterService {
       `SyncImportFilterService: SYNC_IMPORT vectorClock: ${vectorClockToString(latestImport.vectorClock)}`,
     );
 
+    // NORMALIZATION: If the local import clock exceeds MAX_VECTOR_CLOCK_SIZE, the server
+    // stored a pruned version. Remote clients created ops based on the pruned version.
+    // We must compare against the same pruned version to avoid false CONCURRENT results.
+    // After pruning, some existing client IDs may be removed from the import clock.
+    // This is intentional: isLikelyPruningArtifact will then correctly treat those
+    // clients' ops as post-import ops with inherited knowledge (all shared keys >= import).
+    const importClockForComparison =
+      Object.keys(latestImport.vectorClock).length > MAX_VECTOR_CLOCK_SIZE
+        ? limitVectorClockSize(latestImport.vectorClock, latestImport.clientId, [])
+        : latestImport.vectorClock;
+
     const validOps: Operation[] = [];
     const invalidatedOps: Operation[] = [];
 
@@ -238,15 +250,18 @@ export class SyncImportFilterService {
       // CONCURRENT ops are filtered even from "unknown" clients. The import is
       // an explicit user action to restore to a specific state - any concurrent
       // work is intentionally discarded to ensure a clean slate.
-      const comparison = compareVectorClocks(op.vectorClock, latestImport.vectorClock);
+      const comparison = compareVectorClocks(op.vectorClock, importClockForComparison);
 
       // DIAGNOSTIC LOGGING: Log vector clock comparison details
       // This helps debug issues where ops are incorrectly filtered as CONCURRENT
       OpLog.debug(
         `SyncImportFilterService: Comparing op ${op.id} (${op.actionType}) from client ${op.clientId}\n` +
           `  Op vectorClock:     ${vectorClockToString(op.vectorClock)}\n` +
-          `  Import vectorClock: ${vectorClockToString(latestImport.vectorClock)}\n` +
-          `  Comparison result:  ${comparison}`,
+          `  Import vectorClock: ${vectorClockToString(importClockForComparison)}` +
+          (importClockForComparison !== latestImport.vectorClock
+            ? ` (normalized from ${Object.keys(latestImport.vectorClock).length} entries)`
+            : '') +
+          `\n  Comparison result:  ${comparison}`,
       );
 
       if (
@@ -257,7 +272,7 @@ export class SyncImportFilterService {
         validOps.push(op);
       } else if (
         comparison === VectorClockComparison.CONCURRENT &&
-        isLikelyPruningArtifact(op.vectorClock, op.clientId, latestImport.vectorClock)
+        isLikelyPruningArtifact(op.vectorClock, op.clientId, importClockForComparison)
       ) {
         // Op appears CONCURRENT but is from a new client that inherited the import's
         // clock. Server-side pruning dropped an import entry, making the clocks look
@@ -274,8 +289,11 @@ export class SyncImportFilterService {
         OpLog.warn(
           `SyncImportFilterService: FILTERING op ${op.id} (${op.actionType}) as ${comparison}\n` +
             `  Op vectorClock:     ${vectorClockToString(op.vectorClock)}\n` +
-            `  Import vectorClock: ${vectorClockToString(latestImport.vectorClock)}\n` +
-            `  Import client:      ${latestImport.clientId}\n` +
+            `  Import vectorClock: ${vectorClockToString(importClockForComparison)}` +
+            (importClockForComparison !== latestImport.vectorClock
+              ? ` (normalized from ${Object.keys(latestImport.vectorClock).length} entries)`
+              : '') +
+            `\n  Import client:      ${latestImport.clientId}\n` +
             `  Op client:          ${op.clientId}`,
         );
         invalidatedOps.push(op);
