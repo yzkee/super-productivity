@@ -2616,5 +2616,201 @@ describe('SyncImportFilterService', () => {
         expect(result.validOps[0].opType).toBe(OpType.SyncImport);
       });
     });
+
+    describe('full pruning pipeline simulation', () => {
+      /**
+       * These tests simulate the full round-trip of vector clock pruning
+       * through the filterOpsInvalidatedBySyncImport pipeline:
+       *   limitVectorClockSize → compareVectorClocks → isLikelyPruningArtifact
+       *
+       * They verify that the layered heuristics work together correctly for
+       * realistic scenarios involving MAX-entry clocks and server-side pruning.
+       */
+
+      it('Test F: server-pruned clock round-trip — op from new client kept via pruning artifact detection', async () => {
+        // Import with exactly MAX entries
+        const importClock: Record<string, number> = {};
+        for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+          importClock[`client_${i}`] = 100 + i;
+        }
+        expect(Object.keys(importClock).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: createOp({
+              id: '019afd68-0050-7000-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'client_0',
+              entityType: 'ALL',
+              vectorClock: importClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // New client K inherited import clock + own ID = MAX+1.
+        // Server pruned: dropped client_0 (lowest counter=100), kept clientK.
+        // Result: MAX entries with clientK replacing client_0.
+        const serverPrunedOpClock: Record<string, number> = {};
+        for (let i = 1; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+          serverPrunedOpClock[`client_${i}`] = 100 + i; // inherited from import
+        }
+        serverPrunedOpClock['clientK'] = 1; // K's own counter
+        expect(Object.keys(serverPrunedOpClock).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+
+        const opFromK = createOp({
+          id: '019afd68-0100-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'clientK',
+          entityId: 'task-1',
+          vectorClock: serverPrunedOpClock,
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([opFromK]);
+
+        // compareVectorClocks returns CONCURRENT (both MAX, different unique keys).
+        // isLikelyPruningArtifact detects: clientK not in import, all shared >= import.
+        // Op is KEPT.
+        expect(result.validOps.length).toBe(1);
+        expect(result.validOps[0].clientId).toBe('clientK');
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
+      it('Test G: multiple new clients after import — progressive pruning, both kept', async () => {
+        // Import with exactly MAX entries
+        const importClock: Record<string, number> = {};
+        for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+          importClock[`client_${i}`] = 50 + i;
+        }
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: createOp({
+              id: '019afd68-0050-7000-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'client_0',
+              entityType: 'ALL',
+              vectorClock: importClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // Client K joins: inherits import + own = MAX+1.
+        // Server prunes: drops client_0 (counter=50, lowest), keeps clientK.
+        const kClock: Record<string, number> = {};
+        for (let i = 1; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+          kClock[`client_${i}`] = 50 + i;
+        }
+        kClock['clientK'] = 1;
+
+        // Client L joins after K: inherits K's pruned clock + own = MAX+1.
+        // Server prunes: drops client_1 (counter=51, now lowest), keeps clientL.
+        const lClock: Record<string, number> = {};
+        for (let i = 2; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+          lClock[`client_${i}`] = 50 + i;
+        }
+        lClock['clientK'] = 1; // inherited from K
+        lClock['clientL'] = 1; // L's own counter
+
+        const opFromK = createOp({
+          id: '019afd68-0100-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'clientK',
+          entityId: 'task-1',
+          vectorClock: kClock,
+        });
+
+        const opFromL = createOp({
+          id: '019afd68-0200-7000-0000-000000000000',
+          opType: OpType.Create,
+          clientId: 'clientL',
+          entityId: 'task-2',
+          vectorClock: lClock,
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([opFromK, opFromL]);
+
+        // Both ops should be kept via isLikelyPruningArtifact:
+        // - clientK not in import, shared keys all >= import values
+        // - clientL not in import, shared keys all >= import values
+        expect(result.validOps.length).toBe(2);
+        expect(result.validOps.map((op) => op.clientId)).toEqual(
+          jasmine.arrayContaining(['clientK', 'clientL']),
+        );
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
+      it('Test H: oversized import clock gets normalized — new client ops still correctly filtered/kept', async () => {
+        // Import was created locally with 15 entries (exceeds MAX).
+        // The service normalizes it to MAX before comparison.
+        const oversizedImportClock: Record<string, number> = {};
+        for (let i = 0; i < 15; i++) {
+          oversizedImportClock[`client_${i}`] = 10 + i;
+        }
+        expect(Object.keys(oversizedImportClock).length).toBe(15);
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: createOp({
+              id: '019afd68-0050-7000-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'client_0',
+              entityType: 'ALL',
+              vectorClock: oversizedImportClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // New client K's op with clock based on the server's normalized import.
+        // Server stored the import pruned to MAX, so K inherited the pruned version.
+        // K inherits the top-10 entries (client_5..14, values 15..24) + own = 11.
+        // Server prunes K's clock: drops client_5 (counter=15, lowest non-preserved),
+        // keeps clientK.
+        const kClock: Record<string, number> = {};
+        for (let i = 6; i < 15; i++) {
+          kClock[`client_${i}`] = 10 + i; // 9 entries from pruned import
+        }
+        kClock['clientK'] = 1;
+        expect(Object.keys(kClock).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+
+        const opFromK = createOp({
+          id: '019afd68-0100-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'clientK',
+          entityId: 'task-1',
+          vectorClock: kClock,
+        });
+
+        // Also test a genuinely concurrent op (from a client that existed before import)
+        const concurrentOp = createOp({
+          id: '019afd68-0080-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'old_client',
+          entityId: 'task-2',
+          vectorClock: { old_client: 5 }, // no knowledge of import
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([
+          opFromK,
+          concurrentOp,
+        ]);
+
+        // K's op should be kept: clientK not in (normalized) import, shared keys >= import
+        expect(result.validOps.map((op) => op.clientId)).toContain('clientK');
+        // Concurrent op should be filtered: old_client has no import knowledge
+        expect(result.invalidatedOps.map((op) => op.clientId)).toContain('old_client');
+      });
+    });
   });
 });
