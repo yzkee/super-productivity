@@ -309,7 +309,7 @@ It is **mathematically impossible** to build a dominating clock with MAX entries
 **Fix:** The server now prunes _after_ conflict detection but _before_ storage:
 
 ```
-ValidationService.validateOp()    → sanitize clock (DoS cap at 3x MAX = 30), NO pruning
+ValidationService.validateOp()    → sanitize clock (DoS cap at 5x MAX = 50), NO pruning
 SyncService.detectConflict()      → compare using FULL unpruned clock (11 entries vs 10)
                                     → bOnlyCount = 0 → GREATER_THAN ✓
 SyncService.processOperation()    → limitVectorClockSize() → prune to MAX before storage
