@@ -54,6 +54,15 @@ import { IssueLog } from '../../../../core/log';
 const BLOCK_ACCESS_KEY = 'SUP_BLOCK_JIRA_ACCESS';
 const API_VERSION = 'latest';
 
+interface JiraCallbackResponse {
+  requestId?: string;
+  error?: {
+    statusCode?: number;
+    status?: number;
+    message?: string;
+  };
+}
+
 interface JiraRequestLogItem {
   transform: ((res: any, cfg: JiraCfg) => unknown) | undefined;
   requestInit: RequestInit;
@@ -107,7 +116,7 @@ export class JiraApiService {
     // set up callback listener for electron
     if (IS_ELECTRON) {
       window.ea.on(IPC.JIRA_CB_EVENT, (ev: IpcRendererEvent, ...args: unknown[]) => {
-        this._handleResponse(args[0] as { requestId?: string; error?: unknown });
+        this._handleResponse(args[0] as JiraCallbackResponse);
       });
     }
 
@@ -116,7 +125,7 @@ export class JiraApiService {
       this._chromeExtensionInterfaceService.addEventListener(
         'SP_JIRA_RESPONSE',
         (ev: unknown, data?: unknown) => {
-          this._handleResponse(data as { requestId?: string; error?: unknown });
+          this._handleResponse(data as JiraCallbackResponse);
         },
       );
     });
@@ -659,7 +668,7 @@ export class JiraApiService {
     };
   }
 
-  private _handleResponse(res: any): void {
+  private _handleResponse(res: JiraCallbackResponse): void {
     // check if proper id is given in callback and if exists in requestLog
     if (res.requestId && this._requestsLog[res.requestId]) {
       const currentRequest = this._requestsLog[res.requestId];

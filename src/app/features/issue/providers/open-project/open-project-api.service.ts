@@ -36,7 +36,7 @@ import { OpenProjectFilterItem } from './open-project-filter.model';
 
 interface OpenProjectRequestParams {
   url: string;
-  method?: string;
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   data?: unknown;
   params?: Record<string, string | number>;
   headers?: Record<string, string>;
@@ -373,7 +373,7 @@ export class OpenProjectApiService {
         responseType: params.responseType,
       },
     ];
-    const req = new HttpRequest(p.method as any, p.url, ...allArgs);
+    const req = new HttpRequest(p.method!, p.url, ...allArgs);
     return this._http.request(req).pipe(
       // Filter out HttpEventType.Sent (type: 0) events to only process actual responses
       filter((res) => !(res === Object(res) && res.type === 0)),
