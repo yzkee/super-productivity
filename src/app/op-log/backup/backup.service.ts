@@ -128,7 +128,7 @@ export class BackupService {
       }
 
       // 4. Persist to operation log
-      await this._persistImportToOperationLog(validatedData, isForceConflict);
+      await this._persistImportToOperationLog(validatedData);
 
       // 5. Dispatch to NgRx
       this._store.dispatch(loadAllData({ appDataComplete: validatedData }));
@@ -152,7 +152,6 @@ export class BackupService {
 
   private async _persistImportToOperationLog(
     importedData: AppDataComplete,
-    isForceConflict: boolean,
   ): Promise<void> {
     OpLog.normal('BackupService: Persisting import to operation log...');
 
@@ -178,8 +177,8 @@ export class BackupService {
     // Generate new client ID for both paths - imports are a fresh start
     const clientId = await this._clientIdService.generateNewClientId();
 
-    // Fresh clock: isForceConflict uses counter 2 to ensure it "wins" over existing ops
-    const newClock = isForceConflict ? { [clientId]: 2 } : { [clientId]: 1 };
+    // Fresh clock: with a new clientId + isCleanSlate=true, counter value is irrelevant
+    const newClock = { [clientId]: 1 };
 
     const opId = uuidv7();
     // IMPORTANT: Uses OpType.BackupImport which maps to reason='recovery' on the server.

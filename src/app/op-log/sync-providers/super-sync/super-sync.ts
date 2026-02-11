@@ -148,12 +148,10 @@ export class SuperSyncProvider
     ops: SyncOperation[],
     clientId: string,
     lastKnownServerSeq?: number,
-    isCleanSlate?: boolean,
   ): Promise<OpUploadResponse> {
     SyncLog.debug(this.logLabel, 'uploadOps', {
       opsCount: ops.length,
       clientId,
-      isCleanSlate,
     });
     const cfg = await this._cfgOrError();
 
@@ -162,7 +160,6 @@ export class SuperSyncProvider
       ops,
       clientId,
       lastKnownServerSeq,
-      isCleanSlate,
     });
 
     // On native platforms (Android/iOS), use CapacitorHttp with base64-encoded gzip

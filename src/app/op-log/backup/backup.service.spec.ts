@@ -300,7 +300,7 @@ describe('BackupService', () => {
 
       expect(mockOpLogStore.setVectorClock).toHaveBeenCalled();
       const calledClock = mockOpLogStore.setVectorClock.calls.mostRecent().args[0];
-      expect(calledClock).toEqual({ newForceClient: 2 });
+      expect(calledClock).toEqual({ newForceClient: 1 });
     });
 
     it('should call setProtectedClientIds with single-entry clock when isForceConflict is true', async () => {
@@ -353,14 +353,14 @@ describe('BackupService', () => {
       expect(appendedOp.opType).not.toBe(OpType.SyncImport);
     });
 
-    it('should still produce { [clientId]: 2 } when isForceConflict is true', async () => {
+    it('should produce fresh { [clientId]: 1 } clock when isForceConflict is true', async () => {
       mockClientIdService.generateNewClientId.and.resolveTo('newForceClient');
       const backupData = createMinimalValidBackup();
 
       await service.importCompleteBackup(backupData as any, true, true, true);
 
       const appendedOp = mockOpLogStore.append.calls.mostRecent().args[0] as Operation;
-      expect(appendedOp.vectorClock).toEqual({ newForceClient: 2 });
+      expect(appendedOp.vectorClock).toEqual({ newForceClient: 1 });
     });
   });
 });

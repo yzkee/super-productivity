@@ -246,13 +246,11 @@ export interface OperationSyncCapable {
    * @param ops Operations to upload
    * @param clientId Client identifier
    * @param lastKnownServerSeq Last known server sequence (for piggyback download)
-   * @param isCleanSlate If true, server deletes all user data before accepting ops
    */
   uploadOps(
     ops: SyncOperation[],
     clientId: string,
     lastKnownServerSeq?: number,
-    isCleanSlate?: boolean,
   ): Promise<OpUploadResponse>;
 
   /**
