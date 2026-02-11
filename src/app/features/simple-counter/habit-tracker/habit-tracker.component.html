@@ -39,21 +39,7 @@
 
   <div class="habit-grid">
     <div class="header-row">
-      <div
-        class="habit-label"
-        [class.compact]="isCompactView()"
-      >
-        <button
-          mat-icon-button
-          (click)="toggleCompactView()"
-          [matTooltip]="isCompactView() ? 'Hide Names' : 'Show Names'"
-          class="compact-toggle-btn"
-        >
-          <mat-icon>{{
-            isCompactView() ? 'keyboard_arrow_right' : 'keyboard_arrow_left'
-          }}</mat-icon>
-        </button>
-      </div>
+      <div class="header-spacer"></div>
       @for (day of days(); track day) {
         <div class="day-header">
           <div class="day-name">{{ parseDateLocal(day) | date: 'EEE' }}</div>
@@ -66,7 +52,7 @@
       <div class="habit-row">
         <div
           class="habit-title"
-          [class.compact]="isCompactView()"
+          [title]="counter.title"
           [matTooltip]="counter.title"
           (click)="openEditSettings(counter)"
           (contextmenu)="openEditSettings(counter); $event.preventDefault()"
@@ -81,11 +67,7 @@
           } @else {
             <div class="habit-initial">{{ counter.title.charAt(0).toUpperCase() }}</div>
           }
-          <span
-            class="habit-name"
-            [class.visible]="isCompactView()"
-            >{{ counter.title }}</span
-          >
+          <span class="habit-name">{{ counter.title }}</span>
         </div>
         @for (day of days(); track day) {
           <div
