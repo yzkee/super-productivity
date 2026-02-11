@@ -4,13 +4,11 @@ import { BackupService } from './backup.service';
 import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
 import { StateSnapshotService } from './state-snapshot.service';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
-import { VectorClockService } from '../sync/vector-clock.service';
 import { ClientIdService } from '../../core/util/client-id.service';
 import { ArchiveDbAdapter } from '../../core/persistence/archive-db-adapter.service';
 import { ArchiveModel } from '../../features/archive/archive.model';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { OpType, Operation } from '../core/operation.types';
-import { MAX_VECTOR_CLOCK_SIZE } from '../core/operation-log.const';
 
 describe('BackupService', () => {
   let service: BackupService;
@@ -18,7 +16,6 @@ describe('BackupService', () => {
   let mockImexViewService: jasmine.SpyObj<ImexViewService>;
   let mockStateSnapshotService: jasmine.SpyObj<StateSnapshotService>;
   let mockOpLogStore: jasmine.SpyObj<OperationLogStoreService>;
-  let mockVectorClockService: jasmine.SpyObj<VectorClockService>;
   let mockClientIdService: jasmine.SpyObj<ClientIdService>;
   let mockArchiveDbAdapter: jasmine.SpyObj<ArchiveDbAdapter>;
 
@@ -112,11 +109,7 @@ describe('BackupService', () => {
       'setVectorClock',
       'setProtectedClientIds',
     ]);
-    mockVectorClockService = jasmine.createSpyObj('VectorClockService', [
-      'getCurrentVectorClock',
-    ]);
     mockClientIdService = jasmine.createSpyObj('ClientIdService', [
-      'loadClientId',
       'generateNewClientId',
     ]);
     mockArchiveDbAdapter = jasmine.createSpyObj('ArchiveDbAdapter', [
@@ -132,8 +125,7 @@ describe('BackupService', () => {
     mockOpLogStore.saveStateCache.and.returnValue(Promise.resolve());
     mockOpLogStore.setVectorClock.and.resolveTo();
     mockOpLogStore.setProtectedClientIds.and.resolveTo();
-    mockVectorClockService.getCurrentVectorClock.and.returnValue(Promise.resolve({}));
-    mockClientIdService.loadClientId.and.returnValue(Promise.resolve('test-client-id'));
+    mockClientIdService.generateNewClientId.and.resolveTo('newClientId');
     mockArchiveDbAdapter.saveArchiveYoung.and.returnValue(Promise.resolve());
     mockArchiveDbAdapter.saveArchiveOld.and.returnValue(Promise.resolve());
 
@@ -144,7 +136,6 @@ describe('BackupService', () => {
         { provide: ImexViewService, useValue: mockImexViewService },
         { provide: StateSnapshotService, useValue: mockStateSnapshotService },
         { provide: OperationLogStoreService, useValue: mockOpLogStore },
-        { provide: VectorClockService, useValue: mockVectorClockService },
         { provide: ClientIdService, useValue: mockClientIdService },
         { provide: ArchiveDbAdapter, useValue: mockArchiveDbAdapter },
       ],
@@ -280,27 +271,17 @@ describe('BackupService', () => {
       expect(calledWith.task.ids).toContain('wrapped-task');
     });
 
-    it('should call setVectorClock with the new clock', async () => {
-      mockVectorClockService.getCurrentVectorClock.and.resolveTo({
-        clientA: 5,
-        clientB: 3,
-      });
+    it('should call setVectorClock with fresh clock', async () => {
       const backupData = createMinimalValidBackup();
 
       await service.importCompleteBackup(backupData as any, true, true);
 
       expect(mockOpLogStore.setVectorClock).toHaveBeenCalled();
       const calledClock = mockOpLogStore.setVectorClock.calls.mostRecent().args[0];
-      expect(calledClock['clientA']).toBe(5);
-      expect(calledClock['clientB']).toBe(3);
-      expect(calledClock['test-client-id']).toBe(1);
+      expect(calledClock).toEqual({ newClientId: 1 });
     });
 
-    it('should call setProtectedClientIds with all vector clock keys after import', async () => {
-      mockVectorClockService.getCurrentVectorClock.and.resolveTo({
-        clientA: 5,
-        clientB: 3,
-      });
+    it('should call setProtectedClientIds with single-entry client ID after import', async () => {
       const backupData = createMinimalValidBackup();
 
       await service.importCompleteBackup(backupData as any, true, true);
@@ -308,9 +289,7 @@ describe('BackupService', () => {
       expect(mockOpLogStore.setProtectedClientIds).toHaveBeenCalled();
       const protectedIds = mockOpLogStore.setProtectedClientIds.calls.mostRecent()
         .args[0] as string[];
-      expect(protectedIds).toContain('clientA');
-      expect(protectedIds).toContain('clientB');
-      expect(protectedIds).toContain('test-client-id');
+      expect(protectedIds).toEqual(['newClientId']);
     });
 
     it('should call setVectorClock with fresh clock when isForceConflict is true', async () => {
@@ -351,24 +330,6 @@ describe('BackupService', () => {
       expect(callOrder).toEqual(['setVectorClock', 'setProtectedClientIds']);
     });
 
-    it('should cap protected client IDs with large vector clock', async () => {
-      const largeClock: Record<string, number> = {};
-      for (let i = 0; i < 15; i++) {
-        largeClock[`device_${i}`] = i + 1;
-      }
-      mockVectorClockService.getCurrentVectorClock.and.resolveTo(largeClock);
-      const backupData = createMinimalValidBackup();
-
-      await service.importCompleteBackup(backupData as any, true, true);
-
-      expect(mockOpLogStore.setProtectedClientIds).toHaveBeenCalled();
-      const protectedIds = mockOpLogStore.setProtectedClientIds.calls.mostRecent()
-        .args[0] as string[];
-      // newClock = incrementVectorClock(largeClock, clientId) = 16 entries
-      // selectProtectedClientIds caps to 9
-      expect(protectedIds.length).toBeLessThanOrEqual(9);
-    });
-
     /**
      * CRITICAL: Backup imports MUST use OpType.BackupImport (not SyncImport).
      *
@@ -392,29 +353,7 @@ describe('BackupService', () => {
       expect(appendedOp.opType).not.toBe(OpType.SyncImport);
     });
 
-    it('should prune vector clock to MAX_VECTOR_CLOCK_SIZE when currentClock exceeds MAX', async () => {
-      const largeClock: Record<string, number> = {};
-      for (let i = 0; i < 12; i++) {
-        largeClock[`device_${i}`] = (i + 1) * 100;
-      }
-      mockVectorClockService.getCurrentVectorClock.and.resolveTo(largeClock);
-      const backupData = createMinimalValidBackup();
-
-      await service.importCompleteBackup(backupData as any, true, true);
-
-      const appendedOp = mockOpLogStore.append.calls.mostRecent().args[0] as Operation;
-      const clockSize = Object.keys(appendedOp.vectorClock).length;
-      expect(clockSize).toBeLessThanOrEqual(MAX_VECTOR_CLOCK_SIZE);
-      // The client ID should always be preserved
-      expect(appendedOp.vectorClock['test-client-id']).toBeDefined();
-    });
-
-    it('should still produce { [clientId]: 2 } when isForceConflict is true and currentClock is large', async () => {
-      const largeClock: Record<string, number> = {};
-      for (let i = 0; i < 15; i++) {
-        largeClock[`device_${i}`] = (i + 1) * 100;
-      }
-      mockVectorClockService.getCurrentVectorClock.and.resolveTo(largeClock);
+    it('should still produce { [clientId]: 2 } when isForceConflict is true', async () => {
       mockClientIdService.generateNewClientId.and.resolveTo('newForceClient');
       const backupData = createMinimalValidBackup();
 

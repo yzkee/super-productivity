@@ -3,15 +3,9 @@ import { Store } from '@ngrx/store';
 import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
 import { StateSnapshotService } from './state-snapshot.service';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
-import { VectorClockService } from '../sync/vector-clock.service';
 import { ClientIdService } from '../../core/util/client-id.service';
 import { Operation, OpType, ActionType } from '../core/operation.types';
 import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
-import {
-  incrementVectorClock,
-  limitVectorClockSize,
-  selectProtectedClientIds,
-} from '../../core/util/vector-clock';
 import { uuidv7 } from '../../util/uuid-v7';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { validateFull } from '../validation/validation-fn';
@@ -45,7 +39,6 @@ export class BackupService {
   private _store = inject(Store);
   private _stateSnapshotService = inject(StateSnapshotService);
   private _opLogStore = inject(OperationLogStoreService);
-  private _vectorClockService = inject(VectorClockService);
   private _clientIdService = inject(ClientIdService);
   private _archiveDbAdapter = inject(ArchiveDbAdapter);
 
@@ -182,21 +175,11 @@ export class BackupService {
       await this._opLogStore.clearAllOperations();
     }
 
-    let clientId: string;
-    if (isForceConflict) {
-      clientId = await this._clientIdService.generateNewClientId();
-    } else {
-      const loadedClientId = await this._clientIdService.loadClientId();
-      clientId = loadedClientId ?? (await this._clientIdService.generateNewClientId());
-    }
+    // Generate new client ID for both paths - imports are a fresh start
+    const clientId = await this._clientIdService.generateNewClientId();
 
-    const currentClock = await this._vectorClockService.getCurrentVectorClock();
-    // Prune to MAX_VECTOR_CLOCK_SIZE to match server-side pruning.
-    // Without this, the local BACKUP_IMPORT retains an oversized clock while the server
-    // stores a pruned version, causing remote clients' ops to appear CONCURRENT.
-    const newClock = isForceConflict
-      ? { [clientId]: 2 }
-      : limitVectorClockSize(incrementVectorClock(currentClock, clientId), clientId, []);
+    // Fresh clock: isForceConflict uses counter 2 to ensure it "wins" over existing ops
+    const newClock = isForceConflict ? { [clientId]: 2 } : { [clientId]: 1 };
 
     const opId = uuidv7();
     // IMPORTANT: Uses OpType.BackupImport which maps to reason='recovery' on the server.
@@ -221,9 +204,8 @@ export class BackupService {
     // Update vector clock store (append() doesn't do this, unlike appendWithVectorClockUpdate)
     await this._opLogStore.setVectorClock(newClock);
 
-    // Protect all vector clock keys from pruning
-    const protectedIds = selectProtectedClientIds(newClock);
-    await this._opLogStore.setProtectedClientIds(protectedIds);
+    // Protect the client ID from pruning (single-entry fresh clock)
+    await this._opLogStore.setProtectedClientIds([clientId]);
 
     await this._opLogStore.saveStateCache({
       state: importedData,

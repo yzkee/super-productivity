@@ -2466,8 +2466,8 @@ describe('SyncImportFilterService', () => {
        * This test verifies the scenario that caused the bug where changes on client B
        * were not syncing to client A.
        *
-       * Root Cause: When a SYNC_IMPORT is created locally via handleServerMigration() or
-       * createCleanSlateFromImport(), the protectedClientIds were not being set.
+       * Root Cause: When a SYNC_IMPORT is created locally via handleServerMigration(),
+       * the protectedClientIds were not being set.
        * Without this protection, limitVectorClockSize() would prune low-counter entries
        * from subsequent operations' vector clocks.
        *
