@@ -203,8 +203,15 @@ export class TaskContextMenuInnerComponent implements AfterViewInit {
     if (ev instanceof MouseEvent || isTouchEventInstance(ev)) {
       this.contextMenuPosition.x =
         ('touches' in ev ? ev.touches[0].clientX : ev.clientX) + 10 + 'px';
-      this.contextMenuPosition.y =
-        ('touches' in ev ? ev.touches[0].clientY : ev.clientY) - 48 + 'px';
+      const rawY = ('touches' in ev ? ev.touches[0].clientY : ev.clientY) - 48;
+      const safeAreaTop =
+        parseInt(
+          getComputedStyle(document.documentElement).getPropertyValue(
+            '--safe-area-inset-top',
+          ),
+          10,
+        ) || 0;
+      this.contextMenuPosition.y = Math.max(rawY, safeAreaTop) + 'px';
     }
 
     this._isOpenedFromKeyboard = isOpenedFromKeyBoard;

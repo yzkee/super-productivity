@@ -89,8 +89,15 @@ export class ContextMenuComponent implements OnInit {
     event.stopPropagation();
     this.contextMenuPosition.x =
       ('touches' in event ? event.touches[0].clientX : event.clientX) + 'px';
-    this.contextMenuPosition.y =
-      ('touches' in event ? event.touches[0].clientY : event.clientY) + 'px';
+    const rawY = 'touches' in event ? event.touches[0].clientY : event.clientY;
+    const safeAreaTop =
+      parseInt(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          '--safe-area-inset-top',
+        ),
+        10,
+      ) || 0;
+    this.contextMenuPosition.y = Math.max(rawY, safeAreaTop) + 'px';
     const contextMenuTriggerEl = this.contextMenuTriggerEl();
     contextMenuTriggerEl.menuData = {
       x: this.contextMenuPosition.x,

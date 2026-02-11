@@ -34,6 +34,7 @@ import { CapacitorPlatformService } from '../platform/capacitor-platform.service
 import { Keyboard, KeyboardInfo } from '@capacitor/keyboard';
 import { PluginListenerHandle } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
+import { SafeArea } from 'capacitor-plugin-safe-area';
 import { LS } from '../persistence/storage-keys.const';
 import { CustomThemeService } from './custom-theme.service';
 import { Log } from '../log';
@@ -285,6 +286,7 @@ export class GlobalThemeService {
     if (this._platformService.isNative) {
       this.document.body.classList.add(BodyClass.isNativeMobile);
       this._initMobileStatusBar();
+      this._initSafeAreaInsets();
 
       if (this._platformService.isIOS()) {
         this.document.body.classList.add(BodyClass.isIOS);
@@ -507,6 +509,29 @@ export class GlobalThemeService {
    * Initialize mobile status bar styling.
    * Syncs status bar style with app dark/light mode on both iOS and Android.
    */
+  /**
+   * Read native safe area insets and set CSS variables.
+   * Works around Capacitor 7's broken adjustMarginsForEdgeToEdge and
+   * Android WebView's unreliable env(safe-area-inset-*) values.
+   */
+  private _initSafeAreaInsets(): void {
+    const applyInsets = (insets: {
+      top: number;
+      right: number;
+      bottom: number;
+      left: number;
+    }): void => {
+      const root = this.document.documentElement;
+      root.style.setProperty('--safe-area-inset-top', `${insets.top}px`);
+      root.style.setProperty('--safe-area-inset-bottom', `${insets.bottom}px`);
+      root.style.setProperty('--safe-area-inset-left', `${insets.left}px`);
+      root.style.setProperty('--safe-area-inset-right', `${insets.right}px`);
+    };
+
+    SafeArea.getSafeAreaInsets().then(({ insets }) => applyInsets(insets));
+    SafeArea.addListener('safeAreaChanged', ({ insets }) => applyInsets(insets));
+  }
+
   private _initMobileStatusBar(): void {
     effect(() => {
       const isDark = this.isDarkTheme();
@@ -514,7 +539,7 @@ export class GlobalThemeService {
         Log.warn('Failed to set status bar style', err);
       });
       if (this._platformService.isAndroid()) {
-        StatusBar.setBackgroundColor({ color: isDark ? '#131314' : '#ffffff' }).catch(
+        StatusBar.setBackgroundColor({ color: isDark ? '#131314' : '#f8f8f7' }).catch(
           (err) => {
             Log.warn('Failed to set status bar background color', err);
           },

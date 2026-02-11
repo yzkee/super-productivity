@@ -18,9 +18,7 @@ const config: CapacitorConfig = {
       resizeOnFullScreen: true,
     },
   },
-  android: {
-    adjustMarginsForEdgeToEdge: 'auto',
-  },
+  android: {},
   ios: {
     // Content inset for safe areas (notch, home indicator)
     contentInset: 'never',
