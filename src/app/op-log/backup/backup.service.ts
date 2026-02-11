@@ -71,7 +71,7 @@ export class BackupService {
    * @param data - The backup data to import
    * @param isSkipLegacyWarnings - If true, skip legacy data format warnings
    * @param isSkipReload - If true, don't reload the page after import
-   * @param isForceConflict - If true, generate new client ID and reset vector clock
+   * @param isForceConflict - If true, reload page after import
    */
   async importCompleteBackup(
     data: AppDataComplete | CompleteBackup<AllModelConfig>,

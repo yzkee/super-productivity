@@ -292,7 +292,7 @@ describe('BackupService', () => {
       expect(protectedIds).toEqual(['newClientId']);
     });
 
-    it('should call setVectorClock with fresh clock when isForceConflict is true', async () => {
+    it('should call setVectorClock with fresh clock on import', async () => {
       mockClientIdService.generateNewClientId.and.resolveTo('newForceClient');
       const backupData = createMinimalValidBackup();
 
@@ -303,7 +303,7 @@ describe('BackupService', () => {
       expect(calledClock).toEqual({ newForceClient: 1 });
     });
 
-    it('should call setProtectedClientIds with single-entry clock when isForceConflict is true', async () => {
+    it('should call setProtectedClientIds with single-entry clock on import', async () => {
       mockClientIdService.generateNewClientId.and.resolveTo('newForceClient');
       const backupData = createMinimalValidBackup();
 
@@ -353,7 +353,7 @@ describe('BackupService', () => {
       expect(appendedOp.opType).not.toBe(OpType.SyncImport);
     });
 
-    it('should produce fresh { [clientId]: 1 } clock when isForceConflict is true', async () => {
+    it('should produce fresh { [clientId]: 1 } clock on import', async () => {
       mockClientIdService.generateNewClientId.and.resolveTo('newForceClient');
       const backupData = createMinimalValidBackup();
 
