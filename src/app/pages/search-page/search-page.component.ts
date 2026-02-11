@@ -64,15 +64,27 @@ export class SearchPageComponent implements OnInit {
   searchForm: UntypedFormControl = new UntypedFormControl('');
   filteredResults$: Observable<SearchItem[]> = new Observable();
 
+  private _cachedArchiveItems: SearchItem[] | null = null;
+
   private _searchableItems$: Observable<SearchItem[]> = combineLatest([
     this._taskService.allTasks$,
     this._taskService.getArchivedTasks(),
   ]).pipe(
     withLatestFrom(this._projectService.list$, this._tagService.tags$),
-    map(([[allTasks, archiveTasks], projects, tags]) => [
-      ...this._mapTasksToSearchItems(false, allTasks, projects, tags),
-      ...this._mapTasksToSearchItems(true, archiveTasks, projects, tags),
-    ]),
+    map(([[allTasks, archiveTasks], projects, tags]) => {
+      if (!this._cachedArchiveItems) {
+        this._cachedArchiveItems = this._mapTasksToSearchItems(
+          true,
+          archiveTasks,
+          projects,
+          tags,
+        );
+      }
+      return [
+        ...this._mapTasksToSearchItems(false, allTasks, projects, tags),
+        ...this._cachedArchiveItems,
+      ];
+    }),
   );
 
   private _mapTasksToSearchItems(
@@ -81,25 +93,30 @@ export class SearchPageComponent implements OnInit {
     projects: Project[],
     tags: Tag[],
   ): SearchItem[] {
+    const taskMap = new Map(tasks.map((t) => [t.id, t]));
+    const projectMap = new Map(projects.map((p) => [p.id, p]));
+    const tagMap = new Map(tags.map((t) => [t.id, t]));
+
     return tasks.map((task) => {
       // By design subtasks cannot have tags.
       // If a subtask does not belong to a project, it will neither have a project nor a tag.
       // Therefore, we need to use the parent's tag.
-      const tagId = task.parentId
-        ? (tasks.find((t) => t.id === task.parentId) as Task).tagIds[0]
-        : task.tagIds[0];
+      const parent = task.parentId ? taskMap.get(task.parentId) : undefined;
+      const tagId = parent ? parent.tagIds[0] : task.tagIds[0];
+      const taskNotes = task.notes || '';
 
       return {
         id: task.id,
         title: task.title,
-        taskNotes: task.notes || '',
+        taskNotes,
+        searchText: `${task.title}\0${taskNotes}`.toLowerCase(),
         projectId: task.projectId || null,
         parentId: task.parentId || null,
         tagId,
         timeSpentOnDay: task.timeSpentOnDay,
         created: task.created,
         issueType: task.issueType || null,
-        ctx: this._getContextIcon(task, projects, tags, tagId),
+        ctx: this._getContextIcon(task, projectMap, tagMap, tagId),
         isArchiveTask,
       };
     });
@@ -107,13 +124,13 @@ export class SearchPageComponent implements OnInit {
 
   private _getContextIcon(
     task: Task,
-    projects: Project[],
-    tags: Tag[],
+    projectMap: Map<string, Project>,
+    tagMap: Map<string, Tag>,
     tagId: string,
   ): Tag | Project {
-    let context = task.projectId
-      ? (projects.find((project) => project.id === task.projectId) as Project)
-      : (tags.find((tag) => tag.id === tagId) as Tag);
+    let context: Tag | Project | undefined = task.projectId
+      ? projectMap.get(task.projectId)
+      : tagMap.get(tagId);
 
     if (!context) {
       Log.err(`Could not find context for task: ${task.title}`);
@@ -147,10 +164,9 @@ export class SearchPageComponent implements OnInit {
       return [];
     }
 
-    const result = searchableItems.filter(
-      (task) =>
-        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.taskNotes.toLowerCase().includes(searchTerm.toLowerCase()),
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    const result = searchableItems.filter((task) =>
+      task.searchText.includes(lowerSearchTerm),
     );
 
     return result.slice(0, MAX_RESULTS);

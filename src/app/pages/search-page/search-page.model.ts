@@ -20,6 +20,8 @@ export interface SearchItem {
   // for the icons
   issueType: IssueProviderKey | null;
   ctx: Tag | Project;
+  // Pre-computed lowercase of title + notes for efficient filtering
+  searchText: string;
   // jira only
   titleHighlighted?: string;
 }
