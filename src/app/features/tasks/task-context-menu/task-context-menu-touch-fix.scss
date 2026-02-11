@@ -60,36 +60,3 @@
     pointer-events: auto;
   }
 }
-
-// Additional fix for menu positioning near edges
-.cdk-overlay-pane {
-  // Ensure menus have some distance from screen edges on mobile
-  @media (hover: none) and (pointer: coarse) {
-    // Add margins to prevent menus from touching screen edges
-    margin: 16px !important;
-
-    &.mat-mdc-menu-panel-below {
-      margin-top: 8px !important;
-    }
-
-    &.mat-mdc-menu-panel-above {
-      margin-bottom: 8px !important;
-    }
-
-    // Add safe area insets for devices with notches/rounded corners
-    padding: env(safe-area-inset-top) env(safe-area-inset-right)
-      env(safe-area-inset-bottom) env(safe-area-inset-left);
-  }
-}
-
-// Ensure the overlay container respects screen boundaries
-.cdk-overlay-container {
-  @media (hover: none) and (pointer: coarse) {
-    .cdk-overlay-connected-position-bounding-box {
-      // Prevent menus from going off-screen
-      max-width: calc(100vw - 32px) !important;
-      max-height: calc(100vh - 32px) !important;
-      margin: 0 16px !important;
-    }
-  }
-}
