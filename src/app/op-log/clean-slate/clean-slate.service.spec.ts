@@ -111,14 +111,6 @@ describe('CleanSlateService', () => {
       });
     });
 
-    it('should work with different reasons', async () => {
-      await service.createCleanSlate('FULL_IMPORT');
-
-      expect(mockPreMigrationBackupService.createPreMigrationBackup).toHaveBeenCalledWith(
-        'FULL_IMPORT',
-      );
-    });
-
     it('should work with MANUAL reason', async () => {
       await service.createCleanSlate('MANUAL');
 
@@ -198,6 +190,16 @@ describe('CleanSlateService', () => {
 
       await expectAsync(service.createCleanSlate('ENCRYPTION_CHANGE')).toBeRejectedWith(
         jasmine.objectContaining({ message: 'VectorClock failed' }),
+      );
+    });
+
+    it('should propagate setProtectedClientIds errors', async () => {
+      mockOpLogStore.setProtectedClientIds.and.rejectWith(
+        new Error('SetProtectedClientIds failed'),
+      );
+
+      await expectAsync(service.createCleanSlate('ENCRYPTION_CHANGE')).toBeRejectedWith(
+        jasmine.objectContaining({ message: 'SetProtectedClientIds failed' }),
       );
     });
 

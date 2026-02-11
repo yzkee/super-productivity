@@ -768,6 +768,68 @@ describe('OperationLogUploadService', () => {
         expect(mockOpLogStore.markSynced).toHaveBeenCalledWith([2]);
       });
 
+      it('should mark regular ops as synced when Repair op is uploaded', async () => {
+        const fullStateEntry = createFullStateEntry(1, 'op-1', 'client-1', OpType.Repair);
+        const regularEntry = createMockEntry(2, 'op-2', 'client-1');
+        mockOpLogStore.getUnsynced.and.returnValue(
+          Promise.resolve([fullStateEntry, regularEntry]),
+        );
+
+        const result = await service.uploadPendingOps(mockApiProvider);
+
+        // Full-state op goes via snapshot
+        expect(mockApiProvider.uploadSnapshot).toHaveBeenCalled();
+        // Regular ops are marked as synced (already included in full-state snapshot)
+        expect(mockApiProvider.uploadOps).not.toHaveBeenCalled();
+        expect(result.uploadedCount).toBe(2);
+        // markSynced called for full-state op (seq 1) and regular ops (seq 2)
+        expect(mockOpLogStore.markSynced).toHaveBeenCalledWith([1]);
+        expect(mockOpLogStore.markSynced).toHaveBeenCalledWith([2]);
+      });
+
+      it('should NOT auto-set isCleanSlate for SyncImport unlike BackupImport/Repair', async () => {
+        const entry = createFullStateEntry(1, 'op-1', 'client-1', OpType.SyncImport);
+        mockOpLogStore.getUnsynced.and.returnValue(Promise.resolve([entry]));
+
+        await service.uploadPendingOps(mockApiProvider);
+
+        const callArgs = mockApiProvider.uploadSnapshot.calls.mostRecent().args;
+        // SyncImport should NOT get auto isCleanSlate=true (unlike BackupImport/Repair)
+        expect(callArgs[7]).toBeUndefined();
+      });
+
+      it('should still upload regular ops when full-state op is rejected', async () => {
+        const fullStateEntry = createFullStateEntry(
+          1,
+          'op-1',
+          'client-1',
+          OpType.BackupImport,
+        );
+        const regularEntry = createMockEntry(2, 'op-2', 'client-1');
+        mockOpLogStore.getUnsynced.and.returnValue(
+          Promise.resolve([fullStateEntry, regularEntry]),
+        );
+        mockApiProvider.uploadSnapshot.and.returnValue(
+          Promise.resolve({ accepted: false, error: 'Invalid payload structure' }),
+        );
+        mockApiProvider.uploadOps.and.returnValue(
+          Promise.resolve({
+            results: [{ opId: 'op-2', accepted: true }],
+            latestSeq: 2,
+            newOps: [],
+          }),
+        );
+
+        const result = await service.uploadPendingOps(mockApiProvider);
+
+        // Full-state op was rejected
+        expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['op-1']);
+        // Regular op should still be uploaded via normal path
+        expect(mockApiProvider.uploadOps).toHaveBeenCalled();
+        expect(result.uploadedCount).toBe(1);
+        expect(result.rejectedCount).toBe(1);
+      });
+
       it('should update server seq after snapshot upload', async () => {
         const entry = createFullStateEntry(1, 'op-1', 'client-1', OpType.SyncImport);
         mockOpLogStore.getUnsynced.and.returnValue(Promise.resolve([entry]));

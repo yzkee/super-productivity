@@ -177,7 +177,7 @@ export class BackupService {
     // Generate new client ID for both paths - imports are a fresh start
     const clientId = await this._clientIdService.generateNewClientId();
 
-    // Fresh clock: with a new clientId + isCleanSlate=true, counter value is irrelevant
+    // Fresh clock: new clientId with initial counter for clean baseline
     const newClock = { [clientId]: 1 };
 
     const opId = uuidv7();
