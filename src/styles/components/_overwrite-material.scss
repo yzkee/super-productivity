@@ -61,21 +61,21 @@ body.isDarkTheme {
   z-index: 1000;
 }
 
-// Native mobile safe area handling for CDK overlays.
-// CDK overlays use position:fixed in a container that spans the full viewport,
-// ignoring body padding. We need explicit safe-area offsets for both:
-// 1. Globally-positioned overlays (dialogs, bottom sheets)
-// 2. Connected overlays (menus, selects, autocomplete, tooltips)
-body.isNativeMobile {
-  .cdk-global-overlay-wrapper {
-    padding: var(--safe-area-top) var(--safe-area-right) var(--safe-area-bottom)
-      var(--safe-area-left);
-  }
+// Native mobile: dialogs need explicit safe-area offsets because they use
+// position:fixed inside a container that spans the full viewport.
+// Connected overlays (menus, selects) are handled via the CDK viewport margin
+// patch in GlobalThemeService._patchCdkViewportForSafeArea().
+body.isNativeMobile .cdk-global-overlay-wrapper {
+  padding: var(--safe-area-top) var(--safe-area-right) var(--safe-area-bottom)
+    var(--safe-area-left);
+}
 
-  .cdk-overlay-connected-position-bounding-box {
-    // Push connected overlay bounding boxes below the status bar / notch
-    margin-top: var(--safe-area-top);
-  }
+// Constrain menu panels to safe area so content scrolls instead of
+// extending behind the status bar when CDK pushes the overlay up.
+body.isNativeMobile .mat-mdc-menu-panel {
+  max-height: calc(
+    100vh - var(--safe-area-top) - var(--safe-area-bottom) - 16px
+  ) !important;
 }
 
 // DIALOGS

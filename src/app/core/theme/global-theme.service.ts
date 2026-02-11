@@ -35,6 +35,7 @@ import { Keyboard, KeyboardInfo } from '@capacitor/keyboard';
 import { PluginListenerHandle } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { SafeArea } from 'capacitor-plugin-safe-area';
+import { FlexibleConnectedPositionStrategy } from '@angular/cdk/overlay';
 import { LS } from '../persistence/storage-keys.const';
 import { CustomThemeService } from './custom-theme.service';
 import { Log } from '../log';
@@ -530,6 +531,38 @@ export class GlobalThemeService {
 
     SafeArea.getSafeAreaInsets().then(({ insets }) => applyInsets(insets));
     SafeArea.addListener('safeAreaChanged', ({ insets }) => applyInsets(insets));
+    this._patchCdkViewportForSafeArea();
+  }
+
+  /**
+   * Monkey-patch CDK's viewport rect calculation to include safe area insets.
+   * This makes connected overlays (menus, selects) stay within the safe area
+   * instead of extending behind the status bar or home indicator.
+   */
+  private _patchCdkViewportForSafeArea(): void {
+    const proto = FlexibleConnectedPositionStrategy.prototype as any;
+    const original = proto._getNarrowedViewportRect;
+    const doc = this.document;
+    proto._getNarrowedViewportRect = function (): {
+      top: number;
+      left: number;
+      right: number;
+      bottom: number;
+      width: number;
+      height: number;
+    } {
+      const rect = original.call(this);
+      const style = getComputedStyle(doc.documentElement);
+      const safeTop = parseInt(style.getPropertyValue('--safe-area-inset-top'), 10) || 0;
+      const safeBottom =
+        parseInt(style.getPropertyValue('--safe-area-inset-bottom'), 10) || 0;
+      return {
+        ...rect,
+        top: rect.top + safeTop,
+        bottom: rect.bottom - safeBottom,
+        height: rect.height - safeTop - safeBottom,
+      };
+    };
   }
 
   private _initMobileStatusBar(): void {
