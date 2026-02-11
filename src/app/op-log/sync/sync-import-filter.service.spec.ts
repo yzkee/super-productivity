@@ -2546,7 +2546,7 @@ describe('SyncImportFilterService', () => {
         expect(result.invalidatedOps.length).toBe(0);
       });
 
-      it('should demonstrate the bug: op with PRUNED clock is incorrectly classified as CONCURRENT', async () => {
+      it('should correctly keep same-client op with pruned clock (was previously a bug)', async () => {
         // SYNC_IMPORT with many client entries
         const syncImportClock = {
           // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -2574,16 +2574,16 @@ describe('SyncImportFilterService', () => {
           vectorClock: syncImportClock,
         });
 
-        // Op created AFTER the import, but with PRUNED clock (missing low-counter entries)
-        // This simulates what happens WITHOUT the fix (protectedClientIds not set)
-        // limitVectorClockSize() would have removed the low-counter entries
+        // Op created AFTER the import by the SAME client, but with PRUNED clock
+        // (missing low-counter entries). The op's counter (36) > import's counter (35)
+        // proves it was created after the import.
         const postImportOpWithPrunedClock = createOp({
           id: '019afd68-0100-7000-0000-000000000000',
           opType: OpType.Update,
           clientId: 'A_Jxm0',
           entityId: 'task-1',
           vectorClock: {
-            // Only kept the highest counter entries (pruned to ~8 entries)
+            // Only kept the highest counter entries (pruned to ~3 entries)
             // Missing: A_3Xx3, A_EemJ, A_wU5p, A_ypDK, B_bC8O (all with low counters)
             A_AMT3: 81,
             // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -2598,22 +2598,226 @@ describe('SyncImportFilterService', () => {
           postImportOpWithPrunedClock,
         ]);
 
-        // BUG BEHAVIOR: Op is incorrectly classified as CONCURRENT and filtered out
-        // because it's missing entries that the import has (A_3Xx3, A_EemJ, etc.)
-        //
-        // When comparing vector clocks:
-        // - Import has A_3Xx3:5, op has it as undefined (0) → Import wins on this key
-        // - Op has A_Jxm0:36, import has 35 → Op wins on this key
-        // - This results in CONCURRENT (both have some higher values)
-        //
-        // After our fix (setProtectedClientIds), this scenario won't occur because
-        // the op will preserve all entries from the import's vector clock.
-        expect(result.invalidatedOps.length).toBe(1);
-        expect(result.invalidatedOps[0].id).toBe('019afd68-0100-7000-0000-000000000000');
+        // FIXED: Op is now correctly KEPT because same-client counter comparison
+        // (A_Jxm0: 36 > 35) definitively proves the op was created after the import.
+        // Previously this was incorrectly classified as CONCURRENT and filtered.
+        expect(result.validOps.length).toBe(2);
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+    });
 
-        // The SYNC_IMPORT itself is valid
+    describe('same-client pruning artifact detection', () => {
+      it('should KEEP op from same client as import when op counter is higher (real-world scenario)', async () => {
+        // Real-world scenario: B_pr52 created a SYNC_IMPORT with a 10-entry clock.
+        // Later, B_pr52 continues creating ops. Over time, pruning causes the op's
+        // clock to diverge from the import's frozen clock (different entries pruned).
+        const syncImportClock = {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          A_bw1h: 52,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          A_wU5p: 95,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          A_Jxm0: 35,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          A_3Xx3: 5,
+          A_AMT3: 81,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          A_EemJ: 1,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          A_ypDK: 19,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          B_bC8O: 25,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          B_HSxu: 10806,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          B_pr52: 4176,
+        };
+        expect(Object.keys(syncImportClock).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: createOp({
+              id: '019afd68-0050-7000-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'B_pr52',
+              entityType: 'ALL',
+              vectorClock: syncImportClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // Op from B_pr52 with a higher counter (4379 > 4176) but different pruned entries.
+        // Has A_DReS:110 (new client added after import), missing A_wU5p (pruned).
+        const opClock = {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          A_bw1h: 52,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          A_DReS: 110,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          A_Jxm0: 35,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          A_3Xx3: 5,
+          A_AMT3: 81,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          A_EemJ: 1,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          A_ypDK: 19,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          B_bC8O: 25,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          B_HSxu: 10806,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          B_pr52: 4379,
+        };
+        expect(Object.keys(opClock).length).toBe(MAX_VECTOR_CLOCK_SIZE);
+
+        const op = createOp({
+          id: '019afd68-0100-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'B_pr52',
+          entityId: 'task-1',
+          vectorClock: opClock,
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([op]);
+
+        // Op is from the SAME client as import with higher counter (4379 > 4176).
+        // This definitively proves the op was created after the import.
         expect(result.validOps.length).toBe(1);
-        expect(result.validOps[0].opType).toBe(OpType.SyncImport);
+        expect(result.validOps[0].id).toBe('019afd68-0100-7000-0000-000000000000');
+        expect(result.invalidatedOps.length).toBe(0);
+      });
+
+      it('should FILTER op from same client as import when op counter is EQUAL', async () => {
+        const syncImportClock = {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          client_A: 10,
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          client_B: 20,
+          import_client: 50,
+        };
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: createOp({
+              id: '019afd68-0050-7000-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'import_client',
+              entityType: 'ALL',
+              vectorClock: syncImportClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // Same client, same counter but different entries → CONCURRENT
+        const op = createOp({
+          id: '019afd68-0100-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'import_client',
+          entityId: 'task-1',
+          vectorClock: {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            client_C: 5,
+            import_client: 50,
+          },
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([op]);
+
+        // Counter is EQUAL (50 == 50) — NOT definitively post-import
+        expect(result.invalidatedOps.length).toBe(1);
+        expect(result.validOps.length).toBe(0);
+      });
+
+      it('should FILTER op from same client as import when op counter is LOWER', async () => {
+        const syncImportClock = {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          client_A: 10,
+          import_client: 50,
+        };
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: createOp({
+              id: '019afd68-0050-7000-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'import_client',
+              entityType: 'ALL',
+              vectorClock: syncImportClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // Same client, lower counter → LESS_THAN (dominated by import)
+        const op = createOp({
+          id: '019afd68-0030-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'import_client',
+          entityId: 'task-1',
+          vectorClock: {
+            import_client: 40,
+          },
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([op]);
+
+        // Counter is lower (40 < 50) — pre-import op, LESS_THAN → filtered
+        expect(result.invalidatedOps.length).toBe(1);
+        expect(result.validOps.length).toBe(0);
+      });
+
+      it('should FILTER op from DIFFERENT client even with higher counter on that client', async () => {
+        const syncImportClock = {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          client_A: 10,
+          import_client: 50,
+          other_client: 30,
+        };
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
+          Promise.resolve({
+            seq: 1,
+            op: createOp({
+              id: '019afd68-0050-7000-0000-000000000000',
+              opType: OpType.SyncImport,
+              clientId: 'import_client',
+              entityType: 'ALL',
+              vectorClock: syncImportClock,
+            }),
+            source: 'remote',
+            syncedAt: Date.now(),
+            appliedAt: Date.now(),
+          }),
+        );
+
+        // Different client with higher counter but missing import_client entry
+        const op = createOp({
+          id: '019afd68-0100-7000-0000-000000000000',
+          opType: OpType.Update,
+          clientId: 'other_client',
+          entityId: 'task-1',
+          vectorClock: {
+            other_client: 35,
+          },
+        });
+
+        const result = await service.filterOpsInvalidatedBySyncImport([op]);
+
+        // Different client — same-client fix does NOT apply
+        expect(result.invalidatedOps.length).toBe(1);
+        expect(result.validOps.length).toBe(0);
       });
     });
 

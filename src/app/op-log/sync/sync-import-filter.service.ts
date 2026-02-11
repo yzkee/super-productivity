@@ -283,6 +283,23 @@ export class SyncImportFilterService {
             `  All shared vector clock keys are >= import values (pruning artifact).`,
         );
         validOps.push(op);
+      } else if (
+        comparison === VectorClockComparison.CONCURRENT &&
+        op.clientId === latestImport.clientId &&
+        (op.vectorClock[op.clientId] ?? 0) > (importClockForComparison[op.clientId] ?? 0)
+      ) {
+        // Op is from the SAME client that created the import, with a higher counter.
+        // A client can't create ops concurrent with its own import — all post-import
+        // ops from the import client necessarily have causal knowledge of the import.
+        // Same-client counter comparison is definitive (monotonically increasing),
+        // not heuristic. CONCURRENT here is always a pruning artifact from asymmetric
+        // clock evolution (different entries pruned from op's evolving clock vs
+        // import's frozen clock).
+        OpLog.normal(
+          `SyncImportFilterService: KEEPING op ${op.id} (${op.actionType}) despite CONCURRENT - same client as import.\n` +
+            `  Client ${op.clientId} counter: op=${op.vectorClock[op.clientId]} > import=${importClockForComparison[op.clientId]} (post-import op).`,
+        );
+        validOps.push(op);
       } else {
         // CONCURRENT or LESS_THAN: Op was created without knowledge of import
         // Filter it to ensure clean slate semantics
