@@ -786,7 +786,7 @@ describe('SyncImportFilterService', () => {
        * THE BUG SCENARIO:
        * 1. Client A creates SYNC_IMPORT with clock {clientA: 1}
        * 2. Client B receives it, merges clocks → {clientA: 1, clientB: 9746, ...}
-       * 3. B has 91 clients in clock, pruning triggers (limit was 10, now 30)
+       * 3. B has 91 clients in clock, pruning triggers (limit was 10, now 20)
        * 4. clientA has counter=1 (lowest) → PRUNED by limitVectorClockSize()
        * 5. New task on B has clock {clientB: 9747} - MISSING clientA!
        * 6. Comparison: {clientA: 0 (missing)} vs {clientA: 1} → CONCURRENT
@@ -2032,7 +2032,7 @@ describe('SyncImportFilterService', () => {
     // NOTE: The "Oversized import clock normalization" describe block was REMOVED.
     // Clock normalization (limitVectorClockSize on import clock before comparison)
     // has been removed from the production code. Import clocks are now compared
-    // directly without pruning. With MAX_VECTOR_CLOCK_SIZE increased to 30,
+    // directly without pruning. With MAX_VECTOR_CLOCK_SIZE increased to 20,
     // oversized clocks from the old MAX=10 era are well within bounds and
     // no longer need normalization.
 
@@ -2053,7 +2053,7 @@ describe('SyncImportFilterService', () => {
        * - This caused CONCURRENT comparison instead of GREATER_THAN
        *
        * The fix was originally setProtectedClientIds(); now resolved by increasing
-       * MAX_VECTOR_CLOCK_SIZE to 30, making pruning protection unnecessary.
+       * MAX_VECTOR_CLOCK_SIZE to 20, making pruning protection unnecessary.
        * This test validates the correct behavior when vector clocks are properly maintained.
        */
 
@@ -2520,7 +2520,7 @@ describe('SyncImportFilterService', () => {
       });
 
       it('Test H: large import clock (15 entries) — new client ops still correctly filtered/kept', async () => {
-        // Import was created locally with 15 entries (exceeds LEGACY_MAX=10, within MAX=30).
+        // Import was created locally with 15 entries (exceeds LEGACY_MAX=10, within MAX=20).
         // No normalization — import clock is compared directly.
         const oversizedImportClock: Record<string, number> = {};
         for (let i = 0; i < 15; i++) {

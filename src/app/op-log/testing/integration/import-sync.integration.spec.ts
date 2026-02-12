@@ -17,7 +17,7 @@ import {
   VectorClockComparison,
   limitVectorClockSize,
 } from '../../../core/util/vector-clock';
-// MAX_VECTOR_CLOCK_SIZE is 30 — used implicitly by limitVectorClockSize
+// MAX_VECTOR_CLOCK_SIZE is 20 — used implicitly by limitVectorClockSize
 
 /**
  * Integration tests for Import + Sync scenarios.
@@ -472,7 +472,7 @@ describe('Import + Sync Integration', () => {
      * 2. Client A does an import, creating SYNC_IMPORT with fresh clock {import-fresh: 1}
      * 3. Client B receives the SYNC_IMPORT and calls mergeRemoteOpClocks()
      * 4. BUG: B's clock becomes 14 entries (old 13 + new 1) instead of being reset
-     * 5. Server prunes B's subsequent ops to MAX=30, dropping import-fresh:1 (lowest counter)
+     * 5. Server prunes B's subsequent ops to MAX=20, dropping import-fresh:1 (lowest counter)
      * 6. compareVectorClocks returns CONCURRENT: B has old entries import doesn't know,
      *    import has import-fresh that B lost to pruning
      * 7. SyncImportFilterService filters B's ops as "concurrent with import"
@@ -542,7 +542,7 @@ describe('Import + Sync Integration', () => {
         [clientBId]: (clockAfterMerge![clientBId] ?? 0) + 1,
       };
 
-      // Simulate server-side pruning of B's op clock to MAX=30
+      // Simulate server-side pruning of B's op clock to MAX=20
       const prunedOpClock = limitVectorClockSize(postImportClock, clientBId);
 
       // BUG: After pruning, import-fresh:1 gets dropped
