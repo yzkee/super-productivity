@@ -88,7 +88,7 @@ Pruning removes information. If clock A has entries `{X:1, Y:2, Z:3}` and you pr
 ### Historical Bugs
 
 1. **Riak #613:** Pruning before comparison caused "sibling explosion" — objects accumulated hundreds of siblings that could never be resolved because the pruned clocks always appeared concurrent.
-2. **Super Productivity (Feb 2026):** Server pruning before comparison caused an infinite rejection loop. Client K merges all clocks + its own ID (11 entries), server prunes to 10, both clocks at MAX triggers pruning-aware mode, non-shared keys cause CONCURRENT, server rejects, client re-merges, loop repeats.
+2. **Super Productivity (Feb 2026):** Server pruning before comparison caused an infinite rejection loop when MAX was 10. Client K merges all clocks + its own ID (11 entries), server prunes to 10, non-shared keys cause CONCURRENT, server rejects, client re-merges, loop repeats. Fixed by increasing MAX to 30 and moving pruning to after comparison.
 
 ### The Fix (Both Systems)
 

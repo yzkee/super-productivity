@@ -15,7 +15,7 @@ these ops as CONCURRENT with the import and discard them.
    from `const mergedClock = { ...currentClock }` (the old clock) and merges on top
 2. Result: old 10 entries + `B_sUq7:1` = 11 entries
 3. Client creates new ops with 11-entry clock (no client-side pruning)
-4. Server prunes to MAX_VECTOR_CLOCK_SIZE (10), dropping `B_sUq7:1` (lowest counter)
+4. Server prunes to MAX_VECTOR_CLOCK_SIZE (was 10, now 30), dropping `B_sUq7:1` (lowest counter)
 5. `SyncImportFilterService` on the importing client compares: op missing `B_sUq7` vs
    import `{B_sUq7:1}` → CONCURRENT → discarded
 6. `isLikelyPruningArtifact` returns false because import clock has only 1 entry (< MAX)
