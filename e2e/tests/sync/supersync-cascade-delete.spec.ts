@@ -162,10 +162,10 @@ test.describe('@supersync Cross-Entity Cascade Delete', () => {
       // ============ PHASE 5: Verify no orphans ============
       console.log('[CascadeDelete] Phase 5: Verifying no orphaned tasks');
 
-      // Navigate to a known view on both clients
-      await clientA.page.goto('/#/tag/TODAY/tasks');
+      // Navigate to root view where orphaned tasks would appear
+      await clientA.page.goto('/#/');
       await clientA.page.waitForLoadState('networkidle');
-      await clientB.page.goto('/#/tag/TODAY/tasks');
+      await clientB.page.goto('/#/');
       await clientB.page.waitForLoadState('networkidle');
 
       // Verify project is gone from sidebar on both clients

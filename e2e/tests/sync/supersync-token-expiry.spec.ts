@@ -79,6 +79,9 @@ test.describe('@supersync Token Expiry Recovery', () => {
         console.log('[TokenExpiry] First sync failed with 401 as expected');
       }
 
+      // Verify the 401 interception actually fired
+      expect(state.return401).toBe(false);
+
       // Remove interception
       await clientA.page.unroute('**/api/sync/ops/**');
       await clientA.page.waitForTimeout(500);
@@ -169,6 +172,9 @@ test.describe('@supersync Token Expiry Recovery', () => {
       } catch {
         console.log('[TokenExpiry] First download failed with 401 as expected');
       }
+
+      // Verify the 401 interception actually fired
+      expect(state.return401).toBe(false);
 
       // Remove interception
       await clientB.page.unroute('**/api/sync/ops/**');

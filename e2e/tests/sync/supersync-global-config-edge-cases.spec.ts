@@ -132,6 +132,9 @@ test.describe('@supersync Global Config Sync Edge Cases', () => {
       expect(aCeleb).toBe(bCeleb);
       expect(aCeleb).toBe(cCeleb);
 
+      // Verify the expected LWW winner: C's operation was latest, so celebration should be ON
+      expect(aCeleb).toBe(true);
+
       console.log('[3Client] ✓ All three clients converged to same state');
     } finally {
       if (clientA) await closeClient(clientA);
