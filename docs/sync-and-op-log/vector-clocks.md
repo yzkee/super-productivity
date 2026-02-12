@@ -106,7 +106,7 @@ In `operation-log.effects.ts`:
 
 In `sync.service.ts` (`processOperation`):
 
-1. `ValidationService.validateOp()` sanitizes the clock (DoS cap at 5×MAX = 100 entries) but does **NOT** prune
+1. `ValidationService.validateOp()` sanitizes the clock (DoS cap at 2.5×MAX = 50 entries) but does **NOT** prune
 2. `detectConflict()` compares the **full unpruned** incoming clock against the existing entity clock
 3. If accepted: `limitVectorClockSize(clock, [clientId])` prunes to MAX before storage, preserving only the uploading client's ID
 4. The pruned clock is stored in the database
@@ -348,7 +348,7 @@ Rules that must hold for the system to be correct. Use these to verify implement
 
 7. **Global clock is REPLACED (not merged) on remote SYNC_IMPORT.** `mergeRemoteOpClocks()` starts from the import's clock as the base, then merges remaining ops on top. This prevents clock bloat.
 
-8. **DoS cap is NOT pruning.** `sanitizeVectorClock()` rejects clocks with > 5×MAX (100) entries entirely — it doesn't prune them down. This is a validation gate, not a size reduction.
+8. **DoS cap is NOT pruning.** `sanitizeVectorClock()` rejects clocks with > 2.5×MAX (50) entries entirely — it doesn't prune them down. This is a validation gate, not a size reduction.
 
 ---
 
