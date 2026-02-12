@@ -1,5 +1,4 @@
 import { test, expect } from '../../fixtures/supersync.fixture';
-import type { Page } from '@playwright/test';
 import {
   createTestUser,
   getSuperSyncConfig,
@@ -7,6 +6,12 @@ import {
   closeClient,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
+import {
+  navigateToMiscSettings,
+  toggleSetting,
+  isSettingChecked,
+  ensureSettingState,
+} from '../../utils/config-helpers';
 
 /**
  * SuperSync Global Config Sync Edge Cases E2E Tests
@@ -20,74 +25,6 @@ import {
  *
  * Run with: npm run e2e:supersync:file e2e/tests/sync/supersync-global-config-edge-cases.spec.ts
  */
-
-// --- Helpers (same as supersync-lww-singleton.spec.ts) ---
-
-const navigateToMiscSettings = async (page: Page, forceReload = false): Promise<void> => {
-  if (forceReload) {
-    await page.goto('/#/tag/TODAY/tasks');
-    await page.waitForURL(/tag\/TODAY/);
-  }
-  await page.goto('/#/config');
-  await page.waitForURL(/config/);
-
-  const miscCollapsible = page.locator(
-    'collapsible:has(.collapsible-title:has-text("Misc"))',
-  );
-  await miscCollapsible.waitFor({ state: 'visible', timeout: 10000 });
-  await miscCollapsible.scrollIntoViewIfNeeded();
-
-  const isExpanded = await miscCollapsible.evaluate((el: Element) =>
-    el.classList.contains('isExpanded'),
-  );
-  if (!isExpanded) {
-    await miscCollapsible.locator('.collapsible-header').click();
-    await miscCollapsible
-      .locator('.collapsible-panel')
-      .waitFor({ state: 'visible', timeout: 5000 });
-  }
-};
-
-const toggleSetting = async (page: Page, labelText: string): Promise<void> => {
-  const toggle = page
-    .locator('mat-slide-toggle, mat-checkbox')
-    .filter({ hasText: labelText })
-    .first();
-  await toggle.scrollIntoViewIfNeeded();
-  const wasChecked = await toggle.evaluate((el: Element) =>
-    el.className.includes('checked'),
-  );
-  await toggle.click();
-  if (wasChecked) {
-    await expect(toggle).not.toHaveClass(/checked/, { timeout: 5000 });
-  } else {
-    await expect(toggle).toHaveClass(/checked/, { timeout: 5000 });
-  }
-};
-
-const isSettingChecked = async (page: Page, labelText: string): Promise<boolean> => {
-  const toggle = page
-    .locator('mat-slide-toggle, mat-checkbox')
-    .filter({ hasText: labelText })
-    .first();
-  await toggle.scrollIntoViewIfNeeded();
-  const classes = (await toggle.getAttribute('class')) ?? '';
-  return classes.includes('checked');
-};
-
-/**
- * Helper to set a setting to a specific state (ON/OFF).
- */
-const ensureSettingState = async (
-  page: Page,
-  labelText: string,
-  wantChecked: boolean,
-): Promise<void> => {
-  const current = await isSettingChecked(page, labelText);
-  if (current !== wantChecked) {
-    await toggleSetting(page, labelText);
-  }
-};
 
 test.describe('@supersync Global Config Sync Edge Cases', () => {
   /**

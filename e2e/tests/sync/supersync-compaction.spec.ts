@@ -154,9 +154,8 @@ test.describe('@supersync Compaction/Snapshot Resilience', () => {
       // ============ PHASE 5: Verify B gets complete state ============
       console.log('[Compaction] Phase 5: Verifying Client B has complete state');
 
-      // Check undone tasks are visible
+      // Check undone tasks are visible (first 3 were marked done)
       for (let i = 3; i < taskNames.length; i++) {
-        if (i === 0 || i === 1 || i === 2) continue; // Skip done tasks
         await waitForTask(clientB.page, taskNames[i]);
       }
 

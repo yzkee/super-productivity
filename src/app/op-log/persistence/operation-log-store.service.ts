@@ -1286,6 +1286,11 @@ export class OperationLogStoreService {
    * 5. These ops are compared as CONCURRENT with the import, not GREATER_THAN
    * 6. SyncImportFilterService incorrectly filters them as "invalidated by import"
    *
+   * NOTE: When a full-state op (SYNC_IMPORT/BACKUP_IMPORT/REPAIR) is present,
+   * its clock REPLACES (not merges with) the local clock. Callers must not mix
+   * pre-import and post-import ops in a single call — all ops in the batch
+   * should belong to the same "epoch" (post-import or no import).
+   *
    * @param ops Remote operations whose clocks should be merged into local clock
    */
   async mergeRemoteOpClocks(ops: Operation[]): Promise<void> {

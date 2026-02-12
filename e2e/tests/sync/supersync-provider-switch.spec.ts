@@ -72,6 +72,7 @@ test.describe('@supersync Provider Switch (WebDAV ↔ SuperSync)', () => {
 
     const appUrl = baseURL || 'http://localhost:4242';
     let clientA: SimulatedE2EClient | null = null;
+    let contextB: Awaited<ReturnType<typeof browser.newContext>> | null = null;
 
     try {
       const user = await createTestUser(testRunId);
@@ -117,7 +118,7 @@ test.describe('@supersync Provider Switch (WebDAV ↔ SuperSync)', () => {
       // ============ PHASE 3: New client joins via WebDAV ============
       console.log('[ProviderSwitch] Phase 3: New client joins via WebDAV');
 
-      const contextB = await browser.newContext({
+      contextB = await browser.newContext({
         storageState: undefined,
         viewport: { width: 1920, height: 1080 },
       });
@@ -147,12 +148,9 @@ test.describe('@supersync Provider Switch (WebDAV ↔ SuperSync)', () => {
 
       console.log('[ProviderSwitch] ✓ Client B received all tasks via WebDAV');
       console.log('[ProviderSwitch] ✓ SuperSync → WebDAV provider switch test PASSED!');
-
-      // Clean up Client B context manually
-      await contextB.close().catch(() => {});
     } finally {
+      if (contextB) await contextB.close().catch(() => {});
       if (clientA) await closeClient(clientA);
-      // clientB is cleaned up above via contextB.close()
     }
   });
 });

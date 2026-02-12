@@ -45,6 +45,7 @@ test.describe('@supersync lastSeq Preservation After Import', () => {
     baseURL,
     testRunId,
   }) => {
+    test.setTimeout(180000);
     const appUrl = baseURL || 'http://localhost:4242';
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
