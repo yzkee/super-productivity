@@ -3,13 +3,20 @@ import { OperationLogStoreService } from '../persistence/operation-log-store.ser
 import { Operation, OpType } from '../core/operation.types';
 import {
   compareVectorClocks,
-  limitVectorClockSize,
   VectorClock,
   VectorClockComparison,
   vectorClockToString,
 } from '../../core/util/vector-clock';
-import { MAX_VECTOR_CLOCK_SIZE } from '../core/operation-log.const';
 import { OpLog } from '../../core/log';
+
+/**
+ * Legacy MAX_VECTOR_CLOCK_SIZE from before the simplification (was 10, now 30).
+ * Used only by isLikelyPruningArtifact to detect old 10-entry pruned data
+ * that may still exist on servers from before the MAX increase.
+ *
+ * TODO: Remove after transition — only needed for old 10-entry pruned data
+ */
+const LEGACY_MAX_VECTOR_CLOCK_SIZE = 10;
 
 /**
  * Service responsible for filtering operations invalidated by SYNC_IMPORT, BACKUP_IMPORT, or REPAIR operations.
@@ -77,10 +84,11 @@ export const isLikelyPruningArtifact = (
   }
 
   // Server-side pruning (limitVectorClockSize) only drops entries when the clock
-  // exceeds MAX_VECTOR_CLOCK_SIZE. If the import has fewer entries, the server
-  // wouldn't have pruned the new client's clock, so CONCURRENT is genuine.
+  // exceeds MAX_VECTOR_CLOCK_SIZE. Use LEGACY_MAX (10) to detect old data that
+  // was pruned when MAX was 10. With the current MAX=30, new data won't trigger this.
+  // TODO: Remove after transition — only needed for old 10-entry pruned data
   const importKeyCount = Object.keys(importClock).length;
-  if (importKeyCount < MAX_VECTOR_CLOCK_SIZE) {
+  if (importKeyCount < LEGACY_MAX_VECTOR_CLOCK_SIZE) {
     return false;
   }
 
@@ -212,16 +220,7 @@ export class SyncImportFilterService {
       `SyncImportFilterService: SYNC_IMPORT vectorClock: ${vectorClockToString(latestImport.vectorClock)}`,
     );
 
-    // NORMALIZATION: If the local import clock exceeds MAX_VECTOR_CLOCK_SIZE, the server
-    // stored a pruned version. Remote clients created ops based on the pruned version.
-    // We must compare against the same pruned version to avoid false CONCURRENT results.
-    // After pruning, some existing client IDs may be removed from the import clock.
-    // This is intentional: isLikelyPruningArtifact will then correctly treat those
-    // clients' ops as post-import ops with inherited knowledge (all shared keys >= import).
-    const importClockForComparison =
-      Object.keys(latestImport.vectorClock).length > MAX_VECTOR_CLOCK_SIZE
-        ? limitVectorClockSize(latestImport.vectorClock, latestImport.clientId, [])
-        : latestImport.vectorClock;
+    const importClockForComparison = latestImport.vectorClock;
 
     const validOps: Operation[] = [];
     const invalidatedOps: Operation[] = [];
@@ -258,10 +257,7 @@ export class SyncImportFilterService {
         `SyncImportFilterService: Comparing op ${op.id} (${op.actionType}) from client ${op.clientId}\n` +
           `  Op vectorClock:     ${vectorClockToString(op.vectorClock)}\n` +
           `  Import vectorClock: ${vectorClockToString(importClockForComparison)}` +
-          (importClockForComparison !== latestImport.vectorClock
-            ? ` (normalized from ${Object.keys(latestImport.vectorClock).length} entries)`
-            : '') +
-          `\n  Comparison result:  ${comparison}`,
+          +`\n  Comparison result:  ${comparison}`,
       );
 
       if (

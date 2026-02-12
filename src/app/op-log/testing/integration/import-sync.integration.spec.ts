@@ -17,7 +17,7 @@ import {
   VectorClockComparison,
   limitVectorClockSize,
 } from '../../../core/util/vector-clock';
-// MAX_VECTOR_CLOCK_SIZE is 10 — used implicitly by limitVectorClockSize
+// MAX_VECTOR_CLOCK_SIZE is 30 — used implicitly by limitVectorClockSize
 
 /**
  * Integration tests for Import + Sync scenarios.
@@ -472,13 +472,13 @@ describe('Import + Sync Integration', () => {
      * 2. Client A does an import, creating SYNC_IMPORT with fresh clock {import-fresh: 1}
      * 3. Client B receives the SYNC_IMPORT and calls mergeRemoteOpClocks()
      * 4. BUG: B's clock becomes 14 entries (old 13 + new 1) instead of being reset
-     * 5. Server prunes B's subsequent ops to MAX=10, dropping import-fresh:1 (lowest counter)
+     * 5. Server prunes B's subsequent ops to MAX=30, dropping import-fresh:1 (lowest counter)
      * 6. compareVectorClocks returns CONCURRENT: B has old entries import doesn't know,
      *    import has import-fresh that B lost to pruning
      * 7. SyncImportFilterService filters B's ops as "concurrent with import"
      */
     it('should reset vector clock when receiving SYNC_IMPORT, not merge into old clock', async () => {
-      // Set Client B's vector clock to 13 entries (>MAX=10) simulating long history
+      // Set Client B's vector clock to 13 entries simulating long history
       const bloatedClock: Record<string, number> = {};
       for (let i = 0; i < 13; i++) {
         bloatedClock[`old-device-${String(i).padStart(2, '0')}`] = 100 + i;
@@ -503,13 +503,13 @@ describe('Import + Sync Integration', () => {
       const clockAfterMerge = await storeService.getVectorClock();
       const entryCount = Object.keys(clockAfterMerge!).length;
 
-      // BUG: This will be 14 (13 old + 1 new) instead of ≤1
+      // BUG: This will be 14 (old entries + new entry) instead of ≤1
       // The fix should replace the clock with the import's clock, not merge into old
       expect(entryCount).toBeLessThanOrEqual(1);
     });
 
     it('should produce post-import ops that are GREATER_THAN the import, not CONCURRENT', async () => {
-      // Set Client B's vector clock to 13 entries (>MAX=10) simulating long history
+      // Set Client B's vector clock to 13 entries simulating long history
       const bloatedClock: Record<string, number> = {};
       for (let i = 0; i < 13; i++) {
         bloatedClock[`old-device-${String(i).padStart(2, '0')}`] = 100 + i;
@@ -533,7 +533,7 @@ describe('Import + Sync Integration', () => {
       await storeService.mergeRemoteOpClocks([importOp]);
 
       // Now simulate Client B creating a post-import operation.
-      // B's clock is bloated (14 entries after buggy merge).
+      // B's clock is bloated (old entries + new entry after buggy merge).
       // Build B's post-import clock by reading the store and incrementing.
       const clockAfterMerge = await storeService.getVectorClock();
       const clientBId = 'client-bbbbb';
@@ -542,10 +542,10 @@ describe('Import + Sync Integration', () => {
         [clientBId]: (clockAfterMerge![clientBId] ?? 0) + 1,
       };
 
-      // Simulate server-side pruning of B's op clock to MAX=10
-      const prunedOpClock = limitVectorClockSize(postImportClock, clientBId, []);
+      // Simulate server-side pruning of B's op clock to MAX=30
+      const prunedOpClock = limitVectorClockSize(postImportClock, clientBId);
 
-      // BUG: After pruning from 14→10 entries, import-fresh:1 gets dropped
+      // BUG: After pruning, import-fresh:1 gets dropped
       // (it has the lowest counter). Now compareVectorClocks returns CONCURRENT
       // because B has old entries the import doesn't know about, and the import
       // has import-fresh that B lost to pruning.

@@ -280,65 +280,19 @@ export const hasVectorClockChanges = (
 
   // Check if reference has any clients missing from current.
   // This detects when a client's entry has been removed/corrupted.
-  // However, after legitimate pruning (limitVectorClockSize), low-counter entries
-  // are removed. When the current clock is at MAX size, missing keys are expected
-  // and don't indicate corruption — they were pruned away.
-  const currentSize = Object.keys(current!).length;
-  const missingPrunedKeys: string[] = [];
-  let hasMissingUnpruned = false;
   for (const [clientId, refVal] of Object.entries(reference!)) {
     if (refVal > 0 && !(clientId in current!)) {
-      if (currentSize >= MAX_VECTOR_CLOCK_SIZE) {
-        // Current clock was likely pruned — collect for batch log below.
-        missingPrunedKeys.push(clientId);
-      } else {
-        // Current clock is small enough that pruning couldn't have removed this key.
-        hasMissingUnpruned = true;
-        OpLog.warn('Vector clock change detected: client missing from current', {
-          clientId,
-          refValue: refVal,
-          currentClock: vectorClockToString(current),
-          referenceClock: vectorClockToString(reference),
-        });
-        break;
-      }
+      OpLog.warn('Vector clock change detected: client missing from current', {
+        clientId,
+        refValue: refVal,
+        currentClock: vectorClockToString(current),
+        referenceClock: vectorClockToString(reference),
+      });
+      return true;
     }
   }
 
-  if (missingPrunedKeys.length > 0) {
-    OpLog.verbose(
-      `Vector clock: ${missingPrunedKeys.length} reference client(s) missing from current (likely pruned)`,
-      { missingKeys: missingPrunedKeys },
-    );
-  }
-
-  if (hasMissingUnpruned || missingPrunedKeys.length > 0) {
-    // Intentionally conservative: return true even when missing keys were
-    // likely pruned. Re-uploading is safe (server deduplicates), but skipping
-    // could silently lose data if the key was actually corrupted.
-    return true;
-  }
-
   return false;
-};
-
-/**
- * Selects the most important client IDs from a vector clock for protection during pruning.
- * Caps at MAX_VECTOR_CLOCK_SIZE - 1 to leave room for currentClientId.
- * Picks highest-counter entries (most recently active clients).
- * Secondary sort by client ID string for determinism on equal counters.
- */
-export const selectProtectedClientIds = (
-  clock: VectorClock,
-  maxCount: number = MAX_VECTOR_CLOCK_SIZE - 1,
-): string[] => {
-  const entries = Object.entries(clock);
-  if (entries.length <= maxCount) {
-    return entries.map(([id]) => id);
-  }
-  // Sort by counter descending, then by client ID ascending for determinism
-  entries.sort(([idA, a], [idB, b]) => b - a || idA.localeCompare(idB));
-  return entries.slice(0, maxCount).map(([id]) => id);
 };
 
 /**
@@ -356,46 +310,25 @@ export interface VectorClockMetrics {
  *
  * @param clock The vector clock to limit
  * @param currentClientId The current client's ID (always preserved)
- * @param protectedClientIds Additional client IDs to always preserve (e.g., from latest SYNC_IMPORT).
- *        These are kept even if they have low counter values, to ensure correct
- *        comparison with full-state operations.
  * @returns A vector clock with at most MAX_VECTOR_CLOCK_SIZE entries
  */
 export const limitVectorClockSize = (
   clock: VectorClock,
   currentClientId: string,
-  protectedClientIds: string[] = [],
 ): VectorClock => {
   const entries = Object.entries(clock);
   if (entries.length <= MAX_VECTOR_CLOCK_SIZE) {
     return clock;
   }
 
-  const allPreserveIds = [currentClientId, ...protectedClientIds];
-
-  // Warn if we have more preserved IDs than MAX_VECTOR_CLOCK_SIZE.
-  // This means some "protected" IDs will be dropped, which could cause
-  // incorrect CONCURRENT comparisons with full-state operations.
-  if (allPreserveIds.length > MAX_VECTOR_CLOCK_SIZE) {
-    OpLog.warn(
-      'Vector clock pruning: preserveClientIds exceeds MAX_VECTOR_CLOCK_SIZE, some protected IDs will be dropped',
-      {
-        preserveCount: allPreserveIds.length,
-        maxSize: MAX_VECTOR_CLOCK_SIZE,
-        dropped: allPreserveIds.length - MAX_VECTOR_CLOCK_SIZE,
-      },
-    );
-  }
-
   OpLog.info('Vector clock pruning triggered', {
     originalSize: entries.length,
     maxSize: MAX_VECTOR_CLOCK_SIZE,
     currentClientId,
-    protectedClientIds,
     pruned: entries.length - MAX_VECTOR_CLOCK_SIZE,
   });
 
-  return sharedLimitVectorClockSize(clock, allPreserveIds);
+  return sharedLimitVectorClockSize(clock, [currentClientId]);
 };
 
 /**

@@ -1527,32 +1527,6 @@ describe('OperationLogStoreService', () => {
       const clock = await service.getVectorClock();
       expect(clock).toEqual({});
     });
-
-    it('should preserve protectedClientIds when setting new clock', async () => {
-      // First, set up protected client IDs
-      await service.setProtectedClientIds(['protectedA', 'protectedB']);
-
-      // Set a new vector clock - this should NOT overwrite protected IDs
-      await service.setVectorClock({ clientX: 100 });
-
-      // Verify protected IDs are still there
-      const protectedIds = await service.getProtectedClientIds();
-      expect(protectedIds).toEqual(['protectedA', 'protectedB']);
-    });
-
-    it('should preserve protectedClientIds across multiple setVectorClock calls', async () => {
-      // Set protected IDs
-      await service.setProtectedClientIds(['importClient']);
-
-      // Multiple vector clock updates (simulating hydration and operation capture)
-      await service.setVectorClock({ clientA: 1 });
-      await service.setVectorClock({ clientA: 2, clientB: 1 });
-      await service.setVectorClock({ clientA: 3, clientB: 2, clientC: 1 });
-
-      // Protected IDs should still be preserved
-      const protectedIds = await service.getProtectedClientIds();
-      expect(protectedIds).toEqual(['importClient']);
-    });
   });
 
   describe('getVectorClockEntry', () => {
@@ -1696,39 +1670,6 @@ describe('OperationLogStoreService', () => {
       const clock = await service.getVectorClock();
       expect(clock!.testClient).toBeGreaterThanOrEqual(1);
       expect(clock!.testClient).toBeLessThanOrEqual(5);
-    });
-
-    it('should preserve protectedClientIds when updating vector clock with local ops', async () => {
-      // Set up protected client IDs (simulating a previous SYNC_IMPORT)
-      await service.setProtectedClientIds(['importClient']);
-
-      // Append a local operation with vector clock update
-      const op = createTestOperation({
-        vectorClock: { localClient: 1, importClient: 1 },
-      });
-      await service.appendWithVectorClockUpdate(op, 'local');
-
-      // Protected IDs should still be preserved
-      const protectedIds = await service.getProtectedClientIds();
-      expect(protectedIds).toEqual(['importClient']);
-    });
-
-    it('should preserve protectedClientIds across multiple local appends', async () => {
-      // Set up protected client IDs
-      await service.setProtectedClientIds(['syncImportClient']);
-
-      // Append multiple local operations
-      for (let i = 1; i <= 5; i++) {
-        const op = createTestOperation({
-          entityId: `task-${i}`,
-          vectorClock: { localClient: i, syncImportClient: 1 },
-        });
-        await service.appendWithVectorClockUpdate(op, 'local');
-      }
-
-      // Protected IDs should still be preserved
-      const protectedIds = await service.getProtectedClientIds();
-      expect(protectedIds).toEqual(['syncImportClient']);
     });
   });
 
@@ -2354,103 +2295,6 @@ describe('OperationLogStoreService', () => {
         clientA: 80,
         clientD: 30,
       });
-    });
-
-    it('should preserve protectedClientIds when merging remote clocks', async () => {
-      // Set up protected client IDs (simulating a previous SYNC_IMPORT)
-      await service.setProtectedClientIds(['importClient', 'anotherProtected']);
-
-      // Set initial clock
-      await service.setVectorClock({ localClient: 5, importClient: 1 });
-
-      // Merge remote ops
-      await service.mergeRemoteOpClocks([
-        createTestOperation({ vectorClock: { remoteClient: 10 } }),
-        createTestOperation({ vectorClock: { anotherRemote: 5 } }),
-      ]);
-
-      // Protected IDs must still be preserved after merge
-      const protectedIds = await service.getProtectedClientIds();
-      expect(protectedIds).toEqual(['importClient', 'anotherProtected']);
-    });
-
-    it('should preserve protectedClientIds across multiple mergeRemoteOpClocks calls', async () => {
-      // Set up protected client IDs
-      await service.setProtectedClientIds(['syncImportClient']);
-
-      // Multiple merge calls (simulating multiple sync cycles)
-      await service.mergeRemoteOpClocks([
-        createTestOperation({ vectorClock: { clientA: 5 } }),
-      ]);
-      await service.mergeRemoteOpClocks([
-        createTestOperation({ vectorClock: { clientB: 3 } }),
-      ]);
-      await service.mergeRemoteOpClocks([
-        createTestOperation({ vectorClock: { clientC: 7 } }),
-      ]);
-
-      // Protected IDs should still be preserved
-      const protectedIds = await service.getProtectedClientIds();
-      expect(protectedIds).toEqual(['syncImportClient']);
-    });
-
-    it('should preserve protectedClientIds when starting with no initial clock', async () => {
-      // Set protected IDs before any clock exists
-      await service.setProtectedClientIds(['importClient']);
-
-      // Merge ops on fresh clock
-      await service.mergeRemoteOpClocks([
-        createTestOperation({ vectorClock: { remoteClient: 10 } }),
-      ]);
-
-      // Protected IDs must be preserved
-      const protectedIds = await service.getProtectedClientIds();
-      expect(protectedIds).toEqual(['importClient']);
-    });
-
-    it('should preserve protectedClientIds through realistic sync scenario', async () => {
-      // Simulate: Client A performs SYNC_IMPORT
-      // 1. SYNC_IMPORT sets protected IDs
-      await service.setProtectedClientIds(['clientA']);
-      await service.setVectorClock({ clientA: 1 });
-
-      // 2. Client B receives SYNC_IMPORT and merges the clock
-      await service.mergeRemoteOpClocks([
-        createTestOperation({
-          opType: OpType.SyncImport,
-          clientId: 'clientA',
-          vectorClock: { clientA: 1 },
-        }),
-      ]);
-
-      // 3. After merge, protected IDs must still exist
-      // This is CRITICAL: without this, vector clock pruning will remove clientA
-      const protectedIds = await service.getProtectedClientIds();
-      expect(protectedIds).toEqual(['clientA']);
-
-      // 4. New local operations should work correctly
-      const op = createTestOperation({
-        entityId: 'new-task',
-        vectorClock: { localClient: 1, clientA: 1 },
-      });
-      await service.appendWithVectorClockUpdate(op, 'local');
-
-      // 5. Protected IDs should still be there after local append
-      const protectedIdsAfter = await service.getProtectedClientIds();
-      expect(protectedIdsAfter).toEqual(['clientA']);
-    });
-
-    it('should handle empty protectedClientIds gracefully', async () => {
-      // No protected IDs set - should not error
-      await service.setVectorClock({ localClient: 5 });
-
-      await service.mergeRemoteOpClocks([
-        createTestOperation({ vectorClock: { remoteClient: 10 } }),
-      ]);
-
-      // Should return empty array, not undefined or null
-      const protectedIds = await service.getProtectedClientIds();
-      expect(protectedIds).toEqual([]);
     });
   });
 
