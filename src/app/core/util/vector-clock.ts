@@ -80,8 +80,8 @@ export const isValidVectorClock = (clock: any): clock is VectorClock => {
     // Client ID must be non-empty string
     if (typeof key !== 'string' || key.length === 0) return false;
 
-    // Value must be valid number
-    if (typeof value !== 'number' || !Number.isFinite(value)) return false;
+    // Value must be a non-negative integer (matches server-side validation)
+    if (typeof value !== 'number' || !Number.isInteger(value)) return false;
 
     // Value must be non-negative and within safe range
     if (value < 0 || value > Number.MAX_SAFE_INTEGER) return false;
@@ -106,7 +106,7 @@ export const sanitizeVectorClock = (clock: any): VectorClock => {
         typeof key === 'string' &&
         key.length > 0 &&
         typeof value === 'number' &&
-        Number.isFinite(value) &&
+        Number.isInteger(value) &&
         value >= 0 &&
         value <= Number.MAX_SAFE_INTEGER
       ) {
@@ -136,20 +136,9 @@ export const compareVectorClocks = (
   a: VectorClock | null | undefined,
   b: VectorClock | null | undefined,
 ): VectorClockComparison => {
-  // Handle null/undefined cases (shared implementation requires non-null)
-  if (isVectorClockEmpty(a) && isVectorClockEmpty(b)) {
-    return VectorClockComparison.EQUAL;
-  }
-  if (isVectorClockEmpty(a)) {
-    return VectorClockComparison.LESS_THAN;
-  }
-  if (isVectorClockEmpty(b)) {
-    return VectorClockComparison.GREATER_THAN;
-  }
-
-  // Delegate to shared implementation and convert string result to enum.
-  // Safe cast: shared implementation returns the same string literals as enum values.
-  const result = sharedCompareVectorClocks(a!, b!);
+  // Coerce null/undefined to {} and delegate to shared implementation.
+  // This ensures parity: shared treats missing keys as 0, so {} and {a:0} are EQUAL.
+  const result = sharedCompareVectorClocks(a || {}, b || {});
   return result as VectorClockComparison;
 };
 

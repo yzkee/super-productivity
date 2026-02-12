@@ -10,7 +10,7 @@ import {
 import { OpLog } from '../../core/log';
 
 /**
- * Legacy MAX_VECTOR_CLOCK_SIZE from before the simplification (was 10, now 30).
+ * Legacy MAX_VECTOR_CLOCK_SIZE from before the simplification (was 10, now 20).
  * Used only by isLikelyPruningArtifact to detect old 10-entry pruned data
  * that may still exist on servers from before the MAX increase.
  *
@@ -85,7 +85,7 @@ export const isLikelyPruningArtifact = (
 
   // Server-side pruning (limitVectorClockSize) only drops entries when the clock
   // exceeds MAX_VECTOR_CLOCK_SIZE. Use LEGACY_MAX (10) to detect old data that
-  // was pruned when MAX was 10. With the current MAX=30, new data won't trigger this.
+  // was pruned when MAX was 10. With the current MAX=20, new data won't trigger this.
   // TODO: Remove after transition — only needed for old 10-entry pruned data
   const importKeyCount = Object.keys(importClock).length;
   if (importKeyCount < LEGACY_MAX_VECTOR_CLOCK_SIZE) {
