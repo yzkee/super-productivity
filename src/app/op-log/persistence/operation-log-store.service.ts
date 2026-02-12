@@ -1319,18 +1319,33 @@ export class OperationLogStoreService {
         `  Merging ${ops.length} remote ops`,
     );
 
-    // Merge all remote ops' clocks into the local clock
-    const mergedClock = { ...currentClock };
+    // Check if any op is a full-state operation (SYNC_IMPORT / BACKUP_IMPORT / REPAIR).
+    // Full-state ops represent a complete state reset — old clock entries are irrelevant.
+    // Using the import's clock as the base (REPLACE) instead of the current clock (MERGE)
+    // prevents clock bloat that causes server-side pruning to drop the import's entry,
+    // which would make subsequent ops appear CONCURRENT with the import.
+    const fullStateOp = ops.find(
+      (op) =>
+        op.opType === OpType.SyncImport ||
+        op.opType === OpType.BackupImport ||
+        op.opType === OpType.Repair,
+    );
+
+    const mergedClock = fullStateOp
+      ? { ...fullStateOp.vectorClock }
+      : { ...currentClock };
+
+    if (fullStateOp) {
+      Log.log(
+        `[OpLogStore] mergeRemoteOpClocks: REPLACING clock for FULL-STATE op ${fullStateOp.opType}\n` +
+          `  Op ID:         ${fullStateOp.id}\n` +
+          `  Op clientId:   ${fullStateOp.clientId}\n` +
+          `  Old clock (${Object.keys(currentClock).length} entries): ${vectorClockToString(currentClock)}\n` +
+          `  New base clock: ${vectorClockToString(fullStateOp.vectorClock)}`,
+      );
+    }
+
     for (const op of ops) {
-      // Log each op's clock being merged (especially important for SYNC_IMPORT)
-      if (op.opType === OpType.SyncImport || op.opType === OpType.BackupImport) {
-        Log.log(
-          `[OpLogStore] mergeRemoteOpClocks: Merging FULL-STATE op ${op.opType}\n` +
-            `  Op ID:         ${op.id}\n` +
-            `  Op clientId:   ${op.clientId}\n` +
-            `  Op clock:      ${vectorClockToString(op.vectorClock)}`,
-        );
-      }
       for (const [clientId, counter] of Object.entries(op.vectorClock)) {
         mergedClock[clientId] = Math.max(mergedClock[clientId] ?? 0, counter);
       }

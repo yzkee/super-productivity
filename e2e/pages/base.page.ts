@@ -44,6 +44,18 @@ export abstract class BasePage {
       return; // No overlays or dialogs - nothing to do
     }
 
+    // Orphaned backdrops (no dialog) - Escape won't help, just wait for Material cleanup
+    if (backdropCount > 0 && dialogCount === 0) {
+      console.log(
+        `[ensureOverlaysClosed] Found ${backdropCount} orphaned backdrop(s), waiting for cleanup`,
+      );
+      await backdrop
+        .first()
+        .waitFor({ state: 'detached', timeout: 3000 })
+        .catch(() => {});
+      return;
+    }
+
     // Overlays/dialogs present - try dismissing with Escape
     console.log(
       `[ensureOverlaysClosed] Found ${backdropCount} backdrop(s) and ${dialogCount} dialog(s), attempting to dismiss with Escape`,
