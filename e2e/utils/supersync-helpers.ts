@@ -255,35 +255,32 @@ export const closeClient = async (client: SimulatedE2EClient): Promise<void> => 
       // Add timeout wrapper to prevent cleanup from blocking test completion.
       // context.close() can hang waiting for trace files to be written.
       const closePromise = client.context.close();
-      const timeoutPromise = new Promise<void>((_, reject) =>
-        setTimeout(() => reject(new Error('Cleanup timeout')), 5000),
-      );
-      await Promise.race([closePromise, timeoutPromise]);
+      let timeoutId: ReturnType<typeof setTimeout>;
+      const timeoutPromise = new Promise<void>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error('Cleanup timeout')), 5000);
+      });
+
+      // Prevent unhandled rejection if closePromise rejects after timeout wins the race.
+      // Without this, the abandoned promise rejection causes Playwright to mark the test
+      // as failed with "error was not a part of any test", masking the real test error.
+      closePromise.catch(() => {});
+
+      try {
+        await Promise.race([closePromise, timeoutPromise]);
+      } finally {
+        clearTimeout(timeoutId!);
+      }
     }
   } catch (error) {
-    // Ignore errors if context is already closed or trace artifacts are missing.
+    // Always ignore cleanup errors - they should never mask the actual test error.
     // Common scenarios:
     // - Test timeout: Playwright force-closes contexts, cleanup gets "Protocol error"
     // - ENOENT: Trace file finalization fails for manually-created contexts
     // - Context already closed: Race between test timeout and cleanup
     // - Cleanup timeout: context.close() hung waiting for trace artifacts
-    if (error instanceof Error) {
-      const ignorableErrors = [
-        'Target page, context or browser has been closed',
-        'ENOENT',
-        'Protocol error',
-        'Target.disposeBrowserContext',
-        'Failed to find context',
-        'End of central directory record signature not found',
-        'Cleanup timeout',
-      ];
-      const shouldIgnore = ignorableErrors.some((msg) => error.message.includes(msg));
-      if (shouldIgnore) {
-        console.warn(`[closeClient] Ignoring cleanup error: ${error.message}`);
-      } else {
-        throw error;
-      }
-    }
+    console.warn(
+      `[closeClient] Cleanup error (ignored): ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 };
 

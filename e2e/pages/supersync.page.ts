@@ -172,7 +172,12 @@ export class SuperSyncPage extends BasePage {
             `[SuperSyncPage] Unexpected confirm dialog: "${message}". Accepting anyway...`,
           );
         }
-        await dialog.accept();
+        // Try/catch: another handler (e.g. syncAndWait) may have already handled this dialog
+        try {
+          await dialog.accept();
+        } catch {
+          // Dialog already handled by another listener - ignore
+        }
       }
     });
 
@@ -1074,16 +1079,20 @@ export class SuperSyncPage extends BasePage {
       dialog: import('@playwright/test').Dialog,
     ): Promise<void> => {
       if (!dialogHandlerActive) return;
-      if (dialog.type() === 'confirm') {
-        console.log(
-          `[syncAndWait] Native confirm dialog: "${dialog.message().substring(0, 80)}..." - accepting`,
-        );
-        await dialog.accept();
-      } else if (dialog.type() === 'alert') {
-        console.log(
-          `[syncAndWait] Native alert dialog: "${dialog.message().substring(0, 80)}..." - dismissing`,
-        );
-        await dialog.dismiss();
+      try {
+        if (dialog.type() === 'confirm') {
+          console.log(
+            `[syncAndWait] Native confirm dialog: "${dialog.message().substring(0, 80)}..." - accepting`,
+          );
+          await dialog.accept();
+        } else if (dialog.type() === 'alert') {
+          console.log(
+            `[syncAndWait] Native alert dialog: "${dialog.message().substring(0, 80)}..." - dismissing`,
+          );
+          await dialog.dismiss();
+        }
+      } catch {
+        // Dialog already handled by another listener - ignore
       }
     };
     this.page.on('dialog', dialogHandler);

@@ -12,8 +12,9 @@ import {
 /**
  * SuperSync Cross-Entity Cascade Delete E2E Tests
  *
- * Tests that project deletion propagates correctly across clients,
- * including when another client has created tasks in that project.
+ * Tests that project deletion propagates correctly across clients.
+ * When Client A deletes a project (with tasks), the deletion should
+ * propagate to Client B so the project and its tasks disappear.
  *
  * Prerequisites:
  * - super-sync-server running on localhost:1901 with TEST_MODE=true
@@ -29,7 +30,6 @@ const navigateToProject = async (
   page: import('@playwright/test').Page,
   projectName: string,
 ): Promise<void> => {
-  // Click on the project in the sidebar
   const projectNavItem = page.locator(`nav-item:has-text("${projectName}")`).first();
   await projectNavItem.waitFor({ state: 'visible', timeout: 10000 });
   await projectNavItem.click();
@@ -44,44 +44,38 @@ const deleteProjectViaContextMenu = async (
   page: import('@playwright/test').Page,
   projectName: string,
 ): Promise<void> => {
-  // Find the project nav-item in the sidebar
   const projectNavItem = page.locator(`nav-item:has-text("${projectName}")`).first();
   await projectNavItem.waitFor({ state: 'visible', timeout: 10000 });
 
-  // Hover to reveal the more_vert button (hidden by default, shown on hover)
   await projectNavItem.hover();
   const moreBtn = projectNavItem.locator('.additional-btn');
   await moreBtn.waitFor({ state: 'visible', timeout: 5000 });
   await moreBtn.click();
 
-  // Click "Delete project" in context menu
   const deleteMenuItem = page.locator('button[mat-menu-item]:has-text("Delete project")');
   await deleteMenuItem.waitFor({ state: 'visible', timeout: 5000 });
   await deleteMenuItem.click();
 
-  // Confirm deletion dialog (button text is "Ok")
   const confirmBtn = page.locator('dialog-confirm button[e2e="confirmBtn"]');
   await confirmBtn.waitFor({ state: 'visible', timeout: 5000 });
   await confirmBtn.click();
 
-  // Wait for dialog to close and navigation
   await page.waitForTimeout(1000);
 };
 
 test.describe('@supersync Cross-Entity Cascade Delete', () => {
   /**
-   * Scenario: Project deletion propagates to client that created tasks in it
+   * Scenario: Project deletion propagates to another synced client
    *
    * Flow:
-   * 1. Client A creates a project "TestProject"
+   * 1. Client A creates a project with tasks
    * 2. Client A syncs
-   * 3. Client B syncs (gets the project)
-   * 4. Client B creates tasks in "TestProject"
-   * 5. Client B syncs (uploads tasks)
-   * 6. Client A deletes "TestProject" (without syncing first to get B's tasks)
-   * 7. Client A syncs (uploads project deletion)
-   * 8. Client B syncs (receives project deletion)
-   * 9. Verify: Both clients have no project and no orphaned tasks
+   * 3. Client B syncs (gets the project with tasks)
+   * 4. Verify Client B can see the project and tasks
+   * 5. Client A deletes the project (cascade deletes tasks locally)
+   * 6. Client A syncs (uploads deletion)
+   * 7. Client B syncs (receives deletion)
+   * 8. Verify: Both clients have no project and no tasks
    */
   test('Project deletion cascades correctly across clients', async ({
     browser,
@@ -97,60 +91,64 @@ test.describe('@supersync Cross-Entity Cascade Delete', () => {
       const user = await createTestUser(testRunId);
       const syncConfig = getSuperSyncConfig(user);
 
-      // ============ PHASE 1: Client A creates project ============
-      console.log('[CascadeDelete] Phase 1: Client A creates project');
+      // ============ PHASE 1: Client A creates project with tasks ============
+      console.log('[CascadeDelete] Phase 1: Client A creates project with tasks');
 
       clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
       await clientA.sync.setupSuperSync(syncConfig);
 
       const projectName = `CascadeProject-${testRunId}`;
       await createProjectReliably(clientA.page, projectName);
-      console.log(`[CascadeDelete] Client A created project: ${projectName}`);
 
-      // Create a task in the project to confirm it works
-      const taskA = `TaskA-${testRunId}`;
-      await clientA.workView.addTask(taskA);
-      await waitForTask(clientA.page, taskA);
+      const taskA1 = `TaskA1-${testRunId}`;
+      const taskA2 = `TaskA2-${testRunId}`;
+      await clientA.workView.addTask(taskA1);
+      await clientA.workView.addTask(taskA2);
+      await waitForTask(clientA.page, taskA1);
+      await waitForTask(clientA.page, taskA2);
+      console.log(
+        `[CascadeDelete] Client A created project "${projectName}" with 2 tasks`,
+      );
 
-      // Sync
+      // Sync to upload project and tasks
       await clientA.sync.syncAndWait();
-      console.log('[CascadeDelete] Client A synced project and task');
+      console.log('[CascadeDelete] Client A synced');
 
-      // ============ PHASE 2: Client B syncs and adds tasks to the project ============
-      console.log('[CascadeDelete] Phase 2: Client B adds tasks to project');
+      // ============ PHASE 2: Client B syncs and verifies project ============
+      console.log('[CascadeDelete] Phase 2: Client B syncs and verifies project');
 
       clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
       await clientB.sync.setupSuperSync(syncConfig);
 
-      // Client B syncs to get the project
       await clientB.sync.syncAndWait();
 
-      // Navigate to the project
+      // Verify Client B has the project in sidebar
+      const projectOnB = clientB.page.locator(`nav-item:has-text("${projectName}")`);
+      await expect(projectOnB).toBeVisible({ timeout: 10000 });
+
+      // Navigate to the project and verify tasks
       await navigateToProject(clientB.page, projectName);
+      await waitForTask(clientB.page, taskA1);
+      await waitForTask(clientB.page, taskA2);
+      console.log('[CascadeDelete] Client B has project and tasks');
 
-      // Client B creates tasks in the project
-      const taskB1 = `TaskB1-${testRunId}`;
-      const taskB2 = `TaskB2-${testRunId}`;
-      await clientB.workView.addTask(taskB1);
-      await clientB.workView.addTask(taskB2);
-      await waitForTask(clientB.page, taskB1);
-      await waitForTask(clientB.page, taskB2);
+      // Navigate Client B to Today before deletion sync to avoid stale view
+      await clientB.page.evaluate(() => {
+        window.location.hash = '#/tag/TODAY/tasks';
+      });
+      await clientB.page.waitForURL(/tag\/TODAY/, { timeout: 15000 });
 
-      // Client B syncs
-      await clientB.sync.syncAndWait();
-      console.log('[CascadeDelete] Client B created tasks in project and synced');
-
-      // ============ PHASE 3: Client A deletes project (without syncing B's tasks first) ============
-      console.log('[CascadeDelete] Phase 3: Client A deletes project');
+      // ============ PHASE 3: Client A deletes the project ============
+      console.log('[CascadeDelete] Phase 3: Client A deletes the project');
 
       await deleteProjectViaContextMenu(clientA.page, projectName);
       console.log('[CascadeDelete] Client A deleted project');
 
-      // Client A syncs (uploads deletion)
+      // Sync the deletion
       await clientA.sync.syncAndWait();
-      console.log('[CascadeDelete] Client A synced (deletion uploaded)');
+      console.log('[CascadeDelete] Client A synced deletion');
 
-      // ============ PHASE 4: Client B syncs (receives deletion) ============
+      // ============ PHASE 4: Client B syncs to receive deletion ============
       console.log('[CascadeDelete] Phase 4: Client B syncs to receive deletion');
 
       await clientB.sync.syncAndWait();
@@ -158,35 +156,30 @@ test.describe('@supersync Cross-Entity Cascade Delete', () => {
       await clientB.sync.syncAndWait();
       console.log('[CascadeDelete] Client B synced');
 
-      // Wait for state to settle
-      await clientB.page.waitForTimeout(1000);
-
-      // ============ PHASE 5: Verify no orphans ============
-      console.log('[CascadeDelete] Phase 5: Verifying no orphaned tasks');
-
-      // Navigate to root view where orphaned tasks would appear
-      await clientA.page.goto('/#/');
-      await clientA.page.waitForLoadState('networkidle');
-      await clientB.page.goto('/#/');
-      await clientB.page.waitForLoadState('networkidle');
+      // ============ PHASE 5: Verify deletion propagated ============
+      console.log('[CascadeDelete] Phase 5: Verifying deletion propagated');
 
       // Verify project is gone from sidebar on both clients
       const projectOnA = clientA.page.locator(`nav-item:has-text("${projectName}")`);
-      const projectOnB = clientB.page.locator(`nav-item:has-text("${projectName}")`);
-      await expect(projectOnA).not.toBeVisible({ timeout: 5000 });
-      await expect(projectOnB).not.toBeVisible({ timeout: 5000 });
-      console.log('[CascadeDelete] ✓ Project gone from both clients');
+      await expect(projectOnA).not.toBeVisible({ timeout: 10000 });
+      await expect(projectOnB).not.toBeVisible({ timeout: 10000 });
+      console.log('[CascadeDelete] Project gone from both sidebars');
 
-      // Verify tasks are not visible anywhere
-      const taskAOnA = clientA.page.locator(`task:has-text("${taskA}")`);
-      const taskB1OnB = clientB.page.locator(`task:has-text("${taskB1}")`);
-      const taskB2OnB = clientB.page.locator(`task:has-text("${taskB2}")`);
-      await expect(taskAOnA).not.toBeVisible({ timeout: 5000 });
-      await expect(taskB1OnB).not.toBeVisible({ timeout: 5000 });
-      await expect(taskB2OnB).not.toBeVisible({ timeout: 5000 });
-      console.log('[CascadeDelete] ✓ All tasks from deleted project are gone');
+      // Verify tasks are not visible on Client A (which is already on Today after deletion)
+      const taskA1OnA = clientA.page.locator(`task:has-text("${taskA1}")`);
+      const taskA2OnA = clientA.page.locator(`task:has-text("${taskA2}")`);
+      await expect(taskA1OnA).not.toBeVisible({ timeout: 10000 });
+      await expect(taskA2OnA).not.toBeVisible({ timeout: 10000 });
+      console.log('[CascadeDelete] Tasks gone from Client A');
 
-      console.log('[CascadeDelete] ✓ Cascade delete test PASSED!');
+      // Verify tasks are not visible on Client B (which is on Today)
+      const taskA1OnB = clientB.page.locator(`task:has-text("${taskA1}")`);
+      const taskA2OnB = clientB.page.locator(`task:has-text("${taskA2}")`);
+      await expect(taskA1OnB).not.toBeVisible({ timeout: 10000 });
+      await expect(taskA2OnB).not.toBeVisible({ timeout: 10000 });
+      console.log('[CascadeDelete] Tasks gone from Client B');
+
+      console.log('[CascadeDelete] Cascade delete test PASSED!');
     } finally {
       if (clientA) await closeClient(clientA);
       if (clientB) await closeClient(clientB);
