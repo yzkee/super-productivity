@@ -17,9 +17,10 @@ import { waitForAppReady } from '../../utils/waits';
  * Tests that two browser tabs sharing the same IndexedDB (same BrowserContext)
  * don't corrupt data when using SuperSync.
  *
- * NOTE: This test is inherently fragile. Two Angular instances sharing IndexedDB
- * may surface real bugs (e.g., transaction conflicts, stale reads). The test uses
- * reload-based verification to ensure state consistency.
+ * NOTE: The app prevents two tabs from running simultaneously via BroadcastChannel.
+ * This test works around that by navigating the inactive tab to about:blank before
+ * opening the next tab, then reloading it later. This simulates the real-world
+ * scenario of closing and reopening a tab.
  *
  * Prerequisites:
  * - super-sync-server running on localhost:1901 with TEST_MODE=true
@@ -36,10 +37,10 @@ test.describe('@supersync Multi-Tab Same Account', () => {
    * 1. Create a SHARED browser context (same IndexedDB)
    * 2. Open Tab 1, set up SuperSync, create task
    * 3. Tab 1 syncs
-   * 4. Open Tab 2 in SAME context
-   * 5. Tab 2 reloads → should see Tab 1's task (from shared IndexedDB)
-   * 6. Tab 2 creates a task
-   * 7. Tab 1 reloads → should see both tasks
+   * 4. Navigate Tab 1 away (avoid multi-instance blocker)
+   * 5. Open Tab 2 → should see Tab 1's task (from shared IndexedDB)
+   * 6. Tab 2 creates a task, syncs
+   * 7. Navigate Tab 2 away, reload Tab 1 → should see both tasks
    * 8. External Client C (separate context) syncs → should see consistent state
    */
   test('Two tabs sharing IndexedDB converge with external client', async ({
@@ -62,6 +63,8 @@ test.describe('@supersync Multi-Tab Same Account', () => {
       sharedContext = await browser.newContext({
         storageState: undefined,
         viewport: { width: 1920, height: 1080 },
+        // Set PLAYWRIGHT user agent to skip the Shepherd tour dialog
+        userAgent: 'PLAYWRIGHT MULTI-TAB-TEST',
       });
 
       const tab1 = await sharedContext.newPage();
@@ -92,6 +95,10 @@ test.describe('@supersync Multi-Tab Same Account', () => {
 
       // ============ PHASE 3: Open Tab 2 in same context ============
       console.log('[MultiTab] Phase 3: Open Tab 2 in same context');
+
+      // Navigate Tab 1 away to avoid multi-instance blocker
+      // (app uses BroadcastChannel to prevent two tabs from running simultaneously)
+      await tab1.goto('about:blank');
 
       const tab2 = await sharedContext.newPage();
       tab2.on('console', (msg) => {
@@ -125,7 +132,10 @@ test.describe('@supersync Multi-Tab Same Account', () => {
       // ============ PHASE 5: Tab 1 reloads and verifies ============
       console.log('[MultiTab] Phase 5: Tab 1 reloads');
 
-      await tab1.reload();
+      // Navigate Tab 2 away before reloading Tab 1
+      await tab2.goto('about:blank');
+
+      await tab1.goto(appUrl);
       await waitForAppReady(tab1);
       await tab1.waitForTimeout(2000);
 
@@ -136,6 +146,9 @@ test.describe('@supersync Multi-Tab Same Account', () => {
 
       // ============ PHASE 6: External Client C verifies consistent state ============
       console.log('[MultiTab] Phase 6: External Client C verifies');
+
+      // Navigate Tab 1 away before creating external client
+      await tab1.goto('about:blank');
 
       clientC = await createSimulatedClient(browser, appUrl, 'C', testRunId);
       await clientC.sync.setupSuperSync(syncConfig);

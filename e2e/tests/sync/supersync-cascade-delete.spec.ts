@@ -38,27 +38,29 @@ const navigateToProject = async (
 };
 
 /**
- * Delete a project via its settings.
+ * Delete a project via the context menu on the sidebar nav-item.
  */
-const deleteProjectViaSettings = async (
+const deleteProjectViaContextMenu = async (
   page: import('@playwright/test').Page,
   projectName: string,
 ): Promise<void> => {
-  // Navigate to the project first
-  await navigateToProject(page, projectName);
+  // Find the project nav-item in the sidebar
+  const projectNavItem = page.locator(`nav-item:has-text("${projectName}")`).first();
+  await projectNavItem.waitFor({ state: 'visible', timeout: 10000 });
 
-  // Open project settings via the route
-  await page.goto('/#/project-settings');
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(500);
+  // Hover to reveal the more_vert button (hidden by default, shown on hover)
+  await projectNavItem.hover();
+  const moreBtn = projectNavItem.locator('.additional-btn');
+  await moreBtn.waitFor({ state: 'visible', timeout: 5000 });
+  await moreBtn.click();
 
-  // Find and click Delete Project button
-  const deleteBtn = page.locator('button:has-text("Delete Project")').first();
-  await deleteBtn.waitFor({ state: 'visible', timeout: 10000 });
-  await deleteBtn.click();
+  // Click "Delete project" in context menu
+  const deleteMenuItem = page.locator('button[mat-menu-item]:has-text("Delete project")');
+  await deleteMenuItem.waitFor({ state: 'visible', timeout: 5000 });
+  await deleteMenuItem.click();
 
-  // Confirm deletion dialog
-  const confirmBtn = page.locator('mat-dialog-actions button:has-text("Delete")').first();
+  // Confirm deletion dialog (button text is "Ok")
+  const confirmBtn = page.locator('dialog-confirm button[e2e="confirmBtn"]');
   await confirmBtn.waitFor({ state: 'visible', timeout: 5000 });
   await confirmBtn.click();
 
@@ -141,7 +143,7 @@ test.describe('@supersync Cross-Entity Cascade Delete', () => {
       // ============ PHASE 3: Client A deletes project (without syncing B's tasks first) ============
       console.log('[CascadeDelete] Phase 3: Client A deletes project');
 
-      await deleteProjectViaSettings(clientA.page, projectName);
+      await deleteProjectViaContextMenu(clientA.page, projectName);
       console.log('[CascadeDelete] Client A deleted project');
 
       // Client A syncs (uploads deletion)

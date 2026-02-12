@@ -14,6 +14,9 @@ import {
  * Tests graceful recovery when auth token returns 401 during sync.
  * Uses Playwright route interception to simulate expired token responses.
  *
+ * After a 401, the app clears stored credentials and shows a "Configure" snackbar.
+ * Recovery requires re-entering credentials via the sync config dialog.
+ *
  * Prerequisites:
  * - super-sync-server running on localhost:1901 with TEST_MODE=true
  * - Frontend running on localhost:4242
@@ -23,13 +26,13 @@ import {
 
 test.describe('@supersync Token Expiry Recovery', () => {
   /**
-   * Scenario: Upload gets 401, retry succeeds after route is restored
+   * Scenario: Upload gets 401, re-authentication and retry succeeds
    *
    * Flow:
    * 1. Client A creates task, sets up sync
    * 2. Intercept upload to return 401 once
-   * 3. First sync fails with auth error
-   * 4. Remove interception, retry sync
+   * 3. First sync fails with auth error (app clears credentials)
+   * 4. Remove interception, re-enter credentials via setupSuperSync
    * 5. Client B verifies task synced correctly
    */
   test('recovers from 401 on upload and retries successfully', async ({
@@ -57,7 +60,7 @@ test.describe('@supersync Token Expiry Recovery', () => {
       await waitForTask(clientA.page, taskName);
 
       // Intercept upload to return 401 once
-      await clientA.page.route('**/api/sync/ops/**', async (route) => {
+      await clientA.page.route('**/api/sync/ops*', async (route) => {
         if (state.return401 && route.request().method() === 'POST') {
           state.return401 = false;
           console.log('[TokenExpiry] Simulating 401 Unauthorized on upload');
@@ -83,10 +86,17 @@ test.describe('@supersync Token Expiry Recovery', () => {
       expect(state.return401).toBe(false);
 
       // Remove interception
-      await clientA.page.unroute('**/api/sync/ops/**');
+      await clientA.page.unroute('**/api/sync/ops*');
       await clientA.page.waitForTimeout(500);
 
-      // Retry sync - should succeed
+      // After 401, the app clears credentials and may show a config dialog.
+      // Close any open dialogs before re-entering credentials.
+      await clientA.sync.ensureOverlaysClosed();
+
+      // Re-enter credentials (app cleared them on auth failure)
+      await clientA.sync.setupSuperSync(syncConfig);
+
+      // Sync again - should succeed now
       await clientA.sync.syncAndWait();
       console.log('[TokenExpiry] Retry sync succeeded');
 
@@ -105,7 +115,7 @@ test.describe('@supersync Token Expiry Recovery', () => {
       console.log('[TokenExpiry] ✓ Upload 401 recovery test PASSED');
     } finally {
       if (clientA) {
-        await clientA.page.unroute('**/api/sync/ops/**').catch(() => {});
+        await clientA.page.unroute('**/api/sync/ops*').catch(() => {});
       }
       if (clientA) await closeClient(clientA);
       if (clientB) await closeClient(clientB);
@@ -113,13 +123,14 @@ test.describe('@supersync Token Expiry Recovery', () => {
   });
 
   /**
-   * Scenario: Download gets 401, retry succeeds
+   * Scenario: Download gets 401, re-authentication and retry succeeds
    *
    * Flow:
    * 1. Client A creates and syncs task
    * 2. Client B sets up, intercept download to return 401 once
-   * 3. First download fails
-   * 4. Retry succeeds, Client B gets the task
+   * 3. First download fails (app clears credentials)
+   * 4. Remove interception, re-enter credentials
+   * 5. Retry succeeds, Client B gets the task
    */
   test('recovers from 401 on download and retries successfully', async ({
     browser,
@@ -151,7 +162,7 @@ test.describe('@supersync Token Expiry Recovery', () => {
       await clientB.sync.setupSuperSync(syncConfig);
 
       // Intercept download to return 401 once
-      await clientB.page.route('**/api/sync/ops/**', async (route) => {
+      await clientB.page.route('**/api/sync/ops*', async (route) => {
         if (state.return401 && route.request().method() === 'GET') {
           state.return401 = false;
           console.log('[TokenExpiry] Simulating 401 Unauthorized on download');
@@ -177,10 +188,17 @@ test.describe('@supersync Token Expiry Recovery', () => {
       expect(state.return401).toBe(false);
 
       // Remove interception
-      await clientB.page.unroute('**/api/sync/ops/**');
+      await clientB.page.unroute('**/api/sync/ops*');
       await clientB.page.waitForTimeout(500);
 
-      // Retry - should succeed
+      // After 401, the app clears credentials and may show a config dialog.
+      // Close any open dialogs before re-entering credentials.
+      await clientB.sync.ensureOverlaysClosed();
+
+      // Re-enter credentials (app cleared them on auth failure)
+      await clientB.sync.setupSuperSync(syncConfig);
+
+      // Sync again - should succeed
       await clientB.sync.syncAndWait();
 
       // Verify task received
@@ -191,7 +209,7 @@ test.describe('@supersync Token Expiry Recovery', () => {
       console.log('[TokenExpiry] ✓ Download 401 recovery test PASSED');
     } finally {
       if (clientB) {
-        await clientB.page.unroute('**/api/sync/ops/**').catch(() => {});
+        await clientB.page.unroute('**/api/sync/ops*').catch(() => {});
       }
       if (clientA) await closeClient(clientA);
       if (clientB) await closeClient(clientB);
