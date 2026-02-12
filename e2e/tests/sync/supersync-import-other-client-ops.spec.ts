@@ -8,6 +8,8 @@ import {
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 import { ImportPage } from '../../pages/import.page';
+import { SuperSyncPage } from '../../pages/supersync.page';
+import { WorkViewPage } from '../../pages/work-view.page';
 import { expectTaskOnAllClients } from '../../utils/supersync-assertions';
 import { waitForAppReady } from '../../utils/waits';
 
@@ -102,8 +104,13 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
       await importPage.importBackupFile(backupPath);
       console.log('[Other-Client Import] Client A imported backup');
 
-      // Reload and re-enable sync
-      await clientA.page.reload({ timeout: 60000 });
+      // Close and re-open page to pick up imported data with fresh Angular services.
+      // Using page.reload() can hang when active sync connections prevent navigation.
+      await clientA.page.close();
+      clientA.page = await clientA.context.newPage();
+      await clientA.page.goto('/');
+      clientA.workView = new WorkViewPage(clientA.page, `A-${testRunId}`);
+      clientA.sync = new SuperSyncPage(clientA.page);
       await waitForAppReady(clientA.page, { ensureRoute: false });
 
       // Configure sync WITHOUT waiting for initial sync
@@ -228,8 +235,16 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
         '[Other-Client Import] Phase 6b: Reloading Client B to pick up injected clock',
       );
 
-      await clientB.page.reload({ timeout: 60000 });
+      // Close the page and open a new one in the same context (preserves IndexedDB).
+      // Using page.reload() or page.goto() can hang when active sync connections
+      // prevent navigation lifecycle events from completing.
+      await clientB.page.close();
+      clientB.page = await clientB.context.newPage();
+      await clientB.page.goto('/');
       await waitForAppReady(clientB.page, { ensureRoute: false });
+      // Re-create page objects for the new page
+      clientB.workView = new WorkViewPage(clientB.page, `B-${testRunId}`);
+      clientB.sync = new SuperSyncPage(clientB.page);
       await clientB.sync.setupSuperSync(syncConfig);
       await clientB.page.goto('/#/work-view');
       await clientB.page.waitForLoadState('networkidle');
