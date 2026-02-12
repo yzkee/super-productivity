@@ -61,7 +61,7 @@ const LEGACY_MAX_VECTOR_CLOCK_SIZE = 10;
  *
  * Detection criteria (all must be true):
  * 1. Op's clientId is NOT in import's clock → client was born after the import
- * 2. Import clock has >= MAX_VECTOR_CLOCK_SIZE entries (pruning only happens at MAX)
+ * 2. Import clock has >= LEGACY_MAX_VECTOR_CLOCK_SIZE entries (old MAX before simplification)
  * 3. There are shared keys between the clocks
  * 4. ALL shared keys have op values >= import values → client inherited import's knowledge
  *
@@ -257,7 +257,7 @@ export class SyncImportFilterService {
         `SyncImportFilterService: Comparing op ${op.id} (${op.actionType}) from client ${op.clientId}\n` +
           `  Op vectorClock:     ${vectorClockToString(op.vectorClock)}\n` +
           `  Import vectorClock: ${vectorClockToString(importClockForComparison)}` +
-          +`\n  Comparison result:  ${comparison}`,
+          `\n  Comparison result:  ${comparison}`,
       );
 
       if (
@@ -303,9 +303,6 @@ export class SyncImportFilterService {
           `SyncImportFilterService: FILTERING op ${op.id} (${op.actionType}) as ${comparison}\n` +
             `  Op vectorClock:     ${vectorClockToString(op.vectorClock)}\n` +
             `  Import vectorClock: ${vectorClockToString(importClockForComparison)}` +
-            (importClockForComparison !== latestImport.vectorClock
-              ? ` (normalized from ${Object.keys(latestImport.vectorClock).length} entries)`
-              : '') +
             `\n  Import client:      ${latestImport.clientId}\n` +
             `  Op client:          ${op.clientId}`,
         );

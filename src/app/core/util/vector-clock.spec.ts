@@ -112,7 +112,7 @@ describe('vector-clock', () => {
     });
   });
 
-  describe('compareVectorClocks - pruning-aware via shared implementation', () => {
+  describe('compareVectorClocks - standard comparison via shared implementation', () => {
     it('should return CONCURRENT when both clocks at MAX size with non-shared keys on both sides', () => {
       // Build two max-size clocks: shared keys where a dominates, plus unique keys
       const a: Record<string, number> = {};
@@ -177,7 +177,7 @@ describe('vector-clock', () => {
       }
       b['unique_b'] = 100;
 
-      // Only a is at MAX, so all keys are used (no pruning-aware mode)
+      // Only a is at MAX, so all keys are used
       expect(Object.keys(a).length).toBe(MAX_VECTOR_CLOCK_SIZE);
       expect(Object.keys(b).length).toBe(MAX_VECTOR_CLOCK_SIZE - 1);
       expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.CONCURRENT);
@@ -247,7 +247,7 @@ describe('vector-clock', () => {
       expect(Object.keys(a).length).toBe(MAX_VECTOR_CLOCK_SIZE);
       expect(Object.keys(b).length).toBe(MAX_VECTOR_CLOCK_SIZE);
 
-      // Both at MAX → pruning-aware mode.
+      // Both at MAX with different unique keys → CONCURRENT.
       // Shared keys: a dominates. b has non-shared key → CONCURRENT (safe direction).
       expect(compareVectorClocks(a, b)).toBe(VectorClockComparison.CONCURRENT);
     });
