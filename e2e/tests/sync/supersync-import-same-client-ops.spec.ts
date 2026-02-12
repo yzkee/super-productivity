@@ -28,7 +28,7 @@ import { waitForAppReady } from '../../utils/waits';
  * FIX: Same-client counter comparison is definitive. If op.clientId matches
  * import.clientId and op's counter > import's counter, the op is post-import.
  *
- * NOTE: This E2E test can't trigger actual pruning (needs 10+ clients).
+ * NOTE: This E2E test can't trigger actual pruning (needs 21+ unique client IDs with MAX=20).
  * It verifies the end-to-end flow: import client's own post-import ops
  * must sync correctly to other clients. The unit tests verify the pruning-
  * specific detection logic.

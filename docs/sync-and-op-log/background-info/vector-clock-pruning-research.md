@@ -88,7 +88,7 @@ Pruning removes information. If clock A has entries `{X:1, Y:2, Z:3}` and you pr
 ### Historical Bugs
 
 1. **Riak #613:** Pruning before comparison caused "sibling explosion" — objects accumulated hundreds of siblings that could never be resolved because the pruned clocks always appeared concurrent.
-2. **Super Productivity (Feb 2026):** Server pruning before comparison caused an infinite rejection loop when MAX was 10. Client K merges all clocks + its own ID (11 entries), server prunes to 10, non-shared keys cause CONCURRENT, server rejects, client re-merges, loop repeats. Fixed by increasing MAX to 30 and moving pruning to after comparison.
+2. **Super Productivity (Feb 2026):** Server pruning before comparison caused an infinite rejection loop when MAX was 10. Client K merges all clocks + its own ID (11 entries), server prunes to 10, non-shared keys cause CONCURRENT, server rejects, client re-merges, loop repeats. Fixed by increasing MAX to 20 and moving pruning to after comparison.
 
 ### The Fix (Both Systems)
 
@@ -129,11 +129,10 @@ Super Productivity's conservative approach generates more conflicts but never pr
 
 The project's current architecture uses a simple 2+1 layer approach:
 
-| Layer                                 | Current Mechanism                                                   | Precedent                             |
-| ------------------------------------- | ------------------------------------------------------------------- | ------------------------------------- |
-| 1. Server prunes after comparison     | Full clock comparison, prune before storage                         | Dynamo, Riak (post-#613 fix)          |
-| 2. `isLikelyPruningArtifact` (legacy) | Heuristic for new post-import clients with old 10-entry pruned data | Novel — temporary backward compat     |
-| 3. Same-client check                  | Monotonic counter comparison for import client's own ops            | Novel — always mathematically correct |
+| Layer                             | Current Mechanism                                        | Precedent                             |
+| --------------------------------- | -------------------------------------------------------- | ------------------------------------- |
+| 1. Server prunes after comparison | Full clock comparison, prune before storage              | Dynamo, Riak (post-#613 fix)          |
+| 2. Same-client check              | Monotonic counter comparison for import client's own ops | Novel — always mathematically correct |
 
 ### What the Literature Validates
 
@@ -144,12 +143,11 @@ The project's current architecture uses a simple 2+1 layer approach:
 
 ### What's Novel to This Project
 
-- The `isLikelyPruningArtifact` heuristic for detecting pruning-caused false concurrency in the context of full-state imports (legacy — retained for backward compatibility with old 10-entry pruned data)
 - The same-client check — leveraging monotonic counters for definitive post-import detection (always mathematically correct regardless of MAX size)
 
 ### Why MAX=30 Simplified Everything
 
-The original 4-layer defense (protected client IDs, pruning-aware comparison, `isLikelyPruningArtifact`, same-client check) was designed to work around a root cause: MAX=10 was too small, making pruning a frequent occurrence that interacted badly with SYNC_IMPORT operations. Commit `d70f18a94d` increased MAX from 10 to 30, which was later reduced to 20 (a 20-entry clock is ~333 bytes — negligible overhead), and removed the defense layers that were treating symptoms rather than the cause. With MAX=20, pruning requires 21+ unique client IDs — an extremely rare scenario for a personal productivity app. The `isLikelyPruningArtifact` heuristic and same-client check remain as safety nets, but the protected-client-IDs mechanism and pruning-aware comparison were removed as unnecessary complexity.
+The original 4-layer defense (protected client IDs, pruning-aware comparison, `isLikelyPruningArtifact`, same-client check) was designed to work around a root cause: MAX=10 was too small, making pruning a frequent occurrence that interacted badly with SYNC_IMPORT operations. Commit `d70f18a94d` increased MAX from 10 to 30, which was later reduced to 20 (a 20-entry clock is ~333 bytes — negligible overhead), and removed the defense layers that were treating symptoms rather than the cause. With MAX=20, pruning requires 21+ unique client IDs — an extremely rare scenario for a personal productivity app. The `isLikelyPruningArtifact` heuristic was also removed since it had known false positives and was unnecessary at MAX=20. Only the same-client check remains as a safety net — it's always mathematically correct (monotonic counters are definitive).
 
 ---
 

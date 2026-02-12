@@ -232,22 +232,8 @@ Implemented in `src/app/op-log/sync/sync-import-filter.service.ts`:
 2. For each non-full-state operation in the batch:
    - Compare `op.vectorClock` vs import clock
    - `GREATER_THAN` or `EQUAL` → **keep**
-   - `CONCURRENT` + `isLikelyPruningArtifact()` → **keep** (legacy backward compat)
    - `CONCURRENT` + same client as import + higher counter → **keep** (same-client check)
    - Otherwise → **filter**
-
-### Legacy Backward Compatibility: `isLikelyPruningArtifact`
-
-When MAX was 10, server-side pruning could cause false CONCURRENT results in import filtering. The `isLikelyPruningArtifact` function detects this by checking if:
-
-1. Op's clientId is NOT in import's clock (new client born after import)
-2. Import clock has ≥ `LEGACY_MAX_VECTOR_CLOCK_SIZE` (10) entries
-3. Shared keys exist between clocks
-4. All shared key values have op ≥ import (client inherited import's knowledge)
-
-This uses `LEGACY_MAX_VECTOR_CLOCK_SIZE = 10` to detect old 10-entry pruned data still on servers.
-
-**TODO: Remove after transition** — once all servers have data created with MAX=30, this check is unnecessary.
 
 ### Same-Client Check
 
@@ -361,7 +347,7 @@ Rules that must hold for the system to be correct. Use these to verify implement
 | Global clock management, entity frontier                    | `src/app/op-log/sync/vector-clock.service.ts`                                |
 | Operation capture (no pruning, atomic clock update)         | `src/app/op-log/capture/operation-log.effects.ts`                            |
 | Clock persistence                                           | `src/app/op-log/persistence/operation-log-store.service.ts`                  |
-| Import filtering + `isLikelyPruningArtifact` + same-client  | `src/app/op-log/sync/sync-import-filter.service.ts`                          |
+| Import filtering + same-client check                        | `src/app/op-log/sync/sync-import-filter.service.ts`                          |
 | Conflict resolution (no pruning, merges clocks)             | `src/app/op-log/sync/superseded-operation-resolver.service.ts`               |
 | Conflict resolution (LWW logic, `mergeAndIncrementClocks`)  | `src/app/op-log/sync/conflict-resolution.service.ts`                         |
 | SYNC_IMPORT creation (sync hydration)                       | `src/app/op-log/persistence/sync-hydration.service.ts`                       |

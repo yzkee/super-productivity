@@ -2427,9 +2427,9 @@ describe('SyncImportFilterService', () => {
           }),
         );
 
-        // New client K inherited import clock + own ID = LEGACY_MAX+1.
+        // New client K inherited import clock + own ID = CLOCK_SIZE_10+1.
         // Server pruned: dropped client_0 (lowest counter=100), kept clientK.
-        // Result: LEGACY_MAX entries with clientK replacing client_0.
+        // Result: CLOCK_SIZE_10 entries with clientK replacing client_0.
         const serverPrunedOpClock: Record<string, number> = {};
         for (let i = 1; i < CLOCK_SIZE_10; i++) {
           serverPrunedOpClock[`client_${i}`] = 100 + i; // inherited from import
@@ -2454,7 +2454,7 @@ describe('SyncImportFilterService', () => {
       });
 
       it('Test G: multiple new clients after import — progressive pruning, both filtered', async () => {
-        // Import with exactly LEGACY_MAX entries
+        // Import with exactly CLOCK_SIZE_10 entries
         const importClock: Record<string, number> = {};
         for (let i = 0; i < CLOCK_SIZE_10; i++) {
           importClock[`client_${i}`] = 50 + i;
@@ -2476,7 +2476,7 @@ describe('SyncImportFilterService', () => {
           }),
         );
 
-        // Client K joins: inherits import + own = LEGACY_MAX+1.
+        // Client K joins: inherits import + own = CLOCK_SIZE_10+1.
         // Server prunes: drops client_0 (counter=50, lowest), keeps clientK.
         const kClock: Record<string, number> = {};
         for (let i = 1; i < CLOCK_SIZE_10; i++) {
@@ -2484,7 +2484,7 @@ describe('SyncImportFilterService', () => {
         }
         kClock['clientK'] = 1;
 
-        // Client L joins after K: inherits K's pruned clock + own = LEGACY_MAX+1.
+        // Client L joins after K: inherits K's pruned clock + own = CLOCK_SIZE_10+1.
         // Server prunes: drops client_1 (counter=51, now lowest), keeps clientL.
         const lClock: Record<string, number> = {};
         for (let i = 2; i < CLOCK_SIZE_10; i++) {
@@ -2520,7 +2520,7 @@ describe('SyncImportFilterService', () => {
       });
 
       it('Test H: large import clock (15 entries) — new client ops still correctly filtered/kept', async () => {
-        // Import was created locally with 15 entries (exceeds LEGACY_MAX=10, within MAX=20).
+        // Import was created locally with 15 entries (exceeds CLOCK_SIZE_10=10, within MAX=20).
         // No normalization — import clock is compared directly.
         const oversizedImportClock: Record<string, number> = {};
         for (let i = 0; i < 15; i++) {

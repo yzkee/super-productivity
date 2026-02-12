@@ -253,6 +253,40 @@ describe('vector-clock', () => {
     });
   });
 
+  describe('compareVectorClocks - null/empty parity with shared implementation', () => {
+    it('should return EQUAL for {} vs {a: 0} (parity with shared impl)', () => {
+      // Regression: client previously returned LESS_THAN due to isVectorClockEmpty short-circuit.
+      // Shared impl treats missing keys as 0, so {} and {a: 0} are EQUAL.
+      expect(compareVectorClocks({}, { a: 0 })).toBe(VectorClockComparison.EQUAL);
+    });
+
+    it('should return EQUAL for {a: 0} vs {}', () => {
+      expect(compareVectorClocks({ a: 0 }, {})).toBe(VectorClockComparison.EQUAL);
+    });
+
+    it('should return EQUAL for null vs {}', () => {
+      expect(compareVectorClocks(null, {})).toBe(VectorClockComparison.EQUAL);
+    });
+
+    it('should return EQUAL for undefined vs {}', () => {
+      expect(compareVectorClocks(undefined, {})).toBe(VectorClockComparison.EQUAL);
+    });
+
+    it('should return EQUAL for null vs null', () => {
+      expect(compareVectorClocks(null, null)).toBe(VectorClockComparison.EQUAL);
+    });
+
+    it('should return LESS_THAN for null vs {a: 1}', () => {
+      expect(compareVectorClocks(null, { a: 1 })).toBe(VectorClockComparison.LESS_THAN);
+    });
+
+    it('should return GREATER_THAN for {a: 1} vs null', () => {
+      expect(compareVectorClocks({ a: 1 }, null)).toBe(
+        VectorClockComparison.GREATER_THAN,
+      );
+    });
+  });
+
   describe('hasVectorClockChanges', () => {
     it('should return false when current equals reference', () => {
       const clock = { clientA: 5, clientB: 3 };

@@ -24,7 +24,7 @@ import { waitForAppReady } from '../../utils/waits';
  *    fresh clock into B's old accumulated clock instead of REPLACING it
  * 4. B's clock now has 13+ entries (old entries + import's entry)
  * 5. B creates new ops — their clocks carry all 13+ entries
- * 6. Server prunes B's ops to MAX=30, dropping import's entry (lowest counter)
+ * 6. Server prunes B's ops to MAX=20, dropping import's entry (lowest counter)
  * 7. Client A receives B's pruned ops — compareVectorClocks returns CONCURRENT
  *    (B has old entries A doesn't know, A has import entry B lost to pruning)
  * 8. SyncImportFilterService filters B's ops as "concurrent with import"
@@ -252,7 +252,7 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
       console.log(`[Other-Client Import] Client B created: ${taskB2}`);
 
       // ============ PHASE 8: Client B syncs (uploads ops with bloated clock) ============
-      // Server prunes B's ops to MAX=30, dropping import's entry (lowest counter)
+      // Server prunes B's ops to MAX=20, dropping import's entry (lowest counter)
       console.log(
         '[Other-Client Import] Phase 8: Client B syncing (uploads ops with bloated clock)',
       );

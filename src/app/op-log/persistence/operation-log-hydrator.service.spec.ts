@@ -706,7 +706,7 @@ describe('OperationLogHydratorService', () => {
     // NOTE: The 'protected client IDs for vector clock pruning' and
     // 'protected client IDs migration' test blocks were removed because
     // protectedClientIds has been removed from the codebase (MAX_VECTOR_CLOCK_SIZE
-    // increased to 30, making pruning protection unnecessary).
+    // increased to 20, making pruning protection unnecessary).
 
     describe('schema migration', () => {
       it('should call snapshotService.migrateSnapshotWithBackup if migration needed', async () => {
