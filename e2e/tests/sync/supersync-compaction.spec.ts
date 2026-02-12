@@ -35,7 +35,6 @@ const triggerServerSnapshot = async (token: string): Promise<boolean> => {
       headers: {
         // eslint-disable-next-line @typescript-eslint/naming-convention
         'Content-Type': 'application/json',
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         Authorization: `Bearer ${token}`,
       },
     });
