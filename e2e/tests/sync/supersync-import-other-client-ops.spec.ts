@@ -32,7 +32,7 @@ import { waitForAppReady } from '../../utils/waits';
  *
  * IMPORTANT LIMITATION:
  * With only 2 fresh E2E clients, vector clocks have ~3 entries — well below the
- * MAX=30 pruning threshold. Without pruning, compareVectorClocks returns GREATER_THAN
+ * MAX=20 pruning threshold. Without pruning, compareVectorClocks returns GREATER_THAN
  * (correct!) even with the merge bug. The bug ONLY manifests when accumulated entries
  * exceed MAX and pruning removes the import entry.
  *
@@ -150,7 +150,7 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
 
       // ============ PHASE 6: Inject bloated vector clock into Client B ============
       // This simulates real-world accumulated history from many old devices.
-      // Without this injection, the vector clock only has ~3 entries (well below MAX=30)
+      // Without this injection, the vector clock only has ~3 entries (well below MAX=20)
       // and pruning never happens, so the bug doesn't manifest.
       console.log(
         '[Other-Client Import] Phase 6: Injecting old device entries into Client B vector clock',

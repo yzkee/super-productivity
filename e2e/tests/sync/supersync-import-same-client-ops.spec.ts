@@ -18,7 +18,7 @@ import { waitForAppReady } from '../../utils/waits';
  * a SYNC_IMPORT are correctly synced to other clients.
  *
  * BUG SCENARIO (vector clock pruning asymmetry):
- * 1. Client A creates SYNC_IMPORT with a 30-entry (MAX) vector clock
+ * 1. Client A creates SYNC_IMPORT with a 20-entry (MAX) vector clock
  * 2. Client A continues creating ops; over time, new clients join, pushing
  *    A's clock past MAX → server prunes entries
  * 3. A's ops have different pruned entries than A's frozen import clock

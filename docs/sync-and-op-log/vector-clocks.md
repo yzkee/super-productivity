@@ -18,9 +18,9 @@ Each entry maps a client ID to a monotonically increasing counter. A clock with 
 
 | Constant                | Value | Purpose                           |
 | ----------------------- | ----- | --------------------------------- |
-| `MAX_VECTOR_CLOCK_SIZE` | 30    | Maximum entries in a pruned clock |
+| `MAX_VECTOR_CLOCK_SIZE` | 20    | Maximum entries in a pruned clock |
 
-At 6-char client IDs, a 30-entry clock is ~500 bytes — negligible bandwidth. A user needs 31+ unique client IDs (reinstalls/new browsers) before pruning triggers, which is extremely unlikely for a personal productivity app.
+At 6-char client IDs, a 20-entry clock is ~333 bytes — negligible bandwidth. A user needs 21+ unique client IDs (reinstalls/new browsers) before pruning triggers, which is extremely unlikely for a personal productivity app.
 
 ---
 
@@ -106,7 +106,7 @@ In `operation-log.effects.ts`:
 
 In `sync.service.ts` (`processOperation`):
 
-1. `ValidationService.validateOp()` sanitizes the clock (DoS cap at 5×MAX = 150 entries) but does **NOT** prune
+1. `ValidationService.validateOp()` sanitizes the clock (DoS cap at 5×MAX = 100 entries) but does **NOT** prune
 2. `detectConflict()` compares the **full unpruned** incoming clock against the existing entity clock
 3. If accepted: `limitVectorClockSize(clock, [clientId])` prunes to MAX before storage, preserving only the uploading client's ID
 4. The pruned clock is stored in the database
@@ -129,7 +129,7 @@ Normal operations are **NEVER** pruned client-side. The server prunes **after** 
 
 ### Why Pruning Exists
 
-Clocks grow with each new client. Without bounds, a user who has used many devices would have ever-growing clocks. Pruning limits clocks to `MAX_VECTOR_CLOCK_SIZE` (30) entries.
+Clocks grow with each new client. Without bounds, a user who has used many devices would have ever-growing clocks. Pruning limits clocks to `MAX_VECTOR_CLOCK_SIZE` (20) entries.
 
 ### The `limitVectorClockSize` Algorithm
 
@@ -158,7 +158,7 @@ Implemented in `packages/shared-schema/src/vector-clock.ts`. The client wrapper 
 
 ### Pruning is Rare
 
-With MAX=30, a user needs 31+ unique client IDs before pruning triggers. In the unlikely event it does trigger, the worst case is one extra server round-trip (false CONCURRENT → client resolves → re-uploads with >MAX clock → GREATER_THAN → accepted).
+With MAX=20, a user needs 21+ unique client IDs before pruning triggers. In the unlikely event it does trigger, the worst case is one extra server round-trip (false CONCURRENT → client resolves → re-uploads with >MAX clock → GREATER_THAN → accepted).
 
 ---
 
@@ -348,7 +348,7 @@ Rules that must hold for the system to be correct. Use these to verify implement
 
 7. **Global clock is REPLACED (not merged) on remote SYNC_IMPORT.** `mergeRemoteOpClocks()` starts from the import's clock as the base, then merges remaining ops on top. This prevents clock bloat.
 
-8. **DoS cap is NOT pruning.** `sanitizeVectorClock()` rejects clocks with > 5×MAX (150) entries entirely — it doesn't prune them down. This is a validation gate, not a size reduction.
+8. **DoS cap is NOT pruning.** `sanitizeVectorClock()` rejects clocks with > 5×MAX (100) entries entirely — it doesn't prune them down. This is a validation gate, not a size reduction.
 
 ---
 

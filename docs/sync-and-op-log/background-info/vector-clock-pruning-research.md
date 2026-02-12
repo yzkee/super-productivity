@@ -149,7 +149,7 @@ The project's current architecture uses a simple 2+1 layer approach:
 
 ### Why MAX=30 Simplified Everything
 
-The original 4-layer defense (protected client IDs, pruning-aware comparison, `isLikelyPruningArtifact`, same-client check) was designed to work around a root cause: MAX=10 was too small, making pruning a frequent occurrence that interacted badly with SYNC_IMPORT operations. Commit `d70f18a94d` increased MAX from 10 to 30 (a 30-entry clock is ~500 bytes — negligible overhead) and removed the defense layers that were treating symptoms rather than the cause. With MAX=30, pruning requires 31+ unique client IDs — an extremely rare scenario for a personal productivity app. The `isLikelyPruningArtifact` heuristic and same-client check remain as safety nets, but the protected-client-IDs mechanism and pruning-aware comparison were removed as unnecessary complexity.
+The original 4-layer defense (protected client IDs, pruning-aware comparison, `isLikelyPruningArtifact`, same-client check) was designed to work around a root cause: MAX=10 was too small, making pruning a frequent occurrence that interacted badly with SYNC_IMPORT operations. Commit `d70f18a94d` increased MAX from 10 to 30, which was later reduced to 20 (a 20-entry clock is ~333 bytes — negligible overhead), and removed the defense layers that were treating symptoms rather than the cause. With MAX=20, pruning requires 21+ unique client IDs — an extremely rare scenario for a personal productivity app. The `isLikelyPruningArtifact` heuristic and same-client check remain as safety nets, but the protected-client-IDs mechanism and pruning-aware comparison were removed as unnecessary complexity.
 
 ---
 

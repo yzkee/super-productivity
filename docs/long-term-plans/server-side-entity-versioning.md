@@ -8,7 +8,7 @@
 
 ## Problem
 
-Vector clocks grow linearly with the number of participating clients. Pruning to `MAX_VECTOR_CLOCK_SIZE=30` loses causal information, though at MAX=30 this requires 31+ unique client IDs — extremely rare for a personal productivity app. Two lightweight backward-compat checks (`isLikelyPruningArtifact` and same-client check) handle legacy edge cases, but the fundamental issue remains:
+Vector clocks grow linearly with the number of participating clients. Pruning to `MAX_VECTOR_CLOCK_SIZE=20` loses causal information, though at MAX=20 this requires 21+ unique client IDs — extremely rare for a personal productivity app. Two lightweight backward-compat checks (`isLikelyPruningArtifact` and same-client check) handle legacy edge cases, but the fundamental issue remains:
 
 The fundamental issue: vector clocks were designed for peer-to-peer systems where no node is authoritative. Super Productivity has a central server -- the server can define ordering authoritatively, making vector clocks unnecessary for online conflict detection.
 
