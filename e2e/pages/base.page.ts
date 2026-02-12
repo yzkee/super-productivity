@@ -138,6 +138,10 @@ export abstract class BasePage {
     // Add test prefix to task name for isolation
     const prefixedTaskName = this.applyPrefix(taskName);
 
+    // Wait for any in-flight navigation to complete before interacting.
+    // Angular hash-based routing can block Playwright's fill/click operations.
+    await this.page.waitForLoadState('domcontentloaded').catch(() => {});
+
     // Dismiss any blocking dialogs/overlays before interacting
     await this.ensureOverlaysClosed();
 

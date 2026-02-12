@@ -840,6 +840,8 @@ export const archiveTask = async (
 
 /**
  * Navigate to worklog and check for a specific task in archived entries.
+ * Skips navigation if already on the worklog page to avoid re-render issues
+ * when checking multiple tasks in succession.
  *
  * @param client - The simulated E2E client
  * @param taskName - The task name to search for in worklog
@@ -849,21 +851,24 @@ export const hasTaskInWorklog = async (
   client: SimulatedE2EClient,
   taskName: string,
 ): Promise<boolean> => {
-  // Navigate to worklog
-  await client.page.goto('/#/tag/TODAY/worklog');
-  await client.page.waitForLoadState('networkidle');
-  await client.page.waitForTimeout(UI_SETTLE_STANDARD);
+  // Only navigate if not already on worklog page
+  const currentUrl = client.page.url();
+  if (!currentUrl.includes('/worklog')) {
+    await client.page.goto('/#/tag/TODAY/worklog');
+    await client.page.waitForLoadState('networkidle');
+    await client.page.waitForTimeout(UI_SETTLE_EXTENDED);
+  }
 
   // Expand week rows that aren't already expanded
   const weekRows = client.page.locator('.week-row');
   const weekCount = await weekRows.count();
-  for (let i = 0; i < Math.min(weekCount, 3); i++) {
+  for (let i = 0; i < Math.min(weekCount, 5); i++) {
     const row = weekRows.nth(i);
     if (await row.isVisible()) {
       const isExpanded = await row.evaluate((el) => el.classList.contains('isExpanded'));
       if (!isExpanded) {
         await row.click().catch(() => {});
-        await client.page.waitForTimeout(UI_SETTLE_MEDIUM);
+        await client.page.waitForTimeout(UI_SETTLE_STANDARD);
       }
     }
   }
@@ -876,7 +881,7 @@ export const hasTaskInWorklog = async (
 
   return taskEntry
     .first()
-    .waitFor({ state: 'visible', timeout: 5000 })
+    .waitFor({ state: 'visible', timeout: 10000 })
     .then(() => true)
     .catch(() => false);
 };
