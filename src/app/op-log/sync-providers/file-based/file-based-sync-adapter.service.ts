@@ -1020,6 +1020,7 @@ export class FileBasedSyncAdapterService {
       this._expectedSyncVersions.delete(providerKey);
       this._localSeqCounters.delete(providerKey);
       this._processedOpIds.delete(providerKey);
+      this._clearCachedSyncData(providerKey);
       this._persistState();
 
       return { success: true };
