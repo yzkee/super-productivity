@@ -793,9 +793,9 @@ describe('SyncImportFilterService', () => {
        * 7. Op is incorrectly filtered as "invalidated by import"
        *
        * THE FIX:
-       * - After applying SYNC_IMPORT, store the import client ID as "protected"
-       * - limitVectorClockSize() preserves protected client IDs even with low counters
-       * - New ops include the import client entry → comparison yields GREATER_THAN
+       * - SYNC_IMPORT now REPLACES the vector clock (not merges), so the post-import
+       *   clock only contains the import's entries + the local client's increment
+       * - This prevents clock bloat and ensures comparison yields GREATER_THAN
        */
 
       it('should correctly filter ops when SYNC_IMPORT client was NOT pruned (fix applied)', async () => {
@@ -2086,7 +2086,7 @@ describe('SyncImportFilterService', () => {
         });
 
         // Op created AFTER the import - includes ALL entries from import plus increment
-        // (This is what happens when protectedClientIds are set correctly)
+        // (This is what happens when SYNC_IMPORT replaces the clock correctly)
         const postImportOp = createOp({
           id: '019afd68-0100-7000-0000-000000000000',
           opType: OpType.Update,

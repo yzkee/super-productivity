@@ -251,16 +251,14 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
       await waitForTask(clientB.page, taskB2);
       console.log(`[Other-Client Import] Client B created: ${taskB2}`);
 
-      // ============ PHASE 8: Client B syncs (uploads ops with bloated clock) ============
-      // Server prunes B's ops to MAX=20, dropping import's entry (lowest counter)
+      // ============ PHASE 8: Client B syncs (uploads ops with post-import clock) ============
+      // Validates that B's ops (with clock from REPLACE, not MERGE) sync correctly
       console.log(
         '[Other-Client Import] Phase 8: Client B syncing (uploads ops with bloated clock)',
       );
 
       await clientB.sync.syncAndWait();
-      console.log(
-        '[Other-Client Import] Client B synced (ops uploaded, server will prune)',
-      );
+      console.log('[Other-Client Import] Client B synced (ops uploaded)');
 
       // ============ PHASE 9: Client A syncs (downloads B's pruned ops) ============
       console.log('[Other-Client Import] Phase 9: Client A syncing (downloads B ops)');

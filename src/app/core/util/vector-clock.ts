@@ -138,7 +138,7 @@ export const compareVectorClocks = (
 ): VectorClockComparison => {
   // Coerce null/undefined to {} and delegate to shared implementation.
   // This ensures parity: shared treats missing keys as 0, so {} and {a:0} are EQUAL.
-  const result = sharedCompareVectorClocks(a || {}, b || {});
+  const result = sharedCompareVectorClocks(a ?? {}, b ?? {});
   return result as VectorClockComparison;
 };
 
