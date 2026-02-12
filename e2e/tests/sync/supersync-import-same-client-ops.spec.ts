@@ -23,8 +23,7 @@ import { waitForAppReady } from '../../utils/waits';
  *    A's clock past MAX → server prunes entries
  * 3. A's ops have different pruned entries than A's frozen import clock
  * 4. Receiving client sees CONCURRENT (both have MAX entries, different keys)
- * 5. isLikelyPruningArtifact returns false (A's clientId IS in import clock)
- * 6. Ops incorrectly filtered as "concurrent with import"
+ * 5. CONCURRENT comparison → ops incorrectly filtered
  *
  * FIX: Same-client counter comparison is definitive. If op.clientId matches
  * import.clientId and op's counter > import's counter, the op is post-import.

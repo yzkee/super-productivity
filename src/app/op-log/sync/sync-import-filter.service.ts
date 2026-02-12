@@ -3,20 +3,10 @@ import { OperationLogStoreService } from '../persistence/operation-log-store.ser
 import { Operation, OpType } from '../core/operation.types';
 import {
   compareVectorClocks,
-  VectorClock,
   VectorClockComparison,
   vectorClockToString,
 } from '../../core/util/vector-clock';
 import { OpLog } from '../../core/log';
-
-/**
- * Legacy MAX_VECTOR_CLOCK_SIZE from before the simplification (was 10, now 20).
- * Used only by isLikelyPruningArtifact to detect old 10-entry pruned data
- * that may still exist on servers from before the MAX increase.
- *
- * TODO: Remove after transition — only needed for old 10-entry pruned data
- */
-const LEGACY_MAX_VECTOR_CLOCK_SIZE = 10;
 
 /**
  * Service responsible for filtering operations invalidated by SYNC_IMPORT, BACKUP_IMPORT, or REPAIR operations.
@@ -48,71 +38,6 @@ const LEGACY_MAX_VECTOR_CLOCK_SIZE = 10;
  * track CAUSALITY (did the client know about the import?) rather than wall-clock
  * time (which can be affected by clock drift).
  */
-/**
- * Detects whether a CONCURRENT comparison result is a pruning artifact rather
- * than genuine concurrency.
- *
- * When a new client joins after a SYNC_IMPORT that already has MAX_VECTOR_CLOCK_SIZE
- * entries, the new client's ops get an (MAX+1)-entry clock. The server prunes this
- * back to MAX, dropping one inherited entry. When other clients compare this pruned
- * clock with the import's clock, both have MAX entries with different unique keys,
- * causing compareVectorClocks to return CONCURRENT even though the op was created
- * AFTER the import with full causal knowledge.
- *
- * Detection criteria (all must be true):
- * 1. Op's clientId is NOT in import's clock → client was born after the import
- * 2. Import clock has >= LEGACY_MAX_VECTOR_CLOCK_SIZE entries (old MAX before simplification)
- * 3. There are shared keys between the clocks
- * 4. ALL shared keys have op values >= import values → client inherited import's knowledge
- *
- * Known limitation: A false positive is theoretically possible if the import clock
- * itself was pruned and a genuinely concurrent client's ID happened to be among the
- * pruned entries. In that scenario the client would appear "born after" the import
- * (criterion 1) even though it existed before. This is unlikely in practice because
- * it requires the concurrent client to be one of the oldest (least-recently-updated)
- * entries in the import clock at the time of pruning.
- */
-export const isLikelyPruningArtifact = (
-  opClock: VectorClock,
-  opClientId: string,
-  importClock: VectorClock,
-): boolean => {
-  // If the op's clientId exists in the import's clock, the client existed before
-  // the import. CONCURRENT is genuine - the client created ops without seeing it.
-  if (opClientId in importClock) {
-    return false;
-  }
-
-  // Server-side pruning (limitVectorClockSize) only drops entries when the clock
-  // exceeds MAX_VECTOR_CLOCK_SIZE. Use LEGACY_MAX (10) to detect old data that
-  // was pruned when MAX was 10. With the current MAX=20, new data won't trigger this.
-  // TODO: Remove after transition — only needed for old 10-entry pruned data
-  const importKeyCount = Object.keys(importClock).length;
-  if (importKeyCount < LEGACY_MAX_VECTOR_CLOCK_SIZE) {
-    return false;
-  }
-
-  // Find shared keys between op and import clocks
-  const opKeys = Object.keys(opClock);
-  const sharedKeys = opKeys.filter((k) => k in importClock);
-
-  // Need shared keys to make this determination. If there are none,
-  // the op has no evidence of having seen the import.
-  if (sharedKeys.length === 0) {
-    return false;
-  }
-
-  // All shared keys must have op values >= import values.
-  // If any shared key has op < import, the client has LESS knowledge
-  // than the import for that client, meaning genuine concurrency.
-  for (const key of sharedKeys) {
-    if (opClock[key] < importClock[key]) {
-      return false;
-    }
-  }
-
-  return true;
-};
 
 @Injectable({
   providedIn: 'root',
@@ -265,19 +190,6 @@ export class SyncImportFilterService {
         comparison === VectorClockComparison.EQUAL
       ) {
         // Op was created by a client that had knowledge of the import
-        validOps.push(op);
-      } else if (
-        comparison === VectorClockComparison.CONCURRENT &&
-        isLikelyPruningArtifact(op.vectorClock, op.clientId, importClockForComparison)
-      ) {
-        // Op appears CONCURRENT but is from a new client that inherited the import's
-        // clock. Server-side pruning dropped an import entry, making the clocks look
-        // concurrent when the op actually has full causal knowledge of the import.
-        OpLog.normal(
-          `SyncImportFilterService: KEEPING op ${op.id} (${op.actionType}) despite CONCURRENT comparison.\n` +
-            `  Client ${op.clientId} not in import clock - new client after import.\n` +
-            `  All shared vector clock keys are >= import values (pruning artifact).`,
-        );
         validOps.push(op);
       } else if (
         comparison === VectorClockComparison.CONCURRENT &&

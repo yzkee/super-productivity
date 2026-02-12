@@ -8,13 +8,8 @@ import {
   OpType,
 } from '../core/operation.types';
 
-/**
- * Matches the LEGACY_MAX_VECTOR_CLOCK_SIZE constant in the production code.
- * The actual MAX_VECTOR_CLOCK_SIZE is now 30, but the pruning artifact detection
- * in isLikelyPruningArtifact uses this legacy value to detect old 10-entry pruned data.
- * TODO: Remove after transition — only needed for old 10-entry pruned data
- */
-const LEGACY_MAX_VECTOR_CLOCK_SIZE = 10;
+/** Used in tests to build realistic clock sizes for pruning-related scenarios. */
+const CLOCK_SIZE_10 = 10;
 
 describe('SyncImportFilterService', () => {
   let service: SyncImportFilterService;
@@ -1285,40 +1280,22 @@ describe('SyncImportFilterService', () => {
     });
 
     /* eslint-disable @typescript-eslint/naming-convention */
-    describe('BUG FIX: Server-side pruning causes new client ops to appear CONCURRENT with import', () => {
+    describe('CONCURRENT ops from new clients are filtered (clean slate semantics)', () => {
       /**
-       * This test suite covers the bug where a NEW client (born after a SYNC_IMPORT)
-       * has its operations silently dropped by other clients.
+       * With MAX_VECTOR_CLOCK_SIZE=20, server-side pruning requires 21+ unique client
+       * IDs — extremely unlikely for a personal productivity app. CONCURRENT ops are
+       * now always filtered, enforcing strict clean-slate semantics for SYNC_IMPORT.
        *
-       * Note: isLikelyPruningArtifact uses LEGACY_MAX_VECTOR_CLOCK_SIZE (10) internally
-       * to detect old data that was pruned when MAX was 10. The actual MAX is now 30,
-       * making this pruning scenario much rarer with new data.
-       *
-       * THE BUG:
-       * 1. SYNC_IMPORT exists with exactly LEGACY_MAX (10) entries in its clock
-       * 2. New client (e.g., mobile A_DReS) receives import, merges clock → 11 entries
-       * 3. Server prunes to 10 entries (drops one inherited entry like A_Zw6o:88)
-       * 4. Other clients download the op and compare with import:
-       *    - Both clocks have 10 entries → pruning-aware mode
-       *    - 9 shared keys are all equal
-       *    - Each side has 1 unique key (A_DReS in op, A_Zw6o in import)
-       *    - compareVectorClocks returns CONCURRENT
-       * 5. SyncImportFilterService drops CONCURRENT ops → mobile changes lost!
-       *
-       * THE FIX:
-       * When an op appears CONCURRENT with the import, check if it's a pruning artifact:
-       * - Op's clientId is NOT in import's clock (new client born after import)
-       * - ALL shared vector clock keys have op values >= import values
-       * If both conditions are true, the CONCURRENT is from server-side pruning and
-       * the op should be KEPT.
+       * The same-client check (separate describe block) still definitively keeps ops
+       * from the import's own client with a higher counter.
        */
 
       // Helper: build a clock with exactly N entries
       const buildClock = (entries: Record<string, number>): Record<string, number> =>
         entries;
 
-      it('should KEEP ops from new client when CONCURRENT is caused by server-side pruning (exact bug scenario)', async () => {
-        // SYNC_IMPORT with exactly LEGACY_MAX_VECTOR_CLOCK_SIZE entries
+      it('should FILTER ops from new client when server-side pruning causes CONCURRENT', async () => {
+        // SYNC_IMPORT with 10 entries
         const importClock = buildClock({
           A_bw1h: 227,
           A_wU5p: 95,
@@ -1331,7 +1308,6 @@ describe('SyncImportFilterService', () => {
           BCLmdt: 653096,
           BCM_mhq: 2659,
         });
-        expect(Object.keys(importClock).length).toBe(LEGACY_MAX_VECTOR_CLOCK_SIZE);
 
         const syncImport = createOp({
           id: '019c4290-0a51-7184-0000-000000000000',
@@ -1353,6 +1329,7 @@ describe('SyncImportFilterService', () => {
 
         // New mobile client A_DReS (NOT in import's clock) creates op after
         // receiving import. Server pruned A_Zw6o:88, added A_DReS:1.
+        // This makes the clocks CONCURRENT — clean slate semantics filter it.
         const mobileOp = createOp({
           id: '019c42a0-0001-7000-0000-000000000000',
           opType: OpType.Create,
@@ -1373,17 +1350,14 @@ describe('SyncImportFilterService', () => {
             BCM_mhq: 2659,
           }),
         });
-        expect(Object.keys(mobileOp.vectorClock).length).toBe(
-          LEGACY_MAX_VECTOR_CLOCK_SIZE,
-        );
 
         const result = await service.filterOpsInvalidatedBySyncImport([mobileOp]);
 
-        // FIX: Op should be KEPT - A_DReS is a new client that inherited the import's
-        // clock. The CONCURRENT result is a pruning artifact, not genuine concurrency.
-        expect(result.validOps.length).toBe(1);
-        expect(result.validOps[0].clientId).toBe('A_DReS');
-        expect(result.invalidatedOps.length).toBe(0);
+        // CONCURRENT ops are filtered under clean slate semantics.
+        // With MAX=20, pruning is extremely rare (21+ client IDs needed).
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(1);
+        expect(result.invalidatedOps[0].clientId).toBe('A_DReS');
       });
 
       it('should KEEP multiple ops from new client after import (server pruned different entries)', async () => {
@@ -1457,11 +1431,12 @@ describe('SyncImportFilterService', () => {
 
         const result = await service.filterOpsInvalidatedBySyncImport(ops);
 
-        expect(result.validOps.length).toBe(2);
-        expect(result.invalidatedOps.length).toBe(0);
+        // Both ops are CONCURRENT with import → filtered
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(2);
       });
 
-      it('should KEEP op from new client when shared keys are GREATER than import (post-import activity)', async () => {
+      it('should FILTER op from new client even when shared keys are GREATER than import', async () => {
         const importClock = buildClock({
           A_bw1h: 227,
           A_wU5p: 95,
@@ -1513,8 +1488,9 @@ describe('SyncImportFilterService', () => {
 
         const result = await service.filterOpsInvalidatedBySyncImport([mobileOp]);
 
-        expect(result.validOps.length).toBe(1);
-        expect(result.invalidatedOps.length).toBe(0);
+        // Still CONCURRENT (has A_DReS which import doesn't, missing A_Zw6o) → filtered
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(1);
       });
 
       it('should still FILTER ops from new client with NO shared keys (genuinely unknown)', async () => {
@@ -1655,12 +1631,11 @@ describe('SyncImportFilterService', () => {
         const result = await service.filterOpsInvalidatedBySyncImport([existingClientOp]);
 
         // This should be KEPT via normal GREATER_THAN comparison (A_bw1h: 228 > 227)
-        // The pruning artifact check is not needed here - normal comparison handles it
         expect(result.validOps.length).toBe(1);
         expect(result.invalidatedOps.length).toBe(0);
       });
 
-      it('should KEEP op from new client even when import is in the same batch', async () => {
+      it('should FILTER op from new client even when import is in the same batch', async () => {
         const importClock = buildClock({
           A_bw1h: 227,
           A_wU5p: 95,
@@ -1706,14 +1681,11 @@ describe('SyncImportFilterService', () => {
           mobileOp,
         ]);
 
-        expect(result.validOps.length).toBe(2); // import + mobile op
-        expect(result.invalidatedOps.length).toBe(0);
+        expect(result.validOps.length).toBe(1); // only the import itself
+        expect(result.invalidatedOps.length).toBe(1); // mobile op filtered
       });
 
-      it('should FILTER op from new client when import has fewer entries than LEGACY_MAX (no server pruning possible)', async () => {
-        // Import has only 5 entries (below LEGACY_MAX_VECTOR_CLOCK_SIZE = 10).
-        // isLikelyPruningArtifact only triggers when clock has >= LEGACY_MAX entries, so the op's
-        // missing entry (clientE) was genuinely never seen, not pruned.
+      it('should FILTER op from new client when import has few entries', async () => {
         const importClock = buildClock({
           clientA: 100,
           clientB: 200,
@@ -1738,9 +1710,7 @@ describe('SyncImportFilterService', () => {
           }),
         );
 
-        // New client with shared keys >= import BUT import < LEGACY_MAX entries.
-        // isLikelyPruningArtifact returns false when import has < LEGACY_MAX entries,
-        // so the missing clientE means genuine concurrency, not a pruning artifact.
+        // New client with shared keys >= import but missing clientE → CONCURRENT.
         const newClientOp = createOp({
           id: '019c42a0-0001-7000-0000-000000000000',
           opType: OpType.Create,
@@ -1758,12 +1728,12 @@ describe('SyncImportFilterService', () => {
 
         const result = await service.filterOpsInvalidatedBySyncImport([newClientOp]);
 
-        // Should be FILTERED - import is below LEGACY_MAX, no pruning artifact possible
+        // Should be FILTERED - CONCURRENT with import
         expect(result.validOps.length).toBe(0);
         expect(result.invalidatedOps.length).toBe(1);
       });
 
-      it('should KEEP ops from new client when MULTIPLE entries were pruned (2+ entries dropped)', async () => {
+      it('should FILTER ops from new client when MULTIPLE entries were pruned (2+ entries dropped)', async () => {
         // Import has MAX entries. New client inherits clock, sees 2 more new clients,
         // resulting in MAX+3 entries. Server prunes back to MAX, dropping 3 import entries.
         const importClock = buildClock({
@@ -1778,7 +1748,7 @@ describe('SyncImportFilterService', () => {
           BCLmdt: 653096,
           BCM_mhq: 2659,
         });
-        expect(Object.keys(importClock).length).toBe(LEGACY_MAX_VECTOR_CLOCK_SIZE);
+        expect(Object.keys(importClock).length).toBe(CLOCK_SIZE_10);
 
         opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
           Promise.resolve({
@@ -1820,22 +1790,19 @@ describe('SyncImportFilterService', () => {
             // BCM_mhq: 2659 was PRUNED
           }),
         });
-        expect(Object.keys(mobileOp.vectorClock).length).toBe(
-          LEGACY_MAX_VECTOR_CLOCK_SIZE,
-        );
+        expect(Object.keys(mobileOp.vectorClock).length).toBe(CLOCK_SIZE_10);
 
         const result = await service.filterOpsInvalidatedBySyncImport([mobileOp]);
 
-        // Should be KEPT - 7 shared keys all >= import, new client, import at MAX
-        expect(result.validOps.length).toBe(1);
-        expect(result.invalidatedOps.length).toBe(0);
+        // CONCURRENT with import → filtered
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(1);
       });
 
-      it('should KEEP op from new client even when op clock has fewer than MAX entries', async () => {
+      it('should FILTER op from new client even when op clock has fewer than MAX entries', async () => {
         // Import has MAX entries. New client creates an op with fewer than MAX entries
         // (e.g., server pruned heavily or client only inherited a subset).
-        // compareVectorClocks does NOT enter pruning-aware mode here (only one side at MAX),
-        // but still returns CONCURRENT. The pruning artifact heuristic should still detect it.
+        // compareVectorClocks returns CONCURRENT due to asymmetric keys.
         const importClock = buildClock({
           A_bw1h: 227,
           A_wU5p: 95,
@@ -1885,9 +1852,9 @@ describe('SyncImportFilterService', () => {
 
         const result = await service.filterOpsInvalidatedBySyncImport([mobileOp]);
 
-        // Should be KEPT - new client, import at MAX, 5 shared keys all >= import values
-        expect(result.validOps.length).toBe(1);
-        expect(result.invalidatedOps.length).toBe(0);
+        // CONCURRENT with import → filtered
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(1);
       });
 
       it('should still FILTER ops from new client with NO shared keys when import is at MAX', async () => {
@@ -1938,15 +1905,7 @@ describe('SyncImportFilterService', () => {
         expect(result.invalidatedOps.length).toBe(1);
       });
 
-      it('should document known false positive: concurrent client whose ID was pruned from import clock', async () => {
-        // KNOWN LIMITATION: If the import clock itself was pruned and a genuinely
-        // concurrent client's ID happened to be among the pruned entries, the heuristic
-        // incorrectly keeps the op. The concurrent client appears "born after" the import
-        // (criterion 1 satisfied) even though it existed before the import.
-        //
-        // This is unlikely in practice because it requires the concurrent client to be
-        // one of the oldest (least-recently-updated) entries in the import clock at the
-        // time of pruning.
+      it('should FILTER genuinely concurrent client whose ID was pruned from import clock', async () => {
         const importClock = buildClock({
           A_bw1h: 227,
           A_wU5p: 95,
@@ -1961,7 +1920,7 @@ describe('SyncImportFilterService', () => {
           BCM_mhq: 2659,
           B_xtra: 500,
         });
-        expect(Object.keys(importClock).length).toBe(LEGACY_MAX_VECTOR_CLOCK_SIZE);
+        expect(Object.keys(importClock).length).toBe(CLOCK_SIZE_10);
 
         opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
           Promise.resolve({
@@ -2003,15 +1962,9 @@ describe('SyncImportFilterService', () => {
 
         const result = await service.filterOpsInvalidatedBySyncImport([concurrentOp]);
 
-        // FALSE POSITIVE: The heuristic incorrectly keeps this op because:
-        // 1. A_old1 is not in import clock (pruned) → looks like "born after import"
-        // 2. Import has MAX entries → pruning was possible
-        // 3. All shared keys are >= import values → looks like inherited knowledge
-        // In reality, A_old1 existed before the import and is genuinely concurrent.
-        // This is an accepted trade-off: keeping a concurrent op is safer than
-        // dropping a legitimate post-import op.
-        expect(result.validOps.length).toBe(1);
-        expect(result.invalidatedOps.length).toBe(0);
+        // Correctly filtered as CONCURRENT — clean slate semantics
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(1);
       });
 
       it('should still FILTER ops from new client with LOWER shared keys when import is at MAX', async () => {
@@ -2065,9 +2018,7 @@ describe('SyncImportFilterService', () => {
             A_wU5p: 95,
           }),
         });
-        expect(Object.keys(staleOp.vectorClock).length).toBe(
-          LEGACY_MAX_VECTOR_CLOCK_SIZE,
-        );
+        expect(Object.keys(staleOp.vectorClock).length).toBe(CLOCK_SIZE_10);
 
         const result = await service.filterOpsInvalidatedBySyncImport([staleOp]);
 
@@ -2257,7 +2208,7 @@ describe('SyncImportFilterService', () => {
           // eslint-disable-next-line @typescript-eslint/naming-convention
           B_pr52: 4176,
         };
-        expect(Object.keys(syncImportClock).length).toBe(LEGACY_MAX_VECTOR_CLOCK_SIZE);
+        expect(Object.keys(syncImportClock).length).toBe(CLOCK_SIZE_10);
 
         opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
           Promise.resolve({
@@ -2298,7 +2249,7 @@ describe('SyncImportFilterService', () => {
           // eslint-disable-next-line @typescript-eslint/naming-convention
           B_pr52: 4379,
         };
-        expect(Object.keys(opClock).length).toBe(LEGACY_MAX_VECTOR_CLOCK_SIZE);
+        expect(Object.keys(opClock).length).toBe(CLOCK_SIZE_10);
 
         const op = createOp({
           id: '019afd68-0100-7000-0000-000000000000',
@@ -2448,22 +2399,17 @@ describe('SyncImportFilterService', () => {
 
     describe('full pruning pipeline simulation', () => {
       /**
-       * These tests simulate the full round-trip of vector clock pruning
-       * through the filterOpsInvalidatedBySyncImport pipeline:
-       *   compareVectorClocks → isLikelyPruningArtifact
-       *
-       * They verify that the layered heuristics work together correctly for
-       * realistic scenarios involving LEGACY_MAX-entry clocks and server-side pruning.
-       * Note: isLikelyPruningArtifact uses LEGACY_MAX_VECTOR_CLOCK_SIZE (10) internally.
+       * These tests simulate the full round-trip of vector clock pruning.
+       * With MAX_VECTOR_CLOCK_SIZE=20, pruning requires 21+ unique client IDs.
+       * All CONCURRENT ops are filtered under clean slate semantics.
        */
 
-      it('Test F: server-pruned clock round-trip — op from new client kept via pruning artifact detection', async () => {
-        // Import with exactly LEGACY_MAX entries
+      it('Test F: server-pruned clock round-trip — op from new client filtered as CONCURRENT', async () => {
         const importClock: Record<string, number> = {};
-        for (let i = 0; i < LEGACY_MAX_VECTOR_CLOCK_SIZE; i++) {
+        for (let i = 0; i < CLOCK_SIZE_10; i++) {
           importClock[`client_${i}`] = 100 + i;
         }
-        expect(Object.keys(importClock).length).toBe(LEGACY_MAX_VECTOR_CLOCK_SIZE);
+        expect(Object.keys(importClock).length).toBe(CLOCK_SIZE_10);
 
         opLogStoreSpy.getLatestFullStateOpEntry.and.returnValue(
           Promise.resolve({
@@ -2485,13 +2431,11 @@ describe('SyncImportFilterService', () => {
         // Server pruned: dropped client_0 (lowest counter=100), kept clientK.
         // Result: LEGACY_MAX entries with clientK replacing client_0.
         const serverPrunedOpClock: Record<string, number> = {};
-        for (let i = 1; i < LEGACY_MAX_VECTOR_CLOCK_SIZE; i++) {
+        for (let i = 1; i < CLOCK_SIZE_10; i++) {
           serverPrunedOpClock[`client_${i}`] = 100 + i; // inherited from import
         }
         serverPrunedOpClock['clientK'] = 1; // K's own counter
-        expect(Object.keys(serverPrunedOpClock).length).toBe(
-          LEGACY_MAX_VECTOR_CLOCK_SIZE,
-        );
+        expect(Object.keys(serverPrunedOpClock).length).toBe(CLOCK_SIZE_10);
 
         const opFromK = createOp({
           id: '019afd68-0100-7000-0000-000000000000',
@@ -2503,18 +2447,16 @@ describe('SyncImportFilterService', () => {
 
         const result = await service.filterOpsInvalidatedBySyncImport([opFromK]);
 
-        // compareVectorClocks returns CONCURRENT (different unique keys).
-        // isLikelyPruningArtifact detects: clientK not in import, import >= LEGACY_MAX,
-        // all shared keys >= import values. Op is KEPT.
-        expect(result.validOps.length).toBe(1);
-        expect(result.validOps[0].clientId).toBe('clientK');
-        expect(result.invalidatedOps.length).toBe(0);
+        // compareVectorClocks returns CONCURRENT (different unique keys) → filtered
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(1);
+        expect(result.invalidatedOps[0].clientId).toBe('clientK');
       });
 
-      it('Test G: multiple new clients after import — progressive pruning, both kept', async () => {
+      it('Test G: multiple new clients after import — progressive pruning, both filtered', async () => {
         // Import with exactly LEGACY_MAX entries
         const importClock: Record<string, number> = {};
-        for (let i = 0; i < LEGACY_MAX_VECTOR_CLOCK_SIZE; i++) {
+        for (let i = 0; i < CLOCK_SIZE_10; i++) {
           importClock[`client_${i}`] = 50 + i;
         }
 
@@ -2537,7 +2479,7 @@ describe('SyncImportFilterService', () => {
         // Client K joins: inherits import + own = LEGACY_MAX+1.
         // Server prunes: drops client_0 (counter=50, lowest), keeps clientK.
         const kClock: Record<string, number> = {};
-        for (let i = 1; i < LEGACY_MAX_VECTOR_CLOCK_SIZE; i++) {
+        for (let i = 1; i < CLOCK_SIZE_10; i++) {
           kClock[`client_${i}`] = 50 + i;
         }
         kClock['clientK'] = 1;
@@ -2545,7 +2487,7 @@ describe('SyncImportFilterService', () => {
         // Client L joins after K: inherits K's pruned clock + own = LEGACY_MAX+1.
         // Server prunes: drops client_1 (counter=51, now lowest), keeps clientL.
         const lClock: Record<string, number> = {};
-        for (let i = 2; i < LEGACY_MAX_VECTOR_CLOCK_SIZE; i++) {
+        for (let i = 2; i < CLOCK_SIZE_10; i++) {
           lClock[`client_${i}`] = 50 + i;
         }
         lClock['clientK'] = 1; // inherited from K
@@ -2569,14 +2511,12 @@ describe('SyncImportFilterService', () => {
 
         const result = await service.filterOpsInvalidatedBySyncImport([opFromK, opFromL]);
 
-        // Both ops should be kept via isLikelyPruningArtifact:
-        // - clientK not in import, shared keys all >= import values
-        // - clientL not in import, shared keys all >= import values
-        expect(result.validOps.length).toBe(2);
-        expect(result.validOps.map((op) => op.clientId)).toEqual(
+        // Both ops are CONCURRENT with import → filtered
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(2);
+        expect(result.invalidatedOps.map((op) => op.clientId)).toEqual(
           jasmine.arrayContaining(['clientK', 'clientL']),
         );
-        expect(result.invalidatedOps.length).toBe(0);
       });
 
       it('Test H: large import clock (15 entries) — new client ops still correctly filtered/kept', async () => {
@@ -2614,7 +2554,7 @@ describe('SyncImportFilterService', () => {
           kClock[`client_${i}`] = 10 + i; // 9 entries from pruned import
         }
         kClock['clientK'] = 1;
-        expect(Object.keys(kClock).length).toBe(LEGACY_MAX_VECTOR_CLOCK_SIZE);
+        expect(Object.keys(kClock).length).toBe(CLOCK_SIZE_10);
 
         const opFromK = createOp({
           id: '019afd68-0100-7000-0000-000000000000',
@@ -2638,10 +2578,12 @@ describe('SyncImportFilterService', () => {
           concurrentOp,
         ]);
 
-        // K's op should be kept: clientK not in import, import >= LEGACY_MAX, shared keys >= import
-        expect(result.validOps.map((op) => op.clientId)).toContain('clientK');
-        // Concurrent op should be filtered: old_client has no import knowledge
-        expect(result.invalidatedOps.map((op) => op.clientId)).toContain('old_client');
+        // Both ops are CONCURRENT with import → both filtered
+        expect(result.validOps.length).toBe(0);
+        expect(result.invalidatedOps.length).toBe(2);
+        expect(result.invalidatedOps.map((op) => op.clientId)).toEqual(
+          jasmine.arrayContaining(['clientK', 'old_client']),
+        );
       });
     });
   });
