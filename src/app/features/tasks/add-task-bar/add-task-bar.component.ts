@@ -421,7 +421,7 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
 
     this._isAddingTask = true;
     try {
-      const state = this.stateService.state();
+      const state = currentState;
       let finalTagIds = [...state.tagIds, ...state.tagIdsFromTxt];
 
       if (this.hasNewTags()) {
@@ -653,7 +653,7 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
     // Handle Enter key
     if (event.key === 'Enter') {
       event.preventDefault();
-      if (!this.isSearchMode()) {
+      if (!this.isSearchMode() && !event.repeat) {
         void this.addTask();
       }
       return;
