@@ -15,7 +15,7 @@ import {
 import { T } from '../../../t.const';
 import { FormlyFieldConfig, FormlyFormOptions, FormlyModule } from '@ngx-formly/core';
 import { FormsModule, ReactiveFormsModule, UntypedFormGroup } from '@angular/forms';
-import { adjustToLiveFormlyForm } from '../../../util/adjust-to-live-formly-form';
+import { adjustToDialogFormlyForm } from '../../../util/adjust-to-dialog-formly-form';
 import { SIMPLE_COUNTER_FORM } from '../../config/form-cfgs/simple-counter-form.const';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -54,7 +54,7 @@ export class DialogSimpleCounterEditSettingsComponent {
   private readonly _fieldArray = SIMPLE_COUNTER_FORM.items?.[0]?.fieldArray as
     | { fieldGroup?: FormlyFieldConfig[] }
     | undefined;
-  readonly fields: FormlyFieldConfig[] = adjustToLiveFormlyForm([
+  readonly fields: FormlyFieldConfig[] = adjustToDialogFormlyForm([
     ...(this._fieldArray?.fieldGroup ?? []),
   ]);
 
