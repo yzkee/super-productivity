@@ -320,34 +320,71 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
     ev.preventDefault();
     ev.stopPropagation();
 
-    // If currently editing, save the current textarea content before toggling.
-    // This prevents content loss when mousedown.preventDefault() blocks the blur event.
     const textareaEl = this.textareaEl();
-    if (this.isShowEdit() && textareaEl) {
+    let cursorPos: number | undefined;
+
+    // Check textareaEl directly (not isShowEdit) because blur may have
+    // set isShowEdit=false while the textarea is still in the DOM.
+    if (textareaEl) {
       const currentValue = textareaEl.nativeElement.value;
+      cursorPos = textareaEl.nativeElement.selectionStart;
       if (currentValue !== this.model) {
         this.model = currentValue;
         this.changed.emit(currentValue);
       }
     }
 
+    // Must come AFTER model setter (which may reset isChecklistMode based on content)
     this.isChecklistMode.set(true);
-    this._toggleShowEdit();
+
+    const INSERT_TEXT = '\n- [ ] ';
 
     if (this.isDefaultText()) {
-      this.modelCopy.set('- [ ] ');
+      if (textareaEl) {
+        this.isShowEdit.set(true);
+        this.modelCopy.set('- [ ] ');
+        this._setTextareaState('- [ ] '.length);
+      } else {
+        // _toggleShowEdit resets modelCopy — set it AFTER so setTimeout reads ours
+        this._toggleShowEdit('- [ ] '.length);
+        this.modelCopy.set('- [ ] ');
+      }
+      return;
+    }
+
+    const text = this.modelCopy() || '';
+
+    if (cursorPos !== undefined) {
+      // Path A: Textarea available — insert after the cursor's current line
+      let lineEnd = cursorPos;
+      while (lineEnd < text.length && text[lineEnd] !== '\n') {
+        lineEnd++;
+      }
+      const newText = text.substring(0, lineEnd) + INSERT_TEXT + text.substring(lineEnd);
+      const cleaned = newText.replace(/\n\n- \[/g, '\n- [').replace(/^\n/g, '');
+
+      // Calculate cursor AFTER cleanup to avoid drift
+      const beforeCursor = newText.substring(0, lineEnd + INSERT_TEXT.length);
+      const cleanedBeforeCursor = beforeCursor
+        .replace(/\n\n- \[/g, '\n- [')
+        .replace(/^\n/g, '');
+      const adjustedCursorPos = Math.min(cleanedBeforeCursor.length, cleaned.length);
+
+      // Ensure editor stays open (blur may have set isShowEdit=false)
+      this.isShowEdit.set(true);
+      this.modelCopy.set(cleaned);
+      this._setTextareaState(adjustedCursorPos);
     } else {
-      this.modelCopy.set(this.modelCopy() + '\n- [ ] ');
-      // cleanup string on add
-      this.modelCopy.set(
-        this.modelCopy()
-          ?.replace(/\n\n- \[/g, '\n- [')
-          .replace(/^\n/g, ''),
-      );
+      // Path B: From preview mode — append to end
+      const appended = text + INSERT_TEXT;
+      const cleaned = appended.replace(/\n\n- \[/g, '\n- [').replace(/^\n/g, '');
+      // _toggleShowEdit resets modelCopy — set it AFTER so setTimeout reads ours
+      this._toggleShowEdit(cleaned.length);
+      this.modelCopy.set(cleaned);
     }
   }
 
-  private _toggleShowEdit(): void {
+  private _toggleShowEdit(cursorPos?: number): void {
     this.isShowEdit.set(true);
     this.modelCopy.set(this.model || '');
     setTimeout(() => {
@@ -357,7 +394,22 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
       }
       textareaEl.nativeElement.value = this.modelCopy();
       textareaEl.nativeElement.focus();
+      if (cursorPos !== undefined) {
+        textareaEl.nativeElement.setSelectionRange(cursorPos, cursorPos);
+      }
       this.resizeTextareaToFit();
+    });
+  }
+
+  private _setTextareaState(cursorPos: number): void {
+    setTimeout(() => {
+      const textareaEl = this.textareaEl();
+      if (textareaEl) {
+        textareaEl.nativeElement.value = this.modelCopy();
+        textareaEl.nativeElement.focus();
+        textareaEl.nativeElement.setSelectionRange(cursorPos, cursorPos);
+        this.resizeTextareaToFit();
+      }
     });
   }
 
