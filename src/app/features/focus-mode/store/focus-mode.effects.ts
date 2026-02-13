@@ -347,12 +347,13 @@ export class FocusModeEffects {
         if (action.isManual) {
           return true;
         }
-        // For automatic completion, only stop tracking if break won't auto-start
-        // (autoStartBreakOnSessionComplete$ handles tracking pause when break starts)
+        // Bug #6510 fix: For automatic completion, only stop tracking if no break will start.
+        // When a break will start (auto or manual), tracking pause is deferred to break-start:
+        // - Auto: autoStartBreakOnSessionComplete$ (line 368)
+        // - Manual: _handleStartAfterSessionComplete() / startBreakManually()
         const strategy = this.strategyFactory.getStrategy(mode);
-        const breakWillAutoStart =
-          strategy.shouldStartBreakAfterSession && !config?.isManualBreakStart;
-        return !breakWillAutoStart;
+        const breakWillStart = strategy.shouldStartBreakAfterSession;
+        return !breakWillStart;
       }),
       // Bug #5737 fix: Store pausedTaskId before unsetting current task
       // This ensures the task can be resumed after break even with manual "End Session"

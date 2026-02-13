@@ -604,6 +604,25 @@ describe('FocusModeEffects', () => {
         });
       });
 
+      it('should NOT dispatch when isManual=false in Pomodoro with manual break start (Bug #6510)', (done) => {
+        // Bug #6510: Tracking should continue until break actually starts
+        currentTaskId$.next('task-123');
+        actions$ = of(actions.completeFocusSession({ isManual: false }));
+        store.overrideSelector(selectFocusModeConfig, {
+          isSyncSessionWithTracking: true,
+          isPauseTrackingDuringBreak: true,
+          isSkipPreparation: false,
+          isManualBreakStart: true,
+        });
+        store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+        store.refreshState();
+
+        effects.stopTrackingOnSessionEnd$.pipe(toArray()).subscribe((actionsArr) => {
+          expect(actionsArr.length).toBe(0);
+          done();
+        });
+      });
+
       it('should dispatch setPausedTaskId and unsetCurrentTask when isManual=false in Countdown mode (Bug #5996, #5737)', (done) => {
         // In Countdown mode, no break auto-starts, so this effect should fire
         // Bug #5737: Now also stores pausedTaskId for potential task resumption
