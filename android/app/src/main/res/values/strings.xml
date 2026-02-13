@@ -18,4 +18,7 @@
   <string name="widget_add_button">Add</string>
   <string name="widget_task_added">Task added</string>
   <string name="widget_enter_title">Please enter a task title</string>
+
+  <!-- Share intent -->
+  <string name="share_received">Content received, creating task\u2026</string>
 </resources>

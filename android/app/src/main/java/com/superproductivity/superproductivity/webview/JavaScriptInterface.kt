@@ -16,6 +16,7 @@ import com.superproductivity.superproductivity.app.LaunchDecider
 import com.superproductivity.superproductivity.service.FocusModeForegroundService
 import com.superproductivity.superproductivity.service.ReminderNotificationHelper
 import com.superproductivity.superproductivity.service.TrackingForegroundService
+import com.superproductivity.superproductivity.widget.ShareIntentQueue
 import com.superproductivity.superproductivity.widget.WidgetTaskQueue
 
 
@@ -229,6 +230,23 @@ class JavaScriptInterface(
     @JavascriptInterface
     fun getWidgetTaskQueue(): String? {
         return WidgetTaskQueue.getAndClearQueue(activity)
+    }
+
+    /**
+     * Pull-based retrieval of pending share data persisted in SharedPreferences.
+     * Clears both SharedPreferences and in-memory pendingShareIntent to prevent duplicates.
+     * @return JSON string of share data, or null if none pending
+     */
+    @Suppress("unused")
+    @JavascriptInterface
+    fun getPendingShareData(): String? {
+        val data = ShareIntentQueue.getAndClear(activity)
+        if (activity is com.superproductivity.superproductivity.CapacitorMainActivity) {
+            activity.runOnUiThread {
+                activity.clearPendingShareIntent()
+            }
+        }
+        return data
     }
 
     fun callJavaScriptFunction(script: String) {

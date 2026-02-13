@@ -24,6 +24,7 @@ import com.superproductivity.superproductivity.webview.JavaScriptInterface
 import com.superproductivity.superproductivity.webview.WebHelper
 import com.superproductivity.superproductivity.webview.WebViewBlockActivity
 import com.superproductivity.superproductivity.webview.WebViewCompatibilityChecker
+import com.superproductivity.superproductivity.widget.ShareIntentQueue
 import com.superproductivity.plugins.webdavhttp.WebDavHttpPlugin
 import org.json.JSONObject
 
@@ -160,7 +161,12 @@ class CapacitorMainActivity : BridgeActivity() {
             Log.d("SP_SHARE", "Flushing pending share intent: $it")
             callJSInterfaceFunctionIfExists("next", "onShareWithAttachment$", it.toString())
             pendingShareIntent = null
+            ShareIntentQueue.getAndClear(this)
         }
+    }
+
+    fun clearPendingShareIntent() {
+        pendingShareIntent = null
     }
 
     private fun handleIntent(intent: Intent) {
@@ -216,13 +222,18 @@ class CapacitorMainActivity : BridgeActivity() {
                     json.put("type", type)
                     json.put("path", sharedText)
 
+                    // Always persist for crash safety
+                    ShareIntentQueue.setPending(this, json.toString())
+
                     if (isFrontendReady) {
                         Log.d("SP_SHARE", "Frontend ready, sending directly: $json")
                         callJSInterfaceFunctionIfExists("next", "onShareWithAttachment$", json.toString())
                         pendingShareIntent = null
+                        ShareIntentQueue.getAndClear(this)
                     } else {
                         Log.d("SP_SHARE", "Frontend NOT ready, queueing: $json")
                         pendingShareIntent = json
+                        Toast.makeText(this, R.string.share_received, Toast.LENGTH_SHORT).show()
                     }
                 }
             }

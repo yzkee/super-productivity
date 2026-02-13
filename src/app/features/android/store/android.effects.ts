@@ -213,6 +213,28 @@ export class AndroidEffects {
       { dispatch: false },
     );
 
+  // Check for pending share data on resume (catches app killed after receiving share)
+  checkPendingShareOnResume$ =
+    IS_ANDROID_WEB_VIEW &&
+    createEffect(
+      () =>
+        androidInterface.onResume$.pipe(
+          tap(() => {
+            try {
+              const pendingShare = androidInterface.getPendingShareData?.();
+              if (pendingShare) {
+                const parsed = JSON.parse(pendingShare);
+                DroidLog.log('Resume: found pending share data', parsed);
+                androidInterface.onShareWithAttachment$.next(parsed);
+              }
+            } catch (e) {
+              DroidLog.err('Failed to process pending share on resume', e);
+            }
+          }),
+        ),
+      { dispatch: false },
+    );
+
   private _notifyPermissionIssue(message?: string): void {
     if (this._hasShownNotificationWarning) {
       return;

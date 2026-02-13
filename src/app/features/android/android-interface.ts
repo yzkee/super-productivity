@@ -37,6 +37,7 @@ export interface AndroidInterface {
   clearDbCallback(rId: string): void;
 
   triggerGetShareData?(): void;
+  getPendingShareData?(): string | null;
 
   // Foreground service methods for background time tracking
   startTrackingService?(taskId: string, taskTitle: string, timeSpentMs: number): void;
@@ -186,5 +187,19 @@ if (IS_ANDROID_WEB_VIEW) {
   };
 
   DroidLog.log('Android Web View interfaces initialized', androidInterface);
+
+  // Pull-based: retrieve share data persisted in SharedPreferences (survives process death)
+  try {
+    const pendingShare = androidInterface.getPendingShareData?.();
+    if (pendingShare) {
+      const parsed = JSON.parse(pendingShare);
+      DroidLog.log('Pulled pending share data from SharedPreferences', parsed);
+      androidInterface.onShareWithAttachment$.next(parsed);
+    }
+  } catch (e) {
+    DroidLog.err('Failed to parse pending share data', e);
+  }
+
+  // Push-based: sets isFrontendReady=true on native side for warm-start shares
   androidInterface.triggerGetShareData?.();
 }
