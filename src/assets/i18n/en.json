@@ -915,7 +915,7 @@
         "NEXT_WEEK": "Next week",
         "TODAY": "Today",
         "ADD_HABIT": "Add a new habit",
-        "MANAGE_HABITS": "Manage habits"
+        "DISABLED_HABITS": "Disabled habits"
       },
       "S": {
         "GOAL_REACHED_1": "You reached your goal for today!",

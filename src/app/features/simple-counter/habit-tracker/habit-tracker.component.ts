@@ -6,7 +6,6 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
 import { SimpleCounter, SimpleCounterType } from '../simple-counter.model';
@@ -19,6 +18,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogSimpleCounterEditComponent } from '../dialog-simple-counter-edit/dialog-simple-counter-edit.component';
 import { DialogSimpleCounterEditSettingsComponent } from '../dialog-simple-counter-edit-settings/dialog-simple-counter-edit-settings.component';
+import { DialogConfirmComponent } from '../../../ui/dialog-confirm/dialog-confirm.component';
 import { EMPTY_SIMPLE_COUNTER } from '../simple-counter.const';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { moveItemInArray } from '../../../util/move-item-in-array';
@@ -43,11 +43,13 @@ import { IS_TOUCH_PRIMARY } from '../../../util/is-mouse-primary';
 })
 export class HabitTrackerComponent {
   simpleCounters = input.required<SimpleCounter[]>();
+  disabledSimpleCounters = input<SimpleCounter[]>([]);
 
   private _simpleCounterService = inject(SimpleCounterService);
   private _dateService = inject(DateService);
   private _matDialog = inject(MatDialog);
-  private _router = inject(Router);
+
+  showDisabled = signal(false);
 
   T = T;
   SimpleCounterType = SimpleCounterType;
@@ -245,9 +247,24 @@ export class HabitTrackerComponent {
     });
   }
 
-  openManageHabits(): void {
-    this._router.navigate(['/config'], {
-      queryParams: { tab: 3, section: 'SIMPLE_COUNTER_CFG' },
-    });
+  enableHabit(id: string): void {
+    this._simpleCounterService.updateSimpleCounter(id, { isEnabled: true });
+  }
+
+  deleteHabit(counter: SimpleCounter): void {
+    this._matDialog
+      .open(DialogConfirmComponent, {
+        restoreFocus: true,
+        data: {
+          message: T.F.SIMPLE_COUNTER.D_CONFIRM_REMOVE.MSG,
+          okTxt: T.F.SIMPLE_COUNTER.D_CONFIRM_REMOVE.OK,
+        },
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (confirmed) {
+          this._simpleCounterService.deleteSimpleCounter(counter.id);
+        }
+      });
   }
 }

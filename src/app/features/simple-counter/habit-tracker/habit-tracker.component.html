@@ -27,13 +27,6 @@
       >
         {{ T.F.SIMPLE_COUNTER.HABIT_TRACKER.TODAY | translate }}
       </button>
-      <button
-        mat-icon-button
-        (click)="openManageHabits()"
-        [matTooltip]="T.F.SIMPLE_COUNTER.HABIT_TRACKER.MANAGE_HABITS | translate"
-      >
-        <mat-icon>settings</mat-icon>
-      </button>
     </div>
   </div>
 
@@ -140,4 +133,59 @@
       }}</span>
     </button>
   </div>
+
+  @if (disabledSimpleCounters().length > 0) {
+    <div class="disabled-section">
+      <button
+        class="disabled-section-header"
+        (click)="showDisabled.set(!showDisabled())"
+      >
+        <mat-icon>{{ showDisabled() ? 'expand_less' : 'expand_more' }}</mat-icon>
+        <span
+          >{{ T.F.SIMPLE_COUNTER.HABIT_TRACKER.DISABLED_HABITS | translate }} ({{
+            disabledSimpleCounters().length
+          }})</span
+        >
+      </button>
+      @if (showDisabled()) {
+        <div class="disabled-list">
+          @for (counter of disabledSimpleCounters(); track counter.id) {
+            <div class="disabled-item">
+              <div class="disabled-item-info">
+                @if (counter.icon && counter.icon.startsWith(':')) {
+                  <mat-icon [svgIcon]="counter.icon"></mat-icon>
+                } @else if (counter.icon) {
+                  <mat-icon>{{ counter.icon }}</mat-icon>
+                }
+                <span>{{ counter.title }}</span>
+              </div>
+              <div class="disabled-item-actions">
+                <button
+                  mat-icon-button
+                  (click)="enableHabit(counter.id)"
+                  [matTooltip]="T.F.SIMPLE_COUNTER.FORM.L_IS_ENABLED | translate"
+                >
+                  <mat-icon>visibility</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
+                  (click)="openEditSettings(counter)"
+                  [matTooltip]="T.G.EDIT | translate"
+                >
+                  <mat-icon>edit</mat-icon>
+                </button>
+                <button
+                  mat-icon-button
+                  (click)="deleteHabit(counter)"
+                  [matTooltip]="T.G.DELETE | translate"
+                >
+                  <mat-icon>delete</mat-icon>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
 </div>

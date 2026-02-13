@@ -280,7 +280,6 @@ export interface LimitedFormlyFieldConfig<FormModel> extends Omit<
 export type CustomCfgSection =
   | 'FILE_IMPORT_EXPORT'
   | 'JIRA_CFG'
-  | 'SIMPLE_COUNTER_CFG'
   | 'OPENPROJECT_CFG'
   | 'CLICKUP_CFG'
   | 'CLIPBOARD_IMAGES_CFG';

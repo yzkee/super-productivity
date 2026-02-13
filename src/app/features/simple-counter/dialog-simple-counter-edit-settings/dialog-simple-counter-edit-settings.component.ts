@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import {
   MAT_DIALOG_DATA,
+  MatDialog,
   MatDialogActions,
   MatDialogContent,
   MatDialogRef,
@@ -22,6 +23,7 @@ import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EMPTY_SIMPLE_COUNTER } from '../simple-counter.const';
 import { SimpleCounterService } from '../simple-counter.service';
+import { DialogConfirmComponent } from '../../../ui/dialog-confirm/dialog-confirm.component';
 
 @Component({
   selector: 'dialog-simple-counter-edit-settings',
@@ -44,6 +46,7 @@ export class DialogSimpleCounterEditSettingsComponent {
     MatDialogRef<DialogSimpleCounterEditSettingsComponent>,
   );
   private readonly _simpleCounterService = inject(SimpleCounterService);
+  private readonly _matDialog = inject(MatDialog);
   readonly dialogData = inject<{ simpleCounter: SimpleCounterCopy }>(MAT_DIALOG_DATA);
 
   readonly T = T;
@@ -85,6 +88,26 @@ export class DialogSimpleCounterEditSettingsComponent {
 
   close(): void {
     this._dialogRef.close();
+  }
+
+  delete(): void {
+    const id = this.dialogData.simpleCounter.id;
+    if (!id) return;
+    this._matDialog
+      .open(DialogConfirmComponent, {
+        restoreFocus: true,
+        data: {
+          message: T.F.SIMPLE_COUNTER.D_CONFIRM_REMOVE.MSG,
+          okTxt: T.F.SIMPLE_COUNTER.D_CONFIRM_REMOVE.OK,
+        },
+      })
+      .afterClosed()
+      .subscribe((confirmed: boolean) => {
+        if (confirmed) {
+          this._simpleCounterService.deleteSimpleCounter(id);
+          this._dialogRef.close();
+        }
+      });
   }
 
   isDirty(): boolean {
