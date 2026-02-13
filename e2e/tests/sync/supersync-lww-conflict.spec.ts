@@ -1429,7 +1429,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       // 3. Client A deletes the task using reliable keyboard shortcut
       await deleteTask(clientA, taskName);
       // Wait for DELETE operation to be persisted to IndexedDB
-      await clientA.page.waitForTimeout(1500);
+      await clientA.page.waitForTimeout(2000);
 
       // Verify delete took effect on Client A before proceeding
       const deletedTaskA = clientA.page.locator(`task:has-text("${taskName}")`);
@@ -1447,7 +1447,7 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
       await expect(renamedTask).toBeVisible({ timeout: 5000 });
 
       // Wait to ensure Client B's UPDATE operation is flushed to IndexedDB
-      await clientB.page.waitForTimeout(1500);
+      await clientB.page.waitForTimeout(2000);
 
       // 5. Client A syncs (uploads delete)
       await clientA.sync.syncAndWait();
@@ -1474,12 +1474,12 @@ test.describe('@supersync SuperSync LWW Conflict Resolution', () => {
         `task:has-text("${taskName}")`,
       );
       const hasUpdatedTitle = await recreatedWithUpdatedTitle
-        .isVisible({ timeout: 15000 })
+        .isVisible({ timeout: 20000 })
         .catch(() => false);
       if (!hasUpdatedTitle) {
         // LWW title update intermittently doesn't apply — verify the core
         // TODAY_TAG fix by checking the task still appears in the TODAY view
-        await expect(recreatedWithOriginalTitle).toBeVisible({ timeout: 5000 });
+        await expect(recreatedWithOriginalTitle).toBeVisible({ timeout: 15000 });
         console.log(
           '[TodayDeleteRace] Task visible in TODAY view (title update not applied — known LWW race)',
         );

@@ -736,8 +736,15 @@ export class SuperSyncPage extends BasePage {
     // This handles backdrop removal and any lingering dialogs
     await this.ensureOverlaysClosed();
 
-    // Wait for clean slate operation to complete (sync will happen automatically)
-    await this.page.waitForTimeout(3000);
+    // Wait for clean slate sync to complete
+    const spinnerAppeared = await this.syncSpinner
+      .waitFor({ state: 'visible', timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+    if (spinnerAppeared) {
+      await this.syncSpinner.waitFor({ state: 'hidden', timeout: 30000 });
+    }
+    await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 10000 });
   }
 
   /**
@@ -1292,7 +1299,7 @@ export class SuperSyncPage extends BasePage {
     const checkAlreadyVisible = await this.syncCheckIcon.isVisible().catch(() => false);
     if (!checkAlreadyVisible) {
       const spinnerVisible = await this.syncSpinner
-        .waitFor({ state: 'visible', timeout: 3000 })
+        .waitFor({ state: 'visible', timeout: 5000 })
         .then(() => true)
         .catch(() => false);
       if (spinnerVisible) {
