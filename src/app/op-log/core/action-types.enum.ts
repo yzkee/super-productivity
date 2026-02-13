@@ -145,6 +145,7 @@ export enum ActionType {
   // Note: Inconsistent spacing in source - '[Simple Counter]' vs '[SimpleCounter]'
   COUNTER_SET_FOR_DATE = '[Simple Counter] Set SimpleCounter Counter For Date',
   COUNTER_SYNC_TIME = '[SimpleCounter] Sync counter time',
+  COUNTER_UPDATE_ORDER = '[SimpleCounter] Update SimpleCounter Order',
 
   // Task actions (T)
   TASK_UPDATE_MULTIPLE_SIMPLE = '[Task] Update multiple Tasks (simple)',

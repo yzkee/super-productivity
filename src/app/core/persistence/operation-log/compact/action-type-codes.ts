@@ -163,6 +163,7 @@ export const ACTION_TYPE_TO_CODE: Record<ActionType, string> = {
   [ActionType.COUNTER_SET_ON]: 'SN',
   [ActionType.COUNTER_SET_FOR_DATE]: 'SFD',
   [ActionType.COUNTER_SYNC_TIME]: 'SC',
+  [ActionType.COUNTER_UPDATE_ORDER]: 'SM',
 
   // Task actions (T)
   [ActionType.TASK_UPDATE_MULTIPLE_SIMPLE]: 'TU',

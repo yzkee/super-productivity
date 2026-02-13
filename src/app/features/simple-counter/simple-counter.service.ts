@@ -20,6 +20,7 @@ import {
   turnOffAllSimpleCounterCounters,
   updateAllSimpleCounters,
   updateSimpleCounter,
+  updateSimpleCounterOrder,
   upsertSimpleCounter,
 } from './store/simple-counter.actions';
 import { firstValueFrom, Observable, Subscription } from 'rxjs';
@@ -194,6 +195,10 @@ export class SimpleCounterService implements OnDestroy {
       .catch((error) => {
         console.error('[SimpleCounterService] Error syncing stopwatch value:', error);
       });
+  }
+
+  updateOrder(ids: string[]): void {
+    this._store$.dispatch(updateSimpleCounterOrder({ ids }));
   }
 
   updateAll(items: SimpleCounter[]): void {

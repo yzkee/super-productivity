@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { CdkDrag, CdkDragDrop, CdkDropList } from '@angular/cdk/drag-drop';
 import { SimpleCounter, SimpleCounterType } from '../simple-counter.model';
 import { SimpleCounterService } from '../simple-counter.service';
 import { DateService } from '../../../core/date/date.service';
@@ -20,6 +21,9 @@ import { DialogSimpleCounterEditComponent } from '../dialog-simple-counter-edit/
 import { DialogSimpleCounterEditSettingsComponent } from '../dialog-simple-counter-edit-settings/dialog-simple-counter-edit-settings.component';
 import { EMPTY_SIMPLE_COUNTER } from '../simple-counter.const';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { moveItemInArray } from '../../../util/move-item-in-array';
+import { DRAG_DELAY_FOR_TOUCH } from '../../../app.constants';
+import { IS_TOUCH_PRIMARY } from '../../../util/is-mouse-primary';
 
 @Component({
   selector: 'habit-tracker',
@@ -30,6 +34,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
     MatButtonModule,
     MatIconModule,
     MatTooltipModule,
+    CdkDropList,
+    CdkDrag,
   ],
   templateUrl: './habit-tracker.component.html',
   styleUrl: './habit-tracker.component.scss',
@@ -45,6 +51,8 @@ export class HabitTrackerComponent {
 
   T = T;
   SimpleCounterType = SimpleCounterType;
+  DRAG_DELAY_FOR_TOUCH = DRAG_DELAY_FOR_TOUCH;
+  IS_TOUCH_PRIMARY = IS_TOUCH_PRIMARY;
 
   dayOffset = signal(0);
 
@@ -70,6 +78,16 @@ export class HabitTrackerComponent {
 
   resetToToday(): void {
     this.dayOffset.set(0);
+  }
+
+  drop(event: CdkDragDrop<SimpleCounter[]>): void {
+    if (event.previousIndex === event.currentIndex) {
+      return;
+    }
+    const counters = this.simpleCounters();
+    this._simpleCounterService.updateOrder(
+      moveItemInArray(counters, event.previousIndex, event.currentIndex).map((c) => c.id),
+    );
   }
 
   dateRangeLabel = computed(() => {

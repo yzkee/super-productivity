@@ -37,7 +37,12 @@
     </div>
   </div>
 
-  <div class="habit-grid">
+  <div
+    class="habit-grid"
+    cdkDropList
+    [cdkDropListData]="simpleCounters()"
+    (cdkDropListDropped)="drop($event)"
+  >
     <div class="header-row">
       <div class="header-spacer"></div>
       @for (day of days(); track day) {
@@ -49,7 +54,11 @@
     </div>
 
     @for (counter of simpleCounters(); track counter.id) {
-      <div class="habit-row">
+      <div
+        class="habit-row"
+        cdkDrag
+        [cdkDragStartDelay]="IS_TOUCH_PRIMARY ? DRAG_DELAY_FOR_TOUCH : 0"
+      >
         <div
           class="habit-title"
           [title]="counter.title"

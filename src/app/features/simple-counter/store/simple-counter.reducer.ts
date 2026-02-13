@@ -32,6 +32,7 @@ import {
   turnOffAllSimpleCounterCounters,
   updateAllSimpleCounters,
   updateSimpleCounter,
+  updateSimpleCounterOrder,
   upsertSimpleCounter,
 } from './simple-counter.actions';
 import { PersistentActionMeta } from '../../../op-log/core/persistent-action.interface';
@@ -110,6 +111,26 @@ const _reducer = createReducer<SimpleCounterState>(
     newState = adapter.upsertMany(items, newState);
     // Explicitly set ids order to match items order (upsertMany doesn't preserve order)
     return { ...newState, ids: allNewItemIds };
+  }),
+
+  on(updateSimpleCounterOrder, (state, { ids }) => {
+    // Filter out stale/deleted IDs that no longer exist in current state
+    const stateIdSet = new Set(state.ids as string[]);
+    const validIds = ids.filter((id) => stateIdSet.has(id));
+    if (validIds.length === 0) {
+      return state;
+    }
+    const enabledSet = new Set(validIds);
+    const result: string[] = [];
+    let enabledIdx = 0;
+    for (const id of state.ids) {
+      if (enabledSet.has(id as string)) {
+        result.push(validIds[enabledIdx++]);
+      } else {
+        result.push(id as string);
+      }
+    }
+    return { ...state, ids: result };
   }),
 
   on(setSimpleCounterCounterToday, (state, { id, newVal, today }) => {
