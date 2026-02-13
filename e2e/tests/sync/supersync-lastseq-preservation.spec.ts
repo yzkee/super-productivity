@@ -8,6 +8,9 @@ import {
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 import { ImportPage } from '../../pages/import.page';
+import { SuperSyncPage } from '../../pages/supersync.page';
+import { WorkViewPage } from '../../pages/work-view.page';
+import { waitForAppReady } from '../../utils/waits';
 
 /**
  * SuperSync lastSeq Preservation Regression Tests
@@ -89,15 +92,36 @@ test.describe('@supersync lastSeq Preservation After Import', () => {
       await importPage.importBackupFile(backupPath);
       console.log('[lastSeq] Client A imported backup');
 
-      // Reload page after import
-      await clientA.page.goto(clientA.page.url(), {
-        waitUntil: 'domcontentloaded',
-        timeout: 30000,
-      });
-      await clientA.page.waitForLoadState('networkidle');
+      // Close and re-open page to pick up imported data with fresh Angular services.
+      // Using page.reload() can hang when active sync connections prevent navigation.
+      await clientA.page.close();
+      clientA.page = await clientA.context.newPage();
+      await clientA.page.goto('/');
+      clientA.workView = new WorkViewPage(clientA.page, `A-${testRunId}`);
+      clientA.sync = new SuperSyncPage(clientA.page);
+      await waitForAppReady(clientA.page, { ensureRoute: false });
 
-      // Re-enable sync after import (import overwrites globalConfig)
-      await clientA.sync.setupSuperSync(syncConfig);
+      // Configure sync WITHOUT waiting for initial sync
+      // (initial sync will show sync-import-conflict dialog since we have a local BackupImport)
+      await clientA.sync.setupSuperSync({ ...syncConfig, waitForInitialSync: false });
+
+      // Wait for either sync import conflict dialog OR sync completion
+      const syncImportDialog = clientA.sync.syncImportConflictDialog;
+      const syncResult = await Promise.race([
+        syncImportDialog
+          .waitFor({ state: 'visible', timeout: 30000 })
+          .then(() => 'dialog' as const),
+        clientA.sync.syncCheckIcon
+          .waitFor({ state: 'visible', timeout: 30000 })
+          .then(() => 'complete' as const),
+      ]);
+
+      if (syncResult === 'dialog') {
+        // Choose "Use My Data" to preserve the import
+        await clientA.sync.syncImportUseLocalBtn.click();
+        await syncImportDialog.waitFor({ state: 'hidden', timeout: 5000 });
+        await clientA.sync.syncCheckIcon.waitFor({ state: 'visible', timeout: 30000 });
+      }
 
       // Wait for imported task to be visible
       await waitForTask(clientA.page, 'E2E Import Test - Active Task With Subtask');

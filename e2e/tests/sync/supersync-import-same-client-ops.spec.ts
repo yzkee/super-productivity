@@ -8,6 +8,8 @@ import {
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 import { ImportPage } from '../../pages/import.page';
+import { SuperSyncPage } from '../../pages/supersync.page';
+import { WorkViewPage } from '../../pages/work-view.page';
 import { expectTaskOnAllClients } from '../../utils/supersync-assertions';
 import { waitForAppReady } from '../../utils/waits';
 
@@ -55,6 +57,7 @@ test.describe('@supersync @pruning Import client post-import ops sync correctly'
     testRunId,
   }) => {
     const uniqueId = `${testRunId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const appUrl = baseURL || 'http://localhost:4242';
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
 
@@ -65,10 +68,10 @@ test.describe('@supersync @pruning Import client post-import ops sync correctly'
       // ============ PHASE 1: Setup Both Clients ============
       console.log('[Same-Client Import] Phase 1: Setting up both clients');
 
-      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
       await clientA.sync.setupSuperSync(syncConfig);
 
-      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
       await clientB.sync.setupSuperSync(syncConfig);
 
       // Initial sync to establish vector clocks
@@ -86,8 +89,13 @@ test.describe('@supersync @pruning Import client post-import ops sync correctly'
       await importPage.importBackupFile(backupPath);
       console.log('[Same-Client Import] Client A imported backup');
 
-      // Reload and re-enable sync
-      await clientA.page.reload({ timeout: 60000 });
+      // Close and re-open page to pick up imported data with fresh Angular services.
+      // Using page.reload() can hang when active sync connections prevent navigation.
+      await clientA.page.close();
+      clientA.page = await clientA.context.newPage();
+      await clientA.page.goto('/');
+      clientA.workView = new WorkViewPage(clientA.page, `A-${testRunId}`);
+      clientA.sync = new SuperSyncPage(clientA.page);
       await waitForAppReady(clientA.page, { ensureRoute: false });
 
       // Configure sync WITHOUT waiting for initial sync
@@ -209,6 +217,7 @@ test.describe('@supersync @pruning Import client post-import ops sync correctly'
     testRunId,
   }) => {
     const uniqueId = `${testRunId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const appUrl = baseURL || 'http://localhost:4242';
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
 
@@ -217,10 +226,10 @@ test.describe('@supersync @pruning Import client post-import ops sync correctly'
       const syncConfig = getSuperSyncConfig(user);
 
       // Setup
-      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
       await clientA.sync.setupSuperSync(syncConfig);
 
-      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
       await clientB.sync.setupSuperSync(syncConfig);
 
       await clientA.sync.syncAndWait();
@@ -232,7 +241,12 @@ test.describe('@supersync @pruning Import client post-import ops sync correctly'
       const backupPath = ImportPage.getFixturePath('test-backup.json');
       await importPage.importBackupFile(backupPath);
 
-      await clientA.page.reload({ timeout: 60000 });
+      // Close and re-open page to pick up imported data with fresh Angular services.
+      await clientA.page.close();
+      clientA.page = await clientA.context.newPage();
+      await clientA.page.goto('/');
+      clientA.workView = new WorkViewPage(clientA.page, `A-${testRunId}`);
+      clientA.sync = new SuperSyncPage(clientA.page);
       await waitForAppReady(clientA.page, { ensureRoute: false });
 
       // Configure sync WITHOUT waiting for initial sync (same dialog handling as test 1)

@@ -62,6 +62,7 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
     testRunId,
   }) => {
     const uniqueId = `${testRunId}-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    const appUrl = baseURL || 'http://localhost:4242';
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
 
@@ -72,10 +73,10 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
       // ============ PHASE 1: Setup Both Clients ============
       console.log('[Other-Client Import] Phase 1: Setting up both clients');
 
-      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
       await clientA.sync.setupSuperSync(syncConfig);
 
-      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
       await clientB.sync.setupSuperSync(syncConfig);
 
       // Initial sync to establish vector clocks
@@ -164,6 +165,11 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
       );
 
       await clientB.page.evaluate(async () => {
+        interface VectorClockEntry {
+          clock: Record<string, number>;
+          lastUpdate: number;
+        }
+
         const DB_NAME = 'SUP_OPS';
         const VECTOR_CLOCK_STORE = 'vector_clock';
         const SINGLETON_KEY = 'current';
@@ -176,13 +182,16 @@ test.describe('@supersync @pruning Other client post-import ops sync correctly',
         });
 
         // Read current vector clock entry
-        const currentEntry = await new Promise<any>((resolve, reject) => {
-          const tx = db.transaction(VECTOR_CLOCK_STORE, 'readonly');
-          const store = tx.objectStore(VECTOR_CLOCK_STORE);
-          const request = store.get(SINGLETON_KEY);
-          request.onsuccess = (): void => resolve(request.result);
-          request.onerror = (): void => reject(request.error);
-        });
+        const currentEntry = await new Promise<VectorClockEntry | undefined>(
+          (resolve, reject) => {
+            const tx = db.transaction(VECTOR_CLOCK_STORE, 'readonly');
+            const store = tx.objectStore(VECTOR_CLOCK_STORE);
+            const request = store.get(SINGLETON_KEY);
+            request.onsuccess = (): void =>
+              resolve(request.result as VectorClockEntry | undefined);
+            request.onerror = (): void => reject(request.error);
+          },
+        );
 
         const existingClock = currentEntry?.clock ?? {};
         console.log(

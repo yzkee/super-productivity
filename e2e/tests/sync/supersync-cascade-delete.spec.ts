@@ -33,8 +33,10 @@ const navigateToProject = async (
   const projectNavItem = page.locator(`nav-item:has-text("${projectName}")`).first();
   await projectNavItem.waitFor({ state: 'visible', timeout: 10000 });
   await projectNavItem.click();
-  await page.waitForLoadState('networkidle');
-  await page.waitForTimeout(500);
+  await page
+    .locator('.route-wrapper')
+    .first()
+    .waitFor({ state: 'visible', timeout: 10000 });
 };
 
 /**
@@ -60,7 +62,8 @@ const deleteProjectViaContextMenu = async (
   await confirmBtn.waitFor({ state: 'visible', timeout: 5000 });
   await confirmBtn.click();
 
-  await page.waitForTimeout(1000);
+  // Wait for confirmation dialog to close
+  await page.locator('dialog-confirm').waitFor({ state: 'hidden', timeout: 5000 });
 };
 
 test.describe('@supersync Cross-Entity Cascade Delete', () => {

@@ -8,6 +8,9 @@ import {
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 import { ImportPage } from '../../pages/import.page';
+import { SuperSyncPage } from '../../pages/supersync.page';
+import { WorkViewPage } from '../../pages/work-view.page';
+import { waitForAppReady } from '../../utils/waits';
 
 /**
  * SuperSync Import Clean Slate E2E Tests
@@ -58,6 +61,7 @@ test.describe('@supersync @cleanslate Import Clean Slate Semantics', () => {
     testRunId,
   }) => {
     const uniqueId = Date.now();
+    const appUrl = baseURL || 'http://localhost:4242';
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
 
@@ -68,10 +72,10 @@ test.describe('@supersync @cleanslate Import Clean Slate Semantics', () => {
       // ============ PHASE 1: Setup Both Clients ============
       console.log('[Clean Slate] Phase 1: Setting up both clients');
 
-      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
       await clientA.sync.setupSuperSync(syncConfig);
 
-      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
       await clientB.sync.setupSuperSync(syncConfig);
 
       // ============ PHASE 2: Create Pre-Import Tasks on Both Clients ============
@@ -111,17 +115,36 @@ test.describe('@supersync @cleanslate Import Clean Slate Semantics', () => {
       await importPage.importBackupFile(backupPath);
       console.log('[Clean Slate] Client A imported backup');
 
-      // Reload page after import to ensure UI reflects the imported state
-      // (bulk state updates from BACKUP_IMPORT may not trigger component re-renders)
-      // Use goto instead of reload - more reliable with service workers
-      await clientA.page.goto(clientA.page.url(), {
-        waitUntil: 'domcontentloaded',
-        timeout: 30000,
-      });
-      await clientA.page.waitForLoadState('networkidle');
+      // Close and re-open page to pick up imported data with fresh Angular services.
+      // Using page.reload() can hang when active sync connections prevent navigation.
+      await clientA.page.close();
+      clientA.page = await clientA.context.newPage();
+      await clientA.page.goto('/');
+      clientA.workView = new WorkViewPage(clientA.page, `A-${testRunId}`);
+      clientA.sync = new SuperSyncPage(clientA.page);
+      await waitForAppReady(clientA.page, { ensureRoute: false });
 
-      // Re-enable sync after import (import overwrites globalConfig)
-      await clientA.sync.setupSuperSync(syncConfig);
+      // Configure sync WITHOUT waiting for initial sync
+      // (initial sync will show sync-import-conflict dialog since we have a local BackupImport)
+      await clientA.sync.setupSuperSync({ ...syncConfig, waitForInitialSync: false });
+
+      // Wait for either sync import conflict dialog OR sync completion
+      const syncImportDialog = clientA.sync.syncImportConflictDialog;
+      const syncResult = await Promise.race([
+        syncImportDialog
+          .waitFor({ state: 'visible', timeout: 30000 })
+          .then(() => 'dialog' as const),
+        clientA.sync.syncCheckIcon
+          .waitFor({ state: 'visible', timeout: 30000 })
+          .then(() => 'complete' as const),
+      ]);
+
+      if (syncResult === 'dialog') {
+        // Choose "Use My Data" to preserve the import
+        await clientA.sync.syncImportUseLocalBtn.click();
+        await syncImportDialog.waitFor({ state: 'hidden', timeout: 5000 });
+        await clientA.sync.syncCheckIcon.waitFor({ state: 'visible', timeout: 30000 });
+      }
 
       // Wait for imported task to be visible
       await waitForTask(clientA.page, 'E2E Import Test - Active Task With Subtask');
@@ -234,6 +257,7 @@ test.describe('@supersync @cleanslate Import Clean Slate Semantics', () => {
     testRunId,
   }) => {
     const uniqueId = Date.now();
+    const appUrl = baseURL || 'http://localhost:4242';
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
 
@@ -244,7 +268,7 @@ test.describe('@supersync @cleanslate Import Clean Slate Semantics', () => {
       // ============ PHASE 1: Client B Creates and Syncs ============
       console.log('[Late Joiner] Phase 1: Client B creates and syncs');
 
-      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
       await clientB.sync.setupSuperSync(syncConfig);
 
       // Client B creates and syncs a task
@@ -260,7 +284,7 @@ test.describe('@supersync @cleanslate Import Clean Slate Semantics', () => {
       // ============ PHASE 2: Client A Imports (Without Syncing First) ============
       console.log('[Late Joiner] Phase 2: Client A imports backup');
 
-      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
       await clientA.sync.setupSuperSync(syncConfig);
       // DO NOT sync before import - A doesn't know about B's task
 
@@ -273,16 +297,33 @@ test.describe('@supersync @cleanslate Import Clean Slate Semantics', () => {
       await importPage.importBackupFile(backupPath);
       console.log('[Late Joiner] Client A imported backup');
 
-      // Reload page after import to ensure UI reflects the imported state
-      // Use goto instead of reload - more reliable with service workers
-      await clientA.page.goto(clientA.page.url(), {
-        waitUntil: 'domcontentloaded',
-        timeout: 30000,
-      });
-      await clientA.page.waitForLoadState('networkidle');
+      // Close and re-open page to pick up imported data with fresh Angular services.
+      await clientA.page.close();
+      clientA.page = await clientA.context.newPage();
+      await clientA.page.goto('/');
+      clientA.workView = new WorkViewPage(clientA.page, `A-${testRunId}`);
+      clientA.sync = new SuperSyncPage(clientA.page);
+      await waitForAppReady(clientA.page, { ensureRoute: false });
 
-      // Re-enable sync after import
-      await clientA.sync.setupSuperSync(syncConfig);
+      // Configure sync WITHOUT waiting for initial sync
+      await clientA.sync.setupSuperSync({ ...syncConfig, waitForInitialSync: false });
+
+      // Wait for either sync import conflict dialog OR sync completion
+      const syncImportDialog2 = clientA.sync.syncImportConflictDialog;
+      const syncResult2 = await Promise.race([
+        syncImportDialog2
+          .waitFor({ state: 'visible', timeout: 30000 })
+          .then(() => 'dialog' as const),
+        clientA.sync.syncCheckIcon
+          .waitFor({ state: 'visible', timeout: 30000 })
+          .then(() => 'complete' as const),
+      ]);
+
+      if (syncResult2 === 'dialog') {
+        await clientA.sync.syncImportUseLocalBtn.click();
+        await syncImportDialog2.waitFor({ state: 'hidden', timeout: 5000 });
+        await clientA.sync.syncCheckIcon.waitFor({ state: 'visible', timeout: 30000 });
+      }
 
       // ============ PHASE 3: Both Clients Sync ============
       console.log('[Late Joiner] Phase 3: Both clients sync');
@@ -361,6 +402,7 @@ test.describe('@supersync @cleanslate Import Clean Slate Semantics', () => {
     testRunId,
   }) => {
     const uniqueId = Date.now();
+    const appUrl = baseURL || 'http://localhost:4242';
     let clientA: SimulatedE2EClient | null = null;
     let clientB: SimulatedE2EClient | null = null;
 
@@ -373,11 +415,11 @@ test.describe('@supersync @cleanslate Import Clean Slate Semantics', () => {
         '[Pending Invalidation] Phase 1: Setting up both clients with initial sync',
       );
 
-      clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
+      clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
       await clientA.sync.setupSuperSync(syncConfig);
       await clientA.sync.syncAndWait(); // Initial sync to establish vector clock
 
-      clientB = await createSimulatedClient(browser, baseURL!, 'B', testRunId);
+      clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
       await clientB.sync.setupSuperSync(syncConfig);
       await clientB.sync.syncAndWait(); // Initial sync to establish vector clock
 
@@ -411,31 +453,32 @@ test.describe('@supersync @cleanslate Import Clean Slate Semantics', () => {
       await importPage.importBackupFile(backupPath);
       console.log('[Pending Invalidation] Client A imported backup');
 
-      // Reload page after import to ensure UI reflects the imported state
-      // Use goto instead of reload - more reliable with service workers
-      await clientA.page.goto(clientA.page.url(), {
-        waitUntil: 'domcontentloaded',
-        timeout: 30000,
-      });
-      await clientA.page.waitForLoadState('networkidle');
+      // Close and re-open page to pick up imported data with fresh Angular services.
+      await clientA.page.close();
+      clientA.page = await clientA.context.newPage();
+      await clientA.page.goto('/');
+      clientA.workView = new WorkViewPage(clientA.page, `A-${testRunId}`);
+      clientA.sync = new SuperSyncPage(clientA.page);
+      await waitForAppReady(clientA.page, { ensureRoute: false });
 
-      // Re-enable sync after import (import overwrites globalConfig)
-      // Use waitForInitialSync: false because a conflict dialog may appear
-      await clientA.sync.setupSuperSync({
-        ...syncConfig,
-        waitForInitialSync: false,
-      });
+      // Configure sync WITHOUT waiting for initial sync
+      await clientA.sync.setupSuperSync({ ...syncConfig, waitForInitialSync: false });
 
-      // Handle sync conflict dialog if it appears (server has changes from initial sync)
-      const conflictDialog = clientA.page.locator(
-        'dialog-handle-import-conflict, mat-dialog-container:has-text("Sync Conflict")',
-      );
-      if (await conflictDialog.isVisible({ timeout: 3000 }).catch(() => false)) {
-        console.log('[Pending Invalidation] Handling sync conflict dialog');
-        // Choose "Use My Data" to keep imported data (clean slate)
-        const useMyDataBtn = conflictDialog.locator('button:has-text("Use My Data")');
-        await useMyDataBtn.click();
-        await conflictDialog.waitFor({ state: 'hidden', timeout: 10000 });
+      // Wait for either sync import conflict dialog OR sync completion
+      const syncImportDialog3 = clientA.sync.syncImportConflictDialog;
+      const syncResult3 = await Promise.race([
+        syncImportDialog3
+          .waitFor({ state: 'visible', timeout: 30000 })
+          .then(() => 'dialog' as const),
+        clientA.sync.syncCheckIcon
+          .waitFor({ state: 'visible', timeout: 30000 })
+          .then(() => 'complete' as const),
+      ]);
+
+      if (syncResult3 === 'dialog') {
+        await clientA.sync.syncImportUseLocalBtn.click();
+        await syncImportDialog3.waitFor({ state: 'hidden', timeout: 5000 });
+        await clientA.sync.syncCheckIcon.waitFor({ state: 'visible', timeout: 30000 });
       }
 
       // Wait for imported task to be visible

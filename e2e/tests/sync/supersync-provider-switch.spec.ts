@@ -96,8 +96,12 @@ test.describe('@supersync Provider Switch (WebDAV ↔ SuperSync)', () => {
 
       // Create WebDAV sync folder
       const syncFolderName = generateSyncFolderName(`e2e-provswitch-${testRunId}`);
-      const request = await (await browser.newContext()).request;
-      await createSyncFolder(request, syncFolderName);
+      const webdavRequestContext = await browser.newContext();
+      try {
+        await createSyncFolder(webdavRequestContext.request, syncFolderName);
+      } finally {
+        await webdavRequestContext.close();
+      }
 
       // Disable SuperSync and set up WebDAV
       const syncPageA = new SyncPage(clientA.page);

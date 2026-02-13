@@ -18,6 +18,24 @@ type WaitForAppReadyOptions = {
 };
 
 /**
+ * Dismiss up to `maxAttempts` blocking confirmation dialogs.
+ * Some app flows show chained dialogs (e.g., pre-migration + data-repair)
+ * that must be dismissed before the app shell becomes interactive.
+ */
+const dismissBlockingDialogs = async (page: Page, maxAttempts = 3): Promise<void> => {
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const dialogConfirmBtn = page.locator('dialog-confirm button[e2e="confirmBtn"]');
+      await dialogConfirmBtn.waitFor({ state: 'visible', timeout: 2000 });
+      await dialogConfirmBtn.click();
+      await page.waitForTimeout(500);
+    } catch {
+      break;
+    }
+  }
+};
+
+/**
  * Simplified wait that relies on Playwright's auto-waiting.
  * Previously used Angular testability API to check Zone.js stability.
  * Now just checks DOM readiness - Playwright handles element actionability.
@@ -54,17 +72,7 @@ export const waitForAppReady = async (
 
   // Handle any blocking dialogs (pre-migration, confirmation, etc.)
   // These dialogs block app until dismissed
-  for (let i = 0; i < 3; i++) {
-    try {
-      const dialogConfirmBtn = page.locator('dialog-confirm button[e2e="confirmBtn"]');
-      await dialogConfirmBtn.waitFor({ state: 'visible', timeout: 2000 });
-      await dialogConfirmBtn.click();
-      await page.waitForTimeout(500);
-    } catch {
-      // No dialog visible, break out
-      break;
-    }
-  }
+  await dismissBlockingDialogs(page);
 
   // Wait for the loading screen to disappear (if visible).
   // The app shows `.loading-full-page-wrapper` while syncing/importing data.
@@ -112,16 +120,7 @@ export const waitForAppReady = async (
     );
     await page.reload();
     await page.waitForLoadState('domcontentloaded');
-    for (let i = 0; i < 3; i++) {
-      try {
-        const btn = page.locator('dialog-confirm button[e2e="confirmBtn"]');
-        await btn.waitFor({ state: 'visible', timeout: 2000 });
-        await btn.click();
-        await page.waitForTimeout(500);
-      } catch {
-        break;
-      }
-    }
+    await dismissBlockingDialogs(page);
     const rl = page.locator('.loading-full-page-wrapper');
     if (await rl.isVisible().catch(() => false)) {
       await rl.waitFor({ state: 'hidden', timeout: 30000 });
