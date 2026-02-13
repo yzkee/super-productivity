@@ -9,9 +9,12 @@ export enum OpType {
   Delete = 'DEL',
   Move = 'MOV', // For list reordering
   Batch = 'BATCH', // For bulk operations (import, mass update)
-  SyncImport = 'SYNC_IMPORT', // Full state import from remote sync
-  BackupImport = 'BACKUP_IMPORT', // Full state import from backup file
-  Repair = 'REPAIR', // Auto-repair operation with full repaired state
+  /** Replaces entire app state from remote sync. All concurrent ops are discarded. See CLAUDE.md #12. */
+  SyncImport = 'SYNC_IMPORT',
+  /** Replaces entire app state from backup file. All concurrent ops are discarded. See CLAUDE.md #12. */
+  BackupImport = 'BACKUP_IMPORT',
+  /** Auto-repair operation containing full repaired state. */
+  Repair = 'REPAIR',
 }
 
 /**
