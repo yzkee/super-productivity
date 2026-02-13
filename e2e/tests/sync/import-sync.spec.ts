@@ -97,7 +97,7 @@ base.describe('@importsync @supersync Import + Sync E2E', () => {
           waitUntil: 'domcontentloaded',
           timeout: 30000,
         });
-        await clientA.page.waitForLoadState('networkidle');
+        await waitForAppReady(clientA.page);
 
         // Wait for import to complete and verify tasks are visible
         // The backup contains tasks with "E2E Import Test" in their titles
@@ -195,11 +195,15 @@ base.describe('@importsync @supersync Import + Sync E2E', () => {
         // ============ PHASE 6: Final Verification ============
         console.log('[Import Test] Phase 6: Final state verification');
 
-        // Go back to work view on both clients
+        // Go back to work view on both clients and wait for app to be ready
         await clientA.page.goto('/#/tag/TODAY/tasks');
-        await clientA.page.waitForLoadState('networkidle');
+        await waitForAppReady(clientA.page);
         await clientB.page.goto('/#/tag/TODAY/tasks');
-        await clientB.page.waitForLoadState('networkidle');
+        await waitForAppReady(clientB.page);
+
+        // Wait for tasks to render before counting
+        await waitForTask(clientA.page, 'E2E Import Test - Active Task With Subtask');
+        await waitForTask(clientB.page, 'E2E Import Test - Active Task With Subtask');
 
         // Count tasks on both clients - should match
         const taskCountA = await clientA.page.locator('task').count();
@@ -298,7 +302,7 @@ base.describe('@importsync @supersync Import + Sync E2E', () => {
           waitUntil: 'domcontentloaded',
           timeout: 30000,
         });
-        await clientA.page.waitForLoadState('networkidle');
+        await waitForAppReady(clientA.page);
 
         // Re-enable sync after import (import overwrites globalConfig including sync settings)
         console.log('[Merge Test] Re-enabling sync after import');
