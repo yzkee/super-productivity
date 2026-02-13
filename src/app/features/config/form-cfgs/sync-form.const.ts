@@ -217,6 +217,36 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
       }),
     },
 
+    // Dropbox provider authentication
+    // Note: No key needed - Dropbox credentials stored privately via SyncCredentialStore
+    {
+      hideExpression: (m, v, field) =>
+        field?.parent?.model.syncProvider !== LegacySyncProvider.Dropbox,
+      resetOnHide: false,
+      // Custom marker for identifying this field group in config-page.component.ts
+      props: { dropboxAuth: true } as any,
+      fieldGroup: [
+        {
+          type: 'tpl',
+          templateOptions: {
+            tag: 'p',
+            text: T.F.SYNC.FORM.DROPBOX.INFO_TEXT,
+          },
+        },
+        {
+          type: 'tpl',
+          key: 'authStatus',
+          className: 'auth-status-indicator',
+          templateOptions: {
+            tag: 'p',
+            // Text will be set dynamically in config-page.component.ts
+            text: '',
+          },
+        },
+        // Authentication button will be added programmatically in config-page.component.ts
+      ],
+    },
+
     {
       key: 'syncInterval',
       type: 'duration',
