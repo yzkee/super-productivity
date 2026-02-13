@@ -558,6 +558,19 @@ test.describe('@supersync SuperSync Edge Cases', () => {
 
       // Verify consistent state
       // Both clients should have the same view (either both have task or neither)
+      // The task may be marked as done (Client B marked it), so it appears in the
+      // "Completed Tasks" collapsible section which uses @if and removes elements
+      // from the DOM when collapsed. Expand it on both clients before checking.
+      for (const client of [clientA!, clientB!]) {
+        const collapsedDoneSection = client.page.locator(
+          'collapsible:not(.isExpanded) .collapsible-header:has-text("Completed")',
+        );
+        if ((await collapsedDoneSection.count()) > 0) {
+          await collapsedDoneSection.click();
+          await client.page.waitForTimeout(500);
+        }
+      }
+
       const hasTaskA =
         (await clientA.page.locator(`task:has-text("${taskName}")`).count()) > 0;
       const hasTaskB =
