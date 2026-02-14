@@ -330,12 +330,12 @@ export class RightPanelComponent implements AfterViewInit, OnDestroy {
   }
 
   close(): void {
-    // FORCE blur because otherwise task notes won't save
-    if (IS_TOUCH_PRIMARY) {
-      const activeElement = document.activeElement as HTMLElement;
-      if (activeElement && isInputElement(activeElement)) {
-        activeElement.blur();
-      }
+    // FORCE blur because otherwise task notes won't save.
+    // On mobile, tapping close doesn't blur the textarea naturally.
+    // On desktop, pointerdown preventDefault() (for drag handling) suppresses the natural blur.
+    const activeElement = document.activeElement as HTMLElement;
+    if (activeElement && isInputElement(activeElement)) {
+      activeElement.blur();
     }
 
     // Delegate to task service and layout service to close the panel
