@@ -25,6 +25,8 @@ import { bulkApplyOperations } from '../apply/bulk-hydration.action';
 import { VectorClockService } from '../sync/vector-clock.service';
 import { MAX_CONFLICT_RETRY_ATTEMPTS } from '../core/operation-log.const';
 import { AppDataComplete } from '../model/model-config';
+import { CLIENT_ID_PROVIDER, ClientIdProvider } from '../util/client-id.provider';
+import { limitVectorClockSize } from '../../core/util/vector-clock';
 
 /**
  * Handles the hydration (loading) of the application state from the operation log
@@ -45,6 +47,7 @@ export class OperationLogHydratorService {
   private vectorClockService = inject(VectorClockService);
   private operationApplierService = inject(OperationApplierService);
   private hydrationStateService = inject(HydrationStateService);
+  private clientIdProvider: ClientIdProvider = inject(CLIENT_ID_PROVIDER);
 
   // Extracted services
   private snapshotService = inject(OperationLogSnapshotService);
@@ -161,10 +164,16 @@ export class OperationLogHydratorService {
         // 3. Without this, new ops would have clocks missing entries from the SYNC_IMPORT
         // 4. Those ops would be CONCURRENT with the SYNC_IMPORT and get filtered on sync
         if (snapshot.vectorClock && Object.keys(snapshot.vectorClock).length > 0) {
-          await this.opLogStore.setVectorClock(snapshot.vectorClock);
+          // Prune vector clock before restoring to prevent bloat from old snapshots
+          // that were saved before pruning was added to saveCurrentStateAsSnapshot().
+          const clientId = await this.clientIdProvider.loadClientId();
+          const clockToRestore = clientId
+            ? limitVectorClockSize(snapshot.vectorClock, clientId)
+            : snapshot.vectorClock;
+          await this.opLogStore.setVectorClock(clockToRestore);
           OpLog.normal(
             'OperationLogHydratorService: Restored vector clock from snapshot',
-            { clockSize: Object.keys(snapshot.vectorClock).length },
+            { clockSize: Object.keys(clockToRestore).length },
           );
         }
 

@@ -26,6 +26,8 @@ import {
 } from '../core/operation.types';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { bulkApplyHydrationOperations } from '../apply/bulk-hydration.action';
+import { CLIENT_ID_PROVIDER, ClientIdProvider } from '../util/client-id.provider';
+import { MAX_VECTOR_CLOCK_SIZE } from '@sp/shared-schema';
 
 describe('OperationLogHydratorService', () => {
   let service: OperationLogHydratorService;
@@ -43,6 +45,7 @@ describe('OperationLogHydratorService', () => {
   let mockSnapshotService: jasmine.SpyObj<OperationLogSnapshotService>;
   let mockRecoveryService: jasmine.SpyObj<OperationLogRecoveryService>;
   let mockSyncHydrationService: jasmine.SpyObj<SyncHydrationService>;
+  let mockClientIdProvider: jasmine.SpyObj<ClientIdProvider>;
 
   const mockState = {
     task: { entities: {}, ids: [] },
@@ -149,6 +152,8 @@ describe('OperationLogHydratorService', () => {
     mockSyncHydrationService = jasmine.createSpyObj('SyncHydrationService', [
       'hydrateFromRemoteSync',
     ]);
+    mockClientIdProvider = jasmine.createSpyObj('ClientIdProvider', ['loadClientId']);
+    mockClientIdProvider.loadClientId.and.resolveTo('test-client');
 
     // Default mock implementations
     mockOpLogStore.getVectorClock.and.returnValue(Promise.resolve(null));
@@ -207,6 +212,7 @@ describe('OperationLogHydratorService', () => {
         { provide: OperationLogSnapshotService, useValue: mockSnapshotService },
         { provide: OperationLogRecoveryService, useValue: mockRecoveryService },
         { provide: SyncHydrationService, useValue: mockSyncHydrationService },
+        { provide: CLIENT_ID_PROVIDER, useValue: mockClientIdProvider },
       ],
     });
 
@@ -349,6 +355,48 @@ describe('OperationLogHydratorService', () => {
         await service.hydrateStore();
 
         expect(mockOpLogStore.setVectorClock).not.toHaveBeenCalled();
+      });
+
+      it('should prune bloated vector clock before restoring from snapshot', async () => {
+        // Create a bloated vector clock with more entries than MAX_VECTOR_CLOCK_SIZE
+        const bloatedClock: Record<string, number> = {};
+        for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE + 10; i++) {
+          bloatedClock[`client-${i}`] = i + 1;
+        }
+        bloatedClock['test-client'] = 999;
+
+        const snapshot = createMockSnapshot({ vectorClock: bloatedClock });
+        mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(snapshot));
+
+        await service.hydrateStore();
+
+        const restoredClock = mockOpLogStore.setVectorClock.calls.mostRecent().args[0];
+        expect(Object.keys(restoredClock).length).toBeLessThanOrEqual(
+          MAX_VECTOR_CLOCK_SIZE,
+        );
+        // Local client ID must be preserved after pruning
+        expect(restoredClock['test-client']).toBe(999);
+      });
+
+      it('should not prune vector clock when within MAX_VECTOR_CLOCK_SIZE', async () => {
+        const smallClock = { clientA: 5, clientB: 3 };
+        const snapshot = createMockSnapshot({ vectorClock: smallClock });
+        mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(snapshot));
+
+        await service.hydrateStore();
+
+        expect(mockOpLogStore.setVectorClock).toHaveBeenCalledWith(smallClock);
+      });
+
+      it('should restore unpruned clock if clientId is null', async () => {
+        mockClientIdProvider.loadClientId.and.resolveTo(null);
+        const clock = { clientA: 5 };
+        const snapshot = createMockSnapshot({ vectorClock: clock });
+        mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(snapshot));
+
+        await service.hydrateStore();
+
+        expect(mockOpLogStore.setVectorClock).toHaveBeenCalledWith(clock);
       });
     });
 
