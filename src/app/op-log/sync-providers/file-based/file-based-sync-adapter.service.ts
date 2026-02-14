@@ -79,8 +79,8 @@ export class FileBasedSyncAdapterService {
   /** Local sequence counters (simulates server seq for file-based) */
   private _localSeqCounters = new Map<string, number>();
 
-  /** Set of processed operation IDs per provider - prevents missing ops when array is trimmed */
-  private _processedOpIds = new Map<string, Set<string>>();
+  /** Timestamp of last successful download per provider - used for partial-trimming gap detection */
+  private _lastSyncTimestamps = new Map<string, number>();
 
   /** Cache for downloaded sync data within a sync cycle (avoids redundant downloads) */
   private _syncCycleCache = new Map<
@@ -122,10 +122,10 @@ export class FileBasedSyncAdapterService {
         if (state.seqCounters) {
           this._localSeqCounters = new Map(Object.entries(state.seqCounters));
         }
-        if (state.processedOps) {
-          for (const [key, ids] of Object.entries(state.processedOps)) {
-            this._processedOpIds.set(key, new Set(ids as string[]));
-          }
+        if (state.lastSyncTimestamps) {
+          this._lastSyncTimestamps = new Map(
+            Object.entries(state.lastSyncTimestamps).map(([k, v]) => [k, v as number]),
+          );
         }
         this._persistedStateLoaded = true;
         return;
@@ -138,11 +138,7 @@ export class FileBasedSyncAdapterService {
       const seqCountersJson = localStorage.getItem(
         FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'seqCounters',
       );
-      const processedOpsJson = localStorage.getItem(
-        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'processedOps',
-      );
-
-      if (syncVersionsJson || seqCountersJson || processedOpsJson) {
+      if (syncVersionsJson || seqCountersJson) {
         if (syncVersionsJson) {
           const parsed = JSON.parse(syncVersionsJson);
           this._expectedSyncVersions = new Map(Object.entries(parsed));
@@ -151,12 +147,6 @@ export class FileBasedSyncAdapterService {
           const parsed = JSON.parse(seqCountersJson);
           this._localSeqCounters = new Map(Object.entries(parsed));
         }
-        if (processedOpsJson) {
-          const parsed = JSON.parse(processedOpsJson);
-          for (const [key, ids] of Object.entries(parsed)) {
-            this._processedOpIds.set(key, new Set(ids as string[]));
-          }
-        }
         // Migrate to new atomic format and clean up old keys
         this._persistState();
         localStorage.removeItem(
@@ -164,9 +154,6 @@ export class FileBasedSyncAdapterService {
         );
         localStorage.removeItem(
           FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'seqCounters',
-        );
-        localStorage.removeItem(
-          FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'processedOps',
         );
         OpLog.normal('FileBasedSyncAdapter: Migrated sync state to atomic storage');
       }
@@ -184,49 +171,16 @@ export class FileBasedSyncAdapterService {
    */
   private _persistState(): void {
     try {
-      // Build processed ops with trimming to prevent unbounded growth
-      const processedOpsObj: Record<string, string[]> = {};
-      for (const [key, ids] of this._processedOpIds) {
-        const idsArray = Array.from(ids);
-        processedOpsObj[key] = idsArray.slice(-FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS);
-      }
-
       // Persist all state atomically in a single write
       const state = {
         syncVersions: Object.fromEntries(this._expectedSyncVersions),
         seqCounters: Object.fromEntries(this._localSeqCounters),
-        processedOps: processedOpsObj,
+        lastSyncTimestamps: Object.fromEntries(this._lastSyncTimestamps),
       };
       localStorage.setItem(this._STORAGE_KEY, JSON.stringify(state));
     } catch (e) {
       OpLog.warn('FileBasedSyncAdapter: Failed to persist sync state', e);
     }
-  }
-
-  /**
-   * Marks an operation as processed for a provider.
-   */
-  private _markOpProcessed(providerKey: string, opId: string): void {
-    let processedSet = this._processedOpIds.get(providerKey);
-    if (!processedSet) {
-      processedSet = new Set();
-      this._processedOpIds.set(providerKey, processedSet);
-    }
-    processedSet.add(opId);
-
-    // Trim to prevent unbounded growth (keep most recent MAX_RECENT_OPS)
-    if (processedSet.size > FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS * 2) {
-      const idsArray = Array.from(processedSet);
-      const trimmedIds = idsArray.slice(-FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS);
-      this._processedOpIds.set(providerKey, new Set(trimmedIds));
-    }
-  }
-
-  /**
-   * Checks if an operation has been processed for a provider.
-   */
-  private _isOpProcessed(providerKey: string, opId: string): boolean {
-    return this._processedOpIds.get(providerKey)?.has(opId) ?? false;
   }
 
   /**
@@ -453,6 +407,10 @@ export class FileBasedSyncAdapterService {
     // Get current state from NgRx store - this keeps the snapshot up-to-date
     const currentState = await this._stateSnapshotService.getStateSnapshot();
 
+    // Compute oldestOpTimestamp from the earliest op in mergedOps
+    const oldestOpTimestamp =
+      mergedOps.length > 0 ? Math.min(...mergedOps.map((op) => op.t)) : undefined;
+
     const newData: FileBasedSyncData = {
       version: FILE_BASED_SYNC_CONSTANTS.FILE_VERSION,
       syncVersion: newSyncVersion,
@@ -464,6 +422,7 @@ export class FileBasedSyncAdapterService {
       archiveYoung,
       archiveOld,
       recentOps: mergedOps,
+      oldestOpTimestamp,
     };
 
     return { newData, existingOps, mergedOps };
@@ -552,6 +511,12 @@ export class FileBasedSyncAdapterService {
       const freshArchiveYoung = await this._archiveDbAdapter.loadArchiveYoung();
       const freshArchiveOld = await this._archiveDbAdapter.loadArchiveOld();
 
+      // Compute oldestOpTimestamp for retry data
+      const freshOldestOpTimestamp =
+        freshMergedOps.length > 0
+          ? Math.min(...freshMergedOps.map((op) => op.t))
+          : undefined;
+
       const freshNewData: FileBasedSyncData = {
         ...newData,
         state: freshState,
@@ -562,6 +527,7 @@ export class FileBasedSyncAdapterService {
         vectorClock: freshMergedClock,
         recentOps: freshMergedOps,
         lastModified: Date.now(),
+        oldestOpTimestamp: freshOldestOpTimestamp,
       };
 
       const freshUploadData =
@@ -607,27 +573,6 @@ export class FileBasedSyncAdapterService {
     );
   }
 
-  /**
-   * Finds piggybacked ops from other clients that we haven't processed yet.
-   */
-  private _collectPiggybackedOps(
-    existingOps: CompactOperation[],
-    providerKey: string,
-    clientId: string,
-  ): ServerSyncOperation[] {
-    const newOps: ServerSyncOperation[] = [];
-    existingOps.forEach((compactOp, index) => {
-      if (!this._isOpProcessed(providerKey, compactOp.id) && compactOp.c !== clientId) {
-        newOps.push({
-          serverSeq: index + 1,
-          op: this._compactToSyncOp(compactOp),
-          receivedAt: compactOp.t,
-        });
-      }
-    });
-    return newOps;
-  }
-
   private async _uploadOps(
     provider: SyncProviderServiceInterface<SyncProviderId>,
     cfg: EncryptAndCompressCfg,
@@ -659,12 +604,12 @@ export class FileBasedSyncAdapterService {
     const expectedVersion = this._expectedSyncVersions.get(providerKey) || 0;
     if (currentData && currentSyncVersion !== expectedVersion) {
       OpLog.normal(
-        `FileBasedSyncAdapter: Version changed (expected ${expectedVersion}, got ${currentSyncVersion}). Merging and piggybacking.`,
+        `FileBasedSyncAdapter: Version changed (expected ${expectedVersion}, got ${currentSyncVersion}). Merging.`,
       );
     }
 
     // Step 2: Build merged sync data
-    const { newData, existingOps } = await this._buildMergedSyncData(
+    const { newData } = await this._buildMergedSyncData(
       currentData,
       ops,
       clientId,
@@ -672,7 +617,7 @@ export class FileBasedSyncAdapterService {
     );
 
     // Step 3: Upload with retry on revision mismatch
-    const { finalSyncVersion, freshExistingOps } = await this._uploadWithRetry(
+    const { finalSyncVersion } = await this._uploadWithRetry(
       provider,
       cfg,
       encryptKey,
@@ -686,33 +631,13 @@ export class FileBasedSyncAdapterService {
     this._clearCachedSyncData(providerKey);
     this._expectedSyncVersions.set(providerKey, finalSyncVersion);
 
-    // Use finalSyncVersion (NOT mergedOps.length) to match download behavior (see line ~791).
+    // Use finalSyncVersion (NOT mergedOps.length) to match download behavior.
     // mergedOps.length is the total ops count, which can be much larger than syncVersion
     // after many syncs, causing false "Server sequence decreased" warnings.
     const latestSeq = finalSyncVersion;
 
-    // Step 5: Collect piggybacked ops
-    // Use fresh existingOps from retry if available — the original existingOps
-    // were captured before upload and may be missing ops uploaded by other clients
-    // during the retry window.
-    const opsForPiggyback = freshExistingOps ?? existingOps;
-    if (freshExistingOps) {
-      OpLog.normal(
-        `FileBasedSyncAdapter: Using fresh existingOps from retry (${freshExistingOps.length} ops) for piggyback collection`,
-      );
-    }
-    const newOps = this._collectPiggybackedOps(opsForPiggyback, providerKey, clientId);
-
-    // Mark all ops as processed
-    for (const serverOp of newOps) {
-      this._markOpProcessed(providerKey, serverOp.op.id);
-    }
-    for (const op of ops) {
-      this._markOpProcessed(providerKey, op.id);
-    }
-
     OpLog.normal(
-      `FileBasedSyncAdapter: Upload complete (syncVersion=${finalSyncVersion}, latestSeq=${latestSeq}, piggybacked=${newOps.length})`,
+      `FileBasedSyncAdapter: Upload complete (syncVersion=${finalSyncVersion}, latestSeq=${latestSeq})`,
     );
 
     this._persistState();
@@ -731,7 +656,6 @@ export class FileBasedSyncAdapterService {
         serverSeq: startingSeq + i + 1,
       })),
       latestSeq,
-      newOps: newOps.length > 0 ? newOps : undefined,
     };
   }
 
@@ -796,12 +720,28 @@ export class FileBasedSyncAdapterService {
         ? syncData.clientId !== excludeClient
         : sinceSeq !== syncData.syncVersion);
 
-    const needsGapDetection = versionWasReset || snapshotReplacement;
+    // Detect partial trimming: when recentOps hits MAX_RECENT_OPS and oldest ops
+    // were trimmed, a slow-syncing device may have missed the trimmed ops.
+    // If the client's lastSyncTimestamp is older than the oldest op in the file,
+    // the client missed ops that were trimmed before it synced.
+    const lastSyncTs = this._lastSyncTimestamps.get(providerKey) ?? 0;
+    const partialTrimGap =
+      sinceSeq > 0 &&
+      lastSyncTs > 0 &&
+      syncData.oldestOpTimestamp !== undefined &&
+      lastSyncTs < syncData.oldestOpTimestamp &&
+      syncData.recentOps.length >= FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS;
+
+    const needsGapDetection = versionWasReset || snapshotReplacement || partialTrimGap;
 
     if (needsGapDetection) {
       const reason = versionWasReset
         ? `sync version reset (${previousExpectedVersion} → ${syncData.syncVersion})`
-        : `snapshot replacement (expected ops from seq ${sinceSeq}, but recentOps is empty)`;
+        : snapshotReplacement
+          ? `snapshot replacement (expected ops from seq ${sinceSeq}, but recentOps is empty)`
+          : `partial trimming (lastSync=${new Date(lastSyncTs).toISOString()}, ` +
+            `oldestOp=${new Date(syncData.oldestOpTimestamp!).toISOString()}, ` +
+            `recentOps=${syncData.recentOps.length})`;
       OpLog.warn(
         `FileBasedSyncAdapter: Gap detected - ${reason}. ` +
           'Another client may have uploaded a snapshot. Signaling gap detection.',
@@ -866,13 +806,8 @@ export class FileBasedSyncAdapterService {
       `FileBasedSyncAdapter: Downloaded ${limitedOps.length} ops (new/total: ${filteredOps.length}/${latestSeq})`,
     );
 
-    // Mark downloaded ops as processed for piggyback tracking.
-    // This must happen for ALL downloads, including force-from-zero (fresh client).
-    // Without marking, the upload piggyback mechanism (_collectPiggybackedOps) will
-    // return these same ops during the next upload, causing entity duplication.
-    for (const serverOp of limitedOps) {
-      this._markOpProcessed(providerKey, serverOp.op.id);
-    }
+    // Update lastSyncTimestamp for partial-trimming gap detection on next download
+    this._lastSyncTimestamps.set(providerKey, Date.now());
     this._persistState();
 
     // NOTE: Archives are NOT written to IndexedDB here. They are included in the
@@ -1021,7 +956,7 @@ export class FileBasedSyncAdapterService {
       // Reset local state
       this._expectedSyncVersions.delete(providerKey);
       this._localSeqCounters.delete(providerKey);
-      this._processedOpIds.delete(providerKey);
+      this._lastSyncTimestamps.delete(providerKey);
       this._clearCachedSyncData(providerKey);
       this._persistState();
 

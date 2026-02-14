@@ -54,16 +54,15 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
         },
       );
 
-      // This should succeed due to merging, but piggyback B's op
+      // This should succeed due to merging (no piggybacking — remote ops
+      // are discovered via downloadOps on the next sync cycle)
       const response = await clientA.uploadOps([opA2]);
 
       // Upload should succeed
       expect(response.results[0].accepted).toBe(true);
 
-      // Should have piggybacked B's op
-      expect(response.newOps).toBeDefined();
-      expect(response.newOps!.length).toBeGreaterThan(0);
-      expect(response.newOps!.some((o) => o.op.entityId === 'task-b')).toBe(true);
+      // Should NOT have piggybacked ops (piggybacking removed)
+      expect(response.newOps).toBeUndefined();
     });
 
     it('should handle rev mismatch and retry upload', async () => {
@@ -293,7 +292,7 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       expect(download.ops.every((o) => o.op.id.length > 0)).toBe(true);
     });
 
-    it('should prevent duplicate ops during piggybacking', async () => {
+    it('should not piggyback ops from file-based adapter (piggybacking removed)', async () => {
       const clientA = harness.createClient('client-a-test');
       const clientB = harness.createClient('client-b-test');
 
@@ -307,36 +306,15 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       );
       await clientA.uploadOps([initialOp]);
 
-      // Client B uploads without downloading first (should get A's op piggybacked)
+      // Client B uploads without downloading first
       const opB = clientB.createOp('Task', 'task-b', 'CRT', 'TaskActionTypes.ADD_TASK', {
         title: 'B',
       });
       const uploadResponse = await clientB.uploadOps([opB]);
 
-      // Should have piggybacked the initial op
-      expect(uploadResponse.newOps).toBeDefined();
-      const piggybackedIds = uploadResponse.newOps!.map((o) => o.op.id);
-      expect(piggybackedIds.length).toBeGreaterThan(0);
-
-      // Upload again with another op - should not re-piggyback same ops
-      const opB2 = clientB.createOp(
-        'Task',
-        'task-b2',
-        'CRT',
-        'TaskActionTypes.ADD_TASK',
-        {
-          title: 'B2',
-        },
-      );
-      const secondUpload = await clientB.uploadOps([opB2]);
-
-      // If there are piggybacked ops, they should NOT include the already-piggybacked ones
-      if (secondUpload.newOps && secondUpload.newOps.length > 0) {
-        const newPiggybackedIds = secondUpload.newOps.map((o) => o.op.id);
-        for (const id of piggybackedIds) {
-          expect(newPiggybackedIds).not.toContain(id);
-        }
-      }
+      // File-based adapter no longer piggybacks — remote ops are only
+      // discovered via downloadOps on the next sync cycle
+      expect(uploadResponse.newOps).toBeUndefined();
     });
 
     it('should exclude own client ops from piggybacking', async () => {

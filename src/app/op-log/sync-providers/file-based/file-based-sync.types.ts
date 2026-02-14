@@ -80,6 +80,16 @@ export interface FileBasedSyncData {
   recentOps: CompactOperation[];
 
   /**
+   * Timestamp (epoch ms) of the oldest operation in recentOps.
+   * Used for partial-trimming gap detection: when recentOps hits MAX_RECENT_OPS
+   * and oldest ops are trimmed, a slow-syncing client can check whether its
+   * lastSyncTimestamp is older than this value to detect missed ops.
+   *
+   * Undefined when recentOps is empty (e.g., after snapshot upload).
+   */
+  oldestOpTimestamp?: number;
+
+  /**
    * Optional checksum for integrity verification.
    * SHA-256 hash of the uncompressed state JSON.
    */
