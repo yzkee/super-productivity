@@ -1699,6 +1699,33 @@ describe('FocusModeEffects', () => {
       });
     });
 
+    it('should dispatch setCurrentTask when WORK resumes even with isPauseTrackingDuringBreak true', (done) => {
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isPauseTrackingDuringBreak: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(
+        selectors.selectTimer,
+        createMockTimer({ isRunning: true, purpose: 'work' }),
+      );
+      store.overrideSelector(selectors.selectPausedTaskId, 'task-123');
+      store.overrideSelector(selectTaskById as any, {
+        id: 'task-123',
+        title: 'Test Task',
+      });
+      currentTaskId$.next(null);
+      store.refreshState();
+
+      actions$ = of(actions.unPauseFocusSession());
+
+      effects.syncSessionResumeToTracking$.subscribe((action) => {
+        expect(action.type).toEqual('[Task] SetCurrentTask');
+        expect((action as any).id).toBe('task-123');
+        done();
+      });
+    });
+
     it('should NOT dispatch when no pausedTaskId', (done) => {
       store.overrideSelector(selectFocusModeConfig, {
         isSyncSessionWithTracking: true,
@@ -1830,6 +1857,37 @@ describe('FocusModeEffects', () => {
         expect((action as any).id).toBe('task-123');
         done();
       });
+    });
+
+    it('should NOT dispatch setCurrentTask when BREAK resumes and isPauseTrackingDuringBreak is true', (done) => {
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isPauseTrackingDuringBreak: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(
+        selectors.selectTimer,
+        createMockTimer({ isRunning: true, purpose: 'break' }),
+      );
+      store.overrideSelector(selectors.selectPausedTaskId, 'task-123');
+      store.overrideSelector(selectTaskById as any, {
+        id: 'task-123',
+        title: 'Test Task',
+      });
+      currentTaskId$.next(null);
+      store.refreshState();
+
+      actions$ = of(actions.unPauseFocusSession());
+
+      let emitted = false;
+      effects.syncSessionResumeToTracking$.subscribe(() => {
+        emitted = true;
+      });
+
+      setTimeout(() => {
+        expect(emitted).toBe(false);
+        done();
+      }, 50);
     });
   });
 

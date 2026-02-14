@@ -213,6 +213,7 @@ export class FocusModeEffects {
         ([_action, cfg, timer, pausedTaskId, currentTaskId]) =>
           !!cfg?.isSyncSessionWithTracking &&
           (timer.purpose === 'work' || timer.purpose === 'break') &&
+          !(timer.purpose === 'break' && cfg?.isPauseTrackingDuringBreak) &&
           !currentTaskId &&
           !!pausedTaskId,
       ),
