@@ -1,6 +1,7 @@
 import { FileBasedSyncTestHarness } from '../helpers/file-based-sync-test-harness';
 import { FILE_BASED_SYNC_CONSTANTS } from '../../../sync-providers/file-based/file-based-sync.types';
 import { UploadRevToMatchMismatchAPIError } from '../../../core/errors/sync-errors';
+import { SyncOperation } from '../../../sync-providers/provider.interface';
 
 describe('File-Based Sync Integration - Conflict Resolution', () => {
   let harness: FileBasedSyncTestHarness;
@@ -170,6 +171,85 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       // snapshotState should be available when re-downloading from 0
       const freshDownload = await clientB.downloadOps(0);
       expect(freshDownload.snapshotState).toBeDefined();
+    });
+  });
+
+  describe('Partial Trimming Gap Detection', () => {
+    it('should detect gap when slow client misses trimmed ops', async () => {
+      const clientA = harness.createClient('client-a-test');
+      const clientB = harness.createClient('client-b-test');
+
+      // Client B syncs initially to establish a baseline sinceSeq
+      const initialOp = clientA.createOp(
+        'Task',
+        'task-initial',
+        'CRT',
+        'TaskActionTypes.ADD_TASK',
+        { title: 'Initial' },
+      );
+      await clientA.uploadOps([initialOp]);
+      const initialDownload = await clientB.downloadOps(0);
+      const oldSinceSeq = initialDownload.latestSeq;
+      expect(oldSinceSeq).toBeGreaterThan(0);
+
+      // Client A uploads MAX_RECENT_OPS + 50 ops in batches to cause trimming
+      const totalOps = FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS + 50;
+      const batchSize = 50;
+      for (let i = 0; i < totalOps; i += batchSize) {
+        const batch: SyncOperation[] = [];
+        for (let j = i; j < Math.min(i + batchSize, totalOps); j++) {
+          batch.push(
+            clientA.createOp(
+              'Task',
+              `task-fill-${j}`,
+              'CRT',
+              'TaskActionTypes.ADD_TASK',
+              { title: `Fill ${j}` },
+            ),
+          );
+        }
+        await clientA.uploadOps(batch);
+      }
+
+      // Client B tries to download with its old sinceSeq (far behind, ops were trimmed)
+      const gapDownload = await clientB.downloadOps(oldSinceSeq);
+
+      // Gap should be detected because oldest ops were trimmed
+      expect(gapDownload.gapDetected).toBe(true);
+
+      // Client B re-downloads from 0 to get snapshot state
+      const freshDownload = await clientB.downloadOps(0);
+      expect(freshDownload.snapshotState).toBeDefined();
+    });
+
+    it('should NOT detect gap when client is up-to-date', async () => {
+      const clientA = harness.createClient('client-a-test');
+      const clientB = harness.createClient('client-b-test');
+
+      // Upload MAX_RECENT_OPS + 50 ops in batches, Client B syncs after each batch
+      const totalOps = FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS + 50;
+      const batchSize = 50;
+      for (let i = 0; i < totalOps; i += batchSize) {
+        const batch: SyncOperation[] = [];
+        for (let j = i; j < Math.min(i + batchSize, totalOps); j++) {
+          batch.push(
+            clientA.createOp(
+              'Task',
+              `task-keep-up-${j}`,
+              'CRT',
+              'TaskActionTypes.ADD_TASK',
+              { title: `Keep Up ${j}` },
+            ),
+          );
+        }
+        await clientA.uploadOps(batch);
+        // Client B stays current by downloading after each batch
+        await clientB.downloadOps();
+      }
+
+      // Final download — Client B should NOT detect a gap
+      const finalDownload = await clientB.downloadOps();
+      expect(finalDownload.gapDetected).toBeFalsy();
     });
   });
 
