@@ -65,87 +65,81 @@ export class FocusModeEffects {
   // Auto-show overlay when task is selected (if sync session with tracking is enabled)
   // Skip showing overlay if isStartInBackground is enabled
   // Only triggers when focus mode feature is enabled
+  // Fix #6521: Use currentTaskId$ as the driver and config as a gate check (withLatestFrom)
+  // so that config changes don't re-trigger the overlay
   autoShowOverlay$ = createEffect(() =>
-    combineLatest([
-      this.store.select(selectFocusModeConfig),
-      this.store.select(selectIsFocusModeEnabled),
-    ]).pipe(
+    this.taskService.currentTaskId$.pipe(
       skipWhileApplyingRemoteOps(),
-      switchMap(([cfg, isFocusModeEnabled]) =>
-        isFocusModeEnabled && cfg?.isSyncSessionWithTracking && !cfg?.isStartInBackground
-          ? this.taskService.currentTaskId$.pipe(
-              // currentTaskId$ is local UI state (not synced), so distinctUntilChanged is sufficient
-              distinctUntilChanged(),
-              filter((id) => !!id),
-              map(() => actions.showFocusOverlay()),
-            )
-          : EMPTY,
+      // currentTaskId$ is local UI state (not synced), so distinctUntilChanged is sufficient
+      distinctUntilChanged(),
+      filter((id) => !!id),
+      withLatestFrom(
+        this.store.select(selectFocusModeConfig),
+        this.store.select(selectIsFocusModeEnabled),
       ),
+      filter(
+        ([_id, cfg, isFocusModeEnabled]) =>
+          isFocusModeEnabled &&
+          !!cfg?.isSyncSessionWithTracking &&
+          !cfg?.isStartInBackground,
+      ),
+      map(() => actions.showFocusOverlay()),
     ),
   );
 
   // Sync: When tracking starts → start/unpause focus session
   // Only triggers when isSyncSessionWithTracking is enabled and focus mode feature is enabled
+  // Fix #6521: Use currentTaskId$ as the driver and config as a gate check (withLatestFrom)
+  // so that config changes don't re-trigger session start
   syncTrackingStartToSession$ = createEffect(() =>
-    combineLatest([
-      this.store.select(selectFocusModeConfig),
-      this.store.select(selectIsFocusModeEnabled),
-    ]).pipe(
-      // Outer guard: skip config changes during sync
+    this.taskService.currentTaskId$.pipe(
       skipWhileApplyingRemoteOps(),
-      switchMap(([cfg, isFocusModeEnabled]) =>
-        isFocusModeEnabled && cfg?.isSyncSessionWithTracking
-          ? this.taskService.currentTaskId$.pipe(
-              // currentTaskId$ is local UI state (not synced), so distinctUntilChanged is sufficient
-              distinctUntilChanged(),
-              filter((taskId) => !!taskId),
-              withLatestFrom(
-                this.store.select(selectors.selectTimer),
-                this.store.select(selectors.selectMode),
-                this.store.select(selectors.selectCurrentScreen),
-                this.store.select(selectors.selectPausedTaskId),
-                // Bug #5995 Fix: Get the LATEST value of isResumingBreak here
-                // to avoid using stale value from outer closure
-                this.store.select(selectors.selectIsResumingBreak),
-              ),
-              switchMap(
-                ([
-                  _taskId,
-                  timer,
-                  mode,
-                  currentScreen,
-                  pausedTaskId,
-                  isResumingBreak,
-                ]) => {
-                  // If session is paused (purpose is 'work' but not running), resume it
-                  if (timer.purpose === 'work' && !timer.isRunning) {
-                    return of(actions.unPauseFocusSession());
-                  }
-                  // If break is active, handle based on state and cause
-                  // Bug #5995 Fix: Don't skip breaks that were just resumed
-                  if (timer.purpose === 'break') {
-                    // Check store flag to distinguish between break resume and manual tracking start
-                    if (isResumingBreak) {
-                      // Clear flag after processing to prevent false positives
-                      // Don't skip the break - just clear the flag
-                      return of(actions.clearResumingBreakFlag());
-                    }
-                    // User manually started tracking during break
-                    // Skip the break to sync with tracking (bug #5875 fix)
-                    return of(actions.skipBreak({ pausedTaskId }));
-                  }
-                  // If no session active, start a new one (only from Main screen)
-                  if (timer.purpose === null && currentScreen === FocusScreen.Main) {
-                    const strategy = this.strategyFactory.getStrategy(mode);
-                    const duration = strategy.initialSessionDuration;
-                    return of(actions.startFocusSession({ duration }));
-                  }
-                  return EMPTY;
-                },
-              ),
-            )
-          : EMPTY,
+      // currentTaskId$ is local UI state (not synced), so distinctUntilChanged is sufficient
+      distinctUntilChanged(),
+      filter((taskId) => !!taskId),
+      withLatestFrom(
+        this.store.select(selectFocusModeConfig),
+        this.store.select(selectIsFocusModeEnabled),
       ),
+      filter(
+        ([_taskId, cfg, isFocusModeEnabled]) =>
+          isFocusModeEnabled && !!cfg?.isSyncSessionWithTracking,
+      ),
+      withLatestFrom(
+        this.store.select(selectors.selectTimer),
+        this.store.select(selectors.selectMode),
+        this.store.select(selectors.selectCurrentScreen),
+        this.store.select(selectors.selectPausedTaskId),
+        // Bug #5995 Fix: Get the LATEST value of isResumingBreak here
+        // to avoid using stale value from outer closure
+        this.store.select(selectors.selectIsResumingBreak),
+      ),
+      switchMap(([_outer, timer, mode, currentScreen, pausedTaskId, isResumingBreak]) => {
+        // If session is paused (purpose is 'work' but not running), resume it
+        if (timer.purpose === 'work' && !timer.isRunning) {
+          return of(actions.unPauseFocusSession());
+        }
+        // If break is active, handle based on state and cause
+        // Bug #5995 Fix: Don't skip breaks that were just resumed
+        if (timer.purpose === 'break') {
+          // Check store flag to distinguish between break resume and manual tracking start
+          if (isResumingBreak) {
+            // Clear flag after processing to prevent false positives
+            // Don't skip the break - just clear the flag
+            return of(actions.clearResumingBreakFlag());
+          }
+          // User manually started tracking during break
+          // Skip the break to sync with tracking (bug #5875 fix)
+          return of(actions.skipBreak({ pausedTaskId }));
+        }
+        // If no session active, start a new one (only from Main screen)
+        if (timer.purpose === null && currentScreen === FocusScreen.Main) {
+          const strategy = this.strategyFactory.getStrategy(mode);
+          const duration = strategy.initialSessionDuration;
+          return of(actions.startFocusSession({ duration }));
+        }
+        return EMPTY;
+      }),
     ),
   );
 

@@ -994,6 +994,81 @@ describe('FocusModeEffects', () => {
         done();
       }, 50);
     });
+
+    // Regression test for #6521: config changes should NOT re-trigger overlay
+    it('should NOT re-dispatch showFocusOverlay when config changes while task is already selected', (done) => {
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.refreshState();
+
+      effects = TestBed.inject(FocusModeEffects);
+
+      const emitted: any[] = [];
+      effects.autoShowOverlay$.subscribe((action) => {
+        emitted.push(action);
+      });
+
+      // First: select a task (should trigger overlay once)
+      currentTaskId$.next('task-123');
+
+      setTimeout(() => {
+        expect(emitted.length).toBe(1);
+
+        // Now toggle a config setting — this should NOT trigger a second emission
+        store.overrideSelector(selectFocusModeConfig, {
+          isSyncSessionWithTracking: true,
+          isSkipPreparation: true,
+          isPlayTick: true,
+        });
+        store.refreshState();
+
+        setTimeout(() => {
+          // Still only 1 emission — the config change did not re-trigger
+          expect(emitted.length).toBe(1);
+          done();
+        }, 50);
+      }, 20);
+    });
+
+    // Regression test for #6521: toggling focus mode enabled should NOT re-trigger overlay
+    it('should NOT re-dispatch showFocusOverlay when isFocusModeEnabled is toggled while task is selected', (done) => {
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(selectIsFocusModeEnabled, true);
+      store.refreshState();
+
+      effects = TestBed.inject(FocusModeEffects);
+
+      const emitted: any[] = [];
+      effects.autoShowOverlay$.subscribe((action) => {
+        emitted.push(action);
+      });
+
+      // Select a task
+      currentTaskId$.next('task-123');
+
+      setTimeout(() => {
+        expect(emitted.length).toBe(1);
+
+        // Toggle focus mode off and back on — should NOT re-trigger
+        store.overrideSelector(selectIsFocusModeEnabled, false);
+        store.refreshState();
+
+        setTimeout(() => {
+          store.overrideSelector(selectIsFocusModeEnabled, true);
+          store.refreshState();
+
+          setTimeout(() => {
+            expect(emitted.length).toBe(1);
+            done();
+          }, 50);
+        }, 20);
+      }, 20);
+    });
   });
 
   describe('syncTrackingStartToSession$', () => {
@@ -1142,6 +1217,86 @@ describe('FocusModeEffects', () => {
         // Should not start session when focus mode feature is disabled
         done();
       }, 50);
+    });
+
+    // Regression test for #6521: config changes should NOT re-trigger session start
+    it('should NOT re-dispatch when config changes while task is already selected', (done) => {
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(selectors.selectTimer, createMockTimer());
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentScreen, FocusScreen.Main);
+      store.refreshState();
+
+      effects = TestBed.inject(FocusModeEffects);
+
+      const emitted: any[] = [];
+      effects.syncTrackingStartToSession$.subscribe((action) => {
+        emitted.push(action);
+      });
+
+      // Select a task (should trigger once)
+      currentTaskId$.next('task-123');
+
+      setTimeout(() => {
+        expect(emitted.length).toBe(1);
+
+        // Toggle a config setting — should NOT re-trigger
+        store.overrideSelector(selectFocusModeConfig, {
+          isSyncSessionWithTracking: true,
+          isSkipPreparation: true,
+          isPlayTick: true,
+        });
+        store.refreshState();
+
+        setTimeout(() => {
+          expect(emitted.length).toBe(1);
+          done();
+        }, 50);
+      }, 20);
+    });
+
+    // Regression test for #6521: toggling focus mode enabled should NOT re-trigger session start
+    it('should NOT re-dispatch when isFocusModeEnabled is toggled while task is selected', (done) => {
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(selectors.selectTimer, createMockTimer());
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentScreen, FocusScreen.Main);
+      store.overrideSelector(selectIsFocusModeEnabled, true);
+      store.refreshState();
+
+      effects = TestBed.inject(FocusModeEffects);
+
+      const emitted: any[] = [];
+      effects.syncTrackingStartToSession$.subscribe((action) => {
+        emitted.push(action);
+      });
+
+      // Select a task
+      currentTaskId$.next('task-123');
+
+      setTimeout(() => {
+        expect(emitted.length).toBe(1);
+
+        // Toggle focus mode off and back on — should NOT re-trigger
+        store.overrideSelector(selectIsFocusModeEnabled, false);
+        store.refreshState();
+
+        setTimeout(() => {
+          store.overrideSelector(selectIsFocusModeEnabled, true);
+          store.refreshState();
+
+          setTimeout(() => {
+            expect(emitted.length).toBe(1);
+            done();
+          }, 50);
+        }, 20);
+      }, 20);
     });
   });
 
