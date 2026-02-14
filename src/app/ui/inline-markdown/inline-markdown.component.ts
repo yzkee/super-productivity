@@ -317,63 +317,71 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
 
     const textareaEl = this.textareaEl();
     let cursorPos: number | undefined;
+    let currentText: string;
 
+    // Read current content from textarea if available, otherwise from modelCopy.
     // Check textareaEl directly (not isShowEdit) because blur may have
     // set isShowEdit=false while the textarea is still in the DOM.
     if (textareaEl) {
-      const currentValue = textareaEl.nativeElement.value;
+      currentText = textareaEl.nativeElement.value;
       cursorPos = textareaEl.nativeElement.selectionStart;
-      if (currentValue !== this.model) {
-        this.model = currentValue;
-        this.changed.emit(currentValue);
-      }
+    } else {
+      currentText = this.modelCopy() || '';
     }
-
-    // Must come AFTER model setter (which may reset isChecklistMode based on content)
-    this.isChecklistMode.set(true);
 
     const INSERT_TEXT = '\n- [ ] ';
 
     if (this.isDefaultText()) {
+      const newValue = '- [ ] ';
+      this.model = newValue;
+      this.isChecklistMode.set(true);
+      this.changed.emit(newValue);
       if (textareaEl) {
         this.isShowEdit.set(true);
-        this.modelCopy.set('- [ ] ');
-        this._setTextareaState('- [ ] '.length);
+        this._setTextareaState(newValue.length);
       } else {
-        // _toggleShowEdit resets modelCopy — set it AFTER so setTimeout reads ours
-        this._toggleShowEdit('- [ ] '.length);
-        this.modelCopy.set('- [ ] ');
+        this._toggleShowEdit(newValue.length);
+        this.modelCopy.set(newValue);
       }
       return;
     }
 
-    const text = this.modelCopy() || '';
+    let cleaned: string;
+    let adjustedCursorPos: number | undefined;
 
     if (cursorPos !== undefined) {
-      // Path A: Textarea available — insert after the cursor's current line
+      // Path A: Textarea visible — insert after cursor's current line
       let lineEnd = cursorPos;
-      while (lineEnd < text.length && text[lineEnd] !== '\n') {
+      while (lineEnd < currentText.length && currentText[lineEnd] !== '\n') {
         lineEnd++;
       }
-      const newText = text.substring(0, lineEnd) + INSERT_TEXT + text.substring(lineEnd);
-      const cleaned = newText.replace(/\n\n- \[/g, '\n- [').replace(/^\n/g, '');
+      const newText =
+        currentText.substring(0, lineEnd) + INSERT_TEXT + currentText.substring(lineEnd);
+      cleaned = newText.replace(/\n\n- \[/g, '\n- [').replace(/^\n/g, '');
 
       // Calculate cursor AFTER cleanup to avoid drift
       const beforeCursor = newText.substring(0, lineEnd + INSERT_TEXT.length);
       const cleanedBeforeCursor = beforeCursor
         .replace(/\n\n- \[/g, '\n- [')
         .replace(/^\n/g, '');
-      const adjustedCursorPos = Math.min(cleanedBeforeCursor.length, cleaned.length);
+      adjustedCursorPos = Math.min(cleanedBeforeCursor.length, cleaned.length);
+    } else {
+      // Path B: Preview mode — append to end
+      const appended = currentText + INSERT_TEXT;
+      cleaned = appended.replace(/\n\n- \[/g, '\n- [').replace(/^\n/g, '');
+    }
 
+    // Update model with FINAL value and emit to parent.
+    // This ensures Angular CD won't reset modelCopy to a stale pre-insertion value.
+    this.model = cleaned;
+    this.isChecklistMode.set(true);
+    this.changed.emit(cleaned);
+
+    if (cursorPos !== undefined) {
       // Ensure editor stays open (blur may have set isShowEdit=false)
       this.isShowEdit.set(true);
-      this.modelCopy.set(cleaned);
-      this._setTextareaState(adjustedCursorPos);
+      this._setTextareaState(adjustedCursorPos!);
     } else {
-      // Path B: From preview mode — append to end
-      const appended = text + INSERT_TEXT;
-      const cleaned = appended.replace(/\n\n- \[/g, '\n- [').replace(/^\n/g, '');
-      // _toggleShowEdit resets modelCopy — set it AFTER so setTimeout reads ours
       this._toggleShowEdit(cleaned.length);
       this.modelCopy.set(cleaned);
     }
