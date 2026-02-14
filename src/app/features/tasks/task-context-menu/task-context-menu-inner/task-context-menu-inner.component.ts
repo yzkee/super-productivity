@@ -365,31 +365,26 @@ export class TaskContextMenuInnerComponent implements AfterViewInit {
   }
 
   async duplicate(): Promise<void> {
-    console.log(this.task);
     const taskData = {
       isDone: false,
       projectId: this.task.projectId || undefined,
       tagIds: this.task.tagIds || [],
+      ...(this.task.notes && { notes: this.task.notes }),
     };
-    console.log({ taskData });
     const timeData = {
       ...(this.task.dueDay && { dueDay: this.task.dueDay }),
       ...(this.task.dueWithTime && { dueWithTime: this.task.dueWithTime }),
       ...(this.task.timeEstimate && { timeEstimate: this.task.timeEstimate }),
     };
-    console.log({ timeData });
     const taskId = this._taskService.add(
       `${this.task.title} (copy)`,
       false,
       { ...taskData, ...timeData },
       false,
     );
-    console.log({ taskId });
     if (this.task.subTaskIds.length) {
       const taskWithSubtasks = await this._getTaskWithSubtasks();
-      console.log({ taskWithSubtasks });
       for (const subTask of taskWithSubtasks.subTasks) {
-        console.log({ subTask });
         const subTaskInfo = {
           isDone: subTask.isDone,
           projectId: subTask.projectId,
