@@ -464,6 +464,117 @@ describe('FileBasedSyncAdapterService', () => {
       expect(retryCall[3]).toBe(false); // isForceOverwrite
     });
 
+    describe('oldestOpTimestamp in retry path', () => {
+      it('should compute correct oldestOpTimestamp after retry merges ops', async () => {
+        const T1 = Date.now() - 10_000; // older timestamp
+        const T2 = Date.now(); // newer timestamp
+
+        // Initial download: file has ops with timestamp T1
+        const existingData = createMockSyncData({
+          syncVersion: 1,
+          recentOps: [
+            {
+              id: 'existing-op',
+              c: 'other-client',
+              a: 'HA',
+              o: 'ADD',
+              e: 'TASK',
+              d: 'task-existing',
+              v: { otherClient: 1 },
+              t: T1,
+              s: 1,
+              p: {},
+            },
+          ],
+        });
+
+        // First download populates cache
+        mockProvider.downloadFile.and.returnValue(
+          Promise.resolve({ dataStr: addPrefix(existingData), rev: 'rev-1' }),
+        );
+        await adapter.downloadOps(0);
+
+        // Upload: first attempt fails, retry re-downloads and succeeds
+        let uploadCallCount = 0;
+        let retryUploadedDataStr = '';
+        mockProvider.uploadFile.and.callFake(
+          (_path: string, dataStr: string, _rev: string | null, _force: boolean) => {
+            uploadCallCount++;
+            if (uploadCallCount === 1) {
+              return Promise.reject(new UploadRevToMatchMismatchAPIError('Rev mismatch'));
+            }
+            retryUploadedDataStr = dataStr;
+            return Promise.resolve({ rev: 'rev-3' });
+          },
+        );
+
+        // Re-download on retry returns same existing data with updated rev
+        mockProvider.downloadFile.and.returnValue(
+          Promise.resolve({ dataStr: addPrefix(existingData), rev: 'rev-2' }),
+        );
+
+        const newOp = createMockSyncOp({ id: 'new-op', timestamp: T2 });
+        await adapter.uploadOps([newOp], 'client1');
+
+        // Parse the retry's uploaded data
+        const uploadedData = parseWithPrefix(retryUploadedDataStr);
+        // oldestOpTimestamp should be min(T1, T2) = T1
+        expect(uploadedData.oldestOpTimestamp).toBe(T1);
+      });
+
+      it('should preserve oldestOpTimestamp when retried ops have newer timestamps', async () => {
+        const T_OLD = Date.now() - 60_000; // very old existing timestamp
+        const T_NEW = Date.now(); // new op timestamp
+
+        const existingData = createMockSyncData({
+          syncVersion: 1,
+          recentOps: [
+            {
+              id: 'old-op',
+              c: 'other-client',
+              a: 'HA',
+              o: 'ADD',
+              e: 'TASK',
+              d: 'task-old',
+              v: { otherClient: 1 },
+              t: T_OLD,
+              s: 1,
+              p: {},
+            },
+          ],
+        });
+
+        mockProvider.downloadFile.and.returnValue(
+          Promise.resolve({ dataStr: addPrefix(existingData), rev: 'rev-1' }),
+        );
+        await adapter.downloadOps(0);
+
+        let uploadCallCount = 0;
+        let retryUploadedDataStr = '';
+        mockProvider.uploadFile.and.callFake(
+          (_path: string, dataStr: string, _rev: string | null, _force: boolean) => {
+            uploadCallCount++;
+            if (uploadCallCount === 1) {
+              return Promise.reject(new UploadRevToMatchMismatchAPIError('Rev mismatch'));
+            }
+            retryUploadedDataStr = dataStr;
+            return Promise.resolve({ rev: 'rev-3' });
+          },
+        );
+
+        mockProvider.downloadFile.and.returnValue(
+          Promise.resolve({ dataStr: addPrefix(existingData), rev: 'rev-2' }),
+        );
+
+        const newOp = createMockSyncOp({ id: 'newer-op', timestamp: T_NEW });
+        await adapter.uploadOps([newOp], 'client1');
+
+        const uploadedData = parseWithPrefix(retryUploadedDataStr);
+        // Older timestamp from existing ops should be preserved
+        expect(uploadedData.oldestOpTimestamp).toBe(T_OLD);
+      });
+    });
+
     it('should clear cache after successful upload', async () => {
       const syncData = createMockSyncData({ syncVersion: 1 });
       mockProvider.downloadFile.and.returnValue(
@@ -758,6 +869,106 @@ describe('FileBasedSyncAdapterService', () => {
       );
     });
 
+    describe('uploadSnapshot and lastSyncTimestamps', () => {
+      it('should not reset lastSyncTimestamps after snapshot upload', async () => {
+        // Step 1: Download ops to set lastSyncTimestamps
+        const syncData = createMockSyncData({
+          syncVersion: 1,
+          recentOps: [
+            {
+              id: 'op-1',
+              c: 'other-client',
+              a: 'HA',
+              o: 'ADD',
+              e: 'TASK',
+              d: 'task-1',
+              v: { otherClient: 1 },
+              t: Date.now(),
+              s: 1,
+              p: {},
+            },
+          ],
+        });
+        mockProvider.downloadFile.and.returnValue(
+          Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
+        );
+        await adapter.downloadOps(0);
+
+        // Verify lastSyncTimestamps was set
+        let stateJson = localStorage.getItem(
+          FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
+        );
+        const stateBeforeSnapshot = JSON.parse(stateJson!);
+        expect(
+          stateBeforeSnapshot.lastSyncTimestamps[SyncProviderId.WebDAV],
+        ).toBeDefined();
+
+        // Step 2: Upload snapshot
+        mockProvider.uploadFile.and.returnValue(Promise.resolve({ rev: 'rev-2' }));
+        await adapter.uploadSnapshot(
+          {},
+          'client1',
+          'initial',
+          { client1: 1 },
+          1,
+          undefined,
+          'test-op-snapshot',
+        );
+
+        // Step 3: Verify lastSyncTimestamps is preserved (not cleared by snapshot upload)
+        stateJson = localStorage.getItem(
+          FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
+        );
+        const stateAfterSnapshot = JSON.parse(stateJson!);
+        expect(
+          stateAfterSnapshot.lastSyncTimestamps[SyncProviderId.WebDAV],
+        ).toBeDefined();
+        expect(stateAfterSnapshot.lastSyncTimestamps[SyncProviderId.WebDAV]).toBe(
+          stateBeforeSnapshot.lastSyncTimestamps[SyncProviderId.WebDAV],
+        );
+      });
+
+      it('should not trigger false gap detection after snapshot upload when own client uploaded', async () => {
+        // Step 1: Download to set lastSyncTimestamps
+        const initialData = createMockSyncData({
+          syncVersion: 1,
+          recentOps: [],
+          clientId: 'client-a',
+        });
+        mockProvider.downloadFile.and.returnValue(
+          Promise.resolve({ dataStr: addPrefix(initialData), rev: 'rev-1' }),
+        );
+        await adapter.downloadOps(0);
+
+        // Step 2: Upload snapshot as client-a
+        mockProvider.uploadFile.and.returnValue(Promise.resolve({ rev: 'rev-2' }));
+        await adapter.uploadSnapshot(
+          {},
+          'client-a',
+          'initial',
+          { client_a: 1 },
+          1,
+          undefined,
+          'test-op-snap',
+        );
+
+        // Step 3: Download with excludeClient matching own client
+        const snapshotData = createMockSyncData({
+          syncVersion: 1,
+          recentOps: [],
+          clientId: 'client-a',
+        });
+        mockProvider.downloadFile.and.returnValue(
+          Promise.resolve({ dataStr: addPrefix(snapshotData), rev: 'rev-2' }),
+        );
+
+        const result = await adapter.downloadOps(1, 'client-a');
+
+        // Should NOT detect gap because excludeClient === syncData.clientId
+        expect(result.gapDetected).toBe(false);
+      });
+    });
+
     it('should set seq counter to syncVersion after snapshot upload', async () => {
       mockProvider.downloadFile.and.throwError(
         new RemoteFileNotFoundAPIError('sync-data.json'),
@@ -831,6 +1042,83 @@ describe('FileBasedSyncAdapterService', () => {
 
       const seq = await adapter.getLastServerSeq();
       expect(seq).toBe(0);
+    });
+
+    it('should clear lastSyncTimestamps from persisted state', async () => {
+      // Step 1: Download ops to set lastSyncTimestamps
+      const syncData = createMockSyncData({ syncVersion: 1, recentOps: [] });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
+      );
+      await adapter.downloadOps(0);
+
+      // Verify lastSyncTimestamps was set
+      let stateJson = localStorage.getItem(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
+      );
+      let state = JSON.parse(stateJson!);
+      expect(state.lastSyncTimestamps[SyncProviderId.WebDAV]).toBeDefined();
+
+      // Step 2: Delete all data
+      mockProvider.removeFile.and.returnValue(Promise.resolve());
+      await adapter.deleteAllData();
+
+      // Step 3: Verify lastSyncTimestamps is cleared
+      stateJson = localStorage.getItem(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
+      );
+      state = JSON.parse(stateJson!);
+      expect(state.lastSyncTimestamps[SyncProviderId.WebDAV]).toBeUndefined();
+    });
+
+    it('should allow fresh sync after deleteAllData', async () => {
+      // Step 1: Do an initial sync cycle
+      const syncData = createMockSyncData({ syncVersion: 1, recentOps: [] });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
+      );
+      await adapter.downloadOps(0);
+      await adapter.setLastServerSeq(1);
+
+      // Step 2: Delete all data
+      mockProvider.removeFile.and.returnValue(Promise.resolve());
+      await adapter.deleteAllData();
+
+      // Step 3: Upload new ops from scratch
+      mockProvider.downloadFile.and.throwError(
+        new RemoteFileNotFoundAPIError('sync-data.json'),
+      );
+      mockProvider.uploadFile.and.returnValue(Promise.resolve({ rev: 'rev-new' }));
+
+      const op = createMockSyncOp({ id: 'fresh-op-1' });
+      const uploadResult = await adapter.uploadOps([op], 'client1');
+      expect(uploadResult.results[0].accepted).toBe(true);
+
+      // Step 4: Download the freshly uploaded data
+      const freshData = createMockSyncData({
+        syncVersion: 1,
+        recentOps: [
+          {
+            id: 'fresh-op-1',
+            c: 'client1',
+            a: 'HA',
+            o: 'ADD',
+            e: 'TASK',
+            d: 'task-1',
+            v: { client1: 1 },
+            t: Date.now(),
+            s: 1,
+            p: { title: 'Test Task' },
+          },
+        ],
+      });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(freshData), rev: 'rev-new' }),
+      );
+
+      const downloadResult = await adapter.downloadOps(0);
+      expect(downloadResult.ops.length).toBe(1);
+      expect(downloadResult.latestSeq).toBe(1);
     });
   });
 
@@ -1333,6 +1621,275 @@ describe('FileBasedSyncAdapterService', () => {
       // - This means we just uploaded, so no gap
       expect(result.gapDetected).toBe(false);
       expect(result.snapshotState).toBeUndefined(); // No snapshot state when sinceSeq > 0
+    });
+  });
+
+  describe('state migration from legacy localStorage keys', () => {
+    // These tests create the adapter AFTER setting localStorage, so they need
+    // their own setup that bypasses the beforeEach adapter creation.
+
+    it('should migrate from old separate keys to atomic format', async () => {
+      const oldVersions = { [SyncProviderId.WebDAV]: 5 };
+      const oldSeqCounters = { [SyncProviderId.WebDAV]: 3 };
+
+      localStorage.setItem(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'versions',
+        JSON.stringify(oldVersions),
+      );
+      localStorage.setItem(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'seqCounters',
+        JSON.stringify(oldSeqCounters),
+      );
+
+      // Create a fresh service instance that will pick up legacy keys
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          FileBasedSyncAdapterService,
+          { provide: ArchiveDbAdapter, useValue: mockArchiveDbAdapter },
+          { provide: StateSnapshotService, useValue: mockStateSnapshotService },
+        ],
+      });
+      const freshService = TestBed.inject(FileBasedSyncAdapterService);
+      const freshAdapter = freshService.createAdapter(
+        mockProvider,
+        mockCfg,
+        mockEncryptKey,
+      );
+
+      // Verify migrated state works correctly
+      const seq = await freshAdapter.getLastServerSeq();
+      expect(seq).toBe(3);
+
+      // Verify old keys are removed
+      expect(
+        localStorage.getItem(
+          FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'versions',
+        ),
+      ).toBeNull();
+      expect(
+        localStorage.getItem(
+          FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'seqCounters',
+        ),
+      ).toBeNull();
+
+      // Verify atomic key is written
+      const atomicState = JSON.parse(
+        localStorage.getItem(
+          FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
+        )!,
+      );
+      expect(atomicState.syncVersions[SyncProviderId.WebDAV]).toBe(5);
+      expect(atomicState.seqCounters[SyncProviderId.WebDAV]).toBe(3);
+    });
+
+    it('should clean up orphaned processedOps key during migration', async () => {
+      localStorage.setItem(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'versions',
+        JSON.stringify({ [SyncProviderId.WebDAV]: 1 }),
+      );
+      localStorage.setItem(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'processedOps',
+        JSON.stringify({ someOp: true }),
+      );
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          FileBasedSyncAdapterService,
+          { provide: ArchiveDbAdapter, useValue: mockArchiveDbAdapter },
+          { provide: StateSnapshotService, useValue: mockStateSnapshotService },
+        ],
+      });
+      const freshService = TestBed.inject(FileBasedSyncAdapterService);
+      freshService.createAdapter(mockProvider, mockCfg, mockEncryptKey);
+
+      // Verify processedOps key is removed
+      expect(
+        localStorage.getItem(
+          FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'processedOps',
+        ),
+      ).toBeNull();
+    });
+
+    it('should handle missing old keys gracefully (fresh install)', async () => {
+      // Ensure NO localStorage keys at all
+      localStorage.removeItem(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'versions',
+      );
+      localStorage.removeItem(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'seqCounters',
+      );
+      localStorage.removeItem(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
+      );
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          FileBasedSyncAdapterService,
+          { provide: ArchiveDbAdapter, useValue: mockArchiveDbAdapter },
+          { provide: StateSnapshotService, useValue: mockStateSnapshotService },
+        ],
+      });
+      const freshService = TestBed.inject(FileBasedSyncAdapterService);
+      const freshAdapter = freshService.createAdapter(
+        mockProvider,
+        mockCfg,
+        mockEncryptKey,
+      );
+
+      // Should start with empty state and no errors
+      const seq = await freshAdapter.getLastServerSeq();
+      expect(seq).toBe(0);
+    });
+
+    it('should prefer atomic key over old separate keys', async () => {
+      // Set both atomic and old keys with different values
+      const atomicState = {
+        syncVersions: { [SyncProviderId.WebDAV]: 10 },
+        seqCounters: { [SyncProviderId.WebDAV]: 8 },
+        lastSyncTimestamps: {},
+      };
+      localStorage.setItem(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
+        JSON.stringify(atomicState),
+      );
+      localStorage.setItem(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'versions',
+        JSON.stringify({ [SyncProviderId.WebDAV]: 2 }),
+      );
+      localStorage.setItem(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'seqCounters',
+        JSON.stringify({ [SyncProviderId.WebDAV]: 1 }),
+      );
+
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          FileBasedSyncAdapterService,
+          { provide: ArchiveDbAdapter, useValue: mockArchiveDbAdapter },
+          { provide: StateSnapshotService, useValue: mockStateSnapshotService },
+        ],
+      });
+      const freshService = TestBed.inject(FileBasedSyncAdapterService);
+      const freshAdapter = freshService.createAdapter(
+        mockProvider,
+        mockCfg,
+        mockEncryptKey,
+      );
+
+      // Should use atomic key value (8), not old key value (1)
+      const seq = await freshAdapter.getLastServerSeq();
+      expect(seq).toBe(8);
+    });
+  });
+
+  describe('lastSyncTimestamps persistence', () => {
+    it('should persist lastSyncTimestamps to localStorage after download', async () => {
+      const syncData = createMockSyncData({ syncVersion: 1, recentOps: [] });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
+      );
+
+      await adapter.downloadOps(0);
+
+      const stateJson = localStorage.getItem(
+        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
+      );
+      expect(stateJson).toBeTruthy();
+      const state = JSON.parse(stateJson!);
+      const ts = state.lastSyncTimestamps[SyncProviderId.WebDAV];
+      expect(ts).toBeDefined();
+      // Timestamp should be recent (within last 5 seconds)
+      expect(Date.now() - ts).toBeLessThan(5000);
+    });
+
+    it('should restore lastSyncTimestamps from localStorage on new adapter instance', async () => {
+      // Step 1: Download ops to set lastSyncTimestamp
+      const syncData = createMockSyncData({ syncVersion: 1, recentOps: [] });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
+      );
+      await adapter.downloadOps(0);
+
+      // Step 2: Create a new adapter instance (simulating app restart)
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [
+          FileBasedSyncAdapterService,
+          { provide: ArchiveDbAdapter, useValue: mockArchiveDbAdapter },
+          { provide: StateSnapshotService, useValue: mockStateSnapshotService },
+        ],
+      });
+      const freshService = TestBed.inject(FileBasedSyncAdapterService);
+      const freshAdapter = freshService.createAdapter(
+        mockProvider,
+        mockCfg,
+        mockEncryptKey,
+      );
+
+      // Step 3: Download data where oldestOpTimestamp is OLDER than our lastSyncTimestamp
+      // This should NOT trigger gap detection (no gap because we synced recently)
+      const maxOps = FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS;
+      const fullOps = Array.from({ length: maxOps }, (_, i) => ({
+        id: `op-${i}`,
+        c: 'other-client',
+        a: 'HA',
+        o: 'ADD',
+        e: 'TASK',
+        d: `task-${i}`,
+        v: { otherClient: i + 1 },
+        t: 500 + i, // Old timestamps — should be before our lastSyncTimestamp
+        s: 1,
+        p: {},
+      }));
+      const data = createMockSyncData({
+        syncVersion: 5,
+        recentOps: fullOps,
+        oldestOpTimestamp: 500,
+      });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(data), rev: 'rev-2' }),
+      );
+
+      // Since lastSyncTimestamp was restored and is > oldestOpTimestamp (500), no gap
+      const result = await freshAdapter.downloadOps(1);
+      expect(result.gapDetected).toBeFalsy();
+    });
+
+    it('should start with empty lastSyncTimestamps for a new provider', async () => {
+      // A fresh adapter without any prior downloads should have no lastSyncTimestamps
+      // This means gap detection's `lastSyncTs > 0` guard should prevent false positives
+
+      const maxOps = FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS;
+      const futureTs = Date.now() + 60_000;
+      const fullOps = Array.from({ length: maxOps }, (_, i) => ({
+        id: `op-${i}`,
+        c: 'other-client',
+        a: 'HA',
+        o: 'ADD',
+        e: 'TASK',
+        d: `task-${i}`,
+        v: { otherClient: i + 1 },
+        t: futureTs + i,
+        s: 1,
+        p: {},
+      }));
+
+      const data = createMockSyncData({
+        syncVersion: 5,
+        recentOps: fullOps,
+        oldestOpTimestamp: futureTs,
+      });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(data), rev: 'rev-1' }),
+      );
+
+      // Even though oldestOpTimestamp is in the future, lastSyncTs === 0
+      // so gap detection should NOT trigger (lastSyncTs > 0 guard)
+      const result = await adapter.downloadOps(1);
+      expect(result.gapDetected).toBeFalsy();
     });
   });
 
