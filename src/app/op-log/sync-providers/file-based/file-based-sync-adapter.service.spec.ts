@@ -1061,58 +1061,6 @@ describe('FileBasedSyncAdapterService', () => {
     });
   });
 
-  describe('getCurrentSyncData', () => {
-    it('should return sync data when file exists', async () => {
-      const syncData = createMockSyncData();
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
-      );
-
-      const result = await service.getCurrentSyncData(
-        mockProvider,
-        mockCfg,
-        mockEncryptKey,
-      );
-
-      expect(result).toBeDefined();
-      expect(result?.version).toBe(2);
-    });
-
-    it('should return null when no file exists', async () => {
-      mockProvider.downloadFile.and.throwError(
-        new RemoteFileNotFoundAPIError('sync-data.json'),
-      );
-
-      const result = await service.getCurrentSyncData(
-        mockProvider,
-        mockCfg,
-        mockEncryptKey,
-      );
-
-      expect(result).toBeNull();
-    });
-  });
-
-  describe('wouldConflict', () => {
-    it('should return true when versions differ', () => {
-      // No expected version set yet (0)
-      expect(service.wouldConflict('test-key', 5)).toBe(true);
-    });
-
-    it('should return false when versions match', async () => {
-      // Set expected version by downloading
-      const syncData = createMockSyncData({ syncVersion: 3 });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
-      );
-
-      await adapter.downloadOps(0);
-
-      const key = mockProvider.id;
-      expect(service.wouldConflict(key, 3)).toBe(false);
-    });
-  });
-
   describe('latestSeq and snapshotState behavior', () => {
     it('should return latestSeq based on syncVersion (not recentOps.length) to prevent repeated fresh downloads', async () => {
       // This test ensures that after a snapshot upload (where recentOps is empty),

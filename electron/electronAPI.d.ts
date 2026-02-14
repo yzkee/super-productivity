@@ -5,7 +5,7 @@ import {
 } from '../src/app/features/config/global-config.model';
 import { KeyboardConfig } from '../src/app/features/config/keyboard-config.model';
 import { JiraCfg } from '../src/app/features/issue/providers/jira/jira.model';
-import { AppDataCompleteLegacy, SyncGetRevResult } from '../src/app/imex/sync/sync.model';
+import { AppDataCompleteLegacy } from '../src/app/imex/sync/sync.model';
 import { Task } from '../src/app/features/tasks/task.model';
 import { LocalBackupMeta } from '../src/app/imex/local-backup/local-backup.model';
 import { AppDataComplete } from '../src/app/op-log/model/model-config';
@@ -30,11 +30,6 @@ export interface ElectronAPI {
   checkBackupAvailable(): Promise<false | LocalBackupMeta>;
 
   loadBackupData(backupPath: string): Promise<string>;
-
-  fileSyncGetRevAndClientUpdate(args: {
-    filePath: string;
-    localRev: string | null;
-  }): Promise<{ rev: string; clientUpdate?: number } | SyncGetRevResult>;
 
   fileSyncSave(args: {
     filePath: string;

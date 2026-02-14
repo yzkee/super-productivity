@@ -436,6 +436,7 @@ export class FileBasedSyncAdapterService {
     newData: FileBasedSyncData,
     revToMatch: string | null,
     ops: SyncOperation[],
+    clientId: string,
   ): Promise<{ finalSyncVersion: number }> {
     // Initial attempt
     const uploadData = await this._encryptAndCompressHandler.compressAndEncryptData(
@@ -481,52 +482,13 @@ export class FileBasedSyncAdapterService {
         encryptKey,
       );
 
-      // Tag compact ops with the NEW syncVersion for this retry attempt
-      const freshSyncVersion = freshData.syncVersion + 1;
-      const compactOps: SyncFileCompactOp[] = ops.map((op) => ({
-        ...this._syncOpToCompact(op),
-        sv: freshSyncVersion,
-      }));
-
-      // Re-merge operations with fresh data
-      const freshExistingOps: SyncFileCompactOp[] = freshData.recentOps || [];
-      const freshCombinedOps = [...freshExistingOps, ...compactOps];
-      const freshMergedOps = freshCombinedOps.slice(
-        -FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS,
+      // Reuse _buildMergedSyncData to rebuild from fresh data
+      const freshNewData = await this._buildMergedSyncData(
+        freshData,
+        ops,
+        clientId,
+        freshData.syncVersion,
       );
-      if (freshCombinedOps.length > freshMergedOps.length) {
-        OpLog.warn(
-          `FileBasedSyncAdapter: Trimmed ${freshCombinedOps.length - freshMergedOps.length} old ops ` +
-            `from recentOps on retry ${attempt} (${freshCombinedOps.length} → ${freshMergedOps.length})`,
-        );
-      }
-
-      let freshMergedClock = freshData.vectorClock || {};
-      for (const op of ops) {
-        freshMergedClock = mergeVectorClocks(freshMergedClock, op.vectorClock);
-      }
-
-      // Re-read current state and archives — originals from first attempt may be stale
-      const freshState = await this._stateSnapshotService.getStateSnapshot();
-      const freshArchiveYoung = await this._archiveDbAdapter.loadArchiveYoung();
-      const freshArchiveOld = await this._archiveDbAdapter.loadArchiveOld();
-
-      // Compute oldestOpSyncVersion for retry data
-      const freshOldestOpSyncVersion =
-        freshMergedOps.length > 0 ? freshMergedOps[0]?.sv : undefined;
-
-      const freshNewData: FileBasedSyncData = {
-        ...newData,
-        state: freshState,
-        archiveYoung: freshArchiveYoung,
-        archiveOld: freshArchiveOld,
-        schemaVersion: freshData.schemaVersion || newData.schemaVersion,
-        syncVersion: freshSyncVersion,
-        vectorClock: freshMergedClock,
-        recentOps: freshMergedOps,
-        lastModified: Date.now(),
-        oldestOpSyncVersion: freshOldestOpSyncVersion,
-      };
 
       const freshUploadData =
         await this._encryptAndCompressHandler.compressAndEncryptData(
@@ -619,8 +581,8 @@ export class FileBasedSyncAdapterService {
       newData,
       revToMatch,
       ops,
+      clientId,
     );
-    newData.syncVersion = finalSyncVersion;
 
     // Step 4: Post-upload processing
     this._clearCachedSyncData(providerKey);
@@ -1034,32 +996,5 @@ export class FileBasedSyncAdapterService {
       timestamp: fullOp.timestamp,
       schemaVersion: fullOp.schemaVersion,
     };
-  }
-
-  /**
-   * Gets the current sync data for merging (used by external conflict resolution).
-   */
-  async getCurrentSyncData(
-    provider: SyncProviderServiceInterface<SyncProviderId>,
-    cfg: EncryptAndCompressCfg,
-    encryptKey: string | undefined,
-  ): Promise<FileBasedSyncData | null> {
-    try {
-      const { data } = await this._downloadSyncFile(provider, cfg, encryptKey);
-      return data;
-    } catch (e) {
-      if (e instanceof RemoteFileNotFoundAPIError) {
-        return null;
-      }
-      throw e;
-    }
-  }
-
-  /**
-   * Checks if a sync version conflict would occur with the given expected version.
-   */
-  wouldConflict(providerKey: string, currentSyncVersion: number): boolean {
-    const expected = this._expectedSyncVersions.get(providerKey) || 0;
-    return currentSyncVersion !== expected;
   }
 }

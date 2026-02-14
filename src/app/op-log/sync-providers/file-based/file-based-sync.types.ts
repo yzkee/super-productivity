@@ -84,7 +84,7 @@ export interface FileBasedSyncData {
    * 2. Apply LWW at entity/field level instead of file level
    * 3. Merge non-conflicting changes from concurrent edits
    *
-   * Default limit: 200 operations
+   * Limit: MAX_RECENT_OPS operations
    */
   recentOps: SyncFileCompactOp[];
 
@@ -97,42 +97,6 @@ export interface FileBasedSyncData {
    * Undefined when recentOps is empty or when old ops lack `sv` (backward compat).
    */
   oldestOpSyncVersion?: number;
-}
-
-// Note: FileBasedOperationSyncCapable interface was removed.
-// Use isFileBasedProvider() from operation-sync.util.ts instead.
-
-/**
- * Error thrown when sync version conflict is detected.
- * Client expected one version but found another, indicating concurrent modification.
- */
-export class SyncVersionConflictError extends Error {
-  constructor(
-    public readonly expectedVersion: number,
-    public readonly actualVersion: number,
-  ) {
-    super(
-      `Sync version conflict: expected ${expectedVersion}, found ${actualVersion}. ` +
-        `Another device has synced since last download.`,
-    );
-    this.name = 'SyncVersionConflictError';
-  }
-}
-
-/**
- * Error thrown when migration is already in progress by another client.
- */
-export class MigrationInProgressError extends Error {
-  constructor(
-    public readonly lockingClientId: string,
-    public readonly lockTimestamp: number,
-  ) {
-    super(
-      `Migration in progress by client ${lockingClientId} since ${new Date(lockTimestamp).toISOString()}. ` +
-        `Please wait for migration to complete.`,
-    );
-    this.name = 'MigrationInProgressError';
-  }
 }
 
 /**
@@ -167,9 +131,6 @@ export const FILE_BASED_SYNC_CONSTANTS = {
   /** Maximum number of recent operations to keep */
   MAX_RECENT_OPS: 500,
 
-  /** Migration lock timeout in milliseconds (5 minutes) */
-  MIGRATION_LOCK_TIMEOUT_MS: 5 * 60 * 1000,
-
   /** Storage key prefix for last known sync version */
   SYNC_VERSION_STORAGE_KEY_PREFIX: 'FILE_SYNC_VERSION_',
 
@@ -179,12 +140,3 @@ export const FILE_BASED_SYNC_CONSTANTS = {
   /** Base delay in ms for exponential backoff between retries */
   RETRY_BASE_DELAY_MS: 500,
 } as const;
-
-/**
- * Migration lock file content structure
- */
-export interface MigrationLockContent {
-  clientId: string;
-  timestamp: number;
-  stage: 'started' | 'downloading' | 'converting' | 'uploading' | 'cleaning';
-}
