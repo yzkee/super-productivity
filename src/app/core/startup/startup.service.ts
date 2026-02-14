@@ -26,7 +26,7 @@ import { combineLatest } from 'rxjs';
 import { Store } from '@ngrx/store';
 import { selectSyncConfig } from '../../features/config/store/global-config.reducer';
 import { selectEnabledIssueProviders } from '../../features/issue/store/issue-provider.selectors';
-import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
+import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { GlobalConfigState } from '../../features/config/global-config.model';
 import { IPC } from '../../../../electron/shared-with-frontend/ipc-events.const';
 import { IpcRendererEvent } from 'electron';
@@ -272,7 +272,7 @@ export class StartupService {
       map(([syncConfig, enabledIssueProviders]) => {
         const hasCloudSync =
           syncConfig.syncProvider !== null &&
-          syncConfig.syncProvider !== LegacySyncProvider.LocalFile;
+          syncConfig.syncProvider !== SyncProviderId.LocalFile;
         const hasIssueProviders = enabledIssueProviders.length > 0;
         return hasCloudSync || hasIssueProviders;
       }),

@@ -8,7 +8,6 @@ import { updateGlobalConfigSection } from '../../../../features/config/store/glo
 import { environment } from '../../../../../environments/environment';
 import { SyncProviderManager } from '../../../../op-log/sync-providers/provider-manager.service';
 import { DropboxPrivateCfg, SyncProviderId } from '../../../../op-log/sync-exports';
-import { LegacySyncProvider } from '../../legacy-sync-provider.model';
 import { confirmDialog } from '../../../../util/native-dialogs';
 
 @Injectable()
@@ -26,7 +25,7 @@ export class DropboxEffects {
         ),
         tap(async ({ sectionCfg }) => {
           const syncCfg = sectionCfg as SyncConfig;
-          if (syncCfg.syncProvider !== LegacySyncProvider.Dropbox) {
+          if (syncCfg.syncProvider !== SyncProviderId.Dropbox) {
             return;
           }
           const provider = this._providerManager.getProviderById(SyncProviderId.Dropbox);

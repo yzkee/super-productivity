@@ -534,7 +534,7 @@ export class DialogRecoveryPasswordComponent {
   type: 'tpl',
   className: 'tpl info-text',
   hideExpression: (m, v, field) =>
-    field?.parent?.parent?.parent?.model.syncProvider !== LegacySyncProvider.SuperSync,
+    field?.parent?.parent?.parent?.model.syncProvider !== SyncProviderId.SuperSync,
   templateOptions: {
     tag: 'div',
     text: '🔒 End-to-end encryption enabled automatically'
@@ -543,7 +543,7 @@ export class DialogRecoveryPasswordComponent {
 {
   type: 'btn',
   hideExpression: (m, v, field) =>
-    field?.parent?.parent?.parent?.model.syncProvider !== LegacySyncProvider.SuperSync,
+    field?.parent?.parent?.parent?.model.syncProvider !== SyncProviderId.SuperSync,
   templateOptions: {
     text: 'Manage Recovery Password',
     onClick: async () => {
@@ -570,7 +570,7 @@ export class DialogRecoveryPasswordComponent {
 
 ```typescript
 async updateSettingsFromForm(cfg: SyncConfig, isInitialSetup: boolean) {
-  if (cfg.syncProvider === LegacySyncProvider.SuperSync) {
+  if (cfg.syncProvider === SyncProviderId.SuperSync) {
     // Check if user has existing key
     const hasKey = await this._deviceKey.getMasterKey();
 

@@ -56,8 +56,7 @@ import { UserProfileService } from '../../features/user-profile/user-profile.ser
 import { MatDialog } from '@angular/material/dialog';
 import { DialogDisableProfilesConfirmationComponent } from '../../features/user-profile/dialog-disable-profiles-confirmation/dialog-disable-profiles-confirmation.component';
 import { DialogRestorePointComponent } from '../../imex/sync/dialog-restore-point/dialog-restore-point.component';
-import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
-import { toSyncProviderId } from '../../op-log/sync-exports';
+import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { DialogConfirmComponent } from '../../ui/dialog-confirm/dialog-confirm.component';
 import { LS } from '../../core/persistence/storage-keys.const';
 import { MatTab, MatTabGroup, MatTabLabel } from '@angular/material/tabs';
@@ -378,7 +377,7 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
       if ((item as any).props?.dropboxAuth && item.fieldGroup) {
         // Check if Dropbox is already authenticated
         const dropboxProvider = this._providerManager.getProviderById(
-          toSyncProviderId(LegacySyncProvider.Dropbox)!,
+          SyncProviderId.Dropbox,
         );
 
         // We need to check auth status asynchronously, so we'll set initial state
@@ -419,7 +418,7 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
 
                     const result =
                       await this._syncWrapperService.configuredAuthForSyncProviderIfNecessary(
-                        toSyncProviderId(LegacySyncProvider.Dropbox)!,
+                        SyncProviderId.Dropbox,
                         true, // force re-authentication even if already configured
                       );
 
@@ -525,7 +524,7 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
         },
         {
           hideExpression: (m: Record<string, unknown>) =>
-            !m.isEnabled || m.syncProvider !== LegacySyncProvider.SuperSync,
+            !m.isEnabled || m.syncProvider !== SyncProviderId.SuperSync,
           type: 'btn',
           className: 'mt2 block',
           templateOptions: {

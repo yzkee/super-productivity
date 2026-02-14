@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { T } from '../../../t.const';
 import { ConfigFormSection, SyncConfig } from '../global-config.model';
-import { LegacySyncProvider } from '../../../imex/sync/legacy-sync-provider.model';
+import { SyncProviderId } from '../../../op-log/sync-providers/provider.const';
 import { IS_ANDROID_WEB_VIEW } from '../../../util/is-android-web-view';
 import { IS_ELECTRON } from '../../../app.constants';
 import { fileSyncDroid, fileSyncElectron } from '../../../op-log/model/model-config';
@@ -64,7 +64,7 @@ const createWebdavFormFields = (options: {
       },
       expressions: {
         'props.required': (field: FormlyFieldConfig) =>
-          field?.parent?.parent?.model?.syncProvider === LegacySyncProvider.WebDAV,
+          field?.parent?.parent?.model?.syncProvider === SyncProviderId.WebDAV,
       },
     },
     {
@@ -76,7 +76,7 @@ const createWebdavFormFields = (options: {
       },
       expressions: {
         'props.required': (field: FormlyFieldConfig) =>
-          field?.parent?.parent?.model?.syncProvider === LegacySyncProvider.WebDAV,
+          field?.parent?.parent?.model?.syncProvider === SyncProviderId.WebDAV,
       },
     },
     {
@@ -89,7 +89,7 @@ const createWebdavFormFields = (options: {
       },
       expressions: {
         'props.required': (field: FormlyFieldConfig) =>
-          field?.parent?.parent?.model?.syncProvider === LegacySyncProvider.WebDAV,
+          field?.parent?.parent?.model?.syncProvider === SyncProviderId.WebDAV,
       },
     },
     {
@@ -101,7 +101,7 @@ const createWebdavFormFields = (options: {
       },
       expressions: {
         'props.required': (field: FormlyFieldConfig) =>
-          field?.parent?.parent?.model?.syncProvider === LegacySyncProvider.WebDAV,
+          field?.parent?.parent?.model?.syncProvider === SyncProviderId.WebDAV,
       },
     },
   ];
@@ -127,14 +127,14 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
         label: T.F.SYNC.FORM.L_SYNC_PROVIDER,
         required: true,
         options: [
-          { label: 'SuperSync (Beta)', value: LegacySyncProvider.SuperSync },
-          { label: LegacySyncProvider.Dropbox, value: LegacySyncProvider.Dropbox },
-          { label: 'WebDAV (experimental)', value: LegacySyncProvider.WebDAV },
+          { label: 'SuperSync (Beta)', value: SyncProviderId.SuperSync },
+          { label: SyncProviderId.Dropbox, value: SyncProviderId.Dropbox },
+          { label: 'WebDAV (experimental)', value: SyncProviderId.WebDAV },
           ...(IS_ELECTRON || IS_ANDROID_WEB_VIEW
             ? [
                 {
                   label: 'LocalFile (experimental)',
-                  value: LegacySyncProvider.LocalFile,
+                  value: SyncProviderId.LocalFile,
                 },
               ]
             : []),
@@ -143,7 +143,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
     },
     {
       hideExpression: (m, v, field) =>
-        field?.parent?.model.syncProvider !== LegacySyncProvider.LocalFile ||
+        field?.parent?.model.syncProvider !== SyncProviderId.LocalFile ||
         IS_ANDROID_WEB_VIEW,
       resetOnHide: false,
       key: 'localFileSync',
@@ -166,14 +166,14 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
           },
           expressions: {
             'props.required': (field: FormlyFieldConfig) =>
-              field?.parent?.parent?.model?.syncProvider === LegacySyncProvider.LocalFile,
+              field?.parent?.parent?.model?.syncProvider === SyncProviderId.LocalFile,
           },
         },
       ],
     },
     {
       hideExpression: (m, v, field) =>
-        field?.parent?.model.syncProvider !== LegacySyncProvider.LocalFile ||
+        field?.parent?.model.syncProvider !== SyncProviderId.LocalFile ||
         !IS_ANDROID_WEB_VIEW,
       resetOnHide: false,
       key: 'localFileSync',
@@ -197,7 +197,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
           },
           expressions: {
             'props.required': (field: FormlyFieldConfig) =>
-              field?.parent?.parent?.model?.syncProvider === LegacySyncProvider.LocalFile,
+              field?.parent?.parent?.model?.syncProvider === SyncProviderId.LocalFile,
           },
         },
       ],
@@ -206,7 +206,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
     // WebDAV provider form fields
     {
       hideExpression: (m, v, field) =>
-        field?.parent?.model.syncProvider !== LegacySyncProvider.WebDAV,
+        field?.parent?.model.syncProvider !== SyncProviderId.WebDAV,
       resetOnHide: false,
       key: 'webDav',
       fieldGroup: createWebdavFormFields({
@@ -221,7 +221,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
     // Note: No key needed - Dropbox credentials stored privately via SyncCredentialStore
     {
       hideExpression: (m, v, field) =>
-        field?.parent?.model.syncProvider !== LegacySyncProvider.Dropbox,
+        field?.parent?.model.syncProvider !== SyncProviderId.Dropbox,
       resetOnHide: false,
       // Custom marker for identifying this field group in config-page.component.ts
       props: { dropboxAuth: true } as any,
@@ -254,7 +254,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
       // hideExpression: ((model: DropboxSyncConfig) => !model.accessToken),
       // Hide for SuperSync (uses fixed interval) and when manual sync only is enabled
       hideExpression: (m, v, field) =>
-        field?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
+        field?.parent?.model.syncProvider === SyncProviderId.SuperSync ||
         field?.parent?.model.isManualSyncOnly === true,
       resetOnHide: true,
       templateOptions: {
@@ -269,7 +269,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
       type: 'checkbox',
       // Only show for file-based providers (Dropbox, WebDAV, LocalFile)
       hideExpression: (m, v, field) =>
-        field?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
+        field?.parent?.model.syncProvider === SyncProviderId.SuperSync ||
         field?.parent?.model.syncProvider === null,
       templateOptions: {
         label: T.F.SYNC.FORM.L_MANUAL_SYNC_ONLY,
@@ -300,8 +300,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
             btnStyle: 'stroked',
             onClick: async (field: FormlyFieldConfig) => {
               const isSuperSync =
-                field?.parent?.parent?.model?.syncProvider ===
-                LegacySyncProvider.SuperSync;
+                field?.parent?.parent?.model?.syncProvider === SyncProviderId.SuperSync;
               const result = isSuperSync
                 ? await openEncryptionPasswordChangeDialog()
                 : await openEncryptionPasswordChangeDialogForFileBased();
@@ -318,8 +317,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
             btnStyle: 'stroked',
             onClick: async (field: FormlyFieldConfig) => {
               const isSuperSync =
-                field?.parent?.parent?.model?.syncProvider ===
-                LegacySyncProvider.SuperSync;
+                field?.parent?.parent?.model?.syncProvider === SyncProviderId.SuperSync;
               const result = isSuperSync
                 ? await openDisableEncryptionDialog()
                 : await openDisableEncryptionDialogForFileBased();
@@ -348,7 +346,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
     {
       type: 'collapsible',
       hideExpression: (m, v, field) =>
-        field?.parent?.model.syncProvider === LegacySyncProvider.SuperSync,
+        field?.parent?.model.syncProvider === SyncProviderId.SuperSync,
       props: { label: T.G.ADVANCED_CFG },
       fieldGroup: [
         {
@@ -361,7 +359,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
         // Enable encryption button for file-based providers (shown when encryption is disabled)
         {
           hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
-            field?.parent?.parent?.model.syncProvider === LegacySyncProvider.SuperSync ||
+            field?.parent?.parent?.model.syncProvider === SyncProviderId.SuperSync ||
             m.isEncryptionEnabled,
           type: 'btn',
           className: 'e2e-file-based-enable-encryption-btn',
@@ -388,7 +386,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
       fieldGroup: [
         {
           hideExpression: (m, v, field) =>
-            field?.parent?.parent?.model.syncProvider !== LegacySyncProvider.SuperSync,
+            field?.parent?.parent?.model.syncProvider !== SyncProviderId.SuperSync,
           type: 'btn',
           templateOptions: {
             text: T.F.SYNC.FORM.SUPER_SYNC.BTN_GET_TOKEN,
@@ -403,7 +401,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
         },
         {
           hideExpression: (m, v, field) =>
-            field?.parent?.parent?.model.syncProvider !== LegacySyncProvider.SuperSync,
+            field?.parent?.parent?.model.syncProvider !== SyncProviderId.SuperSync,
           key: 'accessToken',
           type: 'textarea',
           className: 'e2e-accessToken',
@@ -414,14 +412,14 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
           },
           expressions: {
             'props.required': (field: FormlyFieldConfig) =>
-              field?.parent?.parent?.model?.syncProvider === LegacySyncProvider.SuperSync,
+              field?.parent?.parent?.model?.syncProvider === SyncProviderId.SuperSync,
           },
         },
         // Advanced settings for SuperSync
         {
           type: 'collapsible',
           hideExpression: (m, v, field) =>
-            field?.parent?.parent?.model.syncProvider !== LegacySyncProvider.SuperSync,
+            field?.parent?.parent?.model.syncProvider !== SyncProviderId.SuperSync,
           props: { label: T.G.ADVANCED_CFG },
           fieldGroup: [
             // Enable encryption button for SuperSync (shown when encryption is disabled)

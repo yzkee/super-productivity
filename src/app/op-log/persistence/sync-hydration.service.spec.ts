@@ -9,7 +9,7 @@ import { VectorClockService } from '../sync/vector-clock.service';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { ActionType, OpType } from '../core/operation.types';
-import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
+import { SyncProviderId } from '../sync-providers/provider.const';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 import { SnackService } from '../../core/snack/snack.service';
 
@@ -27,7 +27,7 @@ describe('SyncHydrationService', () => {
   const defaultLocalSyncConfig = {
     ...DEFAULT_GLOBAL_CONFIG.sync,
     isEnabled: true,
-    syncProvider: LegacySyncProvider.WebDAV,
+    syncProvider: SyncProviderId.WebDAV,
   };
 
   beforeEach(() => {
@@ -537,7 +537,7 @@ describe('SyncHydrationService', () => {
       const localSyncConfig = {
         ...DEFAULT_GLOBAL_CONFIG.sync,
         isEnabled: true,
-        syncProvider: LegacySyncProvider.WebDAV,
+        syncProvider: SyncProviderId.WebDAV,
       };
       mockStore.select.and.returnValue(of(localSyncConfig));
 
@@ -548,7 +548,7 @@ describe('SyncHydrationService', () => {
           sync: {
             ...DEFAULT_GLOBAL_CONFIG.sync,
             isEnabled: false, // Another client had sync disabled!
-            syncProvider: LegacySyncProvider.Dropbox, // Different provider too
+            syncProvider: SyncProviderId.Dropbox, // Different provider too
           },
         },
         task: { ids: [], entities: {} },
@@ -568,7 +568,7 @@ describe('SyncHydrationService', () => {
 
       // Step 4: Verify the snapshot has PRESERVED local settings (not remote's false)
       expect(snapshotSync['isEnabled']).toBe(true); // Local value preserved!
-      expect(snapshotSync['syncProvider']).toBe(LegacySyncProvider.WebDAV); // Local provider preserved!
+      expect(snapshotSync['syncProvider']).toBe(SyncProviderId.WebDAV); // Local provider preserved!
 
       // Step 5: Simulate what happens on reload
       // The hydrator will call store.dispatch(loadAllData({ appDataComplete: snapshotState }))
@@ -581,7 +581,7 @@ describe('SyncHydrationService', () => {
 
       // Final verification: The data dispatched to NgRx has correct local settings
       expect(dispatchedSync['isEnabled']).toBe(true);
-      expect(dispatchedSync['syncProvider']).toBe(LegacySyncProvider.WebDAV);
+      expect(dispatchedSync['syncProvider']).toBe(SyncProviderId.WebDAV);
     });
 
     it('should preserve local isEnabled when remote has it disabled', async () => {
@@ -590,7 +590,7 @@ describe('SyncHydrationService', () => {
         of({
           ...DEFAULT_GLOBAL_CONFIG.sync,
           isEnabled: true,
-          syncProvider: LegacySyncProvider.WebDAV,
+          syncProvider: SyncProviderId.WebDAV,
         }),
       );
 
@@ -612,7 +612,7 @@ describe('SyncHydrationService', () => {
       const globalConfig = savedState['globalConfig'] as Record<string, unknown>;
       const sync = globalConfig['sync'] as Record<string, unknown>;
       expect(sync['isEnabled']).toBe(true);
-      expect(sync['syncProvider']).toBe(LegacySyncProvider.WebDAV);
+      expect(sync['syncProvider']).toBe(SyncProviderId.WebDAV);
     });
 
     it('should preserve local isEnabled when remote has it enabled', async () => {
@@ -621,7 +621,7 @@ describe('SyncHydrationService', () => {
         of({
           ...DEFAULT_GLOBAL_CONFIG.sync,
           isEnabled: false,
-          syncProvider: LegacySyncProvider.WebDAV,
+          syncProvider: SyncProviderId.WebDAV,
         }),
       );
 
@@ -651,7 +651,7 @@ describe('SyncHydrationService', () => {
         of({
           ...DEFAULT_GLOBAL_CONFIG.sync,
           isEnabled: true,
-          syncProvider: LegacySyncProvider.WebDAV,
+          syncProvider: SyncProviderId.WebDAV,
         }),
       );
 
@@ -660,7 +660,7 @@ describe('SyncHydrationService', () => {
         globalConfig: {
           sync: {
             isEnabled: false,
-            syncProvider: LegacySyncProvider.Dropbox,
+            syncProvider: SyncProviderId.Dropbox,
           },
         },
       };
@@ -677,7 +677,7 @@ describe('SyncHydrationService', () => {
         unknown
       >;
       const sync = globalConfig['sync'] as Record<string, unknown>;
-      expect(sync['syncProvider']).toBe(LegacySyncProvider.WebDAV);
+      expect(sync['syncProvider']).toBe(SyncProviderId.WebDAV);
       expect(sync['isEnabled']).toBe(true);
     });
 
@@ -686,7 +686,7 @@ describe('SyncHydrationService', () => {
         of({
           ...DEFAULT_GLOBAL_CONFIG.sync,
           isEnabled: true,
-          syncProvider: LegacySyncProvider.SuperSync,
+          syncProvider: SyncProviderId.SuperSync,
         }),
       );
 
@@ -694,7 +694,7 @@ describe('SyncHydrationService', () => {
         globalConfig: {
           sync: {
             isEnabled: false,
-            syncProvider: LegacySyncProvider.LocalFile,
+            syncProvider: SyncProviderId.LocalFile,
           },
         },
       };
@@ -707,7 +707,7 @@ describe('SyncHydrationService', () => {
       const savedGlobalConfig = savedState['globalConfig'] as Record<string, unknown>;
       const savedSync = savedGlobalConfig['sync'] as Record<string, unknown>;
       expect(savedSync['isEnabled']).toBe(true);
-      expect(savedSync['syncProvider']).toBe(LegacySyncProvider.SuperSync);
+      expect(savedSync['syncProvider']).toBe(SyncProviderId.SuperSync);
 
       // Check dispatch
       const dispatchCall = mockStore.dispatch.calls.mostRecent();
@@ -718,7 +718,7 @@ describe('SyncHydrationService', () => {
         .globalConfig as Record<string, unknown>;
       const dispatchedSync = dispatchedGlobalConfig['sync'] as Record<string, unknown>;
       expect(dispatchedSync['isEnabled']).toBe(true);
-      expect(dispatchedSync['syncProvider']).toBe(LegacySyncProvider.SuperSync);
+      expect(dispatchedSync['syncProvider']).toBe(SyncProviderId.SuperSync);
     });
   });
 });

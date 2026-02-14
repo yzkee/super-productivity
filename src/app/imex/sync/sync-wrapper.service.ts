@@ -59,7 +59,6 @@ import { promiseTimeout } from '../../util/promise-timeout';
 import { devError } from '../../util/dev-error';
 import { alertDialog, confirmDialog } from '../../util/native-dialogs';
 import { UserInputWaitStateService } from './user-input-wait-state.service';
-import { LegacySyncProvider } from './legacy-sync-provider.model';
 import { SYNC_WAIT_TIMEOUT_MS, SYNC_REINIT_DELAY_MS } from './sync.const';
 import { SuperSyncStatusService } from '../../op-log/sync/super-sync-status.service';
 import { IS_ELECTRON } from '../../app.constants';
@@ -99,7 +98,7 @@ export class SyncWrapperService {
   syncInterval$: Observable<number> = this.syncCfg$.pipe(
     map((cfg) => {
       if (cfg.isManualSyncOnly) return 0;
-      return cfg.syncProvider === LegacySyncProvider.SuperSync ? 60000 : cfg.syncInterval;
+      return cfg.syncProvider === SyncProviderId.SuperSync ? 60000 : cfg.syncInterval;
     }),
   );
 

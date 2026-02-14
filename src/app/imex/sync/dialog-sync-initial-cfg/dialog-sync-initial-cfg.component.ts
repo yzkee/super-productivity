@@ -21,7 +21,7 @@ import { FormlyConfigModule } from '../../../ui/formly-config.module';
 import { FormlyModule } from '@ngx-formly/core';
 import { FormlyFieldConfig } from '@ngx-formly/core';
 import { SyncConfig } from '../../../features/config/global-config.model';
-import { LegacySyncProvider } from '../legacy-sync-provider.model';
+import { SyncProviderId } from '../../../op-log/sync-providers/provider.const';
 import { SyncConfigService } from '../sync-config.service';
 import { SyncWrapperService } from '../sync-wrapper.service';
 import { Subscription } from 'rxjs';
@@ -107,7 +107,7 @@ export class DialogSyncInitialCfgComponent implements AfterViewInit {
       this._subs.add(
         syncProviderControl.valueChanges
           .pipe(skip(1))
-          .subscribe(async (newProvider: LegacySyncProvider | null) => {
+          .subscribe(async (newProvider: SyncProviderId | null) => {
             if (!newProvider) {
               return;
             }
@@ -133,24 +133,24 @@ export class DialogSyncInitialCfgComponent implements AfterViewInit {
             // Create provider-specific config based on provider type
             let providerSpecificUpdate: Partial<SyncConfig> = {};
 
-            if (newProvider === LegacySyncProvider.SuperSync && privateCfg) {
+            if (newProvider === SyncProviderId.SuperSync && privateCfg) {
               providerSpecificUpdate = {
                 superSync: privateCfg as any,
                 encryptKey: privateCfg.encryptKey || '',
                 // SuperSync stores isEncryptionEnabled in privateCfg, not globalCfg
                 isEncryptionEnabled: (privateCfg as any).isEncryptionEnabled || false,
               };
-            } else if (newProvider === LegacySyncProvider.WebDAV && privateCfg) {
+            } else if (newProvider === SyncProviderId.WebDAV && privateCfg) {
               providerSpecificUpdate = {
                 webDav: privateCfg as any,
                 encryptKey: privateCfg.encryptKey || '',
               };
-            } else if (newProvider === LegacySyncProvider.LocalFile && privateCfg) {
+            } else if (newProvider === SyncProviderId.LocalFile && privateCfg) {
               providerSpecificUpdate = {
                 localFileSync: privateCfg as any,
                 encryptKey: privateCfg.encryptKey || '',
               };
-            } else if (newProvider === LegacySyncProvider.Dropbox && privateCfg) {
+            } else if (newProvider === SyncProviderId.Dropbox && privateCfg) {
               providerSpecificUpdate = {
                 encryptKey: privateCfg.encryptKey || '',
               };
@@ -172,7 +172,7 @@ export class DialogSyncInitialCfgComponent implements AfterViewInit {
             };
 
             // For non-SuperSync providers, update encryption from global config
-            if (newProvider !== LegacySyncProvider.SuperSync) {
+            if (newProvider !== SyncProviderId.SuperSync) {
               this._tmpUpdatedCfg = {
                 ...this._tmpUpdatedCfg,
                 isEncryptionEnabled: globalCfg?.isEncryptionEnabled || false,

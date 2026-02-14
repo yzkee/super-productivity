@@ -1,7 +1,7 @@
 import { FormlyFieldConfig } from '@ngx-formly/core';
 
 import { LanguageCode, DateTimeLocale } from '../../core/locale.constants';
-import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
+import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { ProjectCfgFormKey } from '../project/project.model';
 import { KeyboardConfig } from './keyboard-config.model';
 import { TaskReminderOptionId } from '../tasks/task.model';
@@ -162,8 +162,7 @@ export type SyncConfig = Readonly<{
   isEnabled: boolean;
   isEncryptionEnabled?: boolean;
   isCompressionEnabled?: boolean;
-  // TODO migrate to SyncProviderId
-  syncProvider: LegacySyncProvider | null;
+  syncProvider: SyncProviderId | null;
   syncInterval: number;
   isManualSyncOnly?: boolean;
 

@@ -13,7 +13,7 @@ import { SyncWrapperService } from '../../imex/sync/sync-wrapper.service';
 import { ShareService } from '../../core/share/share.service';
 import { UserProfileService } from '../../features/user-profile/user-profile.service';
 import { MatDialog } from '@angular/material/dialog';
-import { LegacySyncProvider } from '../../imex/sync/legacy-sync-provider.model';
+import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { TranslateService } from '@ngx-translate/core';
 
 describe('ConfigPageComponent', () => {
@@ -93,7 +93,7 @@ describe('ConfigPageComponent', () => {
 
       const fullSyncModel = {
         isEnabled: true,
-        syncProvider: LegacySyncProvider.WebDAV,
+        syncProvider: SyncProviderId.WebDAV,
         syncInterval: 600000,
         webDav: webDavCfg,
       };

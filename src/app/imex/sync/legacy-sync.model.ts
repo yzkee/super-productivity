@@ -6,7 +6,7 @@ import { TaskRepeatCfgState } from '../../features/task-repeat-cfg/task-repeat-c
 import { TagState } from '../../features/tag/tag.model';
 import { SimpleCounterState } from '../../features/simple-counter/simple-counter.model';
 import { ProjectArchive } from '../../features/project/project-archive.model';
-import { LegacySyncProvider } from './legacy-sync-provider.model';
+import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { ProjectState } from '../../features/project/project.model';
 import { NoteState } from '../../features/note/note.model';
 import { LocalSyncMetaForProvider } from './sync.model';
@@ -30,9 +30,9 @@ export interface LegacyAppBaseData {
 }
 
 export interface LocalSyncMetaModel {
-  [LegacySyncProvider.WebDAV]: LocalSyncMetaForProvider;
-  [LegacySyncProvider.Dropbox]: LocalSyncMetaForProvider;
-  [LegacySyncProvider.LocalFile]: LocalSyncMetaForProvider;
+  [SyncProviderId.WebDAV]: LocalSyncMetaForProvider;
+  [SyncProviderId.Dropbox]: LocalSyncMetaForProvider;
+  [SyncProviderId.LocalFile]: LocalSyncMetaForProvider;
 }
 
 // NOTE: [key:string] always refers to projectId
