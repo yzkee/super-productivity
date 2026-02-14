@@ -804,11 +804,21 @@ describe('FileBasedSyncAdapterService', () => {
     });
 
     it('should succeed even if files do not exist', async () => {
-      mockProvider.removeFile.and.throwError(new Error('File not found'));
+      mockProvider.removeFile.and.rejectWith(
+        new RemoteFileNotFoundAPIError('File not found'),
+      );
 
       const result = await adapter.deleteAllData();
 
       expect(result.success).toBe(true);
+    });
+
+    it('should return failure when main sync file deletion fails with real error', async () => {
+      mockProvider.removeFile.and.rejectWith(new Error('Permission denied'));
+
+      const result = await adapter.deleteAllData();
+
+      expect(result.success).toBe(false);
     });
 
     it('should reset local state after delete', async () => {

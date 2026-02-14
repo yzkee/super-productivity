@@ -88,12 +88,6 @@ export interface FileBasedSyncData {
    * Undefined when recentOps is empty (e.g., after snapshot upload).
    */
   oldestOpTimestamp?: number;
-
-  /**
-   * Optional checksum for integrity verification.
-   * SHA-256 hash of the uncompressed state JSON.
-   */
-  checksum?: string;
 }
 
 // Note: FileBasedOperationSyncCapable interface was removed.
@@ -184,44 +178,4 @@ export interface MigrationLockContent {
   clientId: string;
   timestamp: number;
   stage: 'started' | 'downloading' | 'converting' | 'uploading' | 'cleaning';
-}
-
-/**
- * Result of parsing/validating sync data file
- */
-export interface ParsedSyncData {
-  data: FileBasedSyncData;
-  isValid: boolean;
-  validationErrors?: string[];
-}
-
-/**
- * Conflict resolution result for a single entity
- */
-export interface EntityConflictResolution {
-  entityType: string;
-  entityId: string;
-  winner: 'local' | 'remote';
-  winnerTimestamp: number;
-  loserTimestamp: number;
-}
-
-/**
- * Result of merging local and remote operations
- */
-export interface MergeResult {
-  /** Merged state to upload */
-  mergedState: unknown;
-
-  /** Operations to include in recentOps (combined and deduplicated) */
-  mergedOps: CompactOperation[];
-
-  /** Updated vector clock after merge */
-  mergedVectorClock: VectorClock;
-
-  /** Conflicts that were auto-resolved via LWW */
-  autoResolvedConflicts: EntityConflictResolution[];
-
-  /** True if local ops were rejected (remote won all conflicts) */
-  localOpsRejected: boolean;
 }
