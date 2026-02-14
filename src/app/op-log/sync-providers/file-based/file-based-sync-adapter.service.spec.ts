@@ -804,7 +804,7 @@ describe('FileBasedSyncAdapterService', () => {
   });
 
   describe('uploadSnapshot', () => {
-    it('should create new sync file with state', async () => {
+    it('should create new sync file with state from getStateSnapshot (not the passed parameter)', async () => {
       mockProvider.downloadFile.and.throwError(
         new RemoteFileNotFoundAPIError('sync-data.json'),
       );
@@ -815,11 +815,13 @@ describe('FileBasedSyncAdapterService', () => {
         return Promise.resolve({ rev: 'rev-1' });
       });
 
-      const state = { tasks: [{ id: 't1', title: 'Test' }] };
+      // The passed state should be IGNORED — file adapter uses getStateSnapshot() instead
+      // to prevent double-encryption when the upload service encrypts the payload.
+      const passedState = { tasks: [{ id: 't1', title: 'Test' }] };
       const vectorClock = { client1: 5 };
 
       const result = await adapter.uploadSnapshot(
-        state,
+        passedState,
         'client1',
         'initial',
         vectorClock,
@@ -830,7 +832,8 @@ describe('FileBasedSyncAdapterService', () => {
 
       expect(result.accepted).toBe(true);
       const uploadedData = parseWithPrefix(uploadedDataStr);
-      expect(uploadedData.state).toEqual(state);
+      // State should come from getStateSnapshot(), not the passed parameter
+      expect(uploadedData.state).toEqual({ tasks: [], projects: [] } as any);
       expect(uploadedData.vectorClock).toEqual(vectorClock);
       expect(uploadedData.schemaVersion).toBe(2);
       expect(uploadedData.syncVersion).toBe(1);
@@ -870,7 +873,7 @@ describe('FileBasedSyncAdapterService', () => {
     });
 
     describe('uploadSnapshot and lastSyncTimestamps', () => {
-      it('should not reset lastSyncTimestamps after snapshot upload', async () => {
+      it('should reset lastSyncTimestamps after snapshot upload', async () => {
         // Step 1: Download ops to set lastSyncTimestamps
         const syncData = createMockSyncData({
           syncVersion: 1,
@@ -915,17 +918,16 @@ describe('FileBasedSyncAdapterService', () => {
           'test-op-snapshot',
         );
 
-        // Step 3: Verify lastSyncTimestamps is preserved (not cleared by snapshot upload)
+        // Step 3: Verify lastSyncTimestamps is cleared by snapshot upload.
+        // Snapshot upload resets all local sync state for consistency,
+        // since the snapshot represents a fresh starting point.
         stateJson = localStorage.getItem(
           FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
         );
         const stateAfterSnapshot = JSON.parse(stateJson!);
         expect(
           stateAfterSnapshot.lastSyncTimestamps[SyncProviderId.WebDAV],
-        ).toBeDefined();
-        expect(stateAfterSnapshot.lastSyncTimestamps[SyncProviderId.WebDAV]).toBe(
-          stateBeforeSnapshot.lastSyncTimestamps[SyncProviderId.WebDAV],
-        );
+        ).toBeUndefined();
       });
 
       it('should not trigger false gap detection after snapshot upload when own client uploaded', async () => {

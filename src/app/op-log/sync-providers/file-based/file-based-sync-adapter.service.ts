@@ -378,11 +378,7 @@ export class FileBasedSyncAdapterService {
     ops: SyncOperation[],
     clientId: string,
     currentSyncVersion: number,
-  ): Promise<{
-    newData: FileBasedSyncData;
-    existingOps: CompactOperation[];
-    mergedOps: CompactOperation[];
-  }> {
+  ): Promise<FileBasedSyncData> {
     const compactOps = ops.map((op) => this._syncOpToCompact(op));
     const newSyncVersion = currentSyncVersion + 1;
 
@@ -428,7 +424,7 @@ export class FileBasedSyncAdapterService {
       oldestOpTimestamp,
     };
 
-    return { newData, existingOps, mergedOps };
+    return newData;
   }
 
   /**
@@ -606,7 +602,7 @@ export class FileBasedSyncAdapterService {
     }
 
     // Step 2: Build merged sync data
-    const { newData } = await this._buildMergedSyncData(
+    const newData = await this._buildMergedSyncData(
       currentData,
       ops,
       clientId,
@@ -840,7 +836,7 @@ export class FileBasedSyncAdapterService {
     provider: SyncProviderServiceInterface<SyncProviderId>,
     cfg: EncryptAndCompressCfg,
     encryptKey: string | undefined,
-    state: unknown,
+    _state: unknown,
     clientId: string,
     reason: 'initial' | 'recovery' | 'migration',
     vectorClock: Record<string, number>,
@@ -853,6 +849,15 @@ export class FileBasedSyncAdapterService {
     // For snapshots, we start fresh with syncVersion = 1
     const newSyncVersion = 1;
 
+    // Always use fresh state from the NgRx store instead of the passed `_state` parameter.
+    // The upload service may have encrypted the payload for SuperSync (where the server stores
+    // encrypted blobs). For file-based sync, the ENTIRE file is already encrypted by
+    // compressAndEncryptData below, so payload-level encryption would cause double-encryption:
+    // the state would be an encrypted string inside an encrypted file. On download, only the
+    // outer encryption is removed, leaving the state as an opaque string that can't be hydrated.
+    // This matches _buildMergedSyncData which also uses getStateSnapshot().
+    const currentState = await this._stateSnapshotService.getStateSnapshot();
+
     // Load archive data from IndexedDB to include in snapshot
     const archiveYoung = await this._archiveDbAdapter.loadArchiveYoung();
     const archiveOld = await this._archiveDbAdapter.loadArchiveOld();
@@ -864,7 +869,7 @@ export class FileBasedSyncAdapterService {
       vectorClock,
       lastModified: Date.now(),
       clientId,
-      state,
+      state: currentState,
       archiveYoung,
       archiveOld,
       recentOps: [], // Fresh start - no recent ops
@@ -887,6 +892,7 @@ export class FileBasedSyncAdapterService {
     // Reset local state
     this._expectedSyncVersions.set(providerKey, newSyncVersion);
     this._localSeqCounters.set(providerKey, newSyncVersion);
+    this._lastSyncTimestamps.delete(providerKey);
     this._persistState();
 
     OpLog.warn(
