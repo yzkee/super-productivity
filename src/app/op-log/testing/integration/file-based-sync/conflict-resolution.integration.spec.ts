@@ -317,18 +317,15 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       expect(uploadResponse.newOps).toBeUndefined();
     });
 
-    it('should exclude own client ops from piggybacking', async () => {
+    it('should not return piggybacked ops on consecutive uploads from same client', async () => {
       const clientA = harness.createClient('client-a-test');
-      // Create client B to initialize shared provider state
-      harness.createClient('client-b-test');
 
-      // Client A uploads
+      // Client A uploads twice in a row
       const opA = clientA.createOp('Task', 'task-a', 'CRT', 'TaskActionTypes.ADD_TASK', {
         title: 'A',
       });
       await clientA.uploadOps([opA]);
 
-      // Client A uploads again - should not get own op piggybacked
       const opA2 = clientA.createOp(
         'Task',
         'task-a2',
@@ -340,11 +337,9 @@ describe('File-Based Sync Integration - Conflict Resolution', () => {
       );
       const response = await clientA.uploadOps([opA2]);
 
-      // newOps should not contain client A's ops
-      if (response.newOps) {
-        const clientIds = response.newOps.map((o) => o.op.clientId);
-        expect(clientIds).not.toContain('client-a-test');
-      }
+      // File-based adapter no longer piggybacks — remote ops are only
+      // discovered via downloadOps on the next sync cycle
+      expect(response.newOps).toBeUndefined();
     });
   });
 

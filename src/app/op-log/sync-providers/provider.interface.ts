@@ -245,7 +245,7 @@ export interface OperationSyncCapable {
    * Upload operations to the server
    * @param ops Operations to upload
    * @param clientId Client identifier
-   * @param lastKnownServerSeq Last known server sequence (for piggyback download)
+   * @param lastKnownServerSeq Last known server sequence
    */
   uploadOps(
     ops: SyncOperation[],

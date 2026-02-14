@@ -252,7 +252,7 @@ export class FileBasedSyncTestHarness {
 
     // Create a fresh adapter service for this client
     // Each client needs its own adapter service instance because:
-    // - _processedOpIds tracks what THIS client has seen (not global)
+    // - _lastSyncTimestamps tracks what THIS client has seen (not global)
     // - _expectedSyncVersions tracks what THIS client expects
     // In real usage, each app instance has its own adapter service
     const adapterService = this._createAdapterService();

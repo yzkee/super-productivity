@@ -155,6 +155,9 @@ export class FileBasedSyncAdapterService {
         localStorage.removeItem(
           FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'seqCounters',
         );
+        localStorage.removeItem(
+          FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'processedOps',
+        );
         OpLog.normal('FileBasedSyncAdapter: Migrated sync state to atomic storage');
       }
 
@@ -749,14 +752,8 @@ export class FileBasedSyncAdapterService {
     const isForceFromZero = sinceSeq === 0;
     const filteredOps: ServerSyncOperation[] = [];
 
-    // NOTE: We no longer filter using _processedOpIds here.
-    // The download service filters using appliedOpIds (from IndexedDB), which is
-    // the source of truth for what's actually applied. _processedOpIds was getting
-    // out of sync because ops could be "downloaded" but not applied (e.g., due to
-    // interrupted sync, app crash, or filtering by appliedOpIds in the download service).
-    //
-    // By returning ALL ops from the file, we let the download service's appliedOpIds
-    // filter decide what's truly new. This may download more data but ensures correctness.
+    // We return ALL ops from the file and let the download service's appliedOpIds
+    // (from IndexedDB) filter decide what's truly new. This ensures correctness.
 
     OpLog.verbose(
       `FileBasedSyncAdapter: Returning all ${syncData.recentOps.length} ops from file (filtering by appliedOpIds happens in download service)`,

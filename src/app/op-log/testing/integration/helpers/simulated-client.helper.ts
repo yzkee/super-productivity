@@ -159,7 +159,7 @@ export class SimulatedClient {
       await this.store.markSynced(seqsToMark);
     }
 
-    // Process piggybacked ops
+    // Process piggybacked ops (only used by SuperSync adapter; file-based always returns undefined)
     let newOpsReceived = 0;
     if (response.newOps && response.newOps.length > 0) {
       await this._applyRemoteOps(response.newOps);
