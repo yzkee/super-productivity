@@ -3,6 +3,15 @@ import { CompactOperation } from '../../../core/persistence/operation-log/compac
 import { ArchiveModel } from '../../../features/time-tracking/time-tracking.model';
 
 /**
+ * Wrapper type for compact ops stored in the sync file.
+ * Extends CompactOperation with `sv` (syncVersion) — the syncVersion at which
+ * this op was uploaded. Used for partial-trimming gap detection.
+ *
+ * This is a file-based sync transport concern, NOT a general operation property.
+ */
+export type SyncFileCompactOp = CompactOperation & { sv?: number };
+
+/**
  * File-based sync data structure.
  * This is the schema for `sync-data.json` stored on WebDAV/Dropbox/LocalFile providers.
  *
@@ -77,17 +86,17 @@ export interface FileBasedSyncData {
    *
    * Default limit: 200 operations
    */
-  recentOps: CompactOperation[];
+  recentOps: SyncFileCompactOp[];
 
   /**
-   * Timestamp (epoch ms) of the oldest operation in recentOps.
+   * The syncVersion (upload batch number) of the oldest operation in recentOps.
    * Used for partial-trimming gap detection: when recentOps hits MAX_RECENT_OPS
-   * and oldest ops are trimmed, a slow-syncing client can check whether its
-   * lastSyncTimestamp is older than this value to detect missed ops.
+   * and oldest ops are trimmed, a slow-syncing client compares this against its
+   * sinceSeq to detect missed ops — no cross-machine clock comparison needed.
    *
-   * Undefined when recentOps is empty (e.g., after snapshot upload).
+   * Undefined when recentOps is empty or when old ops lack `sv` (backward compat).
    */
-  oldestOpTimestamp?: number;
+  oldestOpSyncVersion?: number;
 }
 
 // Note: FileBasedOperationSyncCapable interface was removed.

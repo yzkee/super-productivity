@@ -28,6 +28,7 @@ import {
   FileBasedSyncData,
   FILE_BASED_SYNC_CONSTANTS,
   SyncDataCorruptedError,
+  SyncFileCompactOp,
 } from './file-based-sync.types';
 import { OpLog } from '../../../core/log';
 import {
@@ -79,9 +80,6 @@ export class FileBasedSyncAdapterService {
   /** Local sequence counters (simulates server seq for file-based) */
   private _localSeqCounters = new Map<string, number>();
 
-  /** Timestamp of last successful download per provider - used for partial-trimming gap detection */
-  private _lastSyncTimestamps = new Map<string, number>();
-
   /** Cache for downloaded sync data within a sync cycle (avoids redundant downloads) */
   private _syncCycleCache = new Map<
     string,
@@ -121,11 +119,6 @@ export class FileBasedSyncAdapterService {
         }
         if (state.seqCounters) {
           this._localSeqCounters = new Map(Object.entries(state.seqCounters));
-        }
-        if (state.lastSyncTimestamps) {
-          this._lastSyncTimestamps = new Map(
-            Object.entries(state.lastSyncTimestamps).map(([k, v]) => [k, v as number]),
-          );
         }
         this._persistedStateLoaded = true;
         return;
@@ -178,7 +171,6 @@ export class FileBasedSyncAdapterService {
       const state = {
         syncVersions: Object.fromEntries(this._expectedSyncVersions),
         seqCounters: Object.fromEntries(this._localSeqCounters),
-        lastSyncTimestamps: Object.fromEntries(this._lastSyncTimestamps),
       };
       localStorage.setItem(this._STORAGE_KEY, JSON.stringify(state));
     } catch (e) {
@@ -379,8 +371,13 @@ export class FileBasedSyncAdapterService {
     clientId: string,
     currentSyncVersion: number,
   ): Promise<FileBasedSyncData> {
-    const compactOps = ops.map((op) => this._syncOpToCompact(op));
     const newSyncVersion = currentSyncVersion + 1;
+
+    // Tag each new compact op with the syncVersion of this upload batch
+    const compactOps: SyncFileCompactOp[] = ops.map((op) => ({
+      ...this._syncOpToCompact(op),
+      sv: newSyncVersion,
+    }));
 
     // Build merged vector clock
     let mergedClock: VectorClock = currentData?.vectorClock || {};
@@ -389,7 +386,7 @@ export class FileBasedSyncAdapterService {
     }
 
     // Merge recentOps - add new ops, trim to limit
-    const existingOps = currentData?.recentOps || [];
+    const existingOps: SyncFileCompactOp[] = currentData?.recentOps || [];
     const combinedOps = [...existingOps, ...compactOps];
     const mergedOps = combinedOps.slice(-FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS);
     if (combinedOps.length > mergedOps.length) {
@@ -406,9 +403,10 @@ export class FileBasedSyncAdapterService {
     // Get current state from NgRx store - this keeps the snapshot up-to-date
     const currentState = await this._stateSnapshotService.getStateSnapshot();
 
-    // Compute oldestOpTimestamp from the earliest op in mergedOps
-    const oldestOpTimestamp =
-      mergedOps.length > 0 ? Math.min(...mergedOps.map((op) => op.t)) : undefined;
+    // Compute oldestOpSyncVersion from the first (oldest) op in mergedOps.
+    // Ops without sv (from old sync files) are ignored — gap detection stays
+    // disabled until those ops are naturally trimmed out.
+    const oldestOpSyncVersion = mergedOps.length > 0 ? mergedOps[0]?.sv : undefined;
 
     const newData: FileBasedSyncData = {
       version: FILE_BASED_SYNC_CONSTANTS.FILE_VERSION,
@@ -421,7 +419,7 @@ export class FileBasedSyncAdapterService {
       archiveYoung,
       archiveOld,
       recentOps: mergedOps,
-      oldestOpTimestamp,
+      oldestOpSyncVersion,
     };
 
     return newData;
@@ -463,7 +461,6 @@ export class FileBasedSyncAdapterService {
 
     // Retry loop on revision mismatch
     const maxRetries = FILE_BASED_SYNC_CONSTANTS.MAX_UPLOAD_RETRIES;
-    const compactOps = ops.map((op) => this._syncOpToCompact(op));
     let previousRev = revToMatch;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -484,8 +481,15 @@ export class FileBasedSyncAdapterService {
         encryptKey,
       );
 
+      // Tag compact ops with the NEW syncVersion for this retry attempt
+      const freshSyncVersion = freshData.syncVersion + 1;
+      const compactOps: SyncFileCompactOp[] = ops.map((op) => ({
+        ...this._syncOpToCompact(op),
+        sv: freshSyncVersion,
+      }));
+
       // Re-merge operations with fresh data
-      const freshExistingOps = freshData.recentOps || [];
+      const freshExistingOps: SyncFileCompactOp[] = freshData.recentOps || [];
       const freshCombinedOps = [...freshExistingOps, ...compactOps];
       const freshMergedOps = freshCombinedOps.slice(
         -FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS,
@@ -507,11 +511,9 @@ export class FileBasedSyncAdapterService {
       const freshArchiveYoung = await this._archiveDbAdapter.loadArchiveYoung();
       const freshArchiveOld = await this._archiveDbAdapter.loadArchiveOld();
 
-      // Compute oldestOpTimestamp for retry data
-      const freshOldestOpTimestamp =
-        freshMergedOps.length > 0
-          ? Math.min(...freshMergedOps.map((op) => op.t))
-          : undefined;
+      // Compute oldestOpSyncVersion for retry data
+      const freshOldestOpSyncVersion =
+        freshMergedOps.length > 0 ? freshMergedOps[0]?.sv : undefined;
 
       const freshNewData: FileBasedSyncData = {
         ...newData,
@@ -519,11 +521,11 @@ export class FileBasedSyncAdapterService {
         archiveYoung: freshArchiveYoung,
         archiveOld: freshArchiveOld,
         schemaVersion: freshData.schemaVersion || newData.schemaVersion,
-        syncVersion: freshData.syncVersion + 1,
+        syncVersion: freshSyncVersion,
         vectorClock: freshMergedClock,
         recentOps: freshMergedOps,
         lastModified: Date.now(),
-        oldestOpTimestamp: freshOldestOpTimestamp,
+        oldestOpSyncVersion: freshOldestOpSyncVersion,
       };
 
       const freshUploadData =
@@ -709,15 +711,14 @@ export class FileBasedSyncAdapterService {
         : sinceSeq !== syncData.syncVersion);
 
     // Detect partial trimming: when recentOps hits MAX_RECENT_OPS and oldest ops
-    // were trimmed, a slow-syncing device may have missed the trimmed ops.
-    // If the client's lastSyncTimestamp is older than the oldest op in the file,
-    // the client missed ops that were trimmed before it synced.
-    const lastSyncTs = this._lastSyncTimestamps.get(providerKey) ?? 0;
+    // were trimmed, a slow-syncing client compares oldestOpSyncVersion against sinceSeq.
+    // If the oldest surviving op was uploaded AFTER the client's last download,
+    // AND the buffer is full (trimming occurred), ops between sinceSeq and
+    // oldestOpSyncVersion were trimmed and the client never saw them.
     const partialTrimGap =
       sinceSeq > 0 &&
-      lastSyncTs > 0 &&
-      syncData.oldestOpTimestamp !== undefined &&
-      lastSyncTs < syncData.oldestOpTimestamp &&
+      syncData.oldestOpSyncVersion !== undefined &&
+      syncData.oldestOpSyncVersion > sinceSeq &&
       syncData.recentOps.length >= FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS;
 
     const needsGapDetection = versionWasReset || snapshotReplacement || partialTrimGap;
@@ -727,9 +728,8 @@ export class FileBasedSyncAdapterService {
         ? `sync version reset (${previousExpectedVersion} → ${syncData.syncVersion})`
         : snapshotReplacement
           ? `snapshot replacement (expected ops from seq ${sinceSeq}, but recentOps is empty)`
-          : `partial trimming (lastSync=${new Date(lastSyncTs).toISOString()}, ` +
-            `oldestOp=${new Date(syncData.oldestOpTimestamp!).toISOString()}, ` +
-            `recentOps=${syncData.recentOps.length})`;
+          : `partial trimming (oldestOpSyncVersion=${syncData.oldestOpSyncVersion}, ` +
+            `sinceSeq=${sinceSeq}, recentOps=${syncData.recentOps.length})`;
       OpLog.warn(
         `FileBasedSyncAdapter: Gap detected - ${reason}. ` +
           'Another client may have uploaded a snapshot. Signaling gap detection.',
@@ -787,10 +787,6 @@ export class FileBasedSyncAdapterService {
     OpLog.normal(
       `FileBasedSyncAdapter: Downloaded ${limitedOps.length} ops (new/total: ${filteredOps.length}/${latestSeq})`,
     );
-
-    // Update lastSyncTimestamp for partial-trimming gap detection on next download
-    this._lastSyncTimestamps.set(providerKey, Date.now());
-    this._persistState();
 
     // NOTE: Archives are NOT written to IndexedDB here. They are included in the
     // snapshotState response and written to IndexedDB during hydrateFromRemoteSync()
@@ -850,12 +846,11 @@ export class FileBasedSyncAdapterService {
     const newSyncVersion = 1;
 
     // Always use fresh state from the NgRx store instead of the passed `_state` parameter.
-    // The upload service may have encrypted the payload for SuperSync (where the server stores
-    // encrypted blobs). For file-based sync, the ENTIRE file is already encrypted by
-    // compressAndEncryptData below, so payload-level encryption would cause double-encryption:
-    // the state would be an encrypted string inside an encrypted file. On download, only the
-    // outer encryption is removed, leaving the state as an opaque string that can't be hydrated.
-    // This matches _buildMergedSyncData which also uses getStateSnapshot().
+    // 1. Consistency: _buildMergedSyncData also uses getStateSnapshot() for its state.
+    // 2. Freshness: the passed state may come from an op payload created earlier in the
+    //    sync cycle, so fetching directly ensures we capture the latest store state.
+    // Note: double-encryption is not a concern here — file-based providers don't expose
+    // getEncryptKey, so the upload service never applies payload-level encryption for them.
     const currentState = await this._stateSnapshotService.getStateSnapshot();
 
     // Load archive data from IndexedDB to include in snapshot
@@ -892,7 +887,6 @@ export class FileBasedSyncAdapterService {
     // Reset local state
     this._expectedSyncVersions.set(providerKey, newSyncVersion);
     this._localSeqCounters.set(providerKey, newSyncVersion);
-    this._lastSyncTimestamps.delete(providerKey);
     this._persistState();
 
     OpLog.warn(
@@ -947,7 +941,6 @@ export class FileBasedSyncAdapterService {
       // Reset local state
       this._expectedSyncVersions.delete(providerKey);
       this._localSeqCounters.delete(providerKey);
-      this._lastSyncTimestamps.delete(providerKey);
       this._clearCachedSyncData(providerKey);
       this._persistState();
 

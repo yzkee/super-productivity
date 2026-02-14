@@ -464,14 +464,11 @@ describe('FileBasedSyncAdapterService', () => {
       expect(retryCall[3]).toBe(false); // isForceOverwrite
     });
 
-    describe('oldestOpTimestamp in retry path', () => {
-      it('should compute correct oldestOpTimestamp after retry merges ops', async () => {
-        const T1 = Date.now() - 10_000; // older timestamp
-        const T2 = Date.now(); // newer timestamp
-
-        // Initial download: file has ops with timestamp T1
+    describe('oldestOpSyncVersion and sv tagging in retry path', () => {
+      it('should tag retry compact ops with the correct sv (freshData.syncVersion + 1)', async () => {
+        // Existing file at syncVersion=3 with an op tagged sv=3
         const existingData = createMockSyncData({
-          syncVersion: 1,
+          syncVersion: 3,
           recentOps: [
             {
               id: 'existing-op',
@@ -481,9 +478,10 @@ describe('FileBasedSyncAdapterService', () => {
               e: 'TASK',
               d: 'task-existing',
               v: { otherClient: 1 },
-              t: T1,
+              t: Date.now() - 10_000,
               s: 1,
               p: {},
+              sv: 3,
             },
           ],
         });
@@ -508,26 +506,48 @@ describe('FileBasedSyncAdapterService', () => {
           },
         );
 
-        // Re-download on retry returns same existing data with updated rev
+        // Re-download on retry returns file at syncVersion=5 (another client uploaded twice)
+        const freshData = createMockSyncData({
+          syncVersion: 5,
+          recentOps: [
+            {
+              id: 'existing-op',
+              c: 'other-client',
+              a: 'HA',
+              o: 'ADD',
+              e: 'TASK',
+              d: 'task-existing',
+              v: { otherClient: 1 },
+              t: Date.now() - 10_000,
+              s: 1,
+              p: {},
+              sv: 3,
+            },
+          ],
+        });
         mockProvider.downloadFile.and.returnValue(
-          Promise.resolve({ dataStr: addPrefix(existingData), rev: 'rev-2' }),
+          Promise.resolve({ dataStr: addPrefix(freshData), rev: 'rev-2' }),
         );
 
-        const newOp = createMockSyncOp({ id: 'new-op', timestamp: T2 });
+        const newOp = createMockSyncOp({ id: 'new-op' });
         await adapter.uploadOps([newOp], 'client1');
 
-        // Parse the retry's uploaded data
         const uploadedData = parseWithPrefix(retryUploadedDataStr);
-        // oldestOpTimestamp should be min(T1, T2) = T1
-        expect(uploadedData.oldestOpTimestamp).toBe(T1);
+        // New op should be tagged with freshData.syncVersion + 1 = 6
+        const newCompactOp = uploadedData.recentOps.find((op: any) => op.id === 'new-op');
+        expect(newCompactOp).toBeDefined();
+        expect((newCompactOp as any).sv).toBe(6);
+        // Existing op keeps its original sv=3
+        const existingOp = uploadedData.recentOps.find(
+          (op: any) => op.id === 'existing-op',
+        );
+        expect((existingOp as any).sv).toBe(3);
       });
 
-      it('should preserve oldestOpTimestamp when retried ops have newer timestamps', async () => {
-        const T_OLD = Date.now() - 60_000; // very old existing timestamp
-        const T_NEW = Date.now(); // new op timestamp
-
+      it('should compute oldestOpSyncVersion from first op in merged array', async () => {
+        // Existing file has an op tagged sv=2
         const existingData = createMockSyncData({
-          syncVersion: 1,
+          syncVersion: 3,
           recentOps: [
             {
               id: 'old-op',
@@ -537,9 +557,10 @@ describe('FileBasedSyncAdapterService', () => {
               e: 'TASK',
               d: 'task-old',
               v: { otherClient: 1 },
-              t: T_OLD,
+              t: Date.now() - 60_000,
               s: 1,
               p: {},
+              sv: 2,
             },
           ],
         });
@@ -566,12 +587,12 @@ describe('FileBasedSyncAdapterService', () => {
           Promise.resolve({ dataStr: addPrefix(existingData), rev: 'rev-2' }),
         );
 
-        const newOp = createMockSyncOp({ id: 'newer-op', timestamp: T_NEW });
+        const newOp = createMockSyncOp({ id: 'newer-op' });
         await adapter.uploadOps([newOp], 'client1');
 
         const uploadedData = parseWithPrefix(retryUploadedDataStr);
-        // Older timestamp from existing ops should be preserved
-        expect(uploadedData.oldestOpTimestamp).toBe(T_OLD);
+        // oldestOpSyncVersion should be sv of first (oldest) op = 2
+        expect(uploadedData.oldestOpSyncVersion).toBe(2);
       });
     });
 
@@ -872,66 +893,9 @@ describe('FileBasedSyncAdapterService', () => {
       );
     });
 
-    describe('uploadSnapshot and lastSyncTimestamps', () => {
-      it('should reset lastSyncTimestamps after snapshot upload', async () => {
-        // Step 1: Download ops to set lastSyncTimestamps
-        const syncData = createMockSyncData({
-          syncVersion: 1,
-          recentOps: [
-            {
-              id: 'op-1',
-              c: 'other-client',
-              a: 'HA',
-              o: 'ADD',
-              e: 'TASK',
-              d: 'task-1',
-              v: { otherClient: 1 },
-              t: Date.now(),
-              s: 1,
-              p: {},
-            },
-          ],
-        });
-        mockProvider.downloadFile.and.returnValue(
-          Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
-        );
-        await adapter.downloadOps(0);
-
-        // Verify lastSyncTimestamps was set
-        let stateJson = localStorage.getItem(
-          FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
-        );
-        const stateBeforeSnapshot = JSON.parse(stateJson!);
-        expect(
-          stateBeforeSnapshot.lastSyncTimestamps[SyncProviderId.WebDAV],
-        ).toBeDefined();
-
-        // Step 2: Upload snapshot
-        mockProvider.uploadFile.and.returnValue(Promise.resolve({ rev: 'rev-2' }));
-        await adapter.uploadSnapshot(
-          {},
-          'client1',
-          'initial',
-          { client1: 1 },
-          1,
-          undefined,
-          'test-op-snapshot',
-        );
-
-        // Step 3: Verify lastSyncTimestamps is cleared by snapshot upload.
-        // Snapshot upload resets all local sync state for consistency,
-        // since the snapshot represents a fresh starting point.
-        stateJson = localStorage.getItem(
-          FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
-        );
-        const stateAfterSnapshot = JSON.parse(stateJson!);
-        expect(
-          stateAfterSnapshot.lastSyncTimestamps[SyncProviderId.WebDAV],
-        ).toBeUndefined();
-      });
-
+    describe('uploadSnapshot gap detection', () => {
       it('should not trigger false gap detection after snapshot upload when own client uploaded', async () => {
-        // Step 1: Download to set lastSyncTimestamps
+        // Step 1: Download to set expected sync version
         const initialData = createMockSyncData({
           syncVersion: 1,
           recentOps: [],
@@ -1044,33 +1008,6 @@ describe('FileBasedSyncAdapterService', () => {
 
       const seq = await adapter.getLastServerSeq();
       expect(seq).toBe(0);
-    });
-
-    it('should clear lastSyncTimestamps from persisted state', async () => {
-      // Step 1: Download ops to set lastSyncTimestamps
-      const syncData = createMockSyncData({ syncVersion: 1, recentOps: [] });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
-      );
-      await adapter.downloadOps(0);
-
-      // Verify lastSyncTimestamps was set
-      let stateJson = localStorage.getItem(
-        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
-      );
-      let state = JSON.parse(stateJson!);
-      expect(state.lastSyncTimestamps[SyncProviderId.WebDAV]).toBeDefined();
-
-      // Step 2: Delete all data
-      mockProvider.removeFile.and.returnValue(Promise.resolve());
-      await adapter.deleteAllData();
-
-      // Step 3: Verify lastSyncTimestamps is cleared
-      stateJson = localStorage.getItem(
-        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
-      );
-      state = JSON.parse(stateJson!);
-      expect(state.lastSyncTimestamps[SyncProviderId.WebDAV]).toBeUndefined();
     });
 
     it('should allow fresh sync after deleteAllData', async () => {
@@ -1751,7 +1688,6 @@ describe('FileBasedSyncAdapterService', () => {
       const atomicState = {
         syncVersions: { [SyncProviderId.WebDAV]: 10 },
         seqCounters: { [SyncProviderId.WebDAV]: 8 },
-        lastSyncTimestamps: {},
       };
       localStorage.setItem(
         FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
@@ -1787,252 +1723,10 @@ describe('FileBasedSyncAdapterService', () => {
     });
   });
 
-  describe('lastSyncTimestamps persistence', () => {
-    it('should persist lastSyncTimestamps to localStorage after download', async () => {
-      const syncData = createMockSyncData({ syncVersion: 1, recentOps: [] });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
-      );
-
-      await adapter.downloadOps(0);
-
-      const stateJson = localStorage.getItem(
-        FILE_BASED_SYNC_CONSTANTS.SYNC_VERSION_STORAGE_KEY_PREFIX + 'state',
-      );
-      expect(stateJson).toBeTruthy();
-      const state = JSON.parse(stateJson!);
-      const ts = state.lastSyncTimestamps[SyncProviderId.WebDAV];
-      expect(ts).toBeDefined();
-      // Timestamp should be recent (within last 5 seconds)
-      expect(Date.now() - ts).toBeLessThan(5000);
-    });
-
-    it('should restore lastSyncTimestamps from localStorage on new adapter instance', async () => {
-      // Step 1: Download ops to set lastSyncTimestamp
-      const syncData = createMockSyncData({ syncVersion: 1, recentOps: [] });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(syncData), rev: 'rev-1' }),
-      );
-      await adapter.downloadOps(0);
-
-      // Step 2: Create a new adapter instance (simulating app restart)
-      TestBed.resetTestingModule();
-      TestBed.configureTestingModule({
-        providers: [
-          FileBasedSyncAdapterService,
-          { provide: ArchiveDbAdapter, useValue: mockArchiveDbAdapter },
-          { provide: StateSnapshotService, useValue: mockStateSnapshotService },
-        ],
-      });
-      const freshService = TestBed.inject(FileBasedSyncAdapterService);
-      const freshAdapter = freshService.createAdapter(
-        mockProvider,
-        mockCfg,
-        mockEncryptKey,
-      );
-
-      // Step 3: Download data where oldestOpTimestamp is OLDER than our lastSyncTimestamp
-      // This should NOT trigger gap detection (no gap because we synced recently)
-      const maxOps = FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS;
-      const fullOps = Array.from({ length: maxOps }, (_, i) => ({
-        id: `op-${i}`,
-        c: 'other-client',
-        a: 'HA',
-        o: 'ADD',
-        e: 'TASK',
-        d: `task-${i}`,
-        v: { otherClient: i + 1 },
-        t: 500 + i, // Old timestamps — should be before our lastSyncTimestamp
-        s: 1,
-        p: {},
-      }));
-      const data = createMockSyncData({
-        syncVersion: 5,
-        recentOps: fullOps,
-        oldestOpTimestamp: 500,
-      });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(data), rev: 'rev-2' }),
-      );
-
-      // Since lastSyncTimestamp was restored and is > oldestOpTimestamp (500), no gap
-      const result = await freshAdapter.downloadOps(1);
-      expect(result.gapDetected).toBeFalsy();
-    });
-
-    it('should start with empty lastSyncTimestamps for a new provider', async () => {
-      // A fresh adapter without any prior downloads should have no lastSyncTimestamps
-      // This means gap detection's `lastSyncTs > 0` guard should prevent false positives
-
-      const maxOps = FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS;
-      const futureTs = Date.now() + 60_000;
-      const fullOps = Array.from({ length: maxOps }, (_, i) => ({
-        id: `op-${i}`,
-        c: 'other-client',
-        a: 'HA',
-        o: 'ADD',
-        e: 'TASK',
-        d: `task-${i}`,
-        v: { otherClient: i + 1 },
-        t: futureTs + i,
-        s: 1,
-        p: {},
-      }));
-
-      const data = createMockSyncData({
-        syncVersion: 5,
-        recentOps: fullOps,
-        oldestOpTimestamp: futureTs,
-      });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(data), rev: 'rev-1' }),
-      );
-
-      // Even though oldestOpTimestamp is in the future, lastSyncTs === 0
-      // so gap detection should NOT trigger (lastSyncTs > 0 guard)
-      const result = await adapter.downloadOps(1);
-      expect(result.gapDetected).toBeFalsy();
-    });
-  });
-
-  describe('partial-trimming gap detection (Bug 1)', () => {
-    it('should detect gap when lastSyncTimestamp < oldestOpTimestamp and recentOps is full', async () => {
-      // Step 1: Initial download to set lastSyncTimestamp
-      const initialData = createMockSyncData({
-        syncVersion: 1,
-        recentOps: [
-          {
-            id: 'op-1',
-            c: 'client1',
-            a: 'HA',
-            o: 'ADD',
-            e: 'TASK',
-            d: 'task-1',
-            v: { client1: 1 },
-            t: 1000,
-            s: 1,
-            p: {},
-          },
-        ],
-      });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(initialData), rev: 'rev-1' }),
-      );
-      await adapter.downloadOps(0);
-      // lastSyncTimestamp is now ~Date.now()
-
-      // Step 2: Simulate time passing and recentOps being filled to MAX.
-      // Use a timestamp far in the future to ensure oldestOpTimestamp > lastSyncTimestamp.
-      const futureTs = Date.now() + 60_000;
-      const maxOps = FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS;
-      const fullOps = Array.from({ length: maxOps }, (_, i) => ({
-        id: `op-full-${i}`,
-        c: 'other-client',
-        a: 'HA',
-        o: 'ADD',
-        e: 'TASK',
-        d: `task-full-${i}`,
-        v: { otherClient: i + 1 },
-        t: futureTs + i,
-        s: 1,
-        p: {},
-      }));
-
-      const trimmedData = createMockSyncData({
-        syncVersion: 10,
-        recentOps: fullOps,
-        oldestOpTimestamp: futureTs, // Newer than lastSyncTimestamp
-      });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(trimmedData), rev: 'rev-2' }),
-      );
-
-      // Step 3: Download again — should detect gap
-      const result = await adapter.downloadOps(1);
-      expect(result.gapDetected).toBe(true);
-    });
-
-    it('should NOT detect gap when lastSyncTimestamp > oldestOpTimestamp', async () => {
-      // Step 1: Initial download to set lastSyncTimestamp
-      const initialData = createMockSyncData({ syncVersion: 1, recentOps: [] });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(initialData), rev: 'rev-1' }),
-      );
-      await adapter.downloadOps(0);
-
-      // Step 2: Data with oldestOpTimestamp in the PAST (before lastSyncTimestamp)
-      const maxOps = FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS;
-      const fullOps = Array.from({ length: maxOps }, (_, i) => ({
-        id: `op-${i}`,
-        c: 'other-client',
-        a: 'HA',
-        o: 'ADD',
-        e: 'TASK',
-        d: `task-${i}`,
-        v: { otherClient: i + 1 },
-        t: 500 + i, // oldestOpTimestamp will be 500, which is BEFORE lastSyncTimestamp
-        s: 1,
-        p: {},
-      }));
-
-      const data = createMockSyncData({
-        syncVersion: 10,
-        recentOps: fullOps,
-        oldestOpTimestamp: 500, // Older than lastSyncTimestamp (set during step 1)
-      });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(data), rev: 'rev-2' }),
-      );
-
-      const result = await adapter.downloadOps(1);
-      expect(result.gapDetected).toBeFalsy();
-    });
-
-    it('should NOT detect gap when recentOps < MAX_RECENT_OPS (not trimmed)', async () => {
-      // Step 1: Initial download
-      const initialData = createMockSyncData({ syncVersion: 1, recentOps: [] });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(initialData), rev: 'rev-1' }),
-      );
-      await adapter.downloadOps(0);
-
-      // Step 2: Data with high oldestOpTimestamp but NOT full recentOps
-      const data = createMockSyncData({
-        syncVersion: 5,
-        recentOps: [
-          {
-            id: 'op-1',
-            c: 'other-client',
-            a: 'HA',
-            o: 'ADD',
-            e: 'TASK',
-            d: 'task-1',
-            v: { otherClient: 1 },
-            t: Date.now() + 10000,
-            s: 1,
-            p: {},
-          },
-        ],
-        oldestOpTimestamp: Date.now() + 10000, // Newer than lastSyncTimestamp
-      });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(data), rev: 'rev-2' }),
-      );
-
-      // Not full → no trimming could have happened → no gap
-      const result = await adapter.downloadOps(1);
-      expect(result.gapDetected).toBeFalsy();
-    });
-
-    it('should NOT detect gap when oldestOpTimestamp is undefined (backward compat)', async () => {
-      // Step 1: Initial download
-      const initialData = createMockSyncData({ syncVersion: 1, recentOps: [] });
-      mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(initialData), rev: 'rev-1' }),
-      );
-      await adapter.downloadOps(0);
-
-      // Step 2: Old sync file without oldestOpTimestamp
+  describe('partial-trimming gap detection (syncVersion-based)', () => {
+    it('should detect gap when oldestOpSyncVersion > sinceSeq and recentOps is full', async () => {
+      // Client last downloaded at sinceSeq=1, but the oldest surviving op was uploaded at sv=5
+      // AND the buffer is full → trimming happened → gap
       const maxOps = FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS;
       const fullOps = Array.from({ length: maxOps }, (_, i) => ({
         id: `op-${i}`,
@@ -2045,22 +1739,175 @@ describe('FileBasedSyncAdapterService', () => {
         t: Date.now() + i,
         s: 1,
         p: {},
+        sv: 5 + Math.floor(i / 10), // oldest sv=5
+      }));
+
+      const data = createMockSyncData({
+        syncVersion: 60,
+        recentOps: fullOps,
+        oldestOpSyncVersion: 5,
+      });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(data), rev: 'rev-1' }),
+      );
+
+      const result = await adapter.downloadOps(1); // sinceSeq=1 < oldestOpSyncVersion=5
+      expect(result.gapDetected).toBe(true);
+    });
+
+    it('should NOT detect gap when oldestOpSyncVersion <= sinceSeq', async () => {
+      const maxOps = FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS;
+      const fullOps = Array.from({ length: maxOps }, (_, i) => ({
+        id: `op-${i}`,
+        c: 'other-client',
+        a: 'HA',
+        o: 'ADD',
+        e: 'TASK',
+        d: `task-${i}`,
+        v: { otherClient: i + 1 },
+        t: Date.now() + i,
+        s: 1,
+        p: {},
+        sv: 1 + Math.floor(i / 10),
+      }));
+
+      const data = createMockSyncData({
+        syncVersion: 60,
+        recentOps: fullOps,
+        oldestOpSyncVersion: 1, // oldest sv=1 <= sinceSeq=5
+      });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(data), rev: 'rev-1' }),
+      );
+
+      const result = await adapter.downloadOps(5); // sinceSeq=5 >= oldestOpSyncVersion=1
+      expect(result.gapDetected).toBeFalsy();
+    });
+
+    it('should NOT detect gap when recentOps < MAX_RECENT_OPS (not trimmed)', async () => {
+      // Even if oldestOpSyncVersion > sinceSeq, buffer not full → no trimming → no gap
+      const data = createMockSyncData({
+        syncVersion: 10,
+        recentOps: [
+          {
+            id: 'op-1',
+            c: 'other-client',
+            a: 'HA',
+            o: 'ADD',
+            e: 'TASK',
+            d: 'task-1',
+            v: { otherClient: 1 },
+            t: Date.now(),
+            s: 1,
+            p: {},
+            sv: 5,
+          },
+        ],
+        oldestOpSyncVersion: 5,
+      });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(data), rev: 'rev-1' }),
+      );
+
+      const result = await adapter.downloadOps(1); // sinceSeq=1 < sv=5, but not full
+      expect(result.gapDetected).toBeFalsy();
+    });
+
+    it('should NOT detect gap when oldestOpSyncVersion is undefined (backward compat)', async () => {
+      // Old sync file without sv on ops → oldestOpSyncVersion is undefined
+      const maxOps = FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS;
+      const fullOps = Array.from({ length: maxOps }, (_, i) => ({
+        id: `op-${i}`,
+        c: 'other-client',
+        a: 'HA',
+        o: 'ADD',
+        e: 'TASK',
+        d: `task-${i}`,
+        v: { otherClient: i + 1 },
+        t: Date.now() + i,
+        s: 1,
+        p: {},
+        // no sv field — old format
       }));
 
       const data = createMockSyncData({
         syncVersion: 10,
         recentOps: fullOps,
-        // oldestOpTimestamp intentionally omitted (undefined)
+        // oldestOpSyncVersion intentionally omitted (undefined)
       });
       mockProvider.downloadFile.and.returnValue(
-        Promise.resolve({ dataStr: addPrefix(data), rev: 'rev-2' }),
+        Promise.resolve({ dataStr: addPrefix(data), rev: 'rev-1' }),
       );
 
       const result = await adapter.downloadOps(1);
       expect(result.gapDetected).toBeFalsy();
     });
 
-    it('should include oldestOpTimestamp in uploaded sync data', async () => {
+    it('should NOT detect gap when sinceSeq is 0 (fresh download)', async () => {
+      // sinceSeq=0 guard prevents false positives on first sync
+      const maxOps = FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS;
+      const fullOps = Array.from({ length: maxOps }, (_, i) => ({
+        id: `op-${i}`,
+        c: 'other-client',
+        a: 'HA',
+        o: 'ADD',
+        e: 'TASK',
+        d: `task-${i}`,
+        v: { otherClient: i + 1 },
+        t: Date.now() + i,
+        s: 1,
+        p: {},
+        sv: 5,
+      }));
+
+      const data = createMockSyncData({
+        syncVersion: 60,
+        recentOps: fullOps,
+        oldestOpSyncVersion: 5,
+        state: { tasks: [] },
+      });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(data), rev: 'rev-1' }),
+      );
+
+      const result = await adapter.downloadOps(0); // sinceSeq=0
+      // gapDetected should be false — sinceSeq > 0 guard
+      expect(result.gapDetected).toBeFalsy();
+    });
+
+    it('should detect gap when mixed old/new ops and oldestOpSyncVersion > sinceSeq', async () => {
+      // First op has sv=undefined (old), second has sv=3 — oldestOpSyncVersion from first = undefined
+      // This tests backward compat: if head op lacks sv, gap detection is disabled
+      const maxOps = FILE_BASED_SYNC_CONSTANTS.MAX_RECENT_OPS;
+      const mixedOps = Array.from({ length: maxOps }, (_, i) => ({
+        id: `op-${i}`,
+        c: 'other-client',
+        a: 'HA',
+        o: 'ADD',
+        e: 'TASK',
+        d: `task-${i}`,
+        v: { otherClient: i + 1 },
+        t: Date.now() + i,
+        s: 1,
+        p: {},
+        ...(i > 0 ? { sv: 3 + Math.floor(i / 10) } : {}), // first op has no sv
+      }));
+
+      const data = createMockSyncData({
+        syncVersion: 60,
+        recentOps: mixedOps,
+        oldestOpSyncVersion: undefined, // first op has no sv
+      });
+      mockProvider.downloadFile.and.returnValue(
+        Promise.resolve({ dataStr: addPrefix(data), rev: 'rev-1' }),
+      );
+
+      const result = await adapter.downloadOps(1);
+      // Gap detection disabled because oldestOpSyncVersion is undefined
+      expect(result.gapDetected).toBeFalsy();
+    });
+
+    it('should include oldestOpSyncVersion and sv in uploaded sync data', async () => {
       mockProvider.downloadFile.and.throwError(
         new RemoteFileNotFoundAPIError('sync-data.json'),
       );
@@ -2071,16 +1918,17 @@ describe('FileBasedSyncAdapterService', () => {
         return Promise.resolve({ rev: 'rev-1' });
       });
 
-      const now = Date.now();
-      const op1 = createMockSyncOp({ id: 'op-1', timestamp: now - 1000 });
-      const op2 = createMockSyncOp({ id: 'op-2', timestamp: now });
+      const op1 = createMockSyncOp({ id: 'op-1' });
+      const op2 = createMockSyncOp({ id: 'op-2' });
 
       await adapter.uploadOps([op1, op2], 'client1');
 
       const uploadedData = parseWithPrefix(uploadedDataStr);
-      // oldestOpTimestamp should be the earliest op's timestamp
-      expect(uploadedData.oldestOpTimestamp).toBeDefined();
-      expect(uploadedData.oldestOpTimestamp).toBeLessThanOrEqual(now);
+      // Both ops should have sv=1 (first upload, syncVersion=0+1)
+      expect(uploadedData.recentOps[0].sv).toBe(1);
+      expect(uploadedData.recentOps[1].sv).toBe(1);
+      // oldestOpSyncVersion should be sv of first op = 1
+      expect(uploadedData.oldestOpSyncVersion).toBe(1);
     });
   });
 });
