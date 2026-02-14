@@ -153,6 +153,9 @@ Implemented in `packages/shared-schema/src/vector-clock.ts`. The client wrapper 
 | **Client** `SyncHydrationService`               | Creating SYNC_IMPORT during conflict resolution | Current client only   |
 | **Client** `ServerMigrationService`             | Creating SYNC_IMPORT during migration           | Current client only   |
 | **Client** `RepairOperationService`             | Creating REPAIR operation                       | Current client only   |
+| **Client** `OperationLogSnapshotService`        | Saving snapshot to state cache                  | Current client only   |
+| **Client** `OperationLogCompactionService`      | Compaction (saving snapshot + deleting old ops) | Current client only   |
+| **Client** `OperationLogHydratorService`        | Restoring snapshot during hydration             | Current client only   |
 | **Client** normal op capture                    | **NEVER**                                       | N/A                   |
 | **Client** `SupersededOperationResolverService` | **NEVER** (conflict resolution)                 | N/A                   |
 

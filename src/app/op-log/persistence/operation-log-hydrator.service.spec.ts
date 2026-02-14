@@ -388,6 +388,19 @@ describe('OperationLogHydratorService', () => {
         expect(mockOpLogStore.setVectorClock).toHaveBeenCalledWith(smallClock);
       });
 
+      it('should not prune vector clock at exactly MAX_VECTOR_CLOCK_SIZE entries', async () => {
+        const exactClock: Record<string, number> = {};
+        for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+          exactClock[`client-${i}`] = i + 1;
+        }
+        const snapshot = createMockSnapshot({ vectorClock: exactClock });
+        mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(snapshot));
+
+        await service.hydrateStore();
+
+        expect(mockOpLogStore.setVectorClock).toHaveBeenCalledWith(exactClock);
+      });
+
       it('should restore unpruned clock if clientId is null', async () => {
         mockClientIdProvider.loadClientId.and.resolveTo(null);
         const clock = { clientA: 5 };

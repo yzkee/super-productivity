@@ -215,6 +215,22 @@ describe('OperationLogSnapshotService', () => {
       expect(savedCache.vectorClock).toEqual(smallClock);
     });
 
+    it('should not prune vector clock at exactly MAX_VECTOR_CLOCK_SIZE entries', async () => {
+      const exactClock: Record<string, number> = {};
+      for (let i = 0; i < MAX_VECTOR_CLOCK_SIZE; i++) {
+        exactClock[`client-${i}`] = i + 1;
+      }
+      mockStateSnapshotService.getStateSnapshot.and.returnValue({} as any);
+      mockVectorClockService.getCurrentVectorClock.and.resolveTo(exactClock);
+      mockOpLogStore.getLastSeq.and.resolveTo(1);
+      mockOpLogStore.saveStateCache.and.resolveTo(undefined);
+
+      await service.saveCurrentStateAsSnapshot();
+
+      const savedCache = mockOpLogStore.saveStateCache.calls.mostRecent().args[0];
+      expect(savedCache.vectorClock).toEqual(exactClock);
+    });
+
     it('should save unpruned clock if clientId is null', async () => {
       mockClientIdProvider.loadClientId.and.resolveTo(null);
       const clock = { client1: 5 };
