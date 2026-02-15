@@ -1,3 +1,29 @@
+## [17.1.8](https://github.com/super-productivity/super-productivity/compare/v17.1.7...v17.1.8) (2026-02-15)
+
+### Bug Fixes
+
+- **ci:** prevent duplicate draft releases on tag push ([7afaa0d](https://github.com/super-productivity/super-productivity/commit/7afaa0dff15b270a809314b2e8ce5a478b7eef0b))
+- **clipboard:** prioritize text content in paste handler ([#6526](https://github.com/super-productivity/super-productivity/issues/6526)) ([112fc4b](https://github.com/super-productivity/super-productivity/commit/112fc4b00589bbc0a3fb3b164c7194fe5b2b00e4))
+- **focusMode:** prevent break pause/resume from restarting time tracking ([#6522](https://github.com/super-productivity/super-productivity/issues/6522)) ([36a20bb](https://github.com/super-productivity/super-productivity/commit/36a20bbe5f5f4101145691643800fbc1b5690750))
+- **focusMode:** prevent settings changes from triggering focus overlay ([#6521](https://github.com/super-productivity/super-productivity/issues/6521)) ([1e51611](https://github.com/super-productivity/super-productivity/commit/1e516113f691f9f0b00b5a65a9ef03b73eabc97a))
+- **inlineMarkdown:** emit post-insertion value in toggleChecklistMode ([#6527](https://github.com/super-productivity/super-productivity/issues/6527)) ([0dc9147](https://github.com/super-productivity/super-productivity/commit/0dc914737db0547430dae3c3e0c575bd1ed2a28b))
+- parse time estimation short syntax for bulk-imported subtasks ([#6525](https://github.com/super-productivity/super-productivity/issues/6525)) ([e666bcb](https://github.com/super-productivity/super-productivity/commit/e666bcb1638fb998d13da98fa29db8e4b0e05a45)), closes [#6520](https://github.com/super-productivity/super-productivity/issues/6520)
+- **rightPanel:** force blur on close for all devices to save task notes ([8642e5e](https://github.com/super-productivity/super-productivity/commit/8642e5eef63a75faa08a74ee95c7d21f2bd0e518))
+- **sync:** add vector clock pruning to compaction and update docs ([9328156](https://github.com/super-productivity/super-productivity/commit/9328156ca1697170c6255552094026cb5b0cfc9f))
+- **sync:** clean up file-based sync adapter after piggybacking removal ([c2dccdd](https://github.com/super-productivity/super-productivity/commit/c2dccdd82ac054d4b23fe2f8775ee3e8c3aaa6e7))
+- **sync:** prevent double-encryption of snapshot state in file-based adapter ([d5387b8](https://github.com/super-productivity/super-productivity/commit/d5387b8ce654ae1cfa3cb08c17eccc2c08e71b8f))
+- **sync:** prune vector clock in snapshot save/restore to prevent bloat ([f08b08b](https://github.com/super-productivity/super-productivity/commit/f08b08b432856cc90ec85e9c1703199f0fb07842))
+- **sync:** remove piggybacking from file-based adapter to prevent silent data loss ([0200969](https://github.com/super-productivity/super-productivity/commit/02009698b9021d0400e10a95aeb33a40e36caf6f))
+- **sync:** replace timestamp-based partial trim gap detection with syncVersion-based check ([b4c9759](https://github.com/super-productivity/super-productivity/commit/b4c97595a69a8af7cedac448e9aab97434752361))
+- **tasks:** copy notes when duplicating parent task ([#6519](https://github.com/super-productivity/super-productivity/issues/6519)) ([2b2f35a](https://github.com/super-productivity/super-productivity/commit/2b2f35a16f2e3be02a701bb260144a3fcae6c1e3))
+- **tasks:** make short syntax case-sensitive and remove days unit [#6515](https://github.com/super-productivity/super-productivity/issues/6515) ([e78e290](https://github.com/super-productivity/super-productivity/commit/e78e290023fbad3c58c380268c6e28acf6f5e456))
+- update ai prompts plugin description [#5952](https://github.com/super-productivity/super-productivity/issues/5952) ([32bb27b](https://github.com/super-productivity/super-productivity/commit/32bb27b4953b7c168d28b45303d12525897bc3f4))
+
+### Features
+
+- **azure-devops:** add Azure DevOps issue provider integration ([#6446](https://github.com/super-productivity/super-productivity/issues/6446)) ([2ca526d](https://github.com/super-productivity/super-productivity/commit/2ca526d584ecfd9aea88865316d3eab797f29f9a)), closes [#356](https://github.com/super-productivity/super-productivity/issues/356) [#2388](https://github.com/super-productivity/super-productivity/issues/2388)
+- **dialog-fullscreen-markdown:** add close button to fullscreen ([#6529](https://github.com/super-productivity/super-productivity/issues/6529)) ([bc907dd](https://github.com/super-productivity/super-productivity/commit/bc907dd2e95ee3c69ef029c3d3b155b312f85658))
+
 ## [17.1.7](https://github.com/super-productivity/super-productivity/compare/v17.1.6...v17.1.7) (2026-02-13)
 
 ### Bug Fixes
