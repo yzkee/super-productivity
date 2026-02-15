@@ -26,10 +26,9 @@ const CH_TSP = '/';
 // Due how this expression capture clusters of duration units, be mindful of
 // match boundary whitespace during processing
 export const SHORT_SYNTAX_TIME_REG_EX = new RegExp(
-  String.raw`(?:\s|^)t?((?:\d+(?:\.\d+)?[mhd]\s*)+)(?:\s*` +
+  String.raw`(?:\s|^)t?((?:\d+(?:\.\d+)?[mh]\s*)+)(?:\s*` +
     `\\${CH_TSP}` +
-    String.raw`((?:\s*\d+(?:\.\d+)?[mhd])+)?)?(?=\s|$)`,
-  'i',
+    String.raw`((?:\s*\d+(?:\.\d+)?[mh])+)?)?(?=\s|$)`,
 );
 
 const CH_PRO = '+';
@@ -90,7 +89,6 @@ const loadCustomDateParser = (): Promise<Chrono> => {
 // syntax delimiting character and looks ahead to consider usage context
 const SHORT_SYNTAX_PROJECT_REG_EX = new RegExp(
   `\\${CH_PRO}(?!\\s)((?:(?!\\s+(?:\\${CH_TAG}|\\${CH_DUE}|t?\\d+[mh]\\b)).)+)`,
-  'i',
 );
 const SHORT_SYNTAX_TAGS_REG_EX = new RegExp(`\\${CH_TAG}[^${ALL_SPECIAL}|\\s]+`, 'gi');
 

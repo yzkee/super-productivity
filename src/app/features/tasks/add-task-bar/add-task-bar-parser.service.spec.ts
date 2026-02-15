@@ -471,7 +471,7 @@ describe('AddTaskBarParserService', () => {
           { input: 'Task 1h', expected: 'Task' },
           { input: 'Task 30m/1h', expected: 'Task' },
           { input: 'Task t1.5h', expected: 'Task' },
-          { input: 'Task 45d', expected: 'Task' },
+          { input: 'Task 45m', expected: 'Task' },
           { input: 'Task t30m other text', expected: 'Task other text' },
           { input: 'Task 1h/', expected: 'Task' },
           { input: 'Task 1h/ between', expected: 'Task between' },
@@ -508,10 +508,10 @@ describe('AddTaskBarParserService', () => {
         expect(result).toBe('Task content');
       });
 
-      it('should handle days format', async () => {
+      it('should not handle days format (removed unit)', async () => {
         const input = 'Task 3d content';
         const result = service.removeShortSyntaxFromInput(input, 'estimate');
-        expect(result).toBe('Task content');
+        expect(result).toBe('Task 3d content');
       });
     });
 

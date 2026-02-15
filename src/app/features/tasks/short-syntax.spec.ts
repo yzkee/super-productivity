@@ -1257,7 +1257,7 @@ describe('shortSyntax', () => {
     const taskTemplates = [
       'Task *',
       'Task * 10m',
-      'Task * 1h / 2d',
+      'Task * 1h / 2h',
       'Task * @tomorrow',
       'Task * @in 1 day',
       'Task * #A',
@@ -1342,12 +1342,12 @@ describe('shortSyntax', () => {
   describe('time unit clusters', () => {
     const testCases: [string, number | undefined, number | undefined][] = [
       ['1h 30m', 90, undefined],
-      ['1d2h5m', 1565, undefined],
+      ['2h5m', 125, undefined],
       ['1h 30m /', undefined, 90],
-      ['1d2h5m/', undefined, 1565],
-      ['1h 30m / 1d 12h', 2160, 90],
-      ['1.25h / 0.5d 1h 4m', 784, 75],
-      ['1d2h5m/3d', 4320, 1565],
+      ['2h5m/', undefined, 125],
+      ['1h 30m / 12h', 720, 90],
+      ['1.25h / 1h 4m', 64, 75],
+      ['2h5m/3h', 180, 125],
     ];
 
     for (const [title, timeEstimateMins, timeSpentMins] of testCases) {
@@ -1373,6 +1373,62 @@ describe('shortSyntax', () => {
         expect(result?.taskChanges.timeSpentOnDay?.[getDbDateStr()]).toBe(timeSpentOnDay);
       });
     }
+  });
+
+  describe('case sensitivity (#6515)', () => {
+    it('should not parse uppercase 3D in task title', async () => {
+      const t = { ...TASK, title: 'create 3D floor plan' };
+      const r = await shortSyntax(t, CONFIG);
+      expect(r).toEqual(undefined);
+    });
+
+    it('should not parse mixed case 3D in task title', async () => {
+      const t = { ...TASK, title: 'create 3d floor plan' };
+      const r = await shortSyntax(t, CONFIG);
+      expect(r).toEqual(undefined);
+    });
+
+    it('should not parse uppercase 3M in task title', async () => {
+      const t = { ...TASK, title: 'compare 3M products' };
+      const r = await shortSyntax(t, CONFIG);
+      expect(r).toEqual(undefined);
+    });
+
+    it('should not parse uppercase 3H in task title', async () => {
+      const t = { ...TASK, title: 'task 3H' };
+      const r = await shortSyntax(t, CONFIG);
+      expect(r).toEqual(undefined);
+    });
+
+    it('should still parse lowercase 3m as time estimate', async () => {
+      const t = { ...TASK, title: 'task 3m' };
+      const r = await shortSyntax(t, CONFIG);
+      expect(r).toEqual({
+        newTagTitles: [],
+        remindAt: null,
+        projectId: undefined,
+        attachments: [],
+        taskChanges: {
+          title: 'task',
+          timeEstimate: 180000,
+        },
+      });
+    });
+
+    it('should still parse lowercase 3h as time estimate', async () => {
+      const t = { ...TASK, title: 'task 3h' };
+      const r = await shortSyntax(t, CONFIG);
+      expect(r).toEqual({
+        newTagTitles: [],
+        remindAt: null,
+        projectId: undefined,
+        attachments: [],
+        taskChanges: {
+          title: 'task',
+          timeEstimate: 10800000,
+        },
+      });
+    });
   });
 
   describe('URL attachments', () => {
