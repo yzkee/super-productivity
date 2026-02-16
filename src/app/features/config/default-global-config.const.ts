@@ -26,6 +26,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isIssuesPanelEnabled: true,
     isProjectNotesEnabled: true,
     isSyncIconEnabled: true,
+    isSearchEnabled: true,
     isDonatePageEnabled: true,
     isEnableUserProfiles: false,
     isHabitsEnabled: true,

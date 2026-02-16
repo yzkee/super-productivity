@@ -106,6 +106,9 @@ export class MagicNavConfigService {
   private readonly isHabitsEnabled = computed(
     () => this._configService.appFeatures().isHabitsEnabled,
   );
+  private readonly isSearchEnabled = computed(
+    () => this._configService.appFeatures().isSearchEnabled,
+  );
 
   constructor() {
     // TODO these should probably live in the _menuTreeService
@@ -214,13 +217,18 @@ export class MagicNavConfigService {
       { type: 'separator', id: 'sep-3', mtAuto: true },
 
       // App Section
-      {
-        type: 'route',
-        id: 'search',
-        label: T.MH.SEARCH,
-        icon: 'search',
-        route: '/search',
-      },
+      ...(this.isSearchEnabled()
+        ? [
+            {
+              type: 'route',
+              id: 'search',
+              label: T.MH.SEARCH,
+              icon: 'search',
+              route: '/search',
+              featureConfigKey: 'isSearchEnabled',
+            } as NavItem,
+          ]
+        : []),
       {
         type: 'route',
         id: 'scheduled-list',
