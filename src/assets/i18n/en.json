@@ -2300,7 +2300,6 @@
     "ERROR": "Error",
     "ERROR_LOADING_PLUGIN": "Error loading plugin",
     "EXPERIMENTAL_WARNING": "The plugin system is in an experimental stage and should be used with extreme caution!",
-    "EXPERIMENTAL_WARNING_TITLE": "Experimental Feature - Security Warning",
     "FAILED_TO_CLEAR_CACHE": "Failed to clear plugin cache",
     "FAILED_TO_EXECUTE_SCRIPT": "Failed to execute Node.js script",
     "FAILED_TO_EXTRACT_ZIP": "Failed to extract plugin ZIP file",
