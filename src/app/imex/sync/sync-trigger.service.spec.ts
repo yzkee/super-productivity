@@ -183,14 +183,14 @@ describe('SyncTriggerService', () => {
       let emitted: boolean | undefined;
       svc.afterInitialSyncDoneStrict$.subscribe((val) => (emitted = val));
 
-      tick(24999);
+      tick(7999);
       expect(emitted).toBeUndefined();
 
       tick(1);
       expect(emitted).toBe(true);
     }));
 
-    it('should wait for dialog to close when timeout fires during open dialog', fakeAsync(() => {
+    it('should emit true on timeout even when dialog is open', fakeAsync(() => {
       const isWaiting$ = new BehaviorSubject<boolean>(true);
       const svc = createStrictTestService({
         syncEnabled: true,
@@ -200,11 +200,10 @@ describe('SyncTriggerService', () => {
       let emitted: boolean | undefined;
       svc.afterInitialSyncDoneStrict$.subscribe((val) => (emitted = val));
 
-      tick(25000);
+      tick(7999);
       expect(emitted).toBeUndefined();
 
-      isWaiting$.next(false);
-      tick(0);
+      tick(1);
       expect(emitted).toBe(true);
     }));
 

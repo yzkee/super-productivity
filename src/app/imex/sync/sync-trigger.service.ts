@@ -36,7 +36,7 @@ import { SyncLog } from '../../core/log';
 import { SyncWrapperService } from './sync-wrapper.service';
 import { SyncProviderId } from '../../op-log/sync-exports';
 
-const MAX_WAIT_FOR_INITIAL_SYNC = 25000;
+const MAX_WAIT_FOR_INITIAL_SYNC = 8000;
 /** 15 minutes in milliseconds - throttle time for user activity sync checks */
 const USER_ACTIVITY_SYNC_THROTTLE_TIME = 15 * 60 * 1000;
 
@@ -164,16 +164,7 @@ export class SyncTriggerService {
   // NOTE: can be called multiple times apparently
   afterInitialSyncDoneAndDataLoadedInitially$: Observable<boolean> = merge(
     this._afterInitialSyncDoneAndDataLoadedInitially$,
-    timer(MAX_WAIT_FOR_INITIAL_SYNC).pipe(
-      // When timeout fires, wait for conflict dialog to close if it's open
-      switchMap(() =>
-        this._syncWrapperService.isWaitingForUserInput$.pipe(
-          filter((isWaiting) => !isWaiting),
-          first(),
-        ),
-      ),
-      mapTo(true),
-    ),
+    timer(MAX_WAIT_FOR_INITIAL_SYNC).pipe(mapTo(true)),
   ).pipe(first(), shareReplay(1));
 
   /**
@@ -190,16 +181,7 @@ export class SyncTriggerService {
       }
       return merge(
         this._isInitialSyncDoneManual$.asObservable().pipe(filter((isDone) => isDone)),
-        timer(MAX_WAIT_FOR_INITIAL_SYNC).pipe(
-          // When timeout fires, wait for conflict dialog to close if it's open
-          switchMap(() =>
-            this._syncWrapperService.isWaitingForUserInput$.pipe(
-              filter((isWaiting) => !isWaiting),
-              first(),
-            ),
-          ),
-          mapTo(true),
-        ),
+        timer(MAX_WAIT_FOR_INITIAL_SYNC).pipe(mapTo(true)),
       ).pipe(first());
     }),
     concatMap(() => this._dataInitStateService.isAllDataLoadedInitially$),
