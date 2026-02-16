@@ -34,6 +34,8 @@ import {
   MenuTreeViewNode,
 } from '../../features/menu-tree/store/menu-tree.model';
 import { GlobalConfigService } from '../../features/config/global-config.service';
+import { AppFeaturesConfig } from '../../features/config/global-config.model';
+import { SnackService } from '../../core/snack/snack.service';
 import { IS_IOS_NATIVE } from '../../util/is-native-platform';
 
 @Injectable({
@@ -49,6 +51,7 @@ export class MagicNavConfigService {
   private readonly _pluginService = inject(PluginService);
   private readonly _menuTreeService = inject(MenuTreeService);
   private readonly _configService = inject(GlobalConfigService);
+  private readonly _snackService = inject(SnackService);
   private readonly _router = inject(Router);
 
   // Simple state signals
@@ -236,6 +239,7 @@ export class MagicNavConfigService {
               label: T.MH.DONATE,
               icon: 'favorite',
               route: '/donate',
+              featureConfigKey: 'isDonatePageEnabled',
             } as NavItem,
           ]
         : []),
@@ -389,6 +393,7 @@ export class MagicNavConfigService {
         label: T.MH.PLANNER,
         icon: 'edit_calendar',
         route: '/planner',
+        featureConfigKey: 'isPlannerEnabled',
       });
     }
 
@@ -399,6 +404,7 @@ export class MagicNavConfigService {
         label: T.MH.SCHEDULE,
         icon: 'schedule',
         route: '/schedule',
+        featureConfigKey: 'isSchedulerEnabled',
       });
     }
 
@@ -409,6 +415,7 @@ export class MagicNavConfigService {
         label: T.MH.BOARDS,
         icon: 'grid_view',
         route: '/boards',
+        featureConfigKey: 'isBoardsEnabled',
       });
     }
 
@@ -420,6 +427,7 @@ export class MagicNavConfigService {
         icon: 'check_box',
         svgIcon: 'habit',
         route: '/habits',
+        featureConfigKey: 'isHabitsEnabled',
       });
     }
 
@@ -576,5 +584,19 @@ export class MagicNavConfigService {
 
   createNewTag(): void {
     this._createNewTag();
+  }
+
+  disableFeature(configKey: keyof AppFeaturesConfig, featureName: string): void {
+    this._configService.updateSection(
+      'appFeatures',
+      { [configKey]: false } as Partial<AppFeaturesConfig>,
+      true,
+    );
+    this._snackService.open({
+      msg: T.MH.FEATURE_DISABLED_SNACK,
+      translateParams: { featureName },
+      actionStr: T.MH.OPEN_APP_FEATURES,
+      actionFn: () => this._router.navigate(['/config']),
+    });
   }
 }
