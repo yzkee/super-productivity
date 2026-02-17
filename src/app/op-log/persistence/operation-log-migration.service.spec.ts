@@ -45,6 +45,7 @@ describe('OperationLogMigrationService', () => {
     mockStore = jasmine.createSpyObj('Store', ['dispatch']);
     mockClientIdService = jasmine.createSpyObj('ClientIdService', [
       'generateNewClientId',
+      'persistClientId',
     ]);
     mockTranslateService = jasmine.createSpyObj('TranslateService', [
       'instant',
