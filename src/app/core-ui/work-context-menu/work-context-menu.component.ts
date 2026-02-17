@@ -229,17 +229,23 @@ export class WorkContextMenuComponent implements OnInit {
   }
 
   async openSettings(): Promise<void> {
-    const entity = this.isForProject
-      ? await firstValueFrom(this._projectService.getByIdOnce$(this.contextId))
-      : await firstValueFrom(this._tagService.getTagById$(this.contextId).pipe(first()));
+    try {
+      const entity = this.isForProject
+        ? await firstValueFrom(this._projectService.getByIdOnce$(this.contextId))
+        : await firstValueFrom(
+            this._tagService.getTagById$(this.contextId).pipe(first()),
+          );
 
-    this._matDialog.open(DialogWorkContextSettingsComponent, {
-      restoreFocus: true,
-      data: {
-        isProject: this.isForProject,
-        entity,
-      } as WorkContextSettingsDialogData,
-    });
+      this._matDialog.open(DialogWorkContextSettingsComponent, {
+        restoreFocus: true,
+        data: {
+          isProject: this.isForProject,
+          entity,
+        } as WorkContextSettingsDialogData,
+      });
+    } catch (err) {
+      console.error('Failed to open settings dialog', err);
+    }
   }
 
   private _setShareSupport(support: ShareSupport): void {

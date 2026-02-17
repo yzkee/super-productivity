@@ -6,7 +6,7 @@ import {
   MatDialogRef,
   MatDialogTitle,
 } from '@angular/material/dialog';
-import { FormsModule, ReactiveFormsModule, UntypedFormGroup } from '@angular/forms';
+import { ReactiveFormsModule, UntypedFormGroup } from '@angular/forms';
 import { FormlyFieldConfig, FormlyModule } from '@ngx-formly/core';
 import { T } from '../../../t.const';
 import { Project } from '../../project/project.model';
@@ -31,7 +31,6 @@ export interface WorkContextSettingsDialogData {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     MatDialogTitle,
-    FormsModule,
     ReactiveFormsModule,
     MatDialogContent,
     FormlyModule,
