@@ -29,6 +29,7 @@ export class CalendarGestureHandler {
   private _touchOnHandle = false;
   private _isDragging = false;
   private _isSnapping = false;
+  private _touchActive = false;
   private _dragStartHeight = 0;
   private _dragActiveIdx = 0;
   private _prefersReducedMotion =
@@ -43,12 +44,14 @@ export class CalendarGestureHandler {
     _el.addEventListener('touchstart', this._onTouchStart, { passive: true });
     _el.addEventListener('touchmove', this._onTouchMove, { passive: false });
     _el.addEventListener('touchend', this._onTouchEnd);
+    _el.addEventListener('touchcancel', this._onTouchCancel);
   }
 
   destroy(): void {
     this._el.removeEventListener('touchstart', this._onTouchStart);
     this._el.removeEventListener('touchmove', this._onTouchMove);
     this._el.removeEventListener('touchend', this._onTouchEnd);
+    this._el.removeEventListener('touchcancel', this._onTouchCancel);
   }
 
   snapTo(expanded: boolean, activeIdx?: number): void {
@@ -58,8 +61,17 @@ export class CalendarGestureHandler {
     if (activeIdx !== undefined) this._dragActiveIdx = activeIdx;
 
     const snapDur = this._animDuration(SNAP_DURATION);
+    const targetHeight = expanded ? MAX_HEIGHT : MIN_HEIGHT;
+    const idx = this._dragActiveIdx;
+    const targetOffset = expanded ? 0 : -idx * ROW_HEIGHT;
 
     if (snapDur === 0) {
+      weeksEl.style.transition = '';
+      weeksEl.style.maxHeight = '';
+      if (innerEl) {
+        innerEl.style.transition = '';
+        innerEl.style.transform = '';
+      }
       this._cb.onExpandChanged(expanded);
       this._cb.detectChanges();
       this._isDragging = false;
@@ -68,10 +80,6 @@ export class CalendarGestureHandler {
     }
 
     this._isSnapping = true;
-
-    const targetHeight = expanded ? MAX_HEIGHT : MIN_HEIGHT;
-    const idx = this._dragActiveIdx;
-    const targetOffset = expanded ? 0 : -idx * ROW_HEIGHT;
 
     weeksEl.style.transition = `max-height ${snapDur}ms ease`;
     weeksEl.style.maxHeight = targetHeight + 'px';
@@ -82,11 +90,15 @@ export class CalendarGestureHandler {
 
     setTimeout(() => {
       try {
+        // Keep inline styles at target values instead of clearing them.
+        // Clearing would rely on Angular's style binding to re-apply,
+        // but Angular skips the DOM write when the signal value hasn't changed,
+        // leaving the element without maxHeight (visually stuck open).
         weeksEl.style.transition = '';
-        weeksEl.style.maxHeight = '';
+        weeksEl.style.maxHeight = targetHeight + 'px';
         if (innerEl) {
           innerEl.style.transition = '';
-          innerEl.style.transform = '';
+          innerEl.style.transform = `translateY(${targetOffset}px)`;
         }
 
         this._cb.onExpandChanged(expanded);
@@ -161,11 +173,12 @@ export class CalendarGestureHandler {
     this._touchStartTime = Date.now();
     this._gestureClaimed = null;
     this._isDragging = false;
+    this._touchActive = true;
     this._touchOnHandle = !!(e.target as HTMLElement).closest('.handle');
   };
 
   private _onTouchMove = (e: TouchEvent): void => {
-    if (this._isSnapping) return;
+    if (!this._touchActive || this._isSnapping) return;
     const touch = e.touches[0];
     const deltaY = touch.clientY - this._touchStartY;
 
@@ -196,7 +209,8 @@ export class CalendarGestureHandler {
   };
 
   private _onTouchEnd = (e: TouchEvent): void => {
-    if (this._isSnapping) return;
+    if (!this._touchActive || this._isSnapping) return;
+    this._touchActive = false;
 
     if (this._touchOnHandle) {
       if (e.cancelable) e.preventDefault();
@@ -241,6 +255,14 @@ export class CalendarGestureHandler {
       if (isSwipe) {
         this._cb.onHorizontalSwipe(deltaX < 0 ? 1 : -1);
       }
+    }
+  };
+
+  private _onTouchCancel = (): void => {
+    this._touchActive = false;
+    if (this._isDragging) {
+      this._isDragging = false;
+      this.snapTo(this._cb.getIsExpanded());
     }
   };
 

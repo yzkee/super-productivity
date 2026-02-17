@@ -268,21 +268,21 @@ describe('CalendarGestureHandler', () => {
       expect(cb.detectChanges).toHaveBeenCalled();
     });
 
-    it('should clear CSS transitions after SNAP_DURATION timeout', () => {
+    it('should clear CSS transitions and keep target maxHeight after SNAP_DURATION timeout', () => {
       handler.snapTo(true);
       jasmine.clock().tick(SNAP_DURATION + 15);
 
       expect(weeksEl.style.transition).toBe('');
-      expect(weeksEl.style.maxHeight).toBe('');
+      expect(weeksEl.style.maxHeight).toBe(MAX_HEIGHT + 'px');
     });
 
-    it('should clear inner element styles after SNAP_DURATION timeout', () => {
+    it('should clear CSS transitions and keep target transform after SNAP_DURATION timeout', () => {
       handler.snapTo(true);
       jasmine.clock().tick(SNAP_DURATION + 15);
 
       const innerEl = weeksEl.firstElementChild as HTMLElement;
       expect(innerEl.style.transition).toBe('');
-      expect(innerEl.style.transform).toBe('');
+      expect(innerEl.style.transform).toBe('translateY(0px)');
     });
 
     it('should do nothing when weeks element is not available', () => {
