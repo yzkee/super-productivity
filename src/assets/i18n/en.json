@@ -759,6 +759,7 @@
       },
       "FORM_THEME": {
         "HELP": "Theme settings for your project.",
+        "D_BACKGROUND_OVERLAY_OPACITY": "Adjust this value to make the background more or less transparent. The default is 20%.",
         "L_BACKGROUND_OVERLAY_OPACITY": "Darken/lighten background image for better contrast",
         "L_BACKGROUND_IMAGE_DARK": "Background Image URL (Dark Theme)",
         "L_BACKGROUND_IMAGE_LIGHT": "Background Image URL (Light Theme)",
