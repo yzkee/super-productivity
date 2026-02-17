@@ -167,7 +167,7 @@ export const WORK_CONTEXT_THEME_CONFIG_FORM_CONFIG: ConfigFormSection<WorkContex
             'Adjust this value to make the background more or less transparent. The default is 0%.',
           type: 'number',
           min: 0,
-          max: 100,
+          max: 99,
           required: false,
           displayWith: (value: number): string => `${value}%`,
         },
