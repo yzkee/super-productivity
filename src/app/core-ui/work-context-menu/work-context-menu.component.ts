@@ -244,7 +244,11 @@ export class WorkContextMenuComponent implements OnInit {
         } as WorkContextSettingsDialogData,
       });
     } catch (err) {
-      console.error('Failed to open settings dialog', err);
+      this._snackService.open({
+        msg: T.GLOBAL_SNACK.OPEN_SETTINGS_ERROR,
+        type: 'ERROR',
+      });
+      console.error(err);
     }
   }
 

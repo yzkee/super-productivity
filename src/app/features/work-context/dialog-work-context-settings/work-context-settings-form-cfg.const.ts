@@ -1,6 +1,6 @@
 import { FormlyFieldConfig } from '@ngx-formly/core';
 import { T } from '../../../t.const';
-import { HUES } from '../work-context.const';
+import { WORK_CONTEXT_THEME_CONFIG_FORM_CONFIG } from '../work-context.const';
 
 export const buildWorkContextSettingsFormCfg = (
   isProject: boolean,
@@ -53,127 +53,16 @@ export const buildWorkContextSettingsFormCfg = (
     );
   }
 
+  const sharedItems = WORK_CONTEXT_THEME_CONFIG_FORM_CONFIG.items!;
+  const colorFields = sharedItems.slice(0, 3);
+  const remainingFields = sharedItems.slice(3);
+
   const themeFields: FormlyFieldConfig[] = [
     {
       fieldGroupClassName: 'formly-row',
-      fieldGroup: [
-        {
-          key: 'primary',
-          type: 'color',
-          templateOptions: {
-            label: T.F.PROJECT.FORM_THEME.L_COLOR_PRIMARY,
-          },
-        },
-        {
-          key: 'accent',
-          type: 'color',
-          templateOptions: {
-            label: T.F.PROJECT.FORM_THEME.L_COLOR_ACCENT,
-          },
-        },
-        {
-          key: 'warn',
-          type: 'color',
-          templateOptions: {
-            label: T.F.PROJECT.FORM_THEME.L_COLOR_WARN,
-          },
-        },
-      ],
+      fieldGroup: colorFields,
     },
-    {
-      key: 'isAutoContrast',
-      type: 'checkbox',
-      templateOptions: {
-        label: T.F.PROJECT.FORM_THEME.L_IS_AUTO_CONTRAST,
-      },
-    },
-    {
-      key: 'huePrimary',
-      type: 'select',
-      hideExpression: 'model.isAutoContrast',
-      templateOptions: {
-        required: true,
-        label: T.F.PROJECT.FORM_THEME.L_HUE_PRIMARY,
-        options: HUES,
-        valueProp: 'value',
-        labelProp: 'label',
-        placeholder: T.F.PROJECT.FORM_THEME.L_HUE_PRIMARY,
-      },
-    },
-    {
-      key: 'hueAccent',
-      type: 'select',
-      hideExpression: 'model.isAutoContrast',
-      templateOptions: {
-        required: true,
-        label: T.F.PROJECT.FORM_THEME.L_HUE_ACCENT,
-        options: HUES,
-        valueProp: 'value',
-        labelProp: 'label',
-        placeholder: T.F.PROJECT.FORM_THEME.L_HUE_ACCENT,
-      },
-    },
-    {
-      key: 'hueWarn',
-      type: 'select',
-      hideExpression: 'model.isAutoContrast',
-      templateOptions: {
-        required: true,
-        label: T.F.PROJECT.FORM_THEME.L_HUE_WARN,
-        options: HUES,
-        valueProp: 'value',
-        labelProp: 'label',
-        placeholder: T.F.PROJECT.FORM_THEME.L_HUE_WARN,
-      },
-    },
-    {
-      key: 'isDisableBackgroundTint',
-      type: 'checkbox',
-      expressions: {
-        hide: (fCfg: FormlyFieldConfig) =>
-          fCfg.model.backgroundImageDark || fCfg.model.backgroundImageLight,
-      },
-      templateOptions: {
-        label: T.F.PROJECT.FORM_THEME.L_IS_DISABLE_BACKGROUND_TINT,
-      },
-    },
-    {
-      key: 'backgroundImageDark',
-      type: 'image-input',
-      templateOptions: {
-        label: T.F.PROJECT.FORM_THEME.L_BACKGROUND_IMAGE_DARK,
-        description: '* https://some/cool.jpg, file:///home/user/bg.png',
-      },
-    },
-    {
-      key: 'backgroundImageLight',
-      type: 'image-input',
-      templateOptions: {
-        label: T.F.PROJECT.FORM_THEME.L_BACKGROUND_IMAGE_LIGHT,
-        description: '* https://some/cool.jpg, file:///home/user/bg.png',
-      },
-    },
-    {
-      key: 'backgroundOverlayOpacity',
-      type: 'slider',
-      props: {
-        label: T.F.PROJECT.FORM_THEME.L_BACKGROUND_OVERLAY_OPACITY,
-        description: T.F.PROJECT.FORM_THEME.D_BACKGROUND_OVERLAY_OPACITY,
-        type: 'number',
-        min: 0,
-        max: 99,
-        required: false,
-        displayWith: (value: number): string => `${value}%`,
-      },
-      expressions: {
-        hide: (field: FormlyFieldConfig): boolean => {
-          const isDarkTheme = document.body.classList.contains('isDarkTheme');
-          return isDarkTheme
-            ? !field.model.backgroundImageDark
-            : !field.model.backgroundImageLight;
-        },
-      },
-    },
+    ...remainingFields,
   ];
 
   return [

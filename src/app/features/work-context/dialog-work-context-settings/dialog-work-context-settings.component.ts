@@ -29,6 +29,7 @@ export interface WorkContextSettingsDialogData {
   templateUrl: './dialog-work-context-settings.component.html',
   styleUrls: ['./dialog-work-context-settings.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: true,
   imports: [
     MatDialogTitle,
     ReactiveFormsModule,
