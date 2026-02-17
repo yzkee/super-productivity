@@ -20,7 +20,7 @@ describe('SyncTriggerService', () => {
     isAllDataLoadedSubject.next(true);
 
     globalConfigService = jasmine.createSpyObj('GlobalConfigService', [], {
-      cfg$: of({ sync: { isEnabled: false } }),
+      cfg$: of({ sync: { isEnabled: true } }),
       idle$: of({ isEnableIdleTimeTracking: false }),
     });
 
