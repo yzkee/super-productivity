@@ -106,6 +106,59 @@ describe('SyncTriggerService', () => {
     });
   });
 
+  describe('constructor initial sync subscription', () => {
+    it('should call setInitialSyncDone(true) when sync is disabled', () => {
+      // Default setup has sync enabled, so create a new service with sync disabled
+      TestBed.resetTestingModule();
+      const isAllDataLoaded$ = new ReplaySubject<boolean>(1);
+      isAllDataLoaded$.next(true);
+
+      TestBed.configureTestingModule({
+        providers: [
+          SyncTriggerService,
+          {
+            provide: GlobalConfigService,
+            useValue: jasmine.createSpyObj('GlobalConfigService', [], {
+              cfg$: of({ sync: { isEnabled: false } }),
+              idle$: of({ isEnableIdleTimeTracking: false }),
+            }),
+          },
+          {
+            provide: DataInitStateService,
+            useValue: jasmine.createSpyObj('DataInitStateService', [], {
+              isAllDataLoadedInitially$: isAllDataLoaded$.asObservable(),
+            }),
+          },
+          {
+            provide: IdleService,
+            useValue: jasmine.createSpyObj('IdleService', [], {
+              isIdle$: of(false),
+            }),
+          },
+          {
+            provide: SyncWrapperService,
+            useValue: jasmine.createSpyObj('SyncWrapperService', [], {
+              syncProviderId$: of(null),
+              isWaitingForUserInput$: of(false),
+            }),
+          },
+          {
+            provide: Store,
+            useValue: jasmine.createSpyObj('Store', ['select']),
+          },
+        ],
+      });
+
+      const svc = TestBed.inject(SyncTriggerService);
+      expect(svc.isInitialSyncDoneSync()).toBe(true);
+    });
+
+    it('should NOT call setInitialSyncDone when sync is enabled', () => {
+      // Default setup has sync enabled
+      expect(service.isInitialSyncDoneSync()).toBe(false);
+    });
+  });
+
   describe('afterInitialSyncDoneStrict$', () => {
     const createStrictTestService = (opts: {
       syncEnabled: boolean;

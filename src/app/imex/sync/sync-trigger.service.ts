@@ -52,14 +52,11 @@ export class SyncTriggerService {
   constructor() {
     // When sync is disabled, set initialSyncDone immediately so UI shows
     // and day-change effects can run without waiting for a sync that will never happen.
-    this._isInitialSyncEnabled$
-      .pipe(
-        filter((isActive) => !isActive),
-        first(),
-      )
-      .subscribe(() => {
+    this._isInitialSyncEnabled$.pipe(first()).subscribe((isActive) => {
+      if (!isActive) {
         this.setInitialSyncDone(true);
-      });
+      }
+    });
   }
 
   // Note: This was previously connected to PFAPI's onLocalMetaUpdate$, which was a no-op.
