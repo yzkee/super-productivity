@@ -49,6 +49,19 @@ export class SyncTriggerService {
   private readonly _idleService = inject(IdleService);
   private readonly _syncWrapperService = inject(SyncWrapperService);
 
+  constructor() {
+    // When sync is disabled, set initialSyncDone immediately so UI shows
+    // and day-change effects can run without waiting for a sync that will never happen.
+    this._isInitialSyncEnabled$
+      .pipe(
+        filter((isActive) => !isActive),
+        first(),
+      )
+      .subscribe(() => {
+        this.setInitialSyncDone(true);
+      });
+  }
+
   // Note: This was previously connected to PFAPI's onLocalMetaUpdate$, which was a no-op.
   // For file-based sync, this doesn't matter as sync is immediate-upload based.
   // For SuperSync, operations are uploaded immediately via ImmediateUploadService.
@@ -138,16 +151,6 @@ export class SyncTriggerService {
   );
   private _isInitialSyncDoneSync = false;
 
-  // When sync is disabled, set initialSyncDone immediately so UI shows
-  // and day-change effects can run without waiting for a sync that will never happen.
-  private _syncDisabledInit = this._isInitialSyncEnabled$
-    .pipe(
-      filter((isActive) => !isActive),
-      first(),
-    )
-    .subscribe(() => {
-      this.setInitialSyncDone(true);
-    });
   private _isInitialSyncDone$: Observable<boolean> = this._isInitialSyncEnabled$.pipe(
     switchMap((isActive) => {
       if (!isActive) {
