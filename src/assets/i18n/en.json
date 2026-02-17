@@ -2310,6 +2310,7 @@
     "FAILED_TO_EXTRACT_ZIP": "Failed to extract plugin ZIP file",
     "FAILED_TO_INSTALL": "Failed to install plugin",
     "FAILED_TO_LOAD": "Failed to load plugin",
+    "FAILED_TO_LOAD_COMMUNITY_PLUGINS": "Failed to load community plugins list",
     "FAILED_TO_LOAD_CONFIG": "Failed to load plugin configuration",
     "FAILED_TO_REMOVE": "Failed to remove plugin",
     "FAILED_TO_SAVE_CONFIG": "Failed to save plugin configuration",
