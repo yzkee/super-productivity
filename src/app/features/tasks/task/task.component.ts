@@ -50,8 +50,8 @@ import { throttle } from '../../../util/decorators';
 import { TaskRepeatCfgService } from '../../task-repeat-cfg/task-repeat-cfg.service';
 import { DialogConfirmComponent } from '../../../ui/dialog-confirm/dialog-confirm.component';
 import { Update } from '@ngrx/entity';
-import { isToday } from '../../../util/is-today.util';
 import { getDbDateStr } from '../../../util/get-db-date-str';
+import { DateService } from '../../../core/date/date.service';
 import { IS_TOUCH_PRIMARY } from '../../../util/is-mouse-primary';
 import { KeyboardConfig } from '../../config/keyboard-config.model';
 import { DialogScheduleTaskComponent } from '../../planner/dialog-schedule-task/dialog-schedule-task.component';
@@ -135,6 +135,7 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   private readonly _store = inject(Store);
   private readonly _projectService = inject(ProjectService);
   private readonly _taskFocusService = inject(TaskFocusService);
+  private readonly _dateService = inject(DateService);
   private readonly _destroyRef = inject(DestroyRef);
 
   readonly workContextService = inject(WorkContextService);
@@ -175,7 +176,7 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   isTodayListActive = computed(() => this.workContextService.isTodayList);
   taskIdWithPrefix = computed(() => 't-' + this.task().id);
   isRepeatTaskCreatedToday = computed(
-    () => !!(this.task().repeatCfgId && isToday(this.task().created)),
+    () => !!(this.task().repeatCfgId && this._dateService.isToday(this.task().created)),
   );
   isOverdue = computed(() => {
     const t = this.task();
@@ -191,7 +192,7 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   isScheduledToday = computed(() => {
     const t = this.task();
     return (
-      (t.dueWithTime && isToday(t.dueWithTime)) ||
+      (t.dueWithTime && this._dateService.isToday(t.dueWithTime)) ||
       (t.dueDay && t.dueDay === this.globalTrackingIntervalService.todayDateStr())
     );
   });
@@ -222,11 +223,11 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     const task = this.task();
     const todayStr = this.globalTrackingIntervalService.todayDateStr();
     return this.isTodayListActive()
-      ? (task.dueWithTime && !isToday(task.dueWithTime)) ||
+      ? (task.dueWithTime && !this._dateService.isToday(task.dueWithTime)) ||
           (task.dueDay && task.dueDay !== todayStr)
       : !this.isShowRemoveFromToday() &&
           task.dueDay !== todayStr &&
-          (!task.dueWithTime || !isToday(task.dueWithTime));
+          (!task.dueWithTime || !this._dateService.isToday(task.dueWithTime));
   });
 
   isPanHelperVisible = signal(false);

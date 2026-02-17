@@ -213,7 +213,12 @@ export class PlannerCalendarNavComponent {
 
   private _slideCollapsedWeek(dir: 1 | -1): void {
     const currentRow = this.activeWeekIndex();
-    if (dir === -1 && this.weeks()[currentRow]?.some((d) => d.isToday)) return;
+    // Prevent navigating before today's week
+    if (dir === -1) {
+      if (this.weeks()[currentRow]?.some((d) => d.isToday)) return;
+      // If already at the past limit and would need to shift the anchor, block it
+      if (currentRow === 0 && this._isAtPastLimit()) return;
+    }
 
     const targetRow = currentRow + dir;
 
@@ -273,6 +278,7 @@ export class PlannerCalendarNavComponent {
     const allWeeks = this.weeks();
     const midWeek = allWeeks[Math.floor(allWeeks.length / 2)];
     const midDate = parseDbDateStr(midWeek[Math.floor(midWeek.length / 2)].dateStr);
+    // Use day=1 to avoid overflow (e.g. Jan 31 + 1 month → Mar 3)
     const firstOfMonth = new Date(midDate.getFullYear(), midDate.getMonth() + dir, 1);
     const weekStart = getWeekRange(firstOfMonth, this._firstDayOfWeek()).start;
     this._setAnchorClamped(weekStart, this._getTodayWeekStart());

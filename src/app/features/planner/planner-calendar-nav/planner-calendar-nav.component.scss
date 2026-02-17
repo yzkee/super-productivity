@@ -92,3 +92,10 @@
     background: var(--text-muted, rgba(255, 255, 255, 0.3));
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .weeks,
+  .weeks * {
+    transition: none !important;
+  }
+}

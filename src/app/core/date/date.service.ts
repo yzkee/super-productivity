@@ -15,4 +15,15 @@ export class DateService {
     }
     return getDbDateStr(date);
   }
+
+  isToday(date: number | Date): boolean {
+    const timestamp = typeof date === 'number' ? date : date.getTime();
+    const d = new Date(timestamp - this.startOfNextDayDiff);
+    const today = new Date(Date.now() - this.startOfNextDayDiff);
+    return (
+      d.getDate() === today.getDate() &&
+      d.getMonth() === today.getMonth() &&
+      d.getFullYear() === today.getFullYear()
+    );
+  }
 }

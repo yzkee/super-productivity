@@ -31,6 +31,9 @@ export class CalendarGestureHandler {
   private _isSnapping = false;
   private _dragStartHeight = 0;
   private _dragActiveIdx = 0;
+  private _prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   constructor(
     private _el: HTMLElement,
@@ -53,16 +56,27 @@ export class CalendarGestureHandler {
     if (!weeksEl) return;
     const innerEl = weeksEl.firstElementChild as HTMLElement;
     if (activeIdx !== undefined) this._dragActiveIdx = activeIdx;
+
+    const snapDur = this._animDuration(SNAP_DURATION);
+
+    if (snapDur === 0) {
+      this._cb.onExpandChanged(expanded);
+      this._cb.detectChanges();
+      this._isDragging = false;
+      this._isSnapping = false;
+      return;
+    }
+
     this._isSnapping = true;
 
     const targetHeight = expanded ? MAX_HEIGHT : MIN_HEIGHT;
     const idx = this._dragActiveIdx;
     const targetOffset = expanded ? 0 : -idx * ROW_HEIGHT;
 
-    weeksEl.style.transition = `max-height ${SNAP_DURATION}ms ease`;
+    weeksEl.style.transition = `max-height ${snapDur}ms ease`;
     weeksEl.style.maxHeight = targetHeight + 'px';
     if (innerEl) {
-      innerEl.style.transition = `transform ${SNAP_DURATION}ms ease`;
+      innerEl.style.transition = `transform ${snapDur}ms ease`;
       innerEl.style.transform = `translateY(${targetOffset}px)`;
     }
 
@@ -81,7 +95,7 @@ export class CalendarGestureHandler {
         this._isDragging = false;
         this._isSnapping = false;
       }
-    }, SNAP_DURATION + 10);
+    }, snapDur + 10);
   }
 
   slideContent(direction: 1 | -1, onUpdate: () => void, axis: 'x' | 'y'): void {
@@ -91,11 +105,20 @@ export class CalendarGestureHandler {
     if (!innerEl) return;
     this._isSnapping = true;
 
+    const slideDur = this._animDuration(SLIDE_DURATION);
+
+    if (slideDur === 0) {
+      onUpdate();
+      this._cb.detectChanges();
+      this._isSnapping = false;
+      return;
+    }
+
     const sign = axis === 'x' ? -direction : direction;
     const out = `${sign * 100}%`;
     const slideOut = axis === 'x' ? `${out} 0` : `0 ${out}`;
 
-    innerEl.style.transition = `translate ${SLIDE_DURATION}ms ease-out`;
+    innerEl.style.transition = `translate ${slideDur}ms ease-out`;
     innerEl.style.translate = slideOut;
 
     setTimeout(() => {
@@ -111,19 +134,23 @@ export class CalendarGestureHandler {
         // Force reflow so the position change applies before transition
         void innerEl.offsetWidth;
 
-        innerEl.style.transition = `translate ${SLIDE_DURATION}ms ease-out`;
+        innerEl.style.transition = `translate ${slideDur}ms ease-out`;
         innerEl.style.translate = '0 0';
 
         setTimeout(() => {
           innerEl.style.transition = '';
           innerEl.style.translate = '';
           this._isSnapping = false;
-        }, SLIDE_DURATION + 10);
+        }, slideDur + 10);
       } catch (e) {
         this._isSnapping = false;
         throw e;
       }
-    }, SLIDE_DURATION + 10);
+    }, slideDur + 10);
+  }
+
+  private _animDuration(base: number): number {
+    return this._prefersReducedMotion ? 0 : base;
   }
 
   private _onTouchStart = (e: TouchEvent): void => {

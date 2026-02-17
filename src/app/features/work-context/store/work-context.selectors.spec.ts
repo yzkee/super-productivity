@@ -12,6 +12,9 @@ import {
 import { WorkContext, WorkContextType } from '../work-context.model';
 import { TaskCopy } from '../../tasks/task.model';
 import { getDbDateStr } from '../../../util/get-db-date-str';
+import { MiscConfig } from '../../config/global-config.model';
+
+const DEFAULT_MISC_CONFIG = { startOfNextDay: 0 } as MiscConfig;
 
 /**
  * Tests for work-context selectors.
@@ -36,6 +39,7 @@ describe('workContext selectors', () => {
         fakeEntityStateFromArray([TODAY_TAG]),
         fakeEntityStateFromArray([]) as any, // taskState - no tasks
         [],
+        DEFAULT_MISC_CONFIG,
       );
       expect(result).toEqual(
         jasmine.objectContaining({
@@ -103,6 +107,7 @@ describe('workContext selectors', () => {
         fakeEntityStateFromArray([todayTagWithStaleIds]),
         fakeEntityStateFromArray([task1, task2, taskNotForToday]) as any,
         [],
+        DEFAULT_MISC_CONFIG,
       );
 
       // Should filter out task3 (stale) and auto-add task2 (missing from order)
@@ -267,7 +272,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([TODAY_TAG]);
       const taskState = fakeEntityStateFromArray([]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual([]);
     });
 
@@ -294,7 +303,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagWithTasks]);
       const taskState = fakeEntityStateFromArray([task1, task2]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual(['task1', 'task2']);
     });
 
@@ -320,7 +333,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagWithStaleIds]);
       const taskState = fakeEntityStateFromArray([task1, task2]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual(['task1']);
     });
 
@@ -346,7 +363,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagMissingTask2]);
       const taskState = fakeEntityStateFromArray([task1, task2]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual(['task1', 'task2']);
     });
 
@@ -373,7 +394,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagWithTasks]);
       const taskState = fakeEntityStateFromArray([parentTask, subtask]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual(['parent']); // subtask excluded - shown nested under parent
     });
 
@@ -400,7 +425,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagWithTasks]);
       const taskState = fakeEntityStateFromArray([parentTask, subtask]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual(['subtask1']); // subtask included as top-level item
     });
 
@@ -421,7 +450,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagWithDeletedTask]);
       const taskState = fakeEntityStateFromArray([task1]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual(['task1']); // deleted tasks filtered out
     });
 
@@ -447,7 +480,11 @@ describe('workContext selectors', () => {
       // Only active task in state - archived-task-id doesn't exist
       const taskState = fakeEntityStateFromArray([activeTask]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual(['active-task']); // archived task ID filtered out
     });
 
@@ -474,7 +511,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagEmpty]);
       const taskState = fakeEntityStateFromArray([taskWithDueWithTimeOnly]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual(['task1']); // Should be included via dueWithTime fallback
     });
 
@@ -501,7 +542,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagEmpty]);
       const taskState = fakeEntityStateFromArray([taskWithBothFields]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual(['task1']); // dueWithTime takes priority - task IS in today
     });
 
@@ -528,7 +573,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagEmpty]);
       const taskState = fakeEntityStateFromArray([taskWithDueWithTimeTomorrow]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual([]); // Should NOT be included
     });
 
@@ -555,7 +604,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagEmpty]);
       const taskState = fakeEntityStateFromArray([taskWithBoth]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual(['task1']); // Should be included via dueWithTime (no duplicates)
     });
 
@@ -591,7 +644,11 @@ describe('workContext selectors', () => {
         taskWithDueWithTimeOnly,
       ]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual(['task1', 'task2']); // Both included, task2 appended
     });
 
@@ -623,7 +680,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagEmpty]);
       const taskState = fakeEntityStateFromArray([taskWithConflictingState]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       // dueWithTime takes priority - task IS in today (despite stale dueDay)
       expect(result).toEqual(['task1']);
     });
@@ -657,7 +718,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagEmpty]);
       const taskState = fakeEntityStateFromArray([taskScheduledForTomorrow]) as any;
 
-      const result = selectTodayTaskIds.projector(tagState, taskState);
+      const result = selectTodayTaskIds.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       // Task should NOT appear in today (dueWithTime is for tomorrow)
       expect(result).toEqual([]);
     });
@@ -760,7 +825,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagConsistent]);
       const taskState = fakeEntityStateFromArray([task1, task2]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toBeNull();
     });
 
@@ -778,6 +847,7 @@ describe('workContext selectors', () => {
       const result = selectTodayTagRepair.projector(
         tagStateWithoutToday as any,
         taskState,
+        DEFAULT_MISC_CONFIG,
       );
       expect(result).toBeNull();
     });
@@ -804,7 +874,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagWithStaleIds]);
       const taskState = fakeEntityStateFromArray([task1, task2]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual({
         needsRepair: true,
         repairedTaskIds: ['task1'], // task2 removed
@@ -833,7 +907,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagMissingTask2]);
       const taskState = fakeEntityStateFromArray([task1, task2]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual({
         needsRepair: true,
         repairedTaskIds: ['task1', 'task2'], // task2 added
@@ -868,7 +946,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagWithIssues]);
       const taskState = fakeEntityStateFromArray([task1, task2, task3]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual({
         needsRepair: true,
         repairedTaskIds: ['task1', 'task3'], // task2 removed, task3 added, order preserved for task1
@@ -904,7 +986,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagMissingOne]);
       const taskState = fakeEntityStateFromArray([task1, task2, task3]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual({
         needsRepair: true,
         repairedTaskIds: ['task3', 'task1', 'task2'], // Preserve task3, task1 order; append task2
@@ -935,7 +1021,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagWithSubtask]);
       const taskState = fakeEntityStateFromArray([parentTask, subtask]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual({
         needsRepair: true,
         repairedTaskIds: ['parent'], // subtask removed - it will appear nested under parent
@@ -966,7 +1056,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagWithSubtaskAsTopLevel]);
       const taskState = fakeEntityStateFromArray([parentTask, subtask]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       // No repair needed - subtask should be included because parent is not in Today
       expect(result).toBeNull();
     });
@@ -1005,7 +1099,11 @@ describe('workContext selectors', () => {
         regularTask,
       ]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual({
         needsRepair: true,
         repairedTaskIds: ['task1', 'subtask1'], // subtask added because parent not in Today
@@ -1021,7 +1119,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagEmpty]);
       const taskState = fakeEntityStateFromArray([]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toBeNull();
     });
 
@@ -1042,7 +1144,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagWithDuplicates]);
       const taskState = fakeEntityStateFromArray([task1]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       // All duplicates are valid (task1 has dueDay === today), so no repair needed
       // The repair logic filters by tasksForTodaySet.has(id), which returns true for all
       expect(result).toBeNull();
@@ -1066,7 +1172,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagWithOrphan]);
       const taskState = fakeEntityStateFromArray([orphanSubtask]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       // Orphan subtask's parent is not in allTasksWithDueToday, so subtask IS valid
       expect(result).toBeNull();
     });
@@ -1114,7 +1224,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTag]);
       const taskState = fakeEntityStateFromArray([parent, sub1, parent2, sub2]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       // No repair needed - parent is valid, sub2 is valid (parent2 not in today)
       expect(result).toBeNull();
     });
@@ -1144,7 +1258,11 @@ describe('workContext selectors', () => {
       const tagState = fakeEntityStateFromArray([todayTagIncorrect]);
       const taskState = fakeEntityStateFromArray([parent, sub1]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual({
         needsRepair: true,
         repairedTaskIds: ['parent'], // sub1 removed - it will appear nested under parent
@@ -1197,7 +1315,11 @@ describe('workContext selectors', () => {
         regularTask,
       ]) as any;
 
-      const result = selectTodayTagRepair.projector(tagState, taskState);
+      const result = selectTodayTagRepair.projector(
+        tagState,
+        taskState,
+        DEFAULT_MISC_CONFIG,
+      );
       expect(result).toEqual({
         needsRepair: true,
         repairedTaskIds: ['sub2', 'task1', 'sub1'], // Preserve order, append missing sub1
