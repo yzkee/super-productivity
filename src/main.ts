@@ -22,7 +22,13 @@ import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { MarkdownModule, MARKED_OPTIONS, SANITIZE } from 'ngx-markdown';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { FeatureStoresModule } from './app/root-store/feature-stores.module';
-import { MATERIAL_ANIMATIONS, MatNativeDateModule } from '@angular/material/core';
+import {
+  MATERIAL_ANIMATIONS,
+  MatNativeDateModule,
+  MAT_DATE_FORMATS,
+  MatDateFormats,
+  DateAdapter,
+} from '@angular/material/core';
 import { FormlyConfigModule } from './app/ui/formly-config.module';
 import { markedOptionsFactory } from './app/ui/marked-options-factory';
 import { MaterialCssVarsModule } from 'angular-material-css-vars';
@@ -62,6 +68,8 @@ import { initializeMatMenuTouchFix } from './app/features/tasks/task-context-men
 import { Log } from './app/core/log';
 import { GlobalConfigService } from './app/features/config/global-config.service';
 import { LocaleDatePipe } from './app/ui/pipes/locale-date.pipe';
+import { DateTimeFormatService } from './app/core/date-time-format/date-time-format.service';
+import { CustomDateAdapter } from './app/core/date-time-format/custom-date-adapter';
 
 if (environment.production || environment.stage) {
   enableProdMode();
@@ -152,6 +160,26 @@ bootstrapApplication(AppComponent, {
     LocaleDatePipe,
     ShortTimeHtmlPipe,
     ShortTimePipe,
+    { provide: DateAdapter, useClass: CustomDateAdapter },
+    {
+      provide: MAT_DATE_FORMATS,
+      useFactory: (dateTimeFormatService: DateTimeFormatService): MatDateFormats => {
+        return {
+          parse: {
+            dateInput: dateTimeFormatService.dateFormat().raw,
+          },
+          display: {
+            dateInput: dateTimeFormatService.dateFormat().raw,
+            monthYearLabel: { year: 'numeric', month: 'short' },
+            dateA11yLabel: { year: 'numeric', month: 'long', day: 'numeric' },
+            monthYearA11yLabel: { year: 'numeric', month: 'long' },
+            timeInput: { hour: 'numeric', minute: 'numeric' },
+            timeOptionLabel: { hour: 'numeric', minute: 'numeric' },
+          },
+        };
+      },
+      deps: [DateTimeFormatService],
+    },
     {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: { appearance: 'fill', subscriptSizing: 'dynamic' },
