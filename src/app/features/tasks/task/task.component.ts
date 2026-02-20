@@ -286,6 +286,16 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   @HostListener('focus') onFocus(): void {
     this._taskFocusService.focusedTaskId.set(this.task().id);
     this._taskFocusService.lastFocusedTaskComponent.set(this);
+
+    // If detail panel is open for another task, update it to show this task (#6578)
+    // Skip if this task is inside the detail panel (e.g. subtask list)
+    if (this._elementRef.nativeElement.closest('task-detail-panel')) {
+      return;
+    }
+    const selectedTaskId = this._taskService.selectedTaskId();
+    if (selectedTaskId && selectedTaskId !== this.task().id) {
+      this._taskService.setSelectedId(this.task().id);
+    }
   }
 
   @HostListener('blur') onBlur(): void {
