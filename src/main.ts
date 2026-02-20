@@ -167,6 +167,7 @@ bootstrapApplication(AppComponent, {
         return {
           parse: {
             dateInput: dateTimeFormatService.dateFormat().raw,
+            timeInput: { hour: 'numeric', minute: 'numeric' },
           },
           display: {
             dateInput: dateTimeFormatService.dateFormat().raw,
