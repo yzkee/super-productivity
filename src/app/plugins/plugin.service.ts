@@ -1188,16 +1188,26 @@ export class PluginService implements OnDestroy {
    */
   clearUploadedPluginsFromMemory(): void {
     const states = this._pluginStates();
+    const uploadedIds: string[] = [];
     for (const [pluginId, state] of states.entries()) {
-      if (state.type !== 'uploaded') {
-        continue;
+      if (state.type === 'uploaded') {
+        uploadedIds.push(pluginId);
       }
+    }
+    for (const pluginId of uploadedIds) {
       this._teardownPluginRuntime(pluginId);
       this._pluginPaths.delete(pluginId);
       this._pluginIndexHtml.delete(pluginId);
       this._pluginIcons.delete(pluginId);
-      this._deletePluginState(pluginId);
     }
+    // Batch-delete all uploaded plugin states in a single signal update
+    this._pluginStates.update((current) => {
+      const updated = new Map(current);
+      for (const pluginId of uploadedIds) {
+        updated.delete(pluginId);
+      }
+      return updated;
+    });
     this._pluginIconsSignal.set(new Map(this._pluginIcons));
   }
 
