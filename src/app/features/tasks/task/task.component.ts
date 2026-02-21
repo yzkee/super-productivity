@@ -180,20 +180,24 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   );
   isOverdue = computed(() => {
     const t = this.task();
+    const todayStr = this.globalTrackingIntervalService.todayDateStr();
     return (
       !t.isDone &&
-      ((t.dueWithTime && t.dueWithTime < Date.now()) ||
+      ((t.dueWithTime &&
+        !this._dateService.isToday(t.dueWithTime) &&
+        t.dueWithTime < Date.now()) ||
         // Note: String comparison works correctly here because dueDay is in YYYY-MM-DD format
         // which is lexicographically sortable. This avoids timezone conversion issues that occur
         // when creating Date objects from date strings.
-        (t.dueDay && t.dueDay !== getDbDateStr() && t.dueDay < getDbDateStr()))
+        (t.dueDay && t.dueDay !== todayStr && t.dueDay < todayStr))
     );
   });
   isScheduledToday = computed(() => {
     const t = this.task();
+    const todayStr = this.globalTrackingIntervalService.todayDateStr();
     return (
       (t.dueWithTime && this._dateService.isToday(t.dueWithTime)) ||
-      (t.dueDay && t.dueDay === this.globalTrackingIntervalService.todayDateStr())
+      (t.dueDay && t.dueDay === todayStr)
     );
   });
 
