@@ -52,12 +52,13 @@ export const test = base.extend<TestFixtures>({
     const page = await isolatedContext.newPage();
 
     try {
-      // Set up error handling (only log when E2E_VERBOSE is set)
-      if (process.env.E2E_VERBOSE) {
-        page.on('pageerror', (error) => {
-          console.error('Page error:', error.message);
-        });
+      // Always log uncaught page errors — they are almost always test-relevant
+      page.on('pageerror', (error) => {
+        console.error('Page error:', error.message);
+      });
 
+      // Only log verbose console messages when E2E_VERBOSE is set
+      if (process.env.E2E_VERBOSE) {
         page.on('console', (msg) => {
           console.log(`Console ${msg.type()}:`, msg.text());
         });
