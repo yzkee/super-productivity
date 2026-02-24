@@ -65,6 +65,8 @@ import { IS_ANDROID_WEB_VIEW } from '../util/is-android-web-view';
 import { AndroidEffects } from '../features/android/store/android.effects';
 import { AndroidFocusModeEffects } from '../features/android/store/android-focus-mode.effects';
 import { AndroidForegroundTrackingEffects } from '../features/android/store/android-foreground-tracking.effects';
+import { MobileNotificationEffects } from '../features/mobile/store/mobile-notification.effects';
+import { IS_NATIVE_PLATFORM } from '../util/is-native-platform';
 import { CaldavIssueEffects } from '../features/issue/providers/caldav/caldav-issue.effects';
 import { NextcloudDeckIssueEffects } from '../features/issue/providers/nextcloud-deck/nextcloud-deck-issue.effects';
 import { CalendarIntegrationEffects } from '../features/calendar-integration/store/calendar-integration.effects';
@@ -172,6 +174,9 @@ import {
       ...(IS_ANDROID_WEB_VIEW
         ? [AndroidEffects, AndroidFocusModeEffects, AndroidForegroundTrackingEffects]
         : []),
+    ]),
+    EffectsModule.forFeature([
+      ...(IS_NATIVE_PLATFORM ? [MobileNotificationEffects] : []),
     ]),
     EffectsModule.forFeature([CaldavIssueEffects]),
     EffectsModule.forFeature([NextcloudDeckIssueEffects]),
