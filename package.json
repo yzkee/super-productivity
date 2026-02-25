@@ -280,7 +280,10 @@
     "typia": "^11.0.0"
   },
   "overrides": {
-    "@conventional-changelog/git-client": "^2.5.1"
+    "@conventional-changelog/git-client": "^2.5.1",
+    "app-builder-lib": {
+      "minimatch": "10.1.1"
+    }
   },
   "optionalDependencies": {
     "@lmdb/lmdb-darwin-x64": "^3.2.0",
