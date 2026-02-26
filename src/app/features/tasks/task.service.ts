@@ -325,7 +325,7 @@ export class TaskService {
     const duration = this._addTimeSpentAccDuration;
     const date = this._addTimeSpentAccDate;
 
-    // Reset before async read to avoid double-flush
+    // Reset before store read to guard against re-entrant calls
     this._addTimeSpentAccDuration = 0;
     this._addTimeSpentAccTickCount = 0;
     this._addTimeSpentAccTaskId = null;
