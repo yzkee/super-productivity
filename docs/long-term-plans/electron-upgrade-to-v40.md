@@ -215,6 +215,52 @@ Based on the failed 25+ commit Electron 38 attempt:
 
 ---
 
+## Rollout Plan
+
+### 1. GitHub Pre-release / Beta Tag
+
+The lowest-friction option. Push a GitHub release tagged as pre-release (e.g., `v11.0.0-beta.1`). This gives you direct `.deb`, `.AppImage`, `.snap`, `.flatpak` artifacts without touching stable channels. Users opt in by downloading manually.
+
+### 2. Snap Edge/Beta Channel
+
+Snap has built-in risk channels: `stable` → `candidate` → `beta` → `edge`. Push the Electron upgrade to the `beta` or `edge` channel:
+
+```bash
+snapcraft upload --release=beta super-productivity_*.snap
+```
+
+Users test with:
+
+```bash
+snap install super-productivity --channel=beta
+```
+
+This is the cleanest path for Snap users since they stay in the Snap ecosystem and can switch back with `--channel=stable`.
+
+### 3. Flatpak Beta Branch
+
+Flathub supports beta branches. Submit a PR to the `beta` branch of the Flathub repo with the updated Electron. Users install with:
+
+```bash
+flatpak install --user flathub-beta com.superproductivity.SuperProductivity
+```
+
+This requires some Flathub-side setup but is the proper way for Flatpak users.
+
+### 4. Call to Action
+
+Whichever approach you choose, the key is reaching the right users:
+
+- **GitHub Issue** — create a tracking issue explaining what's changing, what might break, and how to test
+- **In-app notification** — if there's a news/changelog mechanism, mention the beta there
+- **Ask specifically for Flatpak/Snap testers** — most users are on AppImage/deb and won't catch packaging-specific issues
+
+### Recommended Approach
+
+Combine **GitHub pre-release** (covers everyone) + **Snap beta channel** (trivial for Snap users) + **Flatpak beta branch** (if Flathub setup isn't too painful). The Snap channel approach is particularly nice because users can seamlessly switch back.
+
+---
+
 ## References
 
 - [electron-builder#9452: Snap crashes on Wayland with Electron 38+](https://github.com/electron-userland/electron-builder/issues/9452)
