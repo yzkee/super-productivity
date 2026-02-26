@@ -15,7 +15,7 @@ import { WorkContextThemeCfg } from '../work-context.model';
 import { ProjectService } from '../../project/project.service';
 import { TagService } from '../../tag/tag.service';
 import { buildWorkContextSettingsFormCfg } from './work-context-settings-form-cfg.const';
-import { removeDebounceFromFormItems } from '../../../util/remove-debounce-from-form-items';
+import { adjustToLiveFormlyForm } from '../../../util/adjust-to-live-formly-form';
 import { MatButton } from '@angular/material/button';
 import { TranslatePipe } from '@ngx-translate/core';
 
@@ -65,7 +65,7 @@ export class DialogWorkContextSettingsComponent {
       ...entity,
       theme: { ...entity.theme },
     } as Project | Tag;
-    this.fields = removeDebounceFromFormItems(
+    this.fields = adjustToLiveFormlyForm(
       buildWorkContextSettingsFormCfg(this._data.isProject),
     );
   }
