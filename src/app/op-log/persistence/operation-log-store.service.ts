@@ -185,7 +185,15 @@ export class OperationLogStoreService {
   private _vectorClockCache: VectorClock | null = null;
 
   async init(): Promise<void> {
-    this._db = await this._openDbWithRetry();
+    const db = await this._openDbWithRetry();
+    db.addEventListener('close', () => {
+      Log.warn(
+        '[OpLogStore] IndexedDB connection closed by browser. Will re-open on next access.',
+      );
+      this._db = undefined;
+      this._initPromise = undefined;
+    });
+    this._db = db;
   }
 
   /**
