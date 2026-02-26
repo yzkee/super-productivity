@@ -192,6 +192,13 @@ export class TaskService {
   private _lastFocusedTaskEl: HTMLElement | null = null;
   private _allTasks$: Observable<Task[]> = this._store.pipe(select(selectAllTasks));
 
+  // Batch addTimeSpent dispatches: accumulate locally, flush every 10 ticks
+  private static readonly ADD_TIME_SPENT_BATCH_TICKS = 10;
+  private _addTimeSpentAccDuration = 0;
+  private _addTimeSpentAccTickCount = 0;
+  private _addTimeSpentAccTaskId: string | null = null;
+  private _addTimeSpentAccDate: string | null = null;
+
   // Batch sync for time tracking: accumulates duration per task, syncs every 5 minutes
   private static readonly SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
   private _timeAccumulator = new BatchedTimeSyncAccumulator(
@@ -226,10 +233,23 @@ export class TaskService {
       )
       .subscribe(([tick, currentTask, isImportInProgress]) => {
         if (currentTask?.id && !isImportInProgress) {
-          // Update local state immediately (existing behavior)
-          this.addTimeSpent(currentTask, tick.duration, tick.date);
+          // Flush accumulated addTimeSpent on date rollover (midnight)
+          if (this._addTimeSpentAccDate && this._addTimeSpentAccDate !== tick.date) {
+            this._flushAddTimeSpent();
+          }
 
-          // Accumulate for batch sync
+          // Accumulate addTimeSpent locally instead of dispatching every second
+          this._addTimeSpentAccDuration += tick.duration;
+          this._addTimeSpentAccTickCount++;
+          this._addTimeSpentAccTaskId = currentTask.id;
+          this._addTimeSpentAccDate = tick.date;
+
+          // Flush addTimeSpent every 10 ticks (~10 seconds)
+          if (this._addTimeSpentAccTickCount >= TaskService.ADD_TIME_SPENT_BATCH_TICKS) {
+            this._flushAddTimeSpent();
+          }
+
+          // Accumulate for batch sync (5-min interval, unchanged)
           this._timeAccumulator.accumulate(currentTask.id, tick.duration, tick.date);
 
           // Track contexts for TIME_TRACKING sync
@@ -243,10 +263,19 @@ export class TaskService {
       });
 
     // Flush accumulated time when task stops (currentTaskId becomes null or changes)
-    this.currentTaskId$.pipe(distinctUntilChanged()).subscribe((newTaskId) => {
+    this.currentTaskId$.pipe(distinctUntilChanged()).subscribe(() => {
       // When task changes or stops, flush any accumulated time
+      this._flushAddTimeSpent();
       this._flushAccumulatedTimeSpent();
     });
+
+    // Flush on app close to prevent data loss
+    if (typeof window !== 'undefined') {
+      window.addEventListener('beforeunload', () => {
+        this._flushAddTimeSpent();
+        this._flushAccumulatedTimeSpent();
+      });
+    }
 
     effect(() => {
       if (!this.isTimeTrackingEnabled() && untracked(this.currentTaskId) != null) {
@@ -278,6 +307,38 @@ export class TaskService {
         date,
       });
     }
+  }
+
+  /**
+   * Dispatches addTimeSpent with accumulated duration from a fresh store read,
+   * avoiding stale task.timeSpentOnDay snapshots.
+   */
+  private _flushAddTimeSpent(): void {
+    if (
+      this._addTimeSpentAccDuration <= 0 ||
+      !this._addTimeSpentAccTaskId ||
+      !this._addTimeSpentAccDate
+    ) {
+      return;
+    }
+    const taskId = this._addTimeSpentAccTaskId;
+    const duration = this._addTimeSpentAccDuration;
+    const date = this._addTimeSpentAccDate;
+
+    // Reset before async read to avoid double-flush
+    this._addTimeSpentAccDuration = 0;
+    this._addTimeSpentAccTickCount = 0;
+    this._addTimeSpentAccTaskId = null;
+    this._addTimeSpentAccDate = null;
+
+    // Read fresh task from store to get current timeSpentOnDay
+    this._store
+      .pipe(select(selectTaskById, { id: taskId }), take(1))
+      .subscribe((task) => {
+        if (task) {
+          this.addTimeSpent(task, duration, date);
+        }
+      });
   }
 
   /**
