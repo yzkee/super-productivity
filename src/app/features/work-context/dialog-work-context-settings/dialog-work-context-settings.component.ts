@@ -53,9 +53,15 @@ export class DialogWorkContextSettingsComponent {
   form: UntypedFormGroup = new UntypedFormGroup({});
   fields: FormlyFieldConfig[];
 
+  private _originalEntityData: Project | Tag;
+
   constructor() {
     const entity = this._data.entity;
     this.entityData = {
+      ...entity,
+      theme: { ...entity.theme },
+    } as Project | Tag;
+    this._originalEntityData = {
       ...entity,
       theme: { ...entity.theme },
     } as Project | Tag;
@@ -64,13 +70,23 @@ export class DialogWorkContextSettingsComponent {
     );
   }
 
-  submit(): void {
-    if (!this.form.valid) {
-      this.form.markAllAsTouched();
-      return;
+  onModelChange(model: Project | Tag): void {
+    this.entityData = model;
+    if (this.form.valid) {
+      this._applyChanges(model);
     }
+  }
 
-    const data = this.entityData;
+  done(): void {
+    this._matDialogRef.close();
+  }
+
+  cancelEdit(): void {
+    this._applyChanges(this._originalEntityData);
+    this._matDialogRef.close();
+  }
+
+  private _applyChanges(data: Project | Tag): void {
     const theme: WorkContextThemeCfg = { ...data.theme };
     if (this.isProject) {
       const p = data as Project;
@@ -90,10 +106,5 @@ export class DialogWorkContextSettingsComponent {
         theme,
       });
     }
-    this._matDialogRef.close();
-  }
-
-  cancelEdit(): void {
-    this._matDialogRef.close();
   }
 }
