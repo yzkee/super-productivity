@@ -1,3 +1,5 @@
+## [17.2.3](https://github.com/super-productivity/super-productivity/compare/v17.2.2...v17.2.3) (2026-02-28)
+
 ## [17.2.2](https://github.com/super-productivity/super-productivity/compare/v17.2.1...v17.2.2) (2026-02-28)
 
 ### Bug Fixes
