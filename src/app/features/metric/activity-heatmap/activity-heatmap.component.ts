@@ -443,7 +443,7 @@ export class ActivityHeatmapComponent {
     if (!day) {
       return '';
     }
-    return `${day.dateStr}: ${day.taskCount} tasks, ${msToString(day.timeSpent, false, true)}`;
+    return `${day.dateStr}: ${day.taskCount} tasks, ${msToString(day.timeSpent)}`;
   }
 
   private _extractAvailableYears(tasks: Task[]): number[] {

@@ -77,6 +77,6 @@ export class HeatmapComponent {
     if (!day) {
       return '';
     }
-    return `${day.dateStr}: ${day.taskCount} tasks, ${msToString(day.timeSpent, false, true)}`;
+    return `${day.dateStr}: ${day.taskCount} tasks, ${msToString(day.timeSpent)}`;
   }
 }

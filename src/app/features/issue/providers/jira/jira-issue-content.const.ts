@@ -37,7 +37,7 @@ export const JIRA_ISSUE_CONTENT_CONFIG: IssueContentConfig<JiraIssue> = {
       value: (issue: JiraIssue) => {
         const timeSpent = issue.timespent ? issue.timespent * 1000 : 0;
         const timeEstimate = issue.timeestimate ? issue.timeestimate * 1000 : 0;
-        return `${msToString(timeSpent, false, true)} / ${msToString(timeEstimate, false, true)}`;
+        return `${msToString(timeSpent)} / ${msToString(timeEstimate)}`;
       },
       isVisible: (issue: JiraIssue) => !!issue.timespent || !!issue.timeestimate,
     },

@@ -30,15 +30,15 @@ export const handleIssueProviderHttpError$ = <T>(
     });
   } else if (error.status) {
     // The backend returned an unsuccessful response code.
+    const errorMsg =
+      (error.error && (error.error.name || error.error.statusText)) || error.toString();
     snackService.open({
       type: 'ERROR',
       translateParams: {
-        errorMsg:
-          (error.error && (error.error.name || error.error.statusText)) ||
-          error.toString(),
-        statusCode: error.status,
+        issueProviderName: ISSUE_PROVIDER_HUMANIZED[issueProviderKey],
+        errTxt: `Unknown error ${error.status} ${errorMsg}`,
       },
-      msg: T.F.OPEN_PROJECT.S.ERR_UNKNOWN,
+      msg: T.F.ISSUE.S.ERR_GENERIC,
     });
   }
   const ipLabel = ISSUE_PROVIDER_HUMANIZED[issueProviderKey];

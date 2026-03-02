@@ -16,8 +16,6 @@
   h2 {
     margin: var(--s3) 0 var(--s);
     @include extraBorder('-bottom');
-
-    border-color: var(--extra-border-color);
   }
 }
 
