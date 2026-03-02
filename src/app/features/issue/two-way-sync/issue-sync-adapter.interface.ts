@@ -10,6 +10,8 @@ export interface IssueSyncAdapter<TCfg> {
     cfg: TCfg,
   ): Promise<void>;
   extractSyncValues(issue: Record<string, unknown>): Record<string, unknown>;
+  /** Extract the provider-specific last-updated marker (e.g. timestamp or etag hash) */
+  getIssueLastUpdated?(issue: Record<string, unknown>): number;
   createIssue?(
     title: string,
     cfg: TCfg,

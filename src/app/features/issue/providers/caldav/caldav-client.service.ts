@@ -275,19 +275,6 @@ export class CaldavClientService {
     );
   }
 
-  updateState$(
-    caldavCfg: CaldavCfg,
-    issueId: string,
-    completed: boolean,
-    summary: string,
-  ): Observable<void> {
-    return from(
-      this._updateTask(caldavCfg, issueId, { completed: completed, summary: summary }),
-    ).pipe(
-      catchError((err) => throwError({ [HANDLED_ERROR_PROP_STR]: 'Caldav: ' + err })),
-    );
-  }
-
   updateFields$(
     caldavCfg: CaldavCfg,
     issueId: string,

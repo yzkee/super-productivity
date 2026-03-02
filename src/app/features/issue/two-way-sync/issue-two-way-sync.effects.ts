@@ -76,7 +76,7 @@ export class IssueTwoWaySyncEffects {
               if (errStr.includes('admin rights') || errStr.includes('403')) {
                 this._snackService.open({
                   type: 'ERROR',
-                  msg: T.F.GITHUB.S.TWO_WAY_SYNC_INSUFFICIENT_PERMISSIONS,
+                  msg: T.F.ISSUE.S.TWO_WAY_SYNC_PUSH_FAILED,
                 });
               }
               return EMPTY;
@@ -203,7 +203,8 @@ export class IssueTwoWaySyncEffects {
           }
         }
 
-        if (Object.keys(toPush).length > 0) {
+        const didPush = Object.keys(toPush).length > 0;
+        if (didPush) {
           await adapter.pushChanges(task.issueId!, toPush, cfg);
         }
 
@@ -219,11 +220,20 @@ export class IssueTwoWaySyncEffects {
             : freshValues[mapping.issueField];
         }
 
+        // After push, re-fetch the issue to get the provider's updated marker
+        // (e.g. CalDAV etag changes on write). Fall back to Date.now() for
+        // providers that don't implement getIssueLastUpdated.
+        let issueLastUpdated = Date.now();
+        if (didPush && adapter.getIssueLastUpdated) {
+          const postPushIssue = await adapter.fetchIssue(task.issueId!, cfg);
+          issueLastUpdated = adapter.getIssueLastUpdated(postPushIssue);
+        }
+
         // Update sync values and issueLastUpdated to prevent poll from
         // treating our own push as an external update
         this._taskService.update(task.id, {
           issueLastSyncedValues: updatedSyncValues,
-          issueLastUpdated: Date.now(),
+          issueLastUpdated,
         });
       }),
     );

@@ -77,4 +77,8 @@ export class CaldavSyncAdapterService implements IssueSyncAdapter<CaldavCfg> {
       note: issue['note'],
     };
   }
+
+  getIssueLastUpdated(issue: Record<string, unknown>): number {
+    return issue['etag_hash'] as number;
+  }
 }
