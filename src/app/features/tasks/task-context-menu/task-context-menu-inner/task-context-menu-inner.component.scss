@@ -38,10 +38,10 @@
     height: 48px;
     min-width: 40px;
     flex-grow: 1;
-    border-radius: 4px !important;
+    border-radius: var(--card-border-radius) !important;
 
     ::ng-deep .mat-mdc-button-persistent-ripple {
-      border-radius: 4px !important;
+      border-radius: var(--card-border-radius) !important;
     }
   }
 
