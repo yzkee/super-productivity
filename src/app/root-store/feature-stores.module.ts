@@ -89,6 +89,7 @@ import { AppStateEffects } from './app-state/app-state.effects';
 import { appStateFeature } from './app-state/app-state.reducer';
 import { PluginHooksEffects } from '../plugins/plugin-hooks.effects';
 import { OperationLogEffects } from '../op-log/capture/operation-log.effects';
+import { IssueTwoWaySyncEffects } from '../features/issue/two-way-sync/issue-two-way-sync.effects';
 import {
   PLUGIN_USER_DATA_FEATURE_NAME,
   pluginUserDataReducer,
@@ -178,6 +179,7 @@ import {
     EffectsModule.forFeature([
       ...(IS_NATIVE_PLATFORM ? [MobileNotificationEffects] : []),
     ]),
+    EffectsModule.forFeature([IssueTwoWaySyncEffects]),
     EffectsModule.forFeature([CaldavIssueEffects]),
     EffectsModule.forFeature([NextcloudDeckIssueEffects]),
     EffectsModule.forFeature([CalendarIntegrationEffects]),

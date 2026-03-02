@@ -132,6 +132,32 @@ export class GithubApiService {
     );
   }
 
+  createIssue$(title: string, cfg: GithubCfg): Observable<GithubIssue> {
+    return this._sendRequest$(
+      {
+        url: `${BASE}repos/${cfg.repo}/issues`,
+        method: 'POST',
+        data: { title },
+      },
+      cfg,
+    ).pipe(map((issue) => mapGithubIssue(issue)));
+  }
+
+  updateIssue$(
+    issueId: number,
+    changes: { state?: string; title?: string; body?: string },
+    cfg: GithubCfg,
+  ): Observable<GithubIssue> {
+    return this._sendRequest$(
+      {
+        url: `${BASE}repos/${cfg.repo}/issues/${issueId}`,
+        method: 'PATCH',
+        data: changes,
+      },
+      cfg,
+    );
+  }
+
   graphQl$(cfg: GithubCfg, query: string): Observable<unknown> {
     return this._sendRequest$(
       {
