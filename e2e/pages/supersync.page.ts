@@ -350,7 +350,7 @@ export class SuperSyncPage extends BasePage {
         console.log('[SuperSyncPage] Password dialog appeared - entering password');
         const passwordInput = passwordDialog.locator('input[type="password"]');
         await passwordInput.fill(config.password!);
-        const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button]');
+        const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button][color="primary"]');
         await saveAndSyncBtn.click();
         await passwordDialog.waitFor({ state: 'hidden', timeout: 30000 });
       } else if (outcome === 'decrypt_error_dialog') {
@@ -382,7 +382,7 @@ export class SuperSyncPage extends BasePage {
         if (passwordDialogAfterImport) {
           const passwordInput = passwordDialog.locator('input[type="password"]');
           await passwordInput.fill(config.password!);
-          const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button]');
+          const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button][color="primary"]');
           await saveAndSyncBtn.click();
           await passwordDialog.waitFor({ state: 'hidden', timeout: 30000 });
         } else {
@@ -410,7 +410,7 @@ export class SuperSyncPage extends BasePage {
           );
           const passwordInput = passwordDialog.locator('input[type="password"]');
           await passwordInput.fill(config.password!);
-          const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button]');
+          const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button][color="primary"]');
           await saveAndSyncBtn.click();
           await passwordDialog.waitFor({ state: 'hidden', timeout: 30000 });
         } else {
@@ -440,7 +440,7 @@ export class SuperSyncPage extends BasePage {
           );
           const passwordInput = passwordDialog.locator('input[type="password"]');
           await passwordInput.fill(config.password!);
-          const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button]');
+          const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button][color="primary"]');
           await saveAndSyncBtn.click();
           await passwordDialog.waitFor({ state: 'hidden', timeout: 30000 });
         } else if (hasSyncError) {
@@ -456,7 +456,7 @@ export class SuperSyncPage extends BasePage {
           if (passwordDialogAfterError) {
             const passwordInput = passwordDialog.locator('input[type="password"]');
             await passwordInput.fill(config.password!);
-            const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button]');
+            const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button][color="primary"]');
             await saveAndSyncBtn.click();
             await passwordDialog.waitFor({ state: 'hidden', timeout: 30000 });
           } else {
@@ -488,7 +488,7 @@ export class SuperSyncPage extends BasePage {
           if (laterOutcome === 'password_dialog') {
             const passwordInput = passwordDialog.locator('input[type="password"]');
             await passwordInput.fill(config.password!);
-            const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button]');
+            const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button][color="primary"]');
             await saveAndSyncBtn.click();
             await passwordDialog.waitFor({ state: 'hidden', timeout: 30000 });
           } else if (laterOutcome === 'sync_success') {
@@ -507,7 +507,7 @@ export class SuperSyncPage extends BasePage {
             if (dialogAfterError) {
               const passwordInput = passwordDialog.locator('input[type="password"]');
               await passwordInput.fill(config.password!);
-              const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button]');
+              const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button][color="primary"]');
               await saveAndSyncBtn.click();
               await passwordDialog.waitFor({ state: 'hidden', timeout: 30000 });
             } else {
@@ -533,7 +533,7 @@ export class SuperSyncPage extends BasePage {
             );
             const passwordInput = passwordDialog.locator('input[type="password"]');
             await passwordInput.fill(config.password!);
-            const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button]');
+            const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button][color="primary"]');
             await saveAndSyncBtn.click();
             await passwordDialog.waitFor({ state: 'hidden', timeout: 30000 });
           } else {
@@ -678,7 +678,7 @@ export class SuperSyncPage extends BasePage {
           console.log('[SuperSyncPage] Enter-password dialog — entering password');
           const passwordInput = enterPasswordDialog.locator('input[type="password"]');
           await passwordInput.fill(defaultPassword);
-          const saveAndSyncBtn = enterPasswordDialog.locator('button[mat-flat-button]');
+          const saveAndSyncBtn = enterPasswordDialog.locator('button[mat-flat-button][color="primary"]');
           await saveAndSyncBtn.click();
           await enterPasswordDialog.waitFor({
             state: 'hidden',
@@ -694,7 +694,7 @@ export class SuperSyncPage extends BasePage {
           console.log('[SuperSyncPage] Password dialog — entering password');
           const passwordInput = passwordDialog.locator('input[type="password"]');
           await passwordInput.fill(defaultPassword);
-          const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button]');
+          const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button][color="primary"]');
           await saveAndSyncBtn.click();
           await passwordDialog.waitFor({
             state: 'hidden',
@@ -752,7 +752,7 @@ export class SuperSyncPage extends BasePage {
         );
         const passwordInput = passwordDialog.locator('input[type="password"]');
         await passwordInput.fill(config.password!);
-        const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button]');
+        const saveAndSyncBtn = passwordDialog.locator('button[mat-flat-button][color="primary"]');
         await saveAndSyncBtn.click();
 
         // Wait for either:
