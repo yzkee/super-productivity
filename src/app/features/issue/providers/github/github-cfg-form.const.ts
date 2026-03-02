@@ -32,12 +32,13 @@ export const GITHUB_CONFIG_FORM: LimitedFormlyFieldConfig<IssueProviderGithub>[]
     props: {
       label: T.F.GITHUB.FORM.TOKEN,
       required: true,
-      placeholder: 'ghp_... (classic token)',
+      placeholder: 'ghp_... or github_pat_...',
       type: 'password',
     },
     validators: {
       token: {
-        expression: (c: { value: string | undefined }) => c.value?.startsWith('ghp_'),
+        expression: (c: { value: string | undefined }) =>
+          !!c.value && (c.value.startsWith('ghp_') || c.value.startsWith('github_pat_')),
         message: T.F.GITHUB.FORM.INVALID_TOKEN_MESSAGE,
       },
     },
