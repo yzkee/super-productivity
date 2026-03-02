@@ -102,10 +102,16 @@ export class GithubApiService {
     cfg: GithubCfg,
     isSearchAllGithub: boolean = false,
   ): Observable<GithubIssueReduced[]> {
+    // Fine-grained PATs require is:issue in the query
+    const queryWithType =
+      searchText.includes('is:issue') || searchText.includes('is:pull-request')
+        ? searchText
+        : `is:issue ${searchText}`;
+
     // Build the full query string
     const fullQuery = isSearchAllGithub
-      ? searchText
-      : `${searchText} repo:${cfg.repo || ''}`;
+      ? queryWithType
+      : `${queryWithType} repo:${cfg.repo || ''}`;
 
     // Use HttpParams to properly handle encoding, but we need custom encoding for parentheses
     const params = new HttpParams({ encoder: new CustomHttpParamEncoder() }).set(
