@@ -13,6 +13,7 @@ import { computePushDecisions } from './compute-push-decisions';
 import { IssueProviderGithub, IssueProviderKey } from '../issue.model';
 import { IssueLog } from '../../../core/log';
 import { GithubSyncAdapterService } from '../providers/github/github-sync-adapter.service';
+import { CaldavSyncAdapterService } from '../providers/caldav/caldav-sync-adapter.service';
 import { SnackService } from '../../../core/snack/snack.service';
 import { T } from '../../../t.const';
 import { selectEnabledIssueProviders } from '../store/issue-provider.selectors';
@@ -30,6 +31,8 @@ export class IssueTwoWaySyncEffects {
   constructor() {
     const githubAdapter = inject(GithubSyncAdapterService);
     this._adapterRegistry.register('GITHUB', githubAdapter);
+    const caldavAdapter = inject(CaldavSyncAdapterService);
+    this._adapterRegistry.register('CALDAV', caldavAdapter);
   }
 
   pushFieldsOnTaskUpdate$: Observable<unknown> = createEffect(
@@ -42,7 +45,14 @@ export class IssueTwoWaySyncEffects {
           if ('issueLastSyncedValues' in changes || 'issueWasUpdated' in changes) {
             return false;
           }
-          return 'isDone' in changes || 'title' in changes || 'notes' in changes;
+          return (
+            'isDone' in changes ||
+            'title' in changes ||
+            'notes' in changes ||
+            'dueWithTime' in changes ||
+            'dueDay' in changes ||
+            'timeEstimate' in changes
+          );
         }),
         concatMap(({ task: taskUpdate }) =>
           this._taskService.getByIdOnce$(taskUpdate.id.toString()).pipe(

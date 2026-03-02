@@ -104,7 +104,14 @@
         "CALDAV_RESOURCE": "The name of the CalDAV resource (the calendar)",
         "CALDAV_URL": "CalDAV URL (the base URL)",
         "CALDAV_USER": "Your CalDAV username",
-        "IS_TRANSITION_ISSUES_ENABLED": "Automatically complete CalDAV tasks on task completion"
+        "TWO_WAY_SYNC_SECTION": "Two-Way Sync",
+        "TWO_WAY_SYNC_STATUS": "Status sync direction",
+        "TWO_WAY_SYNC_TITLE": "Title sync direction",
+        "TWO_WAY_SYNC_OFF": "Off",
+        "TWO_WAY_SYNC_PULL_ONLY": "Pull only (read from CalDAV)",
+        "TWO_WAY_SYNC_PUSH_ONLY": "Push only (write to CalDAV)",
+        "TWO_WAY_SYNC_BOTH": "Both (bidirectional)",
+        "TWO_WAY_SYNC_NOTES": "Notes / Description sync direction"
       },
       "FORM_SECTION": {
         "HELP": "<p>Here you can configure Super Productivity to list uncompleted CalDAV tasks for a specific project in the task creation panel in the daily planning view. They will be listed as suggestions and will provide a link to the task as well as more information about it.</p> <p>In addition, you can automatically add and sync all uncompleted tasks to your task backlog.</p><p>To make it work for Nextcloud in the webapp, you may need to allow \"https://app.super-productivity.com\" in the Nextcloud app <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a>.</p>"

@@ -21,4 +21,6 @@ export interface FieldMapping {
   defaultDirection: SyncDirection;
   toIssueValue: (taskValue: unknown, ctx: FieldMappingContext) => unknown;
   toTaskValue: (issueValue: unknown, ctx: FieldMappingContext) => unknown;
+  /** Task fields to clear when this field is set (e.g. dueWithTime and dueDay are mutually exclusive) */
+  mutuallyExclusive?: (keyof Task)[];
 }
