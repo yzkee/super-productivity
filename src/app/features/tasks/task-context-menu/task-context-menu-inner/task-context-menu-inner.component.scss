@@ -9,9 +9,7 @@
   border-radius: 20px;
   max-width: 66px;
   letter-spacing: -1px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  @include truncateText();
   display: none;
 
   &:not(:empty) {
@@ -33,7 +31,7 @@
 .quick-access {
   display: flex;
   justify-content: space-evenly;
-  border-bottom: 1px solid var(--extra-border-color);
+  @include extraBorder('-bottom');
   height: 48px;
 
   > button {

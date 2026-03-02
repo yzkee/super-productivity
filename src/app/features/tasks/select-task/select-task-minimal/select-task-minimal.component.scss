@@ -66,9 +66,7 @@ input {
       }
 
       .mat-mdc-option-text {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        @include truncateText();
         color: inherit;
       }
     }

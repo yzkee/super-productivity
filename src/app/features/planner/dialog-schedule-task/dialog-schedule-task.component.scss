@@ -86,10 +86,7 @@ mat-dialog-content {
 
   &:after {
     @include materialIcon('wb_sunny');
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    @include center;
     color: var(--text-color);
   }
 }
@@ -97,7 +94,7 @@ mat-dialog-content {
 .quick-access {
   display: flex;
   justify-content: space-evenly;
-  border-bottom: 1px solid var(--extra-border-color);
+  @include extraBorder('-bottom');
   height: 48px;
 
   > button {
@@ -111,7 +108,7 @@ mat-dialog-content {
   }
 
   button + button {
-    border-left: 1px solid var(--extra-border-color);
+    @include extraBorder('-left');
   }
 }
 

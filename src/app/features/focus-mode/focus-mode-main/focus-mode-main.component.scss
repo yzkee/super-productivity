@@ -207,18 +207,12 @@
 .clock-time {
   font-size: 24px;
   font-weight: bold;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  @include center;
 }
 
 .duration-slider-overlay-wrapper {
-  position: absolute;
-  top: 50%;
+  @include center;
   width: 200px;
-  left: 50%;
-  transform: translate(-50%, -50%);
 }
 
 .duration-slider-overlay {
@@ -234,10 +228,7 @@
 
 // ========== CLOCK WRAPPER (In Progress state) ==========
 .clock-wrapper {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  @include center;
   width: 100%;
   height: 100%;
   display: grid;

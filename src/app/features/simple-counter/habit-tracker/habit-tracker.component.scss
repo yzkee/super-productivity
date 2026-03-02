@@ -220,9 +220,7 @@
     display: block;
     font-size: 13px;
     font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    @include truncateText();
     min-width: 0;
 
     @media (max-width: 600px) {
