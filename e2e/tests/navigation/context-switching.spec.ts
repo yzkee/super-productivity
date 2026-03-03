@@ -149,7 +149,6 @@ test.describe('Context Switching', () => {
       'magic-side-nav nav-item[data-tag-id="TODAY"] button.nav-link',
     );
     await todayNavItem.click();
-    await page.waitForLoadState('networkidle');
 
     // Verify URL is TODAY tag
     await expect(page).toHaveURL(/tag\/TODAY/);
@@ -190,11 +189,11 @@ test.describe('Context Switching', () => {
       'magic-side-nav nav-item[data-tag-id="TODAY"] button.nav-link',
     );
     await todayNavItem.click();
-    await page.waitForLoadState('networkidle');
+    await page.waitForURL(/tag\/TODAY/);
+    await page.waitForSelector('task-list', { state: 'visible', timeout: 10000 });
 
     // Navigate back to the project
     await projectPage.navigateToProjectByName(projectName);
-    await page.waitForTimeout(500);
 
     // Verify all tasks are still there
     await expect(
@@ -233,12 +232,12 @@ test.describe('Context Switching', () => {
 
     // Navigate to planner
     await page.goto('/#/planner');
-    await page.waitForLoadState('networkidle');
+    await page.waitForSelector('.route-wrapper', { state: 'visible', timeout: 15000 });
     await expect(page).toHaveURL(/planner/);
 
     // Navigate to schedule
     await page.goto('/#/schedule');
-    await page.waitForLoadState('networkidle');
+    await page.waitForSelector('.route-wrapper', { state: 'visible', timeout: 15000 });
     await expect(page).toHaveURL(/schedule/);
 
     // Dismiss any overlay that might be open
@@ -247,7 +246,7 @@ test.describe('Context Switching', () => {
 
     // Navigate back to TODAY via URL (more reliable than click)
     await page.goto('/#/tag/TODAY');
-    await page.waitForLoadState('networkidle');
+    await page.waitForSelector('task-list', { state: 'visible', timeout: 15000 });
     await expect(page).toHaveURL(/tag\/TODAY/);
   });
 });

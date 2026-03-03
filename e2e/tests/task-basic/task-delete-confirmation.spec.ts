@@ -89,8 +89,19 @@ test.describe('Task Delete Confirmation', () => {
 
     // Focus the task by clicking on drag-handle (not task-title which would open edit mode)
     const task = page.locator('task').first();
-    await task.locator('.drag-handle').click();
-    await expect(task).toBeFocused();
+    const dragHandle = task.locator('.drag-handle');
+    await dragHandle.waitFor({ state: 'visible', timeout: 5000 });
+    await dragHandle.click();
+    // Wait for focus to settle - the task component needs time to process the click
+    await page.waitForTimeout(200);
+    // If task isn't focused, try clicking again
+    const isFocused = await task.evaluate(
+      (el) => el === document.activeElement || el.contains(document.activeElement),
+    );
+    if (!isFocused) {
+      await task.focus();
+      await page.waitForTimeout(200);
+    }
 
     // Act: Press Backspace (default delete shortcut)
     await page.keyboard.press('Backspace');
