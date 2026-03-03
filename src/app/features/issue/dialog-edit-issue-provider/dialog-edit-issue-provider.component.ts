@@ -123,16 +123,16 @@ export class DialogEditIssueProviderComponent {
         issueProviderKey: this.issueProviderKey,
       } as IssueProviderTypeMap<IssueProviderKey>);
 
+  title: string = this._pluginRegistry.hasProvider(this.issueProviderKey)
+    ? this._pluginRegistry.getName(this.issueProviderKey) || this.issueProviderKey
+    : ISSUE_PROVIDER_HUMANIZED[this.issueProviderKey as BuiltInIssueProviderKey];
+
   configFormSection: ConfigFormSection<IssueIntegrationCfg> | undefined =
     this._pluginRegistry.hasProvider(this.issueProviderKey)
       ? this._getPluginFormSection()
       : ISSUE_PROVIDER_FORM_CFGS_MAP[this.issueProviderKey as BuiltInIssueProviderKey];
 
   fields = this.configFormSection?.items ?? [];
-
-  title: string = this._pluginRegistry.hasProvider(this.issueProviderKey)
-    ? this._pluginRegistry.getName(this.issueProviderKey) || this.issueProviderKey
-    : ISSUE_PROVIDER_HUMANIZED[this.issueProviderKey as BuiltInIssueProviderKey];
 
   private _matDialogRef: MatDialogRef<DialogEditIssueProviderComponent> =
     inject(MatDialogRef);
@@ -301,8 +301,8 @@ export class DialogEditIssueProviderComponent {
     const regularFields = configFields.filter((f) => !f.advanced);
     const advancedFields = configFields.filter((f) => f.advanced);
 
-    const items = regularFields.map(
-      this._mapPluginConfigField,
+    const items = regularFields.map((f) =>
+      this._mapPluginConfigField(f),
     ) as LimitedFormlyFieldConfig<IssueIntegrationCfg>[];
 
     items.push({
@@ -310,7 +310,7 @@ export class DialogEditIssueProviderComponent {
       props: { label: T.F.ISSUE.DIALOG.ADVANCED_CONFIG },
       fieldGroup: [
         ...(ISSUE_PROVIDER_COMMON_FORM_FIELDS as any[]),
-        ...advancedFields.map(this._mapPluginConfigField),
+        ...advancedFields.map((f) => this._mapPluginConfigField(f)),
       ],
     } as any);
 
@@ -325,7 +325,7 @@ export class DialogEditIssueProviderComponent {
     };
   }
 
-  private _mapPluginConfigField = (f: {
+  private _mapPluginConfigField(f: {
     key: string;
     type: string;
     label: string;
@@ -333,7 +333,7 @@ export class DialogEditIssueProviderComponent {
     url?: string;
     pattern?: string;
     options?: { value: string; label: string }[];
-  }): unknown => {
+  }): unknown {
     if (f.type === 'link') {
       return {
         type: 'link',
@@ -359,7 +359,7 @@ export class DialogEditIssueProviderComponent {
         ...(f.pattern ? { pattern: f.pattern } : {}),
       },
     };
-  };
+  }
 
   private _buildTwoWaySyncSection(
     pluginKey: IssueProviderKey,
