@@ -14,13 +14,13 @@ Extend the existing CalDAV provider to support VEVENT (calendar events) alongsid
 
 ## Decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Provider approach | Extend existing CalDAV provider | Single provider handles both VTODOs and VEVENTs from the same server connection |
-| Event behavior | Configurable per-provider: banners (default) or auto-import as tasks | Matches user request; reuses existing `isAutoImportForCurrentDay` pattern from ICAL provider |
-| Data model | Reuse `CalendarIntegrationEvent` + CalDAV-specific wrapper for etag/URL | Shares display layer with ICAL provider; adds sync metadata for write-back |
-| Auth | Same basic auth as VTODO — no changes | Already works, already implemented |
-| Sync direction | Two-way (configurable per field, like VTODO) | Consistent with existing CalDAV sync behavior |
+| Decision          | Choice                                                                  | Rationale                                                                                    |
+| ----------------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Provider approach | Extend existing CalDAV provider                                         | Single provider handles both VTODOs and VEVENTs from the same server connection              |
+| Event behavior    | Configurable per-provider: banners (default) or auto-import as tasks    | Matches user request; reuses existing `isAutoImportForCurrentDay` pattern from ICAL provider |
+| Data model        | Reuse `CalendarIntegrationEvent` + CalDAV-specific wrapper for etag/URL | Shares display layer with ICAL provider; adds sync metadata for write-back                   |
+| Auth              | Same basic auth as VTODO — no changes                                   | Already works, already implemented                                                           |
+| Sync direction    | Two-way (configurable per field, like VTODO)                            | Consistent with existing CalDAV sync behavior                                                |
 
 ---
 
@@ -29,6 +29,7 @@ Extend the existing CalDAV provider to support VEVENT (calendar events) alongsid
 ### What Exists
 
 **CalDAV provider** (`src/app/features/issue/providers/caldav/`):
+
 - Two-way VTODO sync with basic auth
 - Uses `@nextcloud/cdav-library` + `ical.js`
 - Sync adapter pattern: `CaldavSyncAdapterService` implements `IssueSyncAdapter<CaldavCfg>`
@@ -37,6 +38,7 @@ Extend the existing CalDAV provider to support VEVENT (calendar events) alongsid
 - Client/calendar caching per connection
 
 **ICAL provider** (`src/app/features/issue/providers/calendar/`):
+
 - Read-only VEVENT display from `.ics` URLs
 - `CalendarIntegrationEvent` model: `{ id, calProviderId, title, description, start, duration, isAllDay }`
 - `isAutoImportForCurrentDay` flag for auto-creating tasks from events
@@ -69,11 +71,11 @@ interface CaldavCfg extends BaseIssueProviderCfg {
   twoWaySync?: CaldavTwoWaySyncCfg;
 
   // New VEVENT support
-  includeEvents?: boolean;                    // Enable VEVENT fetching (default: false)
-  eventBehavior?: 'banners' | 'auto-import';  // How events appear in SP
+  includeEvents?: boolean; // Enable VEVENT fetching (default: false)
+  eventBehavior?: 'banners' | 'auto-import'; // How events appear in SP
   eventTwoWaySync?: CaldavEventTwoWaySyncCfg; // Field-level sync for events
-  showBannerBeforeThreshold?: number | null;   // Minutes before event to show banner
-  eventCheckInterval?: number;                 // Poll interval for events (ms)
+  showBannerBeforeThreshold?: number | null; // Minutes before event to show banner
+  eventCheckInterval?: number; // Poll interval for events (ms)
 }
 
 interface CaldavEventTwoWaySyncCfg {
@@ -90,8 +92,8 @@ interface CaldavEventTwoWaySyncCfg {
 ```typescript
 // Extends CalendarIntegrationEvent with CalDAV sync metadata
 interface CaldavCalendarEvent extends CalendarIntegrationEvent {
-  etag_hash: number;   // For change detection (same pattern as VTODO)
-  item_url: string;    // CalDAV object URL for write-back
+  etag_hash: number; // For change detection (same pattern as VTODO)
+  item_url: string; // CalDAV object URL for write-back
   status?: 'CONFIRMED' | 'TENTATIVE' | 'CANCELLED';
   location?: string;
   categories?: string[];
@@ -142,13 +144,14 @@ The existing `findByTypeInTimeRange('VEVENT', from, to)` method on the calendar 
 
 ```typescript
 CALDAV_EVENT_FIELD_MAPPINGS = [
-  { spField: 'title',  issueField: 'summary',     label: 'Title' },
-  { spField: 'notes',  issueField: 'description',  label: 'Description' },
+  { spField: 'title', issueField: 'summary', label: 'Title' },
+  { spField: 'notes', issueField: 'description', label: 'Description' },
   // No direct 'isDone' mapping — VEVENTs use status: CONFIRMED/CANCELLED
 ];
 ```
 
 When a user marks a task (created from a VEVENT) as done:
+
 - If `markDoneAs === 'cancelled'`: set VEVENT `STATUS` to `CANCELLED`
 - If `markDoneAs === 'none'`: don't write back done status
 
@@ -167,13 +170,13 @@ The existing `CalendarIntegrationEffects.pollChanges$` currently only handles IC
 
 A single CalDAV provider instance connects to one calendar resource. That resource may contain both VTODOs and VEVENTs. The provider handles both:
 
-| Aspect | VTODOs (existing) | VEVENTs (new) |
-|--------|-------------------|---------------|
-| Queried as | `calendar.calendarQuery()` with VTODO comp-filter | `calendar.findByTypeInTimeRange('VEVENT', from, to)` |
-| Displayed as | Tasks in backlog/today list | Calendar banners or imported tasks |
-| Two-way fields | isDone, title, notes | title, description, done→cancelled |
-| Change detection | ETag hash | ETag hash (same mechanism) |
-| Time window | All open todos (no time filter) | Current day/week (configurable) |
+| Aspect           | VTODOs (existing)                                 | VEVENTs (new)                                        |
+| ---------------- | ------------------------------------------------- | ---------------------------------------------------- |
+| Queried as       | `calendar.calendarQuery()` with VTODO comp-filter | `calendar.findByTypeInTimeRange('VEVENT', from, to)` |
+| Displayed as     | Tasks in backlog/today list                       | Calendar banners or imported tasks                   |
+| Two-way fields   | isDone, title, notes                              | title, description, done→cancelled                   |
+| Change detection | ETag hash                                         | ETag hash (same mechanism)                           |
+| Time window      | All open todos (no time filter)                   | Current day/week (configurable)                      |
 
 ---
 
@@ -215,14 +218,15 @@ A single CalDAV provider instance connects to one calendar resource. That resour
 
 ## Relationship to Other Calendar Work
 
-| Provider | Target Users | Auth | API | Status |
-|----------|-------------|------|-----|--------|
-| **ICAL** (existing) | Anyone with a public .ics URL | None | HTTP GET | Done (read-only) |
-| **CalDAV VTODO** (existing) | Self-hosted calendar users | Basic auth | CalDAV | Done (two-way) |
-| **CalDAV VEVENT** (this doc) | Self-hosted calendar users | Basic auth | CalDAV | Planned |
-| **Google Calendar** (separate doc) | Mainstream users | OAuth 2.0 (hybrid proxy) | REST API v3 | Planned |
+| Provider                           | Target Users                  | Auth                     | API         | Status           |
+| ---------------------------------- | ----------------------------- | ------------------------ | ----------- | ---------------- |
+| **ICAL** (existing)                | Anyone with a public .ics URL | None                     | HTTP GET    | Done (read-only) |
+| **CalDAV VTODO** (existing)        | Self-hosted calendar users    | Basic auth               | CalDAV      | Done (two-way)   |
+| **CalDAV VEVENT** (this doc)       | Self-hosted calendar users    | Basic auth               | CalDAV      | Planned          |
+| **Google Calendar** (separate doc) | Mainstream users              | OAuth 2.0 (hybrid proxy) | REST API v3 | Planned          |
 
 CalDAV VEVENT and Google Calendar are complementary:
+
 - CalDAV VEVENT serves privacy-focused, self-hosted users with zero auth overhead
 - Google Calendar serves mainstream users who need OAuth infrastructure
 - Both share the `CalendarIntegrationEvent` display layer and configurable import behavior

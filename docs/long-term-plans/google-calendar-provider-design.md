@@ -6,14 +6,14 @@ Add a Google Calendar provider (`GOOGLE_CALENDAR`) to Super Productivity with tw
 
 ## Decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Integration level | Two-way event sync (phased) | Full value requires writing back status changes |
-| Auth approach | Hybrid: auth proxy default + user-provided option | Best UX for most users; self-hosters/privacy users can opt out of proxy |
-| API layer | Google Calendar REST API v3 | Better documented, more reliable than Google's CalDAV endpoint; avoids CalDAV quirks |
-| Initial sync direction | Google → SP first, status sync back | Reduce scope for first version; no SP → Google event creation yet |
-| Auth proxy hosting | Decide at implementation time | Proxy is stateless and thin enough to move between hosting options |
-| Token storage | Reuse existing `SyncCredentialStore` (IndexedDB `sup-sync`) | Proven pattern from Dropbox sync |
+| Decision               | Choice                                                      | Rationale                                                                            |
+| ---------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Integration level      | Two-way event sync (phased)                                 | Full value requires writing back status changes                                      |
+| Auth approach          | Hybrid: auth proxy default + user-provided option           | Best UX for most users; self-hosters/privacy users can opt out of proxy              |
+| API layer              | Google Calendar REST API v3                                 | Better documented, more reliable than Google's CalDAV endpoint; avoids CalDAV quirks |
+| Initial sync direction | Google → SP first, status sync back                         | Reduce scope for first version; no SP → Google event creation yet                    |
+| Auth proxy hosting     | Decide at implementation time                               | Proxy is stateless and thin enough to move between hosting options                   |
+| Token storage          | Reuse existing `SyncCredentialStore` (IndexedDB `sup-sync`) | Proven pattern from Dropbox sync                                                     |
 
 ---
 
@@ -58,6 +58,7 @@ POST /auth/google/token-refresh
 ```
 
 **Hosting options (to be decided):**
+
 - Routes added to existing SuperSync server
 - Standalone serverless functions (Cloudflare Workers, Vercel, AWS Lambda)
 - Dedicated micro-service
@@ -80,12 +81,12 @@ POST /auth/google/token-refresh
 
 ### Per-Platform Redirect Handling
 
-| Platform | Proxy mode | Custom credentials mode |
-|----------|-----------|------------------------|
-| Electron | Proxy → custom protocol redirect | Local loopback server (`http://127.0.0.1:<port>/callback`) |
-| Web/PWA | Proxy → redirect to app origin | Standard redirect (user registers their own origin) |
-| Android | Proxy → deep link | Deep link with user's own client ID |
-| iOS | Proxy → deep link / universal link | Deep link with user's own client ID |
+| Platform | Proxy mode                         | Custom credentials mode                                    |
+| -------- | ---------------------------------- | ---------------------------------------------------------- |
+| Electron | Proxy → custom protocol redirect   | Local loopback server (`http://127.0.0.1:<port>/callback`) |
+| Web/PWA  | Proxy → redirect to app origin     | Standard redirect (user registers their own origin)        |
+| Android  | Proxy → deep link                  | Deep link with user's own client ID                        |
+| iOS      | Proxy → deep link / universal link | Deep link with user's own client ID                        |
 
 ### Auth Infrastructure (shared, reusable)
 
@@ -133,21 +134,21 @@ interface GoogleCalendarCfg extends BaseIssueProviderCfg {
 
 ### Google → Super Productivity
 
-| Google Calendar Event | Super Productivity |
-|-----------------------|-------------------|
-| `summary` | Task title |
-| `description` | Task notes |
-| `start` / `end` | `CalendarIntegrationEvent` start / duration |
-| `status` (confirmed/cancelled) | Task done state |
-| `updated` | Last-modified timestamp for sync |
+| Google Calendar Event          | Super Productivity                          |
+| ------------------------------ | ------------------------------------------- |
+| `summary`                      | Task title                                  |
+| `description`                  | Task notes                                  |
+| `start` / `end`                | `CalendarIntegrationEvent` start / duration |
+| `status` (confirmed/cancelled) | Task done state                             |
+| `updated`                      | Last-modified timestamp for sync            |
 
 ### Super Productivity → Google (Phase 2+)
 
-| Super Productivity | Google Calendar Event |
-|-------------------|----------------------|
-| Task marked done | Event status → cancelled (or configurable) |
-| Title changed | `summary` updated |
-| Notes changed | `description` updated |
+| Super Productivity | Google Calendar Event                      |
+| ------------------ | ------------------------------------------ |
+| Task marked done   | Event status → cancelled (or configurable) |
+| Title changed      | `summary` updated                          |
+| Notes changed      | `description` updated                      |
 
 ### What Does NOT Sync
 

@@ -417,16 +417,18 @@ export class CaldavClientService {
     const now = ICAL.Time.now();
     let changeObserved = false;
 
-    if (updates.completed !== undefined) {
-      const oldCompleted = !!todo.getFirstPropertyValue('completed');
-      if (updates.completed !== oldCompleted) {
-        if (updates.completed) {
-          todo.updatePropertyWithValue('completed', now);
-        } else {
-          todo.removeProperty('completed');
-        }
-        changeObserved = true;
+    const oldCompleted = !!todo.getFirstPropertyValue('completed');
+    if (updates.completed !== oldCompleted) {
+      if (updates.completed) {
+        todo.updatePropertyWithValue('completed', now);
+        todo.updatePropertyWithValue('percent-complete', '100');
+        todo.updatePropertyWithValue('status', CaldavIssueStatus.COMPLETED);
+      } else {
+        todo.removeProperty('completed');
+        todo.removeProperty('percent-complete');
+        todo.updatePropertyWithValue('status', CaldavIssueStatus.NEEDS_ACTION);
       }
+      changeObserved = true;
     }
 
     if (updates.summary !== undefined) {
