@@ -251,6 +251,7 @@
       "PREP_SIT_UPRIGHT": "Sit (or stand) upright",
       "PREP_STRETCH": "Enjoy some mild stretching",
       "REMOVE_TIME_MINUTE": "Remove 1 minute",
+      "RESET_CYCLES": "Reset session counter",
       "RESUME_BREAK": "Resume break",
       "RESUME_SESSION": "Resume session",
       "SELECT_MODE": "Choose your focus mode",
