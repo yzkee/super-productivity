@@ -14,6 +14,21 @@
   min-height: -webkit-fill-available;
 }
 
+// Native mobile: body has safe area padding that pushes content down,
+// so the container must be shorter than 100vh to stay within the visible viewport.
+// Without this, bottom items (like Settings) in the sidebar are clipped off-screen.
+:host-context(body.isNativeMobile) .app-container {
+  height: calc(100vh - var(--safe-area-top) - var(--safe-area-bottom));
+  min-height: calc(100vh - var(--safe-area-top) - var(--safe-area-bottom));
+}
+
+// When keyboard is visible or bottom nav is present, body only has top padding
+:host-context(body.isNativeMobile.isKeyboardVisible) .app-container,
+:host-context(body.isNativeMobile.hasMobileBottomNav) .app-container {
+  height: calc(100vh - var(--safe-area-top));
+  min-height: calc(100vh - var(--safe-area-top));
+}
+
 .main-content {
   flex: 1;
   display: flex;
@@ -44,8 +59,7 @@
       top: auto !important;
       left: auto !important;
       bottom: auto !important;
-      height: 100vh !important;
-      min-height: -webkit-fill-available !important;
+      height: 100% !important;
       z-index: auto !important;
     }
   }
