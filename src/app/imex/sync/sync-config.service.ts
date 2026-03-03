@@ -364,11 +364,22 @@ export class SyncConfigService {
         (nonEmptyFormValues?.encryptKey as string) || settings.encryptKey || '';
     }
 
+    // For SuperSync, isEncryptionEnabled is managed exclusively by dedicated dialogs
+    // (EnableEncryption, DisableEncryption, HandleDecryptError), NOT the form.
+    // Preserve the saved value to prevent accidental overwrites during config saves.
+    const savedIsEncryptionEnabled =
+      providerId === SyncProviderId.SuperSync
+        ? (oldConfig as { isEncryptionEnabled?: boolean })?.isEncryptionEnabled
+        : undefined;
+
     const configWithDefaults = {
       ...PROVIDER_FIELD_DEFAULTS[providerId],
       ...oldConfig,
       ...nonEmptyFormValues, // Only non-empty values overwrite saved config
       encryptKey: resolvedEncryptKey,
+      ...(savedIsEncryptionEnabled !== undefined
+        ? { isEncryptionEnabled: savedIsEncryptionEnabled }
+        : {}),
     };
 
     // Check if encryption settings changed to clear cached keys

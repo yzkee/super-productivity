@@ -392,8 +392,10 @@ describe('SyncConfigService', () => {
       );
     });
 
-    it('should preserve boolean false values from form (not filter them out)', async () => {
-      // Ensure our filter doesn't treat false as "empty"
+    it('should preserve isEncryptionEnabled from saved config for SuperSync (not from form)', async () => {
+      // For SuperSync, isEncryptionEnabled is managed by dedicated dialogs
+      // (EnableEncryption, DisableEncryption), NOT the form.
+      // The saved config value must be preserved to prevent accidental overwrites.
       const mockProvider = {
         id: SyncProviderId.SuperSync,
         privateCfg: {
@@ -408,24 +410,25 @@ describe('SyncConfigService', () => {
       };
       (providerManager.getProviderById as jasmine.Spy).and.returnValue(mockProvider);
 
-      // User explicitly disables encryption (false should be respected)
+      // Form may include isEncryptionEnabled: false (e.g., stale Formly model)
+      // but for SuperSync it should NOT override the saved config
       const settings: SyncConfig = {
         isEnabled: true,
         syncProvider: SyncProviderId.SuperSync,
         syncInterval: 300000,
         superSync: {
           baseUrl: 'https://example.com',
-          isEncryptionEnabled: false, // Explicitly false, not empty
+          isEncryptionEnabled: false, // Form says false, but saved says true
         } as any,
       };
 
       await service.updateSettingsFromForm(settings);
 
-      // False should be saved (not filtered out)
+      // Saved config's isEncryptionEnabled: true must be preserved
       expect(providerManager.setProviderConfig).toHaveBeenCalledWith(
         SyncProviderId.SuperSync,
         jasmine.objectContaining({
-          isEncryptionEnabled: false, // Must respect explicit false
+          isEncryptionEnabled: true, // Preserved from saved config, not form
         }),
       );
     });
