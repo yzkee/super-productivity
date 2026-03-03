@@ -49,7 +49,7 @@ export const issueProviderReducer = createReducer(
             twoWaySync: provider['twoWaySync'] ?? {},
             isAutoCreateIssues: provider['isAutoCreateIssues'] ?? false,
           },
-        } as IssueProvider;
+        } as unknown as IssueProvider;
       }
     }
     if (!needsMigration) {

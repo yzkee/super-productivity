@@ -80,15 +80,31 @@ async function getPlugins() {
           buildScript && !buildScript.includes("echo 'No build needed");
 
         // Read manifest.json to check for additional files (e.g., config schema)
-        const files = ['manifest.json', 'plugin.js', 'index.html', 'icon.svg'];
-        const manifestPath = path.join(pluginPath, 'manifest.json');
-        try {
-          const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
-          if (manifest.jsonSchemaCfg) {
-            files.push(manifest.jsonSchemaCfg);
+        const files = ['manifest.json', 'plugin.js', 'icon.svg'];
+        // manifest.json may live at the root or inside src/
+        const manifestCandidates = [
+          path.join(pluginPath, 'manifest.json'),
+          path.join(pluginPath, 'src', 'manifest.json'),
+        ];
+        let manifestRead = false;
+        for (const manifestPath of manifestCandidates) {
+          try {
+            const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
+            manifestRead = true;
+            if (manifest.iFrame !== false) {
+              files.push('index.html');
+            }
+            if (manifest.jsonSchemaCfg) {
+              files.push(manifest.jsonSchemaCfg);
+            }
+            break;
+          } catch {
+            // Try next candidate
           }
-        } catch {
-          // No manifest.json yet or invalid — will be caught later during copy
+        }
+        if (!manifestRead) {
+          // No manifest.json found — assume index.html is needed
+          files.push('index.html');
         }
 
         plugins.push({

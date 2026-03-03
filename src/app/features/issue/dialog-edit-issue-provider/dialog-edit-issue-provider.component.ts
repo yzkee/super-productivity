@@ -24,7 +24,10 @@ import {
   ISSUE_PROVIDER_HUMANIZED,
 } from '../issue.const';
 import { FormGroup, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { ConfigFormSection } from '../../config/global-config.model';
+import {
+  ConfigFormSection,
+  LimitedFormlyFieldConfig,
+} from '../../config/global-config.model';
 import { DialogConfirmComponent } from '../../../ui/dialog-confirm/dialog-confirm.component';
 import { IssueProviderActions } from '../store/issue-provider.actions';
 import { NgClass } from '@angular/common';
@@ -298,9 +301,9 @@ export class DialogEditIssueProviderComponent {
     const regularFields = configFields.filter((f) => !f.advanced);
     const advancedFields = configFields.filter((f) => f.advanced);
 
-    const items: ConfigFormSection<IssueIntegrationCfg>['items'] = regularFields.map(
+    const items = regularFields.map(
       this._mapPluginConfigField,
-    );
+    ) as LimitedFormlyFieldConfig<IssueIntegrationCfg>[];
 
     items.push({
       type: 'collapsible' as any,
