@@ -103,8 +103,10 @@
           [attr.aria-label]="T.G.PROCESSING | translate"
         ></mat-spinner>
       } @else {
-        <mat-icon aria-hidden="true">lock</mat-icon>
-        {{ textKeys.SETUP_ENCRYPTION_BTN | translate }}
+        <ng-container>
+          <mat-icon aria-hidden="true">lock</mat-icon>
+          {{ textKeys.SETUP_ENCRYPTION_BTN | translate }}
+        </ng-container>
       }
     </button>
   </mat-dialog-actions>
@@ -197,8 +199,10 @@
           [attr.aria-label]="T.G.PROCESSING | translate"
         ></mat-spinner>
       } @else {
-        <mat-icon aria-hidden="true">lock</mat-icon>
-        {{ textKeys.BTN_ENABLE_ENCRYPTION | translate }}
+        <ng-container>
+          <mat-icon aria-hidden="true">lock</mat-icon>
+          {{ textKeys.BTN_ENABLE_ENCRYPTION | translate }}
+        </ng-container>
       }
     </button>
   </mat-dialog-actions>
