@@ -28,7 +28,9 @@ export const issueProviderReducer = createReducer(
     const migratedEntities: Record<string, IssueProvider> = {};
     let needsMigration = false;
     for (const id of state.ids) {
-      const provider = state.entities[id] as Record<string, unknown> | undefined;
+      const provider = state.entities[id] as unknown as
+        | Record<string, unknown>
+        | undefined;
       if (
         provider &&
         provider['issueProviderKey'] === 'GITHUB' &&
