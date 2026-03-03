@@ -99,9 +99,13 @@
       "BANNER": {
         "ADD_AS_TASK": "작업으로 추가",
         "TXT": "<strong>{{title}}</strong> 는 <strong>에서 시작 {{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> 는 <strong>에서 시작 {{start}}</strong>!<br> (및 {{nrOfOtherBanners}} 개의 다른 이벤트가 마감됨)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> 는 <strong>에서 시작 {{start}}</strong>!<br> (및 {{nrOfOtherBanners}} 개의 다른 이벤트가 마감됨)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> 는 <strong>에서 시작 {{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> 는 <strong>에서 시작 {{start}}</strong>!<br> (및 {{nrOfOtherBanners}} 개의 다른 이벤트가 마감됨)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> 는 <strong>에서 시작 {{start}}</strong>!<br> (및 {{nrOfOtherBanners}} 개의 다른 이벤트가 마감됨)"
+        }
       },
       "S": {
         "CAL_PROVIDER_ERROR": "일정 공급자 오류입니다: {{errTxt}}"
@@ -647,7 +651,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "지금 시작하기",
         "TXT": "<strong>{{title}}</strong> 가 <strong>{{start}}</strong>에서 시작합니다!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> 는 <strong>에서 시작 {{start}}</strong>!<br> (및 {{nrOfOtherBanners}} 개의 다른 작업 마감일)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> 는 <strong>에서 시작 {{start}}</strong>!<br> (및 {{nrOfOtherBanners}} 개의 다른 작업 마감일)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "현재 작업 중인 작업의 마감일이 되었습니다!<br/> ({{title}})",
       "S_REMINDER_ERR": "알림 인터페이스 오류"

@@ -120,9 +120,13 @@
         "ADD_AS_TASK": "Aggiungi come attività",
         "SHOW_TASK": "Mostra attività",
         "TXT": "<strong>{{title}}</strong> parte alle <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> parte alle <strong>{{start}}</strong>!<br> (e {{nrOfOtherBanners}} altri eventi sono scaduti)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> parte alle <strong>{{start}}</strong>!<br> (e {{nrOfOtherBanners}} altri eventi sono scaduti)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> avviato alle <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> avviato alle <strong>{{start}}</strong>!<br> (e {{nrOfOtherBanners}} altri eventi sono scaduti)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> avviato alle <strong>{{start}}</strong>!<br> (e {{nrOfOtherBanners}} altri eventi sono scaduti)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "Evento",
@@ -803,7 +807,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Avvia ora",
         "TXT": "<strong>{{title}}</strong> parte alle <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> parte alle <strong>{{start}}</strong>!<br> (e {{nrOfOtherBanners}} altre attività sono scadute)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> parte alle <strong>{{start}}</strong>!<br> (e {{nrOfOtherBanners}} altre attività sono scadute)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "L'attività su cui stai lavorando è scaduta!<br/> ({{title}})",
       "S_REMINDER_ERR": "Errore per interfaccia promemoria"
@@ -1856,8 +1862,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Aggiungi attività da oggi",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} attività genitore completate sono state archiviate",
-      "SINGULAR": "{{count}} attività genitore completata è stata archiviata"
+      "ONE": "{{count}} attività genitore completata è stata archiviata",
+      "OTHER": "{{count}} attività genitore completate sono state archiviate"
     },
     "BREAK_LABEL": "Pause (numero / tempo)",
     "CELEBRATE": "Prenditi un attimo per <i>celebrare!</i>",

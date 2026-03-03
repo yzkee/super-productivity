@@ -120,9 +120,13 @@
         "ADD_AS_TASK": "Lisää tehtävänä",
         "SHOW_TASK": "Näytä tehtävä",
         "TXT": "<strong>{{title}}</strong> alkaa klo <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> alkaa klo <strong>{{start}}</strong>!<br> (ja {{nrOfOtherBanners}} muuta tapahtumaa on meneillään)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> alkaa klo <strong>{{start}}</strong>!<br> (ja {{nrOfOtherBanners}} muuta tapahtumaa on meneillään)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> alkoi klo <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> alkoi klo <strong>{{start}}</strong>!<br> (ja {{nrOfOtherBanners}} muuta tapahtumaa on meneillään)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> alkoi klo <strong>{{start}}</strong>!<br> (ja {{nrOfOtherBanners}} muuta tapahtumaa on meneillään)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "tapahtuma",
@@ -803,7 +807,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Aloita nyt",
         "TXT": "<strong>{{title}}</strong> alkaa klo <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> alkaa klo <strong>{{start}}</strong>!<br> (ja {{nrOfOtherBanners}} muuta tehtävää on meneillään)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> alkaa klo <strong>{{start}}</strong>!<br> (ja {{nrOfOtherBanners}} muuta tehtävää on meneillään)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "Tehtävä, jolla parhaillaan työskentelet, on nyt meneillään!<br/> ({{title}})",
       "S_REMINDER_ERR": "Virhe muistutusrajapinnassa"
@@ -1856,8 +1862,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Lisää tehtäviä tänään",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} suoritettua päätehtävää on arkistoitu",
-      "SINGULAR": "{{count}} suoritettu päätehtävä on arkistoitu"
+      "ONE": "{{count}} suoritettu päätehtävä on arkistoitu",
+      "OTHER": "{{count}} suoritettua päätehtävää on arkistoitu"
     },
     "BREAK_LABEL": "Tauot (määrä / aika)",
     "CELEBRATE": "Ota hetki <i>juhlia!</i>",

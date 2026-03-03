@@ -127,9 +127,13 @@
         "ADD_AS_TASK": "Додати як завдання",
         "SHOW_TASK": "Показати завдання",
         "TXT": "<strong>{{title}}</strong> починається о <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> починається о <strong>{{start}}</strong>!<br> (і ще {{nrOfOtherBanners}} подій заплановано)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> починається о <strong>{{start}}</strong>!<br> (і ще {{nrOfOtherBanners}} подій заплановано)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> почалося о <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> почалося о <strong>{{start}}</strong>!<br> (і ще {{nrOfOtherBanners}} подій заплановано)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> почалося о <strong>{{start}}</strong>!<br> (і ще {{nrOfOtherBanners}} подій заплановано)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENTS_STR": "події",
@@ -829,7 +833,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Почати зараз",
         "TXT": "<strong>{{title}}</strong> починається о <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> починається о <strong>{{start}}</strong>!<br> (і ще {{nrOfOtherBanners}} завдань заплановано)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> починається о <strong>{{start}}</strong>!<br> (і ще {{nrOfOtherBanners}} завдань заплановано)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "Завдання, над яким ви зараз працюєте, вже готове!<br/> ({{title}})",
       "S_REMINDER_ERR": "Помилка для інтерфейсу нагадувань"
@@ -2152,8 +2158,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Додавайте завдання від сьогодні",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} виконаних батьківських завдань було архівовано",
-      "SINGULAR": "{{count}} виконане батьківське завдання було архівовано"
+      "ONE": "{{count}} виконане батьківське завдання було архівовано",
+      "OTHER": "{{count}} виконаних батьківських завдань було архівовано"
     },
     "BREAK_LABEL": "Перерви (кількість / час)",
     "CELEBRATE": "Візьміть момент, щоб <i>відсвяткувати!</i>",

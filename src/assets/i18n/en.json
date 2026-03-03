@@ -161,9 +161,15 @@
         "ADD_AS_TASK": "Add as Task",
         "SHOW_TASK": "Show Task",
         "TXT": "<strong>{{title}}</strong> starts at <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> starts at <strong>{{start}}</strong>!<br> (and {{nrOfOtherBanners}} other events are due)",
+        "TXT_MULTIPLE": {
+          "ONE": "<strong>{{title}}</strong> starts at <strong>{{start}}</strong>!<br> (and {{nrOfOtherBanners}} other event is due)",
+          "OTHER": "<strong>{{title}}</strong> starts at <strong>{{start}}</strong>!<br> (and {{nrOfOtherBanners}} other events are due)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> started at <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> started at <strong>{{start}}</strong>!<br> (and {{nrOfOtherBanners}} other events are due)"
+        "TXT_PAST_MULTIPLE": {
+          "ONE": "<strong>{{title}}</strong> started at <strong>{{start}}</strong>!<br> (and {{nrOfOtherBanners}} other event is due)",
+          "OTHER": "<strong>{{title}}</strong> started at <strong>{{start}}</strong>!<br> (and {{nrOfOtherBanners}} other events are due)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENTS_STR": "events",
@@ -900,7 +906,10 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Start now",
         "TXT": "<strong>{{title}}</strong> starts at <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> starts at <strong>{{start}}</strong>!<br> (and {{nrOfOtherBanners}} other tasks are due)"
+        "TXT_MULTIPLE": {
+          "ONE": "<strong>{{title}}</strong> starts at <strong>{{start}}</strong>!<br> (and {{nrOfOtherBanners}} other task is due)",
+          "OTHER": "<strong>{{title}}</strong> starts at <strong>{{start}}</strong>!<br> (and {{nrOfOtherBanners}} other tasks are due)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "The task you are currently working on is now due!<br/> ({{title}})",
       "S_REMINDER_ERR": "Error for reminder interface"
@@ -2332,8 +2341,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Add tasks from today",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} completed parent tasks have been archived",
-      "SINGULAR": "{{count}} completed parent task has been archived"
+      "ONE": "{{count}} completed parent task has been archived",
+      "OTHER": "{{count}} completed parent tasks have been archived"
     },
     "BREAK_LABEL": "Breaks (nr / time)",
     "CELEBRATE": "Take a moment to <i>celebrate!</i>",

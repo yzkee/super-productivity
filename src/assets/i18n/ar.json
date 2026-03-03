@@ -114,9 +114,13 @@
         "ADD_AS_TASK": "إضافة كمهمة",
         "SHOW_TASK": "مهمة العرض",
         "TXT": "<strong>{{title}}</strong> \nتبدأ في\n <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> \nتبدأ في\n <strong>{{start}}</strong>!<br> ( \nو الاحداث ال\n{{nrOfOtherBanners}} \nالتالية هي مستحقة)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> \nتبدأ في\n <strong>{{start}}</strong>!<br> ( \nو الاحداث ال\n{{nrOfOtherBanners}} \nالتالية هي مستحقة)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> \nبدأت في\n <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> \nتبدأ في\n <strong>{{start}}</strong>!<br> ( \nو الاحداث ال\n{{nrOfOtherBanners}} \nالتالية هي مستحقة)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> \nتبدأ في\n <strong>{{start}}</strong>!<br> ( \nو الاحداث ال\n{{nrOfOtherBanners}} \nالتالية هي مستحقة)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "حدث",
@@ -768,7 +772,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "ابدأ الآن",
         "TXT": "<strong>{{title}}</strong> يبدأ عند <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> يبدأ في <strong>{{start}}</strong>!<br> (و {{nrOfOtherBanners}} مهمة أخرى مستحقة)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> يبدأ في <strong>{{start}}</strong>!<br> (و {{nrOfOtherBanners}} مهمة أخرى مستحقة)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "المهمة التي تعمل عليها حاليًا أصبحت الآن مستحقة التسليم!<br/> ({{title}})",
       "S_REMINDER_ERR": "خطأ في واجهة التذكير"
@@ -1775,8 +1781,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "إضافة مهام من اليوم",
     "ARCHIVED_TASKS": {
-      "PLURAL": " تم أرشفة{{count}} المهام الأصلية التي تم إنجازها",
-      "SINGULAR": " تم أرشفة مهمة{{count}} الوالد المنجزة"
+      "ONE": " تم أرشفة مهمة{{count}} الوالد المنجزة",
+      "OTHER": " تم أرشفة{{count}} المهام الأصلية التي تم إنجازها"
     },
     "BREAK_LABEL": "فترات الراحة (عدد / وقت)",
     "CELEBRATE": "توقف لحظة للاحتفال <i>!</i>",

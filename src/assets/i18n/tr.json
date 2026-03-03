@@ -127,9 +127,13 @@
         "ADD_AS_TASK": "Görev Olarak Ekle",
         "SHOW_TASK": "Görevleri Göster",
         "TXT": "<strong>{{title}}</strong> <strong>{{start}}</strong>'da başlıyor!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> <strong>{{start}}</strong>'da başlıyor!<br> (ve {{nrOfOfOtherBanners}} diğer etkinlik sona eriyor)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> <strong>{{start}}</strong>'da başlıyor!<br> (ve {{nrOfOfOtherBanners}} diğer etkinlik sona eriyor)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> <strong>{{start}}</strong>'da başladı!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> <strong>{{start}}</strong>'da başladı!<br> (ve {{nrOfOfOtherBanners}} diğer etkinlik sona eriyor)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> <strong>{{start}}</strong>'da başladı!<br> (ve {{nrOfOfOtherBanners}} diğer etkinlik sona eriyor)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENTS_STR": "etkinlikler",
@@ -829,7 +833,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Şimdi başla",
         "TXT": "<strong>{{title}}</strong>  <strong>ile başlar {{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong>  <strong>ile başlar {{start}}</strong>!<br> (ve {{nrOfOtherBanners}} diğer görevlerin zamanı geldi)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong>  <strong>ile başlar {{start}}</strong>!<br> (ve {{nrOfOtherBanners}} diğer görevlerin zamanı geldi)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "Şu anda üzerinde çalıştığınız görevin süresi doldu!<br/> ({{title}})",
       "S_REMINDER_ERR": "Hatırlatma arayüzü hatası"
@@ -2101,8 +2107,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Bugünden itibaren görev ekleme",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} tamamlanmış ana görevler arşivlendi",
-      "SINGULAR": "{{count}} tamamlanmış ana görev arşivlendi"
+      "ONE": "{{count}} tamamlanmış ana görev arşivlendi",
+      "OTHER": "{{count}} tamamlanmış ana görevler arşivlendi"
     },
     "BREAK_LABEL": "Molalar (saat / saat)",
     "CELEBRATE": "<i>Kutlamak</i> için bir dakikanızı ayırın!",

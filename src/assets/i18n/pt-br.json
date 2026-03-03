@@ -120,9 +120,13 @@
         "ADD_AS_TASK": "Adicionar como tarefa",
         "SHOW_TASK": "Mostrar Tarefa",
         "TXT": "<strong>{{title}}</strong> começa em <strong>{{start}}</strong> !",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> começa em <strong>{{start}}</strong> !<br> (e {{nrOfOtherBanners}} outros eventos estão atrasados)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> começa em <strong>{{start}}</strong> !<br> (e {{nrOfOtherBanners}} outros eventos estão atrasados)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> iniciado em <strong>{{start}}</strong> !",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> iniciado em <strong>{{start}}</strong> !<br> (e {{nrOfOtherBanners}} outros eventos estão atrasados)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> iniciado em <strong>{{start}}</strong> !<br> (e {{nrOfOtherBanners}} outros eventos estão atrasados)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "Evento",
@@ -803,7 +807,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Comece agora",
         "TXT": "<strong>{{title}}</strong> começa em <strong>{{start}}</strong> !",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> começa em <strong>{{start}}</strong> !<br> (e {{nrOfOtherBanners}} outras tarefas estão atrasados)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> começa em <strong>{{start}}</strong> !<br> (e {{nrOfOtherBanners}} outras tarefas estão atrasados)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "A tarefa na qual você está trabalhando atualmente está atrasada!<br/> ( {{title}})",
       "S_REMINDER_ERR": "Erro na interface de lembrete"
@@ -1856,8 +1862,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Adicionar tarefas de hoje",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} tarefas pai concluídas foram arquivadas",
-      "SINGULAR": "{{count}} tarefa pai concluída foi arquivada"
+      "ONE": "{{count}} tarefa pai concluída foi arquivada",
+      "OTHER": "{{count}} tarefas pai concluídas foram arquivadas"
     },
     "BREAK_LABEL": "Pausas (nr / tempo)",
     "CELEBRATE": "Tire um momento para <i>comemorar!</i>",

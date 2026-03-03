@@ -120,9 +120,13 @@
         "ADD_AS_TASK": "Добавить как задачу",
         "SHOW_TASK": "Показать задачу",
         "TXT": "<strong>{{title}}</strong> начинать в <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> начинать в <strong>{{start}}</strong>!<br> (и {{nrOfOtherBanners}} ожидаются другие события)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> начинать в <strong>{{start}}</strong>!<br> (и {{nrOfOtherBanners}} ожидаются другие события)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> начат в <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> начат в <strong>{{start}}</strong>!<br> (и {{nrOfOtherBanners}} ожидаются другие события)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> начат в <strong>{{start}}</strong>!<br> (и {{nrOfOtherBanners}} ожидаются другие события)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "Событие",
@@ -803,7 +807,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Начать сейчас",
         "TXT": "<strong>{{title}}</strong> начало в <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> начало в <strong>{{start}}</strong>!<br> (и {{nrOfOtherBanners}} предстоят другие задачи)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> начало в <strong>{{start}}</strong>!<br> (и {{nrOfOtherBanners}} предстоят другие задачи)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "Срок выполнения задания, над которым вы сейчас работаете, наступил!<br/> ({{title}})",
       "S_REMINDER_ERR": "Ошибка интерфейса напоминания"
@@ -1869,8 +1875,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Добавляйте задачи с сегодняшнего дня",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} выполненные родительские задачи были заархивированы",
-      "SINGULAR": "{{count}} выполненная родительская задача была заархивирована"
+      "ONE": "{{count}} выполненная родительская задача была заархивирована",
+      "OTHER": "{{count}} выполненные родительские задачи были заархивированы"
     },
     "BREAK_LABEL": "Перерывы (кол-во / время)",
     "CELEBRATE": "Найдите минутку, чтобы <i>отпраздновать!</i>",

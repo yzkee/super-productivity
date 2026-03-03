@@ -120,9 +120,13 @@
       "BANNER": {
         "ADD_AS_TASK": "新增為工作",
         "TXT": "<strong>{{title}}</strong> 將於 <strong>{{start}}</strong> 開始！",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> 將於 <strong>{{start}}</strong> 開始！<br>（還有 {{nrOfOtherBanners}} 個其他事件到期）",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> 將於 <strong>{{start}}</strong> 開始！<br>（還有 {{nrOfOtherBanners}} 個其他事件到期）"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> 已於 <strong>{{start}}</strong> 開始！",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> 已於 <strong>{{start}}</strong> 開始！<br>（還有 {{nrOfOtherBanners}} 個其他事件到期）"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> 已於 <strong>{{start}}</strong> 開始！<br>（還有 {{nrOfOtherBanners}} 個其他事件到期）"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "事件",
@@ -730,7 +734,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "立即開始",
         "TXT": "<strong>{{title}}</strong> 將於 <strong>{{start}}</strong> 開始！",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> 將於 <strong>{{start}}</strong> 開始！<br> （以及另外 {{nrOfOtherBanners}} 個工作到期）"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> 將於 <strong>{{start}}</strong> 開始！<br> （以及另外 {{nrOfOtherBanners}} 個工作到期）"
+        }
       },
       "S_ACTIVE_TASK_DUE": "您目前正在處理的工作現在到期了！<br/> ({{title}})",
       "S_REMINDER_ERR": "提醒介面發生錯誤"
@@ -1812,8 +1818,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "從今天新增工作",
     "ARCHIVED_TASKS": {
-      "PLURAL": "已封存 {{count}} 個已完成的父工作",
-      "SINGULAR": "已封存 {{count}} 個已完成的父工作"
+      "ONE": "已封存 {{count}} 個已完成的父工作",
+      "OTHER": "已封存 {{count}} 個已完成的父工作"
     },
     "BREAK_LABEL": "休息（次數/時間）",
     "CELEBRATE": "花點時間<i>慶祝！</i>",

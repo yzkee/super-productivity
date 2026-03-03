@@ -147,9 +147,13 @@
         "ADD_AS_TASK": "Agregar como tarea",
         "SHOW_TASK": "Mostrar tarea",
         "TXT": "¡<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "¡<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>!<br> (y {{nrOfOtherBanners}} otros eventos están pendientes)",
+        "TXT_MULTIPLE": {
+          "OTHER": "¡<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>!<br> (y {{nrOfOtherBanners}} otros eventos están pendientes)"
+        },
         "TXT_PAST": "¡<strong>{{title}}</strong> comenzó a las <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "¡<strong>{{title}}</strong> comenzó a las <strong>{{start}}</strong>!<br> (y {{nrOfOtherBanners}} otros eventos están pendientes)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "¡<strong>{{title}}</strong> comenzó a las <strong>{{start}}</strong>!<br> (y {{nrOfOtherBanners}} otros eventos están pendientes)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "evento",
@@ -735,7 +739,7 @@
     "POMODORO": {
       "BREAK_IS_DONE": "¡Tu descanso ha terminado!"
     },
-      "PRE_MIGRATION": {
+    "PRE_MIGRATION": {
       "DIALOG_TITLE": "Actualización del Sistema",
       "DIALOG_MESSAGE": "Estamos actualizando cómo se almacenan tus datos para mejorar la fiabilidad de la sincronización.<br><br>Se descargará automáticamente una copia de seguridad de tus datos. Puedes usar esta copia para restaurar tus datos si es necesario (Archivo > Importar)."
     },
@@ -837,7 +841,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Empezar ahora",
         "TXT": "¡<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "¡<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>!<br> (y {{nrOfOtherBanners}} otras tareas vencen)"
+        "TXT_MULTIPLE": {
+          "OTHER": "¡<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>!<br> (y {{nrOfOtherBanners}} otras tareas vencen)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "¡La tarea en la que estás trabajando ha vencido!<br/> ({{title}})",
       "S_REMINDER_ERR": "Error de la interfaz de recordatorios"
@@ -1592,19 +1598,19 @@
         "UNTRACKED_TIME": "Tiempo no rastreado:"
       },
       "D_ARCHIVE_COMPRESS": {
-      "TITLE": "Comprimir Archivo",
-      "LOADING": "Analizando archivo...",
-      "INTRO": "Esto comprimirá tus tareas archivadas eliminando datos antiguos. Esta operación se sincroniza en todos los dispositivos.",
-      "SUBTASKS_TO_DELETE": "Subtareas a eliminar (tiempo fusionado a la principal)",
-      "NOTES_TO_CLEAR": "Notas de tarea a limpiar (más de 1 año)",
-      "ISSUE_FIELDS_TO_CLEAR": "Campos de incidencia a limpiar",
-      "ESTIMATED_SAVINGS": "Ahorro de espacio estimado",
-      "WARNING": "Esta operación no se puede deshacer. ¡Asegúrate de tener una copia de seguridad antes de proceder!",
-      "CONFIRM_TITLE": "Confirmar compresión de archivo",
-      "CONFIRM_MSG": "¿Seguro que quieres comprimir el archivo? ¡Esto eliminará permanentemente los datos listados arriba!",
-      "BTN_COMPRESS": "Comprimir Archivo",
-      "NO_DATA": "No hay datos para comprimir. Tu archivo ya está optimizado."
-     }
+        "TITLE": "Comprimir Archivo",
+        "LOADING": "Analizando archivo...",
+        "INTRO": "Esto comprimirá tus tareas archivadas eliminando datos antiguos. Esta operación se sincroniza en todos los dispositivos.",
+        "SUBTASKS_TO_DELETE": "Subtareas a eliminar (tiempo fusionado a la principal)",
+        "NOTES_TO_CLEAR": "Notas de tarea a limpiar (más de 1 año)",
+        "ISSUE_FIELDS_TO_CLEAR": "Campos de incidencia a limpiar",
+        "ESTIMATED_SAVINGS": "Ahorro de espacio estimado",
+        "WARNING": "Esta operación no se puede deshacer. ¡Asegúrate de tener una copia de seguridad antes de proceder!",
+        "CONFIRM_TITLE": "Confirmar compresión de archivo",
+        "CONFIRM_MSG": "¿Seguro que quieres comprimir el archivo? ¡Esto eliminará permanentemente los datos listados arriba!",
+        "BTN_COMPRESS": "Comprimir Archivo",
+        "NO_DATA": "No hay datos para comprimir. Tu archivo ya está optimizado."
+      }
     },
     "WORKLOG": {
       "CMP": {
@@ -1753,7 +1759,7 @@
       "HELP": "Puedes integrar calendarios para que te los recuerden y añadirlos como tareas dentro de Superproductividad. La integración funciona utilizando el formato iCal. Para que funcione, sus calendarios deben ser accesibles a través de Internet o mediante un sistema de archivos.",
       "SHOW_BANNER_THRESHOLD": "Mostrar una notificación X antes del evento (en blanco para desactivado)"
     },
-      "CLIPBOARD_IMAGES": {
+    "CLIPBOARD_IMAGES": {
       "DELETE": "Eliminar imagen",
       "DELETE_ALL": "Eliminar todo",
       "DELETE_ALL_SUCCESS": "Todas las imágenes del portapapeles eliminadas con éxito",
@@ -2017,7 +2023,6 @@
       "L_TRACKING_REMINDER_MIN_TIME": "Tiempo de espera antes de mostrar el banner de recordatorio de seguimiento",
       "TITLE": "Seguimiento del tiempo"
     }
-    
   },
   "GLOBAL": {
     "COPY_SUFFIX": " (copia)"
@@ -2134,8 +2139,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Añadir tareas de hoy",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} tareas principales hechas han sido archivadas",
-      "SINGULAR": "{{count}} tarea principal hecha ha sido archivada"
+      "ONE": "{{count}} tarea principal hecha ha sido archivada",
+      "OTHER": "{{count}} tareas principales hechas han sido archivadas"
     },
     "BREAK_LABEL": "Descansos (nº / tiempo)",
     "CELEBRATE": "¡Tómate un momento para <i>celebrarlo!</i>",

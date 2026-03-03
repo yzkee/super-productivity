@@ -114,9 +114,13 @@
         "ADD_AS_TASK": "タスクとして追加",
         "SHOW_TASK": "ショータスク",
         "TXT": "<strong>{{title}}</strong>は<strong>{{start}}</strong>から始まります!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong>は<strong>{{start}}</strong>から始まります!<br> (および{{nrOfOtherBanners}} 件の他のイベントが予定されています)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong>は<strong>{{start}}</strong>から始まります!<br> (および{{nrOfOtherBanners}} 件の他のイベントが予定されています)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong>が<strong>{{start}}</strong>に開始されました!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong>が<strong>{{start}}</strong>に開始されました!<br> (および{{nrOfOtherBanners}} 件の他のイベントが予定されています)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong>が<strong>{{start}}</strong>に開始されました!<br> (および{{nrOfOtherBanners}} 件の他のイベントが予定されています)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "出来事",
@@ -768,7 +772,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "今すぐ始める",
         "TXT": "<strong>{{title}}</strong> は <strong>から始まる {{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> は <strong>から始まる {{start}}</strong>!<br> (そして {{nrOfOtherBanners}} 他のタスクの期限)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> は <strong>から始まる {{start}}</strong>!<br> (そして {{nrOfOtherBanners}} 他のタスクの期限)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "現在取り組んでいるタスクの期限が迫っています！<br/> ({{title}})",
       "S_REMINDER_ERR": "リマインダーインターフェースのエラー"
@@ -1775,8 +1781,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "今日のタスクを追加",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} 親タスクはアーカイブされています",
-      "SINGULAR": "親タスク{{count}} 完了しました。"
+      "ONE": "親タスク{{count}} 完了しました。",
+      "OTHER": "{{count}} 親タスクはアーカイブされています"
     },
     "BREAK_LABEL": "休憩（回数/時間）",
     "CELEBRATE": " <i>お祝いしましょう！</i>",

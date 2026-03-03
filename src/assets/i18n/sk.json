@@ -120,9 +120,13 @@
         "ADD_AS_TASK": "Pridať ako úlohu",
         "SHOW_TASK": "Zobraziť úlohu",
         "TXT": "<strong>{{title}}</strong> začína na <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> začína na <strong>{{start}}</strong>!<br> (a {{nrOfOtherBanners}} ďalšie udalosti sú splatné)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> začína na <strong>{{start}}</strong>!<br> (a {{nrOfOtherBanners}} ďalšie udalosti sú splatné)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> začal na <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> začal na <strong>{{start}}</strong>!<br> (a {{nrOfOtherBanners}} ďalšie udalosti sú splatné)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> začal na <strong>{{start}}</strong>!<br> (a {{nrOfOtherBanners}} ďalšie udalosti sú splatné)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "Udalosť",
@@ -803,7 +807,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Začnite hneď teraz",
         "TXT": "<strong>{{title}}<\\/strong> začína o <strong>{{start}}<\\/strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> začína na <strong>{{start}}</strong>!<br> (a {{nrOfOtherBanners}} ďalšie úlohy sú splatné)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> začína na <strong>{{start}}</strong>!<br> (a {{nrOfOtherBanners}} ďalšie úlohy sú splatné)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "Úloha, na ktorej práve pracujete, je teraz splatná!<br/> ({{title}})",
       "S_REMINDER_ERR": "Chyba pre rozhranie pripomienok"
@@ -1856,8 +1862,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Pridanie úloh z dnešného dňa",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} dokončené nadradené úlohy boli archivované",
-      "SINGULAR": "{{count}} dokončená nadradená úloha bola archivovaná"
+      "ONE": "{{count}} dokončená nadradená úloha bola archivovaná",
+      "OTHER": "{{count}} dokončené nadradené úlohy boli archivované"
     },
     "BREAK_LABEL": "Breaks (nr / time)",
     "CELEBRATE": "Take a moment to <i>celebrate!</i>",

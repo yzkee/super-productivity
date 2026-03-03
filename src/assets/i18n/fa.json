@@ -114,9 +114,13 @@
         "ADD_AS_TASK": "به عنوان وظیفه اضافه کنید",
         "SHOW_TASK": "نمایش وظیفه",
         "TXT": "<strong>{{title}}</strong> از <strong>{{start}}</strong>شروع می‌شود!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> از <strong>{{start}}</strong>شروع می‌شود!<br> (و {{nrOfOtherBanners}} رویداد دیگر در موعد مقرر)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> از <strong>{{start}}</strong>شروع می‌شود!<br> (و {{nrOfOtherBanners}} رویداد دیگر در موعد مقرر)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> در <strong>{{start}}</strong>شروع شد!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> در <strong>{{start}}</strong>شروع شد!<br> (و {{nrOfOtherBanners}} رویداد دیگر در موعد مقرر)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> در <strong>{{start}}</strong>شروع شد!<br> (و {{nrOfOtherBanners}} رویداد دیگر در موعد مقرر)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "رویداد",
@@ -768,7 +772,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "همین الان شروع کن",
         "TXT": "<strong>{{title}}</strong> از <strong>{{start}}</strong>شروع می‌شود!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> از <strong>{{start}}</strong>شروع می‌شود!<br> (و {{nrOfOtherBanners}} کار دیگر موعد مقرر)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> از <strong>{{start}}</strong>شروع می‌شود!<br> (و {{nrOfOtherBanners}} کار دیگر موعد مقرر)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "وظیفه ای که در حال حاضر روی آن کار می کنید اکنون به پایان رسیده است!<br/> ({{title}})",
       "S_REMINDER_ERR": "خطا در رابط یادآوری"
@@ -1776,8 +1782,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "وظایف را از امروز اضافه کنید",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} وظایف والدین انجام شده آرشیو شده اند",
-      "SINGULAR": "{{count}} وظیفه والد انجام شده آرشیو شده است"
+      "ONE": "{{count}} وظیفه والد انجام شده آرشیو شده است",
+      "OTHER": "{{count}} وظایف والدین انجام شده آرشیو شده اند"
     },
     "BREAK_LABEL": "Breaks (nr / time)",
     "CELEBRATE": "یک لحظه برای <i>جشن گرفتن</i> وقت بگذار!",

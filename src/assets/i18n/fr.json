@@ -120,9 +120,13 @@
         "ADD_AS_TASK": "Ajouter une Tâche",
         "SHOW_TASK": "Afficher la tâche",
         "TXT": "<strong>{{title}}</strong> commence à <strong>{{start}}</strong> !",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> commence à <strong>{{start}}</strong> !<br> (et {{nrOfOtherBanners}} autres événements sont prévus)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> commence à <strong>{{start}}</strong> !<br> (et {{nrOfOtherBanners}} autres événements sont prévus)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> a commencé à <strong>{{start}}</strong> !",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> a commencé à <strong>{{start}}</strong> !<br> (et {{nrOfOtherBanners}} autres événements sont prévus)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> a commencé à <strong>{{start}}</strong> !<br> (et {{nrOfOtherBanners}} autres événements sont prévus)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "Événement",
@@ -803,7 +807,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Commencer maintenant",
         "TXT": "<strong>{{title}}</strong> commence à <strong>{{start}}</strong> !",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> commence à <strong>{{start}}</strong> !<br> (et {{nrOfOtherBanners}} autres tâches sont dues)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> commence à <strong>{{start}}</strong> !<br> (et {{nrOfOtherBanners}} autres tâches sont dues)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "La tâche sur laquelle vous travaillez actuellement est arrivée à échéance !<br/> ({{title}})",
       "S_REMINDER_ERR": "Erreur pour l'interface de rappel"
@@ -1856,8 +1862,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Ajouter des tâches d'aujourd'hui",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} tâches parentes terminées ont été archivées",
-      "SINGULAR": "{{count}} tâche parente terminée a été archivée"
+      "ONE": "{{count}} tâche parente terminée a été archivée",
+      "OTHER": "{{count}} tâches parentes terminées ont été archivées"
     },
     "BREAK_LABEL": "Pauses (nr / heure)",
     "CELEBRATE": "Prenez un moment pour célébrer <i>!</i>",

@@ -120,9 +120,13 @@
         "ADD_AS_TASK": "Legg til som oppgave",
         "SHOW_TASK": "Vis oppgave",
         "TXT": "<strong>{{title}}</strong> starter ved <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> starter ved <strong>{{start}}</strong>!<br> (og {{nrOfOtherBanners}} andre hendelser forfaller)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> starter ved <strong>{{start}}</strong>!<br> (og {{nrOfOtherBanners}} andre hendelser forfaller)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> startet på <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> startet på <strong>{{start}}</strong>!<br> (og {{nrOfOtherBanners}} andre hendelser forfaller)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> startet på <strong>{{start}}</strong>!<br> (og {{nrOfOtherBanners}} andre hendelser forfaller)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "Arrangement",
@@ -803,7 +807,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Start nå",
         "TXT": "<strong>{{title}}<\\/strong> starter kl <strong>{{start}}<\\/strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> starter ved <strong>{{start}}</strong>!<br> (og {{nrOfOtherBanners}} andre oppgaver skal utføres)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> starter ved <strong>{{start}}</strong>!<br> (og {{nrOfOtherBanners}} andre oppgaver skal utføres)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "Oppgaven du jobber med for øyeblikket, er nå forfalt!<br/> ({{title}})",
       "S_REMINDER_ERR": "Feil for påminnelsesgrensesnitt"
@@ -1856,8 +1862,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Legg til oppgaver fra i dag",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} fullførte overordnede oppgaver er arkivert",
-      "SINGULAR": "{{count}} fullført overordnet oppgave er arkivert"
+      "ONE": "{{count}} fullført overordnet oppgave er arkivert",
+      "OTHER": "{{count}} fullførte overordnede oppgaver er arkivert"
     },
     "BREAK_LABEL": "Pause (nr / tid)",
     "CELEBRATE": "Ta deg tid til å <i>feire!</i>",

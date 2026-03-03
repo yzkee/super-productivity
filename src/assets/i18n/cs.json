@@ -127,9 +127,13 @@
         "ADD_AS_TASK": "Přidat jako úkol",
         "SHOW_TASK": "Zobrazit úkol",
         "TXT": "<strong>{{title}}</strong> začíná v <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> začíná v <strong>{{start}}</strong>!<br> (a {{nrOfOtherBanners}} dalších událostí má nastat)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> začíná v <strong>{{start}}</strong>!<br> (a {{nrOfOtherBanners}} dalších událostí má nastat)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> začalo v <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> začalo v <strong>{{start}}</strong>!<br> (a {{nrOfOtherBanners}} dalších událostí má nastat)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> začalo v <strong>{{start}}</strong>!<br> (a {{nrOfOtherBanners}} dalších událostí má nastat)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENTS_STR": "události",
@@ -829,7 +833,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Začít hned",
         "TXT": "<strong>{{title}}</strong> začíná v <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> začíná v <strong>{{start}}</strong>!<br> (a vypršel čas u {{nrOfOtherBanners}} dalších úkolů)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> začíná v <strong>{{start}}</strong>!<br> (a vypršel čas u {{nrOfOtherBanners}} dalších úkolů)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "Právě vypršel čas u úkolu, na kterém pracujete!<br/> ({{title}})",
       "S_REMINDER_ERR": "Chyba rozhraní pro upomínky"
@@ -2153,8 +2159,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Přidat úkoly z dneška",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} dokončených nadřazených úkolů bylo archivováno",
-      "SINGULAR": "{{count}} dokončený nadřazený úkol byl archivován"
+      "ONE": "{{count}} dokončený nadřazený úkol byl archivován",
+      "OTHER": "{{count}} dokončených nadřazených úkolů bylo archivováno"
     },
     "BREAK_LABEL": "Přestávky (číslo / čas)",
     "CELEBRATE": "Najděte si chvíli na <i>oslavu!</i>",

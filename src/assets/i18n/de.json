@@ -120,9 +120,13 @@
         "ADD_AS_TASK": "Als Aufgabe hinzufügen",
         "SHOW_TASK": "Aufgabe anzeigen",
         "TXT": "<strong>{{title}}</strong> beginnt um <strong>{{start}}</strong> !",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> beginnt um <strong>{{start}}</strong> !<br> (und {{nrOfOtherBanners}} weitere Ereignisse sind fällig)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> beginnt um <strong>{{start}}</strong> !<br> (und {{nrOfOtherBanners}} weitere Ereignisse sind fällig)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> startete um <strong>{{start}}</strong> !",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> gestartet um <strong>{{start}}</strong> !<br> (und {{nrOfOtherBanners}} weitere Ereignisse sind fällig)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> gestartet um <strong>{{start}}</strong> !<br> (und {{nrOfOtherBanners}} weitere Ereignisse sind fällig)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "Ereignis",
@@ -801,7 +805,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Jetzt anfangen",
         "TXT": "<strong>{{title}}</strong> beginnt um <strong>{{start}}</strong> !",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> beginnt um <strong>{{start}}</strong> !<br> (und {{nrOfOtherBanners}} weitere Aufgaben sind fällig)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> beginnt um <strong>{{start}}</strong> !<br> (und {{nrOfOtherBanners}} weitere Aufgaben sind fällig)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "Die Aufgabe, an der Sie gerade arbeiten, ist jetzt fällig!<br/> ({{title}})",
       "S_REMINDER_ERR": "Fehler bei der Erinnerungsschnittstelle"
@@ -1854,8 +1860,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Aufgaben von heute hinzufügen",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} erledigte übergeordnete Aufgaben wurden archiviert",
-      "SINGULAR": "{{count}} erledigte übergeordnete Aufgabe wurde archiviert"
+      "ONE": "{{count}} erledigte übergeordnete Aufgabe wurde archiviert",
+      "OTHER": "{{count}} erledigte übergeordnete Aufgaben wurden archiviert"
     },
     "BREAK_LABEL": "Pausen (Anzahl / Zeit)",
     "CELEBRATE": "Nehmen Sie sich einen Moment Zeit, um <i>zu feiern!</i>",

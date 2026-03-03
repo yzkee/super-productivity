@@ -120,9 +120,13 @@
         "ADD_AS_TASK": "Tambahkan sebagai Tugas",
         "SHOW_TASK": "Tampilkan Tugas",
         "TXT": "<strong>{{title}}</strong> dimulai dari <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> dimulai dari <strong>{{start}}</strong>!<br> (dan {{nrOfOtherBanners}} acara lainnya yang jatuh tempo)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> dimulai dari <strong>{{start}}</strong>!<br> (dan {{nrOfOtherBanners}} acara lainnya yang jatuh tempo)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> dimulai dari <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> dimulai dari <strong>{{start}}</strong>!<br> (dan {{nrOfOtherBanners}} acara lainnya yang jatuh tempo)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> dimulai dari <strong>{{start}}</strong>!<br> (dan {{nrOfOtherBanners}} acara lainnya yang jatuh tempo)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "Acara",
@@ -803,7 +807,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Mulai sekarang",
         "TXT": "<strong>{{title}}<\\/strong> dimulai pada <strong>{{start}}<\\/strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> dimulai dari <strong>{{start}}</strong>!<br> (dan {{nrOfOtherBanners}} tugas-tugas lain yang harus diselesaikan)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> dimulai dari <strong>{{start}}</strong>!<br> (dan {{nrOfOtherBanners}} tugas-tugas lain yang harus diselesaikan)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "Tugas yang sedang Anda kerjakan sekarang sudah jatuh tempo!<br/> ({{title}})",
       "S_REMINDER_ERR": "Kesalahan untuk antarmuka pengingat"
@@ -1856,8 +1862,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Tambahkan tugas mulai hari ini",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} tugas induk selesai telah diarsipkan",
-      "SINGULAR": "{{count}} tugas induk selesai telah diarsipkan"
+      "ONE": "{{count}} tugas induk selesai telah diarsipkan",
+      "OTHER": "{{count}} tugas induk selesai telah diarsipkan"
     },
     "BREAK_LABEL": "Istirahat (nr / time)",
     "CELEBRATE": "Luangkan waktu sejenak untuk <i>merayakan!</i>",

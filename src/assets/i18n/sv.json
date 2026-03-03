@@ -114,9 +114,13 @@
       "BANNER": {
         "ADD_AS_TASK": "Lägg till som uppgift",
         "TXT": "<strong>{{title}}</strong> börjar vid <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> börjar vid <strong>{{start}}</strong>!<br> (och {{nrOfOtherBanners}} andra evenemang är planerade)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> börjar vid <strong>{{start}}</strong>!<br> (och {{nrOfOtherBanners}} andra evenemang är planerade)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> började vid <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> började vid <strong>{{start}}</strong>!<br> (och {{nrOfOtherBanners}} andra evenemang är planerade)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> började vid <strong>{{start}}</strong>!<br> (och {{nrOfOtherBanners}} andra evenemang är planerade)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "händelse",
@@ -794,7 +798,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Börja nu",
         "TXT": "<strong>{{title}}</strong> börjar vid <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> börjar vid <strong>{{start}}</strong>!<br> (och {{nrOfOtherBanners}} andra uppgifter ska utföras)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> börjar vid <strong>{{start}}</strong>!<br> (och {{nrOfOtherBanners}} andra uppgifter ska utföras)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "Den uppgift du arbetar med just nu är nu klar!<br/> ({{title}})",
       "S_REMINDER_ERR": "Fel i påminnelsegränssnittet"
@@ -1786,8 +1792,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Lägg till uppgifter från idag",
     "ARCHIVED_TASKS": {
-      "SINGULAR": "{{count}} gjord överordnad uppgift har arkiverats",
-      "PLURAL": "{{count}} Gjorda föräldrauppgifter har arkiverats."
+      "ONE": "{{count}} gjord överordnad uppgift har arkiverats",
+      "OTHER": "{{count}} Gjorda föräldrauppgifter har arkiverats."
     },
     "BREAK_LABEL": "Pauser (nr / tid)",
     "FOCUS_SUMMARY": "Fokus (nr / tid)",

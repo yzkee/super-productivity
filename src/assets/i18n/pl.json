@@ -54,11 +54,6 @@
     "TITLE": "Wybierz obraz tła z serwisu Unsplash"
   },
   "DONATE_PAGE": {
-    "BUTTON_TEXT": "Przekaż darowiznę za pośrednictwem funkcji sponsorów na GitHub",
-    "INTRO_1": "Super Produktywność jest w całości finansowana przez społeczność. Nie ma śledzenia, nie ma reklam ani nie gromadzi danych — Twoje dane pozostają na Twoim urządzeniu.",
-    "INTRO_2": "Jeśli doceniach i popierasz takie podejście i chcesz, aby projekt był dalej rozwijany oraz żeby ewoluował, bardzo doceniamy twoje wsparcie."
-  },
-  "DONATE_PAGE": {
     "BUTTON_TEXT": "Wesprzyj przez GitHub Sponsors",
     "INTRO_1": "Super Productivity jest finansowany w całości przez społeczność. Nie ma śledzenia, reklam ani zbierania danych — Twoje zadania pozostają na Twoim urządzeniu.",
     "INTRO_2": "Jeśli cenisz takie podejście i chcesz, aby projekt był zdrowy i się rozwijał, dobrowolna darowizna jest bardzo mile widziana."
@@ -163,9 +158,13 @@
         "ADD_AS_TASK": "Dodaj jako zadanie",
         "SHOW_TASK": "Pokaż zadanie",
         "TXT": "<strong>{{title}}</strong> zaczyna się od <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> zaczyna się od <strong>{{start}}</strong>!<br> (i {{nrOfOtherBanners}} inne zdarzenia są należne)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> zaczyna się od <strong>{{start}}</strong>!<br> (i {{nrOfOtherBanners}} inne zdarzenia są należne)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> rozpoczął się w <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> rozpoczął się w <strong>{{start}}</strong>!<br> (i {{nrOfOtherBanners}} inne zdarzenia są należne)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> rozpoczął się w <strong>{{start}}</strong>!<br> (i {{nrOfOtherBanners}} inne zdarzenia są należne)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "Wydarzenie",
@@ -850,7 +849,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Zacznij teraz",
         "TXT": "<strong>{{title}}<\\/strong> zaczyna się o <strong>{{start}}<\\/strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> zaczyna się od <strong>{{start}}</strong>!<br> (i {{nrOfOtherBanners}} inne zadania są wymagalne)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> zaczyna się od <strong>{{start}}</strong>!<br> (i {{nrOfOtherBanners}} inne zadania są wymagalne)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "Zadanie, nad którym obecnie pracujesz, jest już gotowe!<br/> ({{title}})",
       "S_REMINDER_ERR": "Błąd interfejsu przypomnień"
@@ -1903,8 +1904,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Dodawanie zadań od dzisiaj",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} ukończone zadania nadrzędne zostały zarchiwizowane",
-      "SINGULAR": "{{count}} ukończone zadanie nadrzędne zostało zarchiwizowane"
+      "ONE": "{{count}} ukończone zadanie nadrzędne zostało zarchiwizowane",
+      "OTHER": "{{count}} ukończone zadania nadrzędne zostały zarchiwizowane"
     },
     "BREAK_LABEL": "Przewy (nr / czas)",
     "CELEBRATE": "Czas na <i>świętowanie!</i>",

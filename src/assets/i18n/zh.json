@@ -127,9 +127,13 @@
         "ADD_AS_TASK": "添加为任务",
         "SHOW_TASK": "显示任务",
         "TXT": "<strong>{{title}}</strong> 在 <strong>{{start}}</strong> 开始！",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> 在 <strong>{{start}}</strong> 开始！<br> （以及 {{nrOfOtherBanners}} 个其他事件到期）",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> 在 <strong>{{start}}</strong> 开始！<br> （以及 {{nrOfOtherBanners}} 个其他事件到期）"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> 在 <strong>{{start}}</strong> 开始！",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> 在 <strong>{{start}}</strong> 开始！<br> （以及 {{nrOfOtherBanners}} 个其他事件到期）"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> 在 <strong>{{start}}</strong> 开始！<br> （以及 {{nrOfOtherBanners}} 个其他事件到期）"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "事件",
@@ -849,7 +853,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "现在开始",
         "TXT": "<strong>{{title}}</strong> 在 <strong>{{start}}</strong> 开始！",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> 在 <strong>{{start}}</strong> 开始！<br> （以及 {{nrOfOtherBanners}} 个其他任务到期）"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> 在 <strong>{{start}}</strong> 开始！<br> （以及 {{nrOfOtherBanners}} 个其他任务到期）"
+        }
       },
       "S_ACTIVE_TASK_DUE": "您当前正在处理的任务现已到期！<br/> （{{title}}）",
       "S_REMINDER_ERR": "提醒界面的错误"
@@ -2226,8 +2232,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "从今日添加任务",
     "ARCHIVED_TASKS": {
-      "PLURAL": "已有 {{count}} 个已完成的父任务被归档",
-      "SINGULAR": "已有 {{count}} 个已完成的父任务被归档"
+      "ONE": "已有 {{count}} 个已完成的父任务被归档",
+      "OTHER": "已有 {{count}} 个已完成的父任务被归档"
     },
     "BREAK_LABEL": "休息（数量/时间）",
     "CELEBRATE": "花一点时间来 <i>庆祝！</i>",

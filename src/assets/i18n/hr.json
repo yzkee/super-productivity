@@ -99,9 +99,13 @@
       "BANNER": {
         "ADD_AS_TASK": "Dodaj kao zadatak",
         "TXT": "<strong>{{title}}</strong> počinje <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> počinje <strong>{{start}}</strong>!<br> (i {{nrOfOtherBanners}} druga događaja su u tijeku)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> počinje <strong>{{start}}</strong>!<br> (i {{nrOfOtherBanners}} druga događaja su u tijeku)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> je počeo <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> je počeo <strong>{{start}}</strong>!<br> (i {{nrOfOtherBanners}} druga događaja su u tijeku)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> je počeo <strong>{{start}}</strong>!<br> (i {{nrOfOtherBanners}} druga događaja su u tijeku)"
+        }
       },
       "S": {
         "CAL_PROVIDER_ERROR": "Greška puržatelja kalendara: {{errTxt}}"
@@ -639,7 +643,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Pokreni sada",
         "TXT": "<strong>{{title}}</strong> počinje <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> počinje <strong>{{start}}</strong>!<br> (i {{nrOfOtherBanners}} drugih zadataka u tijeku)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> počinje <strong>{{start}}</strong>!<br> (i {{nrOfOtherBanners}} drugih zadataka u tijeku)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "Travay ou ap travay kounye a se kounye a dwe!<br/> ({{title}})",
       "S_REMINDER_ERR": "Greška za sučelje podsjetnika"

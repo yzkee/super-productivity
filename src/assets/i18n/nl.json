@@ -120,9 +120,13 @@
         "ADD_AS_TASK": "Als Taak toevoegen",
         "SHOW_TASK": "Taak weergeven",
         "TXT": "<strong>{{title}}</strong> begint om <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> begint om <strong>{{start}}</strong>!<br> (en {{nrOfOtherBanners}} andere taken zijn verschuldigd)",
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> begint om <strong>{{start}}</strong>!<br> (en {{nrOfOtherBanners}} andere taken zijn verschuldigd)"
+        },
         "TXT_PAST": "<strong>{{title}}</strong> gestart om <strong>{{start}}</strong>!",
-        "TXT_PAST_MULTIPLE": "<strong>{{title}}</strong> gestart om <strong>{{start}}</strong>!<br> (en {{nrOfOtherBanners}} andere taken zijn verschuldigd)"
+        "TXT_PAST_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> gestart om <strong>{{start}}</strong>!<br> (en {{nrOfOtherBanners}} andere taken zijn verschuldigd)"
+        }
       },
       "EVENT_STRINGS": {
         "EVENT_STR": "Evenement",
@@ -803,7 +807,9 @@
       "COUNTDOWN_BANNER": {
         "START_NOW": "Nu beginnen",
         "TXT": "<strong>{{title}}</strong> start om <strong>{{start}}</strong>!",
-        "TXT_MULTIPLE": "<strong>{{title}}</strong> start om <strong>{{start}}</strong>!<br> (en {{nrOfOtherBanners}} andere taken verschuldigd)"
+        "TXT_MULTIPLE": {
+          "OTHER": "<strong>{{title}}</strong> start om <strong>{{start}}</strong>!<br> (en {{nrOfOtherBanners}} andere taken verschuldigd)"
+        }
       },
       "S_ACTIVE_TASK_DUE": "De taak waaraan je momenteel werkt is nu af!<br/> ({{title}})",
       "S_REMINDER_ERR": "Fout voor herinneringsinterface"
@@ -1856,8 +1862,8 @@
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Taken toevoegen vanaf vandaag",
     "ARCHIVED_TASKS": {
-      "PLURAL": "{{count}} voltooide hoofdtaken zijn gearchiveerd",
-      "SINGULAR": "{{count}} voltooide hoofdtaken is gearchiveerd"
+      "ONE": "{{count}} voltooide hoofdtaken is gearchiveerd",
+      "OTHER": "{{count}} voltooide hoofdtaken zijn gearchiveerd"
     },
     "BREAK_LABEL": "Pauzes (nr / tijd)",
     "CELEBRATE": "Neem even de tijd om <i>te vieren!</i>",
