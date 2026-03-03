@@ -3,7 +3,7 @@ import { MatButtonModule, MatIconButton } from '@angular/material/button';
 import { MatTooltip } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FocusModeService } from '../focus-mode.service';
-import { MsToClockStringPipe } from '../../../ui/duration/ms-to-clock-string.pipe';
+import { MsToMinuteClockStringPipe } from '../../../ui/duration/ms-to-minute-clock-string.pipe';
 import { Store } from '@ngrx/store';
 import {
   completeBreak,
@@ -28,7 +28,7 @@ import { TaskService } from '../../tasks/task.service';
     MatIconButton,
     MatProgressSpinnerModule,
     MatTooltip,
-    MsToClockStringPipe,
+    MsToMinuteClockStringPipe,
     MatIcon,
     TranslatePipe,
     TaskTrackingInfoComponent,
