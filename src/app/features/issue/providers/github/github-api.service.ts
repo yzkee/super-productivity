@@ -155,7 +155,7 @@ export class GithubApiService {
         data: changes,
       },
       cfg,
-    );
+    ).pipe(map((issue) => mapGithubIssue(issue)));
   }
 
   graphQl$(cfg: GithubCfg, query: string): Observable<unknown> {

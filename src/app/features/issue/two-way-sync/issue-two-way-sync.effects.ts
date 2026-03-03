@@ -27,6 +27,7 @@ export class IssueTwoWaySyncEffects {
   private readonly _issueProviderService = inject(IssueProviderService);
   private readonly _adapterRegistry = inject(IssueSyncAdapterRegistryService);
   private readonly _snackService = inject(SnackService);
+  private _syncOriginatedTaskIds = new Set<string>();
 
   constructor() {
     const githubAdapter = inject(GithubSyncAdapterService);
@@ -40,8 +41,11 @@ export class IssueTwoWaySyncEffects {
       this._actions$.pipe(
         ofType(TaskSharedActions.updateTask),
         filter(({ task }) => {
+          if (this._syncOriginatedTaskIds.delete(task.id.toString())) {
+            return false;
+          }
           const changes = task.changes;
-          // Skip updates that only contain sync bookkeeping fields
+          // Skip poll-originated updates that include sync bookkeeping fields
           if ('issueLastSyncedValues' in changes || 'issueWasUpdated' in changes) {
             return false;
           }
@@ -117,9 +121,7 @@ export class IssueTwoWaySyncEffects {
                   concatMap((cfg) =>
                     from(adapter.createIssue!(task.title, cfg)).pipe(
                       map(({ issueId, issueNumber, issueData }) => {
-                        // NOTE: Including issueLastSyncedValues in this update is
-                        // intentional — pushFieldsOnTaskUpdate$ skips updates
-                        // containing issueLastSyncedValues, preventing a push-back loop.
+                        this._syncOriginatedTaskIds.add(task.id);
                         this._taskService.update(task.id, {
                           issueId,
                           issueType: GITHUB_TYPE,
@@ -231,6 +233,7 @@ export class IssueTwoWaySyncEffects {
 
         // Update sync values and issueLastUpdated to prevent poll from
         // treating our own push as an external update
+        this._syncOriginatedTaskIds.add(task.id);
         this._taskService.update(task.id, {
           issueLastSyncedValues: updatedSyncValues,
           issueLastUpdated,
