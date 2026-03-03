@@ -141,7 +141,7 @@ export default defineConfig({
           ? 'npm run serveFrontend:e2e:prod'
           : 'npm run startFrontend:e2e',
         url: 'http://localhost:4242',
-        reuseExistingServer: !process.env.CI, // Don't reuse in CI to ensure clean state
+        reuseExistingServer: false,
         timeout: process.env.CI ? 90000 : 3 * 60 * 1000,
         stdout: 'ignore', // Reduce log noise
         stderr: 'pipe',
