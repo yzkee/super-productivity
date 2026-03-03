@@ -24,7 +24,7 @@ import {
   PluginNodeConsentDialogComponent,
   PluginNodeConsentDialogData,
 } from './ui/plugin-node-consent-dialog/plugin-node-consent-dialog-simple.component';
-import { first } from 'rxjs/operators';
+import { first, take } from 'rxjs/operators';
 import { PluginCleanupService } from './plugin-cleanup.service';
 import { PluginLoaderService } from './plugin-loader.service';
 import { validatePluginManifest } from './util/validate-manifest.util';
@@ -32,6 +32,10 @@ import { TranslateService } from '@ngx-translate/core';
 import { T } from '../t.const';
 import { PluginLog } from '../core/log';
 import { PluginI18nService } from './plugin-i18n.service';
+import { Store } from '@ngrx/store';
+import { issueProvidersFeature } from '../features/issue/store/issue-provider.reducer';
+import { PluginIssueProviderRegistryService } from './issue-provider/plugin-issue-provider-registry.service';
+import { IssueSyncAdapterRegistryService } from '../features/issue/two-way-sync/issue-sync-adapter-registry.service';
 
 @Injectable({
   providedIn: 'root',
@@ -50,6 +54,11 @@ export class PluginService implements OnDestroy {
   private readonly _pluginLoader = inject(PluginLoaderService);
   private readonly _translateService = inject(TranslateService);
   private readonly _pluginI18nService = inject(PluginI18nService);
+  private readonly _store = inject(Store);
+  private readonly _pluginIssueProviderRegistry = inject(
+    PluginIssueProviderRegistryService,
+  );
+  private readonly _syncAdapterRegistry = inject(IssueSyncAdapterRegistryService);
 
   private _isInitialized = false;
   private _loadedPlugins: PluginInstance[] = [];
@@ -98,6 +107,7 @@ export class PluginService implements OnDestroy {
       'assets/bundled-plugins/procrastination-buster',
       'assets/bundled-plugins/ai-productivity-prompts',
       'assets/bundled-plugins/automations',
+      'assets/bundled-plugins/github-issue-provider',
     ];
 
     // Only load manifests for discovery
@@ -107,9 +117,32 @@ export class PluginService implements OnDestroy {
         const manifest = await this._http.get<PluginManifest>(manifestUrl).toPromise();
 
         if (manifest) {
-          const isEnabled = await this._pluginMetaPersistenceService.isPluginEnabled(
+          let isEnabled = await this._pluginMetaPersistenceService.isPluginEnabled(
             manifest.id,
           );
+
+          // Auto-enable bundled plugins that replace built-in issue providers,
+          // but only if the user has never interacted with the plugin before.
+          // If metadata exists (even with isEnabled: false), the user explicitly disabled it.
+          if (!isEnabled && manifest.issueProvider?.issueProviderKey) {
+            const hasMetadata =
+              await this._pluginMetaPersistenceService.hasPluginMetadata(manifest.id);
+            if (!hasMetadata) {
+              const shouldAutoEnable = await this._shouldAutoEnableMigrationPlugin(
+                manifest.issueProvider.issueProviderKey,
+              );
+              if (shouldAutoEnable) {
+                isEnabled = true;
+                await this._pluginMetaPersistenceService.setPluginEnabled(
+                  manifest.id,
+                  true,
+                );
+                PluginLog.log(
+                  `Auto-enabled bundled plugin '${manifest.id}' (replaces built-in ${manifest.issueProvider.issueProviderKey} provider)`,
+                );
+              }
+            }
+          }
 
           // Create plugin state without loading code
           const state: PluginState = {
@@ -163,6 +196,7 @@ export class PluginService implements OnDestroy {
       'assets/bundled-plugins/api-test-plugin',
       'assets/bundled-plugins/procrastination-buster',
       'assets/bundled-plugins/automations',
+      'assets/bundled-plugins/github-issue-provider',
     ];
 
     // KISS: No preloading - just load plugins directly
@@ -226,6 +260,24 @@ export class PluginService implements OnDestroy {
 
     for (const state of pluginsToLoad) {
       await this.activatePlugin(state.manifest.id);
+    }
+  }
+
+  /**
+   * Check if a migration plugin should be auto-enabled because existing
+   * issue providers with the matching key exist in the store.
+   */
+  private async _shouldAutoEnableMigrationPlugin(
+    issueProviderKey: string,
+  ): Promise<boolean> {
+    try {
+      const allProviders = await this._store
+        .select(issueProvidersFeature.selectAll)
+        .pipe(take(1))
+        .toPromise();
+      return allProviders?.some((p) => p.issueProviderKey === issueProviderKey) ?? false;
+    } catch {
+      return false;
     }
   }
 
@@ -1226,6 +1278,13 @@ export class PluginService implements OnDestroy {
     const index = this._loadedPlugins.findIndex((p) => p.manifest.id === pluginId);
     if (index !== -1) {
       this._loadedPlugins.splice(index, 1);
+    }
+
+    // Unregister issue provider and sync adapter from their registries
+    const registeredKey = this._pluginIssueProviderRegistry.getRegisteredKey(pluginId);
+    this._pluginIssueProviderRegistry.unregister(pluginId);
+    if (registeredKey) {
+      this._syncAdapterRegistry.unregister(registeredKey);
     }
 
     // Unregister hooks, translations, and unload from runner

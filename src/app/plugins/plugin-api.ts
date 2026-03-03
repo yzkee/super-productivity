@@ -3,6 +3,7 @@ import {
   BatchUpdateResult,
   DialogCfg,
   Hooks,
+  IssueProviderPluginDefinition,
   NotifyCfg,
   PluginAPI as PluginAPIInterface,
   PluginBaseCfg,
@@ -141,6 +142,11 @@ export class PluginAPI implements PluginAPIInterface {
       sidePanelBtnCfg,
     );
     this._boundMethods.registerSidePanelButton(sidePanelBtnCfg);
+  }
+
+  registerIssueProvider(definition: IssueProviderPluginDefinition): void {
+    PluginLog.log(`Plugin ${this._pluginId} registering issue provider`);
+    this._boundMethods.registerIssueProvider(definition);
   }
 
   showIndexHtmlAsView(): void {
@@ -521,6 +527,9 @@ export class PluginAPI implements PluginAPIInterface {
     this._menuEntries.length = 0;
     this._shortcuts.length = 0;
     this._sidePanelButtons.length = 0;
+
+    // Unregister issue provider if one was registered
+    this._boundMethods.unregisterIssueProvider();
 
     // Notify bridge service to clean up its registrations
     // This is handled by the plugin runner calling unregisterPluginHooks

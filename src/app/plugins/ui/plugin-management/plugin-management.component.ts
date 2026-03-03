@@ -40,6 +40,8 @@ import { CollapsibleComponent } from '../../../ui/collapsible/collapsible.compon
 import { LanguageCode } from '../../../core/locale.constants';
 import { GlobalConfigService } from '../../../features/config/global-config.service';
 import { confirmDialog } from '../../../util/native-dialogs';
+import { Store } from '@ngrx/store';
+import { selectAll as selectAllIssueProviders } from '../../../features/issue/store/issue-provider.selectors';
 
 interface CommunityPlugin {
   name: string;
@@ -82,6 +84,8 @@ export class PluginManagementComponent {
   private readonly _dialog = inject(MatDialog);
   private readonly _http = inject(HttpClient);
   private readonly _snackService = inject(SnackService);
+  private readonly _store = inject(Store);
+  private readonly _allIssueProviders = this._store.selectSignal(selectAllIssueProviders);
 
   // Language code to human-readable name mapping
   /* eslint-disable @typescript-eslint/naming-convention */
@@ -166,7 +170,7 @@ export class PluginManagementComponent {
     if (event.checked) {
       this.enablePlugin(plugin);
     } else {
-      this.disablePlugin(plugin);
+      this.disablePlugin(plugin, event);
     }
   }
 
@@ -203,8 +207,31 @@ export class PluginManagementComponent {
     }
   }
 
-  private async disablePlugin(plugin: PluginInstance): Promise<void> {
+  private async disablePlugin(
+    plugin: PluginInstance,
+    event: MatSlideToggleChange,
+  ): Promise<void> {
     PluginLog.log('Disabling plugin:', plugin.manifest.id);
+
+    // Check if this plugin has attached issue providers
+    const attachedProviders = this._allIssueProviders().filter(
+      (ip) =>
+        'pluginId' in ip && (ip as { pluginId: string }).pluginId === plugin.manifest.id,
+    );
+    if (attachedProviders.length > 0) {
+      if (
+        !confirmDialog(
+          this._translateService.instant(T.PLUGINS.CONFIRM_DISABLE_WITH_ISSUE_PROVIDERS, {
+            count: attachedProviders.length,
+            name: plugin.manifest.name,
+          }),
+        )
+      ) {
+        // Reset toggle back to enabled since user cancelled
+        event.source.checked = true;
+        return;
+      }
+    }
 
     try {
       // Set plugin as disabled in persistence

@@ -19,9 +19,47 @@ export const issueProviderReducer = createReducer(
 
   // META ACTIONS
   // ------------
-  on(loadAllData, (oldState, { appDataComplete }) =>
-    appDataComplete.issueProvider ? appDataComplete.issueProvider : oldState,
-  ),
+  on(loadAllData, (oldState, { appDataComplete }) => {
+    if (!appDataComplete.issueProvider) {
+      return oldState;
+    }
+    const state = appDataComplete.issueProvider;
+    // Migrate pre-plugin GITHUB providers to plugin shape
+    const migratedEntities: Record<string, IssueProvider> = {};
+    let needsMigration = false;
+    for (const id of state.ids) {
+      const provider = state.entities[id] as Record<string, unknown> | undefined;
+      if (
+        provider &&
+        provider['issueProviderKey'] === 'GITHUB' &&
+        !provider['pluginConfig']
+      ) {
+        needsMigration = true;
+        // TODO: Remove legacy field preservation after a few releases (added v17.3).
+        // Spread original provider so legacy fields (repo, token, etc.) survive
+        // for older clients that haven't upgraded yet.
+        migratedEntities[id] = {
+          ...provider,
+          pluginId: 'github-issue-provider',
+          pluginConfig: {
+            repo: provider['repo'] ?? '',
+            token: provider['token'] ?? '',
+            filterUsername: provider['filterUsernameForIssueUpdates'] ?? '',
+            backlogQuery: provider['backlogQuery'] ?? '',
+            twoWaySync: provider['twoWaySync'] ?? {},
+            isAutoCreateIssues: provider['isAutoCreateIssues'] ?? false,
+          },
+        } as IssueProvider;
+      }
+    }
+    if (!needsMigration) {
+      return state;
+    }
+    return {
+      ...state,
+      entities: { ...state.entities, ...migratedEntities },
+    };
+  }),
   on(TaskSharedActions.deleteProject, (state, { projectId }) =>
     adapter.updateMany(
       state.ids

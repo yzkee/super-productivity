@@ -418,7 +418,7 @@ export class CaldavClientService {
     let changeObserved = false;
 
     const oldCompleted = !!todo.getFirstPropertyValue('completed');
-    if (updates.completed !== oldCompleted) {
+    if (updates.completed !== undefined && updates.completed !== oldCompleted) {
       if (updates.completed) {
         todo.updatePropertyWithValue('completed', now);
         todo.updatePropertyWithValue('percent-complete', '100');

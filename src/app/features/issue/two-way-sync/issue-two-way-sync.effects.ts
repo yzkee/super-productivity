@@ -10,14 +10,12 @@ import { IssueProviderService } from '../issue-provider.service';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
 import { IssueSyncAdapterRegistryService } from './issue-sync-adapter-registry.service';
 import { computePushDecisions } from './compute-push-decisions';
-import { IssueProviderGithub, IssueProviderKey } from '../issue.model';
+import { IssueProvider, IssueProviderKey } from '../issue.model';
 import { IssueLog } from '../../../core/log';
-import { GithubSyncAdapterService } from '../providers/github/github-sync-adapter.service';
 import { CaldavSyncAdapterService } from '../providers/caldav/caldav-sync-adapter.service';
 import { SnackService } from '../../../core/snack/snack.service';
 import { T } from '../../../t.const';
 import { selectEnabledIssueProviders } from '../store/issue-provider.selectors';
-import { GITHUB_TYPE } from '../issue.const';
 
 @Injectable()
 export class IssueTwoWaySyncEffects {
@@ -30,8 +28,6 @@ export class IssueTwoWaySyncEffects {
   private _syncOriginatedTaskIds = new Set<string>();
 
   constructor() {
-    const githubAdapter = inject(GithubSyncAdapterService);
-    this._adapterRegistry.register('GITHUB', githubAdapter);
     const caldavAdapter = inject(CaldavSyncAdapterService);
     this._adapterRegistry.register('CALDAV', caldavAdapter);
   }
@@ -104,43 +100,48 @@ export class IssueTwoWaySyncEffects {
             map((providers) =>
               providers.find(
                 (p) =>
-                  p.issueProviderKey === GITHUB_TYPE &&
-                  p.defaultProjectId === task.projectId &&
-                  (p as IssueProviderGithub).isAutoCreateIssues,
+                  p.defaultProjectId === task.projectId && this._hasAutoCreateEnabled(p),
               ),
             ),
-            filter((provider): provider is IssueProviderGithub => !!provider),
+            filter((provider): provider is IssueProvider => !!provider),
             concatMap((provider) => {
-              const adapter = this._adapterRegistry.get(GITHUB_TYPE);
+              const adapter = this._adapterRegistry.get(provider.issueProviderKey);
               if (!adapter?.createIssue) {
                 return EMPTY;
               }
               return this._issueProviderService
-                .getCfgOnce$(provider.id, GITHUB_TYPE)
+                .getCfgOnce$(provider.id, provider.issueProviderKey)
                 .pipe(
                   concatMap((cfg) =>
                     from(adapter.createIssue!(task.title, cfg)).pipe(
                       map(({ issueId, issueNumber, issueData }) => {
                         this._syncOriginatedTaskIds.add(task.id);
-                        this._taskService.update(task.id, {
-                          issueId,
-                          issueType: GITHUB_TYPE,
-                          issueProviderId: provider.id,
-                          issueLastUpdated: Date.now(),
-                          issueWasUpdated: false,
-                          issueLastSyncedValues: adapter.extractSyncValues(issueData),
-                          title: `#${issueNumber} ${task.title}`,
-                        });
+                        try {
+                          const titlePrefix =
+                            issueNumber != null ? `#${issueNumber} ` : `${issueId} `;
+                          this._taskService.update(task.id, {
+                            issueId,
+                            issueType: provider.issueProviderKey,
+                            issueProviderId: provider.id,
+                            issueLastUpdated: Date.now(),
+                            issueWasUpdated: false,
+                            issueLastSyncedValues: adapter.extractSyncValues(issueData),
+                            title: `${titlePrefix}${task.title}`,
+                          });
+                        } catch (e) {
+                          this._syncOriginatedTaskIds.delete(task.id);
+                          throw e;
+                        }
                       }),
                     ),
                   ),
                 );
             }),
             catchError((err) => {
-              IssueLog.err('Auto-create GitHub issue failed', err);
+              IssueLog.err('Auto-create issue failed', err);
               this._snackService.open({
                 type: 'ERROR',
-                msg: T.F.GITHUB.S.AUTO_CREATE_ISSUE_FAILED,
+                msg: T.F.ISSUE.S.AUTO_CREATE_FAILED,
               });
               return EMPTY;
             }),
@@ -149,6 +150,16 @@ export class IssueTwoWaySyncEffects {
       ),
     { dispatch: false },
   );
+
+  private _hasAutoCreateEnabled(provider: IssueProvider): boolean {
+    // Check for plugin providers (both plugin:* and migrated keys like GITHUB)
+    const pluginCfg = (provider as { pluginConfig?: Record<string, unknown> })
+      .pluginConfig;
+    if (pluginCfg) {
+      return !!(pluginCfg as Record<string, unknown>)?.['isAutoCreateIssues'];
+    }
+    return false;
+  }
 
   private _pushChanges$(task: Task, changes: Partial<Task>): Observable<unknown> {
     const issueType = task.issueType as IssueProviderKey;
@@ -234,10 +245,15 @@ export class IssueTwoWaySyncEffects {
         // Update sync values and issueLastUpdated to prevent poll from
         // treating our own push as an external update
         this._syncOriginatedTaskIds.add(task.id);
-        this._taskService.update(task.id, {
-          issueLastSyncedValues: updatedSyncValues,
-          issueLastUpdated,
-        });
+        try {
+          this._taskService.update(task.id, {
+            issueLastSyncedValues: updatedSyncValues,
+            issueLastUpdated,
+          });
+        } catch (e) {
+          this._syncOriginatedTaskIds.delete(task.id);
+          throw e;
+        }
       }),
     );
   }

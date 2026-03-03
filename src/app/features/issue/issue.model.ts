@@ -1,7 +1,5 @@
 import { JiraIssue, JiraIssueReduced } from './providers/jira/jira-issue.model';
 import { JiraCfg } from './providers/jira/jira.model';
-import { GithubCfg } from './providers/github/github.model';
-import { GithubIssue, GithubIssueReduced } from './providers/github/github-issue.model';
 import { GitlabCfg } from './providers/gitlab/gitlab.model';
 import { GitlabIssue } from './providers/gitlab/gitlab-issue.model';
 import { CaldavIssue, CaldavIssueReduced } from './providers/caldav/caldav-issue.model';
@@ -37,15 +35,18 @@ import {
   NextcloudDeckIssue,
   NextcloudDeckIssueReduced,
 } from './providers/nextcloud-deck/nextcloud-deck-issue.model';
+import {
+  PluginIssue,
+  PluginSearchResult,
+} from '../../plugins/issue-provider/plugin-issue-provider.model';
 
 export interface BaseIssueProviderCfg {
   isEnabled: boolean;
 }
 
-// Trello integration is available alongside other providers
-export type IssueProviderKey =
+// Built-in issue provider keys (strict union for type safety)
+export type BuiltInIssueProviderKey =
   | 'JIRA'
-  | 'GITHUB'
   | 'GITLAB'
   | 'CALDAV'
   | 'ICAL'
@@ -58,9 +59,26 @@ export type IssueProviderKey =
   | 'AZURE_DEVOPS'
   | 'NEXTCLOUD_DECK';
 
+// Keys migrated from built-in to plugin — still valid as IssueProviderKey
+export type MigratedIssueProviderKey = 'GITHUB';
+
+// Plugin issue provider keys use a 'plugin:' prefix to avoid collision
+export type PluginIssueProviderKey = `plugin:${string}`;
+
+// Combined type — preserves autocomplete for built-in keys
+export type IssueProviderKey =
+  | BuiltInIssueProviderKey
+  | MigratedIssueProviderKey
+  | PluginIssueProviderKey;
+
+export const isPluginIssueProvider = (
+  key: IssueProviderKey,
+): key is PluginIssueProviderKey => {
+  return typeof key === 'string' && key.startsWith('plugin:');
+};
+
 export type IssueIntegrationCfg =
   | JiraCfg
-  | GithubCfg
   | GitlabCfg
   | CaldavCfg
   | CalendarProviderCfg
@@ -82,7 +100,6 @@ export enum IssueLocalState {
 export interface IssueIntegrationCfgs {
   // should be the same as key IssueProviderKey
   JIRA?: JiraCfg;
-  GITHUB?: GithubCfg;
   GITLAB?: GitlabCfg;
   CALDAV?: CaldavCfg;
   CALENDAR?: CalendarProviderCfg;
@@ -98,7 +115,6 @@ export interface IssueIntegrationCfgs {
 
 export type IssueData =
   | JiraIssue
-  | GithubIssue
   | GitlabIssue
   | CaldavIssue
   | ICalIssue
@@ -109,10 +125,10 @@ export type IssueData =
   | LinearIssue
   | ClickUpTask
   | AzureDevOpsIssue
-  | NextcloudDeckIssue;
+  | NextcloudDeckIssue
+  | PluginIssue;
 
 export type IssueDataReduced =
-  | GithubIssueReduced
   | JiraIssueReduced
   | GitlabIssue
   | OpenProjectWorkPackageReduced
@@ -124,36 +140,39 @@ export type IssueDataReduced =
   | LinearIssueReduced
   | ClickUpTaskReduced
   | AzureDevOpsIssueReduced
-  | NextcloudDeckIssueReduced;
+  | NextcloudDeckIssueReduced
+  | PluginSearchResult;
 
 export type IssueDataReducedMap = {
   [K in IssueProviderKey]: K extends 'JIRA'
     ? JiraIssueReduced
-    : K extends 'GITHUB'
-      ? GithubIssueReduced
-      : K extends 'GITLAB'
-        ? GitlabIssue
-        : K extends 'CALDAV'
-          ? CaldavIssueReduced
-          : K extends 'ICAL'
-            ? ICalIssueReduced
-            : K extends 'OPEN_PROJECT'
-              ? OpenProjectWorkPackageReduced
-              : K extends 'GITEA'
-                ? GiteaIssue
-                : K extends 'TRELLO'
-                  ? TrelloIssueReduced
-                  : K extends 'REDMINE'
-                    ? RedmineIssue
-                    : K extends 'LINEAR'
-                      ? LinearIssueReduced
-                      : K extends 'CLICKUP'
-                        ? ClickUpTaskReduced
-                        : K extends 'AZURE_DEVOPS'
-                          ? AzureDevOpsIssueReduced
-                          : K extends 'NEXTCLOUD_DECK'
-                            ? NextcloudDeckIssueReduced
-                            : never;
+    : K extends 'GITLAB'
+      ? GitlabIssue
+      : K extends 'CALDAV'
+        ? CaldavIssueReduced
+        : K extends 'ICAL'
+          ? ICalIssueReduced
+          : K extends 'OPEN_PROJECT'
+            ? OpenProjectWorkPackageReduced
+            : K extends 'GITEA'
+              ? GiteaIssue
+              : K extends 'TRELLO'
+                ? TrelloIssueReduced
+                : K extends 'REDMINE'
+                  ? RedmineIssue
+                  : K extends 'LINEAR'
+                    ? LinearIssueReduced
+                    : K extends 'CLICKUP'
+                      ? ClickUpTaskReduced
+                      : K extends 'AZURE_DEVOPS'
+                        ? AzureDevOpsIssueReduced
+                        : K extends 'NEXTCLOUD_DECK'
+                          ? NextcloudDeckIssueReduced
+                          : K extends MigratedIssueProviderKey
+                            ? PluginSearchResult
+                            : K extends PluginIssueProviderKey
+                              ? PluginSearchResult
+                              : never;
 };
 
 // TODO: add issue model to the IssueDataReducedMap
@@ -198,8 +217,10 @@ export interface IssueProviderJira extends IssueProviderBase, JiraCfg {
   issueProviderKey: 'JIRA';
 }
 
-export interface IssueProviderGithub extends IssueProviderBase, GithubCfg {
+export interface IssueProviderGithub extends IssueProviderBase {
   issueProviderKey: 'GITHUB';
+  pluginId: string;
+  pluginConfig: Record<string, unknown>;
 }
 
 export interface IssueProviderGitlab extends IssueProviderBase, GitlabCfg {
@@ -246,6 +267,12 @@ export interface IssueProviderNextcloudDeck extends IssueProviderBase, Nextcloud
   issueProviderKey: 'NEXTCLOUD_DECK';
 }
 
+export interface IssueProviderPluginType extends IssueProviderBase {
+  issueProviderKey: PluginIssueProviderKey | MigratedIssueProviderKey;
+  pluginId: string;
+  pluginConfig: Record<string, unknown>;
+}
+
 export type IssueProvider =
   | IssueProviderJira
   | IssueProviderGithub
@@ -259,7 +286,8 @@ export type IssueProvider =
   | IssueProviderLinear
   | IssueProviderClickUp
   | IssueProviderAzureDevOps
-  | IssueProviderNextcloudDeck;
+  | IssueProviderNextcloudDeck
+  | IssueProviderPluginType;
 
 export type IssueProviderTypeMap<T extends IssueProviderKey> = T extends 'JIRA'
   ? IssueProviderJira
@@ -287,4 +315,8 @@ export type IssueProviderTypeMap<T extends IssueProviderKey> = T extends 'JIRA'
                         ? IssueProviderAzureDevOps
                         : T extends 'NEXTCLOUD_DECK'
                           ? IssueProviderNextcloudDeck
-                          : never;
+                          : T extends PluginIssueProviderKey
+                            ? IssueProviderPluginType
+                            : T extends MigratedIssueProviderKey
+                              ? IssueProviderPluginType
+                              : never;

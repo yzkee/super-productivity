@@ -9,6 +9,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { CalendarContextInfoTarget } from '../../issue/providers/calendar/calendar.model';
 import { selectEnabledIssueProviders } from '../../issue/store/issue-provider.selectors';
 import { MatButton } from '@angular/material/button';
+import { PluginIssueProviderRegistryService } from '../../../plugins/issue-provider/plugin-issue-provider-registry.service';
 
 @Component({
   selector: 'issue-provider-setup-overview',
@@ -21,8 +22,11 @@ export class IssueProviderSetupOverviewComponent {
   protected readonly T = T;
   private _store = inject(Store);
   private _matDialog = inject(MatDialog);
+  private _pluginRegistry = inject(PluginIssueProviderRegistryService);
 
   enabledProviders$ = this._store.select(selectEnabledIssueProviders);
+  // NOTE: intentionally non-reactive for v1 — plugins load at startup before this dialog opens
+  pluginProviders = this._pluginRegistry.getAvailableProviders();
 
   openSetupDialog(
     issueProviderKey: IssueProviderKey,

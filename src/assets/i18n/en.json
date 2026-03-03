@@ -104,7 +104,7 @@
         "CALDAV_RESOURCE": "The name of the CalDAV resource (the calendar)",
         "CALDAV_URL": "CalDAV URL (the base URL)",
         "CALDAV_USER": "Your CalDAV username",
-        "TWO_WAY_SYNC_SECTION": "Two-Way Sync",
+        "TWO_WAY_SYNC_SECTION": "Two-Way Sync (experimental)",
         "TWO_WAY_SYNC_STATUS": "Status sync direction",
         "TWO_WAY_SYNC_TITLE": "Title sync direction",
         "TWO_WAY_SYNC_OFF": "Off",
@@ -300,47 +300,6 @@
         "WRITE_A_COMMENT": "Write a comment"
       }
     },
-    "GITHUB": {
-      "FORM": {
-        "FILTER_USER": "Username (e.g. to filter out changes by yourself)",
-        "INVALID_TOKEN_MESSAGE": "Not a valid GitHub token. It must start with \"ghp_\" (classic) or \"github_pat_\" (fine-grained).",
-        "IS_ASSIGNEE_FILTER": "Only import issues assigned to me to backlog",
-        "REPO": "username/repositoryName",
-        "TOKEN": "Access Token",
-        "TWO_WAY_SYNC_SECTION": "Two-Way Sync",
-        "TWO_WAY_SYNC_STATUS": "Status sync direction",
-        "TWO_WAY_SYNC_TITLE": "Title sync direction",
-        "TWO_WAY_SYNC_OFF": "Off",
-        "TWO_WAY_SYNC_PULL_ONLY": "Pull only (read from GitHub)",
-        "TWO_WAY_SYNC_PUSH_ONLY": "Push only (write to GitHub)",
-        "TWO_WAY_SYNC_BOTH": "Both (bidirectional)",
-        "TWO_WAY_SYNC_NOTES": "Notes / Description sync direction",
-        "AUTO_CREATE_ISSUES": "Auto-create GitHub issues for new tasks",
-        "AUTO_CREATE_ISSUES_DESCRIPTION": "Automatically creates a GitHub issue when you add a new top-level task to the default project. Requires a default project to be set."
-      },
-      "FORM_SECTION": {
-        "HELP": "<p>Here you can configure Super Productivity to list open GitHub issues for a specific repository in the task creation panel in the daily planning view. They will be listed as suggestions and will provide a link to the issue as well as more information about it.</p> <p>In addition, you can automatically import all open issues.</p><p>To get by usage limits and to access you can provide a an access token. <a href='https://docs.github.com/en/free-pro-team@latest/developers/apps/scopes-for-oauth-apps'>More info about its scopes can be found here</a>."
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Assignee",
-        "AT": "at",
-        "DESCRIPTION": "Description",
-        "LABELS": "Labels",
-        "LAST_COMMENT": "Last comment",
-        "LOAD_ALL_COMMENTS": "Load all {{nr}} comments",
-        "LOAD_DESCRIPTION_AND_ALL_COMMENTS": "Load description and all comments",
-        "MARK_AS_CHECKED": "Mark updates as checked",
-        "STATUS": "Status",
-        "SUMMARY": "Summary",
-        "WRITE_A_COMMENT": "Write a comment"
-      },
-      "S": {
-        "CONFIG_ERROR": "GitHub: Error while mapping data. Is your repository name correct?",
-        "ERR_UNKNOWN": "GitHub: Unknown error {{statusCode}} {{errorMsg}}. API rate limit exceeded?",
-        "TWO_WAY_SYNC_INSUFFICIENT_PERMISSIONS": "GitHub: Must have admin rights to update issues. Your token needs the 'repo' scope.",
-        "AUTO_CREATE_ISSUE_FAILED": "GitHub: Failed to auto-create issue"
-      }
-    },
     "GITLAB": {
       "DIALOG_SUBMIT_WORKLOG": {
         "PAST_DAY_INFO": "The prefilled duration contains untracked data from past days.",
@@ -422,6 +381,18 @@
         "VERSION": "Version",
         "WORKLOG": "Worklog"
       },
+      "TWO_WAY_SYNC": {
+        "SECTION": "Two-Way Sync (experimental)",
+        "OFF": "Off",
+        "PULL_ONLY": "Pull only",
+        "PUSH_ONLY": "Push only",
+        "BOTH": "Both (bidirectional)",
+        "STATUS": "Status sync direction",
+        "TITLE": "Title sync direction",
+        "NOTES": "Notes / Description sync direction",
+        "AUTO_CREATE_ISSUES": "Auto-create issues for new tasks",
+        "AUTO_CREATE_ISSUES_DESCRIPTION": "Automatically creates an issue when you add a new top-level task to the default project. Requires a default project to be set."
+      },
       "S": {
         "ERR_GENERIC": "{{issueProviderName}} Error: {{errTxt}}",
         "ERR_NETWORK": "{{issueProviderName}}: Request failed because of a client side network error",
@@ -433,7 +404,15 @@
         "ISSUE_UPDATE_MULTIPLE": "{{issueProviderName}}: Updated data for {{nr}} {{issuesStr}}",
         "ISSUE_UPDATE_SINGLE": "{{issueProviderName}}: Updated data for \"{{issueTitle}}\"",
         "POLLING_BACKLOG": "{{issueProviderName}}: Polling for new {{issuesStr}}",
-        "POLLING_CHANGES": "{{issueProviderName}}: Polling Changes for {{issuesStr}}"
+        "POLLING_CHANGES": "{{issueProviderName}}: Polling Changes for {{issuesStr}}",
+        "CONNECTION_SUCCESS": "Connection works!",
+        "CONNECTION_FAILED": "Connection failed",
+        "AUTO_CREATE_FAILED": "Failed to auto-create issue",
+        "PLUGIN_NOT_INSTALLED": "Required plugin \"{{pluginName}}\" is not installed."
+      },
+      "DIALOG": {
+        "ADVANCED_CONFIG": "Advanced Config",
+        "DELETE_CONFIRM": "Are you sure you want to delete this issue provider? Deleting it means that <strong>all previously imported issue tasks will loose their reference</strong>. This cannot be undone!"
       }
     },
     "ISSUE_PANEL": {
@@ -2270,7 +2249,6 @@
     "DBX_GEN_TOKEN": "Dropbox: Generate token...",
     "DBX_META": "Dropbox: Get file meta...",
     "DBX_UPLOAD": "Dropbox: Upload file...",
-    "GITHUB_LOAD_ISSUE": "GitHub: Load issue data...",
     "JIRA_LOAD_ISSUE": "Jira: Load issue data...",
     "SYNC": "Syncing data...",
     "UNKNOWN": "Loading remote data",
@@ -2393,6 +2371,7 @@
     "CODE_TOO_LARGE": "Plugin code is too large (max {{maxSize}}MB)",
     "CONFIGURATION": "Configuration",
     "CONFIGURE": "Configure",
+    "CONFIRM_DISABLE_WITH_ISSUE_PROVIDERS": "This plugin provides issue integration that is currently in use ({{count}} issue provider(s)). Disabling it will temporarily break issue syncing for those providers until the plugin is re-enabled. Are you sure you want to disable \"{{name}}\"?",
     "CONFIRM_REMOVE": "Are you sure you want to remove the plugin \"{{name}}\"?",
     "ELECTRON_API_NOT_AVAILABLE": "Electron API is not available",
     "ERROR": "Error",

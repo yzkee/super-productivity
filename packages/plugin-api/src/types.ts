@@ -1,6 +1,11 @@
 // Types for Super Productivity Plugin API
 // This package provides TypeScript types for developing plugins
 
+import {
+  IssueProviderManifestConfig,
+  IssueProviderPluginDefinition,
+} from './issue-provider-types';
+
 export interface PluginMenuEntryCfg {
   pluginId: string;
   label: string;
@@ -110,8 +115,9 @@ export interface PluginManifest {
   permissions: string[];
   iFrame?: boolean;
   isSkipMenuEntry?: boolean;
-  type?: 'standard';
+  type?: 'standard' | 'issueProvider';
   assets?: string[];
+  issueProvider?: IssueProviderManifestConfig;
   icon?: string; // Path to SVG icon file relative to plugin root
   nodeScriptConfig?: PluginNodeScriptConfig;
   sidePanel?: boolean; // If true, plugin loads in right panel instead of route
@@ -328,6 +334,8 @@ export interface PluginAPI {
   ): void;
 
   registerSidePanelButton(sidePanelBtnCfg: Omit<PluginSidePanelBtnCfg, 'pluginId'>): void;
+
+  registerIssueProvider(definition: IssueProviderPluginDefinition): void;
 
   // cross-process communication
   onMessage?(handler: (message: unknown) => Promise<unknown> | unknown): void;

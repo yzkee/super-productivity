@@ -226,6 +226,10 @@ export class GlobalThemeService {
     this._registeredPluginIcons.add(iconName);
   }
 
+  hasPluginIcon(iconName: string): boolean {
+    return this._registeredPluginIcons.has(iconName);
+  }
+
   registerSvgIconFromContent(iconName: string, svgContent: string): void {
     // Plugin icon is already registered, skip
     if (this._registeredPluginIcons.has(iconName)) return;
