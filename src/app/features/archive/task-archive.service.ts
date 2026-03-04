@@ -13,9 +13,10 @@ import { ArchiveModel } from './archive.model';
 import { initialTimeTrackingState } from '../time-tracking/store/time-tracking.reducer';
 import { RootState } from '../../root-store/root-state';
 import { PROJECT_FEATURE_NAME } from '../project/store/project.reducer';
-import { TAG_FEATURE_NAME } from '../tag/store/tag.reducer';
+import { TAG_FEATURE_NAME, tagAdapter } from '../tag/store/tag.reducer';
 import { WORK_CONTEXT_FEATURE_NAME } from '../work-context/store/work-context.selectors';
 import { plannerFeatureKey } from '../planner/store/planner.reducer';
+import { TODAY_TAG } from '../tag/tag.const';
 
 // Default empty archive
 const DEFAULT_ARCHIVE: ArchiveModel = {
@@ -28,7 +29,7 @@ const DEFAULT_ARCHIVE: ArchiveModel = {
 // Other feature states are empty as they're not needed for task updates
 const FAKE_ROOT_STATE: RootState = {
   [PROJECT_FEATURE_NAME]: { ids: [], entities: {} },
-  [TAG_FEATURE_NAME]: { ids: [], entities: {} },
+  [TAG_FEATURE_NAME]: tagAdapter.addOne(TODAY_TAG, tagAdapter.getInitialState()),
   [WORK_CONTEXT_FEATURE_NAME]: {
     activeId: 'xyz',
     activeType: 'TAG',
