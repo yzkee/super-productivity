@@ -131,7 +131,8 @@ export class FocusModeEffects {
             }
             // User manually started tracking during break
             // Skip the break to sync with tracking (bug #5875 fix)
-            return of(actions.skipBreak({ pausedTaskId }));
+            // Bug #6726 fix: Don't pass pausedTaskId — the user already chose a new task
+            return of(actions.skipBreak({ pausedTaskId: undefined }));
           }
           // If no session active, start a new one (only from Main screen)
           if (timer.purpose === null && currentScreen === FocusScreen.Main) {
@@ -468,11 +469,14 @@ export class FocusModeEffects {
   // (reducer clears pausedTaskId before effect reads state)
 
   // Effect 1: Resume tracking after break
+  // Bug #6726 fix: Don't override if user is already tracking a different task
   resumeTrackingOnBreakComplete$ = createEffect(() =>
     this.actions$.pipe(
       ofType(actions.completeBreak),
       filter((action) => !!action.pausedTaskId),
-      map((action) => setCurrentTask({ id: action.pausedTaskId! })),
+      withLatestFrom(this.taskService.currentTaskId$),
+      filter(([_, currentTaskId]) => !currentTaskId),
+      map(([action]) => setCurrentTask({ id: action.pausedTaskId! })),
     ),
   );
 
@@ -515,13 +519,15 @@ export class FocusModeEffects {
       withLatestFrom(
         this.store.select(selectors.selectMode),
         this.store.select(selectFocusModeConfig),
+        this.taskService.currentTaskId$,
       ),
-      switchMap(([action, mode, config]) => {
+      switchMap(([action, mode, config, currentTaskId]) => {
         const strategy = this.strategyFactory.getStrategy(mode);
         const actionsToDispatch: any[] = [];
 
         // Resume task tracking if we paused it during break
-        if (action.pausedTaskId) {
+        // Bug #6726 fix: Don't override if user is already tracking a different task
+        if (action.pausedTaskId && !currentTaskId) {
           actionsToDispatch.push(setCurrentTask({ id: action.pausedTaskId }));
         }
 

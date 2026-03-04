@@ -737,6 +737,18 @@ describe('FocusModeEffects', () => {
           done();
         });
       });
+
+      // Bug #6726 fix: Don't override user's task switch during break
+      it('should NOT dispatch setCurrentTask when pausedTaskId exists but a different task is already being tracked', (done) => {
+        const pausedTaskId = 'original-task-id';
+        currentTaskId$.next('different-task-id');
+        actions$ = of(actions.completeBreak({ pausedTaskId }));
+
+        effects.resumeTrackingOnBreakComplete$.pipe(toArray()).subscribe((actionsArr) => {
+          expect(actionsArr.length).toBe(0);
+          done();
+        });
+      });
     });
 
     describe('combined behavior', () => {
@@ -809,6 +821,31 @@ describe('FocusModeEffects', () => {
       effects.skipBreak$.pipe(take(1)).subscribe((action) => {
         expect(action).toEqual(setCurrentTask({ id: pausedTaskId }));
         done();
+      });
+    });
+
+    // Bug #6726 fix: Don't override user's task switch during break
+    it('should NOT dispatch setCurrentTask when pausedTaskId exists but a different task is already being tracked', (done) => {
+      const pausedTaskId = 'original-task-id';
+      currentTaskId$.next('different-task-id');
+      actions$ = of(actions.skipBreak({ pausedTaskId }));
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Countdown);
+      store.refreshState();
+
+      strategyFactoryMock.getStrategy.and.returnValue({
+        initialSessionDuration: 25 * 60 * 1000,
+        shouldStartBreakAfterSession: false,
+        shouldAutoStartNextSession: false,
+        getBreakDuration: () => null,
+      });
+
+      const result: any[] = [];
+      effects.skipBreak$.subscribe({
+        next: (action) => result.push(action),
+        complete: () => {
+          expect(result.length).toBe(0);
+          done();
+        },
       });
     });
   });
@@ -1212,6 +1249,34 @@ describe('FocusModeEffects', () => {
         // Should not start new session when on Break screen
         done();
       }, 50);
+    });
+
+    // Bug #6726 fix: When user starts tracking during active break, skipBreak should NOT carry stale pausedTaskId
+    it('should dispatch skipBreak with pausedTaskId undefined when user starts tracking during break', (done) => {
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(
+        selectors.selectTimer,
+        createMockTimer({ isRunning: true, purpose: 'break' }),
+      );
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectCurrentScreen, FocusScreen.Break);
+      store.overrideSelector(selectors.selectPausedTaskId, 'original-task-id');
+      store.overrideSelector(selectors.selectIsResumingBreak, false);
+      store.refreshState();
+
+      effects = TestBed.inject(FocusModeEffects);
+
+      setTimeout(() => {
+        currentTaskId$.next('new-task-id');
+      }, 10);
+
+      effects.syncTrackingStartToSession$.pipe(take(1)).subscribe((action) => {
+        expect(action).toEqual(actions.skipBreak({ pausedTaskId: undefined }));
+        done();
+      });
     });
 
     it('should NOT dispatch when isFocusModeEnabled is false', (done) => {
