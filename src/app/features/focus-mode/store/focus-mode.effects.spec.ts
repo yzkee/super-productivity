@@ -691,27 +691,6 @@ describe('FocusModeEffects', () => {
           expect(action).toEqual(
             actions.startFocusSession({
               duration: 25 * 60 * 1000,
-              isManualSessionCompletion: false,
-            }),
-          );
-          done();
-        });
-      });
-
-      it('should dispatch startFocusSession with isManualSessionCompletion: true when isManualBreakStart is true', (done) => {
-        actions$ = of(actions.completeBreak({ pausedTaskId: null }));
-        store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-        store.overrideSelector(selectFocusModeConfig, {
-          isSkipPreparation: false,
-          isManualBreakStart: true,
-        });
-        store.refreshState();
-
-        effects.autoStartSessionOnBreakComplete$.pipe(take(1)).subscribe((action) => {
-          expect(action).toEqual(
-            actions.startFocusSession({
-              duration: 25 * 60 * 1000,
-              isManualSessionCompletion: true,
             }),
           );
           done();
@@ -786,7 +765,6 @@ describe('FocusModeEffects', () => {
         expect(action).toEqual(
           actions.startFocusSession({
             duration: 25 * 60 * 1000,
-            isManualSessionCompletion: false,
           }),
         );
         done();
@@ -812,27 +790,6 @@ describe('FocusModeEffects', () => {
           expect(result.length).toBe(0);
           done();
         },
-      });
-    });
-
-    it('should pass isManualSessionCompletion: true when isManualBreakStart is enabled', (done) => {
-      actions$ = of(actions.skipBreak({ pausedTaskId: null }));
-      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-      store.overrideSelector(selectFocusModeConfig, {
-        isSyncSessionWithTracking: false,
-        isSkipPreparation: false,
-        isManualBreakStart: true,
-      });
-      store.refreshState();
-
-      effects.skipBreak$.subscribe((action) => {
-        expect(action).toEqual(
-          actions.startFocusSession({
-            duration: 25 * 60 * 1000,
-            isManualSessionCompletion: true,
-          }),
-        );
-        done();
       });
     });
 
@@ -1147,35 +1104,6 @@ describe('FocusModeEffects', () => {
         expect(action).toEqual(
           actions.startFocusSession({
             duration: 25 * 60 * 1000,
-            isManualSessionCompletion: false,
-          }),
-        );
-        done();
-      });
-    });
-
-    it('should dispatch startFocusSession with isManualSessionCompletion: true when isManualBreakStart is true in config', (done) => {
-      store.overrideSelector(selectFocusModeConfig, {
-        isSyncSessionWithTracking: true,
-        isManualBreakStart: true,
-        isSkipPreparation: false,
-      });
-      store.overrideSelector(selectors.selectTimer, createMockTimer());
-      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-      store.overrideSelector(selectors.selectCurrentScreen, FocusScreen.Main);
-      store.refreshState();
-
-      effects = TestBed.inject(FocusModeEffects);
-
-      setTimeout(() => {
-        currentTaskId$.next('task1');
-      }, 10);
-
-      effects.syncTrackingStartToSession$.pipe(take(1)).subscribe((action) => {
-        expect(action).toEqual(
-          actions.startFocusSession({
-            duration: 25 * 60 * 1000,
-            isManualSessionCompletion: true,
           }),
         );
         done();
@@ -2355,7 +2283,6 @@ describe('FocusModeEffects', () => {
         }),
       );
       store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-      store.overrideSelector(selectors.selectIsManualSessionCompletion, false);
       store.refreshState();
 
       // Need to recreate effects after selector override
@@ -2378,7 +2305,6 @@ describe('FocusModeEffects', () => {
         }),
       );
       store.overrideSelector(selectors.selectMode, FocusModeMode.Flowtime);
-      store.overrideSelector(selectors.selectIsManualSessionCompletion, false);
       store.refreshState();
 
       effects = TestBed.inject(FocusModeEffects);
@@ -2400,7 +2326,6 @@ describe('FocusModeEffects', () => {
         }),
       );
       store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-      store.overrideSelector(selectors.selectIsManualSessionCompletion, false);
       store.refreshState();
 
       effects = TestBed.inject(FocusModeEffects);
@@ -2421,7 +2346,6 @@ describe('FocusModeEffects', () => {
         }),
       );
       store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-      store.overrideSelector(selectors.selectIsManualSessionCompletion, false);
       store.refreshState();
 
       effects = TestBed.inject(FocusModeEffects);
@@ -2442,7 +2366,6 @@ describe('FocusModeEffects', () => {
         }),
       );
       store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-      store.overrideSelector(selectors.selectIsManualSessionCompletion, false);
       store.refreshState();
 
       effects = TestBed.inject(FocusModeEffects);
@@ -2450,39 +2373,6 @@ describe('FocusModeEffects', () => {
       setTimeout(() => {
         done();
       }, 50);
-    });
-
-    // isManualSessionCompletion fix: when flag is true, the tick reducer keeps timer running
-    // (isRunning stays true even after elapsed >= duration). The effect filters on
-    // !timer.isRunning, so it must NOT dispatch completeFocusSession in this case.
-    // The user must manually call completeFocusSession via a button click.
-    it('should NOT dispatch when timer is still running due to isManualSessionCompletion flag', (done) => {
-      // Simulate the state produced by the tick reducer when isManualSessionCompletion=true:
-      // elapsed has reached duration but isRunning is still true
-      store.overrideSelector(
-        selectors.selectTimer,
-        createMockTimer({
-          isRunning: true, // tick reducer keeps running when isManualSessionCompletion=true
-          purpose: 'work',
-          duration: 25 * 60 * 1000,
-          elapsed: 25 * 60 * 1000, // has reached duration
-        }),
-      );
-      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-      store.overrideSelector(selectors.selectIsManualSessionCompletion, true);
-      store.refreshState();
-
-      effects = TestBed.inject(FocusModeEffects);
-
-      const sub = effects.detectSessionCompletion$.pipe(take(1)).subscribe({
-        next: () => {
-          done.fail('Should not have dispatched completeFocusSession');
-        },
-      });
-      setTimeout(() => {
-        sub.unsubscribe();
-        done();
-      }, 100);
     });
 
     // Bug #6206: completeFocusSession must be dispatched even when isManualBreakStart=true
@@ -2498,7 +2388,6 @@ describe('FocusModeEffects', () => {
         }),
       );
       store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-      store.overrideSelector(selectors.selectIsManualSessionCompletion, false);
       store.overrideSelector(selectFocusModeConfig, {
         isSyncSessionWithTracking: false,
         isManualBreakStart: true,
@@ -2512,37 +2401,6 @@ describe('FocusModeEffects', () => {
         expect(action).toEqual(actions.completeFocusSession({ isManual: false }));
         done();
       });
-    });
-
-    it('should NOT dispatch completeFocusSession when timer stops during overtime with isManualSessionCompletion (pause case)', (done) => {
-      // Simulate: user paused during overtime — timer stopped but isManualSessionCompletion is true
-      const timer: any = {
-        isRunning: false,
-        startedAt: Date.now() - 1500000,
-        elapsed: 1500001,
-        duration: 1500000,
-        purpose: 'work',
-      };
-
-      store.overrideSelector(selectors.selectTimer, timer);
-      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
-      store.overrideSelector(selectors.selectIsManualSessionCompletion, true);
-      store.refreshState();
-
-      effects = TestBed.inject(FocusModeEffects);
-
-      const sub = effects.detectSessionCompletion$.pipe(take(1)).subscribe({
-        next: () => {
-          done.fail(
-            'Should not have dispatched completeFocusSession during pause in overtime',
-          );
-        },
-      });
-
-      setTimeout(() => {
-        sub.unsubscribe();
-        done();
-      }, 100);
     });
   });
 

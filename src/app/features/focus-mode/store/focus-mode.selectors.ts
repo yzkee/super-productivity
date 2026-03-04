@@ -97,8 +97,3 @@ export const selectIsResumingBreak = createSelector(
   selectFocusModeState,
   (state) => state._isResumingBreak,
 );
-
-export const selectIsManualSessionCompletion = createSelector(
-  selectFocusModeState,
-  (state) => state.isManualSessionCompletion,
-);

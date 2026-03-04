@@ -34,7 +34,6 @@ export const initialState: FocusModeState = {
   lastCompletedDuration: 0,
   pausedTaskId: null,
   _isResumingBreak: false,
-  isManualSessionCompletion: false,
 };
 
 const createWorkTimer = (duration: number): TimerState => ({
@@ -109,7 +108,7 @@ export const focusModeReducer = createReducer(
     mainState: FocusMainUIState.Preparation,
   })),
 
-  on(a.startFocusSession, (state, { duration, isManualSessionCompletion }) => {
+  on(a.startFocusSession, (state, { duration }) => {
     // important to use 0 for flowtime
     const timer = createWorkTimer(duration ?? FOCUS_MODE_DEFAULTS.SESSION_DURATION);
     return {
@@ -117,7 +116,6 @@ export const focusModeReducer = createReducer(
       timer,
       currentScreen: FocusScreen.Main,
       mainState: FocusMainUIState.InProgress,
-      isManualSessionCompletion: isManualSessionCompletion ?? false,
     };
   }),
 
@@ -170,7 +168,6 @@ export const focusModeReducer = createReducer(
       currentScreen: FocusScreen.SessionDone,
       mainState: FocusMainUIState.Preparation,
       lastCompletedDuration: duration,
-      isManualSessionCompletion: false,
     };
   }),
 
@@ -181,7 +178,6 @@ export const focusModeReducer = createReducer(
     mainState: FocusMainUIState.Preparation,
     isOverlayShown: false,
     pausedTaskId: null,
-    isManualSessionCompletion: false,
   })),
 
   // Break handling
@@ -228,13 +224,6 @@ export const focusModeReducer = createReducer(
     // Check if timer completed - mark for completion but let effects handle the flow
     if (updatedTimer.duration > 0 && updatedTimer.elapsed >= updatedTimer.duration) {
       if (updatedTimer.purpose === 'work') {
-        // When manual session completion is enabled, keep timer running for overtime
-        if (state.isManualSessionCompletion) {
-          return {
-            ...state,
-            timer: updatedTimer,
-          };
-        }
         // Work session completed - stop timer and mark duration, but don't change screen yet
         return {
           ...state,

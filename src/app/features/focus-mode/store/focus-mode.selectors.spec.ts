@@ -29,7 +29,6 @@ describe('FocusModeSelectors', () => {
     lastCompletedDuration: 0,
     pausedTaskId: null,
     _isResumingBreak: false,
-    isManualSessionCompletion: false,
     ...overrides,
   });
 

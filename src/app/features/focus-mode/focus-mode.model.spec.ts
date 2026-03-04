@@ -205,7 +205,6 @@ describe('FocusModeModel', () => {
         lastCompletedDuration: 0,
         pausedTaskId: null,
         _isResumingBreak: false,
-        isManualSessionCompletion: false,
       };
 
       expect(state.timer).toEqual(timer);
