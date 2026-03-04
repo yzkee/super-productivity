@@ -645,7 +645,7 @@ test.describe('@supersync SuperSync Edge Cases', () => {
       const taskEl = clientA.page
         .locator(`task:not(.ng-animating):has-text("${taskName}")`)
         .first();
-      await taskEl.locator('.drag-handle').click();
+      await taskEl.locator('.drag-handle').first().click();
       await clientA.page.keyboard.press('Backspace');
 
       // 4. Handle the optional confirmation dialog, then click Undo.

@@ -89,7 +89,7 @@ test.describe('Task Delete Confirmation', () => {
 
     // Focus the task by clicking on drag-handle (not task-title which would open edit mode)
     const task = page.locator('task').first();
-    const dragHandle = task.locator('.drag-handle');
+    const dragHandle = task.locator('.drag-handle').first();
     await dragHandle.waitFor({ state: 'visible', timeout: 5000 });
     await dragHandle.click();
     // Wait for focus to settle - the task component needs time to process the click

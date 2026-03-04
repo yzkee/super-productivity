@@ -539,7 +539,8 @@ export const deleteTask = async (
   // Click the drag-handle to focus the task without entering title edit mode.
   // Clicking the task body can land on the task-title, opening the textarea editor,
   // which causes Backspace to delete text instead of triggering the delete shortcut.
-  const dragHandle = task.locator('.drag-handle');
+  // Use .first() because parent tasks contain subtask elements which also have .drag-handle
+  const dragHandle = task.locator('.drag-handle').first();
   await dragHandle.click();
   await client.page.keyboard.press('Backspace');
 

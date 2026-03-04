@@ -6,7 +6,7 @@ test.describe('App Features - Time Tracking', () => {
     // elements on main page
     const workViewPage = new WorkViewPage(page, testPrefix);
     const firstTask = page.locator('task').first();
-    const firstTaskHandle = firstTask.locator('.drag-handle');
+    const firstTaskHandle = firstTask.locator('.drag-handle').first();
     const taskPlayButton = page
       .locator('task')
       .getByRole('button', { name: 'Start tracking time' });

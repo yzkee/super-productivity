@@ -907,13 +907,12 @@ export class SuperSyncPage extends BasePage {
     // Without this, the form shows default/empty values instead of the actual current state
     await this.selectSuperSyncProviderWithRetry();
 
-    // IMPORTANT: Wait for the provider change listener to complete loading the config
-    // The listener is async and needs time to load provider config and update the form
-    await this.page.waitForTimeout(1000);
+    // Wait for the provider change listener to load config and update the form model.
+    // The listener is async (loads from IndexedDB) so we poll for the encryption buttons
+    // instead of using an arbitrary timeout that may be insufficient in CI.
+    const encBtnResult = await this._waitForEncryptionButtonAfterProviderChange();
 
-    // Check if already enabled (button is visible at top level for SuperSync, not inside Advanced)
-    const isEnabled = await this.disableEncryptionBtn.isVisible().catch(() => false);
-    if (isEnabled) {
+    if (encBtnResult === 'already-enabled') {
       // Already enabled - just close the dialog
       const configDialog = this.page.locator('mat-dialog-container').first();
       const cancelBtn = configDialog.locator('button').filter({ hasText: /cancel/i });
@@ -922,25 +921,7 @@ export class SuperSyncPage extends BasePage {
       return;
     }
 
-    // Check if the enable encryption button is visible (for SuperSync it's at the top level)
-    let enableBtnVisible = await this.enableEncryptionBtn.isVisible().catch(() => false);
-
-    if (!enableBtnVisible) {
-      // Try expanding "Advanced settings" collapsible
-      const advancedCollapsible = this.page.locator(
-        '.collapsible-header:has-text("Advanced")',
-      );
-      const advancedExists = await advancedCollapsible.isVisible().catch(() => false);
-      if (advancedExists) {
-        await advancedCollapsible.click();
-        enableBtnVisible = await this.enableEncryptionBtn
-          .waitFor({ state: 'visible', timeout: 3000 })
-          .then(() => true)
-          .catch(() => false);
-      }
-    }
-
-    if (!enableBtnVisible) {
+    if (encBtnResult !== 'enable-visible') {
       throw new Error(
         'Enable encryption button not visible after checking top level and Advanced section',
       );
@@ -1009,6 +990,51 @@ export class SuperSyncPage extends BasePage {
   }
 
   /**
+   * Poll for the encryption button state after provider selection.
+   * The provider change listener asynchronously loads config from IndexedDB
+   * and updates the Formly model, which controls button visibility.
+   * Returns 'enable-visible', 'already-enabled', or 'not-found'.
+   */
+  private async _waitForEncryptionButtonAfterProviderChange(): Promise<
+    'enable-visible' | 'already-enabled' | 'not-found'
+  > {
+    const POLL_TIMEOUT = 10000;
+    const POLL_INTERVAL = 200;
+    const deadline = Date.now() + POLL_TIMEOUT;
+
+    while (Date.now() < deadline) {
+      // Check if disable button is visible (encryption already enabled)
+      if (await this.disableEncryptionBtn.isVisible().catch(() => false)) {
+        return 'already-enabled';
+      }
+
+      // Check if enable button is visible at top level (SuperSync placement)
+      if (await this.enableEncryptionBtn.isVisible().catch(() => false)) {
+        return 'enable-visible';
+      }
+
+      await this.page.waitForTimeout(POLL_INTERVAL);
+    }
+
+    // Last resort: try expanding Advanced section
+    const advancedCollapsible = this.page.locator(
+      '.collapsible-header:has-text("Advanced")',
+    );
+    if (await advancedCollapsible.isVisible().catch(() => false)) {
+      await advancedCollapsible.click();
+      const found = await this.enableEncryptionBtn
+        .waitFor({ state: 'visible', timeout: 3000 })
+        .then(() => true)
+        .catch(() => false);
+      if (found) {
+        return 'enable-visible';
+      }
+    }
+
+    return 'not-found';
+  }
+
+  /**
    * Wait for the clean slate sync to complete after enabling/disabling encryption.
    */
   private async _waitForEncryptionSyncComplete(): Promise<void> {
@@ -1038,141 +1064,11 @@ export class SuperSyncPage extends BasePage {
     // Without this, the form shows default/empty values instead of the actual current state
     await this.selectSuperSyncProviderWithRetry();
 
-    // IMPORTANT: Wait for the provider change listener to complete loading the config
-    // The listener is async and needs time to load provider config and update the form
-    await this.page.waitForTimeout(1000);
+    // Wait for the provider change listener to load config and update the form model.
+    // Poll for the disable encryption button which appears when isEncryptionEnabled is true.
+    const encBtnResult = await this._waitForEncryptionButtonAfterProviderChange();
 
-    // Expand "Advanced settings" collapsible to access encryption fields
-    const advancedCollapsible = this.page.locator(
-      '.collapsible-header:has-text("Advanced")',
-    );
-
-    // Debug: Check if Advanced collapsible exists
-    const advancedExists = await advancedCollapsible.count();
-    console.log(`[DisableEncryption] Advanced collapsible count: ${advancedExists}`);
-
-    // Debug: Get all collapsible headers
-    const allCollapsibles = await this.page
-      .locator('.collapsible-header')
-      .allTextContents();
-    console.log(
-      `[DisableEncryption] All collapsible headers: ${JSON.stringify(allCollapsibles)}`,
-    );
-
-    await advancedCollapsible.waitFor({ state: 'visible', timeout: 5000 });
-
-    // Check if already expanded
-    const isExpanded = await this.disableEncryptionBtn.isVisible().catch(() => false);
-    console.log(`[DisableEncryption] isExpanded before click: ${isExpanded}`);
-    if (!isExpanded) {
-      // Debug: Check if collapsible is clickable
-      const isClickable = await advancedCollapsible.isEnabled().catch(() => false);
-      console.log(`[DisableEncryption] Collapsible isEnabled: ${isClickable}`);
-
-      // Scroll the collapsible into view
-      await advancedCollapsible.scrollIntoViewIfNeeded();
-      await this.page.waitForTimeout(300);
-
-      // Try clicking multiple times with different methods
-      console.log(`[DisableEncryption] Attempting click on collapsible...`);
-
-      // Method 1: Regular click with noWaitAfter to prevent navigation blocking
-      await advancedCollapsible.click({ noWaitAfter: true });
-      await this.page.waitForTimeout(500);
-
-      // Check if expanded
-      let expandedAfterClick1 =
-        (await this.page.locator('formly-collapsible.isExpanded').count()) > 0;
-      console.log(`[DisableEncryption] After click 1: isExpanded=${expandedAfterClick1}`);
-
-      if (!expandedAfterClick1) {
-        // Method 2: Click with force and noWaitAfter
-        await advancedCollapsible.click({ force: true, noWaitAfter: true });
-        await this.page.waitForTimeout(500);
-        expandedAfterClick1 =
-          (await this.page.locator('formly-collapsible.isExpanded').count()) > 0;
-        console.log(
-          `[DisableEncryption] After click 2 (force): isExpanded=${expandedAfterClick1}`,
-        );
-      }
-
-      if (!expandedAfterClick1) {
-        // Method 3: Use JavaScript to click
-        await advancedCollapsible.evaluate((el) => (el as HTMLElement).click());
-        await this.page.waitForTimeout(500);
-        expandedAfterClick1 =
-          (await this.page.locator('formly-collapsible.isExpanded').count()) > 0;
-        console.log(
-          `[DisableEncryption] After click 3 (JS): isExpanded=${expandedAfterClick1}`,
-        );
-      }
-
-      // Debug: Check collapsible state after click
-      const collapsibleText = await advancedCollapsible
-        .textContent()
-        .catch(() => 'unknown');
-      console.log(`[DisableEncryption] Collapsible text after click: ${collapsibleText}`);
-
-      // Debug: Check what buttons are visible in the Advanced section
-      const enableBtn = await this.enableEncryptionBtn.isVisible().catch(() => false);
-      const disableBtn = await this.disableEncryptionBtn.isVisible().catch(() => false);
-      const changeBtn = await this.page
-        .locator('button:has-text("Change Password")')
-        .isVisible()
-        .catch(() => false);
-
-      // Debug: Check if the Advanced section content is visible at all
-      const advancedContent = await this.page
-        .locator('.collapsible-content')
-        .first()
-        .isVisible()
-        .catch(() => false);
-      const encryptKeyInput = await this.encryptionPasswordInput
-        .isVisible()
-        .catch(() => false);
-
-      // Debug: Check the selected provider
-      const selectedProvider = await this.providerSelect
-        .textContent()
-        .catch(() => 'unknown');
-
-      // Debug: Check if there are any formly fields inside the collapsible
-      const formlyFieldsInCollapsible = await this.page
-        .locator('.collapsible-content formly-field')
-        .count();
-
-      // Debug: Check if there are any hidden formly fields
-      const hiddenFormlyFields = await this.page
-        .locator('.collapsible-content formly-field[hidden]')
-        .count();
-
-      // Debug: Check if the collapsible panel exists (expanded state)
-      const collapsiblePanel = await this.page.locator('.collapsible-panel').count();
-
-      // Debug: Check if formly-collapsible has isExpanded class
-      const isCollapsibleExpanded = await this.page
-        .locator('formly-collapsible.isExpanded')
-        .count();
-
-      console.log('[DisableEncryption] After expand', {
-        enableBtn,
-        disableBtn,
-        changeBtn,
-        advancedContent,
-        encryptKeyInput,
-        selectedProvider,
-        formlyFieldsInCollapsible,
-        hiddenFormlyFields,
-        collapsiblePanel,
-        isCollapsibleExpanded,
-      });
-
-      await this.disableEncryptionBtn.waitFor({ state: 'visible', timeout: 3000 });
-    }
-
-    // Check if already disabled
-    const isEnabled = await this.disableEncryptionBtn.isVisible().catch(() => false);
-    if (isEnabled) {
+    if (encBtnResult === 'already-enabled') {
       await this.disableEncryptionBtn.click();
 
       // IMPORTANT: The "Disable Encryption?" confirmation dialog appears immediately
