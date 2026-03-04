@@ -230,10 +230,9 @@ export class ValidateStateService {
    * operation will still be valid and the REPAIR op in the log reflects what
    * was applied.
    *
-   * ## Repair Summary Limitations
-   * The `_createRepairSummary()` method currently only counts typia errors.
-   * More sophisticated diff-based counting could be added later to track
-   * specific repair actions (orphaned entities, invalid references, etc).
+   * ## Repair Summary
+   * The `dataRepair()` function returns a `RepairSummary` with accurate
+   * counts of what was fixed during the repair process.
    */
   validateAndRepair(state: Record<string, unknown>): ValidateAndRepairResult {
     // First, validate the state
@@ -279,14 +278,9 @@ export class ValidateStateService {
     // User confirmed - proceed with repair
     try {
       const typiaErrors = validationResult.typiaErrors as IValidation.IError[];
-      const repairedState = dataRepair(state as AppDataComplete, typiaErrors);
-
-      // Create repair summary based on validation errors
-      const repairSummary = this._createRepairSummary(
-        validationResult,
-        state,
-        repairedState,
-      );
+      const repairResult = dataRepair(state as AppDataComplete, typiaErrors);
+      const repairedState = repairResult.data;
+      const repairSummary = repairResult.repairSummary;
 
       // Validate the repaired state to confirm it's now valid
       const revalidationResult = this.validateState(repairedState);
@@ -324,25 +318,5 @@ export class ValidateStateService {
         error: `Repair failed: ${e instanceof Error ? e.message : String(e)}`,
       };
     }
-  }
-
-  /**
-   * Creates a repair summary with counts of what was fixed.
-   * Simple stub that primarily counts typia errors - more sophisticated
-   * counting can be added later if needed.
-   */
-  private _createRepairSummary(
-    validationResult: StateValidationResult,
-    _original: Record<string, unknown>,
-    _repaired: Record<string, unknown>,
-  ): RepairSummary {
-    return {
-      entityStateFixed: 0,
-      orphanedEntitiesRestored: 0,
-      invalidReferencesRemoved: 0,
-      relationshipsFixed: 0,
-      structureRepaired: 0,
-      typeErrorsFixed: validationResult.typiaErrors.length,
-    };
   }
 }

@@ -220,7 +220,7 @@ export class OperationLogMigrationService {
         'errors' in validationResult.typiaResult
           ? validationResult.typiaResult.errors
           : [];
-      dataToMigrate = dataRepair(legacyData as unknown as AppDataComplete, errors);
+      dataToMigrate = dataRepair(legacyData as unknown as AppDataComplete, errors).data;
 
       // Re-validate after repair to ensure success
       const postRepairValidation = validateFull(dataToMigrate);
