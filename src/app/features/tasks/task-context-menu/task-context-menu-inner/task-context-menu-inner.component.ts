@@ -270,7 +270,6 @@ export class TaskContextMenuInnerComponent implements AfterViewInit {
 
   goToFocusMode(): void {
     this._taskService.setCurrentId(this.task.id);
-    this._taskService.setSelectedId(this.task.id);
     this._store.dispatch(showFocusOverlay());
   }
 
