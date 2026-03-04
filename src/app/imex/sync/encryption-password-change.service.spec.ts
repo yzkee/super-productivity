@@ -3,22 +3,18 @@ import { EncryptionPasswordChangeService } from './encryption-password-change.se
 import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
 import { CleanSlateService } from '../../op-log/clean-slate/clean-slate.service';
 import { OperationLogUploadService } from '../../op-log/sync/operation-log-upload.service';
-import { DerivedKeyCacheService } from '../../op-log/encryption/derived-key-cache.service';
 import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { SyncWrapperService } from './sync-wrapper.service';
 import { OperationLogStoreService } from '../../op-log/persistence/operation-log-store.service';
 import { OpType } from '../../op-log/core/operation.types';
-import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
 
 describe('EncryptionPasswordChangeService', () => {
   let service: EncryptionPasswordChangeService;
   let mockProviderManager: jasmine.SpyObj<any>;
   let mockCleanSlateService: jasmine.SpyObj<CleanSlateService>;
   let mockUploadService: jasmine.SpyObj<OperationLogUploadService>;
-  let mockDerivedKeyCache: jasmine.SpyObj<DerivedKeyCacheService>;
   let mockSyncWrapper: jasmine.SpyObj<SyncWrapperService>;
   let mockOpLogStore: jasmine.SpyObj<OperationLogStoreService>;
-  let mockWrappedProviderService: jasmine.SpyObj<WrappedProviderService>;
   let mockSyncProvider: jasmine.SpyObj<any>;
 
   const TEST_PASSWORD = 'new-secure-password-123';
@@ -65,8 +61,6 @@ describe('EncryptionPasswordChangeService', () => {
       }),
     );
 
-    mockDerivedKeyCache = jasmine.createSpyObj('DerivedKeyCacheService', ['clearCache']);
-
     // Mock SyncWrapperService - runWithSyncBlocked should just execute the callback
     mockSyncWrapper = jasmine.createSpyObj('SyncWrapperService', ['runWithSyncBlocked']);
     mockSyncWrapper.runWithSyncBlocked.and.callFake(
@@ -91,20 +85,14 @@ describe('EncryptionPasswordChangeService', () => {
       }
     });
 
-    mockWrappedProviderService = jasmine.createSpyObj('WrappedProviderService', [
-      'clearCache',
-    ]);
-
     TestBed.configureTestingModule({
       providers: [
         EncryptionPasswordChangeService,
         { provide: SyncProviderManager, useValue: mockProviderManager },
         { provide: CleanSlateService, useValue: mockCleanSlateService },
         { provide: OperationLogUploadService, useValue: mockUploadService },
-        { provide: DerivedKeyCacheService, useValue: mockDerivedKeyCache },
         { provide: SyncWrapperService, useValue: mockSyncWrapper },
         { provide: OperationLogStoreService, useValue: mockOpLogStore },
-        { provide: WrappedProviderService, useValue: mockWrappedProviderService },
       ],
     });
     service = TestBed.inject(EncryptionPasswordChangeService);
@@ -129,8 +117,7 @@ describe('EncryptionPasswordChangeService', () => {
         }),
       );
 
-      // Should clear derived key cache
-      expect(mockDerivedKeyCache.clearCache).toHaveBeenCalled();
+      // clearSessionKeyCache() is called directly (module-level function, not spyable)
 
       // Should upload with isCleanSlate flag
       expect(mockUploadService.uploadPendingOps).toHaveBeenCalledWith(mockSyncProvider, {
@@ -301,8 +288,7 @@ describe('EncryptionPasswordChangeService', () => {
       // Should NOT revert - only one call to setPrivateCfg
       expect(mockProviderManager.setProviderConfig).toHaveBeenCalledTimes(1);
 
-      // Should have cleared cache only once (on change, not on revert)
-      expect(mockDerivedKeyCache.clearCache).toHaveBeenCalledTimes(1);
+      // clearSessionKeyCache() is called directly (module-level function, not spyable)
     });
 
     it('should throw error if no operations are uploaded', async () => {
@@ -380,13 +366,9 @@ describe('EncryptionPasswordChangeService', () => {
         callOrder.push('setProviderConfig');
       });
 
-      mockDerivedKeyCache.clearCache.and.callFake(() => {
-        callOrder.push('clearDerivedKeyCache');
-      });
-
-      mockWrappedProviderService.clearCache.and.callFake(() => {
-        callOrder.push('clearWrappedProviderCache');
-      });
+      // clearSessionKeyCache() is called directly (module-level function, not spyable)
+      // so we can't track its order, but it runs between setProviderConfig and uploadPendingOps
+      // WrappedProviderService cache is now auto-invalidated via providerConfigChanged$
 
       mockUploadService.uploadPendingOps.and.callFake(async () => {
         callOrder.push('uploadPendingOps');
@@ -405,8 +387,8 @@ describe('EncryptionPasswordChangeService', () => {
         'createCleanSlate',
         'getUnsynced(2)', // Verify SYNC_IMPORT was stored
         'setProviderConfig',
-        'clearDerivedKeyCache',
-        'clearWrappedProviderCache',
+        // clearSessionKeyCache() runs here (not trackable - module-level function)
+        // WrappedProviderService cache is auto-invalidated via providerConfigChanged$
         'uploadPendingOps',
       ]);
     });
@@ -495,7 +477,7 @@ describe('EncryptionPasswordChangeService', () => {
       );
     });
 
-    it('should clear caches once on upload failure (no revert)', async () => {
+    it('should not revert config on upload failure', async () => {
       // When upload fails, we keep the new password config for retry.
       // User must retry with the SAME password to complete the upload.
       // This prevents inconsistent state where SYNC_IMPORT would be
@@ -524,10 +506,10 @@ describe('EncryptionPasswordChangeService', () => {
 
       await expectAsync(service.changePassword(TEST_PASSWORD)).toBeRejected();
 
-      // Should have cleared caches only once (no revert):
-      // After setting new password (before upload attempt)
-      expect(mockDerivedKeyCache.clearCache).toHaveBeenCalledTimes(1);
-      expect(mockWrappedProviderService.clearCache).toHaveBeenCalledTimes(1);
+      // clearSessionKeyCache() is called directly (module-level function, not spyable)
+      // WrappedProviderService cache is auto-invalidated via providerConfigChanged$
+      // Config should only be set once (no revert)
+      expect(mockProviderManager.setProviderConfig).toHaveBeenCalledTimes(1);
     });
 
     it('should throw error if SYNC_IMPORT was not stored after clean slate', async () => {

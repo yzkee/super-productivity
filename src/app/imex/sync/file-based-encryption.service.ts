@@ -2,6 +2,8 @@ import { inject, Injectable } from '@angular/core';
 import { SyncLog } from '../../core/log';
 import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
 import { isFileBasedProvider } from '../../op-log/sync/operation-sync.util';
+import { FileSyncProvider } from '../../op-log/sync-providers/provider.interface';
+import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { StateSnapshotService } from '../../op-log/backup/state-snapshot.service';
 import { VectorClockService } from '../../op-log/sync/vector-clock.service';
 import {
@@ -12,8 +14,7 @@ import { FileBasedSyncAdapterService } from '../../op-log/sync-providers/file-ba
 import { CURRENT_SCHEMA_VERSION } from '../../op-log/persistence/schema-migration.service';
 import { uuidv7 } from '../../util/uuid-v7';
 import { GlobalConfigService } from '../../features/config/global-config.service';
-import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
-import { DerivedKeyCacheService } from '../../op-log/encryption/derived-key-cache.service';
+import { clearSessionKeyCache } from '../../op-log/encryption/encryption';
 
 const LOG_PREFIX = 'FileBasedEncryptionService';
 
@@ -27,8 +28,6 @@ export class FileBasedEncryptionService {
   private _clientIdProvider: ClientIdProvider = inject(CLIENT_ID_PROVIDER);
   private _fileBasedAdapter = inject(FileBasedSyncAdapterService);
   private _globalConfigService = inject(GlobalConfigService);
-  private _wrappedProviderService = inject(WrappedProviderService);
-  private _derivedKeyCache = inject(DerivedKeyCacheService);
 
   async enableEncryption(encryptKey: string): Promise<void> {
     await this._applyEncryption(encryptKey, 'enable');
@@ -66,7 +65,10 @@ export class FileBasedEncryptionService {
       );
     }
 
-    if (!(await provider.isReady())) {
+    // After isFileBasedProvider check, we know this is a file-based provider
+    const fileProvider = provider as FileSyncProvider<SyncProviderId>;
+
+    if (!(await fileProvider.isReady())) {
       throw new Error('Sync provider is not ready. Please configure sync first.');
     }
 
@@ -78,7 +80,7 @@ export class FileBasedEncryptionService {
       throw new Error('Client ID not available');
     }
 
-    const existingCfg = await provider.privateCfg.load();
+    const existingCfg = await fileProvider.privateCfg.load();
 
     const baseCfg = this._providerManager.getEncryptAndCompressCfg();
     const adapterCfg = {
@@ -87,7 +89,7 @@ export class FileBasedEncryptionService {
     };
 
     const adapter = this._fileBasedAdapter.createAdapter(
-      provider,
+      fileProvider,
       adapterCfg,
       isDisable ? undefined : encryptKey,
     );
@@ -137,8 +139,7 @@ export class FileBasedEncryptionService {
       throw cfgError;
     }
 
-    this._derivedKeyCache.clearCache();
-    this._wrappedProviderService.clearCache();
+    clearSessionKeyCache();
 
     if (result.serverSeq !== undefined) {
       await adapter.setLastServerSeq(result.serverSeq);

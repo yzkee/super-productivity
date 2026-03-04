@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import {
   concatMap,
   distinctUntilChanged,
@@ -13,7 +13,7 @@ import { selectSyncConfig } from '../../features/config/store/global-config.redu
 import { DataInitStateService } from '../../core/data-init/data-init-state.service';
 import { SyncLog } from '../../core/log';
 import { SyncProviderId, toSyncProviderId } from './provider.const';
-import { SyncProviderServiceInterface } from './provider.interface';
+import { SyncProviderBase } from './provider.interface';
 import {
   EncryptAndCompressCfg,
   PrivateCfgByProviderId,
@@ -42,25 +42,25 @@ export type SyncStatusChangePayload =
 
 /**
  * Array of all available sync providers
- * Cast to generic SyncProviderServiceInterface - each provider implements
+ * Cast to generic SyncProviderBase - each provider implements
  * a specific SyncProviderId but we store them in a generic array.
  */
-const SYNC_PROVIDERS: SyncProviderServiceInterface<SyncProviderId>[] = [
+const SYNC_PROVIDERS: SyncProviderBase<SyncProviderId>[] = [
   new Dropbox({
     appKey: DROPBOX_APP_KEY,
     basePath: environment.production ? `/` : `/DEV/`,
-  }) as SyncProviderServiceInterface<SyncProviderId>,
+  }) as SyncProviderBase<SyncProviderId>,
   new Webdav(
     environment.production ? undefined : `/DEV`,
-  ) as SyncProviderServiceInterface<SyncProviderId>,
+  ) as SyncProviderBase<SyncProviderId>,
   new SuperSyncProvider(
     environment.production ? undefined : `/DEV`,
-  ) as SyncProviderServiceInterface<SyncProviderId>,
+  ) as SyncProviderBase<SyncProviderId>,
   ...(IS_ELECTRON
-    ? [new LocalFileSyncElectron() as SyncProviderServiceInterface<SyncProviderId>]
+    ? [new LocalFileSyncElectron() as SyncProviderBase<SyncProviderId>]
     : []),
   ...(IS_ANDROID_WEB_VIEW
-    ? [new LocalFileSyncAndroid() as SyncProviderServiceInterface<SyncProviderId>]
+    ? [new LocalFileSyncAndroid() as SyncProviderBase<SyncProviderId>]
     : []),
 ];
 
@@ -96,7 +96,7 @@ export class SyncProviderManager {
   private _store = inject(Store);
 
   // Current active provider
-  private _activeProvider: SyncProviderServiceInterface<SyncProviderId> | null = null;
+  private _activeProvider: SyncProviderBase<SyncProviderId> | null = null;
   private _activeProviderId$ = new BehaviorSubject<SyncProviderId | null>(null);
 
   // Encryption/compression config
@@ -116,6 +116,9 @@ export class SyncProviderManager {
   // Current provider's private config
   private _currentProviderPrivateCfg$ =
     new BehaviorSubject<CurrentProviderPrivateCfg | null>(null);
+
+  // Emits whenever provider config is updated via setProviderConfig()
+  private _providerConfigChanged$ = new Subject<void>();
 
   /**
    * Observable for whether the sync provider is enabled and ready
@@ -155,6 +158,13 @@ export class SyncProviderManager {
     this._currentProviderPrivateCfg$.pipe(shareReplay(1));
 
   /**
+   * Emits whenever provider config is updated via setProviderConfig().
+   * Used by WrappedProviderService to auto-invalidate its adapter cache.
+   */
+  public readonly providerConfigChanged$: Observable<void> =
+    this._providerConfigChanged$.asObservable();
+
+  /**
    * Config observable from store (after data init)
    */
   private readonly _syncConfig$ =
@@ -187,7 +197,7 @@ export class SyncProviderManager {
   /**
    * Gets the currently active sync provider
    */
-  getActiveProvider(): SyncProviderServiceInterface<SyncProviderId> | null {
+  getActiveProvider(): SyncProviderBase<SyncProviderId> | null {
     return this._activeProvider;
   }
 
@@ -196,14 +206,14 @@ export class SyncProviderManager {
    */
   getProviderById(
     providerId: SyncProviderId,
-  ): SyncProviderServiceInterface<SyncProviderId> | undefined {
+  ): SyncProviderBase<SyncProviderId> | undefined {
     return SYNC_PROVIDERS.find((p) => p.id === providerId);
   }
 
   /**
    * Gets all available sync providers
    */
-  getAllProviders(): SyncProviderServiceInterface<SyncProviderId>[] {
+  getAllProviders(): SyncProviderBase<SyncProviderId>[] {
     return [...SYNC_PROVIDERS];
   }
 
@@ -257,6 +267,9 @@ export class SyncProviderManager {
     // provider-specific caches (like lastServerSeq key) are invalidated.
     // This is critical for server migration detection when switching users.
     await provider.setPrivateCfg(config);
+
+    // Notify subscribers (e.g., WrappedProviderService) that config changed
+    this._providerConfigChanged$.next();
 
     // If this is the active provider, update the current config observable
     if (this._activeProvider?.id === providerId) {

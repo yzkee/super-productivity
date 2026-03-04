@@ -46,12 +46,6 @@ import {
   mockEncryptBatch,
   mockDecryptBatch,
 } from '../helpers/mock-encryption.helper';
-import {
-  ENCRYPT_FN,
-  DECRYPT_FN,
-  ENCRYPT_BATCH_FN,
-  DECRYPT_BATCH_FN,
-} from '../../encryption/encryption.token';
 import { TranslateService } from '@ngx-translate/core';
 import { SuperSyncStatusService } from '../../sync/super-sync-status.service';
 import { ServerMigrationService } from '../../sync/server-migration.service';
@@ -371,11 +365,6 @@ describe('Service Logic Integration', () => {
         SchemaMigrationService,
         RemoteOpsProcessingService,
         provideMockStore(),
-        // Use fast mock encryption instead of real Argon2id (saves ~500ms per test)
-        { provide: ENCRYPT_FN, useValue: mockEncrypt },
-        { provide: DECRYPT_FN, useValue: mockDecrypt },
-        { provide: ENCRYPT_BATCH_FN, useValue: mockEncryptBatch },
-        { provide: DECRYPT_BATCH_FN, useValue: mockDecryptBatch },
         { provide: ConflictResolutionService, useValue: conflictServiceSpy },
         { provide: OperationApplierService, useValue: applierSpy },
         { provide: SuperSyncStatusService, useValue: superSyncStatusSpy },
@@ -422,6 +411,13 @@ describe('Service Logic Integration', () => {
 
     syncService = TestBed.inject(OperationLogSyncService);
     opLogStore = TestBed.inject(OperationLogStoreService);
+
+    // Use fast mock encryption instead of real Argon2id (saves ~500ms per test)
+    const encryptionService = TestBed.inject(OperationEncryptionService);
+    spyOn(encryptionService as any, '_encrypt').and.callFake(mockEncrypt);
+    spyOn(encryptionService as any, '_decrypt').and.callFake(mockDecrypt);
+    spyOn(encryptionService as any, '_encryptBatch').and.callFake(mockEncryptBatch);
+    spyOn(encryptionService as any, '_decryptBatch').and.callFake(mockDecryptBatch);
 
     mockProvider = new MockOperationSyncProvider();
 

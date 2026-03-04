@@ -11,7 +11,7 @@ import {
 import { OpLog } from '../../core/log';
 import {
   OperationSyncCapable,
-  SyncProviderServiceInterface,
+  SyncProviderBase,
 } from '../sync-providers/provider.interface';
 import { SyncProviderId } from '../sync-providers/provider.const';
 import { OperationLogUploadService, UploadResult } from './operation-log-upload.service';
@@ -30,6 +30,10 @@ import {
 } from './rejected-ops-handler.service';
 import { SyncHydrationService } from '../persistence/sync-hydration.service';
 import { SyncImportConflictDialogService } from './sync-import-conflict-dialog.service';
+import {
+  SyncImportConflictData,
+  SyncImportConflictResolution,
+} from './dialog-sync-import-conflict/dialog-sync-import-conflict.component';
 import { SyncProviderManager } from '../sync-providers/provider-manager.service';
 import { getDefaultMainModelData } from '../model/model-config';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
@@ -193,6 +197,15 @@ export class OperationLogSyncService {
   }
 
   /**
+   * Checks if there is any meaningful user data — either in the pending ops
+   * or already in the NgRx store. This combines both checks that are always
+   * used together to decide whether a conflict dialog is needed.
+   */
+  private _hasAnyMeaningfulData(pendingOps: OperationLogEntry[]): boolean {
+    return this._hasMeaningfulPendingOps(pendingOps) || this._hasMeaningfulLocalData();
+  }
+
+  /**
    * Checks if any of the given ops represent meaningful user data.
    * Meaningful = TASK/PROJECT/TAG/NOTE creates/updates/deletes, or full-state ops.
    * Config-only ops (e.g., GLOBAL_CONFIG updates) are NOT meaningful.
@@ -303,56 +316,28 @@ export class OperationLogSyncService {
           piggybackedImport.syncImportReason === 'PASSWORD_CHANGED' &&
           !hasMeaningfulPending;
 
-        if (
-          !isEncryptionOnlyChange &&
-          (hasMeaningfulPending || this._hasMeaningfulLocalData())
-        ) {
+        if (!isEncryptionOnlyChange && this._hasAnyMeaningfulData(pendingOps)) {
           OpLog.warn(
             `OperationLogSyncService: Piggybacked SYNC_IMPORT from client ${piggybackedImport.clientId} ` +
               `with ${pendingOps.length} pending local ops. Showing conflict dialog.`,
           );
 
-          const resolution =
-            await this.syncImportConflictDialogService.showConflictDialog({
+          const resolution = await this._handleSyncImportConflict(
+            syncProvider,
+            {
               filteredOpCount: pendingOps.length,
               localImportTimestamp: piggybackedImport.timestamp ?? Date.now(),
               syncImportReason: piggybackedImport.syncImportReason,
               scenario: 'INCOMING_IMPORT',
-            });
-
-          switch (resolution) {
-            case 'USE_LOCAL':
-              OpLog.normal(
-                'OperationLogSyncService: User chose USE_LOCAL for piggybacked SYNC_IMPORT. Force uploading local state.',
-              );
-              await this.forceUploadLocalState(syncProvider);
-              return {
-                ...result,
-                localWinOpsCreated: 0,
-                permanentRejectionCount: 0,
-              };
-            case 'USE_REMOTE':
-              OpLog.normal(
-                'OperationLogSyncService: User chose USE_REMOTE for piggybacked SYNC_IMPORT. Force downloading remote state.',
-              );
-              await this.forceDownloadRemoteState(syncProvider);
-              return {
-                ...result,
-                localWinOpsCreated: 0,
-                permanentRejectionCount: 0,
-              };
-            case 'CANCEL':
-            default:
-              OpLog.normal(
-                'OperationLogSyncService: User cancelled piggybacked SYNC_IMPORT conflict resolution.',
-              );
-              return {
-                ...result,
-                localWinOpsCreated: 0,
-                permanentRejectionCount: 0,
-                cancelled: true,
-              };
-          }
+            },
+            'OperationLogSyncService (piggybacked SYNC_IMPORT)',
+          );
+          return {
+            ...result,
+            localWinOpsCreated: 0,
+            permanentRejectionCount: 0,
+            cancelled: resolution === 'CANCEL',
+          };
         }
       }
 
@@ -457,8 +442,7 @@ export class OperationLogSyncService {
         // The store check catches provider-switch scenarios: user switches from
         // SuperSync→Dropbox, only has a config-change op (not "meaningful"), but the
         // store is full of real data that would be overwritten by old Dropbox state.
-        const hasMeaningfulUserData =
-          this._hasMeaningfulPendingOps(unsyncedOps) || this._hasMeaningfulLocalData();
+        const hasMeaningfulUserData = this._hasAnyMeaningfulData(unsyncedOps);
 
         if (hasMeaningfulUserData) {
           // Client has meaningful user data - show conflict dialog
@@ -676,55 +660,28 @@ export class OperationLogSyncService {
         incomingSyncImport.syncImportReason === 'PASSWORD_CHANGED' &&
         !hasMeaningfulPending;
 
-      if (
-        !isEncryptionOnlyChange &&
-        (hasMeaningfulPending || this._hasMeaningfulLocalData())
-      ) {
+      if (!isEncryptionOnlyChange && this._hasAnyMeaningfulData(pendingLocalOps)) {
         OpLog.warn(
           `OperationLogSyncService: Incoming SYNC_IMPORT from client ${incomingSyncImport.clientId} ` +
             `with ${pendingLocalOps.length} pending local ops. Showing conflict dialog.`,
         );
 
-        const resolution = await this.syncImportConflictDialogService.showConflictDialog({
-          filteredOpCount: pendingLocalOps.length,
-          localImportTimestamp: incomingSyncImport.timestamp ?? Date.now(),
-          syncImportReason: incomingSyncImport.syncImportReason,
-          scenario: 'INCOMING_IMPORT',
-        });
-
-        switch (resolution) {
-          case 'USE_LOCAL':
-            OpLog.normal(
-              'OperationLogSyncService: User chose USE_LOCAL. Force uploading local state.',
-            );
-            await this.forceUploadLocalState(syncProvider);
-            return {
-              serverMigrationHandled: false,
-              localWinOpsCreated: 0,
-              newOpsCount: 0,
-            };
-          case 'USE_REMOTE':
-            OpLog.normal(
-              'OperationLogSyncService: User chose USE_REMOTE. Discarding local ops and downloading remote state.',
-            );
-            await this.forceDownloadRemoteState(syncProvider);
-            return {
-              serverMigrationHandled: false,
-              localWinOpsCreated: 0,
-              newOpsCount: 0,
-            };
-          case 'CANCEL':
-          default:
-            OpLog.normal(
-              'OperationLogSyncService: User cancelled incoming SYNC_IMPORT conflict resolution.',
-            );
-            return {
-              serverMigrationHandled: false,
-              localWinOpsCreated: 0,
-              newOpsCount: 0,
-              cancelled: true,
-            };
-        }
+        const resolution = await this._handleSyncImportConflict(
+          syncProvider,
+          {
+            filteredOpCount: pendingLocalOps.length,
+            localImportTimestamp: incomingSyncImport.timestamp ?? Date.now(),
+            syncImportReason: incomingSyncImport.syncImportReason,
+            scenario: 'INCOMING_IMPORT',
+          },
+          'OperationLogSyncService (incoming SYNC_IMPORT)',
+        );
+        return {
+          serverMigrationHandled: false,
+          localWinOpsCreated: 0,
+          newOpsCount: 0,
+          cancelled: resolution === 'CANCEL',
+        };
       }
     }
 
@@ -751,46 +708,22 @@ export class OperationLogSyncService {
           `Showing conflict resolution dialog (local import detected).`,
       );
 
-      const resolution = await this.syncImportConflictDialogService.showConflictDialog({
-        filteredOpCount: processResult.filteredOpCount,
-        localImportTimestamp: processResult.filteringImport?.timestamp ?? Date.now(),
-        syncImportReason: processResult.filteringImport?.syncImportReason,
-        scenario: 'LOCAL_IMPORT_FILTERS_REMOTE',
-      });
-
-      switch (resolution) {
-        case 'USE_LOCAL':
-          OpLog.normal(
-            'OperationLogSyncService: User chose USE_LOCAL. Force uploading local state.',
-          );
-          await this.forceUploadLocalState(syncProvider);
-          return {
-            serverMigrationHandled: false,
-            localWinOpsCreated: 0,
-            newOpsCount: 0,
-          };
-        case 'USE_REMOTE':
-          OpLog.normal(
-            'OperationLogSyncService: User chose USE_REMOTE. Force downloading remote state.',
-          );
-          await this.forceDownloadRemoteState(syncProvider);
-          return {
-            serverMigrationHandled: false,
-            localWinOpsCreated: 0,
-            newOpsCount: 0,
-          };
-        case 'CANCEL':
-        default:
-          OpLog.normal(
-            'OperationLogSyncService: User cancelled sync import conflict resolution.',
-          );
-          return {
-            serverMigrationHandled: false,
-            localWinOpsCreated: 0,
-            newOpsCount: 0,
-            cancelled: true,
-          };
-      }
+      const resolution = await this._handleSyncImportConflict(
+        syncProvider,
+        {
+          filteredOpCount: processResult.filteredOpCount,
+          localImportTimestamp: processResult.filteringImport?.timestamp ?? Date.now(),
+          syncImportReason: processResult.filteringImport?.syncImportReason,
+          scenario: 'LOCAL_IMPORT_FILTERS_REMOTE',
+        },
+        'OperationLogSyncService (local SYNC_IMPORT filters remote)',
+      );
+      return {
+        serverMigrationHandled: false,
+        localWinOpsCreated: 0,
+        newOpsCount: 0,
+        cancelled: resolution === 'CANCEL',
+      };
     } else if (
       processResult.allOpsFilteredBySyncImport &&
       processResult.filteredOpCount > 0
@@ -830,6 +763,44 @@ export class OperationLogSyncService {
       allOpClocks: result.allOpClocks,
       snapshotVectorClock: result.snapshotVectorClock,
     };
+  }
+
+  /**
+   * Shows the SYNC_IMPORT conflict dialog and executes the user's chosen action.
+   *
+   * This consolidates the repeated dialog + switch pattern used when a SYNC_IMPORT
+   * conflicts with local data (piggybacked upload, incoming download, or local
+   * import filtering remote ops).
+   *
+   * @param syncProvider - The sync provider to use for force upload/download
+   * @param dialogData - Data passed to the conflict dialog
+   * @param logPrefix - Prefix for log messages to identify the calling context
+   * @returns The user's resolution choice after the action has been executed
+   */
+  private async _handleSyncImportConflict(
+    syncProvider: OperationSyncCapable,
+    dialogData: SyncImportConflictData,
+    logPrefix: string,
+  ): Promise<SyncImportConflictResolution> {
+    const resolution =
+      await this.syncImportConflictDialogService.showConflictDialog(dialogData);
+
+    switch (resolution) {
+      case 'USE_LOCAL':
+        OpLog.normal(`${logPrefix}: User chose USE_LOCAL. Force uploading local state.`);
+        await this.forceUploadLocalState(syncProvider);
+        return 'USE_LOCAL';
+      case 'USE_REMOTE':
+        OpLog.normal(
+          `${logPrefix}: User chose USE_REMOTE. Force downloading remote state.`,
+        );
+        await this.forceDownloadRemoteState(syncProvider);
+        return 'USE_REMOTE';
+      case 'CANCEL':
+      default:
+        OpLog.normal(`${logPrefix}: User cancelled SYNC_IMPORT conflict resolution.`);
+        return 'CANCEL';
+    }
   }
 
   /**
@@ -1117,10 +1088,8 @@ export class OperationLogSyncService {
    */
   private _isSyncProviderWithConfig(
     provider: OperationSyncCapable,
-  ): provider is OperationSyncCapable & SyncProviderServiceInterface<SyncProviderId> {
-    const providerWithCfg = provider as Partial<
-      SyncProviderServiceInterface<SyncProviderId>
-    >;
+  ): provider is OperationSyncCapable & SyncProviderBase<SyncProviderId> {
+    const providerWithCfg = provider as Partial<SyncProviderBase<SyncProviderId>>;
     return (
       typeof providerWithCfg.privateCfg?.load === 'function' &&
       typeof providerWithCfg.setPrivateCfg === 'function'

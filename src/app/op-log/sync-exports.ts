@@ -50,8 +50,13 @@ export {
   SyncInvalidTimeValuesError,
 } from './core/errors/sync-errors';
 
-// Provider interface
-export { SyncProviderServiceInterface } from './sync-providers/provider.interface';
+// Provider interfaces
+export {
+  SyncProviderBase,
+  FileSyncProvider,
+  SyncProviderServiceInterface,
+  isFileSyncProvider,
+} from './sync-providers/provider.interface';
 
 // Providers
 export { Dropbox } from './sync-providers/file-based/dropbox/dropbox';

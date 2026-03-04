@@ -17,15 +17,18 @@ import { SyncLog } from '../../core/log';
 import { uuidv7 } from '../../util/uuid-v7';
 import {
   OperationSyncCapable,
-  SyncProviderServiceInterface,
+  SyncProviderBase,
 } from '../../op-log/sync-providers/provider.interface';
 import { VectorClock } from '../../core/util/vector-clock';
+import { OperationEncryptionService } from '../../op-log/sync/operation-encryption.service';
+import { isCryptoSubtleAvailable } from '../../op-log/encryption/encryption';
+import { WebCryptoNotAvailableError } from '../../op-log/core/errors/sync-errors';
 
 /**
  * Data gathered for a snapshot upload operation.
  */
 export interface SnapshotUploadData {
-  syncProvider: SyncProviderServiceInterface<SyncProviderId> & OperationSyncCapable;
+  syncProvider: SyncProviderBase<SyncProviderId> & OperationSyncCapable;
   existingCfg: SuperSyncPrivateCfg | null;
   state: AppStateSnapshot;
   vectorClock: VectorClock;
@@ -64,13 +67,14 @@ export class SnapshotUploadService {
   private _stateSnapshotService = inject(StateSnapshotService);
   private _vectorClockService = inject(VectorClockService);
   private _clientIdProvider: ClientIdProvider = inject(CLIENT_ID_PROVIDER);
+  private _encryptionService = inject(OperationEncryptionService);
 
   /**
    * Validates that the active provider is SuperSync and operation-sync capable.
    *
    * @throws Error if no active provider, not SuperSync, or not operation-sync capable
    */
-  getValidatedSuperSyncProvider(): SyncProviderServiceInterface<SyncProviderId> &
+  getValidatedSuperSyncProvider(): SyncProviderBase<SyncProviderId> &
     OperationSyncCapable {
     const syncProvider = this._providerManager.getActiveProvider();
 
@@ -88,8 +92,7 @@ export class SnapshotUploadService {
       throw new Error('Sync provider does not support operation sync');
     }
 
-    return syncProvider as SyncProviderServiceInterface<SyncProviderId> &
-      OperationSyncCapable;
+    return syncProvider as SyncProviderBase<SyncProviderId> & OperationSyncCapable;
   }
 
   /**
@@ -145,7 +148,7 @@ export class SnapshotUploadService {
    * @param isPayloadEncrypted - Whether the payload is encrypted
    */
   async uploadSnapshot(
-    syncProvider: SyncProviderServiceInterface<SyncProviderId> & OperationSyncCapable,
+    syncProvider: SyncProviderBase<SyncProviderId> & OperationSyncCapable,
     payload: unknown,
     clientId: string,
     vectorClock: VectorClock,
@@ -176,7 +179,7 @@ export class SnapshotUploadService {
    * @param logPrefix - Optional prefix for log messages
    */
   async updateLastServerSeq(
-    syncProvider: SyncProviderServiceInterface<SyncProviderId> & OperationSyncCapable,
+    syncProvider: SyncProviderBase<SyncProviderId> & OperationSyncCapable,
     serverSeq: number | undefined,
     logPrefix?: string,
   ): Promise<void> {
@@ -190,5 +193,73 @@ export class SnapshotUploadService {
           'Sync state may be inconsistent - consider using "Sync Now" to verify.',
       );
     }
+  }
+
+  /**
+   * Deletes all server data and uploads a fresh snapshot with new encryption settings.
+   *
+   * Common pattern used by both encryption toggle and import encryption handler.
+   * Validates crypto availability, gathers state, encrypts if needed, deletes
+   * server data, updates provider config, uploads snapshot, and updates lastServerSeq.
+   *
+   * Error handling (throw vs return result) remains the caller's responsibility.
+   *
+   * @throws WebCryptoNotAvailableError if encryption is enabled but WebCrypto is unavailable
+   */
+  async deleteAndReuploadWithNewEncryption(options: {
+    encryptKey: string | undefined;
+    isEncryptionEnabled: boolean;
+    logPrefix: string;
+  }): Promise<SnapshotUploadResult & { existingCfg: SuperSyncPrivateCfg | null }> {
+    const { encryptKey, isEncryptionEnabled, logPrefix } = options;
+
+    // Validate crypto availability before any destructive action
+    if (isEncryptionEnabled && !isCryptoSubtleAvailable()) {
+      throw new WebCryptoNotAvailableError(
+        'Cannot enable encryption: WebCrypto API is not available. ' +
+          'Encryption requires a secure context (HTTPS). ' +
+          'On Android, encryption is not supported.',
+      );
+    }
+
+    const { syncProvider, existingCfg, state, vectorClock, clientId } =
+      await this.gatherSnapshotData(logPrefix);
+
+    // Encrypt before delete (fail-early)
+    let payload: unknown = state;
+    if (isEncryptionEnabled && encryptKey) {
+      SyncLog.normal(`${logPrefix}: Encrypting snapshot...`);
+      payload = await this._encryptionService.encryptPayload(state, encryptKey);
+    }
+
+    // Delete all server data
+    SyncLog.normal(`${logPrefix}: Deleting server data...`);
+    await syncProvider.deleteAllData();
+
+    // Update config before upload
+    SyncLog.normal(`${logPrefix}: Updating provider config...`);
+    await this._providerManager.setProviderConfig(SyncProviderId.SuperSync, {
+      ...existingCfg,
+      encryptKey: isEncryptionEnabled ? encryptKey : undefined,
+      isEncryptionEnabled,
+    } as SuperSyncPrivateCfg);
+
+    // Upload snapshot
+    SyncLog.normal(`${logPrefix}: Uploading snapshot...`);
+    const result = await this.uploadSnapshot(
+      syncProvider,
+      payload,
+      clientId,
+      vectorClock,
+      isEncryptionEnabled && !!encryptKey,
+    );
+
+    if (!result.accepted) {
+      throw new Error(`Snapshot upload failed: ${result.error}`);
+    }
+
+    await this.updateLastServerSeq(syncProvider, result.serverSeq, logPrefix);
+
+    return { ...result, existingCfg };
   }
 }

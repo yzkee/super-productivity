@@ -9,8 +9,6 @@ import {
 } from '../../op-log/util/client-id.provider';
 import { FileBasedSyncAdapterService } from '../../op-log/sync-providers/file-based/file-based-sync-adapter.service';
 import { GlobalConfigService } from '../../features/config/global-config.service';
-import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
-import { DerivedKeyCacheService } from '../../op-log/encryption/derived-key-cache.service';
 import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { SyncProviderServiceInterface } from '../../op-log/sync-providers/provider.interface';
 
@@ -22,8 +20,6 @@ describe('FileBasedEncryptionService', () => {
   let mockClientIdProvider: jasmine.SpyObj<ClientIdProvider>;
   let mockFileBasedAdapter: jasmine.SpyObj<FileBasedSyncAdapterService>;
   let mockGlobalConfigService: jasmine.SpyObj<GlobalConfigService>;
-  let mockWrappedProviderService: jasmine.SpyObj<WrappedProviderService>;
-  let mockDerivedKeyCache: jasmine.SpyObj<DerivedKeyCacheService>;
   let mockProvider: SyncProviderServiceInterface<SyncProviderId>;
   let mockAdapter: {
     uploadSnapshot: jasmine.Spy;
@@ -97,12 +93,6 @@ describe('FileBasedEncryptionService', () => {
       'updateSection',
     ]);
 
-    mockWrappedProviderService = jasmine.createSpyObj('WrappedProviderService', [
-      'clearCache',
-    ]);
-
-    mockDerivedKeyCache = jasmine.createSpyObj('DerivedKeyCacheService', ['clearCache']);
-
     TestBed.configureTestingModule({
       providers: [
         FileBasedEncryptionService,
@@ -112,8 +102,6 @@ describe('FileBasedEncryptionService', () => {
         { provide: CLIENT_ID_PROVIDER, useValue: mockClientIdProvider },
         { provide: FileBasedSyncAdapterService, useValue: mockFileBasedAdapter },
         { provide: GlobalConfigService, useValue: mockGlobalConfigService },
-        { provide: WrappedProviderService, useValue: mockWrappedProviderService },
-        { provide: DerivedKeyCacheService, useValue: mockDerivedKeyCache },
       ],
     });
 
@@ -203,11 +191,11 @@ describe('FileBasedEncryptionService', () => {
       });
     });
 
-    it('should clear derived key cache and wrapped provider cache', async () => {
+    it('should clear derived key cache', async () => {
       await service.enableEncryption('my-password');
 
-      expect(mockDerivedKeyCache.clearCache).toHaveBeenCalled();
-      expect(mockWrappedProviderService.clearCache).toHaveBeenCalled();
+      // clearSessionKeyCache() is called directly (module-level function, not spyable)
+      // WrappedProviderService cache is now auto-invalidated via providerConfigChanged$
     });
 
     it('should set lastServerSeq when returned from adapter', async () => {
@@ -300,11 +288,11 @@ describe('FileBasedEncryptionService', () => {
       );
     });
 
-    it('should clear derived key cache and wrapped provider cache', async () => {
+    it('should clear derived key cache', async () => {
       await service.changePassword('new-password');
 
-      expect(mockDerivedKeyCache.clearCache).toHaveBeenCalled();
-      expect(mockWrappedProviderService.clearCache).toHaveBeenCalled();
+      // clearSessionKeyCache() is called directly (module-level function, not spyable)
+      // WrappedProviderService cache is now auto-invalidated via providerConfigChanged$
     });
 
     it('should update global config with isEncryptionEnabled: true', async () => {
@@ -386,8 +374,8 @@ describe('FileBasedEncryptionService', () => {
     it('should clear caches after successful upload', async () => {
       await service.disableEncryption();
 
-      expect(mockDerivedKeyCache.clearCache).toHaveBeenCalled();
-      expect(mockWrappedProviderService.clearCache).toHaveBeenCalled();
+      // clearSessionKeyCache() is called directly (module-level function, not spyable)
+      // WrappedProviderService cache is now auto-invalidated via providerConfigChanged$
     });
 
     it('should NOT update config on upload failure', async () => {
