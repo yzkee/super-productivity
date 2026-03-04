@@ -32,6 +32,7 @@ import {
   getProject,
   getTag,
   ProjectTaskList,
+  removeTaskFromPlannerDays,
   removeTasksFromList,
   TaskWithTags,
   updateProject,
@@ -595,12 +596,13 @@ const handleUpdateTask = (
   // Handle task state updates using existing task reducer logic
   let taskState = updatedState[TASK_FEATURE_NAME];
   const { timeSpentOnDay, timeEstimate } = taskUpdate.changes;
+  const todayStr = state[appStateFeatureKey]?.todayStr ?? getDbDateStr();
 
   taskState = timeSpentOnDay
     ? updateTimeSpentForTask(taskId, timeSpentOnDay, taskState)
     : taskState;
   taskState = updateTimeEstimateForTask(taskUpdate, timeEstimate, taskState);
-  taskState = updateDoneOnForTask(taskUpdate, taskState);
+  taskState = updateDoneOnForTask(taskUpdate, taskState, todayStr);
   taskState = taskAdapter.updateOne(
     {
       ...taskUpdate,
@@ -612,10 +614,29 @@ const handleUpdateTask = (
     taskState,
   );
 
-  return {
+  updatedState = {
     ...updatedState,
     [TASK_FEATURE_NAME]: taskState,
   };
+
+  // Add completed top-level task to TODAY_TAG.taskIds for ordering.
+  // Subtasks are excluded — their parent manages today-tag membership.
+  const isToDone = taskUpdate.changes.isDone === true;
+  if (isToDone && !currentTask.parentId) {
+    const todayTag = getTag(updatedState, TODAY_TAG.id);
+    if (!todayTag.taskIds.includes(taskId)) {
+      updatedState = updateTags(updatedState, [
+        {
+          id: TODAY_TAG.id,
+          changes: { taskIds: [...todayTag.taskIds, taskId] },
+        },
+      ]);
+    }
+    // Remove from planner days since task's dueDay changed to today
+    updatedState = removeTaskFromPlannerDays(updatedState, taskId);
+  }
+
+  return updatedState;
 };
 
 const handleTagUpdates = (
