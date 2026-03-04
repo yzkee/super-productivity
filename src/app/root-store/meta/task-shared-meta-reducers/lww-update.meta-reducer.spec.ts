@@ -282,6 +282,99 @@ describe('lwwUpdateMetaReducer', () => {
       ] as Project;
       expect(updatedProject.title).toBe('LWW Winning Project Title');
     });
+
+    it('should filter orphaned taskIds from PROJECT LWW Update', () => {
+      const state = createMockState();
+      const action = {
+        type: '[PROJECT] LWW Update',
+        id: PROJECT_ID,
+        title: 'Updated Project',
+        taskIds: [TASK_ID, 'non-existent-task'],
+        backlogTaskIds: [],
+        meta: {
+          isPersistent: true,
+          entityType: 'PROJECT',
+          entityId: PROJECT_ID,
+          isRemote: true,
+        },
+      };
+
+      spyOn(OpLog, 'warn');
+      reducer(state, action);
+
+      expect(mockReducer).toHaveBeenCalled();
+      const updatedState = mockReducer.calls.mostRecent().args[0] as Partial<RootState>;
+      const updatedProject = updatedState[PROJECT_FEATURE_NAME]?.entities[
+        PROJECT_ID
+      ] as Project;
+      expect(updatedProject.taskIds).toEqual([TASK_ID]);
+      expect(OpLog.warn).toHaveBeenCalledWith(
+        jasmine.stringMatching(/Filtered orphaned taskIds from PROJECT/),
+        jasmine.objectContaining({
+          removed: ['non-existent-task'],
+        }),
+      );
+    });
+
+    it('should filter orphaned backlogTaskIds from PROJECT LWW Update', () => {
+      const state = createMockState();
+      const action = {
+        type: '[PROJECT] LWW Update',
+        id: PROJECT_ID,
+        title: 'Updated Project',
+        taskIds: [TASK_ID],
+        backlogTaskIds: [TASK_ID, 'non-existent-backlog-task'],
+        meta: {
+          isPersistent: true,
+          entityType: 'PROJECT',
+          entityId: PROJECT_ID,
+          isRemote: true,
+        },
+      };
+
+      spyOn(OpLog, 'warn');
+      reducer(state, action);
+
+      expect(mockReducer).toHaveBeenCalled();
+      const updatedState = mockReducer.calls.mostRecent().args[0] as Partial<RootState>;
+      const updatedProject = updatedState[PROJECT_FEATURE_NAME]?.entities[
+        PROJECT_ID
+      ] as Project;
+      expect(updatedProject.backlogTaskIds).toEqual([TASK_ID]);
+      expect(OpLog.warn).toHaveBeenCalledWith(
+        jasmine.stringMatching(/Filtered orphaned backlogTaskIds from PROJECT/),
+        jasmine.objectContaining({
+          removed: ['non-existent-backlog-task'],
+        }),
+      );
+    });
+
+    it('should keep all taskIds when all exist in PROJECT LWW Update', () => {
+      const state = createMockState();
+      const action = {
+        type: '[PROJECT] LWW Update',
+        id: PROJECT_ID,
+        title: 'Updated Project',
+        taskIds: [TASK_ID],
+        backlogTaskIds: [TASK_ID],
+        meta: {
+          isPersistent: true,
+          entityType: 'PROJECT',
+          entityId: PROJECT_ID,
+          isRemote: true,
+        },
+      };
+
+      reducer(state, action);
+
+      expect(mockReducer).toHaveBeenCalled();
+      const updatedState = mockReducer.calls.mostRecent().args[0] as Partial<RootState>;
+      const updatedProject = updatedState[PROJECT_FEATURE_NAME]?.entities[
+        PROJECT_ID
+      ] as Project;
+      expect(updatedProject.taskIds).toEqual([TASK_ID]);
+      expect(updatedProject.backlogTaskIds).toEqual([TASK_ID]);
+    });
   });
 
   describe('[TAG] LWW Update', () => {
@@ -307,6 +400,123 @@ describe('lwwUpdateMetaReducer', () => {
       const updatedTag = updatedState[TAG_FEATURE_NAME]?.entities[TAG_ID] as Tag;
       expect(updatedTag.title).toBe('LWW Winning Tag Title');
       expect(updatedTag.color).toBe('#00ff00');
+    });
+
+    it('should filter orphaned taskIds from TAG LWW Update', () => {
+      const state = createMockState();
+      const action = {
+        type: '[TAG] LWW Update',
+        id: TAG_ID,
+        title: 'Updated Tag',
+        taskIds: [TASK_ID, 'non-existent-task-1', 'non-existent-task-2'],
+        color: '#00ff00',
+        meta: {
+          isPersistent: true,
+          entityType: 'TAG',
+          entityId: TAG_ID,
+          isRemote: true,
+        },
+      };
+
+      spyOn(OpLog, 'warn');
+      reducer(state, action);
+
+      expect(mockReducer).toHaveBeenCalled();
+      const updatedState = mockReducer.calls.mostRecent().args[0] as Partial<RootState>;
+      const updatedTag = updatedState[TAG_FEATURE_NAME]?.entities[TAG_ID] as Tag;
+      expect(updatedTag.taskIds).toEqual([TASK_ID]);
+      expect(OpLog.warn).toHaveBeenCalledWith(
+        jasmine.stringMatching(/Filtered orphaned taskIds from TAG/),
+        jasmine.objectContaining({
+          removed: ['non-existent-task-1', 'non-existent-task-2'],
+        }),
+      );
+    });
+
+    it('should keep all taskIds when all exist in TAG LWW Update', () => {
+      const state = createMockState();
+      const action = {
+        type: '[TAG] LWW Update',
+        id: TAG_ID,
+        title: 'Updated Tag',
+        taskIds: [TASK_ID],
+        color: '#00ff00',
+        meta: {
+          isPersistent: true,
+          entityType: 'TAG',
+          entityId: TAG_ID,
+          isRemote: true,
+        },
+      };
+
+      reducer(state, action);
+
+      expect(mockReducer).toHaveBeenCalled();
+      const updatedState = mockReducer.calls.mostRecent().args[0] as Partial<RootState>;
+      const updatedTag = updatedState[TAG_FEATURE_NAME]?.entities[TAG_ID] as Tag;
+      expect(updatedTag.taskIds).toEqual([TASK_ID]);
+    });
+
+    it('should filter orphaned taskIds when recreating a deleted TAG via LWW Update', () => {
+      const state = createMockState();
+      // LWW Update for a tag that doesn't exist locally (deleted)
+      const action = {
+        type: '[TAG] LWW Update',
+        id: 'new-tag-from-lww',
+        title: 'Recreated Tag',
+        taskIds: [TASK_ID, 'deleted-task-1', 'deleted-task-2'],
+        color: '#0000ff',
+        meta: {
+          isPersistent: true,
+          entityType: 'TAG',
+          entityId: 'new-tag-from-lww',
+          isRemote: true,
+        },
+      };
+
+      spyOn(OpLog, 'warn');
+      spyOn(OpLog, 'log');
+      reducer(state, action);
+
+      expect(mockReducer).toHaveBeenCalled();
+      const updatedState = mockReducer.calls.mostRecent().args[0] as Partial<RootState>;
+      const recreatedTag = updatedState[TAG_FEATURE_NAME]?.entities[
+        'new-tag-from-lww'
+      ] as Tag;
+      expect(recreatedTag).toBeDefined();
+      expect(recreatedTag.taskIds).toEqual([TASK_ID]);
+    });
+  });
+
+  describe('[PROJECT] LWW Update with both orphaned taskIds and backlogTaskIds', () => {
+    it('should filter orphaned IDs from both taskIds and backlogTaskIds simultaneously', () => {
+      const state = createMockState();
+      const action = {
+        type: '[PROJECT] LWW Update',
+        id: PROJECT_ID,
+        title: 'Updated Project',
+        taskIds: [TASK_ID, 'deleted-task-1'],
+        backlogTaskIds: [TASK_ID, 'deleted-task-2'],
+        meta: {
+          isPersistent: true,
+          entityType: 'PROJECT',
+          entityId: PROJECT_ID,
+          isRemote: true,
+        },
+      };
+
+      spyOn(OpLog, 'warn');
+      reducer(state, action);
+
+      expect(mockReducer).toHaveBeenCalled();
+      const updatedState = mockReducer.calls.mostRecent().args[0] as Partial<RootState>;
+      const updatedProject = updatedState[PROJECT_FEATURE_NAME]?.entities[
+        PROJECT_ID
+      ] as Project;
+      expect(updatedProject.taskIds).toEqual([TASK_ID]);
+      expect(updatedProject.backlogTaskIds).toEqual([TASK_ID]);
+      // Both warnings should have fired
+      expect(OpLog.warn).toHaveBeenCalledTimes(2);
     });
   });
 

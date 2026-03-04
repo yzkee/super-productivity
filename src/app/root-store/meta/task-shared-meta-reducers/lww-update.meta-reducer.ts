@@ -354,6 +354,60 @@ const syncParentSubTaskIds = (
 };
 
 /**
+ * Filters orphaned taskIds (and backlogTaskIds for PROJECT) from entity data
+ * before applying LWW updates. This prevents TAG and PROJECT entities from
+ * referencing tasks that no longer exist in the store.
+ *
+ * This is necessary because LWW conflict resolution replaces entire entities
+ * without checking whether referenced tasks still exist locally.
+ */
+const filterOrphanedTaskIdsFromEntityData = (
+  entityData: Record<string, unknown>,
+  entityType: string,
+  rootState: RootState,
+): Record<string, unknown> => {
+  if (entityType !== 'TAG' && entityType !== 'PROJECT') {
+    return entityData;
+  }
+
+  const taskState = rootState[TASK_FEATURE_NAME];
+  if (!taskState) {
+    return entityData;
+  }
+  const existingTaskIds = new Set(taskState.ids as string[]);
+
+  let filtered = entityData;
+
+  if (Array.isArray(entityData['taskIds'])) {
+    const original = entityData['taskIds'] as string[];
+    const cleaned = original.filter((id) => existingTaskIds.has(id));
+    if (cleaned.length !== original.length) {
+      const removed = original.filter((id) => !existingTaskIds.has(id));
+      OpLog.warn(
+        `lwwUpdateMetaReducer: Filtered orphaned taskIds from ${entityType} LWW Update`,
+        { entityId: entityData['id'], removed },
+      );
+      filtered = { ...filtered, taskIds: cleaned };
+    }
+  }
+
+  if (entityType === 'PROJECT' && Array.isArray(entityData['backlogTaskIds'])) {
+    const original = entityData['backlogTaskIds'] as string[];
+    const cleaned = original.filter((id) => existingTaskIds.has(id));
+    if (cleaned.length !== original.length) {
+      const removed = original.filter((id) => !existingTaskIds.has(id));
+      OpLog.warn(
+        `lwwUpdateMetaReducer: Filtered orphaned backlogTaskIds from PROJECT LWW Update`,
+        { entityId: entityData['id'], removed },
+      );
+      filtered = { ...filtered, backlogTaskIds: cleaned };
+    }
+  }
+
+  return filtered;
+};
+
+/**
  * Meta-reducer that handles LWW (Last-Write-Wins) Update actions.
  *
  * When a LWW conflict is resolved and local state wins, a `[ENTITY_TYPE] LWW Update`
@@ -413,12 +467,15 @@ export const lwwUpdateMetaReducer: MetaReducer = (
     // NOTE: This assumes no entity state has top-level 'type' or 'meta' keys.
     // If a singleton or adapter state gains such a key, it would be silently dropped.
     const actionAny = action as unknown as Record<string, unknown>;
-    const entityData: Record<string, unknown> = {};
+    let entityData: Record<string, unknown> = {};
     for (const key of Object.keys(actionAny)) {
       if (key !== 'type' && key !== 'meta') {
         entityData[key] = actionAny[key];
       }
     }
+
+    // Filter orphaned taskIds/backlogTaskIds for TAG and PROJECT entities
+    entityData = filterOrphanedTaskIdsFromEntityData(entityData, entityType, rootState);
 
     // Singleton entities: replace entire feature state with the winning data
     if (isSingletonEntity(config)) {
