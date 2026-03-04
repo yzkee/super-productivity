@@ -140,7 +140,6 @@ export class FocusModeEffects {
             return of(
               actions.startFocusSession({
                 duration,
-                isManualSessionCompletion: !!cfg?.isManualBreakStart,
               }),
             );
           }
@@ -273,28 +272,21 @@ export class FocusModeEffects {
 
   // Detect when work session timer completes and dispatch completeFocusSession
   // Only triggers when timer STOPS (isRunning becomes false) with elapsed >= duration
-  // When isManualSessionCompletion is true, the tick reducer keeps the timer running past
-  // duration, so this effect normally won't fire. The isManualSessionCompletion check here
-  // is a safety guard for the pause-during-overtime edge case (Bug #6206 + overtime fix).
   detectSessionCompletion$ = createEffect(() =>
     this.store.select(selectors.selectTimer).pipe(
       skipWhileApplyingRemoteOps(),
-      withLatestFrom(
-        this.store.select(selectors.selectMode),
-        this.store.select(selectors.selectIsManualSessionCompletion),
-      ),
+      withLatestFrom(this.store.select(selectors.selectMode)),
       // Only consider emissions where timer just stopped running
       distinctUntilChanged(
         ([prevTimer], [currTimer]) => prevTimer.isRunning === currTimer.isRunning,
       ),
       filter(
-        ([timer, mode, isManualSessionCompletion]) =>
+        ([timer, mode]) =>
           timer.purpose === 'work' &&
           !timer.isRunning &&
           timer.duration > 0 &&
           timer.elapsed >= timer.duration &&
-          mode !== FocusModeMode.Flowtime &&
-          !isManualSessionCompletion,
+          mode !== FocusModeMode.Flowtime,
       ),
 
       map(() => actions.completeFocusSession({ isManual: false })),
@@ -500,7 +492,6 @@ export class FocusModeEffects {
         const strategy = this.strategyFactory.getStrategy(mode);
         return actions.startFocusSession({
           duration: strategy.initialSessionDuration,
-          isManualSessionCompletion: !!config?.isManualBreakStart,
         });
       }),
     ),
@@ -540,7 +531,6 @@ export class FocusModeEffects {
           actionsToDispatch.push(
             actions.startFocusSession({
               duration,
-              isManualSessionCompletion: !!config?.isManualBreakStart,
             }),
           );
         }
@@ -937,7 +927,6 @@ export class FocusModeEffects {
           this.store.dispatch(
             actions.startFocusSession({
               duration: strategy.initialSessionDuration,
-              isManualSessionCompletion: !!config?.isManualBreakStart,
             }),
           );
         }
@@ -1002,7 +991,6 @@ export class FocusModeEffects {
           this.store.dispatch(
             actions.startFocusSession({
               duration: strategy.initialSessionDuration,
-              isManualSessionCompletion: !!focusModeConfig?.isManualBreakStart,
             }),
           );
         }
