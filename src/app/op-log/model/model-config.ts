@@ -269,7 +269,7 @@ export const SYNC_CONFIG: BaseSyncConfig<AllModelConfig> = {
     if (!isDataRepairPossible(data as AppDataComplete)) {
       throw new DataRepairNotPossibleError(data);
     }
-    return dataRepair(data as AppDataComplete, errors) as AppDataComplete;
+    return dataRepair(data as AppDataComplete, errors).data as AppDataComplete;
   },
   crossModelMigrations: {},
 };

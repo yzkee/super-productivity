@@ -121,7 +121,7 @@ export class BackupService {
             'errors' in validationResult.typiaResult
               ? validationResult.typiaResult.errors
               : [];
-          validatedData = dataRepair(backupData, errors);
+          validatedData = dataRepair(backupData, errors).data;
         } else {
           throw new Error('Data validation failed and repair not possible');
         }
