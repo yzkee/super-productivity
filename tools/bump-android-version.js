@@ -67,8 +67,7 @@ if (isPreRelease) {
 }
 
 // CREATE fastlane changelog file
-// Define the paths
-const changelogPath = path.join(__dirname, '..', 'CHANGELOG.md');
+const { execFileSync } = require('child_process');
 const outputDir = path.join(
   __dirname,
   '..',
@@ -81,25 +80,30 @@ const outputDir = path.join(
 );
 const outputFilePath = path.join(outputDir, `${versionCodeDroid}.txt`);
 
-// Read the changelog.md file
-const changelogContent = fs.readFileSync(changelogPath, 'utf8');
-
-// Extract the latest changes
-const lines = changelogContent.split('\n').slice(2); // Remove the first two lines;
-let latestChanges = '';
-let headerCount = 0;
-
+// Get commit messages between previous tag and HEAD
+const currentTag = execFileSync('git', ['describe', '--tags', '--abbrev=0', 'HEAD'], {
+  encoding: 'utf8',
+}).trim();
+const prevTag = execFileSync(
+  'git',
+  ['describe', '--tags', '--abbrev=0', `${currentTag}~1`],
+  { encoding: 'utf8' },
+).trim();
+const gitLog = execFileSync(
+  'git',
+  ['log', `${prevTag}...HEAD`, '--no-merges', '--pretty=format:- %s'],
+  { encoding: 'utf8' },
+);
+// Strip conventional-commit prefixes (e.g. "feat(tasks): " → "")
+let latestChanges = gitLog.replace(/^- \w+(\([^)]*\))?!?:\s*/gm, '- ');
+// Truncate to 500 chars at line boundaries for Play Store limit
+const lines = latestChanges.split('\n');
+let truncated = '';
 for (const line of lines) {
-  if (line.startsWith('# [') || line.startsWith('## [')) {
-    headerCount++;
-    if (headerCount === 1) break;
-  }
-  latestChanges += line + '\n';
+  if ((truncated + line + '\n').length > 500) break;
+  truncated += line + '\n';
 }
-// Remove all links from the extracted text
-latestChanges = latestChanges
-  .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
-  .replace(/\s*\([a-f0-9]{7}\)\s*$/gm, '');
+latestChanges = truncated.trimEnd();
 
 // Ensure the output directory exists
 if (!fs.existsSync(outputDir)) {
