@@ -186,7 +186,40 @@ export class SuperSyncPage extends BasePage {
       }
     });
 
-    // CRITICAL: Ensure any leftover overlays from previous operations are closed
+    // CRITICAL: Handle any leftover mandatory encryption dialog from previous operations
+    // (e.g., backup import triggers sync which opens the disableClose:true encryption dialog).
+    // ensureOverlaysClosed() uses Escape which can't dismiss disableClose dialogs.
+    // Use waitFor with a short timeout instead of isVisible() to avoid a race where the
+    // dialog is still animating in when we check.
+    const enableEncryptionDialogEarly = this.page.locator('dialog-enable-encryption');
+    const earlyEncDialogVisible = await enableEncryptionDialogEarly
+      .first()
+      .waitFor({ state: 'visible', timeout: 1000 })
+      .then(() => true)
+      .catch(() => false);
+    if (earlyEncDialogVisible) {
+      console.log(
+        '[SuperSyncPage] Found leftover encryption dialog before setup - handling it',
+      );
+      await this._fillAndConfirmEncryptionDialog(
+        enableEncryptionDialogEarly,
+        config.password || 'e2e-default-encryption-pw',
+      );
+      // Wait for dialog to close; log a warning if it doesn't close in time
+      const closed = await this.page
+        .locator('mat-dialog-container')
+        .first()
+        .waitFor({ state: 'detached', timeout: 5000 })
+        .then(() => true)
+        .catch(() => false);
+      if (!closed) {
+        console.warn(
+          '[SuperSyncPage] Encryption dialog did not close after confirmation - continuing anyway',
+        );
+      }
+    }
+
+    // Ensure any remaining overlays from previous operations are closed
     // This prevents "backdrop intercepts pointer events" errors when clicking buttons
     await this.ensureOverlaysClosed();
 

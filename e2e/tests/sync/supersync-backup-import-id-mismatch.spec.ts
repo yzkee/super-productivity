@@ -6,6 +6,7 @@ import {
   closeClient,
   waitForTask,
   hasTask,
+  handleEncryptionWarningDialog,
   type SimulatedE2EClient,
 } from '../../utils/supersync-helpers';
 import * as fs from 'fs';
@@ -121,6 +122,8 @@ const importBackup = async (
 
   const fileInput = page.locator('file-imex input[type="file"]');
   await fileInput.setInputFiles(backupPath);
+
+  await handleEncryptionWarningDialog(page, '[importBackup]');
 
   // Wait for import to complete (app navigates to TODAY tag) or error
   const startTime = Date.now();
