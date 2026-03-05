@@ -3,9 +3,9 @@ import { DBSchema, IDBPDatabase, openDB } from 'idb';
 import {
   Operation,
   OperationLogEntry,
-  OpType,
   VectorClock,
   isFullStateOpType,
+  FULL_STATE_OP_TYPES,
 } from '../core/operation.types';
 import { StorageQuotaExceededError } from '../core/errors/sync-errors';
 import { toEntityKey } from '../util/entity-key.util';
@@ -1334,12 +1334,7 @@ export class OperationLogStoreService {
     // Using the import's clock as the base (REPLACE) instead of the current clock (MERGE)
     // prevents clock bloat that causes server-side pruning to drop the import's entry,
     // which would make subsequent ops appear CONCURRENT with the import.
-    const fullStateOp = ops.find(
-      (op) =>
-        op.opType === OpType.SyncImport ||
-        op.opType === OpType.BackupImport ||
-        op.opType === OpType.Repair,
-    );
+    const fullStateOp = ops.find((op) => FULL_STATE_OP_TYPES.has(op.opType));
 
     const mergedClock = fullStateOp
       ? { ...fullStateOp.vectorClock }
