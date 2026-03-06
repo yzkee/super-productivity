@@ -324,14 +324,12 @@ export class SyncWrapperService {
         syncCapableProvider,
         isProviderSwitch ? { forceFromSeq0: true } : undefined,
       );
-      SyncLog.log(
-        `SyncWrapperService: Download complete. newOps=${downloadResult.newOpsCount}, migration=${downloadResult.serverMigrationHandled}`,
-      );
+      SyncLog.log(`SyncWrapperService: Download complete. kind=${downloadResult.kind}`);
 
       // If user cancelled the sync import conflict dialog, skip upload entirely.
       // This keeps the local state unchanged and doesn't push it to the server.
       // Don't update lastSyncedProvider so the next sync retries with forceFromSeq0.
-      if (downloadResult.cancelled) {
+      if (downloadResult.kind === 'cancelled') {
         SyncLog.log('SyncWrapperService: Sync cancelled by user. Skipping upload phase.');
         this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
         return 'HANDLED_ERROR';
@@ -343,14 +341,14 @@ export class SyncWrapperService {
       // 2. Upload pending local ops
       const uploadResult =
         await this._opLogSyncService.uploadPendingOps(syncCapableProvider);
-      if (uploadResult) {
+      if (uploadResult.kind === 'completed') {
         SyncLog.log(
-          `SyncWrapperService: Upload complete. uploaded=${uploadResult.uploadedCount}, piggybacked=${uploadResult.piggybackedOps.length}`,
+          `SyncWrapperService: Upload complete. uploaded=${uploadResult.uploadedCount}, piggybacked=${uploadResult.piggybackedOpsCount}`,
         );
       }
 
       // If upload was cancelled (piggybacked SYNC_IMPORT conflict dialog), skip LWW re-upload
-      if (uploadResult?.cancelled) {
+      if (uploadResult.kind === 'cancelled') {
         SyncLog.log(
           'SyncWrapperService: Upload cancelled by user (piggybacked SYNC_IMPORT). Skipping LWW re-upload.',
         );
@@ -359,10 +357,12 @@ export class SyncWrapperService {
       }
 
       // 3. If LWW created local-win ops, upload them (with retry limit to prevent infinite loops)
+      const downloadLwwOps =
+        downloadResult.kind === 'ops_processed' ? downloadResult.localWinOpsCreated : 0;
+      const uploadLwwOps =
+        uploadResult.kind === 'completed' ? uploadResult.localWinOpsCreated : 0;
       let lwwRetries = 0;
-      let pendingLwwOps =
-        (downloadResult.localWinOpsCreated ?? 0) +
-        (uploadResult?.localWinOpsCreated ?? 0);
+      let pendingLwwOps = downloadLwwOps + uploadLwwOps;
       while (pendingLwwOps > 0 && lwwRetries < MAX_LWW_REUPLOAD_RETRIES) {
         lwwRetries++;
         SyncLog.log(
@@ -371,7 +371,8 @@ export class SyncWrapperService {
         );
         const reuploadResult =
           await this._opLogSyncService.uploadPendingOps(syncCapableProvider);
-        pendingLwwOps = reuploadResult?.localWinOpsCreated ?? 0;
+        pendingLwwOps =
+          reuploadResult.kind === 'completed' ? reuploadResult.localWinOpsCreated : 0;
       }
       if (pendingLwwOps > 0) {
         SyncLog.warn(
@@ -383,22 +384,9 @@ export class SyncWrapperService {
         return SyncStatus.UpdateRemote;
       }
 
-      // 4. Check for permanent rejection failures - these are critical failures that should
-      // NOT be reported as "in sync" to the user.
-      //
-      // IMPORTANT: We check permanentRejectionCount, NOT rejectedCount.
-      // - Transient errors (INTERNAL_ERROR) will retry on next sync
-      // - Resolved conflicts (CONFLICT_CONCURRENT merged successfully) are not failures
-      // - Duplicate operations (already synced) are not failures
-      // Only permanent rejections (VALIDATION_ERROR, payload too large) should block success.
-      //
-      // Fall back to rejectedCount for backward compatibility if permanentRejectionCount is undefined.
-      const permanentFailures =
-        uploadResult?.permanentRejectionCount ?? uploadResult?.rejectedCount ?? 0;
-
-      if (permanentFailures > 0) {
-        // Check for payload errors first (special handling with alert)
-        const hasPayloadError = uploadResult?.rejectedOps?.some(
+      // 4. Check for permanent rejection failures
+      if (uploadResult.kind === 'completed' && uploadResult.permanentRejectionCount > 0) {
+        const hasPayloadError = uploadResult.rejectedOps.some(
           (r) =>
             r.error?.includes('Payload too complex') ||
             r.error?.includes('Payload too large'),
@@ -407,25 +395,22 @@ export class SyncWrapperService {
         if (hasPayloadError) {
           SyncLog.err(
             'SyncWrapperService: Upload rejected - payload too large/complex',
-            uploadResult?.rejectedOps,
+            uploadResult.rejectedOps,
           );
           this._providerManager.setSyncStatus('ERROR');
-          // Use alertDialog for maximum visibility - this is a critical error
           alertDialog(this._translateService.instant(T.F.SYNC.S.ERROR_PAYLOAD_TOO_LARGE));
           return 'HANDLED_ERROR';
         }
 
-        // Other permanent rejections - still shouldn't claim success
         SyncLog.err(
-          `SyncWrapperService: Upload had ${permanentFailures} permanent rejection(s), not marking as IN_SYNC`,
-          uploadResult?.rejectedOps,
+          `SyncWrapperService: Upload had ${uploadResult.permanentRejectionCount} permanent rejection(s), not marking as IN_SYNC`,
+          uploadResult.rejectedOps,
         );
         this._providerManager.setSyncStatus('ERROR');
         return 'HANDLED_ERROR';
       }
 
       // Mark as in-sync for all providers after successful sync
-      // This indicates the sync operation completed successfully
       this._providerManager.setSyncStatus('IN_SYNC');
       SyncLog.log('SyncWrapperService: Sync complete, status=IN_SYNC');
       return SyncStatus.InSync;
