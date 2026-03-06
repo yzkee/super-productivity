@@ -248,7 +248,7 @@ const handlePlanTasksForToday = (
     {
       id: TODAY_TAG.id,
       changes: {
-        taskIds: unique([...newTasksForToday, ...todayTag.taskIds]),
+        taskIds: unique([...todayTag.taskIds, ...newTasksForToday]),
       },
     },
   ]);

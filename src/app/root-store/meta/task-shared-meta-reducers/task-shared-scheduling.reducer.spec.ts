@@ -229,7 +229,7 @@ describe('taskSharedSchedulingMetaReducer', () => {
   });
 
   describe('planTasksForToday action', () => {
-    it('should add new tasks to the top of Today tag', () => {
+    it('should append new tasks after existing tasks in Today tag', () => {
       const testState = createStateWithExistingTasks([], [], [], ['existing-task']);
       const action = TaskSharedActions.planTasksForToday({
         taskIds: ['task1', 'task2'],
@@ -238,14 +238,14 @@ describe('taskSharedSchedulingMetaReducer', () => {
 
       metaReducer(testState, action);
       expectStateUpdate(
-        expectTagUpdate('TODAY', { taskIds: ['task1', 'task2', 'existing-task'] }),
+        expectTagUpdate('TODAY', { taskIds: ['existing-task', 'task1', 'task2'] }),
         action,
         mockReducer,
         testState,
       );
     });
 
-    it('should not add tasks that are already in Today tag', () => {
+    it('should preserve existing order when adding new tasks', () => {
       const testState = createStateWithExistingTasks(
         [],
         [],
@@ -259,7 +259,7 @@ describe('taskSharedSchedulingMetaReducer', () => {
 
       metaReducer(testState, action);
       expectStateUpdate(
-        expectTagUpdate('TODAY', { taskIds: ['task2', 'task1', 'existing-task'] }),
+        expectTagUpdate('TODAY', { taskIds: ['task1', 'existing-task', 'task2'] }),
         action,
         mockReducer,
         testState,
@@ -275,7 +275,7 @@ describe('taskSharedSchedulingMetaReducer', () => {
 
       metaReducer(testState, action);
       expectStateUpdate(
-        expectTagUpdate('TODAY', { taskIds: ['task2', 'parent-task'] }),
+        expectTagUpdate('TODAY', { taskIds: ['parent-task', 'task2'] }),
         action,
         mockReducer,
         testState,
@@ -363,7 +363,7 @@ describe('taskSharedSchedulingMetaReducer', () => {
       // subtask1 should NOT be added (parent1 is in Today)
       // subtask2 SHOULD be added (parent2 is not in Today)
       expectStateUpdate(
-        expectTagUpdate('TODAY', { taskIds: ['subtask2', 'parent1'] }),
+        expectTagUpdate('TODAY', { taskIds: ['parent1', 'subtask2'] }),
         action,
         mockReducer,
         testState,

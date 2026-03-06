@@ -1866,7 +1866,7 @@ describe('taskSharedMetaReducer', () => {
   });
 
   describe('planTasksForToday action', () => {
-    it('should add new tasks to the top of Today tag', () => {
+    it('should append new tasks after existing tasks in Today tag', () => {
       const testState = createStateWithExistingTasks([], [], [], ['existing-task']);
       const action = TaskSharedActions.planTasksForToday({
         taskIds: ['task1', 'task2'],
@@ -1874,13 +1874,13 @@ describe('taskSharedMetaReducer', () => {
       });
 
       expectStateUpdate(
-        expectTagUpdate('TODAY', { taskIds: ['task1', 'task2', 'existing-task'] }),
+        expectTagUpdate('TODAY', { taskIds: ['existing-task', 'task1', 'task2'] }),
         action,
         testState,
       );
     });
 
-    it('should not add tasks that are already in Today tag', () => {
+    it('should preserve existing order when adding new tasks', () => {
       const testState = createStateWithExistingTasks(
         [],
         [],
@@ -1893,7 +1893,7 @@ describe('taskSharedMetaReducer', () => {
       });
 
       expectStateUpdate(
-        expectTagUpdate('TODAY', { taskIds: ['task2', 'task1', 'existing-task'] }),
+        expectTagUpdate('TODAY', { taskIds: ['task1', 'existing-task', 'task2'] }),
         action,
         testState,
       );
@@ -1907,7 +1907,7 @@ describe('taskSharedMetaReducer', () => {
       });
 
       expectStateUpdate(
-        expectTagUpdate('TODAY', { taskIds: ['task2', 'parent-task'] }),
+        expectTagUpdate('TODAY', { taskIds: ['parent-task', 'task2'] }),
         action,
         testState,
       );
