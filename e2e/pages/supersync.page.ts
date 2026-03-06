@@ -12,6 +12,11 @@ export interface SuperSyncConfig {
    * dialogs (e.g., to test specific dialog behaviors like wrong password errors).
    */
   waitForInitialSync?: boolean;
+  /**
+   * When a sync-import-conflict dialog appears, which choice to make.
+   * 'remote' (default) clicks "Use Server Data", 'local' clicks "Use My Data".
+   */
+  syncImportChoice?: 'remote' | 'local';
 }
 
 /**
@@ -433,9 +438,16 @@ export class SuperSyncPage extends BasePage {
           config.password!,
         );
       } else if (outcome === 'sync_import_dialog') {
-        // Sync import conflict - use remote data
-        console.log('[SuperSyncPage] Sync import conflict dialog - using remote');
-        await this.syncImportUseRemoteBtn.click();
+        // Sync import conflict - use configured choice (default: remote)
+        const useLocal = config.syncImportChoice === 'local';
+        console.log(
+          `[SuperSyncPage] Sync import conflict dialog - using ${useLocal ? 'local' : 'remote'}`,
+        );
+        if (useLocal) {
+          await this.syncImportUseLocalBtn.click();
+        } else {
+          await this.syncImportUseRemoteBtn.click();
+        }
         await this.syncImportConflictDialog.waitFor({ state: 'hidden', timeout: 5000 });
 
         // After handling sync import, check for password dialog
