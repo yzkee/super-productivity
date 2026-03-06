@@ -203,8 +203,9 @@ test.describe('@supersync SuperSync Encryption Password Change', () => {
         .isVisible()
         .catch(() => false);
 
-      // Either error icon or error snackbar should be visible
-      expect(hasError || snackbarVisible).toBe(true);
+      // Either decrypt error dialog appeared, error icon, or error snackbar should be visible.
+      // The decrypt error dialog is the primary indicator that the old password failed.
+      expect(dialogAppeared || hasError || snackbarVisible).toBe(true);
     } finally {
       if (clientA) await closeClient(clientA);
       if (clientC) await closeClient(clientC);
