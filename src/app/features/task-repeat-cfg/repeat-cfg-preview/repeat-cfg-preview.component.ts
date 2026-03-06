@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  HostBinding,
   inject,
   input,
 } from '@angular/core';
@@ -31,18 +32,36 @@ export class RepeatCfgPreviewComponent {
 
   repeatCfg = input.required<TaskRepeatCfg>();
 
+  @HostBinding('class.isPaused') get isPaused(): boolean {
+    return this.repeatCfg().isPaused;
+  }
+
   T = T;
 
   nextDueTooltip = computed(() => {
     const cfg = this.repeatCfg();
-    const nextDate = getNextRepeatOccurrence(cfg, new Date());
-    if (!nextDate) {
+    try {
+      const nextDate = getNextRepeatOccurrence(cfg, new Date());
+      if (!nextDate) {
+        return '';
+      }
+      const locale = this._dateTimeFormatService.currentLocale();
+      const formatted = formatMonthDay(nextDate, locale);
+      const nextLabel = this._translateService.instant(T.SCHEDULE.NEXT);
+      return `${nextLabel} ${formatted}`;
+    } catch (e) {
+      console.warn('Failed to compute next repeat occurrence', e);
       return '';
     }
-    const locale = this._dateTimeFormatService.currentLocale();
-    const formatted = formatMonthDay(nextDate, locale);
-    const nextLabel = this._translateService.instant(T.SCHEDULE.NEXT);
-    return `${nextLabel} ${formatted}`;
+  });
+
+  repeatInfoText = computed(() => {
+    const [key, params] = getTaskRepeatInfoText(
+      this.repeatCfg(),
+      this._dateTimeFormatService.currentLocale(),
+      this._dateTimeFormatService,
+    );
+    return this._translateService.instant(key, params);
   });
 
   editTaskRepeatCfg(): void {
@@ -50,14 +69,5 @@ export class RepeatCfgPreviewComponent {
       restoreFocus: false,
       data: { repeatCfg: this.repeatCfg() },
     });
-  }
-
-  getRepeatInfoText(): string {
-    const [key, params] = getTaskRepeatInfoText(
-      this.repeatCfg(),
-      this._dateTimeFormatService.currentLocale(),
-      this._dateTimeFormatService,
-    );
-    return this._translateService.instant(key, params);
   }
 }

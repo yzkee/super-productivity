@@ -319,7 +319,7 @@
               [title]="
                 (T.WW.RECURRING_TASKS | translate) +
                 ' (' +
-                repeatCfgsForProject().length +
+                repeatCfgsForContext().length +
                 ')'
               "
               [isExpanded]="!isRepeatCfgsHidden()"
@@ -327,7 +327,7 @@
               [isIconBefore]="true"
             >
               <div class="repeat-cfg-list">
-                @for (repeatCfg of repeatCfgsForProject(); track repeatCfg.id) {
+                @for (repeatCfg of repeatCfgsForContext(); track repeatCfg.id) {
                   <repeat-cfg-preview [repeatCfg]="repeatCfg"></repeat-cfg-preview>
                 }
               </div>

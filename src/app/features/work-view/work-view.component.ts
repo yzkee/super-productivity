@@ -23,7 +23,6 @@ import {
   from,
   fromEvent,
   Observable,
-  of,
   ReplaySubject,
   Subscription,
   timer,
@@ -64,7 +63,10 @@ import { TODAY_TAG } from '../tag/tag.const';
 import { LS } from '../../core/persistence/storage-keys.const';
 import { FinishDayBtnComponent } from './finish-day-btn/finish-day-btn.component';
 import { ScheduledDateGroupPipe } from '../../ui/pipes/scheduled-date-group.pipe';
-import { selectTaskRepeatCfgsByProjectId } from '../task-repeat-cfg/store/task-repeat-cfg.selectors';
+import {
+  selectTaskRepeatCfgsByProjectId,
+  selectTaskRepeatCfgsByTagId,
+} from '../task-repeat-cfg/store/task-repeat-cfg.selectors';
 import { TaskRepeatCfg } from '../task-repeat-cfg/task-repeat-cfg.model';
 import { RepeatCfgPreviewComponent } from '../task-repeat-cfg/repeat-cfg-preview/repeat-cfg-preview.component';
 
@@ -147,17 +149,14 @@ export class WorkViewComponent implements OnInit, OnDestroy {
   isOverdueHidden = signal(!!localStorage.getItem(LS.OVERDUE_TASKS_HIDDEN));
   isRepeatCfgsHidden = signal(!!localStorage.getItem(LS.REPEAT_CFGS_HIDDEN));
 
-  isActiveContextProject = toSignal(this.workContextService.isActiveWorkContextProject$, {
-    initialValue: false,
-  });
-  repeatCfgsForProject = toSignal(
+  repeatCfgsForContext = toSignal(
     this.workContextService.activeWorkContextTypeAndId$.pipe(
       switchMap(({ activeType, activeId }) =>
         activeType === 'PROJECT'
           ? this._store.select(selectTaskRepeatCfgsByProjectId, {
               projectId: activeId,
             })
-          : of([] as TaskRepeatCfg[]),
+          : this._store.select(selectTaskRepeatCfgsByTagId, { tagId: activeId }),
       ),
     ),
     { initialValue: [] as TaskRepeatCfg[] },
@@ -165,9 +164,7 @@ export class WorkViewComponent implements OnInit, OnDestroy {
 
   isShowRepeatCfgsPanel = computed(
     () =>
-      this.isActiveContextProject() &&
-      !this.customizerService.isCustomized() &&
-      this.repeatCfgsForProject().length > 0,
+      !this.customizerService.isCustomized() && this.repeatCfgsForContext().length > 0,
   );
 
   isShowOverduePanel = computed(
