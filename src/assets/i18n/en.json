@@ -1300,6 +1300,7 @@
         "RESTORE_SUCCESS": "Data restored successfully",
         "RESTORE_ERROR": "Failed to restore data",
         "TIMEOUT_ERROR": "Sync operation timed out. {{suggestion}}",
+        "LOCK_TIMEOUT_ERROR": "Sync timed out waiting for a previous operation to finish. Please try again.",
         "PARTIAL_APPLY_FAILURE": "Some sync operations failed to apply. Data has been validated.",
         "REPLAY_LOCAL_OPS_FAILED": "Failed to replay local operations after import. Some recent changes may be lost. Data has been validated.",
         "ARCHIVE_OPERATION_FAILED": "Archive operation failed. Some cleanup may not have completed.",
