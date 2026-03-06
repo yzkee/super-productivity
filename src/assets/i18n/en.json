@@ -2548,6 +2548,7 @@
     "TIME_ESTIMATED": "Time estimated:",
     "TODAY_REMAINING": "Today remaining:",
     "WITHOUT_BREAK": "Without break:",
+    "RECURRING_TASKS": "Recurring Tasks",
     "WORKING_TODAY": "Working today:",
     "WORKING_TODAY_ARCHIVED": "Time worked today on archived tasks"
   }
