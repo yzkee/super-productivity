@@ -14,6 +14,7 @@ import {
 import { toObservable } from '@angular/core/rxjs-interop';
 import {
   SyncAlreadyInProgressError,
+  LockAcquisitionTimeoutError,
   LocalDataConflictError,
   WebCryptoNotAvailableError,
   MissingRefreshTokenAPIError,
@@ -498,6 +499,15 @@ export class SyncWrapperService {
       } else if (error instanceof SyncAlreadyInProgressError) {
         // Silently ignore concurrent sync attempts (using proper error class)
         SyncLog.log('Sync already in progress, skipping concurrent sync attempt');
+        return 'HANDLED_ERROR';
+      } else if (error instanceof LockAcquisitionTimeoutError) {
+        SyncLog.err(
+          `Lock acquisition timed out for "${error.lockName}" after ${error.timeoutMs}ms`,
+        );
+        this._snackService.open({
+          msg: T.F.SYNC.S.LOCK_TIMEOUT_ERROR,
+          type: 'ERROR',
+        });
         return 'HANDLED_ERROR';
       } else if (error instanceof LocalDataConflictError) {
         // File-based sync: Local data exists and remote snapshot would overwrite it
