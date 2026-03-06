@@ -29,6 +29,10 @@ export interface TaskRepeatCfgCopy {
   lastTaskCreationDay?: string;
   title: string | null;
   tagIds: string[];
+  /**
+   * @deprecated No longer configurable via UI. Kept for backwards compatibility.
+   * order<=0 → task inserted at top; order>0 → task inserted at bottom.
+   */
   order: number;
   defaultEstimate?: number;
   startTime?: string;

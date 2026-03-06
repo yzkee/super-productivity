@@ -249,15 +249,6 @@ export const TASK_REPEAT_CFG_FORM_CFG_BEFORE_TAGS: FormlyFieldConfig[] = [
       updateOn: 'blur',
     },
   },
-  {
-    key: 'order',
-    type: 'input',
-    templateOptions: {
-      label: T.F.TASK_REPEAT.F.ORDER,
-      type: 'number',
-      description: T.F.TASK_REPEAT.F.ORDER_DESCRIPTION,
-    },
-  },
 ];
 
 export const TASK_REPEAT_CFG_ADVANCED_FORM_CFG: FormlyFieldConfig[] = [
