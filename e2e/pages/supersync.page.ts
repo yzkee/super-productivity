@@ -186,7 +186,40 @@ export class SuperSyncPage extends BasePage {
       }
     });
 
-    // CRITICAL: Ensure any leftover overlays from previous operations are closed
+    // CRITICAL: Handle any leftover mandatory encryption dialog from previous operations
+    // (e.g., backup import triggers sync which opens the disableClose:true encryption dialog).
+    // ensureOverlaysClosed() uses Escape which can't dismiss disableClose dialogs.
+    // Use waitFor with a short timeout instead of isVisible() to avoid a race where the
+    // dialog is still animating in when we check.
+    const enableEncryptionDialogEarly = this.page.locator('dialog-enable-encryption');
+    const earlyEncDialogVisible = await enableEncryptionDialogEarly
+      .first()
+      .waitFor({ state: 'visible', timeout: 1000 })
+      .then(() => true)
+      .catch(() => false);
+    if (earlyEncDialogVisible) {
+      console.log(
+        '[SuperSyncPage] Found leftover encryption dialog before setup - handling it',
+      );
+      await this._fillAndConfirmEncryptionDialog(
+        enableEncryptionDialogEarly,
+        config.password || 'e2e-default-encryption-pw',
+      );
+      // Wait for dialog to close; log a warning if it doesn't close in time
+      const closed = await this.page
+        .locator('mat-dialog-container')
+        .first()
+        .waitFor({ state: 'detached', timeout: 5000 })
+        .then(() => true)
+        .catch(() => false);
+      if (!closed) {
+        console.warn(
+          '[SuperSyncPage] Encryption dialog did not close after confirmation - continuing anyway',
+        );
+      }
+    }
+
+    // Ensure any remaining overlays from previous operations are closed
     // This prevents "backdrop intercepts pointer events" errors when clicking buttons
     await this.ensureOverlaysClosed();
 
@@ -828,6 +861,7 @@ export class SuperSyncPage extends BasePage {
       //   - Client B: server has encrypted data → password dialog appears
       //   - Client A: empty server → sync succeeds → mandatory encryption dialog appears
       //   - Wrong password test: password dialog → decrypt error
+      //   - Client with local BACKUP_IMPORT: sync-import-conflict dialog appears
       const decryptErrorDialog = this.page.locator('dialog-handle-decrypt-error');
 
       // Race for whichever dialog/state appears first
@@ -842,9 +876,15 @@ export class SuperSyncPage extends BasePage {
         decryptErrorDialog
           .waitFor({ state: 'visible', timeout: 15000 })
           .then(() => 'decrypt_error' as const),
+        this.syncImportConflictDialog
+          .waitFor({ state: 'visible', timeout: 15000 })
+          .then(() => 'sync_import_conflict' as const),
         this.syncSpinner
           .waitFor({ state: 'visible', timeout: 15000 })
           .then(() => 'spinner' as const),
+        this.syncCheckIcon
+          .waitFor({ state: 'visible', timeout: 15000 })
+          .then(() => 'sync_success' as const),
         this.page.waitForTimeout(20000).then(() => 'timeout' as const),
       ]).catch(() => 'timeout' as const);
 
@@ -882,6 +922,17 @@ export class SuperSyncPage extends BasePage {
         await this._fillAndConfirmEncryptionDialog(
           enableEncryptionDialog,
           config.password || 'e2e-default-encryption-pw',
+        );
+      } else if (encOutcome === 'sync_import_conflict') {
+        // Sync import conflict dialog appeared (e.g., after backup import)
+        // Let the test handle this dialog — just log and return
+        console.log(
+          '[SuperSyncPage] Sync import conflict dialog appeared - letting test handle it',
+        );
+      } else if (encOutcome === 'sync_success') {
+        // Sync succeeded without any dialogs — encryption may already be configured
+        console.log(
+          '[SuperSyncPage] Sync succeeded without dialogs (encryption already configured)',
         );
       }
       // For spinner, decrypt_error, timeout - just return and let the test handle it
@@ -1134,9 +1185,17 @@ export class SuperSyncPage extends BasePage {
     const POLL_INTERVAL = 200;
     const deadline = Date.now() + POLL_TIMEOUT;
 
+    // SuperSync hides the disable button but shows "Change Password" when encryption is set
+    const changePasswordBtn = this.page.locator('.e2e-change-password-btn button');
+
     while (Date.now() < deadline) {
-      // Check if disable button is visible (encryption already enabled)
+      // Check if disable button is visible (encryption already enabled - file-based providers)
       if (await this.disableEncryptionBtn.isVisible().catch(() => false)) {
+        return 'already-enabled';
+      }
+
+      // Check if "Change Password" button is visible (encryption already enabled - SuperSync)
+      if (await changePasswordBtn.isVisible().catch(() => false)) {
         return 'already-enabled';
       }
 

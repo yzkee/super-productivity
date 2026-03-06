@@ -1,6 +1,7 @@
 import { type Page, type Locator } from '@playwright/test';
 import { BasePage } from './base.page';
 import * as path from 'path';
+import { handleEncryptionWarningDialog } from '../utils/supersync-helpers';
 
 /**
  * Page object for file import operations.
@@ -166,6 +167,11 @@ export class ImportPage extends BasePage {
         );
       }
     }
+
+    // Handle encryption warning dialog if it appears
+    // When importing a backup with different encryption settings, the app shows
+    // a confirmation dialog (dialog-import-encryption-warning) before proceeding.
+    await handleEncryptionWarningDialog(this.page, '[ImportPage]');
 
     // Wait for import to be processed
     // The app navigates to TODAY tag after successful import via Angular router
