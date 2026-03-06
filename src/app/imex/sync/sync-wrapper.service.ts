@@ -17,6 +17,7 @@ import {
   LocalDataConflictError,
   WebCryptoNotAvailableError,
   MissingRefreshTokenAPIError,
+  HttpNotOkAPIError,
 } from '../../op-log/core/errors/sync-errors';
 import { MAX_LWW_REUPLOAD_RETRIES } from '../../op-log/core/operation-log.const';
 import { SyncConfig } from '../../features/config/global-config.model';
@@ -679,11 +680,14 @@ export class SyncWrapperService {
       }
     } catch (error) {
       SyncLog.err(`Failed to configure auth for provider ${providerId}:`, error);
+      const isTokenExchangeError =
+        error instanceof HttpNotOkAPIError && error.response?.status === 400;
       this._snackService.open({
-        // TODO don't limit snack to dropbox
-        msg: T.F.DROPBOX.S.UNABLE_TO_GENERATE_PKCE_CHALLENGE,
+        msg: isTokenExchangeError
+          ? T.F.SYNC.S.INVALID_AUTH_CODE
+          : T.F.SYNC.S.AUTH_SETUP_FAILED,
         type: 'ERROR',
-        config: { duration: 0 }, // Stay visible until dismissed for critical setup errors
+        config: { duration: 0 },
       });
       return { wasConfigured: false };
     }
