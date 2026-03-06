@@ -290,4 +290,13 @@ export const TASK_REPEAT_CFG_ADVANCED_FORM_CFG: FormlyFieldConfig[] = [
     },
     className: 'sp-formly-child-option',
   },
+  {
+    key: 'skipOverdue',
+    type: 'checkbox',
+    defaultValue: false,
+    templateOptions: {
+      label: T.F.TASK_REPEAT.F.SKIP_OVERDUE,
+      description: T.F.TASK_REPEAT.F.SKIP_OVERDUE_DESCRIPTION,
+    },
+  },
 ];

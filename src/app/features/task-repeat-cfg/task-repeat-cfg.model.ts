@@ -65,6 +65,8 @@ export interface TaskRepeatCfgCopy {
   }[];
   // Exception list for deleted instances (ISO date strings YYYY-MM-DD)
   deletedInstanceDates?: string[];
+  // When true, missed/overdue instances are silently skipped instead of being created
+  skipOverdue?: boolean;
 }
 
 export type TaskRepeatCfg = Readonly<TaskRepeatCfgCopy>;
@@ -101,4 +103,5 @@ export const DEFAULT_TASK_REPEAT_CFG: Omit<TaskRepeatCfgCopy, 'id'> = {
   notes: undefined,
   shouldInheritSubtasks: false,
   disableAutoUpdateSubtasks: false,
+  skipOverdue: false,
 };
