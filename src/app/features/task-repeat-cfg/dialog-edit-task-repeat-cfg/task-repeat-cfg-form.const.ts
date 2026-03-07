@@ -57,6 +57,7 @@ export const TASK_REPEAT_CFG_FORM_CFG_BEFORE_TAGS: FormlyFieldConfig[] = [
   // REPEAT CUSTOM CFG - Wrapped in container
   {
     fieldGroupClassName: 'repeat-config-container',
+    resetOnHide: false,
     hideExpression: (model: any) => model.quickSetting !== 'CUSTOM',
     fieldGroup: [
       {
@@ -96,6 +97,7 @@ export const TASK_REPEAT_CFG_FORM_CFG_BEFORE_TAGS: FormlyFieldConfig[] = [
         key: 'repeatFromCompletionDate',
         type: 'select',
         defaultValue: false,
+        resetOnHide: false,
         hideExpression: (model: any) => {
           // Hide for "every 1 day" (same as daily - no difference between fixed/flexible)
           if (model.repeatCycle === 'DAILY' && model.repeatEvery === 1) {
@@ -148,6 +150,7 @@ export const TASK_REPEAT_CFG_FORM_CFG_BEFORE_TAGS: FormlyFieldConfig[] = [
       },
       {
         fieldGroupClassName: 'weekdays',
+        resetOnHide: false,
         hideExpression: (model: any) => model.repeatCycle !== 'WEEKLY',
         fieldGroup: [
           {
