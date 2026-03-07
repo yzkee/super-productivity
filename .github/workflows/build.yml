@@ -289,19 +289,7 @@ jobs:
           github_token: ${{ secrets.github_token }}
           release: false # Don't publish unsigned; we sign first, then publish
 
-      # Publish unsigned Windows binaries first so the release is never missing Windows assets
-      - name: Publish unsigned Windows binaries to GitHub Release
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          files: |
-            .tmp/app-builds/*.exe
-            .tmp/app-builds/*.blockmap
-            .tmp/app-builds/latest*.yml
-          draft: true
-          prerelease: ${{ contains(github.ref, 'RC') || contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
-
-      # --- Code signing (best-effort: signing failure won't block the release) ---
+      # --- Code signing (SignPath failure is tolerated; post-signing verification failures will block the release) ---
 
       - name: Upload unsigned executables for SignPath
         id: upload-unsigned
@@ -430,7 +418,7 @@ jobs:
             }
           "
 
-      # Overwrite unsigned release assets with signed versions
+      # Only publish signed Windows binaries
       - name: Publish signed Windows binaries to GitHub Release
         if: steps.signpath.outcome == 'success'
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
