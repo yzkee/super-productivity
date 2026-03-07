@@ -681,21 +681,63 @@ export class SuperSyncPage extends BasePage {
         }
       }
 
-      // Wait for sync to complete
+      // Wait for sync to complete, handling any dialogs that appear during re-sync
       const checkAlreadyVisible = await this.syncCheckIcon.isVisible().catch(() => false);
 
       if (!checkAlreadyVisible) {
-        // Wait for sync to start or complete
-        const spinnerAppeared = await this.syncSpinner
-          .waitFor({ state: 'visible', timeout: 2000 })
-          .then(() => true)
-          .catch(() => false);
+        const syncWaitStart = Date.now();
+        const syncWaitTimeout = 30000;
 
-        if (spinnerAppeared) {
-          await this.syncSpinner.waitFor({ state: 'hidden', timeout: 30000 });
+        while (Date.now() - syncWaitStart < syncWaitTimeout) {
+          // Handle any blocking dialog (sync_import_conflict, decrypt error, etc.)
+          const syncImportVisible = await this.syncImportConflictDialog
+            .isVisible()
+            .catch(() => false);
+          if (syncImportVisible) {
+            const useLocal = config.syncImportChoice === 'local';
+            console.log(
+              `[SuperSyncPage] Post-encryption sync_import_conflict — using ${useLocal ? 'local' : 'remote'}`,
+            );
+            if (useLocal) {
+              await this.syncImportUseLocalBtn.click();
+            } else {
+              await this.syncImportUseRemoteBtn.click();
+            }
+            await this.syncImportConflictDialog.waitFor({
+              state: 'hidden',
+              timeout: 5000,
+            });
+            await this.page.waitForTimeout(1000);
+            continue;
+          }
+
+          // Check for check icon
+          const checkVisible = await this.syncCheckIcon.isVisible().catch(() => false);
+          if (checkVisible) {
+            break;
+          }
+
+          // Wait for spinner or check icon
+          const remaining = Math.max(
+            syncWaitTimeout - (Date.now() - syncWaitStart),
+            1000,
+          );
+          const spinnerOrCheck = await Promise.race([
+            this.syncSpinner
+              .waitFor({ state: 'hidden', timeout: Math.min(3000, remaining) })
+              .then(() => 'spinner_hidden' as const),
+            this.syncCheckIcon
+              .waitFor({ state: 'visible', timeout: Math.min(3000, remaining) })
+              .then(() => 'check_visible' as const),
+          ]).catch(() => 'timeout' as const);
+
+          if (spinnerOrCheck === 'check_visible') {
+            break;
+          }
+          // Continue loop to re-check for dialogs
         }
 
-        // Wait for check icon to appear
+        // Final check for check icon
         await this.syncCheckIcon.waitFor({ state: 'visible', timeout: 10000 });
       }
     } else if (waitForInitialSync) {
@@ -1521,6 +1563,22 @@ export class SuperSyncPage extends BasePage {
       return true;
     }
 
+    // 6. Decryption failed dialog (appears when server has old encrypted ops)
+    const decryptErrorDialog = this.page.locator('dialog-handle-decrypt-error');
+    if (await decryptErrorDialog.isVisible().catch(() => false)) {
+      console.log(
+        '[syncAndWait] Decryption Failed dialog detected, entering password to retry',
+      );
+      const passwordInput = decryptErrorDialog.locator('input[type="password"]');
+      await passwordInput.fill(this._encryptionPassword);
+      const retryBtn = decryptErrorDialog.locator(
+        'button[mat-flat-button][color="primary"]',
+      );
+      await retryBtn.click();
+      await decryptErrorDialog.waitFor({ state: 'hidden', timeout: 30000 });
+      return true;
+    }
+
     return false;
   }
 
@@ -1573,6 +1631,9 @@ export class SuperSyncPage extends BasePage {
     this.page.on('dialog', dialogHandler);
 
     try {
+      // Handle any pre-existing dialog (e.g., from auto-sync) before clicking sync
+      await this._handleSyncDialogs(useLocal);
+
       // Click sync button
       await this.syncBtn.click();
 
