@@ -1439,6 +1439,8 @@
         "TOOLTIP_CLEAR_DATE": "Clear date",
         "TOOLTIP_CLEAR_ESTIMATE": "Clear estimate",
         "TOOLTIP_CLEAR_TAGS": "Clear tags",
+        "REPEAT_BUTTON": "Repeat",
+        "TOOLTIP_CLEAR_REPEAT": "Clear repeat setting",
         "TOOLTIP_DISABLE_SEARCH": "Disable issue search (Ctrl+2)",
         "TOOLTIP_ENABLE_SEARCH": "Enable issue search (Ctrl+2)"
       },
@@ -1612,6 +1614,7 @@
         "MSG": "Remove the recurring task instance on {{date}}? This will prevent the task from being created on this date only.",
         "OK": "Remove Instance"
       },
+      "SNACK_REPEAT_DIALOG_FAIL": "Could not open repeat config dialog. You can configure it from the task menu.",
       "D_EDIT": {
         "ADD": "Add Recurring Task Config",
         "ADVANCED_CFG": "Advanced configuration",

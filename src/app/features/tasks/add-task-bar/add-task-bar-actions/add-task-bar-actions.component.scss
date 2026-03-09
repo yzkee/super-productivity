@@ -130,6 +130,10 @@
     mat-icon {
       flex-shrink: 0; // Prevent icon from shrinking
       margin-right: 4px;
+
+      &.repeat-icon {
+        transform: rotate(45deg);
+      }
     }
 
     &.has-value {

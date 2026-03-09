@@ -93,6 +93,10 @@ describe('DialogEditTaskRepeatCfgComponent', () => {
     });
     mockDateTimeFormatService = jasmine.createSpyObj('DateTimeFormatService', [], {
       currentLocale: () => 'en-US',
+      dateFormat: () => ({
+        parse: 'MM/dd/yyyy',
+        display: { dateInput: 'MM/dd/yyyy' },
+      }),
     });
 
     await TestBed.configureTestingModule({

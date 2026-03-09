@@ -25,7 +25,7 @@ import { AsyncPipe } from '@angular/common';
 import { LS } from '../../../core/persistence/storage-keys.const';
 import { blendInOutAnimation } from 'src/app/ui/animations/blend-in-out.ani';
 import { fadeAnimation } from '../../../ui/animations/fade.ani';
-import { TaskCopy } from '../task.model';
+import { TaskCopy, TaskReminderOptionId } from '../task.model';
 import { TaskService } from '../task.service';
 import { WorkContextService } from '../../work-context/work-context.service';
 import { WorkContextType } from '../../work-context/work-context.model';
@@ -64,8 +64,13 @@ import { AddTaskBarParserService } from './add-task-bar-parser.service';
 import { AddTaskBarActionsComponent } from './add-task-bar-actions/add-task-bar-actions.component';
 import { Mentions } from '../../../ui/mentions/mention-config';
 import { getDbDateStr } from '../../../util/get-db-date-str';
+import { dateStrToUtcDate } from '../../../util/date-str-to-utc-date';
 import { unique } from '../../../util/unique';
 import { CHRONO_SUGGESTIONS } from './add-task-bar.const';
+import { TaskRepeatCfgService } from '../../task-repeat-cfg/task-repeat-cfg.service';
+import { DEFAULT_TASK_REPEAT_CFG } from '../../task-repeat-cfg/task-repeat-cfg.model';
+import { getQuickSettingUpdates } from '../../task-repeat-cfg/dialog-edit-task-repeat-cfg/get-quick-setting-updates';
+import { DialogEditTaskRepeatCfgComponent } from '../../task-repeat-cfg/dialog-edit-task-repeat-cfg/dialog-edit-task-repeat-cfg.component';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ShortSyntaxTag, shortSyntaxToTags } from './short-syntax-to-tags';
 import { DEFAULT_PROJECT_COLOR } from '../../work-context/work-context.const';
@@ -115,6 +120,7 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
   private readonly _destroyRef = inject(DestroyRef);
   private readonly _translateService = inject(TranslateService);
   private readonly _store = inject(Store);
+  private readonly _taskRepeatCfgService = inject(TaskRepeatCfgService);
   readonly stateService = inject(AddTaskBarStateService);
 
   T = T;
@@ -472,6 +478,10 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
         } else {
           taskData.dueDay = state.date;
         }
+      } else if (state.repeatQuickSetting && state.repeatQuickSetting !== 'CUSTOM') {
+        // When a repeat preset is selected without an explicit date, set dueDay to today
+        // so the first task instance appears as today's occurrence instead of staying in inbox
+        taskData.dueDay = getDbDateStr();
       } else {
         // Explicitly set dueDay to undefined when no date is selected
         // This prevents automatic assignment of today's date in TODAY context
@@ -487,7 +497,20 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
         this.isAddToBottom(),
       );
 
-      if (taskData.dueWithTime) {
+      // Resolve remind option once for both scheduleTask and repeat config paths
+      const resolvedRemindOption =
+        state.remindOption ??
+        this._globalConfigService.cfg()?.reminder.defaultTaskRemindOption ??
+        DEFAULT_GLOBAL_CONFIG.reminder.defaultTaskRemindOption!;
+
+      // Skip scheduleTask for timed repeat tasks — the addRepeatCfgToTaskUpdateTask$
+      // effect already handles scheduling via scheduleTaskWithTime, so calling both
+      // would cause double-scheduling.
+      const isTimedRepeatTask =
+        !!state.repeatQuickSetting &&
+        state.repeatQuickSetting !== 'CUSTOM' &&
+        !!state.time;
+      if (taskData.dueWithTime && !isTimedRepeatTask) {
         this._taskService
           .getByIdOnce$(taskId)
           .pipe(timeout(1000))
@@ -495,12 +518,33 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
             this._taskService.scheduleTask(
               task,
               taskData.dueWithTime!,
-              state.remindOption ??
-                this._globalConfigService.cfg()?.reminder.defaultTaskRemindOption ??
-                DEFAULT_GLOBAL_CONFIG.reminder.defaultTaskRemindOption!,
+              resolvedRemindOption,
               this.isAddToBacklog(),
             );
           });
+      }
+
+      // Create repeat config if a repeat setting was selected
+      if (state.repeatQuickSetting) {
+        if (state.repeatQuickSetting === 'CUSTOM') {
+          this._openRepeatDialogForTask(taskId, resolvedRemindOption);
+        } else {
+          const startDate = state.date || getDbDateStr();
+          const referenceDate = dateStrToUtcDate(startDate);
+          const quickSettingUpdates =
+            getQuickSettingUpdates(state.repeatQuickSetting, referenceDate) || {};
+          this._taskRepeatCfgService.addTaskRepeatCfgToTask(taskId, state.projectId, {
+            ...DEFAULT_TASK_REPEAT_CFG,
+            ...quickSettingUpdates,
+            title,
+            quickSetting: state.repeatQuickSetting,
+            tagIds: taskData.tagIds ?? [],
+            defaultEstimate: state.estimate || 0,
+            startDate,
+            startTime: state.time || undefined,
+            remindAt: state.time ? resolvedRemindOption : undefined,
+          });
+        }
       }
 
       this.afterTaskAdd.emit({ taskId, isAddToBottom: this.isAddToBottom() });
@@ -678,13 +722,14 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
       ['4']: () => this._callActionMethod('openScheduleDialog'),
       ['5']: () => this._callActionMethod('openTagsMenu'),
       ['6']: () => this._callActionMethod('openEstimateMenu'),
+      ['7']: () => this._callActionMethod('openRepeatMenu'),
     };
 
     const action = shortcutMap[event.key];
     if (action) {
       event.preventDefault();
-      // Add stopPropagation for action menu shortcuts (3-6)
-      if (['3', '4', '5', '6'].includes(event.key)) {
+      // Add stopPropagation for action menu shortcuts (3-7)
+      if (['3', '4', '5', '6', '7'].includes(event.key)) {
         event.stopPropagation();
       }
       action();
@@ -736,6 +781,29 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
       newTagIds.push(tagId);
     }
     return newTagIds;
+  }
+
+  private _openRepeatDialogForTask(
+    taskId: string,
+    remindOption: TaskReminderOptionId,
+  ): void {
+    this._taskService
+      .getByIdOnce$(taskId)
+      .pipe(timeout(1000), takeUntilDestroyed(this._destroyRef))
+      .subscribe({
+        next: (task) => {
+          this._matDialog.open(DialogEditTaskRepeatCfgComponent, {
+            data: { task, defaultRemindOption: remindOption },
+          });
+        },
+        error: (err) => {
+          Log.error('Failed to open repeat dialog', err);
+          this._snackService.open({
+            type: 'ERROR',
+            msg: T.F.TASK_REPEAT.SNACK_REPEAT_DIALOG_FAIL,
+          });
+        },
+      });
   }
 
   private _resetAfterAdd(): void {
