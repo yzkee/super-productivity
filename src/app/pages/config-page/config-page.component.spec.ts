@@ -103,9 +103,9 @@ describe('ConfigPageComponent', () => {
       };
 
       // Find the WebDAV Test Connection button onClick handler
-      const webDavItem = component.globalSyncConfigFormCfg.items!.find(
-        (item: any) => item.key === 'webDav',
-      );
+      const webDavItem = component
+        .globalSyncConfigFormCfg()!
+        .items!.find((item: any) => item.key === 'webDav');
       const testConnectionBtn = webDavItem!.fieldGroup!.find(
         (item: any) => item.type === 'btn',
       );
