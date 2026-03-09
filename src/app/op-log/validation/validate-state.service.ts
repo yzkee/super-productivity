@@ -2,8 +2,10 @@ import { inject, Injectable } from '@angular/core';
 import { IValidation } from 'typia';
 import { Action, Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { validateFull } from './validation-fn';
 import { dataRepair } from './data-repair';
+
+const _loadValidateFull = (): Promise<typeof import('./validation-fn').validateFull> =>
+  import('./validation-fn').then((m) => m.validateFull);
 import { isDataRepairPossible } from './is-data-repair-possible.util';
 import { RepairSummary } from '../core/operation.types';
 import { OpLog } from '../../core/log';
@@ -88,7 +90,7 @@ export class ValidateStateService {
 
     const currentState = this.stateSnapshotService.getStateSnapshot();
 
-    const result = this.validateAndRepair(
+    const result = await this.validateAndRepair(
       currentState as unknown as Record<string, unknown>,
     );
 
@@ -170,10 +172,11 @@ export class ValidateStateService {
    *                potentially corrupted data. If the data doesn't match the
    *                AppDataComplete structure, Typia validation will catch it.
    */
-  validateState(state: Record<string, unknown>): StateValidationResult {
+  async validateState(state: Record<string, unknown>): Promise<StateValidationResult> {
     // Cast required because validateFull expects AppDataComplete, but we intentionally
     // accept a looser type to validate potentially corrupted data. If the structure
     // doesn't match, Typia validation will return errors.
+    const validateFull = await _loadValidateFull();
     const fullResult = validateFull(state as AppDataComplete);
 
     if (fullResult.isValid) {
@@ -234,9 +237,11 @@ export class ValidateStateService {
    * The `dataRepair()` function returns a `RepairSummary` with accurate
    * counts of what was fixed during the repair process.
    */
-  validateAndRepair(state: Record<string, unknown>): ValidateAndRepairResult {
+  async validateAndRepair(
+    state: Record<string, unknown>,
+  ): Promise<ValidateAndRepairResult> {
     // First, validate the state
-    const validationResult = this.validateState(state);
+    const validationResult = await this.validateState(state);
 
     if (validationResult.isValid) {
       return {
@@ -283,7 +288,7 @@ export class ValidateStateService {
       const repairSummary = repairResult.repairSummary;
 
       // Validate the repaired state to confirm it's now valid
-      const revalidationResult = this.validateState(repairedState);
+      const revalidationResult = await this.validateState(repairedState);
       if (!revalidationResult.isValid) {
         OpLog.err('[ValidateStateService] State still invalid after repair');
         // Notify user that repair failed - they confirmed but it didn't work

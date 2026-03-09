@@ -1,5 +1,4 @@
-import { AllModelData, ModelCfg, ModelCfgs } from '../core/types/sync.types';
-import { DataRepairNotPossibleError } from '../core/errors/sync-errors';
+import { AllModelData, ModelCfg } from '../core/types/sync.types';
 import { Dropbox } from '../sync-providers/file-based/dropbox/dropbox';
 import { ProjectState } from '../../features/project/project.model';
 import { MenuTreeState } from '../../features/menu-tree/store/menu-tree.model';
@@ -32,8 +31,6 @@ import { initialTaskRepeatCfgState } from '../../features/task-repeat-cfg/store/
 import { DROPBOX_APP_KEY } from '../../imex/sync/dropbox/dropbox.const';
 import { Webdav } from '../sync-providers/file-based/webdav/webdav';
 import { SuperSyncProvider } from '../sync-providers/super-sync/super-sync';
-import { isDataRepairPossible } from '../validation/is-data-repair-possible.util';
-import { dataRepair } from '../validation/data-repair';
 import { LocalFileSyncElectron } from '../sync-providers/file-based/local-file/local-file-sync-electron';
 import { IS_ELECTRON } from '../../app.constants';
 import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
@@ -44,11 +41,7 @@ import {
   TimeTrackingState,
 } from '../../features/time-tracking/time-tracking.model';
 import { initialTimeTrackingState } from '../../features/time-tracking/store/time-tracking.reducer';
-import { appDataValidators, validateFull } from '../validation/validation-fn';
 import { fixEntityStateConsistency } from '../../util/check-fix-entity-state-consistency';
-import { IValidation } from 'typia';
-import { OpLog } from '../../core/log';
-import { alertDialog } from '../../util/native-dialogs';
 import {
   initialPluginMetaDataState,
   initialPluginUserDataState,
@@ -86,83 +79,67 @@ export const MODEL_CONFIGS: AllModelConfig = {
   task: {
     defaultData: initialTaskState,
     isMainFileModel: true,
-    validate: appDataValidators.task,
     repair: fixEntityStateConsistency,
   },
   timeTracking: {
     defaultData: initialTimeTrackingState,
     isMainFileModel: true,
-    validate: appDataValidators.timeTracking,
   },
   project: {
     defaultData: initialProjectState,
     isMainFileModel: true,
-    validate: appDataValidators.project,
     repair: fixEntityStateConsistency,
   },
   tag: {
     defaultData: initialTagState,
     isMainFileModel: true,
-    validate: appDataValidators.tag,
     repair: fixEntityStateConsistency,
   },
   simpleCounter: {
     defaultData: initialSimpleCounterState,
     isMainFileModel: true,
-    validate: appDataValidators.simpleCounter,
     repair: fixEntityStateConsistency,
   },
   note: {
     defaultData: initialNoteState,
     isMainFileModel: true,
-    validate: appDataValidators.note,
     repair: fixEntityStateConsistency,
   },
   taskRepeatCfg: {
     defaultData: initialTaskRepeatCfgState,
     isMainFileModel: true,
-    validate: appDataValidators.taskRepeatCfg,
     repair: fixEntityStateConsistency,
   },
   reminders: {
     defaultData: [],
     isMainFileModel: true,
-    validate: appDataValidators.reminders,
   },
   planner: {
     defaultData: plannerInitialState,
     isMainFileModel: true,
-    validate: appDataValidators.planner,
   },
   boards: {
     defaultData: initialBoardsState,
     isMainFileModel: true,
-    validate: appDataValidators.boards,
   },
   menuTree: {
     defaultData: menuTreeInitialState,
-    validate: appDataValidators.menuTree,
   },
   pluginUserData: {
     defaultData: initialPluginUserDataState,
-    validate: appDataValidators.pluginUserData,
   },
   pluginMetadata: {
     defaultData: initialPluginMetaDataState,
-    validate: appDataValidators.pluginMetadata,
   },
   globalConfig: {
     defaultData: DEFAULT_GLOBAL_CONFIG,
-    validate: appDataValidators.globalConfig,
   },
   issueProvider: {
     defaultData: issueProviderInitialState,
-    validate: appDataValidators.issueProvider,
     repair: fixEntityStateConsistency,
   },
   metric: {
     defaultData: initialMetricState,
-    validate: appDataValidators.metric,
     repair: fixEntityStateConsistency,
   },
   archiveYoung: {
@@ -171,7 +148,6 @@ export const MODEL_CONFIGS: AllModelConfig = {
       timeTracking: initialTimeTrackingState,
       lastTimeTrackingFlush: 0,
     },
-    validate: appDataValidators.archiveYoung,
     repair: (d) => ({
       ...d,
       task: fixEntityStateConsistency(d.task),
@@ -184,7 +160,6 @@ export const MODEL_CONFIGS: AllModelConfig = {
       timeTracking: initialTimeTrackingState,
       lastTimeTrackingFlush: 0,
     },
-    validate: appDataValidators.archiveOld,
     repair: (d) => ({
       ...d,
       task: fixEntityStateConsistency(d.task),
@@ -222,54 +197,3 @@ export const SYNC_PROVIDERS = [
   ...(IS_ELECTRON ? [fileSyncElectron] : []),
   ...(IS_ANDROID_WEB_VIEW ? [fileSyncDroid] : []),
 ];
-
-export interface BaseSyncConfig<T extends ModelCfgs> {
-  crossModelVersion?: number;
-  crossModelMigrations?: Record<number, (data: unknown) => unknown>;
-  validate?: (data: AllModelData<T>) => IValidation<AllModelData<T>>;
-  repair?: (data: unknown, errors: IValidation.IError[]) => AllModelData<T>;
-  onDbError?: (err: unknown) => void;
-}
-
-export const SYNC_CONFIG: BaseSyncConfig<AllModelConfig> = {
-  crossModelVersion: CROSS_MODEL_VERSION,
-  validate: (data) => {
-    const result = validateFull(data);
-
-    if (!environment.production && !result.isValid) {
-      OpLog.log(result);
-      alertDialog('VALIDATION ERROR');
-    }
-
-    if (result.isValid) {
-      return result.typiaResult;
-    }
-
-    if (result.crossModelError) {
-      return {
-        success: false,
-        data,
-        errors: [
-          {
-            expected: result.crossModelError,
-            path: '.',
-            value: data,
-          },
-        ],
-      };
-    }
-
-    return result.typiaResult;
-  },
-  onDbError: (err) => {
-    OpLog.err(err);
-    alertDialog('DB ERROR: ' + err);
-  },
-  repair: (data: unknown, errors: IValidation.IError[]) => {
-    if (!isDataRepairPossible(data as AppDataComplete)) {
-      throw new DataRepairNotPossibleError(data);
-    }
-    return dataRepair(data as AppDataComplete, errors).data as AppDataComplete;
-  },
-  crossModelMigrations: {},
-};
