@@ -189,14 +189,14 @@ export class DialogEditTaskRepeatCfgComponent {
 
   private _initializeFormConfig(): void {
     const _locale = this._dateTimeFormatService.currentLocale();
-    const today = new Date();
-    const weekdayStr = today.toLocaleDateString(_locale, {
+    const referenceDate = this._getReferenceDate();
+    const weekdayStr = referenceDate.toLocaleDateString(_locale, {
       weekday: 'long',
     });
-    const dateDayStr = today.toLocaleDateString(_locale, {
+    const dateDayStr = referenceDate.toLocaleDateString(_locale, {
       day: 'numeric',
     });
-    const dayAndMonthStr = today.toLocaleDateString(_locale, {
+    const dayAndMonthStr = referenceDate.toLocaleDateString(_locale, {
       day: 'numeric',
       month: 'numeric',
     });
@@ -375,43 +375,29 @@ export class DialogEditTaskRepeatCfgComponent {
     this.repeatCfgInitial.set({ ...repeatCfg });
   }
 
+  private _getReferenceDate(): Date {
+    if (this._data.task?.dueDay) {
+      return dateStrToUtcDate(this._data.task.dueDay);
+    }
+    if (this._data.repeatCfg?.startDate) {
+      return dateStrToUtcDate(this._data.repeatCfg.startDate);
+    }
+    return new Date();
+  }
+
   private _processQuickSettingForDate<
     T extends { quickSetting?: string; startDate?: string },
   >(cfg: T): T {
-    let processedCfg = { ...cfg };
-
-    if (processedCfg.quickSetting === 'WEEKLY_CURRENT_WEEKDAY') {
-      if (!processedCfg.startDate) {
-        // Gracefully fall back to CUSTOM when data is incomplete
-        return { ...processedCfg, quickSetting: 'CUSTOM' } as T;
-      }
-      if (new Date(processedCfg.startDate).getDay() !== new Date().getDay()) {
-        processedCfg = { ...processedCfg, quickSetting: 'CUSTOM' };
+    if (
+      cfg.quickSetting === 'WEEKLY_CURRENT_WEEKDAY' ||
+      cfg.quickSetting === 'YEARLY_CURRENT_DATE' ||
+      cfg.quickSetting === 'MONTHLY_CURRENT_DATE'
+    ) {
+      if (!cfg.startDate) {
+        return { ...cfg, quickSetting: 'CUSTOM' };
       }
     }
-    if (processedCfg.quickSetting === 'YEARLY_CURRENT_DATE') {
-      if (!processedCfg.startDate) {
-        // Gracefully fall back to CUSTOM when data is incomplete
-        return { ...processedCfg, quickSetting: 'CUSTOM' } as T;
-      }
-      if (
-        new Date(processedCfg.startDate).getDate() !== new Date().getDate() ||
-        new Date(processedCfg.startDate).getMonth() !== new Date().getMonth()
-      ) {
-        processedCfg = { ...processedCfg, quickSetting: 'CUSTOM' };
-      }
-    }
-    if (processedCfg.quickSetting === 'MONTHLY_CURRENT_DATE') {
-      if (!processedCfg.startDate) {
-        // Gracefully fall back to CUSTOM when data is incomplete
-        return { ...processedCfg, quickSetting: 'CUSTOM' } as T;
-      }
-      if (new Date(processedCfg.startDate).getDate() !== new Date().getDate()) {
-        processedCfg = { ...processedCfg, quickSetting: 'CUSTOM' };
-      }
-    }
-
-    return processedCfg;
+    return cfg;
   }
 
   private _checkCanRemoveInstance(): void {
