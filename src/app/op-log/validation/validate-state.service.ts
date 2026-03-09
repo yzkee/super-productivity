@@ -3,9 +3,6 @@ import { IValidation } from 'typia';
 import { Action, Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { dataRepair } from './data-repair';
-
-const _loadValidateFull = (): Promise<typeof import('./validation-fn').validateFull> =>
-  import('./validation-fn').then((m) => m.validateFull);
 import { isDataRepairPossible } from './is-data-repair-possible.util';
 import { RepairSummary } from '../core/operation.types';
 import { OpLog } from '../../core/log';
@@ -17,6 +14,16 @@ import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
 import { HydrationStateService } from '../apply/hydration-state.service';
 import { T } from '../../t.const';
 import { alertDialog, confirmDialog } from '../../util/native-dialogs';
+
+let _validateFullPromise:
+  | Promise<typeof import('./validation-fn').validateFull>
+  | undefined;
+const _loadValidateFull = (): Promise<typeof import('./validation-fn').validateFull> => {
+  if (!_validateFullPromise) {
+    _validateFullPromise = import('./validation-fn').then((m) => m.validateFull);
+  }
+  return _validateFullPromise;
+};
 
 /**
  * Result of validating application state.

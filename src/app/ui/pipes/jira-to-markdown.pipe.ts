@@ -1,11 +1,15 @@
 import { Pipe, PipeTransform } from '@angular/core';
 
-let _j2mPromise: Promise<any> | undefined;
+interface J2mModule {
+  to_markdown(input: string): string;
+}
 
-const _loadJ2m = (): Promise<any> => {
+let _j2mPromise: Promise<J2mModule> | undefined;
+
+const _loadJ2m = (): Promise<J2mModule> => {
   if (!_j2mPromise) {
     // @ts-ignore
-    _j2mPromise = import('jira2md').then((m: { default: unknown }) => m.default);
+    _j2mPromise = import('jira2md').then((m: { default: J2mModule }) => m.default);
   }
   return _j2mPromise;
 };
@@ -16,6 +20,6 @@ export class JiraToMarkdownPipe implements PipeTransform {
     if (!value) {
       return Promise.resolve(value);
     }
-    return _loadJ2m().then((j2m: any) => j2m.to_markdown(value));
+    return _loadJ2m().then((j2m) => j2m.to_markdown(value));
   }
 }

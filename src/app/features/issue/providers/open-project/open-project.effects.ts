@@ -2,13 +2,21 @@ import { Injectable, inject } from '@angular/core';
 import { createEffect, ofType } from '@ngrx/effects';
 import { setCurrentTask } from '../../../tasks/store/task.actions';
 import { TaskSharedActions } from '../../../../root-store/meta/task-shared.actions';
-import { concatMap, filter, map, take, tap, withLatestFrom } from 'rxjs/operators';
+import {
+  concatMap,
+  filter,
+  map,
+  switchMap,
+  take,
+  tap,
+  withLatestFrom,
+} from 'rxjs/operators';
 import { select, Store } from '@ngrx/store';
 import { OPEN_PROJECT_TYPE } from '../../issue.const';
 import { MatDialog } from '@angular/material/dialog';
 import { Task, TaskCopy } from '../../../tasks/task.model';
 import { OpenProjectCfg, OpenProjectTransitionOption } from './open-project.model';
-import { EMPTY, Observable, of, timer } from 'rxjs';
+import { EMPTY, from, Observable, of, timer } from 'rxjs';
 import { OpenProjectApiService } from './open-project-api.service';
 import { TaskService } from '../../../tasks/task.service';
 import { selectCurrentTaskParentOrCurrent } from 'src/app/features/tasks/store/task.selectors';
@@ -256,22 +264,22 @@ export class OpenProjectEffects {
     }
   }
 
-  private async _openTransitionDialog(
+  private _openTransitionDialog(
     issue: OpenProjectWorkPackage,
     localState: IssueLocalState,
     task: Task,
-  ): Promise<Observable<unknown>> {
-    const { DialogOpenProjectTransitionComponent } =
-      await import('./open-project-view-components/dialog-openproject-transition/dialog-open-project-transition.component');
-    return this._matDialog
-      .open(DialogOpenProjectTransitionComponent, {
-        restoreFocus: true,
-        data: {
-          issue,
-          localState,
-          task,
-        },
-      })
-      .afterClosed();
+  ): Observable<unknown> {
+    return from(
+      import('./open-project-view-components/dialog-openproject-transition/dialog-open-project-transition.component'),
+    ).pipe(
+      switchMap(({ DialogOpenProjectTransitionComponent }) =>
+        this._matDialog
+          .open(DialogOpenProjectTransitionComponent, {
+            restoreFocus: true,
+            data: { issue, localState, task },
+          })
+          .afterClosed(),
+      ),
+    );
   }
 }
