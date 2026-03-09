@@ -28,7 +28,9 @@
 }
 <!-- -->
 @if (isShowFocusOverlay()) {
-  <focus-mode-overlay @warp></focus-mode-overlay>
+  @defer {
+    <focus-mode-overlay @warp></focus-mode-overlay>
+  }
 } @else {
   <div
     class="app-container"

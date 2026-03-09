@@ -12,7 +12,7 @@ import { registerTranslateExtension } from './formly-translate-extension/formly-
 import { FormlyTranslatedTemplateComponent } from './formly-translated-template/formly-translated-template.component';
 import { FormlyMatToggleModule } from '@ngx-formly/material/toggle';
 import { FormlyLinkWidgetComponent } from './formly-link-widget/formly-link-widget.component';
-import { FormlyMatDatepickerModule } from '@ngx-formly/material/datepicker';
+
 import { FormlyCollapsibleComponent } from './formly-collapsible/formly-collapsible.component';
 import { KeyboardInputComponent } from '../features/config/keyboard-input/keyboard-input.component';
 import { IconInputComponent } from '../features/config/icon-input/icon-input.component';
@@ -120,7 +120,6 @@ import { FormlyDatePickerComponent } from './formly-date-picker/formly-date-pick
     // might be needed for formly to pick up on directives
     ValidationModule,
     FormlyLinkWidgetComponent,
-    FormlyMatDatepickerModule,
   ],
   exports: [
     FormlyMaterialModule,
