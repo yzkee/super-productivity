@@ -124,7 +124,7 @@ export class AppComponent implements OnDestroy, AfterViewInit {
   private _startupService = inject(StartupService);
   private _keyboardLayoutService = inject(KeyboardLayoutService);
 
-  readonly syncTriggerService = inject(SyncTriggerService);
+  private _syncTriggerService = inject(SyncTriggerService);
   readonly workContextService = inject(WorkContextService);
   readonly layoutService = inject(LayoutService);
   readonly globalThemeService = inject(GlobalThemeService);
@@ -191,7 +191,7 @@ export class AppComponent implements OnDestroy, AfterViewInit {
     // init theme and body class handlers
     this._globalThemeService.init();
 
-    this.syncTriggerService.afterInitialSyncDoneAndDataLoadedInitially$
+    this._syncTriggerService.afterInitialSyncDoneAndDataLoadedInitially$
       .pipe(take(1))
       .subscribe(() => {
         void this._noteStartupBannerService.showLastNoteIfNeeded();
