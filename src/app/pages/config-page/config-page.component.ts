@@ -6,6 +6,7 @@ import {
   inject,
   OnDestroy,
   OnInit,
+  signal,
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { GlobalConfigService } from '../../features/config/global-config.service';
@@ -19,6 +20,7 @@ import {
 } from '../../features/config/global-config-form-config.const';
 import {
   ConfigFormConfig,
+  ConfigFormSection,
   GlobalConfigSectionKey,
   GlobalConfigState,
   GlobalSectionConfig,
@@ -110,7 +112,7 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
   pluginsShortcutsFormCfg: ConfigFormConfig;
   globalImexFormCfg: ConfigFormConfig;
   globalProductivityConfigFormCfg: ConfigFormConfig;
-  globalSyncConfigFormCfg = this._buildSyncFormConfig();
+  globalSyncConfigFormCfg = signal<ConfigFormSection<SyncConfig> | undefined>(undefined);
 
   globalCfg?: GlobalConfigState;
 
@@ -144,6 +146,17 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
     this.globalImexFormCfg = GLOBAL_IMEX_FORM_CONFIG.slice();
     this.globalProductivityConfigFormCfg = GLOBAL_PRODUCTIVITY_FORM_CONFIG.slice();
     this.globalTasksFormCfg = GLOBAL_TASKS_FORM_CONFIG.slice();
+
+    // Build sync form config asynchronously (providers are lazy-loaded)
+    this._buildSyncFormConfig()
+      .then((cfg) => this.globalSyncConfigFormCfg.set(cfg))
+      .catch((err) => {
+        Log.err('Failed to build sync form config:', err);
+        this._snackService.open({
+          type: 'ERROR',
+          msg: T.GLOBAL_SNACK.OPEN_SETTINGS_ERROR,
+        });
+      });
 
     // NOTE: needs special handling cause of the async stuff
     if (IS_ANDROID_WEB_VIEW) {
@@ -254,7 +267,12 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
     this._subs.unsubscribe();
   }
 
-  private _buildSyncFormConfig(): typeof SYNC_FORM {
+  private async _buildSyncFormConfig(): Promise<typeof SYNC_FORM> {
+    // Pre-load dropbox provider for use in the form config
+    const dropboxProvider = await this._providerManager.getProviderById(
+      SyncProviderId.Dropbox,
+    );
+
     // Deep clone the SYNC_FORM items to avoid mutating the original
     const items = SYNC_FORM.items!.map((item) => {
       // Find the WebDAV fieldGroup and add the Test Connection button
@@ -376,10 +394,6 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
       // Find the Dropbox fieldGroup and add the authentication button
       if ((item as any).props?.dropboxAuth && item.fieldGroup) {
         // Check if Dropbox is already authenticated
-        const dropboxProvider = this._providerManager.getProviderById(
-          SyncProviderId.Dropbox,
-        );
-
         // We need to check auth status asynchronously, so we'll set initial state
         // and update it when the form is rendered
         let isAuthenticated = false;

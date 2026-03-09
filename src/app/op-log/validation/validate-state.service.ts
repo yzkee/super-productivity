@@ -20,7 +20,12 @@ let _validateFullPromise:
   | undefined;
 const _loadValidateFull = (): Promise<typeof import('./validation-fn').validateFull> => {
   if (!_validateFullPromise) {
-    _validateFullPromise = import('./validation-fn').then((m) => m.validateFull);
+    _validateFullPromise = import('./validation-fn')
+      .then((m) => m.validateFull)
+      .catch((err) => {
+        _validateFullPromise = undefined;
+        throw err;
+      });
   }
   return _validateFullPromise;
 };

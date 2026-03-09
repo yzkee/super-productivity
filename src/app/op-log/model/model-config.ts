@@ -1,5 +1,4 @@
 import { AllModelData, ModelCfg } from '../core/types/sync.types';
-import { Dropbox } from '../sync-providers/file-based/dropbox/dropbox';
 import { ProjectState } from '../../features/project/project.model';
 import { MenuTreeState } from '../../features/menu-tree/store/menu-tree.model';
 import { GlobalConfigState } from '../../features/config/global-config.model';
@@ -28,14 +27,6 @@ import { initialTaskState } from '../../features/tasks/store/task.reducer';
 import { initialTagState } from '../../features/tag/store/tag.reducer';
 import { initialSimpleCounterState } from '../../features/simple-counter/store/simple-counter.reducer';
 import { initialTaskRepeatCfgState } from '../../features/task-repeat-cfg/store/task-repeat-cfg.reducer';
-import { DROPBOX_APP_KEY } from '../../imex/sync/dropbox/dropbox.const';
-import { Webdav } from '../sync-providers/file-based/webdav/webdav';
-import { SuperSyncProvider } from '../sync-providers/super-sync/super-sync';
-import { LocalFileSyncElectron } from '../sync-providers/file-based/local-file/local-file-sync-electron';
-import { IS_ELECTRON } from '../../app.constants';
-import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
-import { LocalFileSyncAndroid } from '../sync-providers/file-based/local-file/local-file-sync-android';
-import { environment } from '../../../environments/environment';
 import {
   ArchiveModel,
   TimeTrackingState,
@@ -183,17 +174,3 @@ export const getDefaultMainModelData = (): Partial<AppDataComplete> => {
   }
   return result;
 };
-
-export const fileSyncElectron = new LocalFileSyncElectron();
-export const fileSyncDroid = new LocalFileSyncAndroid();
-
-export const SYNC_PROVIDERS = [
-  new Dropbox({
-    appKey: DROPBOX_APP_KEY,
-    basePath: environment.production ? `/` : `/DEV/`,
-  }),
-  new Webdav(environment.production ? undefined : `/DEV`),
-  new SuperSyncProvider(environment.production ? undefined : `/DEV`),
-  ...(IS_ELECTRON ? [fileSyncElectron] : []),
-  ...(IS_ANDROID_WEB_VIEW ? [fileSyncDroid] : []),
-];

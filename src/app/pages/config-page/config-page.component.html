@@ -188,11 +188,11 @@
             </h2>
             <section class="config-section tour-syncSection">
               @let syncSettingsForm = syncSettingsService.syncSettingsForm$ | async;
-              @if (syncSettingsForm) {
+              @if (syncSettingsForm && globalSyncConfigFormCfg(); as syncCfg) {
                 <config-section
                   (save)="syncSettingsService.updateSettingsFromForm($event.config)"
                   [cfg]="syncSettingsForm"
-                  [section]="globalSyncConfigFormCfg"
+                  [section]="syncCfg"
                 ></config-section>
               }
             </section>

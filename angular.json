@@ -50,7 +50,6 @@
               "spark-md5",
               "chrono-node",
               "dayjs",
-              "jira2md",
               "query-string"
             ]
           },

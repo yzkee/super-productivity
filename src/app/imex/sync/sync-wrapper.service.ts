@@ -627,7 +627,7 @@ export class SyncWrapperService {
     providerId: SyncProviderId,
     force = false,
   ): Promise<{ wasConfigured: boolean }> {
-    const provider = this._providerManager.getProviderById(providerId);
+    const provider = await this._providerManager.getProviderById(providerId);
 
     if (!provider) {
       return { wasConfigured: false };

@@ -123,7 +123,7 @@ export class DialogSyncInitialCfgComponent implements AfterViewInit {
             }
 
             // Load the provider's stored configuration
-            const provider = this._providerManager.getProviderById(providerId);
+            const provider = await this._providerManager.getProviderById(providerId);
             if (!provider) {
               // Provider not yet configured, keep current form state
               return;
