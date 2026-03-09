@@ -209,11 +209,6 @@
           min-width: 0;
           font-size: 0.9em;
         }
-
-        // Last visible tag gets truncated with ellipsis if needed
-        &:last-child .tag-title {
-          text-overflow: ellipsis;
-        }
       }
     }
   }

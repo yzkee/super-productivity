@@ -36,7 +36,6 @@ import {
 @Component({
   selector: 'work-context-menu',
   templateUrl: './work-context-menu.component.html',
-  styleUrls: ['./work-context-menu.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterLink, RouterModule, MatMenuItem, TranslatePipe, MatIcon],
   standalone: true,
