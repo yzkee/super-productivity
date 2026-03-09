@@ -8,7 +8,6 @@ import { Operation, OpType, ActionType } from '../core/operation.types';
 import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 import { uuidv7 } from '../../util/uuid-v7';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
-import { validateFull } from '../validation/validation-fn';
 import { dataRepair } from '../validation/data-repair';
 import { isDataRepairPossible } from '../validation/is-data-repair-possible.util';
 import { OpLog } from '../../core/log';
@@ -102,6 +101,7 @@ export class BackupService {
       }
 
       // 3. Validate data
+      const { validateFull } = await import('../validation/validation-fn');
       const validationResult = validateFull(backupData);
       let validatedData = backupData;
 
