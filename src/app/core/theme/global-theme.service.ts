@@ -26,6 +26,7 @@ import { combineLatest, fromEvent, Observable, of } from 'rxjs';
 import { IS_FIREFOX } from '../../util/is-firefox';
 import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
 import { IS_MOUSE_PRIMARY, IS_TOUCH_PRIMARY } from '../../util/is-mouse-primary';
+import { ipcEnterFullScreen$, ipcLeaveFullScreen$ } from '../ipc-events';
 
 import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
 import { androidInterface } from '../../features/android/android-interface';
@@ -282,6 +283,12 @@ export class GlobalThemeService {
       this.document.body.classList.add(BodyClass.isElectron);
       this.document.body.classList.add(BodyClass.isAdvancedFeatures);
       this.document.body.classList.remove(BodyClass.isNoAdvancedFeatures);
+      ipcEnterFullScreen$.pipe(takeUntilDestroyed(this._destroyRef)).subscribe(() => {
+        this.document.body.classList.add(BodyClass.isFullScreen);
+      });
+      ipcLeaveFullScreen$.pipe(takeUntilDestroyed(this._destroyRef)).subscribe(() => {
+        this.document.body.classList.remove(BodyClass.isFullScreen);
+      });
     } else {
       this.document.body.classList.add(BodyClass.isWeb);
       this._chromeExtensionInterfaceService.onReady$.pipe(take(1)).subscribe(() => {
