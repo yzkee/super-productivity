@@ -36,12 +36,13 @@ import {
   MatDateFormats,
   DateAdapter,
 } from '@angular/material/core';
+import { FormlyConfigModule } from './app/ui/formly-config.module';
 import { markedOptionsFactory } from './app/ui/marked-options-factory';
 import { MaterialCssVarsModule } from 'angular-material-css-vars';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatBottomSheetModule } from '@angular/material/bottom-sheet';
 import { ReminderModule } from './app/features/reminder/reminder.module';
-import { provideAnimations } from '@angular/platform-browser/animations';
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import {
   PreloadAllModules,
   provideRouter,
@@ -101,6 +102,7 @@ bootstrapApplication(AppComponent, {
     importProvidersFrom(
       FeatureStoresModule,
       MatNativeDateModule,
+      FormlyConfigModule,
       MarkdownModule.forRoot({
         markedOptions: {
           provide: MARKED_OPTIONS,
@@ -112,7 +114,6 @@ bootstrapApplication(AppComponent, {
       MatSidenavModule,
       MatBottomSheetModule,
       ReminderModule,
-      MaterialCssVarsModule.forRoot(),
       // External
       BrowserModule,
       // NOTE: both need to be present to use forFeature stores
@@ -194,7 +195,7 @@ bootstrapApplication(AppComponent, {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: { appearance: 'fill', subscriptSizing: 'dynamic' },
     },
-    provideAnimations(),
+    provideAnimationsAsync(),
     {
       provide: MATERIAL_ANIMATIONS,
       deps: [GlobalConfigService],

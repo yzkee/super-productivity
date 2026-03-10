@@ -26,6 +26,10 @@ import { ColorInputComponent } from '../features/config/color-input/color-input.
 import { FormlySlideToggleComponent } from './formly-slide-toggle/formly-slide-toggle.component';
 import { FormlyDatePickerComponent } from './formly-date-picker/formly-date-picker.component';
 
+/**
+ * Root-only module. Import ONLY in main.ts via importProvidersFrom().
+ * Components should import FormlyModule from '@ngx-formly/core' directly.
+ */
 @NgModule({
   imports: [
     CommonModule,

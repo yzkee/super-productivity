@@ -5,8 +5,7 @@ import {
   input,
   output,
 } from '@angular/core';
-import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
-import { FormlyConfigModule } from '../../../ui/formly-config.module';
+import { FormlyFieldConfig, FormlyFormOptions, FormlyModule } from '@ngx-formly/core';
 import { FormsModule, ReactiveFormsModule, UntypedFormGroup } from '@angular/forms';
 import { GlobalConfigSectionKey } from '../global-config.model';
 import { ProjectCfgFormKey } from '../../project/project.model';
@@ -20,7 +19,7 @@ import { Log } from '../../../core/log';
   templateUrl: './config-form.component.html',
   styleUrls: ['./config-form.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, ReactiveFormsModule, FormlyConfigModule],
+  imports: [FormsModule, ReactiveFormsModule, FormlyModule],
 })
 export class ConfigFormComponent {
   T: typeof T = T;

@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { MatDialogRef, MatDialogTitle, MatDialogContent } from '@angular/material/dialog';
-import { FormlyFieldConfig } from '@ngx-formly/core';
-import { FormlyConfigModule } from '../../../ui/formly-config.module';
+import { FormlyFieldConfig, FormlyModule } from '@ngx-formly/core';
 import { GlobalConfigService } from '../../config/global-config.service';
 import { T } from '../../../t.const';
 import { PomodoroConfig } from '../../config/global-config.model';
@@ -53,7 +52,7 @@ const POMODORO_DURATION_FIELDS: FormlyFieldConfig[] = [
   standalone: true,
   imports: [
     ReactiveFormsModule,
-    FormlyConfigModule,
+    FormlyModule,
     MatDialogTitle,
     MatDialogContent,
     TranslatePipe,

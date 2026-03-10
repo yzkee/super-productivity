@@ -16,9 +16,8 @@ import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { T } from '../../../t.const';
 import { SYNC_FORM } from '../../../features/config/form-cfgs/sync-form.const';
-import { FormGroup } from '@angular/forms';
-import { FormlyConfigModule } from '../../../ui/formly-config.module';
-import { FormlyFieldConfig } from '@ngx-formly/core';
+import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { FormlyFieldConfig, FormlyModule } from '@ngx-formly/core';
 import { SyncConfig } from '../../../features/config/global-config.model';
 import { SyncProviderId } from '../../../op-log/sync-providers/provider.const';
 import { SyncConfigService } from '../sync-config.service';
@@ -44,7 +43,8 @@ import { isOnline } from '../../../util/is-online';
     MatButton,
     MatIcon,
     TranslatePipe,
-    FormlyConfigModule,
+    ReactiveFormsModule,
+    FormlyModule,
   ],
 })
 export class DialogSyncInitialCfgComponent implements AfterViewInit {
