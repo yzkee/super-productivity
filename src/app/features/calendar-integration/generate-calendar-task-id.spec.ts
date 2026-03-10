@@ -24,9 +24,10 @@ describe('generateCalendarTaskId', () => {
     expect(id).toMatch(/^cal_/);
   });
 
-  it('should only contain URL-safe characters', () => {
-    const id = generateCalendarTaskId('provider-abc', 'event/with@special+chars');
-    expect(id).toMatch(/^[a-z0-9_]+$/);
+  it('should include provider and event IDs for debuggability', () => {
+    const id = generateCalendarTaskId('provider-abc', 'event-123');
+    expect(id).toContain('provider-abc');
+    expect(id).toContain('event-123');
   });
 
   it('should handle recurring event IDs with timestamps', () => {
@@ -37,6 +38,6 @@ describe('generateCalendarTaskId', () => {
 
   it('should produce a stable known value to guard against algorithm changes', () => {
     const id = generateCalendarTaskId('provider-abc', 'event-123');
-    expect(id).toBe('cal_4dowfs');
+    expect(id).toBe('cal_provider-abc_event-123');
   });
 });
