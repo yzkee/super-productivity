@@ -15,7 +15,6 @@ import {
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { download } from '../../util/download';
 import { isDataRepairPossible } from '../validation/is-data-repair-possible.util';
-import { dataRepair } from '../validation/data-repair';
 import { uuidv7 } from '../../util/uuid-v7';
 import { ActionType, Operation, OpType } from '../core/operation.types';
 import { CURRENT_SCHEMA_VERSION } from './schema-migration.service';
@@ -220,6 +219,7 @@ export class OperationLogMigrationService {
         'errors' in validationResult.typiaResult
           ? validationResult.typiaResult.errors
           : [];
+      const { dataRepair } = await import('../validation/data-repair');
       dataToMigrate = dataRepair(legacyData as unknown as AppDataComplete, errors).data;
 
       // Re-validate after repair to ensure success

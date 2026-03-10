@@ -397,22 +397,26 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
         // We need to check auth status asynchronously, so we'll set initial state
         // and update it when the form is rendered
         let isAuthenticated = false;
-        dropboxProvider?.isReady().then((ready) => {
-          isAuthenticated = ready;
-          // Update the status field text after checking
-          const statusField = item.fieldGroup?.find(
-            (f: any) => f.key === 'authStatus',
-          ) as any;
-          if (statusField?.templateOptions) {
-            statusField.templateOptions.text = isAuthenticated
-              ? '✓ ' +
-                this._translateService.instant(T.F.SYNC.FORM.DROPBOX.STATUS_CONFIGURED)
-              : '⚠ ' +
-                this._translateService.instant(
-                  T.F.SYNC.FORM.DROPBOX.STATUS_NOT_CONFIGURED,
-                );
-          }
-        });
+        this._providerManager
+          .getProviderById(SyncProviderId.Dropbox)
+          .then(async (dropboxProvider) => {
+            const ready = await dropboxProvider?.isReady();
+            isAuthenticated = !!ready;
+            // Update the status field text after checking
+            const statusField = item.fieldGroup?.find(
+              (f: any) => f.key === 'authStatus',
+            ) as any;
+            if (statusField?.templateOptions) {
+              statusField.templateOptions.text = isAuthenticated
+                ? '✓ ' +
+                  this._translateService.instant(T.F.SYNC.FORM.DROPBOX.STATUS_CONFIGURED)
+                : '⚠ ' +
+                  this._translateService.instant(
+                    T.F.SYNC.FORM.DROPBOX.STATUS_NOT_CONFIGURED,
+                  );
+            }
+          })
+          .catch((e) => console.error('Failed to check Dropbox auth status:', e));
 
         return {
           ...item,
@@ -428,6 +432,9 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
                 onClick: async (_field: unknown, _form: unknown, model: unknown) => {
                   try {
                     // Check current auth status before opening dialog
+                    const dropboxProvider = await this._providerManager.getProviderById(
+                      SyncProviderId.Dropbox,
+                    );
                     const isCurrentlyAuth = await dropboxProvider?.isReady();
 
                     const result =
@@ -491,7 +498,10 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
               hooks: {
                 // Update button text based on auth status when form initializes
                 onInit: async (field: any) => {
-                  const isAuth = await dropboxProvider?.isReady();
+                  const dropboxProv = await this._providerManager.getProviderById(
+                    SyncProviderId.Dropbox,
+                  );
+                  const isAuth = await dropboxProv?.isReady();
                   if (field?.templateOptions && isAuth) {
                     field.templateOptions.text = T.F.SYNC.FORM.DROPBOX.BTN_REAUTHENTICATE;
                   }

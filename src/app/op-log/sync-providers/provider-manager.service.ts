@@ -45,6 +45,9 @@ export class SyncProviderManager {
   // Lazily loaded providers (cached after first load)
   private _providers: SyncProviderBase<SyncProviderId>[] | null = null;
 
+  /** Counter to detect stale provider activations */
+  private _activeProviderSetupId = 0;
+
   // Current active provider
   private _activeProvider: SyncProviderBase<SyncProviderId> | null = null;
   private _activeProviderId$ = new BehaviorSubject<SyncProviderId | null>(null);
@@ -283,6 +286,12 @@ export class SyncProviderManager {
    * Sets the active sync provider (loads providers lazily on first call)
    */
   private _setActiveProvider(providerId: SyncProviderId | null): void {
+    // Skip if provider hasn't changed to avoid resetting state on unrelated config changes
+    if (providerId === this._activeProviderId$.getValue()) {
+      return;
+    }
+
+    const setupId = ++this._activeProviderSetupId;
     this._activeProviderId$.next(providerId);
 
     if (!providerId) {
@@ -292,57 +301,37 @@ export class SyncProviderManager {
       return;
     }
 
-    // Load providers lazily and set the active one
-    this._ensureProviders()
-      .then((providers) => {
-        // Guard against stale resolution if provider changed while loading
-        if (this._activeProviderId$.getValue() !== providerId) {
+    // Clear stale config from previous provider during async load
+    this._currentProviderPrivateCfg$.next(null);
+
+    this.getProviderById(providerId)
+      .then(async (provider) => {
+        if (this._activeProviderSetupId !== setupId) {
           return;
         }
-        const provider = providers.find((p) => p.id === providerId);
-        if (provider) {
-          this._activeProvider = provider;
-          provider
-            .isReady()
-            .then((ready) => {
-              if (this._activeProviderId$.getValue() !== providerId) return;
-              this._isProviderReady$.next(ready);
-            })
-            .catch((err) => {
-              SyncLog.err(
-                'SyncProviderManager: Failed to check provider readiness:',
-                err,
-              );
-              if (this._activeProviderId$.getValue() === providerId) {
-                this._isProviderReady$.next(false);
-              }
-            });
-
-          // Emit provider config to observable
-          provider.privateCfg
-            .load()
-            .then((privateCfg) => {
-              if (this._activeProviderId$.getValue() !== providerId) return;
-              this._currentProviderPrivateCfg$.next({
-                providerId,
-                privateCfg,
-              });
-            })
-            .catch((err) =>
-              SyncLog.err('SyncProviderManager: Failed to load provider config:', err),
-            );
-
-          SyncLog.normal(`SyncProviderManager: Active provider set to ${providerId}`);
-        } else {
+        if (!provider) {
           SyncLog.err(`SyncProviderManager: Provider not found: ${providerId}`);
-        }
-      })
-      .catch((err) => {
-        if (this._activeProviderId$.getValue() !== providerId) {
           return;
         }
-        SyncLog.err('SyncProviderManager: Failed to load providers:', err);
-        this._isProviderReady$.next(false);
+        this._activeProvider = provider;
+
+        const [ready, privateCfg] = await Promise.all([
+          provider.isReady(),
+          provider.privateCfg.load(),
+        ]);
+
+        if (this._activeProviderSetupId !== setupId) {
+          return;
+        }
+        this._isProviderReady$.next(ready);
+        this._currentProviderPrivateCfg$.next({ providerId, privateCfg });
+        SyncLog.normal(`SyncProviderManager: Active provider set to ${providerId}`);
+      })
+      .catch((e) => {
+        SyncLog.err(`SyncProviderManager: Failed to load provider ${providerId}:`, e);
+        if (this._activeProviderSetupId === setupId) {
+          this._isProviderReady$.next(false);
+        }
       });
   }
 }
