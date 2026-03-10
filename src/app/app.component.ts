@@ -53,7 +53,6 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { MatDialog } from '@angular/material/dialog';
 import { MarkdownPasteService } from './features/tasks/markdown-paste.service';
 import { TaskService } from './features/tasks/task.service';
-import { MatButton } from '@angular/material/button';
 import { MatMenuItem } from '@angular/material/menu';
 import { MatIcon } from '@angular/material/icon';
 import { DialogUnsplashPickerComponent } from './ui/dialog-unsplash-picker/dialog-unsplash-picker.component';
@@ -96,7 +95,6 @@ interface BeforeInstallPromptEvent extends Event {
     GlobalProgressBarComponent,
     FocusModeOverlayComponent,
     ShepherdComponent,
-    MatButton,
     MatMenuItem,
     MatIcon,
     TranslatePipe,
