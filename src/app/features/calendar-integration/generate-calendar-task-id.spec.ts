@@ -34,4 +34,9 @@ describe('generateCalendarTaskId', () => {
     const id2 = generateCalendarTaskId('prov1', 'uid123_1709337600');
     expect(id1).not.toBe(id2);
   });
+
+  it('should produce a stable known value to guard against algorithm changes', () => {
+    const id = generateCalendarTaskId('provider-abc', 'event-123');
+    expect(id).toBe('cal_4dowfs');
+  });
 });

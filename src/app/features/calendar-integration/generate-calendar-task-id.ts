@@ -14,6 +14,7 @@ export const generateCalendarTaskId = (
   return `cal_${hash}`;
 };
 
+// 32-bit hash: ~77k inputs for 50% collision probability, acceptable for per-user calendar event volumes
 const djb2Hash = (str: string): string => {
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
