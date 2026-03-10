@@ -2,7 +2,6 @@ import { inject, Injectable } from '@angular/core';
 import { IValidation } from 'typia';
 import { Action, Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { dataRepair } from './data-repair';
 import { isDataRepairPossible } from './is-data-repair-possible.util';
 import { RepairSummary } from '../core/operation.types';
 import { OpLog } from '../../core/log';
@@ -295,6 +294,7 @@ export class ValidateStateService {
     // User confirmed - proceed with repair
     try {
       const typiaErrors = validationResult.typiaErrors as IValidation.IError[];
+      const { dataRepair } = await import('./data-repair');
       const repairResult = dataRepair(state as AppDataComplete, typiaErrors);
       const repairedState = repairResult.data;
       const repairSummary = repairResult.repairSummary;

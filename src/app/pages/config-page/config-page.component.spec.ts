@@ -37,9 +37,13 @@ describe('ConfigPageComponent', () => {
         },
         {
           provide: SyncProviderManager,
-          useValue: jasmine.createSpyObj('SyncProviderManager', ['getProviderById'], {
-            currentProviderPrivateCfg$: of(null),
-          }),
+          useValue: (() => {
+            const spy = jasmine.createSpyObj('SyncProviderManager', ['getProviderById'], {
+              currentProviderPrivateCfg$: of(null),
+            });
+            spy.getProviderById.and.returnValue(Promise.resolve(undefined));
+            return spy;
+          })(),
         },
         {
           provide: GlobalConfigService,

@@ -8,7 +8,6 @@ import { Operation, OpType, ActionType } from '../core/operation.types';
 import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 import { uuidv7 } from '../../util/uuid-v7';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
-import { dataRepair } from '../validation/data-repair';
 import { isDataRepairPossible } from '../validation/is-data-repair-possible.util';
 import { OpLog } from '../../core/log';
 import {
@@ -19,7 +18,6 @@ import {
 import { CompleteBackup } from '../core/types/sync.types';
 import { ArchiveDbAdapter } from '../../core/persistence/archive-db-adapter.service';
 import { ArchiveModel } from '../../features/archive/archive.model';
-import { isLegacyBackupData, migrateLegacyBackup } from './migrate-legacy-backup';
 
 /**
  * Service for handling backup import and export operations.
@@ -91,6 +89,8 @@ export class BackupService {
       }
 
       // 2. Migrate legacy backups (pre-v14) that have the old data shape
+      const { isLegacyBackupData, migrateLegacyBackup } =
+        await import('./migrate-legacy-backup');
       if (isLegacyBackupData(backupData as unknown as Record<string, unknown>)) {
         OpLog.normal(
           'BackupService: Detected legacy backup format, running migration...',
@@ -121,6 +121,7 @@ export class BackupService {
             'errors' in validationResult.typiaResult
               ? validationResult.typiaResult.errors
               : [];
+          const { dataRepair } = await import('../validation/data-repair');
           validatedData = dataRepair(backupData, errors).data;
         } else {
           throw new Error('Data validation failed and repair not possible');
