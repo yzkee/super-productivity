@@ -1,8 +1,10 @@
 import {
   APP_INITIALIZER,
   enableProdMode,
+  EnvironmentInjector,
   ErrorHandler,
   Injector,
+  createEnvironmentInjector,
   importProvidersFrom,
   provideZonelessChangeDetection,
   SecurityContext,
@@ -54,7 +56,7 @@ import { OperationCaptureService } from './app/op-log/capture/operation-capture.
 import { EncryptionPasswordDialogOpenerService } from './app/imex/sync/encryption-password-dialog-opener.service';
 import { DataInitService } from './app/core/data-init/data-init.service';
 import { EffectsModule } from '@ngrx/effects';
-import { StoreDevtoolsModule } from '@ngrx/store-devtools';
+// StoreDevtoolsModule lazy-loaded only in dev mode below
 import { ReactiveFormsModule } from '@angular/forms';
 import { ServiceWorkerModule } from '@angular/service-worker';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
@@ -137,13 +139,7 @@ bootstrapApplication(AppComponent, {
             }),
       }),
       EffectsModule.forRoot([]),
-      !environment.production && !environment.stage
-        ? StoreDevtoolsModule.instrument({
-            maxAge: 15,
-            logOnly: environment.production,
-            actionsBlocklist: ['[TimeTracking] Add time spent'],
-          })
-        : [],
+      // StoreDevtoolsModule lazy-loaded in dev mode after bootstrap
       ReactiveFormsModule,
       ServiceWorkerModule.register('ngsw-worker.js', {
         enabled:
@@ -267,10 +263,60 @@ bootstrapApplication(AppComponent, {
     });
   };
 
+  // Lazily load and register focus-mode effects during idle time.
+  // Safe to defer: focus-mode requires explicit user activation (clicking the
+  // focus button), which cannot happen before idle callback fires.
+  const registerLazyEffects = async (): Promise<void> => {
+    const { FocusModeEffects } =
+      await import('./app/features/focus-mode/store/focus-mode.effects');
+    const envInjector = appRef.injector.get(EnvironmentInjector);
+    createEnvironmentInjector(
+      [importProvidersFrom(EffectsModule.forFeature([FocusModeEffects]))],
+      envInjector,
+    );
+  };
+
+  // Lazily load store devtools only in dev mode
+  const registerStoreDevtools = async (): Promise<void> => {
+    if (environment.production || environment.stage) {
+      return;
+    }
+    const { StoreDevtoolsModule } = await import('@ngrx/store-devtools');
+    const envInjector = appRef.injector.get(EnvironmentInjector);
+    createEnvironmentInjector(
+      [
+        importProvidersFrom(
+          StoreDevtoolsModule.instrument({
+            maxAge: 15,
+            logOnly: false,
+            actionsBlocklist: ['[TimeTracking] Add time spent'],
+          }),
+        ),
+      ],
+      envInjector,
+    );
+  };
+
   if (typeof requestIdleCallback === 'function') {
     requestIdleCallback(() => registerRemainingLocales());
+    requestIdleCallback(() =>
+      registerLazyEffects().catch((e) => Log.err('Failed to register lazy effects', e)),
+    );
+    requestIdleCallback(() =>
+      registerStoreDevtools().catch((e) => Log.err('Failed to register devtools', e)),
+    );
   } else {
     setTimeout(() => registerRemainingLocales(), 0);
+    setTimeout(
+      () =>
+        registerLazyEffects().catch((e) => Log.err('Failed to register lazy effects', e)),
+      0,
+    );
+    setTimeout(
+      () =>
+        registerStoreDevtools().catch((e) => Log.err('Failed to register devtools', e)),
+      0,
+    );
   }
 
   // TODO make asset caching work for electron
