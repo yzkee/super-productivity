@@ -106,6 +106,9 @@ describe('ConfigPageComponent', () => {
         parent: { parent: { model: fullSyncModel } },
       };
 
+      // Wait for async sync form config to be built
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
       // Find the WebDAV Test Connection button onClick handler
       const webDavItem = component
         .globalSyncConfigFormCfg()!
