@@ -41,7 +41,7 @@ import { MaterialCssVarsModule } from 'angular-material-css-vars';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatBottomSheetModule } from '@angular/material/bottom-sheet';
 import { ReminderModule } from './app/features/reminder/reminder.module';
-import { provideAnimations } from '@angular/platform-browser/animations';
+import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import {
   PreloadAllModules,
   provideRouter,
@@ -194,7 +194,7 @@ bootstrapApplication(AppComponent, {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: { appearance: 'fill', subscriptSizing: 'dynamic' },
     },
-    provideAnimations(),
+    provideAnimationsAsync(),
     {
       provide: MATERIAL_ANIMATIONS,
       deps: [GlobalConfigService],
