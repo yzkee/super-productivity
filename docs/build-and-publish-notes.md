@@ -1,5 +1,9 @@
 # Publish notes
 
+> **Related macOS docs:**
+> - [mac-app-store-code-signing-guide.md](./mac-app-store-code-signing-guide.md) -- Code signing setup and troubleshooting
+> - [update-mac-certificates.md](./update-mac-certificates.md) -- Annual certificate renewal
+
 Look for AppDataForScreenshots.json
 
 ## Mac Store Screenshots
