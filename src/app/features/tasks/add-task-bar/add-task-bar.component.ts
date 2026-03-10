@@ -70,7 +70,6 @@ import { CHRONO_SUGGESTIONS } from './add-task-bar.const';
 import { TaskRepeatCfgService } from '../../task-repeat-cfg/task-repeat-cfg.service';
 import { DEFAULT_TASK_REPEAT_CFG } from '../../task-repeat-cfg/task-repeat-cfg.model';
 import { getQuickSettingUpdates } from '../../task-repeat-cfg/dialog-edit-task-repeat-cfg/get-quick-setting-updates';
-import { DialogEditTaskRepeatCfgComponent } from '../../task-repeat-cfg/dialog-edit-task-repeat-cfg/dialog-edit-task-repeat-cfg.component';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ShortSyntaxTag, shortSyntaxToTags } from './short-syntax-to-tags';
 import { DEFAULT_PROJECT_COLOR } from '../../work-context/work-context.const';
@@ -791,7 +790,9 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
       .getByIdOnce$(taskId)
       .pipe(timeout(1000), takeUntilDestroyed(this._destroyRef))
       .subscribe({
-        next: (task) => {
+        next: async (task) => {
+          const { DialogEditTaskRepeatCfgComponent } =
+            await import('../../task-repeat-cfg/dialog-edit-task-repeat-cfg/dialog-edit-task-repeat-cfg.component');
           this._matDialog.open(DialogEditTaskRepeatCfgComponent, {
             data: { task, defaultRemindOption: remindOption },
           });

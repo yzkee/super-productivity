@@ -35,7 +35,6 @@ import { PanDirective, PanEvent } from '../../../ui/swipe-gesture/pan.directive'
 import { TaskAttachmentService } from '../task-attachment/task-attachment.service';
 import { DialogEditTaskAttachmentComponent } from '../task-attachment/dialog-edit-attachment/dialog-edit-task-attachment.component';
 import { swirlAnimation } from '../../../ui/animations/swirl-in-out.ani';
-import { DialogEditTaskRepeatCfgComponent } from '../../task-repeat-cfg/dialog-edit-task-repeat-cfg/dialog-edit-task-repeat-cfg.component';
 import { ProjectService } from '../../project/project.service';
 import { Project } from '../../project/project.model';
 import { _MISSING_PROJECT_ } from '../../project/project.const';
@@ -389,7 +388,9 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
       });
   }
 
-  editTaskRepeatCfg(): void {
+  async editTaskRepeatCfg(): Promise<void> {
+    const { DialogEditTaskRepeatCfgComponent } =
+      await import('../../task-repeat-cfg/dialog-edit-task-repeat-cfg/dialog-edit-task-repeat-cfg.component');
     this._matDialog
       .open(DialogEditTaskRepeatCfgComponent, {
         data: {

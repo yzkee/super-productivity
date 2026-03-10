@@ -8,7 +8,7 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { FormlyModule } from '@ngx-formly/core';
+import { FormlyConfigModule } from '../../../ui/formly-config.module';
 import { BoardCfg } from '../boards.model';
 import { BOARDS_FORM } from '../boards-form.const';
 import { UntypedFormGroup } from '@angular/forms';
@@ -24,7 +24,7 @@ import { DEFAULT_BOARD_CFG, DEFAULT_PANEL_CFG } from '../boards.const';
 @Component({
   selector: 'board-edit',
   standalone: true,
-  imports: [FormlyModule, MatButton, MatIcon, TranslatePipe],
+  imports: [FormlyConfigModule, MatButton, MatIcon, TranslatePipe],
   templateUrl: './board-edit.component.html',
   styleUrl: './board-edit.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

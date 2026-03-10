@@ -43,7 +43,7 @@ import { JiraAdditionalCfgComponent } from '../providers/jira/jira-view-componen
 import { HelpSectionComponent } from '../../../ui/help-section/help-section.component';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MatSlideToggle } from '@angular/material/slide-toggle';
-import { FormlyModule } from '@ngx-formly/core';
+import { FormlyConfigModule } from '../../../ui/formly-config.module';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { IS_ANDROID_WEB_VIEW } from '../../../util/is-android-web-view';
@@ -72,7 +72,7 @@ import { ISSUE_PROVIDER_COMMON_FORM_FIELDS } from '../common-issue-form-stuff.co
     HelpSectionComponent,
     TranslatePipe,
     MatSlideToggle,
-    FormlyModule,
+    FormlyConfigModule,
     MatDialogActions,
     MatButton,
     MatIcon,

@@ -7,7 +7,8 @@ import {
   MatDialogTitle,
 } from '@angular/material/dialog';
 import { ReactiveFormsModule, UntypedFormGroup } from '@angular/forms';
-import { FormlyFieldConfig, FormlyModule } from '@ngx-formly/core';
+import { FormlyFieldConfig } from '@ngx-formly/core';
+import { FormlyConfigModule } from '../../../ui/formly-config.module';
 import { T } from '../../../t.const';
 import { Project } from '../../project/project.model';
 import { Tag } from '../../tag/tag.model';
@@ -34,7 +35,7 @@ export interface WorkContextSettingsDialogData {
     MatDialogTitle,
     ReactiveFormsModule,
     MatDialogContent,
-    FormlyModule,
+    FormlyConfigModule,
     MatDialogActions,
     MatButton,
     TranslatePipe,

@@ -11,7 +11,11 @@ import { registerLocaleData } from '@angular/common';
 
 import { environment } from './environments/environment';
 import { IS_ELECTRON } from './app/app.constants';
-import { DEFAULT_LANGUAGE, LocalesImports } from './app/core/locale.constants';
+import {
+  DEFAULT_LANGUAGE,
+  DEFAULT_LOCALE_DATA,
+  LocaleImportFns,
+} from './app/core/locale.constants';
 import { IS_ANDROID_WEB_VIEW } from './app/util/is-android-web-view';
 import { androidInterface } from './app/features/android/android-interface';
 import { IS_IOS_NATIVE, IS_NATIVE_PLATFORM } from './app/util/is-native-platform';
@@ -30,7 +34,6 @@ import {
   MatDateFormats,
   DateAdapter,
 } from '@angular/material/core';
-import { FormlyConfigModule } from './app/ui/formly-config.module';
 import { markedOptionsFactory } from './app/ui/marked-options-factory';
 import { MaterialCssVarsModule } from 'angular-material-css-vars';
 import { MatSidenavModule } from '@angular/material/sidenav';
@@ -96,7 +99,6 @@ bootstrapApplication(AppComponent, {
     importProvidersFrom(
       FeatureStoresModule,
       MatNativeDateModule,
-      FormlyConfigModule,
       MarkdownModule.forRoot({
         markedOptions: {
           provide: MARKED_OPTIONS,
@@ -251,27 +253,24 @@ bootstrapApplication(AppComponent, {
   // Initialize touch fix for Material menus
   initializeMatMenuTouchFix();
 
-  // Register default locale immediately for fast startup
-  registerLocaleData(LocalesImports[DEFAULT_LANGUAGE], DEFAULT_LANGUAGE);
+  // Register default locale immediately (statically imported, no network fetch)
+  registerLocaleData(DEFAULT_LOCALE_DATA, DEFAULT_LANGUAGE);
 
-  // Defer other locales to idle time for better initial load performance
-  if (typeof requestIdleCallback === 'function') {
-    requestIdleCallback(() => {
-      Object.keys(LocalesImports).forEach((locale) => {
-        if (locale !== DEFAULT_LANGUAGE) {
-          registerLocaleData(LocalesImports[locale], locale);
-        }
-      });
+  // Lazily load and register remaining locales during idle time
+  const registerRemainingLocales = (): void => {
+    Object.keys(LocaleImportFns).forEach((locale) => {
+      if (locale !== DEFAULT_LANGUAGE) {
+        LocaleImportFns[locale as keyof typeof LocaleImportFns]().then((m) => {
+          registerLocaleData(m.default, locale);
+        });
+      }
     });
+  };
+
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(() => registerRemainingLocales());
   } else {
-    // Fallback for browsers without requestIdleCallback
-    setTimeout(() => {
-      Object.keys(LocalesImports).forEach((locale) => {
-        if (locale !== DEFAULT_LANGUAGE) {
-          registerLocaleData(LocalesImports[locale], locale);
-        }
-      });
-    }, 0);
+    setTimeout(() => registerRemainingLocales(), 0);
   }
 
   // TODO make asset caching work for electron

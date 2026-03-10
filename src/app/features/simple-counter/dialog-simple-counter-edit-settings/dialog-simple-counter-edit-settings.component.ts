@@ -14,7 +14,8 @@ import {
   SimpleCounterType,
 } from '../simple-counter.model';
 import { T } from '../../../t.const';
-import { FormlyFieldConfig, FormlyFormOptions, FormlyModule } from '@ngx-formly/core';
+import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
+import { FormlyConfigModule } from '../../../ui/formly-config.module';
 import { FormsModule, ReactiveFormsModule, UntypedFormGroup } from '@angular/forms';
 import { adjustToDialogFormlyForm } from '../../../util/adjust-to-dialog-formly-form';
 import { SIMPLE_COUNTER_FORM } from '../../config/form-cfgs/simple-counter-form.const';
@@ -38,7 +39,7 @@ import { DialogConfirmComponent } from '../../../ui/dialog-confirm/dialog-confir
     TranslatePipe,
     ReactiveFormsModule,
     FormsModule,
-    FormlyModule,
+    FormlyConfigModule,
   ],
 })
 export class DialogSimpleCounterEditSettingsComponent {

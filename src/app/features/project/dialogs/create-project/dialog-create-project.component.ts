@@ -14,7 +14,8 @@ import {
 } from '@angular/material/dialog';
 import { Project, ProjectCopy } from '../../project.model';
 import { FormsModule, ReactiveFormsModule, UntypedFormGroup } from '@angular/forms';
-import { FormlyFieldConfig, FormlyFormOptions, FormlyModule } from '@ngx-formly/core';
+import { FormlyFieldConfig, FormlyFormOptions } from '@ngx-formly/core';
+import { FormlyConfigModule } from '../../../../ui/formly-config.module';
 import { ProjectService } from '../../project.service';
 import { DEFAULT_PROJECT } from '../../project.const';
 import { JiraCfg } from '../../../issue/providers/jira/jira.model';
@@ -48,7 +49,7 @@ import { Log } from '../../../../core/log';
     FormsModule,
     ReactiveFormsModule,
     MatDialogContent,
-    FormlyModule,
+    FormlyConfigModule,
     MatDialogActions,
     MatButton,
     TranslatePipe,

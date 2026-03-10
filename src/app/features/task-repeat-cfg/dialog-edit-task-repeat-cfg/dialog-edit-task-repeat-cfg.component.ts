@@ -21,7 +21,8 @@ import {
   TaskRepeatCfg,
   TaskRepeatCfgCopy,
 } from '../task-repeat-cfg.model';
-import { FormlyFieldConfig, FormlyModule } from '@ngx-formly/core';
+import { FormlyFieldConfig } from '@ngx-formly/core';
+import { FormlyConfigModule } from '../../../ui/formly-config.module';
 import { UntypedFormGroup } from '@angular/forms';
 import {
   TASK_REPEAT_CFG_ADVANCED_FORM_CFG,
@@ -63,7 +64,7 @@ import { CollapsibleComponent } from '../../../ui/collapsible/collapsible.compon
     TranslatePipe,
     MatDialogContent,
     HelpSectionComponent,
-    FormlyModule,
+    FormlyConfigModule,
     ChipListInputComponent,
     MatDialogActions,
     MatButton,

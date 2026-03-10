@@ -9,7 +9,8 @@ import {
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { FormlyFieldConfig, FormlyModule } from '@ngx-formly/core';
+import { FormlyFieldConfig } from '@ngx-formly/core';
+import { FormlyConfigModule } from '../../../ui/formly-config.module';
 import { FormlyJsonschema } from '@ngx-formly/core/json-schema';
 import { JSONSchema7 } from 'json-schema';
 import { PluginManifest } from '../../plugin-api.model';
@@ -123,7 +124,7 @@ interface PluginConfigData {
     MatProgressSpinner,
     MatError,
     ReactiveFormsModule,
-    FormlyModule,
+    FormlyConfigModule,
   ],
 })
 export class PluginConfigDialogComponent {
