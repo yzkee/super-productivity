@@ -62,6 +62,7 @@ import { SnackService } from '../../../core/snack/snack.service';
 import { AddTaskBarStateService } from './add-task-bar-state.service';
 import { AddTaskBarParserService } from './add-task-bar-parser.service';
 import { AddTaskBarActionsComponent } from './add-task-bar-actions/add-task-bar-actions.component';
+import { MarkdownPasteService } from '../markdown-paste.service';
 import { Mentions } from '../../../ui/mentions/mention-config';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { dateStrToUtcDate } from '../../../util/date-str-to-utc-date';
@@ -120,6 +121,7 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
   private readonly _translateService = inject(TranslateService);
   private readonly _store = inject(Store);
   private readonly _taskRepeatCfgService = inject(TaskRepeatCfgService);
+  private readonly _markdownPasteService = inject(MarkdownPasteService);
   readonly stateService = inject(AddTaskBarStateService);
 
   T = T;
@@ -650,6 +652,22 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
     const target = event.target as HTMLInputElement;
     const value = target.value;
     this.stateService.updateInputTxt(value);
+  }
+
+  onPaste(event: ClipboardEvent): void {
+    const pastedText = event.clipboardData?.getData('text/plain');
+    if (!pastedText) return;
+
+    // Only intercept multi-line pastes to avoid disrupting normal single-line task entry
+    const lines = pastedText.split('\n').filter((line) => line.trim().length > 0);
+    if (lines.length < 2) return;
+
+    if (!this._markdownPasteService.isMarkdownTaskList(pastedText)) return;
+
+    event.preventDefault();
+    this._markdownPasteService.handleMarkdownPaste(pastedText, null).then(() => {
+      this.stateService.updateInputTxt('');
+    });
   }
 
   @HostListener('document:click', ['$event'])
