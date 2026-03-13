@@ -2523,7 +2523,9 @@
     "REPEATED_TASKS": "Recurring Tasks",
     "SCHEDULED_TASKS": "Scheduled Tasks",
     "SCHEDULED_TASKS_WITH_TIME": "Scheduled Tasks with Start Time",
-    "START_TASK": "Start task and remove reminder"
+    "START_TASK": "Start task and remove reminder",
+    "TASKS_WITH_DEADLINES": "Tasks with Deadlines",
+    "NO_DEADLINES": "There are currently no tasks with deadlines. You can set a deadline via the task's context menu or detail panel."
   },
   "Share Chart": "",
   "Share Heatmap": "",

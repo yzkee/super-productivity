@@ -234,6 +234,25 @@
   margin-left: -6px;
 }
 
+.deadline-indicator {
+  display: flex;
+  align-items: center;
+  padding-left: 4px;
+  font-size: var(--planner-font-size-smaller-mobile);
+  opacity: 0.7;
+
+  @include mq(xs) {
+    font-size: var(--planner-font-size-smaller);
+  }
+
+  mat-icon {
+    font-size: 14px;
+    height: 14px;
+    width: 14px;
+    margin-right: 2px;
+  }
+}
+
 :host ::ng-deep .due-date + .planner-time-remaining-shared {
   display: none;
 }

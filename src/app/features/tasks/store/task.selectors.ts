@@ -567,6 +567,26 @@ export const selectAllTasksWithDeadlineReminder = createSelector(
   },
 );
 
+export const selectAllUndoneTasksWithDeadlineSorted = createSelector(
+  selectAllTasks,
+  (tasks: Task[]): Task[] => {
+    return tasks
+      .filter(
+        (task) =>
+          task &&
+          !task.isDone &&
+          (task.deadlineDay || typeof task.deadlineWithTime === 'number'),
+      )
+      .sort((a, b) => {
+        const aTime =
+          a.deadlineWithTime || new Date(a.deadlineDay + 'T23:59:59').getTime();
+        const bTime =
+          b.deadlineWithTime || new Date(b.deadlineDay + 'T23:59:59').getTime();
+        return aTime - bTime;
+      });
+  },
+);
+
 export const selectUndoneTasksWithDueDayNoReminder = createSelector(
   selectAllTasks,
   (tasks: Task[]): Task[] => {
