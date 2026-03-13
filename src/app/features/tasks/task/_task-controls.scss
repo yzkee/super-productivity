@@ -571,14 +571,6 @@ progress-bar {
   &.mat-warn mat-icon {
     color: var(--c-warn) !important;
   }
-
-  &.mat-warn .time-badge {
-    color: var(--c-warn);
-  }
-
-  &.mat-accent mat-icon {
-    color: var(--c-accent) !important;
-  }
 }
 
 .repeat-date-badge,
