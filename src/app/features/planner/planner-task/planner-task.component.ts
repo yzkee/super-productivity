@@ -61,6 +61,7 @@ export class PlannerTaskComponent extends BaseComponent implements OnInit, OnDes
   // TODO remove
   readonly day = input<string | undefined>();
   readonly tagsToHide = input<string[]>();
+  readonly hideDragHandle = input(false);
 
   isRepeatTaskCreatedToday = false;
 

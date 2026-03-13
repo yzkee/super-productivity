@@ -80,27 +80,23 @@
   <add-task-inline [planForDay]="day.dayDate"></add-task-inline>
 </div>
 
-<div
-  class="deadlines"
-  [class.no-items]="day.deadlineTasks.length === 0"
->
-  <div class="section-title">
-    <mat-icon>flag</mat-icon>
-  </div>
+@if (day.deadlineTasks.length > 0) {
+  <div class="deadlines">
+    <div class="section-title">
+      <mat-icon>flag</mat-icon>
+    </div>
 
-  <div class="deadline-items">
-    @for (task of day.deadlineTasks; track task.id) {
-      <planner-task
-        [task]="task"
-        [day]="day.dayDate"
-      ></planner-task>
-    }
-
-    @if (day.deadlineTasks.length === 0) {
-      <div class="empty">{{ T.F.PLANNER.PLAN_VIEW.NO_DEADLINES | translate }}</div>
-    }
+    <div class="deadline-items">
+      @for (task of day.deadlineTasks; track task.id) {
+        <planner-task
+          [task]="task"
+          [day]="day.dayDate"
+          [hideDragHandle]="true"
+        ></planner-task>
+      }
+    </div>
   </div>
-</div>
+}
 
 <div
   class="scheduled"
