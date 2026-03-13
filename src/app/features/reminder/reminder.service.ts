@@ -161,7 +161,8 @@ export class ReminderService {
     }));
   }
 
-  private _mapDeadlineTasksToWorkerReminders(tasks: Task[]): WorkerReminder[] {
+  private _mapDeadlineTasksToWorkerReminders(tasks: Task[] | null): WorkerReminder[] {
+    if (!tasks) return [];
     return tasks
       .filter((task) => typeof task.deadlineRemindAt === 'number')
       .map((task) => ({
