@@ -1449,7 +1449,9 @@
         "TOOLTIP_ENABLE_SEARCH": "Enable issue search (Ctrl+2)"
       },
       "B": {
+        "ADD_ALL_TO_TODAY": "Add all to today",
         "ADD_HALF_HOUR": "Add 1/2 hour",
+        "DEADLINES_TODAY": "{{count}} task(s) due today not yet planned",
         "ESTIMATE_EXCEEDED": "Time estimate exceeded for \"{{title}}\""
       },
       "CMP": {
