@@ -245,15 +245,23 @@
             (click)="openDeadlineDialog()"
             title="Deadline"
             class="ico-btn deadline-btn"
-            [color]="isDeadlineOverdue() ? 'warn' : isDeadlineApproaching() ? 'accent' : ''"
+            [color]="
+              isDeadlineOverdue() ? 'warn' : isDeadlineApproaching() ? 'accent' : ''
+            "
             mat-icon-button
           >
             <mat-icon>event_busy</mat-icon>
-            <div class="time-badge">
+            <div
+              class="time-badge"
+              [class.color-warn]="isDeadlineOverdue()"
+            >
               @if (t.deadlineWithTime) {
                 {{ t.deadlineWithTime | shortPlannedAt }}
               } @else if (t.deadlineDay) {
-                {{ t.deadlineDay | localDateStr: globalTrackingIntervalService.todayDateStr() }}
+                {{
+                  t.deadlineDay
+                    | localDateStr: globalTrackingIntervalService.todayDateStr()
+                }}
               }
             </div>
           </button>
