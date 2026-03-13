@@ -1,7 +1,6 @@
 <ng-content></ng-content>
 
-@if (!hideDragHandle()) {
-  <div class="drag-handle">
+<div class="drag-handle">
     <mat-icon class="drag-handle-ico">drag_indicator</mat-icon>
     @if (isCurrent) {
       <mat-icon class="play-icon-indicator">play_arrow </mat-icon>
@@ -31,7 +30,7 @@
       }
     </div>
   </div>
-}
+</div>
 
 <div
   class="no-drag"

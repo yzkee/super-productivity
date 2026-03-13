@@ -88,11 +88,7 @@
 
     <div class="deadline-items">
       @for (task of day.deadlineTasks; track task.id) {
-        <planner-task
-          [task]="task"
-          [day]="day.dayDate"
-          [hideDragHandle]="true"
-        ></planner-task>
+        <planner-deadline-task [task]="task"></planner-deadline-task>
       }
     </div>
   </div>
