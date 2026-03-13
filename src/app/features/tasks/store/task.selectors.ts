@@ -558,6 +558,15 @@ export const selectAllTasksWithReminder = createSelector(
   },
 );
 
+export const selectAllTasksWithDeadlineReminder = createSelector(
+  selectAllTasks,
+  (tasks: Task[]): Task[] => {
+    return tasks.filter(
+      (task) => task && typeof task.deadlineRemindAt === 'number' && !task.isDone,
+    );
+  },
+);
+
 export const selectUndoneTasksWithDueDayNoReminder = createSelector(
   selectAllTasks,
   (tasks: Task[]): Task[] => {

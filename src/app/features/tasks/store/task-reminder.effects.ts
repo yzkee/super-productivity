@@ -128,6 +128,42 @@ export class TaskReminderEffects {
     { dispatch: false },
   );
 
+  setDeadlineSnack$ = createEffect(
+    () =>
+      this._localActions$.pipe(
+        ofType(TaskSharedActions.setDeadline),
+        tap(({ deadlineDay, deadlineWithTime }) => {
+          const formattedDate = deadlineWithTime
+            ? this._datePipe.transform(deadlineWithTime, 'short')
+            : deadlineDay
+              ? this._datePipe.transform(deadlineDay, 'shortDate')
+              : '';
+          this._snackService.open({
+            type: 'SUCCESS',
+            translateParams: { date: formattedDate || '' },
+            msg: T.F.TASK.S.DEADLINE_SET,
+            ico: 'event_busy',
+          });
+        }),
+      ),
+    { dispatch: false },
+  );
+
+  removeDeadlineSnack$ = createEffect(
+    () =>
+      this._localActions$.pipe(
+        ofType(TaskSharedActions.removeDeadline),
+        tap(() => {
+          this._snackService.open({
+            type: 'SUCCESS',
+            msg: T.F.TASK.S.DEADLINE_REMOVED,
+            ico: 'event_busy',
+          });
+        }),
+      ),
+    { dispatch: false },
+  );
+
   dismissReminderSnack$ = createEffect(
     () =>
       this._localActions$.pipe(

@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { SnackService } from '../../core/snack/snack.service';
-import { Observable, Subject } from 'rxjs';
+import { combineLatest, Observable, Subject } from 'rxjs';
 import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
 import { T } from '../../t.const';
 import { distinctUntilChanged, filter, map, skipUntil } from 'rxjs/operators';
@@ -8,8 +8,11 @@ import { environment } from '../../../environments/environment';
 import { Log } from '../../core/log';
 import { GlobalConfigService } from '../config/global-config.service';
 import { Store } from '@ngrx/store';
-import { selectAllTasksWithReminder } from '../tasks/store/task.selectors';
-import { TaskWithReminder, TaskWithReminderData } from '../tasks/task.model';
+import {
+  selectAllTasksWithReminder,
+  selectAllTasksWithDeadlineReminder,
+} from '../tasks/store/task.selectors';
+import { Task, TaskWithReminder, TaskWithReminderData } from '../tasks/task.model';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
 
@@ -70,11 +73,16 @@ export class ReminderService {
     // Migrate legacy reminders to task.remindAt (one-time migration)
     this._migrateLegacyReminders();
 
-    // Subscribe to tasks with reminders and update worker only when reminders actually change
-    this._store
-      .select(selectAllTasksWithReminder)
+    // Subscribe to tasks with reminders (schedule + deadline) and update worker
+    combineLatest([
+      this._store.select(selectAllTasksWithReminder),
+      this._store.select(selectAllTasksWithDeadlineReminder),
+    ])
       .pipe(
-        map((tasks) => this._mapTasksToWorkerReminders(tasks)),
+        map(([scheduleTasks, deadlineTasks]) => [
+          ...this._mapTasksToWorkerReminders(scheduleTasks),
+          ...this._mapDeadlineTasksToWorkerReminders(deadlineTasks),
+        ]),
         distinctUntilChanged((prev, curr) => {
           if (prev.length !== curr.length) return false;
           return prev.every(
@@ -151,6 +159,18 @@ export class ReminderService {
       title: task.title,
       type: 'TASK' as const,
     }));
+  }
+
+  private _mapDeadlineTasksToWorkerReminders(tasks: Task[]): WorkerReminder[] {
+    return tasks
+      .filter((task) => typeof task.deadlineRemindAt === 'number')
+      .map((task) => ({
+        // Use a distinct ID to avoid conflicts with schedule reminders
+        id: task.id + '_deadline',
+        remindAt: task.deadlineRemindAt!,
+        title: task.title,
+        type: 'TASK' as const,
+      }));
   }
 
   private _onReminderActivated(msg: MessageEvent): void {
