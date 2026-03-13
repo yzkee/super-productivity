@@ -107,6 +107,28 @@ export class TaskReminderEffects {
               }),
             );
           }
+
+          // Clear deadline reminder when task is done (keep the deadline date for reference)
+          if (task?.deadlineRemindAt) {
+            if (IS_ANDROID_WEB_VIEW) {
+              try {
+                const notificationId = generateNotificationId(task.id + '_deadline');
+                androidInterface.cancelNativeReminder?.(notificationId);
+              } catch (e) {
+                console.error('Failed to cancel native deadline reminder:', e);
+              }
+            }
+
+            this._store.dispatch(
+              TaskSharedActions.setDeadline({
+                taskId: task.id,
+                ...(task.deadlineDay ? { deadlineDay: task.deadlineDay } : {}),
+                ...(task.deadlineWithTime
+                  ? { deadlineWithTime: task.deadlineWithTime }
+                  : {}),
+              }),
+            );
+          }
         }),
       ),
     { dispatch: false },
