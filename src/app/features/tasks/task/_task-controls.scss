@@ -565,6 +565,18 @@ progress-bar {
   }
 }
 
+.deadline-btn {
+  position: relative;
+
+  &.mat-warn mat-icon {
+    color: var(--c-warn) !important;
+  }
+
+  &.mat-accent mat-icon {
+    color: var(--c-accent) !important;
+  }
+}
+
 .repeat-date-badge,
 .time-badge {
   @include center;

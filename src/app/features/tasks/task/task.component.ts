@@ -56,6 +56,7 @@ import { DateService } from '../../../core/date/date.service';
 import { IS_TOUCH_PRIMARY } from '../../../util/is-mouse-primary';
 import { KeyboardConfig } from '../../config/keyboard-config.model';
 import { DialogScheduleTaskComponent } from '../../planner/dialog-schedule-task/dialog-schedule-task.component';
+import { DialogDeadlineComponent } from '../dialog-deadline/dialog-deadline.component';
 import { TaskContextMenuComponent } from '../task-context-menu/task-context-menu.component';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ICAL_TYPE } from '../../issue/issue.const';
@@ -235,6 +236,32 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
           (!task.dueWithTime || !this._dateService.isToday(task.dueWithTime));
   });
 
+  isDeadlineOverdue = computed(() => {
+    const t = this.task();
+    const todayStr = this.globalTrackingIntervalService.todayDateStr();
+    if (t.isDone) return false;
+    if (t.deadlineWithTime) return t.deadlineWithTime < Date.now();
+    if (t.deadlineDay) return t.deadlineDay < todayStr;
+    return false;
+  });
+
+  isDeadlineApproaching = computed(() => {
+    const t = this.task();
+    if (t.isDone || this.isDeadlineOverdue()) return false;
+    const twoDaysMs = 2 * 24 * 60 * 60 * 1000;
+    if (t.deadlineWithTime) return t.deadlineWithTime - Date.now() < twoDaysMs;
+    if (t.deadlineDay) {
+      const deadlineDate = new Date(t.deadlineDay + 'T23:59:59');
+      return deadlineDate.getTime() - Date.now() < twoDaysMs;
+    }
+    return false;
+  });
+
+  hasDeadline = computed(() => {
+    const t = this.task();
+    return !!(t.deadlineDay || t.deadlineWithTime);
+  });
+
   isPanHelperVisible = signal(false);
 
   T: typeof T = T;
@@ -401,6 +428,19 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
       })
       .afterClosed()
       .subscribe((isPlanned) => {
+        this.focusSelfOrNextIfNotPossible();
+      });
+  }
+
+  openDeadlineDialog(): void {
+    this._storeNextFocusEl();
+    this._matDialog
+      .open(DialogDeadlineComponent, {
+        autoFocus: false,
+        data: { task: this.task() },
+      })
+      .afterClosed()
+      .subscribe(() => {
         this.focusSelfOrNextIfNotPossible();
       });
   }
