@@ -81,6 +81,28 @@
 </div>
 
 <div
+  class="deadlines"
+  [class.no-items]="day.deadlineTasks.length === 0"
+>
+  <div class="section-title">
+    <mat-icon>event_busy</mat-icon>
+  </div>
+
+  <div class="deadline-items">
+    @for (task of day.deadlineTasks; track task.id) {
+      <planner-task
+        [task]="task"
+        [day]="day.dayDate"
+      ></planner-task>
+    }
+
+    @if (day.deadlineTasks.length === 0) {
+      <div class="empty">{{ T.F.PLANNER.PLAN_VIEW.NO_DEADLINES | translate }}</div>
+    }
+  </div>
+</div>
+
+<div
   class="scheduled"
   [class.no-items]="day.scheduledIItems.length === 0"
 >

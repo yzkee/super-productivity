@@ -44,17 +44,6 @@
 
     <div class="title">{{ task.title }}</div>
 
-    @if (task.deadlineDay || task.deadlineWithTime) {
-      <div class="deadline-indicator">
-        <mat-icon>event_busy</mat-icon>
-        @if (task.deadlineWithTime) {
-          <span>{{ task.deadlineWithTime | shortDate2 }}</span>
-        } @else if (task.deadlineDay) {
-          <span>{{ task.deadlineDay | shortDate2 }}</span>
-        }
-      </div>
-    }
-
     <tag-list
       [isShowProjectTagAlways]="true"
       [tagsToHide]="tagsToHide()"

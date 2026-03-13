@@ -759,7 +759,8 @@
       "EDIT_REPEATED_TASK": "Edit recurring task \"{{taskName}}\"",
       "NO_TASKS": "No tasks",
       "PLAN_VIEW": {
-        "NO_SCHEDULED_ITEMS": "No scheduled items"
+        "NO_SCHEDULED_ITEMS": "No scheduled items",
+        "NO_DEADLINES": "No deadlines"
       },
       "S": {
         "REMOVED_PLAN_DATE": "Removed plan date for task \"{{taskTitle}}\"",
