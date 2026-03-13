@@ -173,6 +173,28 @@ export const selectUndoneOverdue = createSelector(
   },
 );
 
+export const selectUndoneOverdueDeadlineTasks = createSelector(
+  selectTaskFeatureState,
+  selectTodayStr,
+  selectStartOfNextDayDiffMs,
+  (s, todayStr, startOfNextDayDiffMs): Task[] => {
+    const today = dateStrToUtcDate(todayStr);
+    today.setHours(0, 0, 0, 0);
+    const todayStartMs = today.getTime() + startOfNextDayDiffMs;
+    return s.ids
+      .map((id) => s.entities[id])
+      .filter(
+        (task): task is Task =>
+          !!task &&
+          !task.isDone &&
+          !!(
+            (task.deadlineDay && task.deadlineDay < todayStr) ||
+            (task.deadlineWithTime && task.deadlineWithTime < todayStartMs)
+          ),
+      );
+  },
+);
+
 // Note: Uses selectTodayTagTaskIds due to circular dependency with work-context.selectors.ts
 // This selector may include stale tasks - for accurate membership use selectTodayTaskIds
 export const selectOverdueTasksOnToday = createSelector(
