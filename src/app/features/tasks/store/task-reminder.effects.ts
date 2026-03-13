@@ -164,7 +164,7 @@ export class TaskReminderEffects {
             type: 'SUCCESS',
             translateParams: { date: formattedDate || '' },
             msg: T.F.TASK.S.DEADLINE_SET,
-            ico: 'event_busy',
+            ico: 'flag',
           });
         }),
       ),
@@ -179,7 +179,7 @@ export class TaskReminderEffects {
           this._snackService.open({
             type: 'SUCCESS',
             msg: T.F.TASK.S.DEADLINE_REMOVED,
-            ico: 'event_busy',
+            ico: 'flag',
           });
         }),
       ),

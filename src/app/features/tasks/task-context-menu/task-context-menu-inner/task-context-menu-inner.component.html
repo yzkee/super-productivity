@@ -88,7 +88,7 @@
           : (T.F.TASK.CMP.SET_DEADLINE | translate)
       "
     >
-      <mat-icon>event_busy</mat-icon>
+      <mat-icon>flag</mat-icon>
     </button>
     @if (task.deadlineWithTime || task.deadlineDay) {
       <button
@@ -97,7 +97,7 @@
         (click)="removeDeadline()"
         [matTooltip]="T.F.TASK.CMP.REMOVE_DEADLINE | translate"
       >
-        <mat-icon>event_available</mat-icon>
+        <mat-icon>flag_circle</mat-icon>
       </button>
     }
   </div>
