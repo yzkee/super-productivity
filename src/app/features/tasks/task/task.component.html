@@ -245,9 +245,7 @@
             (click)="openDeadlineDialog()"
             title="Deadline"
             class="ico-btn deadline-btn"
-            [color]="
-              isDeadlineOverdue() ? 'warn' : isDeadlineApproaching() ? 'accent' : ''
-            "
+            [color]="isDeadlineOverdue() ? 'warn' : ''"
             mat-icon-button
           >
             <mat-icon>flag</mat-icon>
