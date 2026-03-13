@@ -1414,6 +1414,9 @@
         "REMINDER": "Reminder",
         "REPEAT": "Recur",
         "SCHEDULE_TASK": "Schedule Task",
+        "DEADLINE": "Deadline",
+        "DEADLINE_DUE_BY": "Due by",
+        "DEADLINE_OVERDUE": "Overdue!",
         "SUB_TASKS": "Subtasks ({{nr}})",
         "TIME": "Duration",
         "TITLE_PLACEHOLDER": "Enter a title"
@@ -1469,6 +1472,9 @@
         "OPEN_TIME": "Time tracking",
         "REMOVE_FROM_MY_DAY": "Remove from Today",
         "SCHEDULE": "Schedule task",
+        "SET_DEADLINE": "Set deadline",
+        "EDIT_DEADLINE": "Edit deadline",
+        "REMOVE_DEADLINE": "Remove deadline",
         "TOGGLE_ATTACHMENTS": "Show/hide attachments",
         "TOGGLE_DETAIL_PANEL": "Show/hide additional info",
         "TOGGLE_DONE": "Toggle completion status",
@@ -1525,6 +1531,23 @@
         "SCHEDULE": "Schedule",
         "UNSCHEDULE": "Unschedule"
       },
+      "D_DEADLINE": {
+        "SET_DEADLINE": "Set deadline",
+        "REMOVE_DEADLINE": "Remove deadline",
+        "ADD_TIME": "Add time",
+        "REMIND_AT": "Remind at",
+        "RO_NEVER": "Never",
+        "RO_AT_DEADLINE": "At deadline",
+        "RO_5M": "5 minutes before",
+        "RO_10M": "10 minutes before",
+        "RO_15M": "15 minutes before",
+        "RO_30M": "30 minutes before",
+        "RO_1H": "1 hour before",
+        "QA_TODAY": "Today",
+        "QA_TOMORROW": "Tomorrow",
+        "QA_NEXT_WEEK": "Next week",
+        "QA_NEXT_MONTH": "Next month"
+      },
       "D_SELECT_DATE_AND_TIME": {
         "DATE": "Date",
         "TIME": "Time",
@@ -1562,6 +1585,8 @@
         "REMINDER_ADDED": "Scheduled <strong>\"{{title}}\"</strong> at <strong>{{date}}</strong>",
         "REMINDER_DELETED": "Deleted reminder for task",
         "REMINDER_UPDATED": "Updated reminder for task \"{{title}}\"",
+        "DEADLINE_SET": "Deadline set for {{date}}",
+        "DEADLINE_REMOVED": "Deadline removed",
         "TASK_ALREADY_EXISTS": "Task <strong>{{title}}</strong> already exists",
         "TASK_CREATED": "Created task \"{{taskTitle}}\""
       },
