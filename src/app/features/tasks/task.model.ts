@@ -114,6 +114,21 @@ export interface TaskCopy
    */
   dueDay?: string | null;
   hasPlannedTime?: boolean;
+
+  /**
+   * Deadline date as ISO string (YYYY-MM-DD). For deadlines without a specific time.
+   * Follows mutual exclusivity with deadlineWithTime (same pattern as dueDay/dueWithTime).
+   */
+  deadlineDay?: string | null;
+
+  /**
+   * Deadline as Unix timestamp (ms). For deadlines with a specific time.
+   * When set, deadlineDay MUST be cleared.
+   */
+  deadlineWithTime?: number | null;
+
+  /** Reminder timestamp for the deadline. */
+  deadlineRemindAt?: number | null;
   attachments: TaskAttachment[];
   reminderId?: string | null;
 
@@ -154,6 +169,16 @@ export interface TaskWithDueDay extends Task {
 }
 
 export type TaskPlannedWithDayOrTime = TaskWithDueTime | TaskWithDueDay;
+
+export interface TaskWithDeadlineDay extends Task {
+  deadlineDay: string;
+}
+
+export interface TaskWithDeadlineTime extends Task {
+  deadlineWithTime: number;
+}
+
+export type TaskWithDeadline = TaskWithDeadlineDay | TaskWithDeadlineTime;
 
 export interface TaskWithoutReminder extends Task {
   remindAt: undefined;
