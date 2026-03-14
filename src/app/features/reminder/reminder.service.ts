@@ -184,13 +184,17 @@ export class ReminderService {
     }
 
     // Map worker reminders back to TaskWithReminderData format
-    const taskReminders: TaskWithReminderData[] = reminders.map((r) => ({
-      id: r.id,
-      title: r.title,
-      reminderData: { remindAt: r.remindAt },
-      // These fields will be populated by the component that consumes this
-      // by looking up the full task from the store
-    })) as TaskWithReminderData[];
+    const DEADLINE_SUFFIX = '_deadline';
+    const taskReminders: TaskWithReminderData[] = reminders.map((r) => {
+      const isDeadlineReminder = r.id.endsWith(DEADLINE_SUFFIX);
+      const taskId = isDeadlineReminder ? r.id.slice(0, -DEADLINE_SUFFIX.length) : r.id;
+      return {
+        id: taskId,
+        title: r.title,
+        reminderData: { remindAt: r.remindAt },
+        isDeadlineReminder,
+      };
+    }) as TaskWithReminderData[];
 
     Log.log(`ReminderService: ${taskReminders.length} valid reminder(s) to show`);
     if (taskReminders.length > 0) {

@@ -154,6 +154,7 @@ export type Task = Readonly<TaskCopy>;
 export interface TaskWithReminderData extends Task {
   readonly reminderData: { remindAt: number };
   readonly parentData?: Task;
+  readonly isDeadlineReminder?: boolean;
 }
 
 export interface TaskWithReminder extends Task {
