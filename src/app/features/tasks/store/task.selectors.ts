@@ -178,6 +178,8 @@ export const selectUndoneOverdueDeadlineTasks = createSelector(
   selectTodayStr,
   selectStartOfNextDayDiffMs,
   (s, todayStr, startOfNextDayDiffMs): Task[] => {
+    if (!s || !todayStr) return [];
+
     const today = dateStrToUtcDate(todayStr);
     today.setHours(0, 0, 0, 0);
     const todayStartMs = today.getTime() + startOfNextDayDiffMs;
@@ -200,6 +202,8 @@ export const selectUnplannedDeadlineTasksForToday = createSelector(
   selectTodayStr,
   selectStartOfNextDayDiffMs,
   (taskState, todayStr, startOfNextDayDiffMs): Task[] => {
+    if (!taskState || !todayStr) return [];
+
     const today = dateStrToUtcDate(todayStr);
     today.setHours(0, 0, 0, 0);
     const todayStartMs = today.getTime() + startOfNextDayDiffMs;
