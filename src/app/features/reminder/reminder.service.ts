@@ -184,17 +184,37 @@ export class ReminderService {
     }
 
     // Map worker reminders back to TaskWithReminderData format
+    // If both a schedule and deadline reminder fire for the same task,
+    // keep only the schedule reminder (it takes precedence in the dialog)
     const DEADLINE_SUFFIX = '_deadline';
-    const taskReminders: TaskWithReminderData[] = reminders.map((r) => {
-      const isDeadlineReminder = r.id.endsWith(DEADLINE_SUFFIX);
-      const taskId = isDeadlineReminder ? r.id.slice(0, -DEADLINE_SUFFIX.length) : r.id;
-      return {
-        id: taskId,
-        title: r.title,
-        reminderData: { remindAt: r.remindAt },
-        isDeadlineReminder,
-      };
-    }) as TaskWithReminderData[];
+    const seenTaskIds = new Set<string>();
+    const taskReminders: TaskWithReminderData[] = [];
+    // Process non-deadline reminders first so they take precedence
+    for (const r of reminders) {
+      if (!r.id.endsWith(DEADLINE_SUFFIX)) {
+        seenTaskIds.add(r.id);
+        taskReminders.push({
+          id: r.id,
+          title: r.title,
+          reminderData: { remindAt: r.remindAt },
+          isDeadlineReminder: false,
+        } as TaskWithReminderData);
+      }
+    }
+    for (const r of reminders) {
+      if (r.id.endsWith(DEADLINE_SUFFIX)) {
+        const taskId = r.id.slice(0, -DEADLINE_SUFFIX.length);
+        if (!seenTaskIds.has(taskId)) {
+          seenTaskIds.add(taskId);
+          taskReminders.push({
+            id: taskId,
+            title: r.title,
+            reminderData: { remindAt: r.remindAt },
+            isDeadlineReminder: true,
+          } as TaskWithReminderData);
+        }
+      }
+    }
 
     Log.log(`ReminderService: ${taskReminders.length} valid reminder(s) to show`);
     if (taskReminders.length > 0) {
