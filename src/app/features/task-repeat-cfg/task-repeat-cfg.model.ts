@@ -16,9 +16,14 @@ export type RepeatCycleOption = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
 export type RepeatQuickSetting =
   | 'DAILY'
   | 'WEEKLY_CURRENT_WEEKDAY'
+  | 'WEEKLY_TODAY'
   | 'MONTHLY_CURRENT_DATE'
+  | 'MONTHLY_TODAY'
+  | 'MONTHLY_FIRST_DAY'
+  | 'MONTHLY_LAST_DAY'
   | 'MONDAY_TO_FRIDAY'
   | 'YEARLY_CURRENT_DATE'
+  | 'YEARLY_TODAY'
   | 'CUSTOM';
 
 export interface TaskRepeatCfgCopy {

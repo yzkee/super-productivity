@@ -37,9 +37,11 @@ import { getDbDateStr, isDBDateStr } from '../../../util/get-db-date-str';
 import { formatMonthDay } from '../../../util/format-month-day.util';
 import { dateStrToUtcDate } from '../../../util/date-str-to-utc-date';
 import { first } from 'rxjs/operators';
-import { getQuickSettingUpdates } from './get-quick-setting-updates';
+import {
+  getQuickSettingUpdates,
+  normalizeQuickSettingForStorage,
+} from './get-quick-setting-updates';
 import { clockStringFromDate } from '../../../ui/duration/clock-string-from-date';
-import { HelpSectionComponent } from '../../../ui/help-section/help-section.component';
 import { ChipListInputComponent } from '../../../ui/chip-list-input/chip-list-input.component';
 import { MatButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -62,7 +64,6 @@ import { CollapsibleComponent } from '../../../ui/collapsible/collapsible.compon
     MatDialogTitle,
     TranslatePipe,
     MatDialogContent,
-    HelpSectionComponent,
     FormlyModule,
     ChipListInputComponent,
     MatDialogActions,
@@ -194,8 +195,9 @@ export class DialogEditTaskRepeatCfgComponent {
     const _locale = this._dateTimeFormatService.currentLocale();
     const translateService = this._translateService;
 
+    const todayDate = new Date();
     const buildOptions = (refDate: Date): { value: string; label: string }[] =>
-      buildRepeatQuickSettingOptions(refDate, _locale, translateService);
+      buildRepeatQuickSettingOptions(refDate, _locale, translateService, todayDate);
 
     const formConfig = TASK_REPEAT_CFG_ESSENTIAL_FORM_CFG.map((field) => ({
       ...field,
@@ -269,6 +271,13 @@ export class DialogEditTaskRepeatCfgComponent {
       if (updatesForQuickSetting) {
         this.repeatCfg.update((cfg) => ({ ...cfg, ...updatesForQuickSetting }));
       }
+    }
+
+    // Normalize ephemeral _TODAY quick settings to their persistent equivalents
+    // so re-saving doesn't silently shift the recurrence to a different day.
+    const normalizedQs = normalizeQuickSettingForStorage(this.repeatCfg().quickSetting);
+    if (normalizedQs !== this.repeatCfg().quickSetting) {
+      this.repeatCfg.update((cfg) => ({ ...cfg, quickSetting: normalizedQs }));
     }
 
     const finalRepeatCfg = this.repeatCfg();
@@ -387,11 +396,8 @@ export class DialogEditTaskRepeatCfgComponent {
   private _processQuickSettingForDate<
     TCfg extends { quickSetting?: string; startDate?: string },
   >(cfg: TCfg): TCfg {
-    if (
-      cfg.quickSetting === 'WEEKLY_CURRENT_WEEKDAY' ||
-      cfg.quickSetting === 'YEARLY_CURRENT_DATE' ||
-      cfg.quickSetting === 'MONTHLY_CURRENT_DATE'
-    ) {
+    const SETTINGS_WITHOUT_START_DATE = new Set(['DAILY', 'MONDAY_TO_FRIDAY', 'CUSTOM']);
+    if (cfg.quickSetting && !SETTINGS_WITHOUT_START_DATE.has(cfg.quickSetting)) {
       if (!cfg.startDate) {
         return { ...cfg, quickSetting: 'CUSTOM' };
       }

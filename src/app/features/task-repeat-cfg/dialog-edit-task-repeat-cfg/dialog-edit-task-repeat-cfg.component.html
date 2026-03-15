@@ -3,6 +3,7 @@
   class="dialog-help-wrapper"
 >
   <h1 mat-dialog-title>
+    <mat-icon>repeat</mat-icon>
     {{
       isEdit()
         ? (T.F.TASK_REPEAT.D_EDIT.EDIT | translate)
@@ -14,13 +15,6 @@
     @if (repeatCfgId(); as cfgId) {
       <repeat-task-heatmap [repeatCfgId]="cfgId" />
     }
-
-    <help-section>
-      <p>{{ T.F.TASK_REPEAT.D_EDIT.HELP1 | translate }}</p>
-      <p>{{ T.F.TASK_REPEAT.D_EDIT.HELP2 | translate }}</p>
-      <p>{{ T.F.TASK_REPEAT.D_EDIT.HELP3 | translate }}</p>
-      <p>{{ T.F.TASK_REPEAT.D_EDIT.HELP4 | translate }}</p>
-    </help-section>
 
     <div class="form-wrapper">
       <formly-form

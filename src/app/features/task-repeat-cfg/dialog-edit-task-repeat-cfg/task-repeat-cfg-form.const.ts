@@ -27,6 +27,16 @@ export const TASK_REPEAT_CFG_ESSENTIAL_FORM_CFG: FormlyFieldConfig[] = [
     },
   },
   {
+    key: 'startDate',
+    type: 'date',
+    defaultValue: new Date(),
+    templateOptions: {
+      label: T.F.TASK_REPEAT.F.START_DATE,
+      required: true,
+    },
+    parsers: [getDbDateStr],
+  },
+  {
     key: 'quickSetting',
     type: 'select',
     defaultValue: 'DAILY',
@@ -45,16 +55,6 @@ export const TASK_REPEAT_CFG_ESSENTIAL_FORM_CFG: FormlyFieldConfig[] = [
         }
       },
     },
-  },
-  {
-    key: 'startDate',
-    type: 'date',
-    defaultValue: new Date(),
-    templateOptions: {
-      label: T.F.TASK_REPEAT.F.START_DATE,
-      required: true,
-    },
-    parsers: [getDbDateStr],
   },
 
   // REPEAT CUSTOM CFG - Wrapped in container

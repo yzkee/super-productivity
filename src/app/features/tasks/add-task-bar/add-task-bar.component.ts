@@ -70,7 +70,10 @@ import { unique } from '../../../util/unique';
 import { CHRONO_SUGGESTIONS } from './add-task-bar.const';
 import { TaskRepeatCfgService } from '../../task-repeat-cfg/task-repeat-cfg.service';
 import { DEFAULT_TASK_REPEAT_CFG } from '../../task-repeat-cfg/task-repeat-cfg.model';
-import { getQuickSettingUpdates } from '../../task-repeat-cfg/dialog-edit-task-repeat-cfg/get-quick-setting-updates';
+import {
+  getQuickSettingUpdates,
+  normalizeQuickSettingForStorage,
+} from '../../task-repeat-cfg/dialog-edit-task-repeat-cfg/get-quick-setting-updates';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ShortSyntaxTag, shortSyntaxToTags } from './short-syntax-to-tags';
 import { DEFAULT_PROJECT_COLOR } from '../../work-context/work-context.const';
@@ -536,12 +539,12 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
             getQuickSettingUpdates(state.repeatQuickSetting, referenceDate) || {};
           this._taskRepeatCfgService.addTaskRepeatCfgToTask(taskId, state.projectId, {
             ...DEFAULT_TASK_REPEAT_CFG,
+            startDate,
             ...quickSettingUpdates,
             title,
-            quickSetting: state.repeatQuickSetting,
+            quickSetting: normalizeQuickSettingForStorage(state.repeatQuickSetting),
             tagIds: taskData.tagIds ?? [],
             defaultEstimate: state.estimate || 0,
-            startDate,
             startTime: state.time || undefined,
             remindAt: state.time ? resolvedRemindOption : undefined,
           });
