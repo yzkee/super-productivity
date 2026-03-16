@@ -1,29 +1,65 @@
-<a href="https://super-productivity.com/">
-  <img align="center" alt="Banner" src="docs/screens/banner.png" />
-</a>
+<a href="https://super-productivity.com/"><img alt="Banner" src="docs/screens/banner.png"/></a>
 
-<br>
-<br>
+<div style="height:20px;"></div>
 
 <p align="center">
-<strong>An advanced todo list app with timeboxing & time tracking capabilities that supports importing tasks from your calendar, Jira, GitHub and others</strong>
+  <strong>
+    An advanced todo list app with timeboxing & time tracking capabilities that supports importing tasks from your calendar, Jira, GitHub and others
+  </strong>
 <p>
 
-<p align="center">:globe_with_meridians: <a href="https://app.super-productivity.com">Open Web App</a> or :computer: <a href="https://github.com/super-productivity/super-productivity/releases">Download</a></p>
-
-<br>
-
 <p align="center">
-<a href="https://youtu.be/_mvMXWLsL-8">
-    <img src="https://github.com/user-attachments/assets/15384cae-8ba3-4474-bc2c-13e7765c2dd1" alt="animated" />
-</a>
+  :globe_with_meridians: <a href="https://app.super-productivity.com">Open Web App</a> or :computer: <a href="https://github.com/super-productivity/super-productivity/releases">Download</a>
 </p>
 
-<br>
-<br>
+<br/>
+
+<!-- The <a> and <img> elements are intentionally made without space.
+     Because of the extra whitespace characters in <a>, makes blue underline lines appear for them.
+     Please do not change this formatting, so as not to make them.
+-->
+<p align="center">
+  <a href="https://lbesson.mit-license.org"><img alt="MIT license" src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square"/></a>
+  &nbsp;
+  <a href="https://github.com/super-productivity/super-productivity/releases"><img alt="GitHub All Releases" src="https://img.shields.io/github/downloads/super-productivity/super-productivity/total"/></a>
+  &nbsp;
+  <a href="https://community.chocolatey.org/packages/super-productivity"><img alt="Chocolatey package" src="https://img.shields.io/chocolatey/dt/super-productivity?color=blue&label=chocolatey"/></a>
+  &nbsp;
+  <a href="https://www.producthunt.com/posts/super-productivity"><img alt="On product hunt" src="https://img.shields.io/badge/on-product%20hunt-blue.svg?style=flat-square"/></a>
+</p>
 
 <p align="center">
+  <a href="https://www.reddit.com/r/superProductivity/"><img alt="Reddit Community" src="https://img.shields.io/badge/Reddit-%23FF4500.svg?style=for-the-badge&logo=Reddit&logoColor=white" width="85"/></a>
+  &nbsp;
+  <a href="https://mastodon.social/@superproductivity"><img alt="Super Productivity on Mastodon" src="https://img.shields.io/badge/-MASTODON-%232B90D9?style=for-the-badge&logo=mastodon&logoColor=white" width="105"/></a>
+  &nbsp;
+  <a href="https://x.com/intent/post?text=Super%20Productivity%20%20https%3A%2F%2Fsuper-productivity.com"><img alt="Tweet" src="https://img.shields.io/badge/TWEET-%23000000.svg?style=for-the-badge&logo=X" width="90"/></a>
 </p>
+
+<p align="center">
+  <a href="https://youtu.be/_mvMXWLsL-8"><img src="https://github.com/user-attachments/assets/15384cae-8ba3-4474-bc2c-13e7765c2dd1" alt="animated"/></a>
+</p>
+
+<p align="center">
+  <a href='https://flathub.org/apps/com.super_productivity.SuperProductivity' target="_blank"> <img alt='Get it on Flathub'src='https://flathub.org/api/badge?locale=en' height="50"/></a>
+  &nbsp;
+  <a href="https://snapcraft.io/superproductivity" target="_blank"><img alt="Get it from the Snap Store" src="https://snapcraft.io/static/images/badges/en/snap-store-black.svg" height="50"/></a>
+  &nbsp;
+  <a href='//www.microsoft.com/store/apps/9NHFVG8361TW?cid=storebadge&ocid=badge' target="_blank"><img src='https://developer.microsoft.com/store/badges/images/English_get-it-from-MS.png' alt='English badge' height="50"/></a>
+  &nbsp;
+  <a href='http://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/super-productivity/super-productivity/releases'><img src='https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png' alt='Obtanium Badge' height="50"/></a>
+</p>
+
+<p align="center">
+  <a href='//play.google.com/store/apps/details?id=com.superproductivity.superproductivity' target="_blank"><img src='docs/screens/google-play-badge.svg' alt='Play Store Badge' height="50" style="height:50px;"/></a>
+  &nbsp;
+  <a href='//f-droid.org/en/packages/com.superproductivity.superproductivity' target="_blank"><img src='https://f-droid.org/assets/fdroid-logo-text_S0MUfk_FsnAYL7n2MQye-34IoSNm6QM6xYjDnMqkufo=.svg' alt='F-Droid Badge' height="50"/></a>
+  &nbsp;
+  <a href='//apps.apple.com/app/super-productivity/id1482572463?l=en' target="_blank"><img src='docs/screens/app-store-badge.svg' alt='App Store Badge' height="50" style="height:50px;"/></a>
+</p>
+
+<hr>
+<div style="height:20px;"></div>
 
 <p align="center">
   <a href="https://bank.gov.ua/en/news/all/natsionalniy-bank-vidkriv-rahunok-dlya-gumanitarnoyi-dopomogi-ukrayintsyam-postrajdalim-vid-rosiyskoyi-agresiyi" target="_blank">
@@ -38,102 +74,7 @@
   </a>
 </p>
 
-<br>
-<br>
-
-<p align="center" style="text-align: center;">
-<a href="https://lbesson.mit-license.org">
-  <img alt="MIT license"
-       src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square"
-       align="center">
-</a>
-<a href="https://github.com/super-productivity/super-productivity/releases">
-  <img alt="GitHub All Releases"
-       src="https://img.shields.io/github/downloads/super-productivity/super-productivity/total"
-       align="center">
-</a>
-<a href="https://community.chocolatey.org/packages/super-productivity">
-  <img alt="Chocolatey package"
-       src="https://img.shields.io/chocolatey/dt/super-productivity?color=blue&label=chocolatey"
-       align="center">
-</a>
-<a href="https://www.producthunt.com/posts/super-productivity">
-  <img alt="On product hunt"
-       src="https://img.shields.io/badge/on-product%20hunt-blue.svg?style=flat-square"
-       align="center">
-</a>
-<a href="https://www.reddit.com/r/superProductivity/">
-  <img alt="Reddit Community"
-       src="https://img.shields.io/badge/Reddit-%23FF4500.svg?style=for-the-badge&logo=Reddit&logoColor=white"
-       align="center">
-</a>
-<a href="https://mastodon.social/@superproductivity">
-  <img alt="Super Productivity on Mastodon"
-       src="https://img.shields.io/badge/-MASTODON-%232B90D9?style=for-the-badge&logo=mastodon&logoColor=white"
-       align="center">
-</a>
-<a href="https://x.com/intent/post?text=Super%20Productivity%20%20https%3A%2F%2Fsuper-productivity.com">
-  <img alt="Tweet"
-       src="https://img.shields.io/badge/TWEET-%23000000.svg?style=for-the-badge&logo=X"
-       align="center">
-</a>
-</p>
-
-<p align="center" style="text-align: center;">
-
-<a href='https://flathub.org/apps/com.super_productivity.SuperProductivity' target="_blank">
-  <img alt='Get it on Flathub'
-       src='https://flathub.org/api/badge?locale=en'
-       align="center"
-       style="height: 50px"
-       height="50" />
-  </a>
-
-<a href="https://snapcraft.io/superproductivity" target="_blank">
-  <img alt="Get it from the Snap Store"
-       src="https://snapcraft.io/static/images/badges/en/snap-store-black.svg"
-       align="center"
-       style="height: 50px"
-       height="50">
-</a>
-<a href='//www.microsoft.com/store/apps/9NHFVG8361TW?cid=storebadge&ocid=badge' target="_blank">
-  <img src='https://developer.microsoft.com/store/badges/images/English_get-it-from-MS.png'
-       align="center"
-       alt='English badge'
-       style="height: 50px"
-       height="50" />
-</a>
-<a href='//apps.apple.com/app/super-productivity/id1482572463?l=en&mt=12' target="_blank">
-  <img src='docs/screens/app-store-badge.svg'
-       align="center"
-       alt='App Store Badge'
-       style="height: 50px"
-       height="50" />
-</a>
-<a href='//play.google.com/store/apps/details?id=com.superproductivity.superproductivity' target="_blank">
-  <img src='docs/screens/google-play-badge.png'
-       align="center"
-       alt='Play Store Badge'
-       style="height: 50px"
-       height="50" />
-</a>
-<a href='//f-droid.org/en/packages/com.superproductivity.superproductivity' target="_blank">
-  <img src='https://f-droid.org/assets/fdroid-logo-text_S0MUfk_FsnAYL7n2MQye-34IoSNm6QM6xYjDnMqkufo=.svg'
-       align="center"
-       alt='F-Droid Badge'
-       style="height: 50px"
-       height="50" />
-</a>
-<a href='http://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/super-productivity/super-productivity/releases'>
-  <img src='https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png'
-       align="center"
-       alt='Obtanium Badge'
-       style="height: 50px"
-       height="50" />
-</a>
-</p>
-
-<br>
+<hr>
 
 ## :heavy_check_mark: Features
 
@@ -215,7 +156,9 @@ If you want the Jira integration and idle time tracking to work, you also have t
 
 Due to certification issues it's recommended to download the app from the Microsoft Store:
 
-<a href='//www.microsoft.com/store/apps/9nhfvg8361tw?cid=storebadge&ocid=badge'><img src='https://developer.microsoft.com/store/badges/images/English_get-it-from-MS.png' alt='English badge' width="127" height="52"/></a>
+<a href='//www.microsoft.com/store/apps/9nhfvg8361tw?cid=storebadge&ocid=badge'><img src='https://developer.microsoft.com/store/badges/images/English_get-it-from-MS.png' alt='English badge' height="50"/></a>
+
+<div style="height:20px;"></div>
 
 You can also install the app using [Chocolatey](https://community.chocolatey.org/packages/super-productivity):
 
@@ -232,6 +175,10 @@ scoop install extras/super-productivity
 ### Linux
 
 #### Snap - Most distributions
+
+<a href="https://snapcraft.io/superproductivity"><img alt="Get it from the Snap Store" src="https://snapcraft.io/static/images/badges/en/snap-store-black.svg" height="50"/></a>
+
+<div style="height:20px;"></div>
 
 Install via command-line:
 
@@ -258,11 +205,11 @@ When uninstalling the snap package, all user data (tasks, projects, settings) st
 
 For more details, see [issue #6031](https://github.com/super-productivity/super-productivity/issues/6031).
 
-<a href="https://snapcraft.io/superproductivity">
-  <img alt="Get it from the Snap Store" src="https://snapcraft.io/static/images/badges/en/snap-store-black.svg" />
-</a>
-
 #### Flatpak - Most distributions
+
+<a href='https://flathub.org/apps/com.super_productivity.SuperProductivity'><img alt='Get it on Flathub' src='https://flathub.org/api/badge?locale=en' height="50"/></a>
+
+<div style="height:20px;"></div>
 
 Must install Flatpak first. See [setup instructions for all distributions](https://flathub.org/setup).
 
@@ -275,10 +222,6 @@ flatpak install flathub com.super_productivity.SuperProductivity
 # run
 flatpak run com.super_productivity.SuperProductivity
 ```
-
-<a href='https://flathub.org/apps/com.super_productivity.SuperProductivity'>
-    <img width='175' alt='Get it on Flathub' src='https://flathub.org/api/badge?locale=en'/>
-  </a>
 
 #### Aur - Arch Linux
 
@@ -295,40 +238,29 @@ https://github.com/super-productivity/super-productivity/issues/3193#issuecommen
 
 ### MacOS
 
+<a href='//apps.apple.com/app/super-productivity/id1482572463?l=en' target="_blank"><img src='docs/screens/app-store-badge.svg' alt='App Store Badge' height="50" style="height:50px;"></a>
+
+<div style="height:20px;"></div>
+
 Install via [homebrew cask](https://github.com/caskroom/homebrew-cask):
 
 ```bash
 brew install --cask superproductivity
 ```
 
-<a href='//apps.apple.com/app/super-productivity/id1482572463?l=en&mt=12' target="_blank">
-  <img src='docs/screens/app-store-badge.svg'
-       alt='App Store Badge'
-       height="50" />
-</a>
-
 ### Android
+
+<a href='//play.google.com/store/apps/details?id=com.superproductivity.superproductivity' target="_blank"><img src='docs/screens/google-play-badge.svg' alt='Play Store Badge' height="50" style="height:50px;"/></a>
+&nbsp;
+<a href='//f-droid.org/en/packages/com.superproductivity.superproductivity' target="_blank"><img src='https://f-droid.org/assets/fdroid-logo-text_S0MUfk_FsnAYL7n2MQye-34IoSNm6QM6xYjDnMqkufo=.svg' alt='F-Droid Badge' height="50"/></a>
+
+<div style="height:20px;"></div>
 
 A new version of the Android app is now available with **Connectivity-Free Mode**, allowing you to use the app without an internet connection.
 
 This update offers more flexibility, supporting both fully offline usage and integration with services like WebDAV and Dropbox for syncing. Enjoy a smoother, more reliable experience whether you're online or offline.
 
 Stay tuned for even more exciting updates!
-
-You can find the Android app here:
-
-<a href='//play.google.com/store/apps/details?id=com.superproductivity.superproductivity' target="_blank">
-  <img src='docs/screens/google-play-badge.png'
-       align="center"
-       alt='App Store Badge'
-       height="50" />
-</a>
-<a href='//f-droid.org/en/packages/com.superproductivity.superproductivity' target="_blank">
-  <img src='https://f-droid.org/assets/fdroid-logo-text_S0MUfk_FsnAYL7n2MQye-34IoSNm6QM6xYjDnMqkufo=.svg'
-       align="center"
-       alt='F-Droid Badge'
-       height="50" />
-</a>
 
 The sources can be [found here](/android).
 
@@ -378,14 +310,15 @@ There are several ways to help.
 
 Recently support for Super Productivity has been growing! A big thank you to all our sponsors, especially the ones below!
 
-<p style="font-size:21px; color:black;">Agentic AI Quality Engineering via
-        <a href="https://www.testmuai.com/?utm_medium=sponsor&utm_source=superproductivity" target="_blank">
-            <picture>
-                <source srcset="https://super-productivity.com/_astro/test-mu-log-dark.Dy0yXuJ7.svg" media="(prefers-color-scheme: dark)" />
-                <img src="https://super-productivity.com/_astro/test-mu-log-light.CehEzLCt.svg" style="vertical-align: middle;" width="250" height="45" alt="TestMu AI" />
-            </picture>
-        </a>
-    </p>
+- <p>
+      Agentic AI Quality Engineering via:&nbsp;
+      <a href="https://www.testmuai.com/?utm_medium=sponsor&utm_source=superproductivity" target="_blank">
+        <picture>
+            <source srcset="https://super-productivity.com/_astro/test-mu-log-dark.Dy0yXuJ7.svg" media="(prefers-color-scheme: dark)" />
+            <img src="https://super-productivity.com/_astro/test-mu-log-light.CehEzLCt.svg" style="vertical-align: middle;" width="150" height="30" alt="TestMu AI" />
+        </picture>
+      </a>
+  </p>
 
 _(If you are, intend to or have been a sponsor and want to be shown here, [please let me know](mailto:contact@super-productivity.com)!)_
 
@@ -399,13 +332,13 @@ If you don't want or cannot use Codespaces for any reason, here are the instruct
 
 To run the development server you need to have Node installed (version 20 or higher required). Go to https://nodejs.org for installation instructions.
 
-**Clone repo**
+**1. Clone repo**
 
 ```bash
 git clone https://github.com/super-productivity/super-productivity.git
 ```
 
-**Install dependencies**
+**2. Install dependencies**
 
 ```bash
 cd super-productivity
@@ -415,7 +348,7 @@ npm i
 npm run env
 ```
 
-**Run the dev server**
+**3. Run the dev server**
 
 ```bash
 ng serve
