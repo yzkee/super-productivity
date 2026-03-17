@@ -13,7 +13,7 @@
   box-sizing: border-box;
   background: var(--bottom-nav-bg);
   border-top: 1px solid var(--separator-color);
-  box-shadow: var(--whiteframe-shadow-8dp);
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.12);
   align-items: center;
   justify-content: space-between;
   padding: 0 8px;
@@ -54,7 +54,8 @@
     &.active {
       background: var(--sidenav-item-active-bg);
       color: var(--sidenav-active-text);
-      box-shadow: var(--whiteframe-shadow-1dp);
+      box-shadow: 0 -1px 1px rgba(0, 0, 0, 0.1);
+      margin-bottom: 2px;
 
       mat-icon {
         color: var(--sidenav-active-text);
@@ -75,14 +76,16 @@
     margin-left: 8px;
     margin-right: 8px;
     margin-bottom: 24px;
-    box-shadow: var(--mat-fab-container-elevation-shadow);
+    box-shadow:
+      0 -2px 6px rgba(0, 0, 0, 0.15),
+      0 2px 4px rgba(0, 0, 0, 0.2);
     transition: var(--transition-standard);
 
     &:hover {
       transform: scale(1.05);
       box-shadow:
-        var(--mat-fab-container-elevation-shadow),
-        0 8px 16px rgba(0, 0, 0, 0.2);
+        0 -3px 8px rgba(0, 0, 0, 0.18),
+        0 4px 8px rgba(0, 0, 0, 0.25);
     }
 
     &:active {

@@ -33,7 +33,7 @@ import { androidInterface } from '../../features/android/android-interface';
 import { HttpClient } from '@angular/common/http';
 import { CapacitorPlatformService } from '../platform/capacitor-platform.service';
 import { Keyboard, KeyboardInfo } from '@capacitor/keyboard';
-import { PluginListenerHandle } from '@capacitor/core';
+import { PluginListenerHandle, registerPlugin } from '@capacitor/core';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { SafeArea } from 'capacitor-plugin-safe-area';
 import { FlexibleConnectedPositionStrategy } from '@angular/cdk/overlay';
@@ -41,6 +41,12 @@ import { LS } from '../persistence/storage-keys.const';
 import { CustomThemeService } from './custom-theme.service';
 import { Log } from '../log';
 import { LayoutService } from '../../core-ui/layout/layout.service';
+
+interface NavigationBarPlugin {
+  setColor(options: { color: string; style: 'LIGHT' | 'DARK' }): Promise<void>;
+}
+
+const NavigationBar = registerPlugin<NavigationBarPlugin>('NavigationBar');
 
 export type DarkModeCfg = 'dark' | 'light' | 'system';
 
@@ -588,11 +594,16 @@ export class GlobalThemeService {
         Log.warn('Failed to set status bar style', err);
       });
       if (this._platformService.isAndroid()) {
-        StatusBar.setBackgroundColor({ color: isDark ? '#131314' : '#f8f8f7' }).catch(
-          (err) => {
-            Log.warn('Failed to set status bar background color', err);
-          },
-        );
+        const bgColor = isDark ? '#131314' : '#f8f8f7';
+        StatusBar.setBackgroundColor({ color: bgColor }).catch((err) => {
+          Log.warn('Failed to set status bar background color', err);
+        });
+        NavigationBar.setColor({
+          color: bgColor,
+          style: isDark ? 'DARK' : 'LIGHT',
+        }).catch((err) => {
+          Log.warn('Failed to set navigation bar color', err);
+        });
       }
     });
   }

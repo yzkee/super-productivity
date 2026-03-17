@@ -16,6 +16,7 @@ import androidx.activity.addCallback
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.anggrayudi.storage.SimpleStorageHelper
 import com.getcapacitor.BridgeActivity
+import com.superproductivity.superproductivity.plugins.NavigationBarPlugin
 import com.superproductivity.superproductivity.plugins.SafBridgePlugin
 import com.superproductivity.superproductivity.service.FocusModeForegroundService
 import com.superproductivity.superproductivity.service.TrackingForegroundService
@@ -67,6 +68,7 @@ class CapacitorMainActivity : BridgeActivity() {
         // Register plugins before calling super.onCreate()
         registerPlugin(SafBridgePlugin::class.java)
         registerPlugin(WebDavHttpPlugin::class.java)
+        registerPlugin(NavigationBarPlugin::class.java)
 
         super.onCreate(savedInstanceState)
         if (webViewBlocked) {
