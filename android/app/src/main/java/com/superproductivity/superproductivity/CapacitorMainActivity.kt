@@ -26,6 +26,7 @@ import com.superproductivity.superproductivity.webview.WebHelper
 import com.superproductivity.superproductivity.webview.WebViewBlockActivity
 import com.superproductivity.superproductivity.webview.WebViewCompatibilityChecker
 import com.superproductivity.superproductivity.widget.ShareIntentQueue
+import com.superproductivity.superproductivity.widget.StartupOverlayManager
 import com.superproductivity.plugins.webdavhttp.WebDavHttpPlugin
 import org.json.JSONObject
 
@@ -38,6 +39,7 @@ class CapacitorMainActivity : BridgeActivity() {
     private var webViewBlocked = false
     private var pendingShareIntent: JSONObject? = null
     private var isFrontendReady = false
+    private var startupOverlayManager: StartupOverlayManager? = null
 
     private val storageHelper =
         SimpleStorageHelper(this) // for scoped storage permission management on Android 10+
@@ -79,7 +81,9 @@ class CapacitorMainActivity : BridgeActivity() {
 
         // DEBUG ONLY
         if (BuildConfig.DEBUG) {
-            Toast.makeText(this, "DEBUG: Offline Mode", Toast.LENGTH_SHORT).show()
+            val debugToast = Toast.makeText(this, "DEBUG", Toast.LENGTH_SHORT)
+            debugToast.show()
+            Handler(Looper.getMainLooper()).postDelayed({ debugToast.cancel() }, 100)
             WebView.setWebContentsDebuggingEnabled(true)
         }
 
@@ -148,6 +152,13 @@ class CapacitorMainActivity : BridgeActivity() {
             IntentFilter(FocusModeForegroundService.ACTION_TIMER_COMPLETE)
         )
 
+        // Show startup overlay for quick task entry while Angular loads.
+        // Only on fresh cold start — not on config-change recreation.
+        if (savedInstanceState == null) {
+            startupOverlayManager = StartupOverlayManager(this)
+            startupOverlayManager?.show()
+        }
+
         // Handle initial intent (cold start)
         handleIntent(intent)
     }
@@ -155,6 +166,22 @@ class CapacitorMainActivity : BridgeActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleIntent(intent)
+    }
+
+    fun getStartupOverlayPartialText(): String? {
+        return startupOverlayManager?.getPartialTextAndPrepare()
+    }
+
+    fun hideStartupOverlay() {
+        if (startupOverlayManager != null) {
+            startupOverlayManager?.hide()
+            startupOverlayManager = null
+        }
+    }
+
+    fun dismissStartupOverlay() {
+        startupOverlayManager?.dismiss()
+        startupOverlayManager = null
     }
 
     fun flushPendingShareIntent() {
@@ -299,6 +326,8 @@ class CapacitorMainActivity : BridgeActivity() {
 
 
     override fun onDestroy() {
+        startupOverlayManager?.dismiss()
+        startupOverlayManager = null
         super.onDestroy()
         LocalBroadcastManager.getInstance(this).unregisterReceiver(timerCompleteReceiver)
     }

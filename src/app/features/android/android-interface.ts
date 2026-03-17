@@ -85,6 +85,11 @@ export interface AndroidInterface {
   // Widget task queue - get queued tasks from home screen widget
   getWidgetTaskQueue?(): string | null;
 
+  // Startup overlay
+  getStartupOverlayPartialText?(): string | null;
+  hideStartupOverlay?(): void;
+  dismissStartupOverlay?(): void;
+
   // added here only
   onResume$: Subject<void>;
   onPause$: Subject<void>;

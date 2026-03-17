@@ -141,27 +141,21 @@ TODO configure more restrictive Content-Security-Policy
       .app-loading .spinner {
         position: relative;
         margin: 100px auto;
+        width: 120px;
+        height: 120px;
+      }
+
+      .app-loading .spinner-pulse {
+        position: absolute;
+        top: 50%;
+        left: 50%;
         width: 140px;
         height: 140px;
-      }
-
-      .app-loading .double-bounce1,
-      .app-loading .double-bounce2 {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        margin: -70px 0 0 -70px;
         border-radius: 50%;
         background-color: #6495ed;
-        opacity: 0.6;
-        -webkit-animation: sk-bounce 2s infinite ease-in-out;
-        animation: sk-bounce 2s infinite ease-in-out;
-      }
-
-      .app-loading .double-bounce2 {
-        -webkit-animation-delay: -1s;
-        animation-delay: -1s;
+        opacity: 0;
+        animation: sp-pulse 2s ease-in-out infinite;
       }
 
       .productivity-tip {
@@ -191,15 +185,15 @@ TODO configure more restrictive Content-Security-Policy
         margin: 0 0 8px !important;
       }
 
-      @keyframes sk-bounce {
+      @keyframes sp-pulse {
         0%,
         100% {
-          transform: scale(0);
-          -webkit-transform: scale(0);
+          opacity: 0;
+          transform: scale(0.8);
         }
         50% {
+          opacity: 0.15;
           transform: scale(1);
-          -webkit-transform: scale(1);
         }
       }
     </style>
@@ -214,8 +208,7 @@ TODO configure more restrictive Content-Security-Policy
           </div>
 
           <div class="spinner">
-            <div class="double-bounce1"></div>
-            <div class="double-bounce2"></div>
+            <div class="spinner-pulse"></div>
           </div>
 
           <svg
