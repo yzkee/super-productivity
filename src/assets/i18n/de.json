@@ -104,12 +104,11 @@
         "CALDAV_RESOURCE": "Der Name der CalDav-Ressource (der Kalender)",
         "CALDAV_URL": "CalDav-URL (die Basis-URL)",
         "CALDAV_USER": "Ihr CalDav-Benutzername",
-        "IS_TRANSITION_ISSUES_ENABLED": "Führen Sie CalDav-Aufgaben nach Abschluss der Aufgabe automatisch aus",
         "TWO_WAY_SYNC_BOTH": "Beide (bidirektional)",
         "TWO_WAY_SYNC_NOTES": "Notizen / Beschreibung Synchronisationsrichtung",
-        "TWO_WAY_SYNC_OFF": "AUS",
-        "TWO_WAY_SYNC_PULL_ONLY": "Nur ziehen (lesen von CalDAV)",
-        "TWO_WAY_SYNC_PUSH_ONLY": "Nur schieben (schreiben zu CalDAV)",
+        "TWO_WAY_SYNC_OFF": "Aus",
+        "TWO_WAY_SYNC_PULL_ONLY": "Nur empfangen (von CalDAV lesen)",
+        "TWO_WAY_SYNC_PUSH_ONLY": "Nur senden (in CalDAV schreiben)",
         "TWO_WAY_SYNC_SECTION": "Zwei-Wege-Synchronisation (experimentell)",
         "TWO_WAY_SYNC_STATUS": "Status-Synchronisationsrichtung",
         "TWO_WAY_SYNC_TITLE": "Titel-Synchronisationsrichtung"
@@ -136,12 +135,12 @@
         "SHOW_TASK": "Aufgabe anzeigen",
         "TXT": "<strong>{{title}}</strong> beginnt um <strong>{{start}}</strong> !",
         "TXT_MULTIPLE": {
-          "ONE": "<strong>{{title}}<\\/strong> beginnt um <strong>{{start}}<\\/strong>!<br> (und {{nrOfOtherBanners}} weiteres Ereignis steht an)",
+          "ONE": "<strong>{{title}}</strong> beginnt um <strong>{{start}}</strong>!<br> (und {{nrOfOtherBanners}} weiteres Ereignis steht an)",
           "OTHER": "<strong>{{title}}</strong> beginnt um <strong>{{start}}</strong> !<br> (und {{nrOfOtherBanners}} weitere Ereignisse sind fällig)"
         },
         "TXT_PAST": "<strong>{{title}}</strong> startete um <strong>{{start}}</strong> !",
         "TXT_PAST_MULTIPLE": {
-          "ONE": "<strong>{{title}}<\\/strong> begann um <strong>{{start}}<\\/strong>!<br> (und {{nrOfOtherBanners}} weiteres Ereignis steht an)",
+          "ONE": "<strong>{{title}}</strong> begann um <strong>{{start}}</strong>!<br> (und {{nrOfOtherBanners}} weiteres Ereignis steht an)",
           "OTHER": "<strong>{{title}}</strong> gestartet um <strong>{{start}}</strong> !<br> (und {{nrOfOtherBanners}} weitere Ereignisse sind fällig)"
         }
       },
@@ -156,7 +155,7 @@
     "CLIPBOARD_IMAGE": {
       "PASTE_SUCCESS": "Bild erfolgreich eingefügt",
       "SIZE_EXCEEDED": "Bildgröße ({{actualSize}}) überschreitet die maximal erlaubte Größe ({{maxSize}})",
-      "STORAGE_QUOTA_EXCEEDED": "Speicherplatzkontingent überschritten. Bitte schaffen Sie Platz oder reduzieren Sie die Bildgrößen."
+      "STORAGE_QUOTA_EXCEEDED": "Speicherkontingent überschritten. Bitte geben Sie Speicherplatz frei oder verkleinern Sie die Bilder."
     },
     "CONFIG": {
       "S": {
@@ -207,7 +206,7 @@
       "FLOWTIME_HINT": "Flexible Zeitplanung ohne strenge Zeitvorgaben",
       "FOCUS_TIME_TOOLTIP": "Fokus Zeit",
       "GET_READY": "Machen Sie sich bereit für Ihre Fokussitzung!",
-      "GO_TO_PROCRASTINATION": "Hilfe bei Aufschieberitis erhalten",
+      "GO_TO_PROCRASTINATION": "Hilfe bei Prokrastination erhalten",
       "GOGOGO": "Los, los, los!!!",
       "LONG_BREAK": "Lange Pause",
       "LONG_BREAK_TITLE": "Lange Pause - Zyklus {{cycle}}",
@@ -230,7 +229,7 @@
       "RESUME_SESSION": "Sitzung fortsetzen",
       "SELECT_MODE": "Wählen Sie Ihren Fokusmodus",
       "SELECT_TASK": "Wählen Sie die Aufgabe aus, auf die Sie sich konzentrieren möchten",
-      "SELECT_TASK_FIRST": "Wählen Sie zuerst eine Aufgabe aus, um die Verfolgung zu starten",
+      "SELECT_TASK_FIRST": "Wählen Sie zuerst eine Aufgabe aus, um die Zeiterfassung zu starten",
       "SELECT_TASK_TO_FOCUS": "Aufgabe zum Fokussieren auswählen",
       "SESSION_COMPLETED": "Fokussierungssitzung abgeschlossen!",
       "SHORT_BREAK": "Kurze Pause",
@@ -266,35 +265,6 @@
         "STATUS": "Status",
         "SUMMARY": "Zusammenfassung",
         "WRITE_A_COMMENT": "Schreibe einen Kommentar"
-      }
-    },
-    "GITHUB": {
-      "FORM": {
-        "FILTER_USER": "Benutzername (z. B. um Änderungen selbst herauszufiltern)",
-        "INVALID_TOKEN_MESSAGE": "Kein gültiges GitHub-Token. Er muss mit \"ghp_\" beginnen.",
-        "IS_ASSIGNEE_FILTER": "Filtert die mir zugewiesenen Issues",
-        "REPO": "\"Benutzername / Repositoryname\" für das Git-Repository, das Sie verfolgen möchten",
-        "TOKEN": "Zugangstoken"
-      },
-      "FORM_SECTION": {
-        "HELP": "<p>Hier können Sie SuperProductivity so konfigurieren, dass offene GitHub-Issues für ein bestimmtes Repository im Aufgabenerstellungsbereich in der Tagesplanungsansicht aufgelistet werden. Sie werden als Vorschläge aufgeführt und enthalten einen Link zum Thema sowie weitere Informationen dazu.</p> <p>Außerdem können Sie alle offenen Issues automatisch zu Ihrem Aufgaben-Backlog hinzufügen und synchronisieren.</p>"
-      },
-      "ISSUE_CONTENT": {
-        "ASSIGNEE": "Bearbeiter",
-        "AT": "am",
-        "DESCRIPTION": "Beschreibung",
-        "LABELS": "Labels",
-        "LAST_COMMENT": "Letzter Kommentar",
-        "LOAD_ALL_COMMENTS": "Alle {{nr}} Kommentare laden",
-        "LOAD_DESCRIPTION_AND_ALL_COMMENTS": "Beschreibung und alle Kommentare laden",
-        "MARK_AS_CHECKED": "Updates als erledigt markieren",
-        "STATUS": "Status",
-        "SUMMARY": "Zusammenfassung",
-        "WRITE_A_COMMENT": "Schreiben Sie einen Kommentar"
-      },
-      "S": {
-        "CONFIG_ERROR": "GitHub: Fehler beim Zuordnen von Daten. Ist Ihr Repository-Name korrekt?",
-        "ERR_UNKNOWN": "GitHub: Unbekannter Fehler {{statusCode}} {{errorMsg}}. Wurde das Api-Anfrage-Limit überschritten?"
       }
     },
     "GITLAB": {
@@ -353,7 +323,7 @@
       "DEFAULT_PROJECT_LABEL": "Standard-Superproduktivitätsprojekt",
       "DIALOG": {
         "ADVANCED_CONFIG": "Erweiterte Konfiguration",
-        "DELETE_CONFIRM": "Sind Sie sicher, dass Sie diesen Issue-Anbieter löschen möchten? Das Löschen bedeutet, dass <strong>alle zuvor importierten Issue-Aufgaben ihre Referenz verlieren<\\/strong>. Dies kann nicht rückgängig gemacht werden!"
+        "DELETE_CONFIRM": "Sind Sie sicher, dass Sie diesen Issue-Anbieter löschen möchten? Das Löschen bedeutet, dass <strong>alle zuvor importierten Issue-Aufgaben ihre Referenz verlieren</strong>. Dies kann nicht rückgängig gemacht werden!"
       },
       "HOW_TO_GET_A_TOKEN": "Wie bekomme ich einen Token?",
       "ISSUE_CONTENT": {
@@ -383,7 +353,7 @@
         "WORKLOG": "Arbeitsprotokoll"
       },
       "S": {
-        "AUTO_CREATE_FAILED": "Automatisches Erstellen des Issues fehlgeschlagen: {{errorMsg}}",
+        "AUTO_CREATE_FAILED": "Automatische Issue-Erstellung fehlgeschlagen: {{errorMsg}}",
         "CONNECTION_FAILED": "Verbindung fehlgeschlagen",
         "CONNECTION_SUCCESS": "Verbindung funktioniert!",
         "ERR_GENERIC": "{{issueProviderName}} Fehler: {{errTxt}}",
@@ -397,16 +367,16 @@
         "PLUGIN_NOT_INSTALLED": "Erforderliches Plugin \"{{pluginName}}\" ist nicht installiert.",
         "POLLING_BACKLOG": "{{issueProviderName}}: Abfrage für neue {{issuesStr}}",
         "POLLING_CHANGES": "{{issueProviderName}}: Polling-Änderungen für {{issuesStr}}",
-        "TWO_WAY_SYNC_PUSH_FAILED": "Zweiseitige Synchronisation Push fehlgeschlagen: {{errorMsg}}"
+        "TWO_WAY_SYNC_PUSH_FAILED": "Zwei-Wege-Synchronisation Senden fehlgeschlagen: {{errorMsg}}"
       },
       "TWO_WAY_SYNC": {
-        "AUTO_CREATE_ISSUES": "Automatisches Erstellen von Issues für neue Aufgaben",
-        "AUTO_CREATE_ISSUES_DESCRIPTION": "Erstellt automatisch ein Issue, wenn Sie eine neue Top-Level-Aufgabe zum Standardprojekt hinzufügen. Erfordert ein festgelegtes Standardprojekt.",
+        "AUTO_CREATE_ISSUES": "Issues automatisch für neue Aufgaben erstellen",
+        "AUTO_CREATE_ISSUES_DESCRIPTION": "Erstellt automatisch ein Issue, wenn Sie eine neue Hauptaufgabe zum Standardprojekt hinzufügen. Erfordert ein festgelegtes Standardprojekt.",
         "BOTH": "Beide (bidirektional)",
         "NOTES": "Notizen / Beschreibung Synchronisationsrichtung",
-        "OFF": "AUS",
-        "PULL_ONLY": "Nur Pull",
-        "PUSH_ONLY": "Nur Push",
+        "OFF": "Aus",
+        "PULL_ONLY": "Nur empfangen",
+        "PUSH_ONLY": "Nur senden",
         "SECTION": "Zwei-Wege-Synchronisation (experimentell)",
         "STATUS": "Status-Synchronisationsrichtung",
         "TITLE": "Titel-Synchronisationsrichtung"
@@ -485,7 +455,7 @@
         "PASSWORD": "Token / Passwort",
         "USE_PAT": "Persönliches Zugriffstoken verwenden (LEGACY)",
         "USER_NAME": "E-Mail / Benutzername",
-        "WONKY_COOKIE_MODE": "Unzuverlässige Cookie-Fallback-Authentifizierung (nur Desktop-App)"
+        "WONKY_COOKIE_MODE": "Cookie-Fallback-Authentifizierung (nur Desktop-App)"
       },
       "FORM_SECTION": {
         "ADV_CFG": "Erweiterte Konfiguration",
@@ -533,11 +503,11 @@
         "TRANSITION": "Jira: Setzen Sie das Issue \"{{issueKey}}\" auf \"{{name}}\".",
         "TRANSITION_SUCCESS": "Jira: Setzen Sie das Issue {{issueKey}} auf <strong>{{chosenTransition}}</strong>.",
         "TRANSITIONS_LOADED": "Jira: Übergänge geladen. Verwenden Sie die unten stehenden Auswahlmöglichkeiten, um sie zuzuweisen",
-        "UNABLE_TO_REASSIGN": "Jira: Ticket kann nicht an sich selbst neu zugewiesen werden, da kein Benutzername angegeben wurde. Bitte besuchen Sie die Einstellungen."
+        "UNABLE_TO_REASSIGN": "Jira: Ticket konnte nicht zugewiesen werden, da kein Benutzername angegeben wurde. Bitte besuchen Sie die Einstellungen."
       },
       "STEPPER": {
         "CREDENTIALS": "Anmeldeinformationen",
-        "DONE": "Sie sind jetzt fertig.",
+        "DONE": "Sie sind fertig.",
         "LOGIN_SUCCESS": "Anmeldung erfolgreich!",
         "TEST_CREDENTIALS": "Anmeldedaten testen",
         "WELCOME_USER": "Willkommen {{user}}!"
@@ -636,28 +606,28 @@
     "NEXTCLOUD_DECK": {
       "FORM": {
         "BASE_URL": "Nextcloud Basis-URL",
-        "FILTER_BY_ASSIGNEE": "Nur Karten importieren, die mir zugewiesen sind",
-        "IS_TRANSITION_ISSUES_ENABLED": "Synchronisieren Sie den Abschlussstatus und den Titel zurück zu Nextcloud Deck",
-        "PASSWORD": "Ihr Nextcloud-App-Passwort",
+        "FILTER_BY_ASSIGNEE": "Nur mir zugewiesene Karten importieren",
+        "IS_TRANSITION_ISSUES_ENABLED": "Abschlussstatus und Titel zurück zu Nextcloud Deck synchronisieren",
+        "PASSWORD": "Ihr Nextcloud App-Passwort",
         "POLL_INTERVAL_MINUTES": "Abfrageintervall (Minuten)",
         "TITLE_TEMPLATE": "Aufgabentitel-Vorlage",
-        "TITLE_TEMPLATE_DESCRIPTION": "Variablen: {CARD_TITLE}, {BOARD}, {COLUMN}, {ID}, {LABELS}. Beispiel: [{BOARD}: {COLUMN}] {CARD_TITLE}. Leer lassen für nur Kartentitel.",
-        "USERNAME": "Ihr Nextcloud-Benutzername"
+        "TITLE_TEMPLATE_DESCRIPTION": "Variablen: {CARD_TITLE}, {BOARD}, {COLUMN}, {ID}, {LABELS}. Beispiel: [{BOARD}: {COLUMN}] {CARD_TITLE}. Leer lassen für nur den Kartentitel.",
+        "USERNAME": "Ihr Nextcloud Benutzername"
       },
       "FORM_SECTION": {
-        "HELP": "Konfigurieren Sie Ihre Nextcloud Deck-Integration, um Karten als Aufgaben zu importieren. Verwenden Sie ein App-Passwort zur Authentifizierung."
+        "HELP": "Konfigurieren Sie Ihre Nextcloud Deck Integration, um Karten als Aufgaben zu importieren. Verwenden Sie ein App-Passwort zur Authentifizierung."
       },
       "ISSUE_CONTENT": {
         "ASSIGNED_USERS": "Zugewiesene Benutzer",
         "DECK_DESCRIPTION": "Deck-Beschreibung",
-        "LABELS": "Beschriftungen",
+        "LABELS": "Labels",
         "STACK": "Stapel"
       },
       "S": {
         "BOARD_NOT_FOUND": "Nextcloud Deck: Board nicht gefunden",
-        "CARD_NOT_FOUND": "Nextcloud Deck: Karte \"{{issueId}}\" scheint auf dem Server gelöscht worden zu sein.",
-        "ERR_CREDENTIALS_MISSING": "Geben Sie zuerst die Nextcloud-URL, den Benutzernamen und das Passwort ein.",
-        "ERR_LOAD_BOARDS": "Laden der Deck-Boards fehlgeschlagen. Überprüfen Sie Ihre Zugangsdaten."
+        "CARD_NOT_FOUND": "Nextcloud Deck: Karte \"{{issueId}}\" scheint vom Server gelöscht worden zu sein.",
+        "ERR_CREDENTIALS_MISSING": "Geben Sie zuerst Nextcloud-URL, Benutzername und Passwort ein.",
+        "ERR_LOAD_BOARDS": "Deck-Boards konnten nicht geladen werden. Überprüfen Sie Ihre Anmeldedaten."
       }
     },
     "NOTE": {
@@ -809,7 +779,7 @@
         "TITLE": "Grundeinstellungen"
       },
       "FORM_THEME": {
-        "D_BACKGROUND_OVERLAY_OPACITY": "Passen Sie diesen Wert an, um den Hintergrund mehr oder weniger transparent zu machen. Der Standardwert ist 20 %.",
+        "D_BACKGROUND_OVERLAY_OPACITY": "Passen Sie diesen Wert an, um den Hintergrund mehr oder weniger transparent zu machen. Standard ist 20%.",
         "HELP": "Themen-Einstellungen für Ihr Projekt.",
         "L_BACKGROUND_IMAGE_DARK": "Hintergrundbild-URL (dunkles Thema)",
         "L_BACKGROUND_IMAGE_LIGHT": "Hintergrundbild-URL (helles Thema)",
@@ -861,18 +831,18 @@
       "DIALOG_TRACK_TIME": {
         "ACTIVITY": "Aktivität",
         "INVALID_DATE": "Der eingegebene Wert ist kein Datum!",
-        "POST_TIME": "Zeit eintragen",
+        "POST_TIME": "Zeit erfassen",
         "STARTED": "Gestartet",
-        "SUBMIT_TIME_FOR": "Zeit für Redmine eintragen für",
+        "SUBMIT_TIME_FOR": "Zeit an Redmine übermitteln für",
         "TIME_SPENT": "Aufgewendete Zeit",
-        "TITLE": "Redmine: Arbeitsprotokoll einreichen"
+        "TITLE": "Redmine: Arbeitsprotokoll übermitteln"
       },
       "FORM": {
         "API_KEY": "API-Zugriffsschlüssel",
         "HOST": "Host (z. B.: https://redmine.org)",
-        "IS_SHOW_TIME_TRACKING_DIALOG": "Zeiterfassungsdialog anzeigen, um an Redmine zu melden",
+        "IS_SHOW_TIME_TRACKING_DIALOG": "Zeiterfassungsdialog für Redmine anzeigen",
         "IS_SHOW_TIME_TRACKING_DIALOG_DESCRIPTION": "Erfordert, dass das Zeiterfassungsmodul für das Redmine-Projekt aktiviert ist",
-        "IS_SHOW_TIME_TRACKING_DIALOG_FOR_EACH_SUB_TASK": "Zeiterfassungsdialog anzeigen, wenn Unteraufgaben abgeschlossen sind",
+        "IS_SHOW_TIME_TRACKING_DIALOG_FOR_EACH_SUB_TASK": "Zeiterfassungsdialog beim Abschließen von Unteraufgaben anzeigen",
         "PROJECT_ID": "Projekt-Identifier",
         "PROJECT_ID_DESCRIPTION": "Kann als Teil der URL gefunden werden, wenn das Projekt im Browser angezeigt wird.",
         "SCOPE": "Umfang",
@@ -904,7 +874,7 @@
         "START_NOW": "Jetzt anfangen",
         "TXT": "<strong>{{title}}</strong> beginnt um <strong>{{start}}</strong> !",
         "TXT_MULTIPLE": {
-          "ONE": "<strong>{{title}}<\\/strong> beginnt um <strong>{{start}}<\\/strong>!<br> (und {{nrOfOtherBanners}} weitere Aufgabe ist fällig)",
+          "ONE": "<strong>{{title}}</strong> beginnt um <strong>{{start}}</strong>!<br> (und {{nrOfOtherBanners}} weitere Aufgabe steht an)",
           "OTHER": "<strong>{{title}}</strong> beginnt um <strong>{{start}}</strong> !<br> (und {{nrOfOtherBanners}} weitere Aufgaben sind fällig)"
         }
       },
@@ -920,7 +890,7 @@
       "INSERT_BEFORE": "Vor",
       "LUNCH_BREAK": "Mittagspause",
       "MONTH": "Monat",
-      "NO_TASKS": "Derzeit gibt es keine Aufgaben. Bitte fügen Sie über die Plus- (+) Schaltfläche in der oberen Leiste einige Aufgaben hinzu.",
+      "NO_TASKS": "Derzeit gibt es keine Aufgaben. Bitte fügen Sie Aufgaben über die Plus-Schaltfläche (+) in der oberen Leiste hinzu.",
       "NOW": "Jetzt",
       "PLAN_END_DAY": "Plan am Ende des Tages",
       "PLAN_START_DAY": "Plan zu Beginn des Tages",
@@ -949,12 +919,12 @@
         "L_COUNTDOWN_DURATION": "Dauer des Countdowns",
         "L_DAILY_GOAL": "Tägliches Ziel für eine Erfolgssträhne",
         "L_ICON": "Symbol",
-        "L_ICON_ON": "Symbol, wenn aktiviert",
+        "L_ICON_ON": "Symbol wenn aktiviert",
         "L_IS_ENABLED": "aktiviert",
-        "L_IS_HIDE_BUTTON": "Schaltfläche der Symbolleiste ausblenden",
-        "L_STREAK_MODE": "Streak-Tracking-Modus",
+        "L_IS_HIDE_BUTTON": "Symbolleisten-Schaltfläche ausblenden",
+        "L_STREAK_MODE": "Serien-Verfolgungsmodus",
         "L_STREAK_MODE_SPECIFIC_DAYS": "Bestimmte Wochentage",
-        "L_STREAK_MODE_WEEKLY_FREQUENCY": "Wöchentliche Häufigkeit (z. B. 3 Mal pro Woche)",
+        "L_STREAK_MODE_WEEKLY_FREQUENCY": "Wöchentliche Häufigkeit (z.B. 3 mal pro Woche)",
         "L_TITLE": "Titel",
         "L_TRACK_STREAKS": "Streifzüge",
         "L_TYPE": "Typ",
@@ -1027,17 +997,16 @@
         "TITLE": "Datenbeschädigung erkannt"
       },
       "D_DATA_REPAIRED": {
-        "MSG": "Ihre Daten wurden automatisch repariert ({{count}} Probleme behoben). Dies sollte normalerweise nicht passieren. Wenn dies wiederholt auftritt, melden Sie es bitte.",
-        "TITLE": "Datenreparatur ausgeführt",
-        "UNKNOWN_ERROR": "Unbekannter Synchronisierungsfehler: {{err}}"
+        "MSG": "Ihre Daten benötigten eine automatische Reparatur ({{count}} Probleme behoben). Dies sollte normalerweise nicht vorkommen. Wenn es wiederholt auftritt, melden Sie es bitte.",
+        "TITLE": "Datenreparatur durchgeführt",
+        "UNKNOWN_ERROR": "Unbekannter Synchronisationsfehler: {{err}}"
       },
       "D_DECRYPT_ERROR": {
         "BTN_OVER_WRITE_REMOTE": "Ändern und Remote überschreiben",
         "CHANGE_PW_AND_DECRYPT": "Ändern & Versuch zu entschlüsseln",
         "P1": "Ihre Daten sind verschlüsselt und die Entschlüsselung ist fehlgeschlagen. Bitte geben Sie das richtige Passwort ein!",
-        "P2": "Sie können auch Ihr Passwort ändern, was alle Remote-Daten überschreibt.",
-        "P2_FORGOT_PW": "Wenn Sie <strong>Ihr Passwort vergessen haben</strong>, geben Sie das richtige Passwort ein und klicken Sie auf \"Entschlüsselung erneut versuchen\".",
-        "P3_PW_CHANGED": "Wenn Sie <strong>Ihr Passwort auf einem anderen Gerät geändert haben</strong>, geben Sie Ihr neues Passwort ein und klicken Sie auf \"Remote überschreiben\". Dadurch werden Ihre lokalen Daten auf den Server hochgeladen.",
+        "P2_FORGOT_PW": "Wenn Sie Ihr <strong>Passwort vergessen haben</strong>, geben Sie das korrekte Passwort ein und klicken Sie auf \"Entschlüsselung wiederholen\".",
+        "P3_PW_CHANGED": "Wenn Sie Ihr <strong>Passwort auf einem anderen Gerät geändert haben</strong>, geben Sie Ihr neues Passwort ein und klicken Sie auf \"Remote überschreiben\". Dies lädt Ihre lokalen Daten auf den Server hoch.",
         "PASSWORD": "Passwort",
         "TITLE": "Entschlüsselung fehlgeschlagen"
       },
@@ -1047,14 +1016,14 @@
         "FORCE_OVERWRITE_CONFIRM": "Dies wird <strong>alle Daten auf dem Server löschen</strong> und Ihre lokalen Daten mit diesem Passwort verschlüsselt hochladen. Fortfahren?",
         "FORCE_OVERWRITE_INFO": "Wenn Sie Ihre lokalen Daten behalten möchten, können Sie stattdessen den Server überschreiben.",
         "FORCE_OVERWRITE_TITLE": "Serverdaten überschreiben?",
-        "MESSAGE": "Der Synchronisierungsserver enthält verschlüsselte Daten, aber auf diesem Gerät ist kein Verschlüsselungspasswort konfiguriert. Bitte geben Sie Ihr Verschlüsselungspasswort ein, um Ihre Daten zu entschlüsseln und zu synchronisieren.",
+        "MESSAGE": "Der Synchronisationsserver enthält verschlüsselte Daten, aber auf diesem Gerät ist kein Verschlüsselungspasswort konfiguriert. Bitte geben Sie Ihr Verschlüsselungspasswort ein, um Ihre Daten zu entschlüsseln und zu synchronisieren.",
         "PASSWORD_LABEL": "Verschlüsselungspasswort",
         "TITLE": "Verschlüsselungspasswort erforderlich"
       },
       "D_FRESH_CLIENT_CONFIRM": {
-        "MESSAGE": "Dies scheint eine Neuinstallation zu sein. Remote-Daten mit {{count}} Änderungen wurden gefunden. Möchten Sie diese herunterladen und Ihre lokalen Daten damit überschreiben?",
+        "MESSAGE": "Dies scheint eine Neuinstallation zu sein. Remote-Daten mit {{count}} Änderungen wurden gefunden. Möchten Sie diese herunterladen und Ihre lokalen Daten überschreiben?",
         "OK": "Remote-Daten herunterladen",
-        "TITLE": "Erste Synchronisierung"
+        "TITLE": "Erste Synchronisation"
       },
       "D_INCOMPLETE_SYNC": {
         "BTN_CLOSE_APP": "App schließen",
@@ -1065,8 +1034,6 @@
         "INCOHERENT_P2": "Sie sollten die auf Ihren Systemen konfigurierte Zeit überprüfen!",
         "P1": "Die Remote-Synchronisierungsdaten sind inkohärent!",
         "P2": "Betroffenes Modell:",
-        "T1": "Die letzte Synchronisierung war unvollständig!",
-        "T2": "Ihre Archivdaten wurden bei der letzten Synchronisierung nicht richtig hochgeladen:",
         "T3": "Sie haben 2 Optionen:",
         "T4": "1. Gehen Sie zu Ihrem anderen Gerät und schließen Sie dort die Synchronisierung ab.",
         "T5": "2. Oder Sie können die entfernten Daten mit Ihren lokalen Daten überschreiben. Alle entfernten Änderungen werden\n    verloren gehen!",
@@ -1088,22 +1055,22 @@
       },
       "D_RESTORE": {
         "BTN_RESTORE": "Wiederherstellen",
-        "CONFIRM_MSG": "Sind Sie sich absolut sicher, dass Sie auf <strong>{{timestamp}}<\\/strong> wiederherstellen möchten?<br><br>Dies wird <strong>alle Ihre aktuellen Daten vollständig ersetzen<\\/strong> und <strong>kann nicht rückgängig gemacht werden<\\/strong> werden.",
+        "CONFIRM_MSG": "Sind Sie absolut sicher, dass Sie auf <strong>{{timestamp}}</strong> zurücksetzen möchten?<br><br>Dies wird <strong>alle aktuellen Daten vollständig ersetzen</strong> und <strong>kann nicht rückgängig gemacht werden</strong>.",
         "CONFIRM_TITLE": "Wiederherstellung bestätigen",
         "ERROR_LOADING": "Wiederherstellungspunkte konnten nicht geladen werden",
         "ERROR_RESTORE": "Daten konnten nicht wiederhergestellt werden",
-        "INTRO": "Wählen Sie einen Zeitpunkt, zu dem Ihre Daten wiederhergestellt werden sollen:",
+        "INTRO": "Wählen Sie einen Zeitpunkt zur Wiederherstellung Ihrer Daten:",
         "LOADING": "Wiederherstellungspunkte werden geladen...",
-        "NO_POINTS": "Keine Wiederherstellungspunkte verfügbar. Wiederherstellungspunkte werden erstellt, wenn Sie Daten synchronisieren oder importieren.",
+        "NO_POINTS": "Keine Wiederherstellungspunkte verfügbar. Wiederherstellungspunkte werden bei Synchronisation oder Datenimport erstellt.",
         "TITLE": "Aus Verlauf wiederherstellen",
         "TYPE_BACKUP_IMPORT": "Backup-Wiederherstellung",
         "TYPE_REPAIR": "Automatische Reparatur",
-        "TYPE_SYNC_IMPORT": "Vollständiger Synchronisationsimport",
-        "WARNING": "Dies wird ALLE Ihre aktuellen Daten mit dem ausgewählten Backup ersetzen. Diese Aktion kann nicht rückgängig gemacht werden!"
+        "TYPE_SYNC_IMPORT": "Vollständiger Sync-Import",
+        "WARNING": "Dies ersetzt ALLE Ihre aktuellen Daten durch das ausgewählte Backup. Diese Aktion kann nicht rückgängig gemacht werden!"
       },
       "D_SERVER_MIGRATION_CONFIRM": {
         "CONFIRM": "Lokale Daten hochladen",
-        "MESSAGE": "Dieser Synchronisationsserver enthält bereits Daten. Möchten Sie Ihre lokalen Daten hochladen, um sie zu integrieren? Wenn Sie dies überspringen, werden einige Ihrer lokalen Änderungen möglicherweise nicht synchronisiert.",
+        "MESSAGE": "Dieser Synchronisationsserver enthält bereits Daten. Möchten Sie Ihre lokalen Daten hochladen, um sie zusammenzuführen? Wenn Sie dies überspringen, werden einige lokale Änderungen möglicherweise nicht synchronisiert.",
         "SKIP": "Überspringen",
         "TITLE": "Server enthält bereits Daten"
       },
@@ -1113,15 +1080,15 @@
         "MSG_INCOMING": "Ihre Daten wurden auf einem anderen Gerät vollständig ersetzt. Sie haben {{filteredOpCount}} lokale Änderungen, die möglicherweise nicht übernommen werden.",
         "MSG_INCOMING_NO_OPS": "Ihre Daten wurden auf einem anderen Gerät vollständig ersetzt. Dieses Gerät wird mit dem neuen Zustand synchronisiert.",
         "MSG_LOCAL_FILTERS": "Ihre lokalen Daten wurden importiert/wiederhergestellt, aber der Server hat {{filteredOpCount}} Änderungen von anderen Geräten, die nicht automatisch zusammengeführt werden können.",
-        "REASON_BACKUP_RESTORE": "Grund: Auf einem anderen Gerät wurde eine Sicherung wiederhergestellt.",
-        "REASON_FILE_IMPORT": "Grund: Auf einem anderen Gerät wurde eine Datendatei importiert.",
-        "REASON_FORCE_UPLOAD": "Grund: Ein anderes Gerät hat seine lokalen Daten zwangsweise hochgeladen.",
+        "REASON_BACKUP_RESTORE": "Grund: Ein Backup wurde auf einem anderen Gerät wiederhergestellt.",
+        "REASON_FILE_IMPORT": "Grund: Eine Datendatei wurde auf einem anderen Gerät importiert.",
+        "REASON_FORCE_UPLOAD": "Grund: Ein anderes Gerät hat seine lokalen Daten erzwungen hochgeladen.",
         "REASON_PASSWORD_CHANGED": "Grund: Das Verschlüsselungspasswort wurde auf einem anderen Gerät geändert.",
         "REASON_REPAIR": "Grund: Eine automatische Datenreparatur wurde durchgeführt.",
-        "REASON_SERVER_MIGRATION": "Grund: Daten wurden auf einen neuen Synchronisierungsserver migriert.",
-        "REASON_UNKNOWN": "Grund: Ein vollständiger Statusersatz wurde durchgeführt.",
-        "RECOMMEND_SERVER": "Empfehlung: Akzeptieren Sie die Serverdaten, um mit dem anderen Gerät synchron zu bleiben.",
-        "TITLE": "Synchronisierungskonflikt erkannt",
+        "REASON_SERVER_MIGRATION": "Grund: Daten wurden auf einen neuen Synchronisationsserver migriert.",
+        "REASON_UNKNOWN": "Grund: Ein vollständiger Zustandsersatz wurde durchgeführt.",
+        "RECOMMEND_SERVER": "Empfohlen: Akzeptieren Sie die Serverdaten, um mit dem anderen Gerät synchron zu bleiben.",
+        "TITLE": "Synchronisationskonflikt erkannt",
         "USE_LOCAL": "Meine Daten verwenden",
         "USE_REMOTE": "Serverdaten verwenden"
       },
@@ -1188,7 +1155,8 @@
           "NOTE_DISABLING": "Wichtig: Ohne Verschlüsselung kann jeder mit Zugriff auf Ihren Synchronisationsserver Ihre Daten lesen.",
           "NOTE_ENABLING": "Wichtig: Die Verschlüsselung erfordert ein Passwort. Wenn Sie dieses Passwort vergessen, können Ihre Daten NICHT wiederhergestellt werden!",
           "TITLE": "Verschlüsselungseinstellungen werden geändert",
-          "WHAT_HAPPENS": "Folgendes wird passieren:"
+          "WHAT_HAPPENS": "Folgendes wird passieren:",
+          "WARNING_TEXT": "Das Backup, das Sie importieren, hat andere Verschlüsselungseinstellungen. Verschlüsselte und unverschlüsselte Daten können nicht auf dem Server koexistieren, daher müssen alle Serverdaten gelöscht werden."
         },
         "L_ENABLE_COMPRESSION": "Komprimierung aktivieren (schnellere Datenübertragung)",
         "L_ENABLE_ENCRYPTION": "Ende-zu-Ende-Verschlüsselung aktivieren (experimentell) – Machen Sie Ihre Daten für Ihren Synchronisierungsanbieter unzugänglich",
@@ -1198,7 +1166,9 @@
         "L_SYNC_INTERVAL": "Synchronisierungsintervall",
         "L_SYNC_PROVIDER": "Anbieter synchronisieren",
         "LOCAL_FILE": {
-          "L_SYNC_FOLDER_PATH": "Sync-Ordnerpfad"
+          "L_SYNC_FOLDER_PATH": "Sync-Ordnerpfad",
+          "INFO_TEXT": "<strong>Warnung:</strong> Verwenden Sie <strong>keine</strong> Dateisynchronisierungstools wie Syncthing, Resilio oder ähnliche, um diesen Ordner zwischen Geräten zu synchronisieren — sie <strong>werden</strong> Datenbeschädigungen und Konflikte verursachen. Für die Synchronisation zwischen Geräten verwenden Sie stattdessen WebDAV, Dropbox oder SuperSync.",
+          "L_SYNC_FILE_PATH_PERMISSION_VALIDATION": "Benötigt Dateizugriffsberechtigung"
         },
         "SUPER_SYNC": {
           "BTN_CHANGE_PASSWORD": "Passwort ändern",
@@ -1208,7 +1178,53 @@
           "L_CONFIRM_PASSWORD": "Passwort bestätigen",
           "PASSWORD_MIN_LENGTH": "Das Passwort muss mindestens 8 Zeichen lang sein",
           "PASSWORDS_DONT_MATCH": "Die Passwörter stimmen nicht überein",
-          "SETUP_ENCRYPTION_BTN": "Passwort festlegen"
+          "SETUP_ENCRYPTION_BTN": "Passwort festlegen",
+          "ENCRYPTION_ENCOURAGED": "Verschlüsselung ist für SuperSync erforderlich. Bitte aktivieren Sie die Verschlüsselung, um Ihre Daten zu schützen.",
+          "ENCRYPTION_SETUP_INTRO": "<strong>SuperSync verschlüsselt Ihre Daten mit einem Passwort, bevor sie Ihr Gerät verlassen</strong>, wodurch Missbrauch oder Lecks Ihrer privaten Daten nahezu unmöglich werden.",
+          "SETUP_DISABLE_SUPERSYNC_BTN": "SuperSync deaktivieren",
+          "SETUP_ENCRYPTION_PASSWORD_WARNING": "Verwenden Sie dasselbe Passwort auf allen Geräten. Ein vergessenes Passwort kann durch Überschreiben der Remote-Daten zurückgesetzt werden.",
+          "SETUP_ENCRYPTION_TITLE": "SuperSync: Passwort festlegen",
+          "ACCESS_TOKEN_DESCRIPTION": "Fügen Sie das Token ein, das Sie von der Server-Anmeldeseite kopiert haben",
+          "BTN_FORCE_OVERWRITE": "Server-Überschreibung erzwingen",
+          "BTN_GET_TOKEN": "Server öffnen & Token erhalten",
+          "CHANGE_PASSWORD_WARNING": "WARNUNG: Dies löscht dauerhaft ALLE Synchronisationsverläufe und Backups auf dem Server. Frühere Versionen können nicht wiederhergestellt werden. Ihre aktuellen Daten werden mit dem neuen Passwort erneut hochgeladen. Alle anderen Geräte benötigen das neue Passwort.",
+          "DISABLE_ENCRYPTION_ENABLE_FIRST": "Bitte aktivieren Sie zuerst die Synchronisation und speichern Sie Ihre SuperSync-Konfiguration, dann versuchen Sie es erneut.",
+          "DISABLE_ENCRYPTION_ITEM_1": "Alle Synchronisationsverläufe und Backups auf dem Server werden gelöscht",
+          "DISABLE_ENCRYPTION_ITEM_2": "Ihre aktuellen Daten werden ohne Verschlüsselung erneut hochgeladen",
+          "DISABLE_ENCRYPTION_ITEM_3": "Alle anderen Geräte synchronisieren die unverschlüsselten Daten",
+          "DISABLE_ENCRYPTION_NOTE": "Ihre lokalen Daten werden NICHT gelöscht. Sie können die Verschlüsselung jederzeit wieder aktivieren.",
+          "DISABLE_ENCRYPTION_NOT_READY": "Synchronisation ist nicht aktiviert oder konfiguriert.",
+          "DISABLE_ENCRYPTION_SUCCESS": "Verschlüsselung erfolgreich deaktiviert",
+          "DISABLE_ENCRYPTION_SUPERSYNC_ONLY": "Diese Funktion ist nur für SuperSync verfügbar.",
+          "DISABLE_ENCRYPTION_TITLE": "Verschlüsselung deaktivieren?",
+          "DISABLE_ENCRYPTION_WARNING": "WARNUNG: Dies löscht dauerhaft ALLE verschlüsselten Synchronisationsdaten auf dem Server. Dies ist notwendig, da verschlüsselte und unverschlüsselte Operationen nicht gemischt werden können.",
+          "DISABLE_ENCRYPTION_WHAT_HAPPENS": "Was passieren wird:",
+          "E2E_ENCRYPTION_DESCRIPTION": "Langsamer, aber sicherer",
+          "ENABLE_ENCRYPTION_ITEM_1": "Alle Synchronisationsverläufe und Backups auf dem Server werden gelöscht",
+          "ENABLE_ENCRYPTION_ITEM_2": "Ihre aktuellen Daten werden mit Verschlüsselung erneut hochgeladen",
+          "ENABLE_ENCRYPTION_ITEM_3": "Alle anderen Geräte müssen dieses Verschlüsselungspasswort eingeben",
+          "ENABLE_ENCRYPTION_NOTE": "Ihre lokalen Daten werden NICHT gelöscht. Sie können die Verschlüsselung jederzeit deaktivieren.",
+          "ENABLE_ENCRYPTION_NOT_READY": "Synchronisation ist nicht aktiviert oder konfiguriert.",
+          "ENABLE_ENCRYPTION_PASSWORD_REQUIRED": "Bitte geben Sie zuerst ein Verschlüsselungspasswort ein.",
+          "ENABLE_ENCRYPTION_SUCCESS": "Verschlüsselung erfolgreich aktiviert",
+          "ENABLE_ENCRYPTION_SUPERSYNC_ONLY": "Diese Funktion ist nur für SuperSync verfügbar.",
+          "ENABLE_ENCRYPTION_TITLE": "Verschlüsselung aktivieren?",
+          "ENABLE_ENCRYPTION_WARNING": "WARNUNG: Dies löscht dauerhaft ALLE unverschlüsselten Synchronisationsdaten auf dem Server. Dies ist notwendig, da verschlüsselte und unverschlüsselte Operationen nicht gemischt werden können. Wenn Sie Ihr Verschlüsselungspasswort vergessen, können Ihre Daten nicht wiederhergestellt werden.",
+          "ENABLE_ENCRYPTION_WHAT_HAPPENS": "Was passieren wird:",
+          "ENCRYPTION_WARNING": "WARNUNG: Wenn Sie Ihr Verschlüsselungspasswort vergessen, können Ihre Daten nicht wiederhergestellt werden. Dieses Passwort ist getrennt von Ihrem Anmeldepasswort. Sie müssen auf allen Geräten dasselbe Passwort verwenden.",
+          "FORCE_OVERWRITE_CONFIRM": "Dies wird <strong>alle Daten auf dem Server löschen</strong> und Ihre lokalen Daten mit dem neuen Passwort hochladen. Nicht synchronisierte lokale Änderungen könnten verloren gehen. Sind Sie sicher, dass Sie fortfahren möchten?",
+          "FORCE_OVERWRITE_INFO": "Wenn Sie nicht synchronisieren können, weil Sie das aktuelle Verschlüsselungspasswort nicht kennen, können Sie den Server mit Ihren lokalen Daten und einem neuen Passwort überschreiben.",
+          "FORCE_OVERWRITE_TITLE": "Serverdaten überschreiben?",
+          "INFO_TEXT": "SuperSync hält Ihre Aufgaben auf allen Ihren Geräten in Echtzeit synchron. Ihre Daten werden sicher auf dem Synchronisationsserver gespeichert. Hinweis: SuperSync befindet sich derzeit in der Beta-Phase.",
+          "LOGIN_INSTRUCTIONS": "Klicken Sie auf die Schaltfläche unten, um die Server-Anmeldeseite zu öffnen. Nach der Anmeldung kopieren Sie Ihr Zugriffstoken und fügen Sie es hier ein.",
+          "L_ACCESS_TOKEN": "Zugriffstoken",
+          "L_CHANGE_ENCRYPTION_PASSWORD": "Verschlüsselungspasswort ändern",
+          "L_ENABLE_E2E_ENCRYPTION": "Ende-zu-Ende-Verschlüsselung aktivieren",
+          "L_NEW_PASSWORD": "Neues Verschlüsselungspasswort",
+          "L_REMOVE_ENCRYPTION": "Oder Verschlüsselung entfernen",
+          "L_SERVER_URL": "Server-URL",
+          "REMOVE_ENCRYPTION_WARNING": "Das Entfernen der Verschlüsselung löscht alle Serverdaten und lädt Ihre Daten ohne Verschlüsselung erneut hoch. Alle Geräte müssen neu konfiguriert werden.",
+          "SERVER_URL_DESCRIPTION": "Lassen Sie es für den offiziellen Server unverändert, oder geben Sie eine benutzerdefinierte Server-URL ein"
         },
         "TITLE": "Sync",
         "WEB_DAV": {
@@ -1222,8 +1238,12 @@
           "L_USER_NAME": "Nutzername",
           "S_FILL_ALL_FIELDS": "Bitte füllen Sie zuerst alle WebDAV-Felder aus",
           "S_TEST_FAIL": "Verbindungstest fehlgeschlagen: {{error}} - Ziel-URL: {{url}}",
-          "S_TEST_SUCCESS": "Verbindungstest erfolgreich! Ziel-URL: {{url}}"
-        }
+          "S_TEST_SUCCESS": "Verbindungstest erfolgreich! Ziel-URL: {{url}}",
+          "CONDITIONAL_HEADER_WARNING_MSG": "Ihr WebDAV-Server unterstützt keine bedingten Header (If-Unmodified-Since). Das bedeutet, dass Super Productivity gleichzeitige Änderungen von anderen Geräten während des Hochladens nicht erkennen kann.<br><br>Die Synchronisation funktioniert trotzdem, aber es besteht ein geringes Risiko von Datenkonflikten, wenn Sie gleichzeitig auf mehreren Geräten Änderungen vornehmen.",
+          "CONDITIONAL_HEADER_WARNING_TITLE": "Reduzierte Synchronisationssicherheit"
+        },
+        "L_MANUAL_SYNC_ONLY": "Nur manuell synchronisieren (automatische Synchronisation deaktivieren)",
+        "PASSWORD_SET_INFO": "🔒 Verschlüsselungspasswort ist festgelegt."
       },
       "S": {
         "ALREADY_IN_SYNC": "Bereits synchronisiert",
@@ -1237,7 +1257,61 @@
         "INCOMPLETE_CFG": "Die Authentifizierung für die Synchronisierung ist fehlgeschlagen. Bitte überprüfen Sie Ihre Konfiguration!",
         "SUCCESS_DOWNLOAD": "Synchronisierte Daten von Remote",
         "SUCCESS_VIA_BUTTON": "Daten erfolgreich synchronisiert",
-        "UNKNOWN_ERROR": "Unbekannter Fehler beim Synchronisieren. Bitte überprüfen Sie die Konsole."
+        "UNKNOWN_ERROR": "Unbekannter Fehler beim Synchronisieren. Bitte überprüfen Sie die Konsole.",
+        "ARCHIVE_OPERATION_FAILED": "Archivierungsvorgang fehlgeschlagen. Einige Bereinigungen wurden möglicherweise nicht abgeschlossen.",
+        "AUTH_SETUP_FAILED": "Authentifizierung konnte nicht eingerichtet werden. Wenn Sie die Web-App verwenden, stellen Sie sicher, dass Sie über HTTPS zugreifen. Andernfalls versuchen Sie die stabile Version oder melden Sie das Problem.",
+        "AUTH_TOKEN_REJECTED": "Synchronisations-Token wurde vom Server abgelehnt: {{reason}}. Bitte holen Sie sich ein neues Token.",
+        "CHANGE_PASSWORD_FAILED": "Passwortänderung fehlgeschlagen: {{message}}",
+        "DATA_REPAIRED": "Daten automatisch repariert ({{count}} Probleme behoben)",
+        "DISABLE_ENCRYPTION_FAILED": "Deaktivierung der Verschlüsselung fehlgeschlagen: {{message}}",
+        "ENABLE_ENCRYPTION_FAILED": "Aktivierung der Verschlüsselung fehlgeschlagen: {{message}}",
+        "ENCRYPTION_REQUIRED_FOR_SUPERSYNC": "Verschlüsselung ist für SuperSync erforderlich. Bitte legen Sie ein Verschlüsselungspasswort fest, um die Synchronisation fortzusetzen.",
+        "FRESH_CLIENT_SYNC_CANCELLED": "Erste Synchronisation abgebrochen. Remote-Daten wurden nicht angewendet.",
+        "INVALID_AUTH_CODE": "Der Autorisierungscode wurde abgelehnt. Bitte versuchen Sie die Authentifizierung erneut und stellen Sie sicher, dass Sie den Code exakt kopieren.",
+        "LOCAL_CHANGES_DISCARDED": "{{count}} lokale Änderung(en) verworfen — Element(e) wurden auf einem anderen Gerät gelöscht",
+        "LOCAL_CHANGES_DISCARDED_SNAPSHOT": "{{count}} nicht gespeicherte lokale Änderung(en) verworfen — Synchronisation hat neuere Daten heruntergeladen",
+        "LOCAL_DATA_REPLACE_CANCELLED": "Synchronisation abgebrochen. Ihre lokalen Daten wurden beibehalten.",
+        "LOCK_TIMEOUT_ERROR": "Synchronisation hat beim Warten auf eine vorherige Operation Zeitüberschreitung. Bitte versuchen Sie es erneut.",
+        "LWW_CONFLICTS_AUTO_RESOLVED": "Synchronisationskonflikte automatisch gelöst: {{localWins}} lokale(r) Gewinn(e), {{remoteWins}} Remote-Gewinn(e)",
+        "OVERWRITE_SERVER_FAILED": "Überschreiben der Serverdaten fehlgeschlagen: {{message}}",
+        "RESTORE_ERROR": "Datenwiederherstellung fehlgeschlagen",
+        "RESTORE_SUCCESS": "Daten erfolgreich wiederhergestellt",
+        "CLOCK_DRIFT_WARNING": "Die Uhr Ihres Geräts scheint um {{minutes}} Minuten abzuweichen. Dies kann Synchronisationsprobleme verursachen.",
+        "COMPACTION_FAILED": "Datenbankbereinigung fehlgeschlagen. Die App kann langsamer werden.",
+        "CONFLICT_DIALOG_TIMEOUT": "Der Synchronisationskonflikt-Dialog ist abgelaufen und wurde abgebrochen. Die Synchronisation wird beim nächsten Auslöser erneut versucht.",
+        "CONFLICT_RESOLUTION_FAILED": "Synchronisationskonfliktlösung fehlgeschlagen. Bitte laden Sie die Seite neu.",
+        "DECRYPTION_FAILED": "Entschlüsselung der synchronisierten Daten fehlgeschlagen. Bitte überprüfen Sie Ihr Verschlüsselungspasswort.",
+        "DEFERRED_ACTION_FAILED": "Einige während der Synchronisation vorgenommene Änderungen konnten nicht gespeichert werden. Bitte laden Sie die Seite neu.",
+        "DIALOG_RESULT_ERROR": "Beim Verarbeiten des Synchronisationsdialogs ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+        "ENCRYPTION_DISABLED_ON_OTHER_DEVICE": "Die Verschlüsselung wurde auf einem anderen Gerät deaktiviert. Ihre Synchronisationseinstellungen wurden aktualisiert.",
+        "ENCRYPTION_PASSWORD_REQUIRED": "Verschlüsselte Daten empfangen, aber kein Verschlüsselungspasswort konfiguriert. Bitte legen Sie Ihr Verschlüsselungspasswort in den Synchronisationseinstellungen fest.",
+        "ERROR_PAYLOAD_TOO_LARGE": "Synchronisationsfehler: Ihre Daten sind zu groß zum Hochladen.\n\nDies passiert, wenn Sie viele archivierte Aufgaben haben. Ihre Daten wurden NICHT synchronisiert!\n\nBitte kontaktieren Sie den Support.",
+        "ERROR_UNABLE_TO_READ_REMOTE_DATA": "Fehler beim Synchronisieren. Remote-Daten können nicht gelesen werden. Möglicherweise haben Sie die Verschlüsselung aktiviert und Ihr lokales Passwort stimmt nicht mit dem zum Verschlüsseln der Remote-Daten verwendeten überein?",
+        "FINISH_DAY_SYNC_ERROR": "Synchronisationsfehler beim Tagesabschluss. Bitte versuchen Sie es erneut.",
+        "HYDRATION_FAILED": "Daten konnten nicht geladen werden. Bitte laden Sie die App neu.",
+        "IMPORTING": "Daten werden importiert",
+        "INCOMPLETE_OP_SYNC": "Synchronisation unvollständig: {{count}} Operationsdatei(en) konnten nicht heruntergeladen werden",
+        "INITIAL_SYNC_ERROR": "Erste Synchronisation fehlgeschlagen",
+        "INTEGRITY_CHECK_FAILED": "Datenintegritätsproblem erkannt. Automatische Reparatur versucht. Wenn Probleme auftreten, laden Sie die App bitte neu.",
+        "INVALID_OPERATION_PAYLOAD": "Ungültige Operation erkannt. Änderungen werden möglicherweise nicht gespeichert — bitte laden Sie die Seite neu.",
+        "MIGRATION_FAILED": "Einige Synchronisationsdaten konnten nicht migriert werden und wurden übersprungen. Dies kann auf Datenbeschädigung oder einen Fehler hindeuten.",
+        "NEWER_VERSION_AVAILABLE": "Einige Änderungen stammen von einer neueren App-Version. Erwägen Sie ein Update für volle Kompatibilität.",
+        "OPERATION_PERMANENTLY_FAILED": "Einige Synchronisationsoperationen sind fehlgeschlagen und konnten nicht angewendet werden. Daten könnten unvollständig sein.",
+        "PARTIAL_APPLY_FAILURE": "Einige Synchronisationsoperationen konnten nicht angewendet werden. Daten wurden validiert.",
+        "PERSIST_FAILED": "Änderungen konnten nicht gespeichert werden. Der Zustand kann inkonsistent sein — bitte laden Sie die Seite neu.",
+        "REMOTE_DATA_TOO_OLD": "Remote-Daten sind zu alt zum Verarbeiten. Bitte aktualisieren Sie Ihre Remote-App.",
+        "REPLAY_LOCAL_OPS_FAILED": "Wiedergabe lokaler Operationen nach Import fehlgeschlagen. Einige aktuelle Änderungen könnten verloren sein. Daten wurden validiert.",
+        "SERVER_MIGRATION_VALIDATION_FAILED": "Daten konnten nicht zum Server migriert werden — lokale Datenvalidierung fehlgeschlagen. Bitte versuchen Sie, ein Backup zu importieren.",
+        "STORAGE_QUOTA_EXCEEDED": "Synchronisationsserver-Speicher ist voll. Ihre Änderungen werden NICHT synchronisiert! Bitte archivieren Sie alte Aufgaben oder upgraden Sie Ihren Plan.",
+        "STORAGE_RECOVERED_AFTER_COMPACTION": "Speicher wurde knapp. Alte Daten erfolgreich bereinigt.",
+        "TIMEOUT_ERROR": "Synchronisationsoperation hat Zeitüberschreitung. {{suggestion}}",
+        "TOO_MANY_OPS_TO_DOWNLOAD": "Zu viele Synchronisationsoperationen zum Herunterladen. Einige Änderungen könnten fehlen.",
+        "UPLOAD_ERROR": "Unbekannter Upload-Fehler (Einstellungen korrekt?): {{err}}",
+        "UPLOAD_OPS_REJECTED": "{{count}} Operation(en) wurden dauerhaft vom Server abgelehnt und werden nicht synchronisiert.",
+        "VECTOR_CLOCK_LIMIT_REACHED": "Die Synchronisation hat {{originalSize}} Geräte/Browser verfolgt und das Limit von {{maxSize}} überschritten. Inaktive Geräteeinträge wurden entfernt. Erwägen Sie einen Sync-Reset, wenn Probleme auftreten.",
+        "VERSION_TOO_OLD": "Ihre App-Version ist zu alt für die synchronisierten Daten. Bitte aktualisieren!",
+        "VERSION_UNSUPPORTED": "Kann nicht synchronisieren: Daten erfordern eine neuere App-Version. Bitte aktualisieren.",
+        "WEB_CRYPTO_NOT_AVAILABLE": "Verschlüsselung ist auf diesem Gerät nicht verfügbar. Auf Android erfordert Verschlüsselung einen sicheren Kontext (HTTPS), der nicht verfügbar ist. Bitte deaktivieren Sie die Verschlüsselung in den Synchronisationseinstellungen oder synchronisieren Sie von einem Desktop-Browser."
       },
       "SAFETY_BACKUP": {
         "BTN_CLEAR_ALL": "Alle löschen",
@@ -1287,7 +1361,8 @@
         "TITLE": "Grundeinstellungen"
       },
       "S": {
-        "UPDATED": "Die Stichwort-Einstellungen wurden aktualisiert"
+        "UPDATED": "Die Stichwort-Einstellungen wurden aktualisiert",
+        "ARCHIVE_CLEANUP_FAILED": "Bereinigung der archivierten Daten für gelöschtes Tag fehlgeschlagen"
       },
       "TTL": {
         "ADD_NEW_TAG": "Neues Tag hinzufügen"
@@ -1333,7 +1408,10 @@
         "TOOLTIP_CLEAR_ESTIMATE": "Schätzung löschen",
         "TOOLTIP_CLEAR_TAGS": "Stichworte löschen",
         "TOOLTIP_DISABLE_SEARCH": "Vorgangssuche deaktivieren (Ctrl+2)",
-        "TOOLTIP_ENABLE_SEARCH": "Vorgangssuche aktivieren (Ctrl+2)"
+        "TOOLTIP_ENABLE_SEARCH": "Vorgangssuche aktivieren (Ctrl+2)",
+        "TOGGLE_ADD_TO_BACKLOG_TODAY": "Aufgabe zum Backlog / zur heutigen Liste umschalten",
+        "TOGGLE_ADD_TOP_OR_BOTTOM": "Aufgabe oben / unten in der Liste umschalten",
+        "TOOLTIP_CLEAR_REPEAT": "Wiederholungseinstellung löschen"
       },
       "ADDITIONAL_INFO": {
         "ADD_ATTACHMENT": "Anhang hinzufügen",
@@ -1350,11 +1428,18 @@
         "SCHEDULE_TASK": "Aufgabe planen",
         "SUB_TASKS": "Unteraufgaben ({{nr}})",
         "TIME": "Zeit",
-        "TITLE_PLACEHOLDER": "Einen Titel eingeben"
+        "TITLE_PLACEHOLDER": "Einen Titel eingeben",
+        "DEADLINE_DUE_BY": "Fällig bis",
+        "DEADLINE_OVERDUE": "Überfällig!",
+        "FROM_PARENT": "(von übergeordneter Aufgabe)",
+        "ISSUE": "Issue-Link",
+        "COMPLETED_ON": "Abgeschlossen am"
       },
       "B": {
         "ADD_HALF_HOUR": "Fügen Sie eine halbe Stunde hinzu",
-        "ESTIMATE_EXCEEDED": "Zeitschätzung für \"{{title}}\" überschritten"
+        "ESTIMATE_EXCEEDED": "Zeitschätzung für \"{{title}}\" überschritten",
+        "ADD_ALL_TO_TODAY": "Alle zu heute hinzufügen",
+        "DEADLINES_TODAY": "{{count}} Aufgabe(n) heute fällig, noch nicht geplant"
       },
       "CMP": {
         "ADD_SUB_TASK": "Unteraufgabe hinzufügen",
@@ -1385,10 +1470,14 @@
         "TRACK_TIME": "Starten Sie die Erfassung der Zeit",
         "TRACK_TIME_STOP": "Erfassung der Zeit anhalten",
         "UNSCHEDULE_TASK": "Aufgabe ablegen",
-        "UPDATE_ISSUE_DATA": "Issuedaten aktualisieren"
+        "UPDATE_ISSUE_DATA": "Issuedaten aktualisieren",
+        "EDIT_DEADLINE": "Frist bearbeiten",
+        "REMOVE_DEADLINE": "Frist entfernen",
+        "SET_DEADLINE": "Frist setzen"
       },
       "D_CONFIRM_DELETE": {
-        "OK": "Löschen"
+        "OK": "Löschen",
+        "MSG": "Sind Sie sicher, dass Sie die Aufgabe \"{{title}}\" löschen möchten?"
       },
       "D_CONFIRM_SHORT_SYNTAX_NEW_TAG": {
         "MSG": "Möchten Sie das neue Tag {{tagsTxt}} erstellen?",
@@ -1403,7 +1492,17 @@
         "QA_NEXT_WEEK": "Nächste Woche",
         "QA_TODAY": "Heute",
         "QA_TOMORROW": "Morgen",
-        "RO_NEVER": "Nie"
+        "RO_NEVER": "Nie",
+        "ADD_TIME": "Uhrzeit hinzufügen",
+        "REMIND_AT": "Erinnern um",
+        "REMOVE_DEADLINE": "Frist entfernen",
+        "RO_1H": "1 Stunde vorher",
+        "RO_5M": "5 Minuten vorher",
+        "RO_10M": "10 Minuten vorher",
+        "RO_15M": "15 Minuten vorher",
+        "RO_30M": "30 Minuten vorher",
+        "RO_AT_DEADLINE": "Zur Frist",
+        "SET_DEADLINE": "Frist setzen"
       },
       "D_REMINDER_VIEW": {
         "ADD_ALL_TO_TODAY": "Fügen Sie alles zu heute hinzu",
@@ -1423,7 +1522,11 @@
         "SNOOZE_ALL": "Alle schlummern lassen",
         "START": "Start",
         "UNSCHEDULE": "Ablegen",
-        "UNSCHEDULE_ALL": "Alle ablegen"
+        "UNSCHEDULE_ALL": "Alle ablegen",
+        "CLEAR_ALL_REMINDERS": "Alle Erinnerungen löschen",
+        "CLEAR_REMINDER": "Erinnerung löschen",
+        "DEADLINE_REMINDER": "Frist-Erinnerung",
+        "TASK_REMINDERS": "Aufgaben-Erinnerungen"
       },
       "D_SCHEDULE_TASK": {
         "QA_NEXT_MONTH": "Zeitplan für den nächsten Monat",
@@ -1479,7 +1582,9 @@
         "REMINDER_DELETED": "Erinnerung für Aufgabe gelöscht",
         "REMINDER_UPDATED": "Erinnerung für Aufgabe \"{{title}}\" aktualisiert",
         "TASK_ALREADY_EXISTS": "Aufgabe <strong>{{title}}<\\/strong> existiert bereits",
-        "TASK_CREATED": "Erstellte Aufgabe \"{{taskTitle}}\""
+        "TASK_CREATED": "Erstellte Aufgabe \"{{taskTitle}}\"",
+        "DEADLINE_REMOVED": "Frist entfernt",
+        "DEADLINE_SET": "Frist gesetzt für {{date}}"
       },
       "SELECT_OR_CREATE": "Aufgabe auswählen oder erstellen",
       "SUMMARY_TABLE": {
@@ -1535,10 +1640,6 @@
         "ADVANCED_CFG": "Erweiterte Konfiguration",
         "EDIT": "Bearbeite Einstellung der wiederkehrenden Aufgabe",
         "HEATMAP_LABEL": "Aktivität",
-        "HELP1": "Wiederkehrende Aufgaben sind für regelmäßige Arbeiten gedacht, z. B. : \"Organisation\", \"Tägliche Besprechung\", \"Codeüberprüfung\", \"Überprüfen von E-Mails\" oder ähnliche Aufgaben, die wahrscheinlich immer wieder auftreten.",
-        "HELP2": "Einmal konfiguriert, wird eine sich wiederkehrende Aufgabe an jedem unten ausgewählten Tag neu erstellt, sobald Sie Ihr Projekt öffnen, und wird am Ende des Tages automatisch als erledigt markiert. Sie werden als unterschiedliche Instanzen behandelt. So können Sie Unteraufgaben usw. frei hinzufügen.",
-        "HELP3": "Aus Jira oder Git importierte Aufgaben können nicht wiederholt werden. Alle Erinnerungen werden auch bei einer sich wiederholenden Aufgabe gelöscht.",
-        "HELP4": "Ein Hinweis zum Auftragsfeld: Bezieht sich auf den Erstellungsauftrag wiederkehrende Aufgaben. Nur wirksam für wiederkehrende Aufgaben, die gleichzeitig erstellt werden. Ein niedrigerer Wert bedeutet, dass eine Aufgabe weiter oben in der Liste steht, ein höherer Wert, dass sie weiter unten steht. Ein Wert größer als 0 bedeutet, dass Elemente am Ende normaler Aufgaben erstellt werden.",
         "TAG_LABEL": "Stichwörter zum Hinzufügen",
         "TIME_SPENT_THIS_MONTH": "Diesen Monat",
         "TIME_SPENT_THIS_WEEK": "Diese Woche",
@@ -1557,8 +1658,6 @@
         "INHERIT_SUBTASKS_DESCRIPTION": "Wenn diese Option aktiviert ist, werden die Unteraufgaben der letzten Aufgabeninstanz mit der wiederkehrenden Aufgabe neu erstellt.",
         "MONDAY": "Montag",
         "NOTES": "Standardnotizen",
-        "ORDER": "Reihenfolge",
-        "ORDER_DESCRIPTION": "Erstellungsreihenfolge wiederkehrender Aufgaben. Betrifft nur wiederkehrende Aufgaben, die gleichzeitig erstellt wurden. Ein niedrigerer Wert bedeutet, dass eine Aufgabe weiter oben in der Liste erstellt wird, ein höherer Wert, dass sie weiter unten steht. Ein Wert größer als 0 bedeutet, dass Elemente am Ende normaler Aufgaben erstellt werden.",
         "Q_CUSTOM": "Benutzerdefinierte Wiederholungkonfiguration",
         "Q_DAILY": "Jeden Tag",
         "Q_MONDAY_TO_FRIDAY": "Jeden Montag bis Freitag",
@@ -1581,8 +1680,13 @@
         "THURSDAY": "Donnerstag",
         "TITLE": "Titel für die Aufgabe",
         "TUESDAY": "Dienstag",
-        "WEDNESDAY": "Mittwoch"
-      }
+        "WEDNESDAY": "Mittwoch",
+        "Q_MONTHLY_FIRST_DAY": "Jeden Monat am ersten Tag",
+        "Q_MONTHLY_LAST_DAY": "Jeden Monat am letzten Tag",
+        "SKIP_OVERDUE": "Überfällige Instanzen überspringen",
+        "SKIP_OVERDUE_DESCRIPTION": "Wenn aktiviert und die App nach einer verpassten geplanten Ausführung geöffnet wird (z.B. eine wöchentliche Aufgabe, bei der heute kein geplanter Tag ist), wird die verpasste Instanz stillschweigend übersprungen, anstatt als überfällige Aufgabe erstellt zu werden"
+      },
+      "SNACK_REPEAT_DIALOG_FAIL": "Wiederholungskonfiguration konnte nicht geöffnet werden. Sie können sie über das Aufgabenmenü konfigurieren."
     },
     "TASK_VIEW": {
       "CUSTOMIZER": {
@@ -1656,6 +1760,20 @@
         "TASK": "Aufgabe",
         "TRACK_TO": "Erfassen nach:",
         "UNTRACKED_TIME": "Nicht erfasste Zeit:"
+      },
+      "D_ARCHIVE_COMPRESS": {
+        "BTN_COMPRESS": "Archiv komprimieren",
+        "CONFIRM_MSG": "Sind Sie sicher, dass Sie das Archiv komprimieren möchten? Dies wird die oben aufgelisteten Daten dauerhaft löschen!",
+        "CONFIRM_TITLE": "Archivkomprimierung bestätigen",
+        "ESTIMATED_SAVINGS": "Geschätzte Platzeinsparung",
+        "INTRO": "Dies komprimiert Ihre archivierten Aufgaben durch Entfernung alter Daten. Dieser Vorgang wird geräteübergreifend synchronisiert.",
+        "ISSUE_FIELDS_TO_CLEAR": "Zu löschende Issue-Felder",
+        "LOADING": "Archiv wird analysiert...",
+        "NO_DATA": "Keine Daten zum Komprimieren. Ihr Archiv ist bereits optimiert.",
+        "NOTES_TO_CLEAR": "Zu löschende Aufgabennotizen (älter als 1 Jahr)",
+        "SUBTASKS_TO_DELETE": "Zu löschende Unteraufgaben (Zeit zum Elternteil zusammengeführt)",
+        "TITLE": "Archiv komprimieren",
+        "WARNING": "Dieser Vorgang kann nicht rückgängig gemacht werden. Stellen Sie sicher, dass Sie ein Backup haben, bevor Sie fortfahren!"
       }
     },
     "VOICE_REMINDER": {
@@ -1677,7 +1795,9 @@
         "TASKS": "Aufgaben",
         "TOTAL_TIME": "Insgesamt aufgewendete Zeit:",
         "WEEK_NR": "Woche {{nr}}",
-        "WORKED": "Gearbeitet"
+        "WORKED": "Gearbeitet",
+        "RESTORE_TASK_FROM_ARCHIVE": "Aufgabe aus Archiv wiederherstellen",
+        "VIEW_TASK_DETAILS": "Aufgabendetails anzeigen"
       },
       "D_CONFIRM_RESTORE": "Möchten Sie die Aufgabe <strong>\"{{title}}\"</strong> wirklich in Ihre heutige Aufgabenliste verschieben?",
       "D_EXPORT_TITLE": "Worklog-Export {{start}}-{{end}}",
@@ -1747,7 +1867,8 @@
     "S_ERR_INVALID_URL": "Import fehlgeschlagen: Ungültige URL angegeben",
     "S_ERR_NETWORK": "Import fehlgeschlagen: Netzwerkfehler beim Abrufen von Daten von der URL",
     "S_IMPORT_FROM_URL_ERR_DECODE": "Fehler: Die URL-Parameter für den Import konnten nicht dekodiert werden. Bitte stellen Sie sicher, dass sie korrekt formatiert sind.",
-    "URL_PLACEHOLDER": "URL zum Importieren eingeben"
+    "URL_PLACEHOLDER": "URL zum Importieren eingeben",
+    "BTN_COMPRESS_ARCHIVE": "Archiv komprimieren"
   },
   "G": {
     "ADD": "Hinzufügen",
@@ -1788,10 +1909,11 @@
     "SUBMIT": "Einreichen",
     "TITLE": "Titel",
     "TODAY_TAG_TITLE": "Heute",
-    "TRACKING_INTERVAL_DESCRIPTION": "Verfolgen Sie die Zeit mit diesem Intervall in Millisekunden. Möglicherweise möchten Sie dies ändern, um Schreibvorgänge auf der Festplatte zu reduzieren. Siehe Ausgabe #2355.",
     "UNDO": "Rückgängig machen",
     "WITHOUT_PROJECT": "Ohne Projekt",
-    "YESTERDAY": "Gestern"
+    "YESTERDAY": "Gestern",
+    "DONT_SHOW_AGAIN": "Nicht mehr anzeigen",
+    "TOGGLE_PASSWORD_VISIBILITY": "Passwort ein-/ausblenden"
   },
   "GCF": {
     "APP_FEATURES": {
@@ -1810,7 +1932,8 @@
       "TIME_TRACKING": "Stoppuhr-Zeiterfassung",
       "TITLE": "App-Funktionen",
       "USER_PROFILES": "Benutzerprofile (Experimentell)",
-      "USER_PROFILES_HINT": "Ermöglicht das Erstellen und Wechseln zwischen verschiedenen Benutzerprofilen, jeweils mit separaten Einstellungen, Aufgaben und Synchronisationskonfigurationen. Die Schaltfläche zur Profilverwaltung erscheint oben rechts, wenn aktiviert. Hinweis: Das Deaktivieren dieser Funktion blendet die Benutzeroberfläche aus, bewahrt jedoch Ihre Profildaten (Experimentelle Funktion, keine Garantien. Bitte sichern Sie Ihre Daten)."
+      "USER_PROFILES_HINT": "Ermöglicht das Erstellen und Wechseln zwischen verschiedenen Benutzerprofilen, jeweils mit separaten Einstellungen, Aufgaben und Synchronisationskonfigurationen. Die Schaltfläche zur Profilverwaltung erscheint oben rechts, wenn aktiviert. Hinweis: Das Deaktivieren dieser Funktion blendet die Benutzeroberfläche aus, bewahrt jedoch Ihre Profildaten (Experimentelle Funktion, keine Garantien. Bitte sichern Sie Ihre Daten).",
+      "USER_PROFILES_WARNING": "<strong>Experimentelle Funktion:</strong> Diese Funktion ist noch in Entwicklung und kann in einem zukünftigen Update entfernt oder erheblich geändert werden. Nutzung auf eigene Gefahr — stellen Sie sicher, dass Sie Backups Ihrer Daten haben."
     },
     "AUTO_BACKUPS": {
       "HELP": "Speichern Sie alle Daten automatisch in Ihrem App-Ordner, um sie für den Fall, dass ein Fehler auftritt, bereit zu halten.",
@@ -1828,13 +1951,32 @@
     "CLIPBOARD_IMAGES": {
       "DELETE": "Bild löschen",
       "DELETE_ALL": "Alles löschen",
-      "PATH_TITLE": "Lagerort",
+      "PATH_TITLE": "Speicherort",
       "SELECT_PATH": "Ordner auswählen",
       "SORT_BY": "Sortiere nach",
       "SORT_LARGEST": "Größte zuerst",
       "SORT_NEWEST": "Neueste Zuerst",
       "SORT_OLDEST": "Älteste zuerst",
-      "SORT_SMALLEST": "Kleinste zuerst"
+      "SORT_SMALLEST": "Kleinste zuerst",
+      "DELETE_ALL_SUCCESS": "Alle Zwischenablage-Bilder erfolgreich gelöscht",
+      "DELETE_SUCCESS": "Zwischenablage-Bild erfolgreich gelöscht",
+      "ERROR_DELETING": "Löschen des Zwischenablage-Bilds fehlgeschlagen",
+      "ERROR_DELETING_ALL": "Löschen aller Zwischenablage-Bilder fehlgeschlagen",
+      "ERROR_LOADING": "Laden der Zwischenablage-Bilder fehlgeschlagen",
+      "HELP": "Verwalten Sie aus der Zwischenablage eingefügte Bilder. In der Browser-Version werden Bilder in IndexedDB gespeichert. Für die Desktop-Version konfigurieren Sie den Speicherpfad.",
+      "LOADING": "Bilder werden geladen...",
+      "MANAGE_DESCRIPTION": "Anzeigen und Löschen von gespeicherten Bildern aus Markdown-Feldern",
+      "MANAGE_TITLE": "Gespeicherte Bilder verwalten",
+      "MANAGER_TITLE": "Zwischenablage-Bilder",
+      "NO_IMAGES": "Keine Zwischenablage-Bilder gespeichert",
+      "OPEN_MANAGER": "Bilder verwalten",
+      "PATH_DESCRIPTION": "Konfigurieren Sie den Speicherort für Zwischenablage-Bilder auf Ihrem Dateisystem (leer lassen für Standardort)",
+      "PATH_LABEL": "Bildspeicherpfad",
+      "PATH_PLACEHOLDER": "Leer lassen für Standardort",
+      "SELECT_PATH_TITLE": "Ordner für Zwischenablage-Bilder auswählen",
+      "TITLE": "Zwischenablage-Bilder",
+      "TOTAL_IMAGES": "Bilder gesamt",
+      "TOTAL_SIZE": "Gesamtgröße"
     },
     "EVALUATION": {
       "IS_HIDE_EVALUATION_SHEET": "Bewertungsbogen in der Tageszusammenfassung ausblenden",
@@ -1962,7 +2104,11 @@
       "TR": "Türkçe",
       "UK": "Українська",
       "ZH": "中文(简体)",
-      "ZH_TW": "中文(繁體)"
+      "ZH_TW": "中文(繁體)",
+      "RO": "Română",
+      "RO_MD": "Română (Moldova)",
+      "TIME_LOCALE_RO_MD": "Rumänisch (Moldawien): 24-Stunden, TT.MM.JJJJ",
+      "TIME_LOCALE_RO_RO": "Rumänisch: 24-Stunden, TT.MM.JJJJ"
     },
     "MISC": {
       "DARK_MODE": "Dark Mode",
@@ -2002,7 +2148,13 @@
       "DEFAULT_TASK_REMIND_OPTION": "Standardmäßig ausgewählte Erinnerungsoption beim Erstellen von Aufgaben",
       "DISABLE_REMINDERS": "Alle Erinnerungen deaktivieren",
       "IS_COUNTDOWN_BANNER_ENABLED": "Countdown-Banner anzeigen, bevor Erinnerungen fällig werden",
-      "TITLE": "Erinnerungen"
+      "TITLE": "Erinnerungen",
+      "DUE_DATE_NOTIFICATION_HOUR": "Uhrzeit für Fälligkeitsbenachrichtigungen (0-23)",
+      "HELP": "<p><strong>Wichtig:</strong> Erinnerungen verwenden <strong>lokale Benachrichtigungen</strong>, keine Push-Benachrichtigungen. Das bedeutet, die App muss mindestens einmal auf Ihrem Gerät geöffnet worden sein, damit Erinnerungen geplant werden. Auf einem anderen Gerät gesetzte Erinnerungen erscheinen erst nach der Synchronisation der App auf dem Zielgerät.</p><p>Auf <strong>iOS</strong> stellen Sie sicher, dass Benachrichtigungen für Super Productivity in den Geräteeinstellungen unter \"Einstellungen\" > \"Mitteilungen\" aktiviert sind.</p>",
+      "IS_FOCUS_WINDOW": "Anwendungsfenster fokussieren, wenn Erinnerung ausgelöst wird",
+      "NOTIFY_ON_DUE_DATE": "Benachrichtigungen für heute fällige Aufgaben anzeigen",
+      "USE_ALARM_STYLE_REMINDERS": "Alarm-Benachrichtigungen verwenden (nur Android)",
+      "USE_ALARM_STYLE_REMINDERS_DESCRIPTION": "Wenn aktiviert, verwenden Erinnerungen lautere Alarmtöne und auffälligere Benachrichtigungen. Empfohlen für wichtige Erinnerungen."
     },
     "SCHEDULE": {
       "HELP": "Die Schedule-Funktion soll Ihnen einen schnellen Überblick darüber geben, wie sich Ihre geplanten Aufgaben im Laufe der Zeit entwickeln. Sie finden es im Menü auf der linken Seite unter <a href='#/schedule'>'Schedule'</a>.",
@@ -2022,7 +2174,11 @@
       "IS_ENABLE_DUE": "Fällige Kurzsyntax aktivieren (@<Due time>)",
       "IS_ENABLE_PROJECT": "Projektkurzsyntax einschalten (+<Project name>)",
       "IS_ENABLE_TAG": "Tag-Kurzsyntax einschalten (#<Tag>)",
-      "TITLE": "Kurze Syntax"
+      "TITLE": "Kurze Syntax",
+      "URL_BEHAVIOR_EXTRACT": "URL in Anhänge extrahieren",
+      "URL_BEHAVIOR_KEEP": "URL im Aufgabentitel beibehalten",
+      "URL_BEHAVIOR_KEEP_AND_ATTACH": "URL im Titel beibehalten und zu Anhängen hinzufügen",
+      "URL_BEHAVIOR_LABEL": "URL-Verhalten beim Hinzufügen von Aufgaben"
     },
     "SOUND": {
       "BREAK_REMINDER_SOUND": "Erinnerungston für die Pause",
@@ -2067,7 +2223,6 @@
       "L_IS_TRACKING_REMINDER_FOCUS_WINDOW": "App-Fenster fokussieren, wenn Erinnerung aktiv ist (nur Desktop)",
       "L_IS_TRACKING_REMINDER_NOTIFY": "Benachrichtigen, wenn eine Zeiterfassungserinnerung angezeigt wird",
       "L_IS_TRACKING_REMINDER_SHOW_ON_MOBILE": "Tracking-Erinnerung in der mobilen App anzeigen",
-      "L_TRACKING_INTERVAL": "Zeiterfassungsintervall (EXPERIMENTAL)",
       "L_TRACKING_REMINDER_MIN_TIME": "Wartezeit bis zur Anzeige des Tracking-Erinnerungsbanners",
       "TITLE": "Zeiterfassung"
     }
@@ -2118,7 +2273,9 @@
     "SHARE_FAILED": "Das Teilen ist fehlgeschlagen. Bitte kopieren Sie es manuell.",
     "SHARE_FAILED_FALLBACK": "Das Teilen ist fehlgeschlagen. Stattdessen in die Zwischenablage kopiert.",
     "SHARE_UNAVAILABLE_FALLBACK": "In die Zwischenablage kopiert.",
-    "UNPLANNED_TODAY_TASKS": "Alle Aufgaben von Heute entplant"
+    "UNPLANNED_TODAY_TASKS": "Alle Aufgaben von Heute entplant",
+    "SAVE_BLOCKED_DURING_SYNC": "Synchronisation läuft — einige Änderungen müssen möglicherweise erneut gespeichert werden",
+    "OPEN_SETTINGS_ERROR": "Einstellungen konnten nicht geöffnet werden"
   },
   "GPB": {
     "ASSETS": "Laden von Assets ...",
@@ -2126,7 +2283,6 @@
     "DBX_GEN_TOKEN": "Dropbox: Token generieren ...",
     "DBX_META": "Dropbox: Holen Sie sich Datei Meta ...",
     "DBX_UPLOAD": "Dropbox: Datei hochladen ...",
-    "GITHUB_LOAD_ISSUE": "GitHub: Problemdaten laden ...",
     "JIRA_LOAD_ISSUE": "Jira: Problemdaten laden ...",
     "SYNC": "Daten synchronisieren...",
     "UNKNOWN": "Remote-Daten laden",
@@ -2179,7 +2335,16 @@
     "TOGGLE_TRACK_TIME": "Tracking-Zeit starten / stoppen",
     "TRIGGER_SYNC": "Synchronisierung manuell auslösen",
     "UNPLAN_ALL_TASKS": "Alle Aufgaben entplanen",
-    "WORKLOG": "Worklog"
+    "WORKLOG": "Worklog",
+    "DISABLE_FEATURE": "Funktion deaktivieren",
+    "FEATURE_DISABLED_SNACK": "\"{{featureName}}\" deaktiviert. Reaktivieren Sie es in den App-Funktionseinstellungen.",
+    "NO_PROJECT_INFO": "Keine Projekte verfügbar. Sie können ein neues Projekt erstellen, indem Sie auf die Schaltfläche 'Projekt erstellen' klicken.",
+    "NO_TAG_INFO": "Derzeit gibt es keine Tags. Sie können Tags hinzufügen, indem Sie beim Hinzufügen oder Bearbeiten von Aufgaben `#IhrTagName` eingeben.",
+    "NOTES_PANEL_INFO": "Notizen können nur in der Planungs- und der regulären Aufgabenlistenansicht angezeigt werden.",
+    "PROCRASTINATE": "Prokrastinieren",
+    "PROJECT_SETTINGS": "Projekteinstellungen",
+    "SHOW_TRACKED_TASK": "Verfolgte Aufgabe anzeigen",
+    "TOGGLE_SHOW_BOOKMARKS": "Lesezeichen ein-/ausblenden"
   },
   "MIGRATE": {
     "C_DOWNLOAD_BACKUP": "Möchten Sie ein Backup Ihrer alten Daten herunterladen (kann mit älteren Versionen von Super Productivity verwendet werden)?",
@@ -2187,7 +2352,12 @@
     "E_MIGRATION_FAILED": "Migration fehlgeschlagen! mit Fehler:",
     "E_RESTART_FAILED": "Automatischer Neustart fehlgeschlagen. Bitte starten Sie die App manuell neu!",
     "STATUS_PREPARING": "Migration wird vorbereitet...",
-    "SUCCESS": "Migration abgeschlossen! Starte die App jetzt neu..."
+    "SUCCESS": "Migration abgeschlossen! Starte die App jetzt neu...",
+    "DIALOG_MESSAGE": "Wir aktualisieren die Datenspeicherung für verbesserte Synchronisationszuverlässigkeit. Ein Backup wird automatisch heruntergeladen.",
+    "DIALOG_TITLE": "Ihre Daten werden migriert",
+    "STATUS_BACKUP": "Backup Ihrer Daten wird erstellt...",
+    "STATUS_COMPLETE": "Migration abgeschlossen!",
+    "STATUS_MIGRATING": "Daten werden migriert..."
   },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Aufgaben von heute hinzufügen",
@@ -2249,7 +2419,6 @@
     "ERROR": "Error",
     "ERROR_LOADING_PLUGIN": "Fehler beim Laden des Plugins",
     "EXPERIMENTAL_WARNING": "Das Plugin-System befindet sich in einem experimentellen Stadium und sollte mit äußerster Vorsicht verwendet werden.",
-    "EXPERIMENTAL_WARNING_TITLE": "Experimentelle Funktion - Sicherheitswarnung",
     "FAILED_TO_CLEAR_CACHE": "Plugin-Cache konnte nicht gelöscht werden",
     "FAILED_TO_EXECUTE_SCRIPT": "Node.js-Skript kann nicht ausgeführt werden",
     "FAILED_TO_EXTRACT_ZIP": "Plugin-ZIP-Datei konnte nicht entpackt werden",
@@ -2311,10 +2480,14 @@
     "UNABLE_TO_PERSIST_DATA": "Daten können nicht in den Plugin-Speicher übernommen werden",
     "UNKNOWN_ERROR": "Ein unbekannter Fehler ist aufgetreten",
     "UPLOAD_PLUGIN_INSTRUCTION": "Laden Sie eine Plugin-ZIP-Datei hoch, um sie zu installieren:",
-    "VALIDATION_FAILED": "Validierung fehlgeschlagen"
+    "VALIDATION_FAILED": "Validierung fehlgeschlagen",
+    "CONFIRM_DISABLE_WITH_ISSUE_PROVIDERS": "Dieses Plugin bietet Issue-Integration, die derzeit verwendet wird ({{count}} Issue-Anbieter). Das Deaktivieren unterbricht vorübergehend die Issue-Synchronisation für diese Anbieter, bis das Plugin reaktiviert wird. Sind Sie sicher, dass Sie \"{{name}}\" deaktivieren möchten?",
+    "FAILED_TO_LOAD_COMMUNITY_PLUGINS": "Community-Plugin-Liste konnte nicht geladen werden",
+    "INDEX_HTML_NOT_LOADED": "Plugin index.html nicht geladen"
   },
   "PM": {
-    "TITLE": "Projektmetriken"
+    "TITLE": "Projektmetriken",
+    "ALL_TASKS_TITLE": "Metriken (alle Aufgaben)"
   },
   "PS": {
     "FAILED_TO_COPY_TO_CLIPBOARD": "Kopieren in die Zwischenablage fehlgeschlagen",
@@ -2329,9 +2502,14 @@
     "TABS": {
       "GENERAL": "Allgemein",
       "PRODUCTIVITY": "Produktivität",
-      "TASKS": "Aufgaben"
+      "TASKS": "Aufgaben",
+      "SYNC_BACKUP": "Sync & Backup",
+      "TIME_TRACKING": "Zeit & Erfassung",
+      "PLUGINS": "Plugins"
     },
-    "TAG_SETTINGS": "Stichwort-spezifische Einstellungen"
+    "TAG_SETTINGS": "Stichwort-spezifische Einstellungen",
+    "TOGGLE_DARK_MODE": "Dunkelmodus umschalten",
+    "UPDATE_APP": "App aktualisieren"
   },
   "SCHEDULE": {
     "LAST": "Zuletzt:",
@@ -2341,7 +2519,10 @@
     "NO_SCHEDULED_TITLE": "Geplante Aufgaben für den Tag",
     "REPEATED_TASKS": "Wiederkehrende Aufgaben",
     "SCHEDULED_TASKS": "Geplante Aufgaben",
-    "SCHEDULED_TASKS_WITH_TIME": "Geplante Aufgaben mit Erinnerung"
+    "SCHEDULED_TASKS_WITH_TIME": "Geplante Aufgaben mit Erinnerung",
+    "NO_DEADLINES": "Derzeit gibt es keine Aufgaben mit Fristen. Sie können eine Frist über das Kontextmenü der Aufgabe oder das Detailpanel setzen.",
+    "START_TASK": "Aufgabe starten und Erinnerung entfernen",
+    "TASKS_WITH_DEADLINES": "Aufgaben mit Fristen"
   },
   "THEMES": {
     "blue": "Blau",
@@ -2350,7 +2531,17 @@
     "pink": "Rosa",
     "purple": "Lila",
     "teal": "blaugrün",
-    "yellow": "gelb"
+    "yellow": "gelb",
+    "blue-grey": "Blaugrau",
+    "deep-orange": "Dunkelorange",
+    "deep-purple": "Dunkelviolett",
+    "light-blue": "Hellblau",
+    "light-green": "Hellgrün",
+    "SCHEDULED_TASKS_WITH_TIME": "Geplante Aufgaben mit Startzeit",
+    "SELECT_THEME": "Thema auswählen",
+    "amber": "Bernstein",
+    "cyan": "Cyan",
+    "lime": "Limette"
   },
   "USER_PROFILES": {
     "ACTIVE": "Aktiv",
@@ -2398,6 +2589,16 @@
     "TODAY_REMAINING": "Heute noch übrig:",
     "WITHOUT_BREAK": "Ohne Pause:",
     "WORKING_TODAY": "Arbeit heute:",
-    "WORKING_TODAY_ARCHIVED": "Heute an archivierten Aufgaben gearbeitete Zeit"
+    "WORKING_TODAY_ARCHIVED": "Heute an archivierten Aufgaben gearbeitete Zeit",
+    "RECURRING_TASKS": "Wiederkehrende Aufgaben"
+  },
+  "NOTIFICATION": {
+    "EXACT_ALARM_DENIED": "Genaue Alarmberechtigung verweigert. Erinnerungen können bis zu 15 Minuten verzögert werden.",
+    "TASK_ALREADY_COMPLETED": "Aufgabe bereits abgeschlossen",
+    "TASK_MARKED_DONE": "Aufgabe als erledigt markiert"
+  },
+  "PRE_MIGRATION": {
+    "DIALOG_MESSAGE": "Wir aktualisieren die Datenspeicherung für verbesserte Synchronisationszuverlässigkeit.<br><br>Ein Backup Ihrer Daten wird automatisch heruntergeladen. Sie können dieses Backup verwenden, um Ihre Daten bei Bedarf wiederherzustellen (Datei > Importieren).",
+    "DIALOG_TITLE": "Systemaktualisierung"
   }
 }
