@@ -38,8 +38,9 @@ const createWebdavFormFields = (options: {
           {
             type: 'tpl',
             templateOptions: {
-              tag: 'p',
+              tag: 'div',
               text: options.infoText,
+              class: 'sync-warning',
             },
           },
         ]
@@ -153,8 +154,9 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
         {
           type: 'tpl',
           templateOptions: {
-            tag: 'p',
+            tag: 'div',
             text: T.F.SYNC.FORM.LOCAL_FILE.INFO_TEXT,
+            class: 'sync-warning',
           },
         },
         {
@@ -187,8 +189,9 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
         {
           type: 'tpl',
           templateOptions: {
-            tag: 'p',
+            tag: 'div',
             text: T.F.SYNC.FORM.LOCAL_FILE.INFO_TEXT,
+            class: 'sync-warning',
           },
         },
         {
