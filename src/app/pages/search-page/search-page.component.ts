@@ -106,7 +106,7 @@ export class SearchPageComponent implements OnInit {
       // If a subtask does not belong to a project, it will neither have a project nor a tag.
       // Therefore, we need to use the parent's tag.
       const parent = task.parentId ? taskMap.get(task.parentId) : undefined;
-      const tagId = parent ? parent.tagIds[0] : task.tagIds[0];
+      const tagId = parent ? parent.tagIds?.[0] : task.tagIds?.[0];
       const taskNotes = task.notes || '';
 
       return {
