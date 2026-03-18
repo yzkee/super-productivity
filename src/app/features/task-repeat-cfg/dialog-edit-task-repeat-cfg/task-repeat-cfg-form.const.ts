@@ -34,7 +34,7 @@ export const TASK_REPEAT_CFG_ESSENTIAL_FORM_CFG: FormlyFieldConfig[] = [
       label: T.F.TASK_REPEAT.F.START_DATE,
       required: true,
     },
-    parsers: [getDbDateStr],
+    parsers: [(val: unknown) => (val instanceof Date ? getDbDateStr(val) : val)],
   },
   {
     key: 'quickSetting',
