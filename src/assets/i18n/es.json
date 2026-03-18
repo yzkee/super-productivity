@@ -107,11 +107,11 @@
         "TWO_WAY_SYNC_OFF": "Desactivado",
         "TWO_WAY_SYNC_BOTH": "Ambos (bidireccional)",
         "TWO_WAY_SYNC_NOTES": "Dirección de sincronización de notas / descripción",
-        "TWO_WAY_SYNC_PULL_ONLY": "Solo recibir (leer de CalDAV)",
-        "TWO_WAY_SYNC_PUSH_ONLY": "Solo enviar (escribir en CalDAV)",
+        "TWO_WAY_SYNC_PULL_ONLY": "Solo lectura (leer desde CalDAV)",
+        "TWO_WAY_SYNC_PUSH_ONLY": "Solo escritura (escribir en CalDAV)",
         "TWO_WAY_SYNC_SECTION": "Sincronización bidireccional (experimental)",
-        "TWO_WAY_SYNC_STATUS": "Dirección de sincronización del estado",
-        "TWO_WAY_SYNC_TITLE": "Dirección de sincronización del título"
+        "TWO_WAY_SYNC_STATUS": "Dirección de sincronización de estado",
+        "TWO_WAY_SYNC_TITLE": "Dirección de sincronización de título"
       },
       "FORM_SECTION": {
         "HELP": "<p>Aquí puedes configurar SuperProductivity para listar tareas de CalDav no completadas para un proyecto específico en el panel de creación de tareas en la vista de planificación diaria. Se listarán como sugerencias y proporcionarán un enlace a la tarea así como más información sobre ella.</p> <p>Además puedes añadir y sincronizar automáticamente todas las tareas no completadas a tu backlog de tareas.</p><p>Para que funcione con nextcloud en la aplicación web, es posible que necesites poner en la lista blanca \"https://app.super-productivity.com\" a través de la aplicación de nextcloud <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a>.</p>"
@@ -121,7 +121,7 @@
         "LABELS": "Etiquetas",
         "STATUS": "Estado",
         "SUMMARY": "Resumen",
-        "MARK_AS_CHECKED": "Marcar como verificado"
+        "MARK_AS_CHECKED": "Marcar como completado"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: Calendario \"{{calendarName}}\" no encontrado",
@@ -136,12 +136,12 @@
         "TXT": "¡<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>!",
         "TXT_MULTIPLE": {
           "OTHER": "¡<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>!<br> (y {{nrOfOtherBanners}} otros eventos están pendientes)",
-          "ONE": "<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>!<br> (y {{nrOfOtherBanners}} otro evento está pendiente)"
+          "ONE": "<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>.<br> (y {{nrOfOtherBanners}} otro evento pendiente)"
         },
         "TXT_PAST": "¡<strong>{{title}}</strong> comenzó a las <strong>{{start}}</strong>!",
         "TXT_PAST_MULTIPLE": {
           "OTHER": "¡<strong>{{title}}</strong> comenzó a las <strong>{{start}}</strong>!<br> (y {{nrOfOtherBanners}} otros eventos están pendientes)",
-          "ONE": "<strong>{{title}}</strong> comenzó a las <strong>{{start}}</strong>!<br> (y {{nrOfOtherBanners}} otro evento está pendiente)"
+          "ONE": "<strong>{{title}}</strong> comenzó a las <strong>{{start}}</strong>.<br> (y {{nrOfOtherBanners}} otro evento pendiente)"
         }
       },
       "EVENT_STRINGS": {
@@ -236,11 +236,11 @@
       "START_NEXT_FOCUS_SESSION": "Iniciar la siguiente sesión de enfoque",
       "SWITCH_TASK": "Cambiar tarea",
       "WORKED_FOR": "Trabajaste durante",
-      "GO_TO_PROCRASTINATION": "Obtener ayuda contra la procrastinación",
+      "GO_TO_PROCRASTINATION": "Obtener ayuda para la procrastinación",
       "PAUSE_BREAK": "Pausar descanso",
       "RESET_CYCLES": "Reiniciar contador de sesiones",
       "RESUME_BREAK": "Reanudar descanso",
-      "SELECT_TASK_FIRST": "Seleccione una tarea primero para comenzar el seguimiento"
+      "SELECT_TASK_FIRST": "Seleccione una tarea primero para iniciar el seguimiento"
     },
     "GITEA": {
       "FORM": {
@@ -323,7 +323,7 @@
       "DEFAULT_PROJECT_LABEL": "Proyecto predeterminado de Super Productivity",
       "DIALOG": {
         "ADVANCED_CONFIG": "Configuración avanzada",
-        "DELETE_CONFIRM": "¿Está seguro de que desea eliminar este proveedor de incidencias? Eliminarlo significa que <strong>todas las tareas de incidencias importadas anteriormente perderán su referencia</strong>. ¡Esta acción no se puede deshacer!"
+        "DELETE_CONFIRM": "¿Está seguro de que desea eliminar este proveedor de incidencias? Eliminarlo significa que <strong>todas las tareas de incidencias importadas previamente perderán su referencia</strong>. ¡Esta acción no se puede deshacer!"
       },
       "HOW_TO_GET_A_TOKEN": "¿Cómo obtener un token?",
       "ISSUE_CONTENT": {
@@ -363,23 +363,23 @@
         "ISSUE_UPDATE_SINGLE": "{{issueProviderName}}: Datos actualizados para \"{{issueTitle}}\"",
         "POLLING_BACKLOG": "{{issueProviderName}}: Sondeando nuevas {{issuesStr}}",
         "POLLING_CHANGES": "{{issueProviderName}}: Sondeando Cambios para {{issuesStr}}",
-        "AUTO_CREATE_FAILED": "Error al crear incidencia automáticamente: {{errorMsg}}",
+        "AUTO_CREATE_FAILED": "Error al crear automáticamente la incidencia: {{errorMsg}}",
         "CONNECTION_FAILED": "Error de conexión",
         "CONNECTION_SUCCESS": "¡La conexión funciona!",
         "PLUGIN_NOT_INSTALLED": "El plugin requerido \"{{pluginName}}\" no está instalado.",
-        "TWO_WAY_SYNC_PUSH_FAILED": "Error en el envío de sincronización bidireccional: {{errorMsg}}"
+        "TWO_WAY_SYNC_PUSH_FAILED": "Error en la sincronización bidireccional: {{errorMsg}}"
       },
       "TWO_WAY_SYNC": {
         "OFF": "Desactivado",
         "AUTO_CREATE_ISSUES": "Crear incidencias automáticamente para nuevas tareas",
-        "AUTO_CREATE_ISSUES_DESCRIPTION": "Crea automáticamente una incidencia cuando agrega una nueva tarea de nivel superior al proyecto predeterminado. Requiere un proyecto predeterminado configurado.",
+        "AUTO_CREATE_ISSUES_DESCRIPTION": "Crea automáticamente una incidencia cuando agrega una nueva tarea de nivel superior al proyecto predeterminado. Requiere que se establezca un proyecto predeterminado.",
         "BOTH": "Ambos (bidireccional)",
         "NOTES": "Dirección de sincronización de notas / descripción",
-        "PULL_ONLY": "Solo recibir",
-        "PUSH_ONLY": "Solo enviar",
+        "PULL_ONLY": "Solo lectura",
+        "PUSH_ONLY": "Solo escritura",
         "SECTION": "Sincronización bidireccional (experimental)",
-        "STATUS": "Dirección de sincronización del estado",
-        "TITLE": "Dirección de sincronización del título"
+        "STATUS": "Dirección de sincronización de estado",
+        "TITLE": "Dirección de sincronización de título"
       }
     },
     "ISSUE_PANEL": {
@@ -455,7 +455,7 @@
         "PASSWORD": "Token / Contraseña",
         "USE_PAT": "Usar Token de Acceso Personal en lugar de contraseña (LEGADO)",
         "USER_NAME": "Email / Nombre de usuario",
-        "WONKY_COOKIE_MODE": "Autenticación alternativa por cookie (solo app de escritorio)"
+        "WONKY_COOKIE_MODE": "Autenticación alternativa con cookies (solo aplicación de escritorio)"
       },
       "FORM_SECTION": {
         "ADV_CFG": "Configuración Avanzada",
@@ -503,7 +503,7 @@
         "TRANSITION": "Jira: Establecer incidencia \"{{issueKey}}\" a \"{{name}}\"",
         "TRANSITION_SUCCESS": "Jira: Establecida incidencia {{issueKey}} a <strong>{{chosenTransition}}</strong>",
         "TRANSITIONS_LOADED": "Jira: Transiciones cargadas. Usa los selectores de abajo para asignarlas",
-        "UNABLE_TO_REASSIGN": "Jira: No se puede reasignar el ticket porque no especificó un nombre de usuario. Por favor, visite la configuración."
+        "UNABLE_TO_REASSIGN": "Jira: No se puede reasignar el ticket a usted mismo porque no especificó un nombre de usuario. Por favor, visite la configuración."
       },
       "STEPPER": {
         "CREDENTIALS": "Credenciales",
@@ -599,7 +599,7 @@
         "REMIND_LABEL": "Recordarme mañana sobre esto",
         "REMINDER_CREATED": "Recordatorio de reflexión programado para mañana",
         "REMINDER_ERROR": "No se pudo programar el recordatorio",
-        "REMINDER_NEEDS_TEXT": "Escriba una reflexión antes de pedir un recordatorio",
+        "REMINDER_NEEDS_TEXT": "Escriba una reflexión antes de solicitar un recordatorio",
         "REMINDER_TASK_TITLE": "Revisar nota de reflexión"
       }
     },
@@ -846,7 +846,7 @@
         "SCOPE_ALL": "Todo",
         "SCOPE_ASSIGNED": "Asignado a mí",
         "SCOPE_CREATED": "Creado por mí",
-        "IS_SHOW_TIME_TRACKING_DIALOG": "Mostrar diálogo de seguimiento de tiempo para Redmine",
+        "IS_SHOW_TIME_TRACKING_DIALOG": "Mostrar diálogo de seguimiento de tiempo para reportar a Redmine",
         "IS_SHOW_TIME_TRACKING_DIALOG_DESCRIPTION": "Requiere que el módulo de seguimiento de tiempo esté habilitado en el proyecto Redmine",
         "IS_SHOW_TIME_TRACKING_DIALOG_FOR_EACH_SUB_TASK": "Mostrar diálogo de seguimiento de tiempo al completar subtareas"
       },
@@ -875,7 +875,7 @@
         "TXT": "¡<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>!",
         "TXT_MULTIPLE": {
           "OTHER": "¡<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>!<br> (y {{nrOfOtherBanners}} otras tareas vencen)",
-          "ONE": "<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>!<br> (y {{nrOfOtherBanners}} otra tarea está pendiente)"
+          "ONE": "<strong>{{title}}</strong> comienza a las <strong>{{start}}</strong>.<br> (y {{nrOfOtherBanners}} otra tarea pendiente)"
         }
       },
       "S_ACTIVE_TASK_DUE": "¡La tarea en la que estás trabajando ha vencido!<br/> ({{title}})",
@@ -895,7 +895,7 @@
       "SHIFT_KEY_INFO": "Mantén pulsado Shift para alternar el modo de planificación diaria",
       "START": "Inicio del Trabajo",
       "LUNCH_BREAK": "Pausa para almuerzo",
-      "NO_TASKS": "Actualmente no hay tareas. Por favor, agregue tareas mediante el botón más (+) en la barra superior."
+      "NO_TASKS": "Actualmente no hay tareas. Por favor, agregue tareas usando el botón más (+) en la barra superior."
     },
     "SEARCH_BAR": {
       "INFO": "Empieza a escribir para buscar tareas",
@@ -928,17 +928,17 @@
         "TYPE_CLICK_COUNTER": "Contador de Clics",
         "TYPE_REPEATED_COUNTDOWN": "Cuenta Atrás Repetida",
         "TYPE_STOPWATCH": "Cronómetro",
-        "L_ICON_ON": "Icono cuando está activado",
-        "L_IS_HIDE_BUTTON": "Ocultar botón de barra de herramientas",
+        "L_ICON_ON": "Ícono cuando está activado",
+        "L_IS_HIDE_BUTTON": "Ocultar botón de la barra de herramientas",
         "L_STREAK_MODE": "Modo de seguimiento de racha",
         "L_STREAK_MODE_SPECIFIC_DAYS": "Días específicos de la semana",
         "L_STREAK_MODE_WEEKLY_FREQUENCY": "Frecuencia semanal (ej. 3 veces por semana)",
-        "L_WEEKLY_FREQUENCY": "Completaciones por semana"
+        "L_WEEKLY_FREQUENCY": "Completados por semana"
       },
       "HABIT_TRACKER": {
         "NEXT_WEEK": "Próxima semana",
         "TODAY": "Hoy",
-        "ADD_HABIT": "Agregar nuevo hábito",
+        "ADD_HABIT": "Agregar un nuevo hábito",
         "DISABLED_HABITS": "Hábitos desactivados",
         "PREV_WEEK": "Semana anterior"
       },
@@ -960,7 +960,7 @@
         "GET_AUTH_CODE": "Obtener Código de Autorización",
         "L_AUTH_CODE": "Introduce Código de Auth",
         "TITLE": "Inicio de sesión: {{provider}}",
-        "FOLLOW_LINK_MOBILE": "Por favor, toque el botón de abajo para autorizar. Será redirigido automáticamente de vuelta a la aplicación.",
+        "FOLLOW_LINK_MOBILE": "Por favor, toque el botón de abajo para autorizar. Será redirigido automáticamente a la aplicación.",
         "WAITING_FOR_AUTH": "Esperando autenticación..."
       },
       "D_CONFLICT": {
@@ -1050,21 +1050,21 @@
         "BTN_RESTORE": "Restaurar",
         "CONFIRM_MSG": "¿Está absolutamente seguro de que desea restaurar a <strong>{{timestamp}}</strong>?<br><br>Esto <strong>reemplazará completamente</strong> todos sus datos actuales y <strong>no se puede deshacer</strong>.",
         "CONFIRM_TITLE": "Confirmar restauración",
-        "ERROR_LOADING": "Error al cargar puntos de restauración",
-        "ERROR_RESTORE": "Error al restaurar datos",
-        "INTRO": "Seleccione un momento para restaurar sus datos:",
+        "ERROR_LOADING": "Error al cargar los puntos de restauración",
+        "ERROR_RESTORE": "Error al restaurar los datos",
+        "INTRO": "Seleccione un punto en el tiempo para restaurar sus datos:",
         "LOADING": "Cargando puntos de restauración...",
-        "NO_POINTS": "No hay puntos de restauración disponibles. Los puntos de restauración se crean al sincronizar o importar datos.",
+        "NO_POINTS": "No hay puntos de restauración disponibles. Los puntos de restauración se crean cuando sincroniza o importa datos.",
         "TITLE": "Restaurar desde historial",
         "TYPE_BACKUP_IMPORT": "Restauración de respaldo",
         "TYPE_REPAIR": "Reparación automática",
-        "TYPE_SYNC_IMPORT": "Importación completa de sincronización",
-        "WARNING": "¡Esto reemplazará TODOS sus datos actuales con el respaldo seleccionado. Esta acción no se puede deshacer!"
+        "TYPE_SYNC_IMPORT": "Importación de sincronización completa",
+        "WARNING": "Esto reemplazará TODOS sus datos actuales con el respaldo seleccionado. ¡Esta acción no se puede deshacer!"
       },
       "D_SERVER_MIGRATION_CONFIRM": {
         "SKIP": "Saltar",
         "CONFIRM": "Subir datos locales",
-        "MESSAGE": "Este servidor de sincronización ya contiene datos. ¿Desea subir sus datos locales para combinarlos? Si omite esto, algunos cambios locales podrían no sincronizarse.",
+        "MESSAGE": "Este servidor de sincronización ya contiene datos. ¿Desea subir sus datos locales para fusionarlos? Si omite esto, algunos de sus cambios locales podrían no sincronizarse.",
         "TITLE": "El servidor ya tiene datos"
       },
       "D_SYNC_IMPORT_CONFLICT": {
@@ -1073,29 +1073,29 @@
         "TITLE": "Conflicto de sincronización detectado",
         "USE_LOCAL": "Usar mis datos",
         "USE_REMOTE": "Usar datos del servidor",
-        "MSG_INCOMING": "Sus datos fueron completamente reemplazados en otro dispositivo. Tiene {{filteredOpCount}} cambios locales que podrían no conservarse.",
-        "MSG_INCOMING_NO_OPS": "Sus datos fueron completamente reemplazados en otro dispositivo. Este dispositivo se sincronizará con el nuevo estado.",
-        "MSG_LOCAL_FILTERS": "Sus datos locales fueron importados/restaurados, pero el servidor tiene {{filteredOpCount}} cambios de otros dispositivos que no pueden combinarse automáticamente.",
-        "REASON_BACKUP_RESTORE": "Razón: Se restauró un respaldo en otro dispositivo.",
-        "REASON_FILE_IMPORT": "Razón: Se importó un archivo de datos en otro dispositivo.",
-        "REASON_FORCE_UPLOAD": "Razón: Otro dispositivo forzó la subida de sus datos locales.",
-        "REASON_PASSWORD_CHANGED": "Razón: La contraseña de cifrado fue cambiada en otro dispositivo.",
-        "REASON_REPAIR": "Razón: Se realizó una reparación automática de datos.",
-        "REASON_SERVER_MIGRATION": "Razón: Los datos fueron migrados a un nuevo servidor de sincronización.",
-        "REASON_UNKNOWN": "Razón: Se realizó un reemplazo completo del estado.",
+        "MSG_INCOMING": "Sus datos fueron reemplazados completamente en otro dispositivo. Tiene {{filteredOpCount}} cambios locales que podrían no transferirse.",
+        "MSG_INCOMING_NO_OPS": "Sus datos fueron reemplazados completamente en otro dispositivo. Este dispositivo se sincronizará con el nuevo estado.",
+        "MSG_LOCAL_FILTERS": "Sus datos locales fueron importados/restaurados, pero el servidor tiene {{filteredOpCount}} cambios de otros dispositivos que no se pueden fusionar automáticamente.",
+        "REASON_BACKUP_RESTORE": "Motivo: Se restauró un respaldo en otro dispositivo.",
+        "REASON_FILE_IMPORT": "Motivo: Se importó un archivo de datos en otro dispositivo.",
+        "REASON_FORCE_UPLOAD": "Motivo: Otro dispositivo forzó la subida de sus datos locales.",
+        "REASON_PASSWORD_CHANGED": "Motivo: La contraseña de cifrado fue cambiada en otro dispositivo.",
+        "REASON_REPAIR": "Motivo: Se realizó una reparación automática de datos.",
+        "REASON_SERVER_MIGRATION": "Motivo: Los datos fueron migrados a un nuevo servidor de sincronización.",
+        "REASON_UNKNOWN": "Motivo: Se realizó un reemplazo completo del estado.",
         "RECOMMEND_SERVER": "Recomendado: Acepte los datos del servidor para mantenerse sincronizado con el otro dispositivo."
       },
       "FORM": {
         "BTN_CHANGE_PASSWORD": "Cambiar contraseña",
         "DROPBOX": {
           "L_ACCESS_TOKEN": "Token de acceso (generado desde el código de autenticación)",
-          "AUTH_SUCCESS": "Autenticación de Dropbox exitosa. Credenciales guardadas.",
+          "AUTH_SUCCESS": "¡Autenticación de Dropbox exitosa! Credenciales guardadas.",
           "BTN_AUTHENTICATE": "Autenticar con Dropbox",
-          "BTN_REAUTHENTICATE": "Reautenticar con Dropbox",
+          "BTN_REAUTHENTICATE": "Re-autenticar con Dropbox",
           "INFO_TEXT": "La autenticación de Dropbox usa OAuth. Haga clic en el botón de abajo para autenticarse con su cuenta de Dropbox.",
-          "REAUTH_SUCCESS": "Reautenticación de Dropbox exitosa. Credenciales actualizadas.",
+          "REAUTH_SUCCESS": "¡Re-autenticación de Dropbox exitosa! Credenciales actualizadas.",
           "STATUS_CONFIGURED": "Dropbox está configurado y listo para sincronizar",
-          "STATUS_NOT_CONFIGURED": "No configurado — autentíquese para habilitar la sincronización"
+          "STATUS_NOT_CONFIGURED": "No configurado - autentíquese para habilitar la sincronización"
         },
         "FILE_BASED": {
           "BTN_CHANGE_PASSWORD": "Cambiar Contraseña",
@@ -1212,10 +1212,10 @@
           "REMOVE_ENCRYPTION_WARNING": "Eliminar el cifrado borrará todos los datos del servidor y resubirá tus datos sin cifrar. Todos los dispositivos necesitarán reconfigurarse.",
           "SERVER_URL_DESCRIPTION": "Deja tal cual para el servidor oficial, o introduce una URL personalizada",
           "SETUP_ENCRYPTION_BTN": "Establecer contraseña",
-          "ENCRYPTION_ENCOURAGED": "El cifrado es requerido para SuperSync. Por favor, active el cifrado para proteger sus datos.",
-          "ENCRYPTION_SETUP_INTRO": "<strong>SuperSync cifra sus datos con contraseña antes de que salgan de su dispositivo</strong>, haciendo que el uso indebido o fugas de sus datos privados sea casi imposible.",
+          "ENCRYPTION_ENCOURAGED": "Se requiere cifrado para SuperSync. Por favor, active el cifrado para proteger sus datos.",
+          "ENCRYPTION_SETUP_INTRO": "<strong>SuperSync cifra sus datos con contraseña antes de que salgan de su dispositivo</strong>, haciendo que el uso indebido o la filtración de sus datos privados sea prácticamente imposible.",
           "SETUP_DISABLE_SUPERSYNC_BTN": "Desactivar SuperSync",
-          "SETUP_ENCRYPTION_PASSWORD_WARNING": "Use la misma contraseña en todos los dispositivos. Una contraseña olvidada puede restablecerse sobrescribiendo los datos remotos.",
+          "SETUP_ENCRYPTION_PASSWORD_WARNING": "Use la misma contraseña en todos los dispositivos. Una contraseña olvidada se puede restablecer sobrescribiendo los datos remotos.",
           "SETUP_ENCRYPTION_TITLE": "SuperSync: Establecer contraseña"
         },
         "TITLE": "Sincronización",
@@ -1236,7 +1236,7 @@
         },
         "BTN_DISABLE_ENCRYPTION": "Desactivar cifrado",
         "L_MANUAL_SYNC_ONLY": "Solo sincronizar manualmente (desactivar sincronización automática)",
-        "PASSWORD_SET_INFO": "🔒 Contraseña de cifrado establecida."
+        "PASSWORD_SET_INFO": "🔒 La contraseña de cifrado está establecida."
       },
       "S": {
         "ALREADY_IN_SYNC": "Ya sincronizado",
@@ -1300,11 +1300,11 @@
         "VERSION_TOO_OLD": "Tu versión de la app es demasiado antigua para los datos sincronizados. ¡Por favor actualiza!",
         "VERSION_UNSUPPORTED": "No se puede sincronizar: los datos requieren una versión más nueva. Por favor actualiza.",
         "WEB_CRYPTO_NOT_AVAILABLE": "Cifrado no disponible en este dispositivo. En Android requiere HTTPS. Por favor deshabilita el cifrado o sincroniza desde un navegador de escritorio.",
-        "AUTH_SETUP_FAILED": "Error al configurar la autenticación. Si usa la aplicación web, asegúrese de acceder mediante HTTPS. De lo contrario, pruebe la versión estable o reporte el problema.",
+        "AUTH_SETUP_FAILED": "Error al configurar la autenticación. Si está usando la aplicación web, asegúrese de acceder a través de HTTPS. De lo contrario, pruebe la versión estable o reporte esto como un error.",
         "AUTH_TOKEN_REJECTED": "El token de sincronización fue rechazado por el servidor: {{reason}}. Por favor, obtenga un nuevo token.",
-        "ENCRYPTION_REQUIRED_FOR_SUPERSYNC": "El cifrado es requerido para SuperSync. Por favor, establezca una contraseña de cifrado para continuar la sincronización.",
+        "ENCRYPTION_REQUIRED_FOR_SUPERSYNC": "Se requiere cifrado para SuperSync. Por favor, establezca una contraseña de cifrado para continuar sincronizando.",
         "INVALID_AUTH_CODE": "El código de autorización fue rechazado. Por favor, intente autenticarse de nuevo y asegúrese de copiar el código exactamente.",
-        "LOCK_TIMEOUT_ERROR": "La sincronización agotó el tiempo de espera para que terminara una operación anterior. Por favor, intente de nuevo."
+        "LOCK_TIMEOUT_ERROR": "La sincronización agotó el tiempo de espera mientras esperaba que terminara una operación anterior. Por favor, inténtelo de nuevo."
       },
       "SAFETY_BACKUP": {
         "BTN_CLEAR_ALL": "Limpiar todo",
@@ -1337,7 +1337,7 @@
       "BTN_RESTORE_FROM_HISTORY": "Restaurar desde historial",
       "D_PERMISSION": {
         "DISABLE_SYNC": "Desactivar sincronización",
-        "PERM_FILE": "Dar permiso",
+        "PERM_FILE": "Conceder permiso",
         "TEXT": "<p>Su permiso de archivo para sincronización local ha sido revocado.</p>",
         "TITLE": "Sincronización: Permiso de archivo local denegado"
       }
@@ -1362,7 +1362,7 @@
       },
       "S": {
         "UPDATED": "Los Ajustes de Etiqueta fueron actualizados",
-        "ARCHIVE_CLEANUP_FAILED": "Error al limpiar datos archivados de la etiqueta eliminada"
+        "ARCHIVE_CLEANUP_FAILED": "Error al limpiar los datos archivados del tag eliminado"
       },
       "TTL": {
         "ADD_NEW_TAG": "Añadir nueva Etiqueta"
@@ -1408,9 +1408,9 @@
         "TOOLTIP_CLEAR_TAGS": "Borrar etiquetas",
         "TOOLTIP_DISABLE_SEARCH": "Deshabilitar búsqueda de incidencias (Ctrl+2)",
         "TOOLTIP_ENABLE_SEARCH": "Habilitar búsqueda de incidencias (Ctrl+2)",
-        "TOGGLE_ADD_TO_BACKLOG_TODAY": "Alternar agregar tarea al backlog / lista de hoy",
-        "TOGGLE_ADD_TOP_OR_BOTTOM": "Alternar agregar tarea arriba / abajo de la lista",
-        "TOOLTIP_CLEAR_REPEAT": "Limpiar configuración de repetición",
+        "TOGGLE_ADD_TO_BACKLOG_TODAY": "Alternar entre agregar tarea al backlog / lista de hoy",
+        "TOGGLE_ADD_TOP_OR_BOTTOM": "Alternar entre agregar tarea al inicio o al final de la lista",
+        "TOOLTIP_CLEAR_REPEAT": "Borrar configuración de repetición",
         "REPEAT_BUTTON": "Repetir"
       },
       "ADDITIONAL_INFO": {
@@ -1430,16 +1430,16 @@
         "SUB_TASKS": "Subtareas ({{nr}})",
         "TIME": "Tiempo",
         "TITLE_PLACEHOLDER": "Introduce un título",
-        "DEADLINE_DUE_BY": "Fecha límite",
-        "DEADLINE_OVERDUE": "¡Atrasado!",
-        "FROM_PARENT": "(del padre)",
+        "DEADLINE_DUE_BY": "Vence el",
+        "DEADLINE_OVERDUE": "¡Atrasada!",
+        "FROM_PARENT": "(de la tarea padre)",
         "ISSUE": "Enlace de incidencia"
       },
       "B": {
         "ADD_HALF_HOUR": "Añadir 1/2 hora",
         "ESTIMATE_EXCEEDED": "Estimación de tiempo excedida para \"{{title}}\"",
         "ADD_ALL_TO_TODAY": "Agregar todo a hoy",
-        "DEADLINES_TODAY": "{{count}} tarea(s) con fecha límite hoy aún no planificada(s)"
+        "DEADLINES_TODAY": "{{count}} tarea(s) vencen hoy sin planificar"
       },
       "CMP": {
         "ADD_SUB_TASK": "Añadir subtarea",
@@ -1501,7 +1501,7 @@
         "RO_10M": "10 minutos antes",
         "RO_15M": "15 minutos antes",
         "RO_30M": "30 minutos antes",
-        "RO_AT_DEADLINE": "En la fecha límite",
+        "RO_AT_DEADLINE": "Al vencimiento",
         "SET_DEADLINE": "Establecer fecha límite"
       },
       "D_REMINDER_VIEW": {
@@ -1523,8 +1523,8 @@
         "START": "Empezar",
         "UNSCHEDULE": "Desprogramar",
         "UNSCHEDULE_ALL": "Desprogramar todo",
-        "CLEAR_ALL_REMINDERS": "Limpiar todos los recordatorios",
-        "CLEAR_REMINDER": "Limpiar recordatorio",
+        "CLEAR_ALL_REMINDERS": "Borrar todos los recordatorios",
+        "CLEAR_REMINDER": "Borrar recordatorio",
         "DEADLINE_REMINDER": "Recordatorio de fecha límite",
         "TASK_REMINDERS": "Recordatorios de tareas"
       },
@@ -1684,7 +1684,7 @@
         "Q_MONTHLY_FIRST_DAY": "Cada mes el primer día",
         "Q_MONTHLY_LAST_DAY": "Cada mes el último día",
         "SKIP_OVERDUE": "Omitir instancias atrasadas",
-        "SKIP_OVERDUE_DESCRIPTION": "Cuando está activado, si la aplicación se abre después de perder una ocurrencia programada (ej. una tarea semanal donde hoy no es un día programado), la instancia perdida se omitirá silenciosamente en lugar de crearse como tarea atrasada"
+        "SKIP_OVERDUE_DESCRIPTION": "Cuando está habilitado, si la aplicación se abre después de haber perdido una ocurrencia programada (ej. una tarea semanal donde hoy no es un día programado), la instancia perdida se omitirá silenciosamente en lugar de crearse como una tarea atrasada"
       },
       "SNACK_REPEAT_DIALOG_FAIL": "No se pudo abrir el diálogo de configuración de repetición. Puede configurarlo desde el menú de la tarea."
     },
@@ -1913,7 +1913,7 @@
     "WITHOUT_PROJECT": "Sin Proyecto",
     "YESTERDAY": "Ayer",
     "DONT_SHOW_AGAIN": "No mostrar de nuevo",
-    "TOGGLE_PASSWORD_VISIBILITY": "Mostrar/ocultar contraseña"
+    "TOGGLE_PASSWORD_VISIBILITY": "Alternar visibilidad de contraseña"
   },
   "GCF": {
     "APP_FEATURES": {
@@ -1933,7 +1933,7 @@
       "TITLE": "Funciones de la aplicación",
       "USER_PROFILES": "Perfiles de usuario (Experimental)",
       "USER_PROFILES_HINT": "Permite crear y alternar entre diferentes perfiles de usuario, cada uno con configuraciones, tareas y datos de sincronización independientes. El botón de gestión de perfiles aparecerá en la esquina superior derecha cuando esté habilitado. Nota: Deshabilitar esta función ocultará la interfaz pero conservará los datos de tu perfil (Función experimental, sin garantías. Asegúrate de tener una copia de seguridad).",
-      "USER_PROFILES_WARNING": "<strong>Función experimental:</strong> Esta función aún está en desarrollo y podría eliminarse o modificarse significativamente en una actualización futura. Úsela bajo su propio riesgo y asegúrese de mantener respaldos de sus datos."
+      "USER_PROFILES_WARNING": "<strong>Función experimental:</strong> Esta función aún está en desarrollo y puede ser eliminada o modificada significativamente en una futura actualización. Úsela bajo su propio riesgo y asegúrese de mantener respaldos de sus datos."
     },
     "AUTO_BACKUPS": {
       "HELP": "Guarda automáticamente todos los datos en la carpeta de tu aplicación para tenerlos listos en caso de que algo salga mal.",
@@ -2057,7 +2057,7 @@
       "ZOOM_DEFAULT": "Zoom predeterminado (solo escritorio)",
       "ZOOM_IN": "Acercar (solo escritorio)",
       "ZOOM_OUT": "Alejar (solo escritorio)",
-      "TASK_UNSCHEDULE": "Quitar programación de tarea"
+      "TASK_UNSCHEDULE": "Desprogramar tarea"
     },
     "LANG": {
       "AR": "عربى",
@@ -2149,12 +2149,12 @@
       "DISABLE_REMINDERS": "Deshabilitar todos los recordatorios",
       "IS_COUNTDOWN_BANNER_ENABLED": "Mostrar banner de cuenta atrás antes del vencimiento de los recordatorios",
       "TITLE": "Recordatorios",
-      "DUE_DATE_NOTIFICATION_HOUR": "Hora para mostrar notificaciones de fecha límite (0-23)",
-      "HELP": "<p><strong>Importante:</strong> Los recordatorios usan <strong>notificaciones locales</strong>, no notificaciones push. Esto significa que la aplicación necesita haberse abierto al menos una vez en su dispositivo para programar recordatorios. Los recordatorios configurados en otro dispositivo solo aparecerán después de que la aplicación se sincronice en el dispositivo destino.</p><p>En <strong>iOS</strong>, asegúrese de que las notificaciones estén habilitadas para Super Productivity en la configuración del dispositivo en \"Ajustes\" > \"Notificaciones\".</p>",
-      "IS_FOCUS_WINDOW": "Enfocar ventana de la aplicación cuando se active un recordatorio",
-      "NOTIFY_ON_DUE_DATE": "Mostrar notificaciones para tareas con fecha límite hoy",
+      "DUE_DATE_NOTIFICATION_HOUR": "Hora para mostrar notificaciones de vencimiento (0-23)",
+      "HELP": "<p><strong>Importante:</strong> Los recordatorios usan <strong>notificaciones locales</strong>, no notificaciones push. Esto significa que la aplicación necesita haber sido abierta al menos una vez en su dispositivo para que los recordatorios se programen. Los recordatorios establecidos en otro dispositivo solo aparecerán después de que la aplicación se sincronice en el dispositivo de destino.</p><p>En <strong>iOS</strong>, asegúrese de que las notificaciones estén habilitadas para Super Productivity en la configuración de su dispositivo en 'Ajustes' > 'Notificaciones'.</p>",
+      "IS_FOCUS_WINDOW": "Enfocar ventana de la aplicación cuando se active el recordatorio",
+      "NOTIFY_ON_DUE_DATE": "Mostrar notificaciones para tareas que vencen hoy",
       "USE_ALARM_STYLE_REMINDERS": "Usar notificaciones tipo alarma (solo Android)",
-      "USE_ALARM_STYLE_REMINDERS_DESCRIPTION": "Cuando está activado, los recordatorios usan sonidos de alarma más fuertes y notificaciones más intrusivas. Recomendado para recordatorios críticos."
+      "USE_ALARM_STYLE_REMINDERS_DESCRIPTION": "Cuando está habilitado, los recordatorios usan sonidos de alarma más fuertes y notificaciones más intrusivas. Recomendado para recordatorios críticos."
     },
     "SCHEDULE": {
       "HELP": "La característica de línea de tiempo debería proporcionarte una visión general rápida sobre cómo se desarrollan tus tareas planificadas a lo largo del tiempo. Puedes encontrarla en el menú de la izquierda bajo <a href='#/schedule'>'Cronograma'</a>. ",
@@ -2175,9 +2175,9 @@
       "IS_ENABLE_PROJECT": "Activar la sintaxis corta del proyecto (+<Nombre proyecto>)",
       "IS_ENABLE_TAG": "Habilitar sintaxis corta de etiquetas (#<Etiqueta>)",
       "TITLE": "Sintaxis Corta",
-      "URL_BEHAVIOR_EXTRACT": "Extraer URL a archivos adjuntos",
+      "URL_BEHAVIOR_EXTRACT": "Extraer URL a adjuntos",
       "URL_BEHAVIOR_KEEP": "Mantener URL en el título de la tarea",
-      "URL_BEHAVIOR_KEEP_AND_ATTACH": "Mantener URL en el título y agregar a adjuntos",
+      "URL_BEHAVIOR_KEEP_AND_ATTACH": "Mantener URL en el título de la tarea y agregar a adjuntos",
       "URL_BEHAVIOR_LABEL": "Comportamiento de URL al agregar tareas"
     },
     "SOUND": {
@@ -2338,12 +2338,12 @@
     "UNPLAN_ALL_TASKS": "Desplanificar todas las tareas",
     "WORKLOG": "Registro de trabajo",
     "DISABLE_FEATURE": "Desactivar función",
-    "FEATURE_DISABLED_SNACK": "\"{{featureName}}\" desactivada. Reactive en la configuración de Funciones de la aplicación.",
-    "NO_PROJECT_INFO": "No hay proyectos disponibles. Puede crear un nuevo proyecto haciendo clic en el botón 'Crear Proyecto'.",
+    "FEATURE_DISABLED_SNACK": "\"{{featureName}}\" desactivado. Reactive en la configuración de funciones de la aplicación.",
+    "NO_PROJECT_INFO": "No hay proyectos disponibles. Puede crear un nuevo proyecto haciendo clic en el botón 'Crear proyecto'.",
     "NO_TAG_INFO": "Actualmente no hay etiquetas. Puede agregar etiquetas ingresando `#nombreDeEtiqueta` al agregar o editar tareas.",
-    "NOTES_PANEL_INFO": "Las notas solo se pueden mostrar en las vistas de agenda y lista de tareas.",
+    "NOTES_PANEL_INFO": "Las notas solo se pueden mostrar en la vista de programación y la vista de lista de tareas regular.",
     "PROCRASTINATE": "Procrastinar",
-    "SHOW_TRACKED_TASK": "Mostrar tarea en seguimiento",
+    "SHOW_TRACKED_TASK": "Mostrar tarea rastreada",
     "TOGGLE_SHOW_BOOKMARKS": "Mostrar/ocultar marcadores"
   },
   "MIGRATE": {
@@ -2352,7 +2352,7 @@
     "E_MIGRATION_FAILED": "¡Falló la migración! con Error:",
     "E_RESTART_FAILED": "El reinicio automático falló. ¡Por favor reinicia la aplicación manualmente!",
     "SUCCESS": "¡Migración terminada! Reiniciando aplicación ahora...",
-    "DIALOG_MESSAGE": "Estamos actualizando cómo se almacenan sus datos para mejorar la fiabilidad de la sincronización. Se descargará un respaldo automáticamente.",
+    "DIALOG_MESSAGE": "Estamos actualizando cómo se almacenan sus datos para mejorar la confiabilidad de la sincronización. Se descargará un respaldo automáticamente.",
     "DIALOG_TITLE": "Migrando sus datos",
     "STATUS_BACKUP": "Creando respaldo de sus datos...",
     "STATUS_COMPLETE": "¡Migración completada!",
@@ -2480,10 +2480,10 @@
     "UNKNOWN_ERROR": "Ocurrió un error desconocido",
     "UPLOAD_PLUGIN_INSTRUCTION": "Sube un archivo ZIP de plugin para instalarlo:",
     "VALIDATION_FAILED": "Validación fallida",
-    "CONFIRM_DISABLE_WITH_ISSUE_PROVIDERS": "Este plugin provee integración de incidencias que está en uso ({{count}} proveedor(es) de incidencias). Desactivarlo interrumpirá temporalmente la sincronización de incidencias para esos proveedores hasta que se reactive. ¿Está seguro de que desea desactivar \"{{name}}\"?",
+    "CONFIRM_DISABLE_WITH_ISSUE_PROVIDERS": "Este plugin proporciona integración de incidencias que está actualmente en uso ({{count}} proveedor(es) de incidencias). Desactivarlo interrumpirá temporalmente la sincronización de incidencias para esos proveedores hasta que el plugin sea reactivado. ¿Está seguro de que desea desactivar \"{{name}}\"?",
     "FAILED_TO_LOAD_COMMUNITY_PLUGINS": "Error al cargar la lista de plugins de la comunidad",
     "LANGUAGES": "Idiomas:",
-    "INDEX_HTML_NOT_LOADED": "index.html del plugin no cargado"
+    "INDEX_HTML_NOT_LOADED": "No se cargó el index.html del plugin"
   },
   "PM": {
     "TITLE": "Métricas del Proyecto",
@@ -2521,7 +2521,7 @@
     "SCHEDULED_TASKS": "Tareas programadas",
     "SCHEDULED_TASKS_WITH_TIME": "Tareas Programadas con Hora de Inicio",
     "START_TASK": "Iniciar tarea y eliminar recordatorio",
-    "NO_DEADLINES": "Actualmente no hay tareas con fechas límite. Puede establecer una fecha límite a través del menú contextual de la tarea o panel de detalles.",
+    "NO_DEADLINES": "Actualmente no hay tareas con fechas límite. Puede establecer una fecha límite a través del menú contextual de la tarea o el panel de detalles.",
     "TASKS_WITH_DEADLINES": "Tareas con fechas límite"
   },
   "THEMES": {
@@ -2595,10 +2595,10 @@
   "NOTIFICATION": {
     "EXACT_ALARM_DENIED": "Permiso de alarma exacta denegado. Los recordatorios pueden retrasarse hasta 15 minutos.",
     "TASK_ALREADY_COMPLETED": "Tarea ya completada",
-    "TASK_MARKED_DONE": "Tarea marcada como completada"
+    "TASK_MARKED_DONE": "Tarea marcada como hecha"
   },
   "PRE_MIGRATION": {
-    "DIALOG_MESSAGE": "Estamos actualizando cómo se almacenan sus datos para mejorar la fiabilidad de la sincronización.<br><br>Se descargará un respaldo de sus datos automáticamente. Puede usar este respaldo para restaurar sus datos si es necesario (Archivo > Importar).",
+    "DIALOG_MESSAGE": "Estamos actualizando cómo se almacenan sus datos para mejorar la confiabilidad de la sincronización.<br><br>Se descargará un respaldo de sus datos automáticamente. Puede usar este respaldo para restaurar sus datos si es necesario (Archivo > Importar).",
     "DIALOG_TITLE": "Actualización del sistema"
   }
 }

@@ -1167,8 +1167,8 @@
         "L_SYNC_PROVIDER": "Anbieter synchronisieren",
         "LOCAL_FILE": {
           "L_SYNC_FOLDER_PATH": "Sync-Ordnerpfad",
-          "INFO_TEXT": "<strong>Warnung:</strong> Verwenden Sie <strong>keine</strong> Dateisynchronisierungstools wie Syncthing, Resilio oder ähnliche, um diesen Ordner zwischen Geräten zu synchronisieren — sie <strong>werden</strong> Datenbeschädigungen und Konflikte verursachen. Für die Synchronisation zwischen Geräten verwenden Sie stattdessen WebDAV, Dropbox oder SuperSync.",
-          "L_SYNC_FILE_PATH_PERMISSION_VALIDATION": "Benötigt Dateizugriffsberechtigung"
+          "INFO_TEXT": "<strong>Warnung:</strong> Verwenden Sie <strong>keine</strong> Dateisynchronisierungstools wie Syncthing, Resilio o. ä. um diesen Ordner zwischen Geräten zu synchronisieren – dies <strong>wird</strong> Datenbeschädigungen und Konflikte verursachen. Verwenden Sie für die Synchronisierung zwischen Geräten WebDAV, Dropbox oder SuperSync.",
+          "L_SYNC_FILE_PATH_PERMISSION_VALIDATION": "Dateizugriffsberechtigung erforderlich"
         },
         "SUPER_SYNC": {
           "BTN_CHANGE_PASSWORD": "Passwort ändern",
@@ -1179,43 +1179,43 @@
           "PASSWORD_MIN_LENGTH": "Das Passwort muss mindestens 8 Zeichen lang sein",
           "PASSWORDS_DONT_MATCH": "Die Passwörter stimmen nicht überein",
           "SETUP_ENCRYPTION_BTN": "Passwort festlegen",
-          "ENCRYPTION_ENCOURAGED": "Verschlüsselung ist für SuperSync erforderlich. Bitte aktivieren Sie die Verschlüsselung, um Ihre Daten zu schützen.",
-          "ENCRYPTION_SETUP_INTRO": "<strong>SuperSync verschlüsselt Ihre Daten mit einem Passwort, bevor sie Ihr Gerät verlassen</strong>, wodurch Missbrauch oder Lecks Ihrer privaten Daten nahezu unmöglich werden.",
+          "ENCRYPTION_ENCOURAGED": "Für SuperSync ist Verschlüsselung erforderlich. Bitte aktivieren Sie die Verschlüsselung zum Schutz Ihrer Daten.",
+          "ENCRYPTION_SETUP_INTRO": "<strong>SuperSync verschlüsselt Ihre Daten mit einem Passwort, bevor sie Ihr Gerät verlassen</strong>, sodass Missbrauch oder Datenlecks Ihrer privaten Daten praktisch unmöglich sind.",
           "SETUP_DISABLE_SUPERSYNC_BTN": "SuperSync deaktivieren",
           "SETUP_ENCRYPTION_PASSWORD_WARNING": "Verwenden Sie dasselbe Passwort auf allen Geräten. Ein vergessenes Passwort kann durch Überschreiben der Remote-Daten zurückgesetzt werden.",
           "SETUP_ENCRYPTION_TITLE": "SuperSync: Passwort festlegen",
           "ACCESS_TOKEN_DESCRIPTION": "Fügen Sie das Token ein, das Sie von der Server-Anmeldeseite kopiert haben",
-          "BTN_FORCE_OVERWRITE": "Server-Überschreibung erzwingen",
+          "BTN_FORCE_OVERWRITE": "Server-Daten erzwungen überschreiben",
           "BTN_GET_TOKEN": "Server öffnen & Token erhalten",
-          "CHANGE_PASSWORD_WARNING": "WARNUNG: Dies löscht dauerhaft ALLE Synchronisationsverläufe und Backups auf dem Server. Frühere Versionen können nicht wiederhergestellt werden. Ihre aktuellen Daten werden mit dem neuen Passwort erneut hochgeladen. Alle anderen Geräte benötigen das neue Passwort.",
-          "DISABLE_ENCRYPTION_ENABLE_FIRST": "Bitte aktivieren Sie zuerst die Synchronisation und speichern Sie Ihre SuperSync-Konfiguration, dann versuchen Sie es erneut.",
-          "DISABLE_ENCRYPTION_ITEM_1": "Alle Synchronisationsverläufe und Backups auf dem Server werden gelöscht",
+          "CHANGE_PASSWORD_WARNING": "WARNUNG: Dadurch werden ALLE Synchronisierungsverläufe und Backups auf dem Server dauerhaft gelöscht. Vorherige Versionen können nicht wiederhergestellt werden. Ihre aktuellen Daten werden mit dem neuen Passwort erneut hochgeladen. Alle anderen Geräte benötigen das neue Passwort.",
+          "DISABLE_ENCRYPTION_ENABLE_FIRST": "Bitte aktivieren Sie zuerst die Synchronisierung und speichern Sie Ihre SuperSync-Konfiguration, dann versuchen Sie es erneut.",
+          "DISABLE_ENCRYPTION_ITEM_1": "Alle Synchronisierungsverläufe und Backups auf dem Server werden gelöscht",
           "DISABLE_ENCRYPTION_ITEM_2": "Ihre aktuellen Daten werden ohne Verschlüsselung erneut hochgeladen",
           "DISABLE_ENCRYPTION_ITEM_3": "Alle anderen Geräte synchronisieren die unverschlüsselten Daten",
           "DISABLE_ENCRYPTION_NOTE": "Ihre lokalen Daten werden NICHT gelöscht. Sie können die Verschlüsselung jederzeit wieder aktivieren.",
-          "DISABLE_ENCRYPTION_NOT_READY": "Synchronisation ist nicht aktiviert oder konfiguriert.",
+          "DISABLE_ENCRYPTION_NOT_READY": "Synchronisierung ist nicht aktiviert oder konfiguriert.",
           "DISABLE_ENCRYPTION_SUCCESS": "Verschlüsselung erfolgreich deaktiviert",
           "DISABLE_ENCRYPTION_SUPERSYNC_ONLY": "Diese Funktion ist nur für SuperSync verfügbar.",
           "DISABLE_ENCRYPTION_TITLE": "Verschlüsselung deaktivieren?",
-          "DISABLE_ENCRYPTION_WARNING": "WARNUNG: Dies löscht dauerhaft ALLE verschlüsselten Synchronisationsdaten auf dem Server. Dies ist notwendig, da verschlüsselte und unverschlüsselte Operationen nicht gemischt werden können.",
+          "DISABLE_ENCRYPTION_WARNING": "WARNUNG: Dadurch werden ALLE verschlüsselten Synchronisierungsdaten auf dem Server dauerhaft gelöscht. Dies ist notwendig, da verschlüsselte Operationen nicht mit unverschlüsselten gemischt werden können.",
           "DISABLE_ENCRYPTION_WHAT_HAPPENS": "Was passieren wird:",
           "E2E_ENCRYPTION_DESCRIPTION": "Langsamer, aber sicherer",
-          "ENABLE_ENCRYPTION_ITEM_1": "Alle Synchronisationsverläufe und Backups auf dem Server werden gelöscht",
+          "ENABLE_ENCRYPTION_ITEM_1": "Alle Synchronisierungsverläufe und Backups auf dem Server werden gelöscht",
           "ENABLE_ENCRYPTION_ITEM_2": "Ihre aktuellen Daten werden mit Verschlüsselung erneut hochgeladen",
           "ENABLE_ENCRYPTION_ITEM_3": "Alle anderen Geräte müssen dieses Verschlüsselungspasswort eingeben",
           "ENABLE_ENCRYPTION_NOTE": "Ihre lokalen Daten werden NICHT gelöscht. Sie können die Verschlüsselung jederzeit deaktivieren.",
-          "ENABLE_ENCRYPTION_NOT_READY": "Synchronisation ist nicht aktiviert oder konfiguriert.",
+          "ENABLE_ENCRYPTION_NOT_READY": "Synchronisierung ist nicht aktiviert oder konfiguriert.",
           "ENABLE_ENCRYPTION_PASSWORD_REQUIRED": "Bitte geben Sie zuerst ein Verschlüsselungspasswort ein.",
           "ENABLE_ENCRYPTION_SUCCESS": "Verschlüsselung erfolgreich aktiviert",
           "ENABLE_ENCRYPTION_SUPERSYNC_ONLY": "Diese Funktion ist nur für SuperSync verfügbar.",
           "ENABLE_ENCRYPTION_TITLE": "Verschlüsselung aktivieren?",
-          "ENABLE_ENCRYPTION_WARNING": "WARNUNG: Dies löscht dauerhaft ALLE unverschlüsselten Synchronisationsdaten auf dem Server. Dies ist notwendig, da verschlüsselte und unverschlüsselte Operationen nicht gemischt werden können. Wenn Sie Ihr Verschlüsselungspasswort vergessen, können Ihre Daten nicht wiederhergestellt werden.",
+          "ENABLE_ENCRYPTION_WARNING": "WARNUNG: Dadurch werden ALLE unverschlüsselten Synchronisierungsdaten auf dem Server dauerhaft gelöscht. Dies ist notwendig, da verschlüsselte Operationen nicht mit unverschlüsselten gemischt werden können. Wenn Sie Ihr Verschlüsselungspasswort vergessen, können Ihre Daten nicht wiederhergestellt werden.",
           "ENABLE_ENCRYPTION_WHAT_HAPPENS": "Was passieren wird:",
-          "ENCRYPTION_WARNING": "WARNUNG: Wenn Sie Ihr Verschlüsselungspasswort vergessen, können Ihre Daten nicht wiederhergestellt werden. Dieses Passwort ist getrennt von Ihrem Anmeldepasswort. Sie müssen auf allen Geräten dasselbe Passwort verwenden.",
-          "FORCE_OVERWRITE_CONFIRM": "Dies wird <strong>alle Daten auf dem Server löschen</strong> und Ihre lokalen Daten mit dem neuen Passwort hochladen. Nicht synchronisierte lokale Änderungen könnten verloren gehen. Sind Sie sicher, dass Sie fortfahren möchten?",
+          "ENCRYPTION_WARNING": "WARNUNG: Wenn Sie Ihr Verschlüsselungspasswort vergessen, können Ihre Daten nicht wiederhergestellt werden. Dieses Passwort ist unabhängig von Ihrem Anmeldepasswort. Sie müssen dasselbe Passwort auf allen Geräten verwenden.",
+          "FORCE_OVERWRITE_CONFIRM": "Dadurch werden <strong>alle Daten auf dem Server gelöscht</strong> und Ihre lokalen Daten mit dem neuen Passwort hochgeladen. Nicht synchronisierte lokale Änderungen können verloren gehen. Sind Sie sicher, dass Sie fortfahren möchten?",
           "FORCE_OVERWRITE_INFO": "Wenn Sie nicht synchronisieren können, weil Sie das aktuelle Verschlüsselungspasswort nicht kennen, können Sie den Server mit Ihren lokalen Daten und einem neuen Passwort überschreiben.",
-          "FORCE_OVERWRITE_TITLE": "Serverdaten überschreiben?",
-          "INFO_TEXT": "SuperSync hält Ihre Aufgaben auf allen Ihren Geräten in Echtzeit synchron. Ihre Daten werden sicher auf dem Synchronisationsserver gespeichert. Hinweis: SuperSync befindet sich derzeit in der Beta-Phase.",
+          "FORCE_OVERWRITE_TITLE": "Server-Daten überschreiben?",
+          "INFO_TEXT": "SuperSync hält Ihre Aufgaben auf allen Ihren Geräten in Echtzeit synchronisiert. Ihre Daten werden sicher auf dem Synchronisierungsserver gespeichert. Hinweis: SuperSync befindet sich derzeit in der Beta-Phase.",
           "LOGIN_INSTRUCTIONS": "Klicken Sie auf die Schaltfläche unten, um die Server-Anmeldeseite zu öffnen. Nach der Anmeldung kopieren Sie Ihr Zugriffstoken und fügen Sie es hier ein.",
           "L_ACCESS_TOKEN": "Zugriffstoken",
           "L_CHANGE_ENCRYPTION_PASSWORD": "Verschlüsselungspasswort ändern",
@@ -1224,7 +1224,7 @@
           "L_REMOVE_ENCRYPTION": "Oder Verschlüsselung entfernen",
           "L_SERVER_URL": "Server-URL",
           "REMOVE_ENCRYPTION_WARNING": "Das Entfernen der Verschlüsselung löscht alle Serverdaten und lädt Ihre Daten ohne Verschlüsselung erneut hoch. Alle Geräte müssen neu konfiguriert werden.",
-          "SERVER_URL_DESCRIPTION": "Lassen Sie es für den offiziellen Server unverändert, oder geben Sie eine benutzerdefinierte Server-URL ein"
+          "SERVER_URL_DESCRIPTION": "Lassen Sie es für den offiziellen Server unverändert oder geben Sie eine benutzerdefinierte Server-URL ein"
         },
         "TITLE": "Sync",
         "WEB_DAV": {
@@ -1239,11 +1239,11 @@
           "S_FILL_ALL_FIELDS": "Bitte füllen Sie zuerst alle WebDAV-Felder aus",
           "S_TEST_FAIL": "Verbindungstest fehlgeschlagen: {{error}} - Ziel-URL: {{url}}",
           "S_TEST_SUCCESS": "Verbindungstest erfolgreich! Ziel-URL: {{url}}",
-          "CONDITIONAL_HEADER_WARNING_MSG": "Ihr WebDAV-Server unterstützt keine bedingten Header (If-Unmodified-Since). Das bedeutet, dass Super Productivity gleichzeitige Änderungen von anderen Geräten während des Hochladens nicht erkennen kann.<br><br>Die Synchronisation funktioniert trotzdem, aber es besteht ein geringes Risiko von Datenkonflikten, wenn Sie gleichzeitig auf mehreren Geräten Änderungen vornehmen.",
-          "CONDITIONAL_HEADER_WARNING_TITLE": "Reduzierte Synchronisationssicherheit"
+          "CONDITIONAL_HEADER_WARNING_MSG": "Ihr WebDAV-Server unterstützt keine bedingten Header (If-Unmodified-Since). Das bedeutet, dass Super Productivity gleichzeitige Änderungen von anderen Geräten beim Hochladen nicht erkennen kann.<br><br>Die Synchronisierung funktioniert weiterhin, aber es besteht ein geringes Risiko von Datenkonflikten, wenn Sie auf mehreren Geräten gleichzeitig Änderungen vornehmen.",
+          "CONDITIONAL_HEADER_WARNING_TITLE": "Eingeschränkte Synchronisierungssicherheit"
         },
-        "L_MANUAL_SYNC_ONLY": "Nur manuell synchronisieren (automatische Synchronisation deaktivieren)",
-        "PASSWORD_SET_INFO": "🔒 Verschlüsselungspasswort ist festgelegt."
+        "L_MANUAL_SYNC_ONLY": "Nur manuell synchronisieren (automatische Synchronisierung deaktivieren)",
+        "PASSWORD_SET_INFO": "🔒 Verschlüsselungspasswort ist gesetzt."
       },
       "S": {
         "ALREADY_IN_SYNC": "Bereits synchronisiert",
@@ -1259,59 +1259,59 @@
         "SUCCESS_VIA_BUTTON": "Daten erfolgreich synchronisiert",
         "UNKNOWN_ERROR": "Unbekannter Fehler beim Synchronisieren. Bitte überprüfen Sie die Konsole.",
         "ARCHIVE_OPERATION_FAILED": "Archivierungsvorgang fehlgeschlagen. Einige Bereinigungen wurden möglicherweise nicht abgeschlossen.",
-        "AUTH_SETUP_FAILED": "Authentifizierung konnte nicht eingerichtet werden. Wenn Sie die Web-App verwenden, stellen Sie sicher, dass Sie über HTTPS zugreifen. Andernfalls versuchen Sie die stabile Version oder melden Sie das Problem.",
-        "AUTH_TOKEN_REJECTED": "Synchronisations-Token wurde vom Server abgelehnt: {{reason}}. Bitte holen Sie sich ein neues Token.",
+        "AUTH_SETUP_FAILED": "Authentifizierung konnte nicht eingerichtet werden. Wenn Sie die Web-App verwenden, stellen Sie sicher, dass Sie über HTTPS zugreifen. Andernfalls versuchen Sie die stabile Version oder melden Sie dies als Fehler.",
+        "AUTH_TOKEN_REJECTED": "Synchronisierungstoken wurde vom Server abgelehnt: {{reason}}. Bitte holen Sie sich ein neues Token.",
         "CHANGE_PASSWORD_FAILED": "Passwortänderung fehlgeschlagen: {{message}}",
         "DATA_REPAIRED": "Daten automatisch repariert ({{count}} Probleme behoben)",
         "DISABLE_ENCRYPTION_FAILED": "Deaktivierung der Verschlüsselung fehlgeschlagen: {{message}}",
         "ENABLE_ENCRYPTION_FAILED": "Aktivierung der Verschlüsselung fehlgeschlagen: {{message}}",
-        "ENCRYPTION_REQUIRED_FOR_SUPERSYNC": "Verschlüsselung ist für SuperSync erforderlich. Bitte legen Sie ein Verschlüsselungspasswort fest, um die Synchronisation fortzusetzen.",
-        "FRESH_CLIENT_SYNC_CANCELLED": "Erste Synchronisation abgebrochen. Remote-Daten wurden nicht angewendet.",
-        "INVALID_AUTH_CODE": "Der Autorisierungscode wurde abgelehnt. Bitte versuchen Sie die Authentifizierung erneut und stellen Sie sicher, dass Sie den Code exakt kopieren.",
-        "LOCAL_CHANGES_DISCARDED": "{{count}} lokale Änderung(en) verworfen — Element(e) wurden auf einem anderen Gerät gelöscht",
-        "LOCAL_CHANGES_DISCARDED_SNAPSHOT": "{{count}} nicht gespeicherte lokale Änderung(en) verworfen — Synchronisation hat neuere Daten heruntergeladen",
-        "LOCAL_DATA_REPLACE_CANCELLED": "Synchronisation abgebrochen. Ihre lokalen Daten wurden beibehalten.",
-        "LOCK_TIMEOUT_ERROR": "Synchronisation hat beim Warten auf eine vorherige Operation Zeitüberschreitung. Bitte versuchen Sie es erneut.",
-        "LWW_CONFLICTS_AUTO_RESOLVED": "Synchronisationskonflikte automatisch gelöst: {{localWins}} lokale(r) Gewinn(e), {{remoteWins}} Remote-Gewinn(e)",
+        "ENCRYPTION_REQUIRED_FOR_SUPERSYNC": "Für SuperSync ist Verschlüsselung erforderlich. Bitte legen Sie ein Verschlüsselungspasswort fest, um die Synchronisierung fortzusetzen.",
+        "FRESH_CLIENT_SYNC_CANCELLED": "Erste Synchronisierung abgebrochen. Remote-Daten wurden nicht angewendet.",
+        "INVALID_AUTH_CODE": "Der Autorisierungscode wurde abgelehnt. Bitte versuchen Sie sich erneut zu authentifizieren und stellen Sie sicher, dass Sie den Code genau kopieren.",
+        "LOCAL_CHANGES_DISCARDED": "{{count}} lokale Änderung(en) verworfen – Element(e) wurden auf einem anderen Gerät gelöscht",
+        "LOCAL_CHANGES_DISCARDED_SNAPSHOT": "{{count}} nicht gespeicherte lokale Änderung(en) verworfen – Synchronisierung hat neuere Daten heruntergeladen",
+        "LOCAL_DATA_REPLACE_CANCELLED": "Synchronisierung abgebrochen. Ihre lokalen Daten wurden beibehalten.",
+        "LOCK_TIMEOUT_ERROR": "Zeitüberschreitung bei der Synchronisierung – eine vorherige Operation war noch nicht abgeschlossen. Bitte versuchen Sie es erneut.",
+        "LWW_CONFLICTS_AUTO_RESOLVED": "Synchronisierungskonflikte automatisch gelöst: {{localWins}} lokale(r) Gewinn(e), {{remoteWins}} entfernte(r) Gewinn(e)",
         "OVERWRITE_SERVER_FAILED": "Überschreiben der Serverdaten fehlgeschlagen: {{message}}",
         "RESTORE_ERROR": "Datenwiederherstellung fehlgeschlagen",
         "RESTORE_SUCCESS": "Daten erfolgreich wiederhergestellt",
-        "CLOCK_DRIFT_WARNING": "Die Uhr Ihres Geräts scheint um {{minutes}} Minuten abzuweichen. Dies kann Synchronisationsprobleme verursachen.",
+        "CLOCK_DRIFT_WARNING": "Ihre Geräteuhr scheint um {{minutes}} Minuten abzuweichen. Dies kann Synchronisierungsprobleme verursachen.",
         "COMPACTION_FAILED": "Datenbankbereinigung fehlgeschlagen. Die App kann langsamer werden.",
-        "CONFLICT_DIALOG_TIMEOUT": "Der Synchronisationskonflikt-Dialog ist abgelaufen und wurde abgebrochen. Die Synchronisation wird beim nächsten Auslöser erneut versucht.",
-        "CONFLICT_RESOLUTION_FAILED": "Synchronisationskonfliktlösung fehlgeschlagen. Bitte laden Sie die Seite neu.",
+        "CONFLICT_DIALOG_TIMEOUT": "Synchronisierungskonflikt-Dialog ist abgelaufen und wurde abgebrochen. Die Synchronisierung wird beim nächsten Auslöser erneut versucht.",
+        "CONFLICT_RESOLUTION_FAILED": "Synchronisierungskonfliktlösung fehlgeschlagen. Bitte laden Sie die Seite neu.",
         "DECRYPTION_FAILED": "Entschlüsselung der synchronisierten Daten fehlgeschlagen. Bitte überprüfen Sie Ihr Verschlüsselungspasswort.",
-        "DEFERRED_ACTION_FAILED": "Einige während der Synchronisation vorgenommene Änderungen konnten nicht gespeichert werden. Bitte laden Sie die Seite neu.",
-        "DIALOG_RESULT_ERROR": "Beim Verarbeiten des Synchronisationsdialogs ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
-        "ENCRYPTION_DISABLED_ON_OTHER_DEVICE": "Die Verschlüsselung wurde auf einem anderen Gerät deaktiviert. Ihre Synchronisationseinstellungen wurden aktualisiert.",
-        "ENCRYPTION_PASSWORD_REQUIRED": "Verschlüsselte Daten empfangen, aber kein Verschlüsselungspasswort konfiguriert. Bitte legen Sie Ihr Verschlüsselungspasswort in den Synchronisationseinstellungen fest.",
-        "ERROR_PAYLOAD_TOO_LARGE": "Synchronisationsfehler: Ihre Daten sind zu groß zum Hochladen.\n\nDies passiert, wenn Sie viele archivierte Aufgaben haben. Ihre Daten wurden NICHT synchronisiert!\n\nBitte kontaktieren Sie den Support.",
-        "ERROR_UNABLE_TO_READ_REMOTE_DATA": "Fehler beim Synchronisieren. Remote-Daten können nicht gelesen werden. Möglicherweise haben Sie die Verschlüsselung aktiviert und Ihr lokales Passwort stimmt nicht mit dem zum Verschlüsseln der Remote-Daten verwendeten überein?",
-        "FINISH_DAY_SYNC_ERROR": "Synchronisationsfehler beim Tagesabschluss. Bitte versuchen Sie es erneut.",
+        "DEFERRED_ACTION_FAILED": "Einige Änderungen während der Synchronisierung konnten nicht gespeichert werden. Bitte laden Sie die Seite neu, um sie wiederherzustellen.",
+        "DIALOG_RESULT_ERROR": "Bei der Verarbeitung des Synchronisierungsdialogs ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+        "ENCRYPTION_DISABLED_ON_OTHER_DEVICE": "Die Verschlüsselung wurde auf einem anderen Gerät deaktiviert. Ihre Synchronisierungseinstellungen wurden aktualisiert.",
+        "ENCRYPTION_PASSWORD_REQUIRED": "Verschlüsselte Daten empfangen, aber kein Verschlüsselungspasswort konfiguriert. Bitte setzen Sie Ihr Verschlüsselungspasswort in den Synchronisierungseinstellungen.",
+        "ERROR_PAYLOAD_TOO_LARGE": "Synchronisierungsfehler: Ihre Daten sind zu groß zum Hochladen.\n\nDies passiert, wenn Sie viele archivierte Aufgaben haben. Ihre Daten wurden NICHT synchronisiert!\n\nBitte kontaktieren Sie den Support für Hilfe.",
+        "ERROR_UNABLE_TO_READ_REMOTE_DATA": "Fehler bei der Synchronisierung. Remote-Daten konnten nicht gelesen werden. Haben Sie vielleicht die Verschlüsselung aktiviert und Ihr lokales Passwort stimmt nicht mit dem überein, das zum Verschlüsseln der Remote-Daten verwendet wurde?",
+        "FINISH_DAY_SYNC_ERROR": "Synchronisierungsfehler beim Tagesabschluss. Bitte versuchen Sie es erneut.",
         "HYDRATION_FAILED": "Daten konnten nicht geladen werden. Bitte laden Sie die App neu.",
         "IMPORTING": "Daten werden importiert",
-        "INCOMPLETE_OP_SYNC": "Synchronisation unvollständig: {{count}} Operationsdatei(en) konnten nicht heruntergeladen werden",
-        "INITIAL_SYNC_ERROR": "Erste Synchronisation fehlgeschlagen",
-        "INTEGRITY_CHECK_FAILED": "Datenintegritätsproblem erkannt. Automatische Reparatur versucht. Wenn Probleme auftreten, laden Sie die App bitte neu.",
-        "INVALID_OPERATION_PAYLOAD": "Ungültige Operation erkannt. Änderungen werden möglicherweise nicht gespeichert — bitte laden Sie die Seite neu.",
-        "MIGRATION_FAILED": "Einige Synchronisationsdaten konnten nicht migriert werden und wurden übersprungen. Dies kann auf Datenbeschädigung oder einen Fehler hindeuten.",
+        "INCOMPLETE_OP_SYNC": "Synchronisierung unvollständig: {{count}} Operationsdatei(en) konnten nicht heruntergeladen werden",
+        "INITIAL_SYNC_ERROR": "Erste Synchronisierung fehlgeschlagen",
+        "INTEGRITY_CHECK_FAILED": "Datenintegritätsproblem erkannt. Automatische Reparatur wurde versucht. Wenn Probleme auftreten, laden Sie bitte die App neu.",
+        "INVALID_OPERATION_PAYLOAD": "Ungültige Operation erkannt. Änderungen werden möglicherweise nicht gespeichert – bitte laden Sie die Seite neu.",
+        "MIGRATION_FAILED": "Einige Synchronisierungsdaten konnten nicht migriert werden und wurden übersprungen. Dies kann auf Datenbeschädigung oder einen Fehler hindeuten.",
         "NEWER_VERSION_AVAILABLE": "Einige Änderungen stammen von einer neueren App-Version. Erwägen Sie ein Update für volle Kompatibilität.",
-        "OPERATION_PERMANENTLY_FAILED": "Einige Synchronisationsoperationen sind fehlgeschlagen und konnten nicht angewendet werden. Daten könnten unvollständig sein.",
-        "PARTIAL_APPLY_FAILURE": "Einige Synchronisationsoperationen konnten nicht angewendet werden. Daten wurden validiert.",
-        "PERSIST_FAILED": "Änderungen konnten nicht gespeichert werden. Der Zustand kann inkonsistent sein — bitte laden Sie die Seite neu.",
-        "REMOTE_DATA_TOO_OLD": "Remote-Daten sind zu alt zum Verarbeiten. Bitte aktualisieren Sie Ihre Remote-App.",
-        "REPLAY_LOCAL_OPS_FAILED": "Wiedergabe lokaler Operationen nach Import fehlgeschlagen. Einige aktuelle Änderungen könnten verloren sein. Daten wurden validiert.",
-        "SERVER_MIGRATION_VALIDATION_FAILED": "Daten konnten nicht zum Server migriert werden — lokale Datenvalidierung fehlgeschlagen. Bitte versuchen Sie, ein Backup zu importieren.",
-        "STORAGE_QUOTA_EXCEEDED": "Synchronisationsserver-Speicher ist voll. Ihre Änderungen werden NICHT synchronisiert! Bitte archivieren Sie alte Aufgaben oder upgraden Sie Ihren Plan.",
-        "STORAGE_RECOVERED_AFTER_COMPACTION": "Speicher wurde knapp. Alte Daten erfolgreich bereinigt.",
-        "TIMEOUT_ERROR": "Synchronisationsoperation hat Zeitüberschreitung. {{suggestion}}",
-        "TOO_MANY_OPS_TO_DOWNLOAD": "Zu viele Synchronisationsoperationen zum Herunterladen. Einige Änderungen könnten fehlen.",
+        "OPERATION_PERMANENTLY_FAILED": "Einige Synchronisierungsoperationen sind fehlgeschlagen und konnten nicht angewendet werden. Daten können unvollständig sein.",
+        "PARTIAL_APPLY_FAILURE": "Einige Synchronisierungsoperationen konnten nicht angewendet werden. Daten wurden validiert.",
+        "PERSIST_FAILED": "Änderungen konnten nicht gespeichert werden. Der Zustand kann inkonsistent sein – bitte laden Sie die Seite neu.",
+        "REMOTE_DATA_TOO_OLD": "Remote-Daten sind zu alt, um verarbeitet zu werden. Bitte aktualisieren Sie Ihre Remote-App.",
+        "REPLAY_LOCAL_OPS_FAILED": "Lokale Operationen konnten nach dem Import nicht erneut abgespielt werden. Einige aktuelle Änderungen können verloren gegangen sein. Daten wurden validiert.",
+        "SERVER_MIGRATION_VALIDATION_FAILED": "Daten konnten nicht auf den Server migriert werden – lokale Datenvalidierung fehlgeschlagen. Bitte versuchen Sie, ein Backup zu importieren.",
+        "STORAGE_QUOTA_EXCEEDED": "Synchronisierungsserver-Speicher ist voll. Ihre Änderungen werden NICHT synchronisiert! Bitte archivieren Sie alte Aufgaben oder erweitern Sie Ihren Plan.",
+        "STORAGE_RECOVERED_AFTER_COMPACTION": "Der Speicher war knapp. Alte Daten wurden erfolgreich bereinigt.",
+        "TIMEOUT_ERROR": "Zeitüberschreitung bei der Synchronisierung. {{suggestion}}",
+        "TOO_MANY_OPS_TO_DOWNLOAD": "Zu viele Synchronisierungsoperationen zum Herunterladen. Einige Änderungen fehlen möglicherweise.",
         "UPLOAD_ERROR": "Unbekannter Upload-Fehler (Einstellungen korrekt?): {{err}}",
-        "UPLOAD_OPS_REJECTED": "{{count}} Operation(en) wurden dauerhaft vom Server abgelehnt und werden nicht synchronisiert.",
-        "VECTOR_CLOCK_LIMIT_REACHED": "Die Synchronisation hat {{originalSize}} Geräte/Browser verfolgt und das Limit von {{maxSize}} überschritten. Inaktive Geräteeinträge wurden entfernt. Erwägen Sie einen Sync-Reset, wenn Probleme auftreten.",
-        "VERSION_TOO_OLD": "Ihre App-Version ist zu alt für die synchronisierten Daten. Bitte aktualisieren!",
-        "VERSION_UNSUPPORTED": "Kann nicht synchronisieren: Daten erfordern eine neuere App-Version. Bitte aktualisieren.",
-        "WEB_CRYPTO_NOT_AVAILABLE": "Verschlüsselung ist auf diesem Gerät nicht verfügbar. Auf Android erfordert Verschlüsselung einen sicheren Kontext (HTTPS), der nicht verfügbar ist. Bitte deaktivieren Sie die Verschlüsselung in den Synchronisationseinstellungen oder synchronisieren Sie von einem Desktop-Browser."
+        "UPLOAD_OPS_REJECTED": "{{count}} Operation(en) wurden vom Server dauerhaft abgelehnt und werden nicht synchronisiert.",
+        "VECTOR_CLOCK_LIMIT_REACHED": "Die Synchronisierung verfolgt {{originalSize}} Geräte/Browser, was das Limit von {{maxSize}} überschreitet. Inaktive Geräteeinträge wurden bereinigt. Erwägen Sie einen Synchronisierungs-Reset bei Problemen.",
+        "VERSION_TOO_OLD": "Ihre App-Version ist zu alt für die synchronisierten Daten. Bitte aktualisieren Sie!",
+        "VERSION_UNSUPPORTED": "Synchronisierung nicht möglich: Daten erfordern eine neuere App-Version. Bitte aktualisieren Sie.",
+        "WEB_CRYPTO_NOT_AVAILABLE": "Verschlüsselung ist auf diesem Gerät nicht verfügbar. Auf Android erfordert die Verschlüsselung einen sicheren Kontext (HTTPS), der nicht verfügbar ist. Bitte deaktivieren Sie die Verschlüsselung in den Synchronisierungseinstellungen oder synchronisieren Sie von einem Desktop-Webbrowser aus."
       },
       "SAFETY_BACKUP": {
         "BTN_CLEAR_ALL": "Alle löschen",
@@ -1362,7 +1362,7 @@
       },
       "S": {
         "UPDATED": "Die Stichwort-Einstellungen wurden aktualisiert",
-        "ARCHIVE_CLEANUP_FAILED": "Bereinigung der archivierten Daten für gelöschtes Tag fehlgeschlagen"
+        "ARCHIVE_CLEANUP_FAILED": "Bereinigung archivierter Daten für gelöschten Tag fehlgeschlagen"
       },
       "TTL": {
         "ADD_NEW_TAG": "Neues Tag hinzufügen"
@@ -1409,8 +1409,8 @@
         "TOOLTIP_CLEAR_TAGS": "Stichworte löschen",
         "TOOLTIP_DISABLE_SEARCH": "Vorgangssuche deaktivieren (Ctrl+2)",
         "TOOLTIP_ENABLE_SEARCH": "Vorgangssuche aktivieren (Ctrl+2)",
-        "TOGGLE_ADD_TO_BACKLOG_TODAY": "Aufgabe zum Backlog / zur heutigen Liste umschalten",
-        "TOGGLE_ADD_TOP_OR_BOTTOM": "Aufgabe oben / unten in der Liste umschalten",
+        "TOGGLE_ADD_TO_BACKLOG_TODAY": "Umschalten: Aufgabe zum Backlog / zur heutigen Liste hinzufügen",
+        "TOGGLE_ADD_TOP_OR_BOTTOM": "Umschalten: Aufgabe oben oder unten in der Liste hinzufügen",
         "TOOLTIP_CLEAR_REPEAT": "Wiederholungseinstellung löschen"
       },
       "ADDITIONAL_INFO": {
@@ -1432,7 +1432,7 @@
         "DEADLINE_DUE_BY": "Fällig bis",
         "DEADLINE_OVERDUE": "Überfällig!",
         "FROM_PARENT": "(von übergeordneter Aufgabe)",
-        "ISSUE": "Issue-Link",
+        "ISSUE": "Ticket-Link",
         "COMPLETED_ON": "Abgeschlossen am"
       },
       "B": {
@@ -1501,7 +1501,7 @@
         "RO_10M": "10 Minuten vorher",
         "RO_15M": "15 Minuten vorher",
         "RO_30M": "30 Minuten vorher",
-        "RO_AT_DEADLINE": "Zur Frist",
+        "RO_AT_DEADLINE": "Zum Fristablauf",
         "SET_DEADLINE": "Frist setzen"
       },
       "D_REMINDER_VIEW": {
@@ -1525,7 +1525,7 @@
         "UNSCHEDULE_ALL": "Alle ablegen",
         "CLEAR_ALL_REMINDERS": "Alle Erinnerungen löschen",
         "CLEAR_REMINDER": "Erinnerung löschen",
-        "DEADLINE_REMINDER": "Frist-Erinnerung",
+        "DEADLINE_REMINDER": "Fristen-Erinnerung",
         "TASK_REMINDERS": "Aufgaben-Erinnerungen"
       },
       "D_SCHEDULE_TASK": {
@@ -1584,7 +1584,7 @@
         "TASK_ALREADY_EXISTS": "Aufgabe <strong>{{title}}<\\/strong> existiert bereits",
         "TASK_CREATED": "Erstellte Aufgabe \"{{taskTitle}}\"",
         "DEADLINE_REMOVED": "Frist entfernt",
-        "DEADLINE_SET": "Frist gesetzt für {{date}}"
+        "DEADLINE_SET": "Frist gesetzt auf {{date}}"
       },
       "SELECT_OR_CREATE": "Aufgabe auswählen oder erstellen",
       "SUMMARY_TABLE": {
@@ -1684,9 +1684,9 @@
         "Q_MONTHLY_FIRST_DAY": "Jeden Monat am ersten Tag",
         "Q_MONTHLY_LAST_DAY": "Jeden Monat am letzten Tag",
         "SKIP_OVERDUE": "Überfällige Instanzen überspringen",
-        "SKIP_OVERDUE_DESCRIPTION": "Wenn aktiviert und die App nach einer verpassten geplanten Ausführung geöffnet wird (z.B. eine wöchentliche Aufgabe, bei der heute kein geplanter Tag ist), wird die verpasste Instanz stillschweigend übersprungen, anstatt als überfällige Aufgabe erstellt zu werden"
+        "SKIP_OVERDUE_DESCRIPTION": "Wenn aktiviert und die App nach einem verpassten geplanten Auftreten geöffnet wird (z. B. eine wöchentliche Aufgabe, bei der heute kein geplanter Tag ist), wird die verpasste Instanz still übersprungen, anstatt als überfällige Aufgabe erstellt zu werden"
       },
-      "SNACK_REPEAT_DIALOG_FAIL": "Wiederholungskonfiguration konnte nicht geöffnet werden. Sie können sie über das Aufgabenmenü konfigurieren."
+      "SNACK_REPEAT_DIALOG_FAIL": "Wiederholungskonfigurationsdialog konnte nicht geöffnet werden. Sie können es über das Aufgabenmenü konfigurieren."
     },
     "TASK_VIEW": {
       "CUSTOMIZER": {
@@ -1763,15 +1763,15 @@
       },
       "D_ARCHIVE_COMPRESS": {
         "BTN_COMPRESS": "Archiv komprimieren",
-        "CONFIRM_MSG": "Sind Sie sicher, dass Sie das Archiv komprimieren möchten? Dies wird die oben aufgelisteten Daten dauerhaft löschen!",
+        "CONFIRM_MSG": "Sind Sie sicher, dass Sie das Archiv komprimieren möchten? Dadurch werden die oben aufgeführten Daten dauerhaft gelöscht!",
         "CONFIRM_TITLE": "Archivkomprimierung bestätigen",
-        "ESTIMATED_SAVINGS": "Geschätzte Platzeinsparung",
-        "INTRO": "Dies komprimiert Ihre archivierten Aufgaben durch Entfernung alter Daten. Dieser Vorgang wird geräteübergreifend synchronisiert.",
-        "ISSUE_FIELDS_TO_CLEAR": "Zu löschende Issue-Felder",
+        "ESTIMATED_SAVINGS": "Geschätzte Speichereinsparung",
+        "INTRO": "Dadurch werden Ihre archivierten Aufgaben durch Entfernen alter Daten komprimiert. Dieser Vorgang wird auf alle Geräte synchronisiert.",
+        "ISSUE_FIELDS_TO_CLEAR": "Zu löschende Ticket-Felder",
         "LOADING": "Archiv wird analysiert...",
-        "NO_DATA": "Keine Daten zum Komprimieren. Ihr Archiv ist bereits optimiert.",
+        "NO_DATA": "Keine Daten zu komprimieren. Ihr Archiv ist bereits optimiert.",
         "NOTES_TO_CLEAR": "Zu löschende Aufgabennotizen (älter als 1 Jahr)",
-        "SUBTASKS_TO_DELETE": "Zu löschende Unteraufgaben (Zeit zum Elternteil zusammengeführt)",
+        "SUBTASKS_TO_DELETE": "Zu löschende Unteraufgaben (Zeit auf übergeordnete Aufgabe zusammengeführt)",
         "TITLE": "Archiv komprimieren",
         "WARNING": "Dieser Vorgang kann nicht rückgängig gemacht werden. Stellen Sie sicher, dass Sie ein Backup haben, bevor Sie fortfahren!"
       }
@@ -1796,7 +1796,7 @@
         "TOTAL_TIME": "Insgesamt aufgewendete Zeit:",
         "WEEK_NR": "Woche {{nr}}",
         "WORKED": "Gearbeitet",
-        "RESTORE_TASK_FROM_ARCHIVE": "Aufgabe aus Archiv wiederherstellen",
+        "RESTORE_TASK_FROM_ARCHIVE": "Aufgabe aus dem Archiv wiederherstellen",
         "VIEW_TASK_DETAILS": "Aufgabendetails anzeigen"
       },
       "D_CONFIRM_RESTORE": "Möchten Sie die Aufgabe <strong>\"{{title}}\"</strong> wirklich in Ihre heutige Aufgabenliste verschieben?",
@@ -1913,7 +1913,7 @@
     "WITHOUT_PROJECT": "Ohne Projekt",
     "YESTERDAY": "Gestern",
     "DONT_SHOW_AGAIN": "Nicht mehr anzeigen",
-    "TOGGLE_PASSWORD_VISIBILITY": "Passwort ein-/ausblenden"
+    "TOGGLE_PASSWORD_VISIBILITY": "Passwort-Sichtbarkeit umschalten"
   },
   "GCF": {
     "APP_FEATURES": {
@@ -1933,7 +1933,7 @@
       "TITLE": "App-Funktionen",
       "USER_PROFILES": "Benutzerprofile (Experimentell)",
       "USER_PROFILES_HINT": "Ermöglicht das Erstellen und Wechseln zwischen verschiedenen Benutzerprofilen, jeweils mit separaten Einstellungen, Aufgaben und Synchronisationskonfigurationen. Die Schaltfläche zur Profilverwaltung erscheint oben rechts, wenn aktiviert. Hinweis: Das Deaktivieren dieser Funktion blendet die Benutzeroberfläche aus, bewahrt jedoch Ihre Profildaten (Experimentelle Funktion, keine Garantien. Bitte sichern Sie Ihre Daten).",
-      "USER_PROFILES_WARNING": "<strong>Experimentelle Funktion:</strong> Diese Funktion ist noch in Entwicklung und kann in einem zukünftigen Update entfernt oder erheblich geändert werden. Nutzung auf eigene Gefahr — stellen Sie sicher, dass Sie Backups Ihrer Daten haben."
+      "USER_PROFILES_WARNING": "<strong>Experimentelle Funktion:</strong> Diese Funktion befindet sich noch in Entwicklung und kann in einem zukünftigen Update entfernt oder wesentlich verändert werden. Nutzung auf eigene Gefahr – stellen Sie sicher, dass Sie Backups Ihrer Daten haben."
     },
     "AUTO_BACKUPS": {
       "HELP": "Speichern Sie alle Daten automatisch in Ihrem App-Ordner, um sie für den Fall, dass ein Fehler auftritt, bereit zu halten.",
@@ -1960,19 +1960,19 @@
       "SORT_SMALLEST": "Kleinste zuerst",
       "DELETE_ALL_SUCCESS": "Alle Zwischenablage-Bilder erfolgreich gelöscht",
       "DELETE_SUCCESS": "Zwischenablage-Bild erfolgreich gelöscht",
-      "ERROR_DELETING": "Löschen des Zwischenablage-Bilds fehlgeschlagen",
-      "ERROR_DELETING_ALL": "Löschen aller Zwischenablage-Bilder fehlgeschlagen",
-      "ERROR_LOADING": "Laden der Zwischenablage-Bilder fehlgeschlagen",
+      "ERROR_DELETING": "Zwischenablage-Bild konnte nicht gelöscht werden",
+      "ERROR_DELETING_ALL": "Alle Zwischenablage-Bilder konnten nicht gelöscht werden",
+      "ERROR_LOADING": "Zwischenablage-Bilder konnten nicht geladen werden",
       "HELP": "Verwalten Sie aus der Zwischenablage eingefügte Bilder. In der Browser-Version werden Bilder in IndexedDB gespeichert. Für die Desktop-Version konfigurieren Sie den Speicherpfad.",
       "LOADING": "Bilder werden geladen...",
-      "MANAGE_DESCRIPTION": "Anzeigen und Löschen von gespeicherten Bildern aus Markdown-Feldern",
+      "MANAGE_DESCRIPTION": "Bilder anzeigen und löschen, die durch Einfügen in Markdown-Felder gespeichert wurden",
       "MANAGE_TITLE": "Gespeicherte Bilder verwalten",
       "MANAGER_TITLE": "Zwischenablage-Bilder",
       "NO_IMAGES": "Keine Zwischenablage-Bilder gespeichert",
       "OPEN_MANAGER": "Bilder verwalten",
-      "PATH_DESCRIPTION": "Konfigurieren Sie den Speicherort für Zwischenablage-Bilder auf Ihrem Dateisystem (leer lassen für Standardort)",
+      "PATH_DESCRIPTION": "Legen Sie fest, wo Zwischenablage-Bilder auf Ihrem Dateisystem gespeichert werden (leer lassen für Standardspeicherort)",
       "PATH_LABEL": "Bildspeicherpfad",
-      "PATH_PLACEHOLDER": "Leer lassen für Standardort",
+      "PATH_PLACEHOLDER": "Leer lassen für Standardspeicherort",
       "SELECT_PATH_TITLE": "Ordner für Zwischenablage-Bilder auswählen",
       "TITLE": "Zwischenablage-Bilder",
       "TOTAL_IMAGES": "Bilder gesamt",
@@ -2149,12 +2149,12 @@
       "DISABLE_REMINDERS": "Alle Erinnerungen deaktivieren",
       "IS_COUNTDOWN_BANNER_ENABLED": "Countdown-Banner anzeigen, bevor Erinnerungen fällig werden",
       "TITLE": "Erinnerungen",
-      "DUE_DATE_NOTIFICATION_HOUR": "Uhrzeit für Fälligkeitsbenachrichtigungen (0-23)",
-      "HELP": "<p><strong>Wichtig:</strong> Erinnerungen verwenden <strong>lokale Benachrichtigungen</strong>, keine Push-Benachrichtigungen. Das bedeutet, die App muss mindestens einmal auf Ihrem Gerät geöffnet worden sein, damit Erinnerungen geplant werden. Auf einem anderen Gerät gesetzte Erinnerungen erscheinen erst nach der Synchronisation der App auf dem Zielgerät.</p><p>Auf <strong>iOS</strong> stellen Sie sicher, dass Benachrichtigungen für Super Productivity in den Geräteeinstellungen unter \"Einstellungen\" > \"Mitteilungen\" aktiviert sind.</p>",
-      "IS_FOCUS_WINDOW": "Anwendungsfenster fokussieren, wenn Erinnerung ausgelöst wird",
+      "DUE_DATE_NOTIFICATION_HOUR": "Uhrzeit für Fälligkeitsbenachrichtigungen (0–23)",
+      "HELP": "<p><strong>Wichtig:</strong> Erinnerungen verwenden <strong>lokale Benachrichtigungen</strong>, keine Push-Benachrichtigungen. Das bedeutet, dass die App mindestens einmal auf Ihrem Gerät geöffnet worden sein muss, damit Erinnerungen geplant werden können. Erinnerungen, die auf einem anderen Gerät gesetzt werden, erscheinen erst nach der Synchronisierung der App auf dem Zielgerät.</p><p>Auf <strong>iOS</strong> stellen Sie sicher, dass Benachrichtigungen für Super Productivity in Ihren Geräteeinstellungen unter 'Einstellungen' > 'Mitteilungen' aktiviert sind.</p>",
+      "IS_FOCUS_WINDOW": "Anwendungsfenster fokussieren, wenn eine Erinnerung ausgelöst wird",
       "NOTIFY_ON_DUE_DATE": "Benachrichtigungen für heute fällige Aufgaben anzeigen",
-      "USE_ALARM_STYLE_REMINDERS": "Alarm-Benachrichtigungen verwenden (nur Android)",
-      "USE_ALARM_STYLE_REMINDERS_DESCRIPTION": "Wenn aktiviert, verwenden Erinnerungen lautere Alarmtöne und auffälligere Benachrichtigungen. Empfohlen für wichtige Erinnerungen."
+      "USE_ALARM_STYLE_REMINDERS": "Alarmstil-Benachrichtigungen verwenden (nur Android)",
+      "USE_ALARM_STYLE_REMINDERS_DESCRIPTION": "Wenn aktiviert, verwenden Erinnerungen lautere Alarmtöne und aufdringlichere Benachrichtigungen. Empfohlen für kritische Erinnerungen."
     },
     "SCHEDULE": {
       "HELP": "Die Schedule-Funktion soll Ihnen einen schnellen Überblick darüber geben, wie sich Ihre geplanten Aufgaben im Laufe der Zeit entwickeln. Sie finden es im Menü auf der linken Seite unter <a href='#/schedule'>'Schedule'</a>.",
@@ -2176,8 +2176,8 @@
       "IS_ENABLE_TAG": "Tag-Kurzsyntax einschalten (#<Tag>)",
       "TITLE": "Kurze Syntax",
       "URL_BEHAVIOR_EXTRACT": "URL in Anhänge extrahieren",
-      "URL_BEHAVIOR_KEEP": "URL im Aufgabentitel beibehalten",
-      "URL_BEHAVIOR_KEEP_AND_ATTACH": "URL im Titel beibehalten und zu Anhängen hinzufügen",
+      "URL_BEHAVIOR_KEEP": "URL im Aufgabentitel belassen",
+      "URL_BEHAVIOR_KEEP_AND_ATTACH": "URL im Aufgabentitel belassen und zu Anhängen hinzufügen",
       "URL_BEHAVIOR_LABEL": "URL-Verhalten beim Hinzufügen von Aufgaben"
     },
     "SOUND": {
@@ -2274,7 +2274,7 @@
     "SHARE_FAILED_FALLBACK": "Das Teilen ist fehlgeschlagen. Stattdessen in die Zwischenablage kopiert.",
     "SHARE_UNAVAILABLE_FALLBACK": "In die Zwischenablage kopiert.",
     "UNPLANNED_TODAY_TASKS": "Alle Aufgaben von Heute entplant",
-    "SAVE_BLOCKED_DURING_SYNC": "Synchronisation läuft — einige Änderungen müssen möglicherweise erneut gespeichert werden",
+    "SAVE_BLOCKED_DURING_SYNC": "Synchronisierung läuft – einige Änderungen müssen möglicherweise erneut gespeichert werden",
     "OPEN_SETTINGS_ERROR": "Einstellungen konnten nicht geöffnet werden"
   },
   "GPB": {
@@ -2337,13 +2337,13 @@
     "UNPLAN_ALL_TASKS": "Alle Aufgaben entplanen",
     "WORKLOG": "Worklog",
     "DISABLE_FEATURE": "Funktion deaktivieren",
-    "FEATURE_DISABLED_SNACK": "\"{{featureName}}\" deaktiviert. Reaktivieren Sie es in den App-Funktionseinstellungen.",
+    "FEATURE_DISABLED_SNACK": "\"{{featureName}}\" deaktiviert. In den App-Funktionseinstellungen wieder aktivieren.",
     "NO_PROJECT_INFO": "Keine Projekte verfügbar. Sie können ein neues Projekt erstellen, indem Sie auf die Schaltfläche 'Projekt erstellen' klicken.",
-    "NO_TAG_INFO": "Derzeit gibt es keine Tags. Sie können Tags hinzufügen, indem Sie beim Hinzufügen oder Bearbeiten von Aufgaben `#IhrTagName` eingeben.",
-    "NOTES_PANEL_INFO": "Notizen können nur in der Planungs- und der regulären Aufgabenlistenansicht angezeigt werden.",
-    "PROCRASTINATE": "Prokrastinieren",
+    "NO_TAG_INFO": "Derzeit gibt es keine Tags. Sie können Tags hinzufügen, indem Sie `#IhrTagName` beim Hinzufügen oder Bearbeiten von Aufgaben eingeben.",
+    "NOTES_PANEL_INFO": "Notizen können nur in der Terminplan- und der regulären Aufgabenlistenansicht angezeigt werden.",
+    "PROCRASTINATE": "Aufschieben",
     "PROJECT_SETTINGS": "Projekteinstellungen",
-    "SHOW_TRACKED_TASK": "Verfolgte Aufgabe anzeigen",
+    "SHOW_TRACKED_TASK": "Erfasste Aufgabe anzeigen",
     "TOGGLE_SHOW_BOOKMARKS": "Lesezeichen ein-/ausblenden"
   },
   "MIGRATE": {
@@ -2353,7 +2353,7 @@
     "E_RESTART_FAILED": "Automatischer Neustart fehlgeschlagen. Bitte starten Sie die App manuell neu!",
     "STATUS_PREPARING": "Migration wird vorbereitet...",
     "SUCCESS": "Migration abgeschlossen! Starte die App jetzt neu...",
-    "DIALOG_MESSAGE": "Wir aktualisieren die Datenspeicherung für verbesserte Synchronisationszuverlässigkeit. Ein Backup wird automatisch heruntergeladen.",
+    "DIALOG_MESSAGE": "Wir aktualisieren die Art der Datenspeicherung für eine verbesserte Synchronisierungszuverlässigkeit. Ein Backup wird automatisch heruntergeladen.",
     "DIALOG_TITLE": "Ihre Daten werden migriert",
     "STATUS_BACKUP": "Backup Ihrer Daten wird erstellt...",
     "STATUS_COMPLETE": "Migration abgeschlossen!",
@@ -2481,9 +2481,9 @@
     "UNKNOWN_ERROR": "Ein unbekannter Fehler ist aufgetreten",
     "UPLOAD_PLUGIN_INSTRUCTION": "Laden Sie eine Plugin-ZIP-Datei hoch, um sie zu installieren:",
     "VALIDATION_FAILED": "Validierung fehlgeschlagen",
-    "CONFIRM_DISABLE_WITH_ISSUE_PROVIDERS": "Dieses Plugin bietet Issue-Integration, die derzeit verwendet wird ({{count}} Issue-Anbieter). Das Deaktivieren unterbricht vorübergehend die Issue-Synchronisation für diese Anbieter, bis das Plugin reaktiviert wird. Sind Sie sicher, dass Sie \"{{name}}\" deaktivieren möchten?",
+    "CONFIRM_DISABLE_WITH_ISSUE_PROVIDERS": "Dieses Plugin bietet eine Ticket-Integration, die derzeit verwendet wird ({{count}} Ticket-Anbieter). Das Deaktivieren unterbricht vorübergehend die Ticket-Synchronisierung für diese Anbieter, bis das Plugin wieder aktiviert wird. Sind Sie sicher, dass Sie \"{{name}}\" deaktivieren möchten?",
     "FAILED_TO_LOAD_COMMUNITY_PLUGINS": "Community-Plugin-Liste konnte nicht geladen werden",
-    "INDEX_HTML_NOT_LOADED": "Plugin index.html nicht geladen"
+    "INDEX_HTML_NOT_LOADED": "Plugin index.html wurde nicht geladen"
   },
   "PM": {
     "TITLE": "Projektmetriken",
@@ -2504,7 +2504,7 @@
       "PRODUCTIVITY": "Produktivität",
       "TASKS": "Aufgaben",
       "SYNC_BACKUP": "Sync & Backup",
-      "TIME_TRACKING": "Zeit & Erfassung",
+      "TIME_TRACKING": "Zeit & Tracking",
       "PLUGINS": "Plugins"
     },
     "TAG_SETTINGS": "Stichwort-spezifische Einstellungen",
@@ -2533,12 +2533,12 @@
     "teal": "blaugrün",
     "yellow": "gelb",
     "blue-grey": "Blaugrau",
-    "deep-orange": "Dunkelorange",
-    "deep-purple": "Dunkelviolett",
+    "deep-orange": "Tieforange",
+    "deep-purple": "Tiefviolett",
     "light-blue": "Hellblau",
     "light-green": "Hellgrün",
     "SCHEDULED_TASKS_WITH_TIME": "Geplante Aufgaben mit Startzeit",
-    "SELECT_THEME": "Thema auswählen",
+    "SELECT_THEME": "Design auswählen",
     "amber": "Bernstein",
     "cyan": "Cyan",
     "lime": "Limette"
@@ -2593,12 +2593,12 @@
     "RECURRING_TASKS": "Wiederkehrende Aufgaben"
   },
   "NOTIFICATION": {
-    "EXACT_ALARM_DENIED": "Genaue Alarmberechtigung verweigert. Erinnerungen können bis zu 15 Minuten verzögert werden.",
-    "TASK_ALREADY_COMPLETED": "Aufgabe bereits abgeschlossen",
+    "EXACT_ALARM_DENIED": "Genaue Alarm-Berechtigung verweigert. Erinnerungen können sich um bis zu 15 Minuten verzögern.",
+    "TASK_ALREADY_COMPLETED": "Aufgabe bereits erledigt",
     "TASK_MARKED_DONE": "Aufgabe als erledigt markiert"
   },
   "PRE_MIGRATION": {
-    "DIALOG_MESSAGE": "Wir aktualisieren die Datenspeicherung für verbesserte Synchronisationszuverlässigkeit.<br><br>Ein Backup Ihrer Daten wird automatisch heruntergeladen. Sie können dieses Backup verwenden, um Ihre Daten bei Bedarf wiederherzustellen (Datei > Importieren).",
+    "DIALOG_MESSAGE": "Wir aktualisieren die Art der Datenspeicherung für eine verbesserte Synchronisierungszuverlässigkeit.<br><br>Ein Backup Ihrer Daten wird automatisch heruntergeladen. Sie können dieses Backup verwenden, um Ihre Daten bei Bedarf wiederherzustellen (Datei > Importieren).",
     "DIALOG_TITLE": "Systemaktualisierung"
   }
 }
