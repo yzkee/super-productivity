@@ -104,10 +104,16 @@
         "CALDAV_RESOURCE": "CalDav-resurssin nimi (kalenteri)",
         "CALDAV_URL": "CalDav-URL (perus-URL)",
         "CALDAV_USER": "CalDav-käyttäjänimi",
-        "IS_TRANSITION_ISSUES_ENABLED": "Merkitse CalDav-tehtävät automaattisesti valmiiksi tehtävän valmistuessa"
+        "IS_TRANSITION_ISSUES_ENABLED": "Merkitse CalDav-tehtävät automaattisesti valmiiksi tehtävän valmistuessa",
+        "TWO_WAY_SYNC_OFF": "Pois päältä"
       },
       "FORM_SECTION": {
         "HELP": "<p>Tässä voit määrittää SuperProductivityn listamaan keskeneräiset CalDav-tehtävät tietyn projektin osalta tehtävänluontipaneelissa päivittäisessä suunnittelinäkymässä. Ne listataan ehdotuksina ja tarjoavat linkin tehtävään sekä lisätietoja siitä.</p> <p>Lisäksi voit automaattisesti lisätä ja synkronoida kaikki keskeneräiset tehtävät taakkaputkeesi.</p><p>Jotta se toimisi nextcloudissa verkkosovelluksessa, sinun on ehkä sallittava \"https://app.super-productivity.com\" nextcloud-sovelluksen <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a> kautta.</p>"
+      },
+      "ISSUE_CONTENT": {
+        "DESCRIPTION": "Kuvaus",
+        "STATUS": "Tila",
+        "SUMMARY": "Yhteenveto"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: Kalenteria \"{{calendarName}}\" ei löytynyt",
@@ -146,17 +152,6 @@
       "BTN_DONT_BOTHER": "Älä häiritse minua uudelleen",
       "TITLE": "🙈 Pyydämme anteeksi, mutta...",
       "TXT": "Auttaisit projektia valtavasti <strong>antamalla sille hyvän arvion, jos pidät siitä!</strong>"
-    },
-    "VOICE_REMINDER": {
-      "FORM": {
-        "HELP": "Toistaa määritetyn lauseen joka X, kun aikaa seurataan tehtävään.",
-        "L_INTERVAL": "Aikaväli lauseen toistamiseen",
-        "L_TEXT": "Teksti",
-        "L_TEXT_DESCRIPTION": "Esim.: \"Työskentele tehtävän ${currentTaskTitle} parissa!\"",
-        "L_VOICE": "Valitse ääni",
-        "L_VOICE_DESCRIPTION": "Valitse ääni",
-        "TITLE": "Äänimuistutus"
-      }
     },
     "DROPBOX": {
       "S": {
@@ -372,6 +367,9 @@
         "ISSUE_UPDATE_SINGLE": "{{issueProviderName}}: Päivitettiin tiedot \"{{issueTitle}}\"",
         "POLLING_BACKLOG": "{{issueProviderName}}: Haetaan uusia {{issuesStr}}",
         "POLLING_CHANGES": "{{issueProviderName}}: Haetaan muutoksia {{issuesStr}}"
+      },
+      "TWO_WAY_SYNC": {
+        "OFF": "Pois päältä"
       }
     },
     "ISSUE_PANEL": {
@@ -527,7 +525,8 @@
         "TIME_FRAME_2_WEEKS": "2 viikkoa",
         "TIME_FRAME_LABEL": "Aikajakso",
         "TIME_FRAME_MAX": "Maxi",
-        "TIME_SPENT": "Käytetty aika"
+        "TIME_SPENT": "Käytetty aika",
+        "YEAR": "Vuosi"
       },
       "EVAL_FORM": {
         "DAILY_STATE": "Päivittäinen tila",
@@ -579,6 +578,11 @@
         "PLACEHOLDER_3": "Missä keskittyminen lipsui - ja miten voit suojella sitä?",
         "PLACEHOLDER_4": "Mikä tehtävä antoi sinulle energiaa? Mikä vei sitä?",
         "PLACEHOLDER_5": "Yksi asia toistettavaksi. Yksi asia muutettavaksi.",
+        "REMIND_LABEL": "Muistuta minua tästä huomenna",
+        "REMINDER_CREATED": "Pohdintojen muistutus ajastettu huomiselle",
+        "REMINDER_ERROR": "Muistutuksen ajastaminen epäonnistui",
+        "REMINDER_NEEDS_TEXT": "Kirjoita pohdinta ennen muistutuksen pyytämistä",
+        "REMINDER_TASK_TITLE": "Palaa pohdintamuistiinpanoon",
         "TITLE": "Pohdintamuistiinpano"
       }
     },
@@ -777,6 +781,10 @@
       "WEEK_TITLE": "Viikko {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
+      "DIALOG_TRACK_TIME": {
+        "ACTIVITY": "Toiminta",
+        "STARTED": "Aloitettu"
+      },
       "FORM": {
         "API_KEY": "API-käyttöavain",
         "HOST": "Isäntä (esim.: https://redmine.org)",
@@ -821,6 +829,7 @@
       },
       "END": "Työpäivän loppu",
       "INSERT_BEFORE": "Ennen",
+      "NOW": "Nyt",
       "PLAN_END_DAY": "Suunnittele päivän lopussa",
       "PLAN_START_DAY": "Suunnittele päivän alussa",
       "SHIFT_KEY_INFO": "Pidä Shift-näppäintä painettuna vaihtaaksesi päivän suunnittelutilaan",
@@ -857,6 +866,9 @@
         "TYPE_CLICK_COUNTER": "Klikkauslaskuri",
         "TYPE_REPEATED_COUNTDOWN": "Toistuva laskuri",
         "TYPE_STOPWATCH": "Sekuntikello"
+      },
+      "HABIT_TRACKER": {
+        "TODAY": "Tänään"
       },
       "S": {
         "GOAL_REACHED_1": "Saavutit tavoitteesi tänään!",
@@ -929,7 +941,15 @@
         "SAVE_AND_ENABLE": "Tallenna & Ota synkronointi käyttöön",
         "TITLE": "Määritä synkronointi"
       },
+      "D_RESTORE": {
+        "BTN_RESTORE": "Palauta"
+      },
       "FORM": {
+        "BTN_CHANGE_PASSWORD": "Vaihda salasana",
+        "FILE_BASED": {
+          "BTN_CHANGE_PASSWORD": "Vaihda salasana",
+          "L_CONFIRM_PASSWORD": "Vahvista salasana"
+        },
         "L_ENABLE_COMPRESSION": "Ota pakkaus käyttöön (nopeampi tietonsiirto)",
         "L_ENABLE_ENCRYPTION": "Ota päätepisteiden välinen salaus käyttöön (kokeellinen) – Tee tiedoistasi käyttömättömät synkronointitarjoajallesi",
         "L_ENABLE_SYNCING": "Ota synkronointi käyttöön",
@@ -939,6 +959,10 @@
         "L_SYNC_PROVIDER": "Synkronointitarjoaja",
         "LOCAL_FILE": {
           "L_SYNC_FOLDER_PATH": "Synkronointikansion polku"
+        },
+        "SUPER_SYNC": {
+          "BTN_CHANGE_PASSWORD": "Vaihda salasana",
+          "L_CONFIRM_PASSWORD": "Vahvista salasana"
         },
         "TITLE": "Synkronointi",
         "WEB_DAV": {
@@ -1068,6 +1092,7 @@
         "ADD_ATTACHMENT": "Lisää liite",
         "ADD_SUB_TASK": "Lisää alitehtävä",
         "ATTACHMENTS": "Liitteet ({{nr}})",
+        "DEADLINE": "Määräaika",
         "DUE": "Suunniteltu",
         "LOCAL_ATTACHMENTS": "Paikalliset liitteet",
         "NOTES": "Kuvaus",
@@ -1113,6 +1138,9 @@
         "UNSCHEDULE_TASK": "Poista tehtävän aikataulu",
         "UPDATE_ISSUE_DATA": "Päivitä ongelmatiedot"
       },
+      "D_CONFIRM_DELETE": {
+        "OK": "Poista"
+      },
       "D_CONFIRM_SHORT_SYNTAX_NEW_TAG": {
         "MSG": "Haluatko luoda uuden tunnisteen {{tagsTxt}}?",
         "OK": "Luo tunniste"
@@ -1120,6 +1148,10 @@
       "D_CONFIRM_SHORT_SYNTAX_NEW_TAGS": {
         "MSG": "Haluatko luoda uudet tunnisteet {{tagsTxt}}?",
         "OK": "Luo tunnisteet"
+      },
+      "D_DEADLINE": {
+        "QA_TODAY": "Tänään",
+        "QA_TOMORROW": "Huomenna"
       },
       "D_REMINDER_VIEW": {
         "ADD_ALL_TO_TODAY": "Lisää kaikki tänään",
@@ -1248,11 +1280,13 @@
         "ADD": "Lisää toistuvan tehtävän sääntö",
         "ADVANCED_CFG": "Lisäasetukset",
         "EDIT": "Muokkaa toistuvan tehtävän sääntöä",
+        "HEATMAP_LABEL": "Toiminta",
         "HELP1": "Toistuvat tehtävät on tarkoitettu päivittäisille askareille, esim.: \"Organisointi\", \"Päivittäinen palaveri\", \"Koodikatselmointi\", \"Sähköpostien tarkistus\" tai vastaavat tehtävät, jotka todennäköisesti toistuvat uudelleen ja uudelleen.",
         "HELP2": "Kun määritetty, toistuva tehtävä luodaan uudelleen joka valitulla päivällä heti, kun avaat projektisi, ja se merkitään automaattisesti valmiiksi päivän lopussa. Niitä käsitellään eri instansseina. Joten voit vapaasti lisätä alitehtäviä jne.",
         "HELP3": "Jirasta tai Git-ongelmista tuotuja tehtäviä ei voi toistaa.",
         "HELP4": "Huomautus järjestyskentästä: Viittaa toistuvien tehtävien luomisjärjestykseen. Vain vaikutuksessa toistuviin tehtäviin, jotka luodaan samaan aikaan. Alempi arvo tarkoittaa, että tehtävä luodaan listan ylempään osaan, korkeampi numero, että se luodaan alempaan osaan. Arvo, joka on suurempi kuin 0, tarkoittaa, että kohteet luodaan tavallisten tehtävien alaosaan.",
-        "TAG_LABEL": "Lisättävät tunnisteet"
+        "TAG_LABEL": "Lisättävät tunnisteet",
+        "TIME_SPENT_TOTAL": "Yhteensä"
       },
       "F": {
         "C_DAY": "Päivä",
@@ -1313,18 +1347,18 @@
         "GROUP_SCHEDULED_DATE": "Aikataulutettu päivämäärä",
         "GROUP_TAG": "Tunniste",
         "RESET_ALL": "Nollaa kaikki",
+        "SAVE_SORT": "Tallenna oletukseksi",
         "SCHEDULED_NEXT_MONTH": "Ensi kuukausi",
         "SCHEDULED_NEXT_WEEK": "Ensi viikko",
         "SCHEDULED_THIS_MONTH": "Tämä kuukausi",
         "SCHEDULED_THIS_WEEK": "Tämä viikko",
         "SCHEDULED_TODAY": "Tänään",
         "SCHEDULED_TOMORROW": "Huomenna",
+        "SORT": "Lajittele",
         "SORT_CREATION_DATE": "Luomispäivämäärä",
         "SORT_DEFAULT": "Oletus",
         "SORT_NAME": "Nimi",
-        "SAVE_SORT": "Tallenna oletukseksi",
         "SORT_SCHEDULED_DATE": "Aikataulutettu päivämäärä",
-        "SORT": "Lajittele",
         "TIME_1HOUR": "> 1 Tunti",
         "TIME_2HOUR": "> 2 Tuntia",
         "TIME_10MIN": "> 10 Minuuttia",
@@ -1366,6 +1400,17 @@
         "TASK": "Tehtävä",
         "TRACK_TO": "Seuraa kohteeseen:",
         "UNTRACKED_TIME": "Seuraamatonta aikaa:"
+      }
+    },
+    "VOICE_REMINDER": {
+      "FORM": {
+        "HELP": "Toistaa määritetyn lauseen joka X, kun aikaa seurataan tehtävään.",
+        "L_INTERVAL": "Aikaväli lauseen toistamiseen",
+        "L_TEXT": "Teksti",
+        "L_TEXT_DESCRIPTION": "Esim.: \"Työskentele tehtävän ${currentTaskTitle} parissa!\"",
+        "L_VOICE": "Valitse ääni",
+        "L_VOICE_DESCRIPTION": "Valitse ääni",
+        "TITLE": "Äänimuistutus"
       }
     },
     "WORKLOG": {
@@ -1451,10 +1496,12 @@
   "G": {
     "ADD": "Lisää",
     "ADVANCED_CFG": "Lisäasetukset",
+    "APPLY": "Käytä",
     "CANCEL": "Peruuta",
     "CLOSE": "Sulje",
     "COMPLETE": "Valmis",
     "CONFIRM": "Vahvista",
+    "CONTINUE": "Jatka",
     "DELETE": "Poista",
     "DISMISS": "Hylkää",
     "DO_IT": "Tee se!",
@@ -1470,12 +1517,15 @@
     "MINUTES": "{{m}} minuuttia",
     "MOVE_BACKWARD": "Siirrä taaksepäin",
     "MOVE_FORWARD": "Siirrä eteenpäin",
+    "NEXT": "Seuraava",
     "NO_CON": "Olet tällä hetkellä offline-tilassa. Yhdistä internetiin.",
     "NONE": "Ei mitään",
     "OK": "Selvä",
     "OVERDUE": "Myöhässä",
+    "PROCESSING": "Käsittely",
     "REMOVE": "Poista",
     "SAVE": "Tallenna",
+    "SHARE": "Jaa",
     "SUBMIT": "Lähetä",
     "TITLE": "Otsikko",
     "TODAY_TAG_TITLE": "Tänään",
@@ -1495,6 +1545,7 @@
       "PROJECT_NOTES": "Projektimuistiinpanot",
       "SCHEDULE": "Aikataulu",
       "SCHEDULE_DAY_PANEL": "Päivän aikataulupaneeli",
+      "SEARCH": "Haku",
       "SYNC_BUTTON": "Synkronointipainike",
       "TIME_TRACKING": "Sekuntikellon aikaseuranta",
       "TITLE": "Sovelluksen ominaisuudet",
@@ -1513,6 +1564,9 @@
       "CHECK_UPDATES": "Tarkista etäpäivitykset joka X",
       "HELP": "Voit integroida kalenterit saadaksesi muistutuksia ja lisätäksesi niitä tehtävinä Super Productivityyn. Integraatio toimii käyttämällä iCal-muotoa. Jotta tämä toimii, kalenterisi täytyy olla saatavilla joko internetin kautta tai tiedostojärjestelmän kautta.",
       "SHOW_BANNER_THRESHOLD": "Näytä ilmoitus X ennen tapahtumaa (tyhjä pois käytöstä)"
+    },
+    "CLIPBOARD_IMAGES": {
+      "SORT_BY": "Lajittele"
     },
     "EVALUATION": {
       "IS_HIDE_EVALUATION_SHEET": "Piilota arviointilomake päivittäisessä yhteenvedossa",
@@ -1619,6 +1673,7 @@
       "SV": "Ruotsi",
       "TIME_LOCALE": "Aikamuodon maa-asetus",
       "TIME_LOCALE_AUTO": "Järjestelmän oletus",
+      "TIME_LOCALE_CS_CZ": "Checo: 24-tuntinen, DD. MM. AAAA",
       "TIME_LOCALE_DE_DE": "Saksa - 24-tuntinen",
       "TIME_LOCALE_DESCRIPTION": "Valitse maa-asetus ajan muotoilua varten. Eri maa-asetukset käyttävät eri käytäntöjä (12h vs 24h muoto)",
       "TIME_LOCALE_EN_GB": "Englanti (UK) - 24-tuntinen",
@@ -1630,11 +1685,10 @@
       "TIME_LOCALE_KO_KR": "Korea - 12-tuntinen AM/PM",
       "TIME_LOCALE_PT_BR": "Portugali (Brasilia) - 24-tuntinen",
       "TIME_LOCALE_RU_RU": "Venäjä - 24-tuntinen",
-      "TIME_LOCALE_TR_TR": "Turkki - 24-tuntinen",
-      "TIME_LOCALE_ZH_CN": "Kiina (yksinkertaistettu) - 24-tuntinen",
-      "TIME_LOCALE_CS_CZ": "Checo: 24-tuntinen, DD. MM. AAAA",
       "TIME_LOCALE_SK_SK": "Slovakia: 24-tuntinen, DD. MM. AAAA",
+      "TIME_LOCALE_TR_TR": "Turkki - 24-tuntinen",
       "TIME_LOCALE_UK_UA": "Ukrainian: 24-tuntinen, DD.MM.AAAA",
+      "TIME_LOCALE_ZH_CN": "Kiina (yksinkertaistettu) - 24-tuntinen",
       "TITLE": "Kieli & Alue",
       "TR": "Turkki",
       "UK": "Ukraina",
@@ -1667,16 +1721,6 @@
       "THEME_EXPERIMENTAL": "Teema (kokeellinen)",
       "THEME_SELECT_LABEL": "Valitse teema",
       "TITLE": "Sekalaista"
-    },
-    "TASKS": {
-      "DEFAULT_PROJECT": "Oletusprojekti tehtäville, jos mitään ei ole määritetty",
-      "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Lisää automaattisesti tänään-tunniste työskennellyille tehtäville",
-      "IS_AUTO_MARK_PARENT_AS_DONE": "Merkitse vanhempi tehtävä valmiiksi, kun kaikki alitehtävät ovat valmiita",
-      "IS_CONFIRM_BEFORE_DELETE": "Vahvista ennen tehtävien poistamista",
-      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Ota käyttöön Markdown-muotoilu tehtävämuistiinpanoissa",
-      "IS_TRAY_SHOW_CURRENT": "Näytä nykyinen tehtävä tehtäväpalkissa / tilavalikossa (vain työpöytä mac/windows)",
-      "NOTES_TEMPLATE": "Tehtävän kuvauksen mallipohja",
-      "TITLE": "Tehtävät"
     },
     "POMODORO": {
       "BREAK_DURATION": "Lyhyiden taukojen kesto",
@@ -1732,6 +1776,16 @@
       "NOTIFICATION_TITLE": "Ota tauko!",
       "SNOOZE_TIME": "Torkutusaika, kun pyydetään ottamaan tauko",
       "TITLE": "Taukomuistutus"
+    },
+    "TASKS": {
+      "DEFAULT_PROJECT": "Oletusprojekti tehtäville, jos mitään ei ole määritetty",
+      "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Lisää automaattisesti tänään-tunniste työskennellyille tehtäville",
+      "IS_AUTO_MARK_PARENT_AS_DONE": "Merkitse vanhempi tehtävä valmiiksi, kun kaikki alitehtävät ovat valmiita",
+      "IS_CONFIRM_BEFORE_DELETE": "Vahvista ennen tehtävien poistamista",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Ota käyttöön Markdown-muotoilu tehtävämuistiinpanoissa",
+      "IS_TRAY_SHOW_CURRENT": "Näytä nykyinen tehtävä tehtäväpalkissa / tilavalikossa (vain työpöytä mac/windows)",
+      "NOTES_TEMPLATE": "Tehtävän kuvauksen mallipohja",
+      "TITLE": "Tehtävät"
     },
     "TIME_TRACKING": {
       "HELP": "Ajanseurannan muistutus on banneri, joka näkyy, jos unohdit aloittaa ajan seurannan.",
@@ -1845,6 +1899,7 @@
     "SHARE_TASK_LIST_MARKDOWN": "Jaa tehtävälista",
     "SIDE_PANEL_MENU": "Sivupaneelin valikko",
     "TAGS": "Tunnisteet",
+    "TASK_LIST": "Tehtäväluettelo",
     "TOGGLE_SHOW_ISSUE_PANEL": "Näytä/Piilota ongelmapaneeli",
     "TOGGLE_SHOW_NOTES": "Näytä/Piilota projektin muistiinpanot",
     "TOGGLE_TRACK_TIME": "Käynnistä/Pysäytä ajan seuranta",
@@ -1992,7 +2047,12 @@
     "PRIVACY_POLICY": "Tietosuojakäytäntö",
     "PROJECT_SETTINGS": "Projektikohtaiset asetukset",
     "PROVIDE_FEEDBACK": "Anna palautetta",
+    "RELOAD": "Lataa uudelleen",
     "SYNC_EXPORT": "Synkronointi & Vienti",
+    "TABS": {
+      "GENERAL": "Yleinen",
+      "PLUGINS": "Lisäosat"
+    },
     "TAG_SETTINGS": "Tunnistekohtaiset asetukset"
   },
   "SCHEDULE": {

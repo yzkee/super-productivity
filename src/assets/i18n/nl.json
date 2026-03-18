@@ -104,10 +104,17 @@
         "CALDAV_RESOURCE": "De naam van de CalDav-resource (de kalender)",
         "CALDAV_URL": "CalDav-URL (de basis-URL)",
         "CALDAV_USER": "Uw CalDav-gebruikersnaam",
-        "IS_TRANSITION_ISSUES_ENABLED": "Voltooi automatisch CalDav-taken na voltooiing van de taak"
+        "IS_TRANSITION_ISSUES_ENABLED": "Voltooi automatisch CalDav-taken na voltooiing van de taak",
+        "TWO_WAY_SYNC_OFF": "Uit"
       },
       "FORM_SECTION": {
         "HELP": "<p>Hier kunt u SuperProductivity configureren om niet-voltooide CalDav-taken voor een specifiek project weer te geven in het taakaanmaakpaneel in de dagelijkse planningsweergave. Ze worden vermeld als suggesties en bieden een link naar de taak en meer informatie erover.</p> <p>Bovendien kunt u automatisch alle niet-voltooide taken toevoegen aan en synchroniseren met uw backlog.</p>"
+      },
+      "ISSUE_CONTENT": {
+        "DESCRIPTION": "Beschrijving",
+        "LABELS": "Labels",
+        "STATUS": "Status",
+        "SUMMARY": "Samenvatting"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: agenda \"{{calendarName}}\" niet gevonden",
@@ -146,17 +153,6 @@
       "BTN_DONT_BOTHER": "Val me niet meer lastig",
       "TITLE": "🙈 Vergeef ons alstublieft, maar...",
       "TXT": "Je zou het project enorm helpen door het <strong>een goede beoordeling te geven, als je het leuk vindt!</strong>"
-    },
-    "VOICE_REMINDER": {
-      "FORM": {
-        "HELP": "Herhaalt de geconfigureerde zin elke X bij het bijhouden van de tijd voor een taak.",
-        "L_INTERVAL": "Interval om zin te herhalen",
-        "L_TEXT": "Tekst",
-        "L_TEXT_DESCRIPTION": "Bijvoorbeeld: \"Werk aan ${currentTaskTitle}!\"",
-        "L_VOICE": "Selecteer een stem",
-        "L_VOICE_DESCRIPTION": "Kies een stem",
-        "TITLE": "Spraakherinnering"
-      }
     },
     "DROPBOX": {
       "S": {
@@ -334,6 +330,9 @@
       },
       "DEFAULT_PROJECT_DESCRIPTION": "Project toegewezen aan taken die zijn aangemaakt vanuit issues.",
       "DEFAULT_PROJECT_LABEL": "Standaard Superproductiviteitsproject",
+      "DIALOG": {
+        "ADVANCED_CONFIG": "Geavanceerde Configuratie"
+      },
       "HOW_TO_GET_A_TOKEN": "Hoe krijg ik een token?",
       "ISSUE_CONTENT": {
         "ASSIGNEE": "Toegewezen persoon",
@@ -372,6 +371,9 @@
         "ISSUE_UPDATE_SINGLE": "{{issueProviderName}}: bijgewerkte gegevens voor \"{{issueTitle}}\"",
         "POLLING_BACKLOG": "{{issueProviderName}}: Polling voor nieuwe {{issuesStr}}",
         "POLLING_CHANGES": "{{issueProviderName}}: pollingwijzigingen voor {{issuesStr}}"
+      },
+      "TWO_WAY_SYNC": {
+        "OFF": "Uit"
       }
     },
     "ISSUE_PANEL": {
@@ -527,7 +529,8 @@
         "TIME_FRAME_2_WEEKS": "2 weken",
         "TIME_FRAME_LABEL": "Tijdframe",
         "TIME_FRAME_MAX": "Max",
-        "TIME_SPENT": "Tijd besteed"
+        "TIME_SPENT": "Tijd besteed",
+        "YEAR": "Jaar"
       },
       "EVAL_FORM": {
         "DAILY_STATE": "Dagelijkse Staat",
@@ -579,7 +582,17 @@
         "PLACEHOLDER_3": "Waar verslapte de focus - en hoe kun je die beschermen?",
         "PLACEHOLDER_4": "Welke taak gaf je energie? Welke putte het uit?",
         "PLACEHOLDER_5": "Eén ding om te herhalen. Eén ding om te veranderen.",
+        "REMIND_LABEL": "Herinner me hier morgen aan",
+        "REMINDER_CREATED": "Reflectieherinnering gepland voor morgen",
+        "REMINDER_ERROR": "Kon de herinnering niet plannen",
+        "REMINDER_NEEDS_TEXT": "Schrijf een reflectie voordat je om een herinnering vraagt",
+        "REMINDER_TASK_TITLE": "Bekijk reflectienotitie opnieuw",
         "TITLE": "Reflectienotitie"
+      }
+    },
+    "NEXTCLOUD_DECK": {
+      "ISSUE_CONTENT": {
+        "LABELS": "Labels"
       }
     },
     "NOTE": {
@@ -777,6 +790,11 @@
       "WEEK_TITLE": "Week {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
+      "DIALOG_TRACK_TIME": {
+        "ACTIVITY": "Activiteit",
+        "STARTED": "Gestart",
+        "TIME_SPENT": "Tijd besteed"
+      },
       "FORM": {
         "API_KEY": "API-toegangssleutel",
         "HOST": "Host (e.g.: https://redmine.org)",
@@ -821,6 +839,8 @@
       },
       "END": "Einde van het werk",
       "INSERT_BEFORE": "Voor",
+      "MONTH": "Maand",
+      "NOW": "Nu",
       "PLAN_END_DAY": "Plan aan het einde van de dag",
       "PLAN_START_DAY": "Plan aan het begin van de dag",
       "SHIFT_KEY_INFO": "Houd Shift ingedrukt om dagplanningsmodus te wisselen",
@@ -857,6 +877,10 @@
         "TYPE_CLICK_COUNTER": "Klik op teller",
         "TYPE_REPEATED_COUNTDOWN": "Herhaald aftellen",
         "TYPE_STOPWATCH": "Stopwatch"
+      },
+      "HABIT_TRACKER": {
+        "NEXT_WEEK": "Volgende week",
+        "TODAY": "Vandaag"
       },
       "S": {
         "GOAL_REACHED_1": "Je hebt je doel voor vandaag bereikt!",
@@ -929,7 +953,20 @@
         "SAVE_AND_ENABLE": "Opslaan & Synchronisatie Inschakelen",
         "TITLE": "Synchronisatie Configureren"
       },
+      "D_RESTORE": {
+        "BTN_RESTORE": "Herstellen"
+      },
+      "D_SERVER_MIGRATION_CONFIRM": {
+        "SKIP": "Overslaan"
+      },
       "FORM": {
+        "BTN_CHANGE_PASSWORD": "Wachtwoord wijzigen",
+        "FILE_BASED": {
+          "BTN_CHANGE_PASSWORD": "Wachtwoord wijzigen",
+          "L_CONFIRM_PASSWORD": "Bevestig wachtwoord",
+          "PASSWORD_MIN_LENGTH": "Wachtwoord moet minimaal 8 tekens zijn",
+          "PASSWORDS_DONT_MATCH": "Wachtwoorden komen niet overeen"
+        },
         "L_ENABLE_COMPRESSION": "Compressie inschakelen (snellere data overdracht)",
         "L_ENABLE_ENCRYPTION": "End-to-end encryptie inschakelen (experiment) - Maak je data ontoegankelijk voor je sync provider",
         "L_ENABLE_SYNCING": "Schakel synchronisatie in",
@@ -939,6 +976,13 @@
         "L_SYNC_PROVIDER": "Synchronisatieprovider",
         "LOCAL_FILE": {
           "L_SYNC_FOLDER_PATH": "Map pad synchroniseren"
+        },
+        "SUPER_SYNC": {
+          "BTN_CHANGE_PASSWORD": "Wachtwoord wijzigen",
+          "L_CONFIRM_PASSWORD": "Bevestig wachtwoord",
+          "PASSWORD_MIN_LENGTH": "Wachtwoord moet minimaal 8 tekens zijn",
+          "PASSWORDS_DONT_MATCH": "Wachtwoorden komen niet overeen",
+          "SETUP_ENCRYPTION_BTN": "Stel wachtwoord in"
         },
         "TITLE": "Synchroniseren",
         "WEB_DAV": {
@@ -1049,6 +1093,7 @@
         "ESTIMATE_BUTTON": "Schatting",
         "PLACEHOLDER_CREATE": "Een taak titel #tag @16:00",
         "PLACEHOLDER_SEARCH": "Bestaande taak of issues toevoegen...",
+        "REPEAT_BUTTON": "Herhalen",
         "SEARCH_INFO_TEXT": "Zoek en voeg issues en taken toe uit archief en andere projecten",
         "TAGS_BUTTON": "Tags",
         "TODAY": "Vandaag",
@@ -1068,10 +1113,12 @@
         "ADD_ATTACHMENT": "Voeg bijlage toe",
         "ADD_SUB_TASK": "Subtaak toevoegen",
         "ATTACHMENTS": "Bijlagen ({{nr}})",
+        "DEADLINE": "Deadline",
         "DUE": "Gepland op",
         "LOCAL_ATTACHMENTS": "Lokale bijlagen",
         "NOTES": "Opmerkingen",
         "PARENT": "Ouder",
+        "REMINDER": "Herinnering",
         "REPEAT": "Herhaling",
         "SCHEDULE_TASK": "Taak plannen",
         "SUB_TASKS": "Subtaken ({{nr}})",
@@ -1113,6 +1160,9 @@
         "UNSCHEDULE_TASK": "Taak ongepland",
         "UPDATE_ISSUE_DATA": "Update probleemgegevens"
       },
+      "D_CONFIRM_DELETE": {
+        "OK": "Verwijderen"
+      },
       "D_CONFIRM_SHORT_SYNTAX_NEW_TAG": {
         "MSG": "Wil je de nieuwe tag {{tagsTxt}}aanmaken?",
         "OK": "Tag maken"
@@ -1120,6 +1170,13 @@
       "D_CONFIRM_SHORT_SYNTAX_NEW_TAGS": {
         "MSG": "Wilt u de nieuwe tags {{tagsTxt}}aanmaken?",
         "OK": "Labels maken"
+      },
+      "D_DEADLINE": {
+        "QA_NEXT_MONTH": "Volgende maand",
+        "QA_NEXT_WEEK": "Volgende week",
+        "QA_TODAY": "Vandaag",
+        "QA_TOMORROW": "Morgen",
+        "RO_NEVER": "Nooit"
       },
       "D_REMINDER_VIEW": {
         "ADD_ALL_TO_TODAY": "Voeg alles toe aan vandaag",
@@ -1129,6 +1186,7 @@
         "DISMISS_ALL_REMINDERS_KEEP_TODAY": "Alle herinneringen negeren (Blijf in Vandaag)",
         "DISMISS_REMINDER_KEEP_TODAY": "Herinnering negeren (Blijf in Vandaag)",
         "DONE": "Gedaan",
+        "DUE_SECTION": "Gepland",
         "DUE_TASK": "Gepaste taak",
         "DUE_TASKS": "Geplande taken",
         "RESCHEDULE_EDIT": "Bewerken (opnieuw plannen)",
@@ -1248,11 +1306,15 @@
         "ADD": "Voeg herhaalde taakconfiguratie toe",
         "ADVANCED_CFG": "Uitgebreide configuratie",
         "EDIT": "Herhaal taakconfiguratie bewerken",
+        "HEATMAP_LABEL": "Activiteit",
         "HELP1": "Herhalende taken zijn bedoeld voor dagelijkse taken, bijvoorbeeld: \"Organisatie\", \"Dagelijkse vergadering\", \"Code review\", \"E-mails controleren\" of soortgelijke taken die waarschijnlijk steeds weer zullen voorkomen.",
         "HELP2": "Eenmaal geconfigureerd, wordt een herhalende taak opnieuw gemaakt op elke hieronder geselecteerde dag zodra u uw project opent en wordt automatisch gemarkeerd als voltooid aan het einde van de dag. Ze worden als verschillende instanties behandeld. U kunt dus vrijelijk subtaken toevoegen enz.",
         "HELP3": "Taken geïmporteerd uit Jira of Git-problemen kunnen niet worden herhaald. Alle herinneringen worden ook verwijderd bij een herhalende taak.",
         "HELP4": "Een opmerking over het bestelveld: Verwijzend naar herhaalbare taken voor de aanmaakvolgorde. Alleen van kracht voor herhaalbare taken die tegelijkertijd worden gemaakt. Een lagere waarde betekent dat een taak hoger in de lijst komt te staan, een lager getal dat deze lager komt te staan. Een waarde groter dan 0 betekent dat items onderaan normale taken worden gemaakt.",
-        "TAG_LABEL": "Tags om toe te voegen"
+        "TAG_LABEL": "Tags om toe te voegen",
+        "TIME_SPENT_THIS_MONTH": "Deze maand",
+        "TIME_SPENT_THIS_WEEK": "Deze week",
+        "TIME_SPENT_TOTAL": "Totaal"
       },
       "F": {
         "C_DAY": "Dag",
@@ -1313,18 +1375,18 @@
         "GROUP_SCHEDULED_DATE": "Geplande datum",
         "GROUP_TAG": "Tag",
         "RESET_ALL": "Reset alles",
+        "SAVE_SORT": "Opslaan als standaard",
         "SCHEDULED_NEXT_MONTH": "Volgende maand",
         "SCHEDULED_NEXT_WEEK": "Volgende week",
         "SCHEDULED_THIS_MONTH": "Deze maand",
         "SCHEDULED_THIS_WEEK": "Deze week",
         "SCHEDULED_TODAY": "Vandaag",
         "SCHEDULED_TOMORROW": "Morgen",
+        "SORT": "Sorteren",
         "SORT_CREATION_DATE": "Creatiedatum",
         "SORT_DEFAULT": "Standaard",
         "SORT_NAME": "Naam",
-        "SAVE_SORT": "Opslaan als standaard",
         "SORT_SCHEDULED_DATE": "Geplande datum",
-        "SORT": "Sorteren",
         "TIME_1HOUR": "> 1 Uur",
         "TIME_2HOUR": "> 2 Uren",
         "TIME_10MIN": "> 10 Minuten",
@@ -1366,6 +1428,17 @@
         "TASK": "taak",
         "TRACK_TO": "Track naar:",
         "UNTRACKED_TIME": "Niet-bijgehouden tijd:"
+      }
+    },
+    "VOICE_REMINDER": {
+      "FORM": {
+        "HELP": "Herhaalt de geconfigureerde zin elke X bij het bijhouden van de tijd voor een taak.",
+        "L_INTERVAL": "Interval om zin te herhalen",
+        "L_TEXT": "Tekst",
+        "L_TEXT_DESCRIPTION": "Bijvoorbeeld: \"Werk aan ${currentTaskTitle}!\"",
+        "L_VOICE": "Selecteer een stem",
+        "L_VOICE_DESCRIPTION": "Kies een stem",
+        "TITLE": "Spraakherinnering"
       }
     },
     "WORKLOG": {
@@ -1451,10 +1524,12 @@
   "G": {
     "ADD": "Voeg  toe",
     "ADVANCED_CFG": "Geavanceerde Configuratie",
+    "APPLY": "Toepassen",
     "CANCEL": "annuleren",
     "CLOSE": "Sluiten",
     "COMPLETE": "Volledig",
     "CONFIRM": "Bevestigen",
+    "CONTINUE": "Doorgaan",
     "DELETE": "Verwijderen",
     "DISMISS": "Afwijzen",
     "DO_IT": "Doe het!",
@@ -1470,12 +1545,18 @@
     "MINUTES": "{{m}} minuten",
     "MOVE_BACKWARD": "Terug Bewegen",
     "MOVE_FORWARD": "Vooruit Bewegen",
+    "NEXT": "Volgende",
     "NO_CON": "Je bent momenteel offline. Maak opnieuw verbinding met internet.",
     "NONE": "Geen",
     "OK": "OK",
     "OVERDUE": "Achterstallig",
+    "PASSWORD_STRENGTH_FAIR": "Eerlijk",
+    "PASSWORD_STRENGTH_STRONG": "Sterk",
+    "PASSWORD_STRENGTH_WEAK": "Zwak",
+    "PROCESSING": "Verwerking",
     "REMOVE": "Verwijderen",
     "SAVE": "Opslaan",
+    "SHARE": "Delen",
     "SUBMIT": "Stuur  in",
     "TITLE": "Titel",
     "TODAY_TAG_TITLE": "Vandaag",
@@ -1489,12 +1570,14 @@
       "BOARDS": "Borden",
       "DONATE_PAGE": "Doneerpagina",
       "FOCUS_MODE": "Focusmodus",
+      "HABITS": "Gewoonten",
       "HELP": "Specifieke app-functies in- of uitschakelen in de hele gebruikersinterface.",
       "ISSUES_PANEL": "Problemenpaneel",
       "PLANNER": "Planner",
       "PROJECT_NOTES": "Projectnotities",
       "SCHEDULE": "Schema",
       "SCHEDULE_DAY_PANEL": "Schema Dag Paneel",
+      "SEARCH": "Zoeken",
       "SYNC_BUTTON": "Synchronisatieknop",
       "TIME_TRACKING": "Stopwatch Tijdregistratie",
       "TITLE": "App-functies",
@@ -1513,6 +1596,15 @@
       "CHECK_UPDATES": "Elke X controleren op updates op afstand",
       "HELP": "Je kunt kalenders integreren om eraan herinnerd te worden en ze toevoegen als taken binnen Super Productivity. De integratie maakt gebruik van de iCal-indeling. Om dit te laten werken moeten uw agenda's toegankelijk zijn via het internet of via het bestandssysteem.",
       "SHOW_BANNER_THRESHOLD": "Toon een melding X voor de gebeurtenis (leeg voor uitgeschakeld)"
+    },
+    "CLIPBOARD_IMAGES": {
+      "DELETE": "Afbeelding verwijderen",
+      "SELECT_PATH": "Selecteer map",
+      "SORT_BY": "Sorteer op",
+      "SORT_LARGEST": "Grootste eerst",
+      "SORT_NEWEST": "Nieuwste eerst",
+      "SORT_OLDEST": "Oudste eerst",
+      "SORT_SMALLEST": "Kleinste eerst"
     },
     "EVALUATION": {
       "IS_HIDE_EVALUATION_SHEET": "Evaluatieblad verbergen op dagelijkse samenvatting",
@@ -1619,6 +1711,7 @@
       "SV": "Zweeds",
       "TIME_LOCALE": "Datum- en tijdnotatie locale",
       "TIME_LOCALE_AUTO": "Systeemstandaard",
+      "TIME_LOCALE_CS_CZ": "Tsjechisch: 24-uurs, DD. MM. JJJJ",
       "TIME_LOCALE_DE_DE": "Duits: 24 uur, DD.MM.JJJJ",
       "TIME_LOCALE_DESCRIPTION": "OPMERKING: deze opties kunnen nu het tijdinvoertype (12/24 uur) niet wijzigen omdat dit wordt geregeld door uw besturingssysteem",
       "TIME_LOCALE_EN_GB": "Engels (VK): 24 uur, DD/MM/JJJJ",
@@ -1630,11 +1723,10 @@
       "TIME_LOCALE_KO_KR": "Koreaans: 12-uurs AM/PM, JJJJ. MM. DD",
       "TIME_LOCALE_PT_BR": "Portugees (Brazilië): 24-uurs, DD/MM/JJJJ",
       "TIME_LOCALE_RU_RU": "Russisch: 24-uurs, DD.MM.JJJJ",
-      "TIME_LOCALE_TR_TR": "Turks: 24-uurs, DD.MM.JJJJ",
-      "TIME_LOCALE_ZH_CN": "Chinees (Vereenvoudigd): 24-uurs, JJJJ/MM/DD",
-      "TIME_LOCALE_CS_CZ": "Tsjechisch: 24-uurs, DD. MM. JJJJ",
       "TIME_LOCALE_SK_SK": "Slovakisch: 24-uurs, DD. MM. JJJJ",
+      "TIME_LOCALE_TR_TR": "Turks: 24-uurs, DD.MM.JJJJ",
       "TIME_LOCALE_UK_UA": "Oekraïens: 24-uurs, DD.MM.JJJJ",
+      "TIME_LOCALE_ZH_CN": "Chinees (Vereenvoudigd): 24-uurs, JJJJ/MM/DD",
       "TITLE": "Taal",
       "TR": "Türkçe",
       "UK": "Українська",
@@ -1668,16 +1760,6 @@
       "THEME_SELECT_LABEL": "Selecteer thema",
       "TITLE": "Diverse instellingen"
     },
-    "TASKS": {
-      "DEFAULT_PROJECT": "Standaardproject om te gebruiken voor taken als er geen is opgegeven",
-      "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Voeg automatisch de tag voor vandaag toe aan taken",
-      "IS_AUTO_MARK_PARENT_AS_DONE": "Markeer de bovenliggende taak als voltooid wanneer alle subtaken zijn voltooid",
-      "IS_CONFIRM_BEFORE_DELETE": "Bevestig voordat u taken verwijdert",
-      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Markdown-opmaak inschakelen in taaknotities",
-      "IS_TRAY_SHOW_CURRENT": "Toon huidige taak in het systeemvak / statusmenu (alleen desktop mac/windows)",
-      "NOTES_TEMPLATE": "Sjabloon voor taaknotities bij het maken van nieuwe taken",
-      "TITLE": "Taken"
-    },
     "POMODORO": {
       "BREAK_DURATION": "Duur van korte pauzes",
       "CYCLES_BEFORE_LONGER_BREAK": "Start een langere pauze na X werksessies",
@@ -1700,6 +1782,7 @@
       "L_WORK_END": "Einde van de werkdag",
       "L_WORK_START": "Start van de werkdag",
       "LUNCH_BREAK_START_END_DESCRIPTION": "bijv. 13:00",
+      "MONTH": "Maand",
       "TITLE": "Tijdlijn",
       "WORK_START_END_DESCRIPTION": "bijv. 17:00"
     },
@@ -1732,6 +1815,16 @@
       "NOTIFICATION_TITLE": "Neem een pauze!",
       "SNOOZE_TIME": "Snoozetijd wanneer u wordt gevraagd om een pauze te nemen",
       "TITLE": "Pauzeherinnering"
+    },
+    "TASKS": {
+      "DEFAULT_PROJECT": "Standaardproject om te gebruiken voor taken als er geen is opgegeven",
+      "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Voeg automatisch de tag voor vandaag toe aan taken",
+      "IS_AUTO_MARK_PARENT_AS_DONE": "Markeer de bovenliggende taak als voltooid wanneer alle subtaken zijn voltooid",
+      "IS_CONFIRM_BEFORE_DELETE": "Bevestig voordat u taken verwijdert",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Markdown-opmaak inschakelen in taaknotities",
+      "IS_TRAY_SHOW_CURRENT": "Toon huidige taak in het systeemvak / statusmenu (alleen desktop mac/windows)",
+      "NOTES_TEMPLATE": "Sjabloon voor taaknotities bij het maken van nieuwe taken",
+      "TITLE": "Taken"
     },
     "TIME_TRACKING": {
       "HELP": "De herinnering voor tijdregistratie is een banner die wordt weergegeven als je bent vergeten om tijdregistratie te starten.",
@@ -1822,6 +1915,7 @@
     "DUPLICATE_PROJECT": "Duplicaat",
     "ENTER_FOCUS_MODE": "Voer Focusmodus in",
     "GO_TO_TASK_LIST": "Ga naar takenlijst",
+    "HABITS": "Gewoonten",
     "HELP": "Help",
     "HM": {
       "CALENDARS": "Howto: Kalenders verbinden",
@@ -1835,8 +1929,11 @@
     },
     "METRICS": "Metrische gegevens",
     "NO_TASKS_TO_TRACK": "Voeg eerst een taak toe om tijd bij te houden",
+    "NOTES": "Notities",
+    "OPEN_APP_FEATURES": "Open instellingen",
     "PLANNER": "Planner",
     "PROJECT_MENU": "Project Menu",
+    "PROJECT_SETTINGS": "Projectinstellingen",
     "PROJECTS": "Projecten",
     "QUICK_HISTORY": "Snelle geschiedenis",
     "SCHEDULE": "Schema",
@@ -1845,6 +1942,8 @@
     "SHARE_TASK_LIST_MARKDOWN": "De takenlijst delen",
     "SIDE_PANEL_MENU": "Zijpaneelmenu",
     "TAGS": "Tags",
+    "TASK_LIST": "Takenlijst",
+    "TASKS": "Taken",
     "TOGGLE_SHOW_ISSUE_PANEL": "Toon/Verberg Probleem Paneel",
     "TOGGLE_SHOW_NOTES": "Projectnotities tonen / verbergen",
     "TOGGLE_TRACK_TIME": "Start / stop volgtijd",
@@ -1857,6 +1956,7 @@
     "DETECTED_LEGACY": "Verouderde gegevens gedetecteerd. Wij migreren het voor u!",
     "E_MIGRATION_FAILED": "Migratie mislukt! met fout:",
     "E_RESTART_FAILED": "Automatisch opnieuw opstarten is mislukt. Start de app handmatig opnieuw!",
+    "STATUS_COMPLETE": "Migratie Voltooid!",
     "SUCCESS": "Migratie helemaal klaar! App nu opnieuw opstarten..."
   },
   "PDS": {
@@ -1933,6 +2033,7 @@
     "GRANT_PERMISSION": "Toestemming verlenen",
     "HOOKS": "Hooks",
     "ID": "ID:",
+    "INDEX_HTML_NOT_LOADED": "Plugin index.html niet geladen",
     "INSTALL_PLUGIN": "Plugin installeren",
     "INSTALL_WARNING": "Zorg ervoor dat u de bron van een plugin vertrouwt en de gevraagde machtigingen begrijpt voordat u een plugin installeert.",
     "INSTALLING": "Bezig met installeren...",
@@ -1992,7 +2093,14 @@
     "PRIVACY_POLICY": "Privébeleid",
     "PROJECT_SETTINGS": "Projectspecifieke instellingen",
     "PROVIDE_FEEDBACK": "Geef feedback",
+    "RELOAD": "Opnieuw laden",
     "SYNC_EXPORT": "Synchroniseren en exporteren",
+    "TABS": {
+      "GENERAL": "Algemeen",
+      "PLUGINS": "Plugins",
+      "PRODUCTIVITY": "Productiviteit",
+      "TASKS": "Taken"
+    },
     "TAG_SETTINGS": "Label specifieke instellingen"
   },
   "SCHEDULE": {
@@ -2004,6 +2112,17 @@
     "REPEATED_TASKS": "Herhaalde taken",
     "SCHEDULED_TASKS": "Geplande taken",
     "SCHEDULED_TASKS_WITH_TIME": "Geplande taken met herinnering"
+  },
+  "THEMES": {
+    "amber": "Amber",
+    "blue": "Blauw",
+    "green": "Groen",
+    "indigo": "Indigo",
+    "pink": "Roze",
+    "purple": "Paars",
+    "SELECT_THEME": "Selecteer thema",
+    "teal": "Groenblauw",
+    "yellow": "Geel"
   },
   "USER_PROFILES": {
     "ACTIVE": "Actief",

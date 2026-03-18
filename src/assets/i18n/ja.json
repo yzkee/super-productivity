@@ -141,17 +141,6 @@
       "TITLE": "🙈 ご容赦ください、しかし...",
       "TXT": "あなたがそれを好きなら、あなたはそれに良い評価を与えることによって、プロジェクトを大いに助けるでしょう、 <strong>!</strong>"
     },
-    "VOICE_REMINDER": {
-      "FORM": {
-        "HELP": "タスクの時間を追跡する際、設定されたフレーズをXごとに繰り返す。",
-        "L_INTERVAL": "フレーズを繰り返す間隔",
-        "L_TEXT": "テキスト",
-        "L_TEXT_DESCRIPTION": "例えば\"${currentTaskTitle}に取り組む！\"",
-        "L_VOICE": "ボイスを選択",
-        "L_VOICE_DESCRIPTION": "音声を選択する",
-        "TITLE": "音声リマインダー"
-      }
-    },
     "DROPBOX": {
       "S": {
         "OFFLINE": "Dropbox：オフラインのため、同期できません",
@@ -1269,18 +1258,18 @@
         "GROUP_SCHEDULED_DATE": "開催予定日",
         "GROUP_TAG": "タグ",
         "RESET_ALL": "すべてリセット",
+        "SAVE_SORT": "デフォルトとして保存",
         "SCHEDULED_NEXT_MONTH": "来月",
         "SCHEDULED_NEXT_WEEK": "来週",
         "SCHEDULED_THIS_MONTH": "今月",
         "SCHEDULED_THIS_WEEK": "今週",
         "SCHEDULED_TODAY": "今日",
         "SCHEDULED_TOMORROW": "明日",
+        "SORT": "ソート",
         "SORT_CREATION_DATE": "作成日",
         "SORT_DEFAULT": "デフォルト",
         "SORT_NAME": "名前",
-        "SAVE_SORT": "デフォルトとして保存",
         "SORT_SCHEDULED_DATE": "開催予定日",
-        "SORT": "ソート",
         "TIME_1HOUR": "> 1時間",
         "TIME_2HOUR": "> 2時間",
         "TIME_10MIN": "> 10分間",
@@ -1322,6 +1311,17 @@
         "TASK": "タスク",
         "TRACK_TO": "以下に追加する：",
         "UNTRACKED_TIME": "トラッキングしていない時間："
+      }
+    },
+    "VOICE_REMINDER": {
+      "FORM": {
+        "HELP": "タスクの時間を追跡する際、設定されたフレーズをXごとに繰り返す。",
+        "L_INTERVAL": "フレーズを繰り返す間隔",
+        "L_TEXT": "テキスト",
+        "L_TEXT_DESCRIPTION": "例えば\"${currentTaskTitle}に取り組む！\"",
+        "L_VOICE": "ボイスを選択",
+        "L_VOICE_DESCRIPTION": "音声を選択する",
+        "TITLE": "音声リマインダー"
       }
     },
     "WORKLOG": {
@@ -1550,6 +1550,7 @@
       "SK": "スロバキア語",
       "TIME_LOCALE": "時間フォーマットのロケージ",
       "TIME_LOCALE_AUTO": "システムデフォルト",
+      "TIME_LOCALE_CS_CZ": "チェコ語 - 24時間営業",
       "TIME_LOCALE_DE_DE": "ドイツ語 - 24時間営業",
       "TIME_LOCALE_DESCRIPTION": "時間のフォーマットのために場所を選びましょう。場所によって異なる規則(12時間と24時間のフォーマット)が使われています。",
       "TIME_LOCALE_EN_GB": "英語(イギリス) - 24時間放送",
@@ -1561,11 +1562,10 @@
       "TIME_LOCALE_KO_KR": "韓国語 - 午前12時間・午後放送",
       "TIME_LOCALE_PT_BR": "ポルトガル語(ブラジル) - 24時間営業",
       "TIME_LOCALE_RU_RU": "ロシア語 - 24時間営業",
-      "TIME_LOCALE_TR_TR": "トルコ - 24時間営業",
-      "TIME_LOCALE_ZH_CN": "中国語(簡体字) - 24時間対応",
-      "TIME_LOCALE_CS_CZ": "チェコ語 - 24時間営業",
       "TIME_LOCALE_SK_SK": "スロバキア語 - 24時間営業",
+      "TIME_LOCALE_TR_TR": "トルコ - 24時間営業",
       "TIME_LOCALE_UK_UA": "ウクライナ語 - 24時間営業",
+      "TIME_LOCALE_ZH_CN": "中国語(簡体字) - 24時間対応",
       "TITLE": "言語",
       "TR": "トルコ語",
       "UK": "Українська",
@@ -1595,16 +1595,6 @@
       "THEME_EXPERIMENTAL": "テーマ(実験的)",
       "THEME_SELECT_LABEL": "セレクト・テーマ",
       "TITLE": "その他の設定"
-    },
-    "TASKS": {
-      "DEFAULT_PROJECT": "デフォルトプロジェクト",
-      "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "自動的に今日の作業中のタスクを追加する",
-      "IS_AUTO_MARK_PARENT_AS_DONE": "すべてのサブタスクが完了したときに親タスクを自動的に完了としてマークする",
-      "IS_CONFIRM_BEFORE_DELETE": "タスクを削除する前に確認する",
-      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "タスクノートでMarkdown形式を有効にする",
-      "IS_TRAY_SHOW_CURRENT": "トレイ/ステータスメニューに現在のタスクを表示する（デスクトップのみ）",
-      "NOTES_TEMPLATE": "タスクノートテンプレート",
-      "TITLE": "タスク"
     },
     "POMODORO": {
       "BREAK_DURATION": "短い休憩時間",
@@ -1659,6 +1649,16 @@
       "NOTIFICATION_TITLE": "休憩する！",
       "SNOOZE_TIME": "休憩をとるように促されたときに時間をスヌーズする",
       "TITLE": "休憩リマインダー"
+    },
+    "TASKS": {
+      "DEFAULT_PROJECT": "デフォルトプロジェクト",
+      "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "自動的に今日の作業中のタスクを追加する",
+      "IS_AUTO_MARK_PARENT_AS_DONE": "すべてのサブタスクが完了したときに親タスクを自動的に完了としてマークする",
+      "IS_CONFIRM_BEFORE_DELETE": "タスクを削除する前に確認する",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "タスクノートでMarkdown形式を有効にする",
+      "IS_TRAY_SHOW_CURRENT": "トレイ/ステータスメニューに現在のタスクを表示する（デスクトップのみ）",
+      "NOTES_TEMPLATE": "タスクノートテンプレート",
+      "TITLE": "タスク"
     },
     "TIME_TRACKING": {
       "HELP": "タイムトラッキングリマインダーは、タイムトラッキングの開始を忘れた場合に表示されるバナーです。",

@@ -104,42 +104,22 @@
         "CALDAV_RESOURCE": "El nombre del recurso CalDav (el calendario)",
         "CALDAV_URL": "URL de CalDav (la URL base)",
         "CALDAV_USER": "Tu nombre de usuario de CalDav",
-        "IS_TRANSITION_ISSUES_ENABLED": "Completar automáticamente tareas de CalDav al completar la tarea"
+        "IS_TRANSITION_ISSUES_ENABLED": "Completar automáticamente tareas de CalDav al completar la tarea",
+        "TWO_WAY_SYNC_OFF": "APAGADO"
       },
       "FORM_SECTION": {
         "HELP": "<p>Aquí puedes configurar SuperProductivity para listar tareas de CalDav no completadas para un proyecto específico en el panel de creación de tareas en la vista de planificación diaria. Se listarán como sugerencias y proporcionarán un enlace a la tarea así como más información sobre ella.</p> <p>Además puedes añadir y sincronizar automáticamente todas las tareas no completadas a tu backlog de tareas.</p><p>Para que funcione con nextcloud en la aplicación web, es posible que necesites poner en la lista blanca \"https://app.super-productivity.com\" a través de la aplicación de nextcloud <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a>.</p>"
+      },
+      "ISSUE_CONTENT": {
+        "DESCRIPTION": "Descripción",
+        "LABELS": "Etiquetas",
+        "STATUS": "Estado",
+        "SUMMARY": "Resumen"
       },
       "S": {
         "CALENDAR_NOT_FOUND": "CalDav: Calendario \"{{calendarName}}\" no encontrado",
         "CALENDAR_READ_ONLY": "CalDav: El calendario \"{{calendarName}}\" es de solo lectura",
         "ISSUE_NOT_FOUND": "CalDav: La tarea \"{{issueId}}\" parece estar eliminada en el servidor."
-      }
-    },
-    "NEXTCLOUD_DECK": {
-      "FORM": {
-        "BASE_URL": "URL base de Nextcloud",
-        "USERNAME": "Tu nombre de usuario de Nextcloud",
-        "PASSWORD": "Tu contraseña de aplicación de Nextcloud",
-        "FILTER_BY_ASSIGNEE": "Importar solo las tarjetas asignadas a mí",
-        "IS_TRANSITION_ISSUES_ENABLED": "Sincronizar el estado de finalización y el título con Nextcloud Deck",
-        "POLL_INTERVAL_MINUTES": "Intervalo de sondeo (minutos)",
-        "TITLE_TEMPLATE": "Plantilla de título de tarea",
-        "TITLE_TEMPLATE_DESCRIPTION": "Variables: {CARD_TITLE}, {BOARD}, {COLUMN}, {ID}, {LABELS}. Ejemplo: [{BOARD}: {COLUMN}] {CARD_TITLE}. Déjalo en blanco para usar solo el título de la tarjeta."
-      },
-      "FORM_SECTION": {
-        "HELP": "Configura tu integración de Nextcloud Deck para importar tarjetas como tareas. Usa una contraseña de aplicación para la autenticación."
-      },
-      "ISSUE_CONTENT": {
-        "DECK_DESCRIPTION": "Descripción de Deck",
-        "STACK": "Pila",
-        "ASSIGNED_USERS": "Usuarios asignados",
-        "LABELS": "Etiquetas"
-      },
-      "S": {
-        "BOARD_NOT_FOUND": "Nextcloud Deck: Tablero no encontrado",
-        "CARD_NOT_FOUND": "Nextcloud Deck: La tarjeta \"{{issueId}}\" parece haber sido eliminada en el servidor.",
-        "ERR_CREDENTIALS_MISSING": "Introduce primero la URL, el nombre de usuario y la contraseña de Nextcloud.",
-        "ERR_LOAD_BOARDS": "No se pudieron cargar los tableros de Deck. Comprueba tus credenciales."
       }
     },
     "CALENDARS": {
@@ -163,6 +143,11 @@
         "CAL_PROVIDER_ERROR": "Error del proveedor de calendario: {{errTxt}}"
       }
     },
+    "CLIPBOARD_IMAGE": {
+      "PASTE_SUCCESS": "Imagen pegada con éxito",
+      "SIZE_EXCEEDED": "El tamaño ({{actualSize}}) excede el límite ({{maxSize}})",
+      "STORAGE_QUOTA_EXCEEDED": "Cuota excedida. Libera espacio."
+    },
     "CONFIG": {
       "S": {
         "UPDATE_SECTION": "Ajustes actualizados para <strong>{{sectionKey}}</strong>"
@@ -173,17 +158,6 @@
       "BTN_DONT_BOTHER": "No me molestes de nuevo",
       "TITLE": "🙈 Por favor, perdónanos, pero...",
       "TXT": "¡Ayudarías inmensamente al proyecto al <strong>darle una buena calificación, si te gusta!</strong>"
-    },
-    "VOICE_REMINDER": {
-      "FORM": {
-        "HELP": "Repite la frase configurada cada X cuando se rastrea tiempo en una tarea.",
-        "L_INTERVAL": "Intervalo para repetir la frase",
-        "L_TEXT": "Texto",
-        "L_TEXT_DESCRIPTION": "P. ej.: \"¡Trabaja en ${currentTaskTitle}!\"",
-        "L_VOICE": "Seleccionar una voz",
-        "L_VOICE_DESCRIPTION": "Elige una voz",
-        "TITLE": "Recordatorio de voz"
-      }
     },
     "DROPBOX": {
       "S": {
@@ -361,6 +335,9 @@
       },
       "DEFAULT_PROJECT_DESCRIPTION": "Proyecto asignado a tareas creadas desde incidencias.",
       "DEFAULT_PROJECT_LABEL": "Proyecto predeterminado de Super Productivity",
+      "DIALOG": {
+        "ADVANCED_CONFIG": "Configuración avanzada"
+      },
       "HOW_TO_GET_A_TOKEN": "¿Cómo obtener un token?",
       "ISSUE_CONTENT": {
         "ASSIGNEE": "Asignado",
@@ -399,6 +376,9 @@
         "ISSUE_UPDATE_SINGLE": "{{issueProviderName}}: Datos actualizados para \"{{issueTitle}}\"",
         "POLLING_BACKLOG": "{{issueProviderName}}: Sondeando nuevas {{issuesStr}}",
         "POLLING_CHANGES": "{{issueProviderName}}: Sondeando Cambios para {{issuesStr}}"
+      },
+      "TWO_WAY_SYNC": {
+        "OFF": "APAGADO"
       }
     },
     "ISSUE_PANEL": {
@@ -521,12 +501,10 @@
         "TRANSITION": "Jira: Establecer incidencia \"{{issueKey}}\" a \"{{name}}\"",
         "TRANSITION_SUCCESS": "Jira: Establecida incidencia {{issueKey}} a <strong>{{chosenTransition}}</strong>",
         "TRANSITIONS_LOADED": "Jira: Transiciones cargadas. Usa los selectores de abajo para asignarlas"
+      },
+      "STEPPER": {
+        "CREDENTIALS": "Credenciales"
       }
-    },
-    "CLIPBOARD_IMAGE": {
-      "PASTE_SUCCESS": "Imagen pegada con éxito",
-      "SIZE_EXCEEDED": "El tamaño ({{actualSize}}) excede el límite ({{maxSize}})",
-      "STORAGE_QUOTA_EXCEEDED": "Cuota excedida. Libera espacio."
     },
     "MARKDOWN_PASTE": {
       "CONFIRM_ADD_TO_SUB_TASK_NOTES": "¿Agregar la lista de markdown pegada a las notas de la subtarea \"{{parentTaskTitle}}\"?",
@@ -559,7 +537,8 @@
         "TIME_FRAME_2_WEEKS": "2 semanas",
         "TIME_FRAME_LABEL": "Marco de tiempo",
         "TIME_FRAME_MAX": "Máx",
-        "TIME_SPENT": "Tiempo Dedicado"
+        "TIME_SPENT": "Tiempo Dedicado",
+        "YEAR": "Año"
       },
       "EVAL_FORM": {
         "DAILY_STATE": "Estado Diario",
@@ -610,6 +589,33 @@
         "PLACEHOLDER_4": "¿Qué tarea te dio energía? ¿Cuál te la drenó?",
         "PLACEHOLDER_5": "Una cosa para repetir. Una cosa para cambiar.",
         "TITLE": "Nota de Reflexión"
+      }
+    },
+    "NEXTCLOUD_DECK": {
+      "FORM": {
+        "BASE_URL": "URL base de Nextcloud",
+        "FILTER_BY_ASSIGNEE": "Importar solo las tarjetas asignadas a mí",
+        "IS_TRANSITION_ISSUES_ENABLED": "Sincronizar el estado de finalización y el título con Nextcloud Deck",
+        "PASSWORD": "Tu contraseña de aplicación de Nextcloud",
+        "POLL_INTERVAL_MINUTES": "Intervalo de sondeo (minutos)",
+        "TITLE_TEMPLATE": "Plantilla de título de tarea",
+        "TITLE_TEMPLATE_DESCRIPTION": "Variables: {CARD_TITLE}, {BOARD}, {COLUMN}, {ID}, {LABELS}. Ejemplo: [{BOARD}: {COLUMN}] {CARD_TITLE}. Déjalo en blanco para usar solo el título de la tarjeta.",
+        "USERNAME": "Tu nombre de usuario de Nextcloud"
+      },
+      "FORM_SECTION": {
+        "HELP": "Configura tu integración de Nextcloud Deck para importar tarjetas como tareas. Usa una contraseña de aplicación para la autenticación."
+      },
+      "ISSUE_CONTENT": {
+        "ASSIGNED_USERS": "Usuarios asignados",
+        "DECK_DESCRIPTION": "Descripción de Deck",
+        "LABELS": "Etiquetas",
+        "STACK": "Pila"
+      },
+      "S": {
+        "BOARD_NOT_FOUND": "Nextcloud Deck: Tablero no encontrado",
+        "CARD_NOT_FOUND": "Nextcloud Deck: La tarjeta \"{{issueId}}\" parece haber sido eliminada en el servidor.",
+        "ERR_CREDENTIALS_MISSING": "Introduce primero la URL, el nombre de usuario y la contraseña de Nextcloud.",
+        "ERR_LOAD_BOARDS": "No se pudieron cargar los tableros de Deck. Comprueba tus credenciales."
       }
     },
     "NOTE": {
@@ -740,8 +746,8 @@
       "BREAK_IS_DONE": "¡Tu descanso ha terminado!"
     },
     "PRE_MIGRATION": {
-      "DIALOG_TITLE": "Actualización del Sistema",
-      "DIALOG_MESSAGE": "Estamos actualizando cómo se almacenan tus datos para mejorar la fiabilidad de la sincronización.<br><br>Se descargará automáticamente una copia de seguridad de tus datos. Puedes usar esta copia para restaurar tus datos si es necesario (Archivo > Importar)."
+      "DIALOG_MESSAGE": "Estamos actualizando cómo se almacenan tus datos para mejorar la fiabilidad de la sincronización.<br><br>Se descargará automáticamente una copia de seguridad de tus datos. Puedes usar esta copia para restaurar tus datos si es necesario (Archivo > Importar).",
+      "DIALOG_TITLE": "Actualización del Sistema"
     },
     "PROJECT": {
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
@@ -811,6 +817,11 @@
       "WEEK_TITLE": "Semana {{nr}} ({{timeSpent}})"
     },
     "REDMINE": {
+      "DIALOG_TRACK_TIME": {
+        "ACTIVITY": "Actividad",
+        "STARTED": "Comenzado",
+        "TIME_SPENT": "Tiempo gastado"
+      },
       "FORM": {
         "API_KEY": "Clave de acceso a la API",
         "HOST": "Host (por ejemplo: https://redmine.org)",
@@ -855,6 +866,8 @@
       },
       "END": "Fin del Trabajo",
       "INSERT_BEFORE": "Antes",
+      "MONTH": "Mes",
+      "NOW": "Ahora",
       "PLAN_END_DAY": "Fin de {{date}}",
       "PLAN_START_DAY": "Inicio de {{date}}",
       "SHIFT_KEY_INFO": "Mantén pulsado Shift para alternar el modo de planificación diaria",
@@ -891,6 +904,10 @@
         "TYPE_CLICK_COUNTER": "Contador de Clics",
         "TYPE_REPEATED_COUNTDOWN": "Cuenta Atrás Repetida",
         "TYPE_STOPWATCH": "Cronómetro"
+      },
+      "HABIT_TRACKER": {
+        "NEXT_WEEK": "Próxima semana",
+        "TODAY": "Hoy"
       },
       "S": {
         "GOAL_REACHED_1": "¡Alcanzaste tu objetivo para hoy!",
@@ -939,12 +956,36 @@
         "VECTOR_COMPARISON_LOCAL_GREATER": "Local > Remoto",
         "VECTOR_COMPARISON_LOCAL_LESS": "Local < Remoto"
       },
+      "D_DATA_REPAIR_CONFIRM": {
+        "MSG": "Tus datos parecen estar dañados. ¿Quieres intentar una reparación automática? Esto podría resultar en una pérdida menor de datos.",
+        "TITLE": "Daño de datos detectado"
+      },
+      "D_DATA_REPAIRED": {
+        "MSG": "Tus datos requirieron reparación automática ({{count}} problemas arreglados). Esto no debería ocurrir normalmente. Si sucede repetidamente, por favor repórtalo.",
+        "TITLE": "Reparación de datos ejecutada",
+        "UNKNOWN_ERROR": "Error de sincronización desconocido: {{err}}"
+      },
       "D_DECRYPT_ERROR": {
         "BTN_OVER_WRITE_REMOTE": "Cambiar y Sobrescribir Remoto",
         "CHANGE_PW_AND_DECRYPT": "Cambiar e Intentar Descifrar",
         "P1": "Tus datos remotos están encriptados y el descifrado ha fallado. ¡Por favor introduce la contraseña correcta!",
         "P2": "O también puedes cambiar tu contraseña, lo que sobrescribirá todos los datos remotos.",
         "PASSWORD": "Contraseña"
+      },
+      "D_ENTER_PASSWORD": {
+        "BTN_FORCE_OVERWRITE": "Forzar sobrescritura del servidor",
+        "BTN_SAVE_AND_SYNC": "Guardar y Sincronizar",
+        "FORCE_OVERWRITE_CONFIRM": "Esto <strong>eliminará todos los datos en el servidor</strong> y subirá tus datos locales con la nueva contraseña. Los cambios locales no sincronizados podrían perderse. ¿Continuar?",
+        "FORCE_OVERWRITE_INFO": "Si no sabes la contraseña antigua, puedes sobrescribir el servidor con tus datos locales y una nueva contraseña.",
+        "FORCE_OVERWRITE_TITLE": "¿Sobrescribir datos del servidor?",
+        "MESSAGE": "El servidor de sincronización contiene datos cifrados, pero no hay contraseña configurada en este dispositivo. Por favor, introduce tu contraseña para descifrar y sincronizar tus datos.",
+        "PASSWORD_LABEL": "Contraseña de cifrado",
+        "TITLE": "Contraseña de cifrado requerida"
+      },
+      "D_FRESH_CLIENT_CONFIRM": {
+        "MESSAGE": "Parece ser una instalación nueva. Se encontraron datos remotos con {{count}} cambios. ¿Quieres descargar y aplicar estos datos?",
+        "OK": "Descargar datos remotos",
+        "TITLE": "Sincronización inicial"
       },
       "D_INCOMPLETE_SYNC": {
         "BTN_CLOSE_APP": "Cerrar Aplicación",
@@ -963,44 +1004,83 @@
         "SAVE_AND_ENABLE": "Guardar y Habilitar Sincronización",
         "TITLE": "Configurar Sincronización"
       },
-      "D_ENTER_PASSWORD": {
-        "TITLE": "Contraseña de cifrado requerida",
-        "MESSAGE": "El servidor de sincronización contiene datos cifrados, pero no hay contraseña configurada en este dispositivo. Por favor, introduce tu contraseña para descifrar y sincronizar tus datos.",
-        "PASSWORD_LABEL": "Contraseña de cifrado",
-        "BTN_SAVE_AND_SYNC": "Guardar y Sincronizar",
-        "FORCE_OVERWRITE_INFO": "Si no sabes la contraseña antigua, puedes sobrescribir el servidor con tus datos locales y una nueva contraseña.",
-        "FORCE_OVERWRITE_TITLE": "¿Sobrescribir datos del servidor?",
-        "FORCE_OVERWRITE_CONFIRM": "Esto <strong>eliminará todos los datos en el servidor</strong> y subirá tus datos locales con la nueva contraseña. Los cambios locales no sincronizados podrían perderse. ¿Continuar?",
-        "BTN_FORCE_OVERWRITE": "Forzar sobrescritura del servidor"
-      },
-      "D_FRESH_CLIENT_CONFIRM": {
-        "MESSAGE": "Parece ser una instalación nueva. Se encontraron datos remotos con {{count}} cambios. ¿Quieres descargar y aplicar estos datos?",
-        "OK": "Descargar datos remotos",
-        "TITLE": "Sincronización inicial"
-      },
-      "D_SYNC_IMPORT_CONFLICT": {
-        "TITLE": "Conflicto de sincronización detectado",
-        "MESSAGE": "Tus datos locales fueron importados/restaurados, pero el servidor tiene {{filteredOpCount}} cambios de otros dispositivos.",
-        "EXPLANATION": "Estos cambios se hicieron sin conocimiento de tu importación y no pueden fusionarse automáticamente.",
-        "IMPORT_DATE": "Fecha de importación",
-        "FILTERED_CHANGES": "Cambios filtrados",
-        "USE_LOCAL": "Usar mis datos",
-        "USE_REMOTE": "Usar datos del servidor"
-      },
       "D_LOCAL_DATA_REPLACE_CONFIRM": {
         "MESSAGE": "Tienes {{count}} cambios locales no sincronizados que serán reemplazados por datos remotos. ¿Quieres continuar?",
         "TITLE": "¿Reemplazar datos locales?"
       },
-      "D_DATA_REPAIRED": {
-        "TITLE": "Reparación de datos ejecutada",
-        "MSG": "Tus datos requirieron reparación automática ({{count}} problemas arreglados). Esto no debería ocurrir normalmente. Si sucede repetidamente, por favor repórtalo.",
-        "UNKNOWN_ERROR": "Error de sincronización desconocido: {{err}}"
+      "D_RESTORE": {
+        "BTN_RESTORE": "Restaurar"
       },
-      "D_DATA_REPAIR_CONFIRM": {
-        "TITLE": "Daño de datos detectado",
-        "MSG": "Tus datos parecen estar dañados. ¿Quieres intentar una reparación automática? Esto podría resultar en una pérdida menor de datos."
+      "D_SERVER_MIGRATION_CONFIRM": {
+        "SKIP": "Saltar"
+      },
+      "D_SYNC_IMPORT_CONFLICT": {
+        "EXPLANATION": "Estos cambios se hicieron sin conocimiento de tu importación y no pueden fusionarse automáticamente.",
+        "FILTERED_CHANGES": "Cambios filtrados",
+        "IMPORT_DATE": "Fecha de importación",
+        "MESSAGE": "Tus datos locales fueron importados/restaurados, pero el servidor tiene {{filteredOpCount}} cambios de otros dispositivos.",
+        "TITLE": "Conflicto de sincronización detectado",
+        "USE_LOCAL": "Usar mis datos",
+        "USE_REMOTE": "Usar datos del servidor"
       },
       "FORM": {
+        "BTN_CHANGE_PASSWORD": "Cambiar contraseña",
+        "DROPBOX": {
+          "L_ACCESS_TOKEN": "Token de acceso (generado desde el Código de Auth)"
+        },
+        "FILE_BASED": {
+          "BTN_CHANGE_PASSWORD": "Cambiar Contraseña",
+          "BTN_DISABLE_ENCRYPTION": "Deshabilitar Cifrado",
+          "BTN_ENABLE_ENCRYPTION": "Habilitar Cifrado",
+          "BTN_REMOVE_ENCRYPTION": "Eliminar Cifrado",
+          "CHANGE_PASSWORD_SUCCESS": "Contraseña de cifrado cambiada con éxito",
+          "CHANGE_PASSWORD_WARNING": "ADVERTENCIA: Esto resubirá tus datos con la nueva contraseña. Los demás dispositivos la necesitarán antes de sincronizar.",
+          "DISABLE_ENCRYPTION_ITEM_1": "Tus datos actuales se resubirán sin cifrado",
+          "DISABLE_ENCRYPTION_ITEM_2": "Los demás dispositivos sincronizarán los datos sin cifrar",
+          "DISABLE_ENCRYPTION_ITEM_3": "Puedes reactivar el cifrado en cualquier momento",
+          "DISABLE_ENCRYPTION_NOTE": "Tus datos locales NO se borrarán.",
+          "DISABLE_ENCRYPTION_SUCCESS": "Cifrado deshabilitado con éxito",
+          "DISABLE_ENCRYPTION_TITLE": "¿Deshabilitar Cifrado?",
+          "DISABLE_ENCRYPTION_WARNING": "ADVERTENCIA: Esto resubirá tus datos sin cifrado.",
+          "DISABLE_ENCRYPTION_WHAT_HAPPENS": "Qué ocurrirá:",
+          "ENABLE_ENCRYPTION_FILE_BASED_ONLY": "Esta función solo está disponible para proveedores de sincronización basados en archivos.",
+          "ENABLE_ENCRYPTION_ITEM_1": "Tus datos actuales se resubirán cifrados",
+          "ENABLE_ENCRYPTION_ITEM_2": "Los demás dispositivos necesitarán esta contraseña",
+          "ENABLE_ENCRYPTION_ITEM_3": "Puedes deshabilitar el cifrado en cualquier momento",
+          "ENABLE_ENCRYPTION_NOT_READY": "La sincronización no está habilitada o configurada.",
+          "ENABLE_ENCRYPTION_NOTE": "Tus datos locales NO se borrarán.",
+          "ENABLE_ENCRYPTION_PASSWORD_REQUIRED": "Por favor introduce una contraseña de cifrado primero.",
+          "ENABLE_ENCRYPTION_SUCCESS": "Cifrado habilitado con éxito",
+          "ENABLE_ENCRYPTION_TITLE": "¿Habilitar Cifrado?",
+          "ENABLE_ENCRYPTION_WARNING": "ADVERTENCIA: Esto resubirá tus datos con cifrado. Si olvidas tu contraseña, tus datos no podrán recuperarse.",
+          "ENABLE_ENCRYPTION_WHAT_HAPPENS": "Qué ocurrirá:",
+          "L_CHANGE_ENCRYPTION_PASSWORD": "Cambiar Contraseña de Cifrado",
+          "L_CONFIRM_PASSWORD": "Confirmar Contraseña",
+          "L_NEW_PASSWORD": "Nueva Contraseña",
+          "L_REMOVE_ENCRYPTION": "O eliminar cifrado",
+          "PASSWORD_MIN_LENGTH": "La contraseña debe tener al menos 8 caracteres",
+          "PASSWORDS_DONT_MATCH": "Las contraseñas no coinciden",
+          "REMOVE_ENCRYPTION_WARNING": "Eliminar el cifrado resubirá tus datos sin cifrar. Todos los dispositivos necesitarán reconfigurarse."
+        },
+        "GOOGLE": {
+          "L_SYNC_FILE_NAME": "Nombre de archivo de sincronización"
+        },
+        "IMPORT_ENCRYPTION_WARNING": {
+          "BTN_CONTINUE": "Importar y cambiar cifrado",
+          "CURRENT_STATE": "Tu configuración actual",
+          "ENCRYPTION_DISABLED": "No cifrado",
+          "ENCRYPTION_ENABLED": "Cifrado",
+          "IMPORTED_STATE": "Tras importar",
+          "ITEM_1": "Todo el historial y copias del servidor se borrarán permanentemente",
+          "ITEM_2": "Tus datos importados se subirán con la nueva configuración",
+          "ITEM_3": "Los demás dispositivos deben sincronizar y actualizar sus ajustes",
+          "NOTE": "Tus datos locales serán reemplazados por los importados independientemente de esta elección.",
+          "NOTE_DISABLING": "Importante: Sin cifrado, cualquiera con acceso a tu servidor puede leer tus datos.",
+          "NOTE_ENABLING": "Importante: El cifrado requiere contraseña. Si la olvidas, tus datos NO se podrán recuperar.",
+          "TITLE": "La configuración de cifrado cambiará",
+          "WARNING_TEXT": "La copia que importas tiene ajustes de cifrado diferentes. Los datos cifrados y no cifrados no pueden coexistir, así que se borrarán los datos del servidor.",
+          "WHAT_HAPPENS": "Qué ocurrirá:"
+        },
         "L_ENABLE_COMPRESSION": "Habilitar Compresión (transferencia de datos más rápida)",
         "L_ENABLE_ENCRYPTION": "Habilitar cifrado de extremo a extremo (experimental) – Haz que tus datos sean inaccesibles para tu proveedor de sincronización",
         "L_ENABLE_SYNCING": "Habilitar Sincronización",
@@ -1009,18 +1089,65 @@
         "L_SYNC_INTERVAL": "Intervalo de Sincronización",
         "L_SYNC_PROVIDER": "Proveedor de Sincronización",
         "LOCAL_FILE": {
-          "L_SYNC_FOLDER_PATH": "Ruta de la carpeta de sincronización",
           "INFO_TEXT": "La sincronización local guarda datos en una carpeta de tu dispositivo. <strong>Importante:</strong> No uses herramientas de sincronización de archivos como Syncthing o Resilio para sincronizar esta carpeta entre dispositivos, pueden causar conflictos. Para sincronización multidispositivo usa WebDAV, Dropbox o SuperSync.",
-          "L_SYNC_FILE_PATH_PERMISSION_VALIDATION": "Necesita permiso de acceso a archivos"
+          "L_SYNC_FILE_PATH_PERMISSION_VALIDATION": "Necesita permiso de acceso a archivos",
+          "L_SYNC_FOLDER_PATH": "Ruta de la carpeta de sincronización"
+        },
+        "SUPER_SYNC": {
+          "ACCESS_TOKEN_DESCRIPTION": "Pega el token que copiaste de la página de login",
+          "BTN_CHANGE_PASSWORD": "Cambiar contraseña",
+          "BTN_DISABLE_ENCRYPTION": "Deshabilitar Cifrado",
+          "BTN_ENABLE_ENCRYPTION": "Habilitar Cifrado",
+          "BTN_FORCE_OVERWRITE": "Forzar sobrescritura del servidor",
+          "BTN_GET_TOKEN": "Abrir servidor y obtener token",
+          "CHANGE_PASSWORD_SUCCESS": "Contraseña de cifrado cambiada con éxito",
+          "CHANGE_PASSWORD_WARNING": "ADVERTENCIA: Esto eliminará permanentemente TODO el historial y copias en el servidor. Versiones previas no podrán recuperarse. Tus datos actuales se resubirán con la nueva contraseña. Los demás dispositivos necesitarán la nueva contraseña.",
+          "DISABLE_ENCRYPTION_ENABLE_FIRST": "Por favor habilita la sincronización y guarda tu configuración de SuperSync primero.",
+          "DISABLE_ENCRYPTION_ITEM_1": "Todo el historial y copias del servidor serán eliminados",
+          "DISABLE_ENCRYPTION_ITEM_2": "Tus datos actuales se resubirán sin cifrado",
+          "DISABLE_ENCRYPTION_ITEM_3": "Los demás dispositivos sincronizarán los datos sin cifrar",
+          "DISABLE_ENCRYPTION_NOT_READY": "La sincronización no está habilitada o configurada.",
+          "DISABLE_ENCRYPTION_NOTE": "Tus datos locales NO se borrarán. Puedes reactivar el cifrado en cualquier momento.",
+          "DISABLE_ENCRYPTION_SUCCESS": "Cifrado deshabilitado con éxito",
+          "DISABLE_ENCRYPTION_SUPERSYNC_ONLY": "Esta función solo está disponible para SuperSync.",
+          "DISABLE_ENCRYPTION_TITLE": "¿Deshabilitar cifrado?",
+          "DISABLE_ENCRYPTION_WARNING": "ADVERTENCIA: Esto borrará permanentemente TODOS los datos cifrados del servidor. Es necesario porque las operaciones cifradas no pueden mezclarse con las no cifradas.",
+          "DISABLE_ENCRYPTION_WHAT_HAPPENS": "Qué ocurrirá:",
+          "E2E_ENCRYPTION_DESCRIPTION": "Será más lento, pero más seguro",
+          "ENABLE_ENCRYPTION_ITEM_1": "Todo el historial y copias del servidor serán eliminados",
+          "ENABLE_ENCRYPTION_ITEM_2": "Tus datos actuales se resubirán con cifrado",
+          "ENABLE_ENCRYPTION_ITEM_3": "Los demás dispositivos necesitarán esta contraseña",
+          "ENABLE_ENCRYPTION_NOT_READY": "La sincronización no está habilitada o configurada.",
+          "ENABLE_ENCRYPTION_NOTE": "Tus datos locales NO se borrarán. Puedes deshabilitar el cifrado en cualquier momento.",
+          "ENABLE_ENCRYPTION_PASSWORD_REQUIRED": "Por favor introduce una contraseña de cifrado primero.",
+          "ENABLE_ENCRYPTION_SUCCESS": "Cifrado habilitado con éxito",
+          "ENABLE_ENCRYPTION_SUPERSYNC_ONLY": "Esta función solo está disponible para SuperSync.",
+          "ENABLE_ENCRYPTION_TITLE": "¿Habilitar Cifrado?",
+          "ENABLE_ENCRYPTION_WARNING": "ADVERTENCIA: Esto borrará permanentemente TODOS los datos no cifrados del servidor. Es necesario porque no se pueden mezclar operaciones. Si olvidas tu contraseña, tus datos no podrán recuperarse.",
+          "ENABLE_ENCRYPTION_WHAT_HAPPENS": "Qué ocurrirá:",
+          "ENCRYPTION_WARNING": "ADVERTENCIA: Si olvidas tu contraseña de cifrado, tus datos no podrán recuperarse. Esta contraseña es distinta a la de tu login. Debes usar la misma en todos los dispositivos.",
+          "FORCE_OVERWRITE_CONFIRM": "Esto <strong>eliminará todos los datos del servidor</strong> y subirá tus datos locales con la nueva contraseña. Los cambios locales no sincronizados podrían perderse. ¿Estás seguro de continuar?",
+          "FORCE_OVERWRITE_INFO": "Si no puedes sincronizar porque no sabes la contraseña actual, puedes sobrescribir el servidor con tus datos locales y una nueva contraseña.",
+          "FORCE_OVERWRITE_TITLE": "¿Sobrescribir datos del servidor?",
+          "INFO_TEXT": "SuperSync mantiene tus tareas sincronizadas en todos tus dispositivos en tiempo real. Tus datos se guardan de forma segura en el servidor. Nota: SuperSync está actualmente en Beta.",
+          "L_ACCESS_TOKEN": "Token de Acceso",
+          "L_CHANGE_ENCRYPTION_PASSWORD": "Cambiar contraseña de cifrado",
+          "L_CONFIRM_PASSWORD": "Confirmar contraseña",
+          "L_ENABLE_E2E_ENCRYPTION": "Habilitar cifrado de extremo a extremo",
+          "L_NEW_PASSWORD": "Nueva contraseña de cifrado",
+          "L_REMOVE_ENCRYPTION": "O eliminar cifrado",
+          "L_SERVER_URL": "URL del Servidor",
+          "LOGIN_INSTRUCTIONS": "Haz clic abajo para abrir la página de login. Tras iniciar sesión, copia tu token de acceso y pégalo aquí.",
+          "PASSWORD_MIN_LENGTH": "La contraseña debe tener al menos 8 caracteres",
+          "PASSWORDS_DONT_MATCH": "Las contraseñas no coinciden",
+          "REMOVE_ENCRYPTION_WARNING": "Eliminar el cifrado borrará todos los datos del servidor y resubirá tus datos sin cifrar. Todos los dispositivos necesitarán reconfigurarse.",
+          "SERVER_URL_DESCRIPTION": "Deja tal cual para el servidor oficial, o introduce una URL personalizada",
+          "SETUP_ENCRYPTION_BTN": "Establecer contraseña"
         },
         "TITLE": "Sincronización",
-        "DROPBOX": {
-          "L_ACCESS_TOKEN": "Token de acceso (generado desde el Código de Auth)"
-        },
-        "GOOGLE": {
-          "L_SYNC_FILE_NAME": "Nombre de archivo de sincronización"
-        },
         "WEB_DAV": {
+          "CONDITIONAL_HEADER_WARNING_MSG": "Tu servidor WebDAV no soporta cabeceras condicionales. Super Productivity no puede detectar cambios concurrentes durante la subida.<br><br>La sincronización funcionará, pero hay un pequeño riesgo de conflictos si cambias datos en varios dispositivos a la vez.",
+          "CONDITIONAL_HEADER_WARNING_TITLE": "Seguridad de sincronización reducida",
           "CORS_INFO": "<strong>Hacerlo funcionar en el navegador:</strong> Para hacer que esto funcione en el navegador necesitas poner en la lista blanca a Super Productivity para solicitudes CORS en tu servidor webdav. ¡Esto puede tener implicaciones negativas de seguridad! Para nextcloud por favor <a href='https://github.com/nextcloud/server/issues/3131'>consulta este hilo para más información</a>. Un enfoque para hacer que esto funcione en el móvil es poner en la lista blanca \"https://app.super-productivity.com\" a través de la app nextcloud <a href='https://apps.nextcloud.com/apps/webapppassword'>webapppassword<a>. ¡Úsalo bajo tu propio riesgo!</p>",
           "D_SYNC_FOLDER_PATH": "Ruta relativa a la raíz del servidor WebDAV donde se almacenarán los archivos de sincronización (por ejemplo, '/super-productivity' o '/'). Esta NO es la ruta interna de su servidor.",
           "INFO": "Las implementaciones de WebDAV difieren mucho desafortunadamente. Se sabe que Super Productivity funciona bien con Nextcloud, <strong>pero podría no funcionar con tu proveedor</strong>.",
@@ -1031,173 +1158,71 @@
           "L_USER_NAME": "Nombre de usuario",
           "S_FILL_ALL_FIELDS": "Por favor, complete primero todos los campos de WebDAV",
           "S_TEST_FAIL": "Prueba de conexión fallida: {{error}} - URL objetivo: {{url}}",
-          "S_TEST_SUCCESS": "¡Prueba de conexión exitosa! URL objetivo: {{url}}",
-          "CONDITIONAL_HEADER_WARNING_TITLE": "Seguridad de sincronización reducida",
-          "CONDITIONAL_HEADER_WARNING_MSG": "Tu servidor WebDAV no soporta cabeceras condicionales. Super Productivity no puede detectar cambios concurrentes durante la subida.<br><br>La sincronización funcionará, pero hay un pequeño riesgo de conflictos si cambias datos en varios dispositivos a la vez."
-        },
-        "SUPER_SYNC": {
-          "INFO_TEXT": "SuperSync mantiene tus tareas sincronizadas en todos tus dispositivos en tiempo real. Tus datos se guardan de forma segura en el servidor. Nota: SuperSync está actualmente en Beta.",
-          "L_SERVER_URL": "URL del Servidor",
-          "SERVER_URL_DESCRIPTION": "Deja tal cual para el servidor oficial, o introduce una URL personalizada",
-          "LOGIN_INSTRUCTIONS": "Haz clic abajo para abrir la página de login. Tras iniciar sesión, copia tu token de acceso y pégalo aquí.",
-          "BTN_GET_TOKEN": "Abrir servidor y obtener token",
-          "L_ACCESS_TOKEN": "Token de Acceso",
-          "ACCESS_TOKEN_DESCRIPTION": "Pega el token que copiaste de la página de login",
-          "L_ENABLE_E2E_ENCRYPTION": "Habilitar cifrado de extremo a extremo",
-          "E2E_ENCRYPTION_DESCRIPTION": "Será más lento, pero más seguro",
-          "ENCRYPTION_WARNING": "ADVERTENCIA: Si olvidas tu contraseña de cifrado, tus datos no podrán recuperarse. Esta contraseña es distinta a la de tu login. Debes usar la misma en todos los dispositivos.",
-          "L_CHANGE_ENCRYPTION_PASSWORD": "Cambiar contraseña de cifrado",
-          "CHANGE_PASSWORD_WARNING": "ADVERTENCIA: Esto eliminará permanentemente TODO el historial y copias en el servidor. Versiones previas no podrán recuperarse. Tus datos actuales se resubirán con la nueva contraseña. Los demás dispositivos necesitarán la nueva contraseña.",
-          "FORCE_OVERWRITE_INFO": "Si no puedes sincronizar porque no sabes la contraseña actual, puedes sobrescribir el servidor con tus datos locales y una nueva contraseña.",
-          "FORCE_OVERWRITE_TITLE": "¿Sobrescribir datos del servidor?",
-          "FORCE_OVERWRITE_CONFIRM": "Esto <strong>eliminará todos los datos del servidor</strong> y subirá tus datos locales con la nueva contraseña. Los cambios locales no sincronizados podrían perderse. ¿Estás seguro de continuar?",
-          "CHANGE_PASSWORD_SUCCESS": "Contraseña de cifrado cambiada con éxito",
-          "L_NEW_PASSWORD": "Nueva contraseña de cifrado",
-          "L_CONFIRM_PASSWORD": "Confirmar contraseña",
-          "PASSWORDS_DONT_MATCH": "Las contraseñas no coinciden",
-          "PASSWORD_MIN_LENGTH": "La contraseña debe tener al menos 8 caracteres",
-          "BTN_CHANGE_PASSWORD": "Cambiar contraseña",
-          "BTN_FORCE_OVERWRITE": "Forzar sobrescritura del servidor",
-          "L_REMOVE_ENCRYPTION": "O eliminar cifrado",
-          "REMOVE_ENCRYPTION_WARNING": "Eliminar el cifrado borrará todos los datos del servidor y resubirá tus datos sin cifrar. Todos los dispositivos necesitarán reconfigurarse.",
-          "DISABLE_ENCRYPTION_TITLE": "¿Deshabilitar cifrado?",
-          "DISABLE_ENCRYPTION_WARNING": "ADVERTENCIA: Esto borrará permanentemente TODOS los datos cifrados del servidor. Es necesario porque las operaciones cifradas no pueden mezclarse con las no cifradas.",
-          "DISABLE_ENCRYPTION_WHAT_HAPPENS": "Qué ocurrirá:",
-          "DISABLE_ENCRYPTION_ITEM_1": "Todo el historial y copias del servidor serán eliminados",
-          "DISABLE_ENCRYPTION_ITEM_2": "Tus datos actuales se resubirán sin cifrado",
-          "DISABLE_ENCRYPTION_ITEM_3": "Los demás dispositivos sincronizarán los datos sin cifrar",
-          "DISABLE_ENCRYPTION_NOTE": "Tus datos locales NO se borrarán. Puedes reactivar el cifrado en cualquier momento.",
-          "BTN_DISABLE_ENCRYPTION": "Deshabilitar Cifrado",
-          "DISABLE_ENCRYPTION_SUCCESS": "Cifrado deshabilitado con éxito",
-          "DISABLE_ENCRYPTION_NOT_READY": "La sincronización no está habilitada o configurada.",
-          "DISABLE_ENCRYPTION_SUPERSYNC_ONLY": "Esta función solo está disponible para SuperSync.",
-          "DISABLE_ENCRYPTION_ENABLE_FIRST": "Por favor habilita la sincronización y guarda tu configuración de SuperSync primero.",
-          "ENABLE_ENCRYPTION_TITLE": "¿Habilitar Cifrado?",
-          "ENABLE_ENCRYPTION_WARNING": "ADVERTENCIA: Esto borrará permanentemente TODOS los datos no cifrados del servidor. Es necesario porque no se pueden mezclar operaciones. Si olvidas tu contraseña, tus datos no podrán recuperarse.",
-          "ENABLE_ENCRYPTION_WHAT_HAPPENS": "Qué ocurrirá:",
-          "ENABLE_ENCRYPTION_ITEM_1": "Todo el historial y copias del servidor serán eliminados",
-          "ENABLE_ENCRYPTION_ITEM_2": "Tus datos actuales se resubirán con cifrado",
-          "ENABLE_ENCRYPTION_ITEM_3": "Los demás dispositivos necesitarán esta contraseña",
-          "ENABLE_ENCRYPTION_NOTE": "Tus datos locales NO se borrarán. Puedes deshabilitar el cifrado en cualquier momento.",
-          "BTN_ENABLE_ENCRYPTION": "Habilitar Cifrado",
-          "ENABLE_ENCRYPTION_SUCCESS": "Cifrado habilitado con éxito",
-          "ENABLE_ENCRYPTION_NOT_READY": "La sincronización no está habilitada o configurada.",
-          "ENABLE_ENCRYPTION_SUPERSYNC_ONLY": "Esta función solo está disponible para SuperSync.",
-          "ENABLE_ENCRYPTION_PASSWORD_REQUIRED": "Por favor introduce una contraseña de cifrado primero."
-        },
-        "IMPORT_ENCRYPTION_WARNING": {
-          "TITLE": "La configuración de cifrado cambiará",
-          "WARNING_TEXT": "La copia que importas tiene ajustes de cifrado diferentes. Los datos cifrados y no cifrados no pueden coexistir, así que se borrarán los datos del servidor.",
-          "CURRENT_STATE": "Tu configuración actual",
-          "IMPORTED_STATE": "Tras importar",
-          "ENCRYPTION_ENABLED": "Cifrado",
-          "ENCRYPTION_DISABLED": "No cifrado",
-          "WHAT_HAPPENS": "Qué ocurrirá:",
-          "ITEM_1": "Todo el historial y copias del servidor se borrarán permanentemente",
-          "ITEM_2": "Tus datos importados se subirán con la nueva configuración",
-          "ITEM_3": "Los demás dispositivos deben sincronizar y actualizar sus ajustes",
-          "NOTE_ENABLING": "Importante: El cifrado requiere contraseña. Si la olvidas, tus datos NO se podrán recuperar.",
-          "NOTE_DISABLING": "Importante: Sin cifrado, cualquiera con acceso a tu servidor puede leer tus datos.",
-          "NOTE": "Tus datos locales serán reemplazados por los importados independientemente de esta elección.",
-          "BTN_CONTINUE": "Importar y cambiar cifrado"
-        },
-        "FILE_BASED": {
-          "BTN_REMOVE_ENCRYPTION": "Eliminar Cifrado",
-          "BTN_ENABLE_ENCRYPTION": "Habilitar Cifrado",
-          "BTN_CHANGE_PASSWORD": "Cambiar Contraseña",
-          "BTN_DISABLE_ENCRYPTION": "Deshabilitar Cifrado",
-          "L_CHANGE_ENCRYPTION_PASSWORD": "Cambiar Contraseña de Cifrado",
-          "CHANGE_PASSWORD_WARNING": "ADVERTENCIA: Esto resubirá tus datos con la nueva contraseña. Los demás dispositivos la necesitarán antes de sincronizar.",
-          "CHANGE_PASSWORD_SUCCESS": "Contraseña de cifrado cambiada con éxito",
-          "L_NEW_PASSWORD": "Nueva Contraseña",
-          "L_CONFIRM_PASSWORD": "Confirmar Contraseña",
-          "PASSWORDS_DONT_MATCH": "Las contraseñas no coinciden",
-          "PASSWORD_MIN_LENGTH": "La contraseña debe tener al menos 8 caracteres",
-          "L_REMOVE_ENCRYPTION": "O eliminar cifrado",
-          "REMOVE_ENCRYPTION_WARNING": "Eliminar el cifrado resubirá tus datos sin cifrar. Todos los dispositivos necesitarán reconfigurarse.",
-          "DISABLE_ENCRYPTION_TITLE": "¿Deshabilitar Cifrado?",
-          "DISABLE_ENCRYPTION_WARNING": "ADVERTENCIA: Esto resubirá tus datos sin cifrado.",
-          "DISABLE_ENCRYPTION_WHAT_HAPPENS": "Qué ocurrirá:",
-          "DISABLE_ENCRYPTION_ITEM_1": "Tus datos actuales se resubirán sin cifrado",
-          "DISABLE_ENCRYPTION_ITEM_2": "Los demás dispositivos sincronizarán los datos sin cifrar",
-          "DISABLE_ENCRYPTION_ITEM_3": "Puedes reactivar el cifrado en cualquier momento",
-          "DISABLE_ENCRYPTION_NOTE": "Tus datos locales NO se borrarán.",
-          "DISABLE_ENCRYPTION_SUCCESS": "Cifrado deshabilitado con éxito",
-          "ENABLE_ENCRYPTION_TITLE": "¿Habilitar Cifrado?",
-          "ENABLE_ENCRYPTION_WARNING": "ADVERTENCIA: Esto resubirá tus datos con cifrado. Si olvidas tu contraseña, tus datos no podrán recuperarse.",
-          "ENABLE_ENCRYPTION_WHAT_HAPPENS": "Qué ocurrirá:",
-          "ENABLE_ENCRYPTION_ITEM_1": "Tus datos actuales se resubirán cifrados",
-          "ENABLE_ENCRYPTION_ITEM_2": "Los demás dispositivos necesitarán esta contraseña",
-          "ENABLE_ENCRYPTION_ITEM_3": "Puedes deshabilitar el cifrado en cualquier momento",
-          "ENABLE_ENCRYPTION_NOTE": "Tus datos locales NO se borrarán.",
-          "ENABLE_ENCRYPTION_SUCCESS": "Cifrado habilitado con éxito",
-          "ENABLE_ENCRYPTION_NOT_READY": "La sincronización no está habilitada o configurada.",
-          "ENABLE_ENCRYPTION_FILE_BASED_ONLY": "Esta función solo está disponible para proveedores de sincronización basados en archivos.",
-          "ENABLE_ENCRYPTION_PASSWORD_REQUIRED": "Por favor introduce una contraseña de cifrado primero."
+          "S_TEST_SUCCESS": "¡Prueba de conexión exitosa! URL objetivo: {{url}}"
         }
       },
       "S": {
         "ALREADY_IN_SYNC": "Ya sincronizado",
+        "ARCHIVE_OPERATION_FAILED": "Operación de archivo fallida. Alguna limpieza podría no haberse completado.",
         "BTN_CONFIGURE": "Configurar",
         "BTN_FORCE_OVERWRITE": "Forzar Sobrescritura",
+        "CHANGE_PASSWORD_FAILED": "Error al cambiar la contraseña: {{message}}",
+        "CLOCK_DRIFT_WARNING": "El reloj de tu dispositivo parece estar desfasado por {{minutes}} minutos. Esto puede causar problemas de sincronización.",
+        "COMPACTION_FAILED": "Falló la limpieza de la base de datos. La app podría ralentizarse.",
+        "CONFLICT_DIALOG_TIMEOUT": "El diálogo de conflicto expiró y fue cancelado. Se reintentará en la próxima sincronización.",
+        "CONFLICT_RESOLUTION_FAILED": "Falló la resolución de conflictos de sincronización. Por favor recarga.",
+        "DATA_REPAIRED": "Datos reparados automáticamente ({{count}} problemas arreglados)",
+        "DECRYPTION_FAILED": "Fallo al descifrar datos sincronizados. Revisa tu contraseña de cifrado.",
+        "DEFERRED_ACTION_FAILED": "Algunos cambios hechos durante la sincronización no pudieron guardarse. Recarga para recuperar.",
+        "DIALOG_RESULT_ERROR": "Ocurrió un error al procesar el diálogo de sincronización. Inténtalo de nuevo.",
+        "DISABLE_ENCRYPTION_FAILED": "Error al deshabilitar el cifrado: {{message}}",
+        "ENABLE_ENCRYPTION_FAILED": "Error al habilitar el cifrado: {{message}}",
+        "ENCRYPTION_DISABLED_ON_OTHER_DEVICE": "El cifrado fue deshabilitado en otro dispositivo. Tus ajustes han sido actualizados.",
+        "ENCRYPTION_PASSWORD_REQUIRED": "Datos cifrados recibidos pero sin contraseña configurada. Configura tu contraseña en ajustes.",
         "ERROR_CORS": "Error de Sincronización WebDAV: Solicitud de red fallida.\n\nEsto podría ser un problema de CORS. Por favor asegúrate de:\n• Tu servidor WebDAV permite solicitudes de Origen Cruzado\n• La URL del servidor es correcta y accesible\n• Tienes una conexión a internet funcional",
         "ERROR_DATA_IS_CURRENTLY_WRITTEN": "Los datos remotos se están escribiendo actualmente",
+        "ERROR_PAYLOAD_TOO_LARGE": "Error de sincronización: Tus datos son demasiado grandes para subir.\n\nEsto pasa cuando tienes muchas tareas archivadas. ¡Tus datos NO se sincronizaron!\n\nContacta soporte para ayuda.",
         "ERROR_PERMISSION": "Acceso al archivo denegado. Por favor, verifique los permisos del sistema de archivos.",
         "ERROR_PERMISSION_FLATPAK": "Acceso al archivo denegado. Conceda permiso al sistema de archivos mediante Flatseal o use una ruta dentro de ~\\/var\\/app\\/",
         "ERROR_PERMISSION_SNAP": "Acceso al archivo denegado. Ejecute 'snap connect super-productivity:home' o use una ruta dentro de ~\\/snap\\/super-productivity\\/common\\/",
-        "INCOMPLETE_CFG": "La autenticación para sincronización falló. ¡Por favor comprueba tu Configuración!",
-        "SUCCESS_DOWNLOAD": "Datos sincronizados desde remoto",
-        "SUCCESS_VIA_BUTTON": "Datos sincronizados exitosamente",
-        "UNKNOWN_ERROR": "Error de Sincronización Desconocido: {{err}}",
-        "CLOCK_DRIFT_WARNING": "El reloj de tu dispositivo parece estar desfasado por {{minutes}} minutos. Esto puede causar problemas de sincronización.",
-        "COMPACTION_FAILED": "Falló la limpieza de la base de datos. La app podría ralentizarse.",
-        "CONFLICT_RESOLUTION_FAILED": "Falló la resolución de conflictos de sincronización. Por favor recarga.",
-        "DIALOG_RESULT_ERROR": "Ocurrió un error al procesar el diálogo de sincronización. Inténtalo de nuevo.",
-        "CONFLICT_DIALOG_TIMEOUT": "El diálogo de conflicto expiró y fue cancelado. Se reintentará en la próxima sincronización.",
-        "OPERATION_PERMANENTLY_FAILED": "Algunas operaciones fallaron y no se aplicaron. Los datos podrían estar incompletos.",
-        "DATA_REPAIRED": "Datos reparados automáticamente ({{count}} problemas arreglados)",
         "ERROR_UNABLE_TO_READ_REMOTE_DATA": "Error al sincronizar. No se pueden leer datos remotos. ¿Quizás habilitaste el cifrado y tu contraseña local no coincide con la remota?",
-        "HYDRATION_FAILED": "Fallo al cargar datos. Por favor recarga la app.",
-        "INTEGRITY_CHECK_FAILED": "Problema de integridad detectado. Auto-reparación intentada. Si tienes problemas, recarga la app.",
-        "IMPORTING": "Importando datos",
-        "INCOMPLETE_OP_SYNC": "Sincronización incompleta: falló la descarga de {{count}} archivo(s) de operación",
-        "TOO_MANY_OPS_TO_DOWNLOAD": "Demasiadas operaciones para descargar. Algunos cambios podrían faltar.",
-        "INITIAL_SYNC_ERROR": "Fallo en la sincronización inicial",
-        "INVALID_OPERATION_PAYLOAD": "Operación inválida detectada. Puede que no se guarden los cambios - por favor recarga.",
-        "DECRYPTION_FAILED": "Fallo al descifrar datos sincronizados. Revisa tu contraseña de cifrado.",
-        "ENCRYPTION_PASSWORD_REQUIRED": "Datos cifrados recibidos pero sin contraseña configurada. Configura tu contraseña en ajustes.",
-        "ENCRYPTION_DISABLED_ON_OTHER_DEVICE": "El cifrado fue deshabilitado en otro dispositivo. Tus ajustes han sido actualizados.",
-        "WEB_CRYPTO_NOT_AVAILABLE": "Cifrado no disponible en este dispositivo. En Android requiere HTTPS. Por favor deshabilita el cifrado o sincroniza desde un navegador de escritorio.",
-        "PERSIST_FAILED": "Fallo al guardar cambios. El estado puede ser inconsistente - por favor recarga.",
-        "DEFERRED_ACTION_FAILED": "Algunos cambios hechos durante la sincronización no pudieron guardarse. Recarga para recuperar.",
-        "REMOTE_DATA_TOO_OLD": "Los datos remotos son demasiado antiguos. Por favor actualiza tu app remota.",
-        "STORAGE_QUOTA_EXCEEDED": "Almacenamiento del servidor lleno. ¡Tus cambios NO se están sincronizando! Archiva tareas antiguas o mejora tu plan.",
-        "STORAGE_RECOVERED_AFTER_COMPACTION": "Poco almacenamiento disponible. Datos antiguos limpiados con éxito.",
-        "ERROR_PAYLOAD_TOO_LARGE": "Error de sincronización: Tus datos son demasiado grandes para subir.\n\nEsto pasa cuando tienes muchas tareas archivadas. ¡Tus datos NO se sincronizaron!\n\nContacta soporte para ayuda.",
-        "UPLOAD_ERROR": "Error de subida desconocido (¿Ajustes correctos?): {{err}}",
-        "UPLOAD_OPS_REJECTED": "{{count}} operación(es) fueron rechazadas permanentemente por el servidor y no se sincronizarán.",
-        "VERSION_TOO_OLD": "Tu versión de la app es demasiado antigua para los datos sincronizados. ¡Por favor actualiza!",
-        "VERSION_UNSUPPORTED": "No se puede sincronizar: los datos requieren una versión más nueva. Por favor actualiza.",
-        "NEWER_VERSION_AVAILABLE": "Algunos cambios son de una versión más nueva. Considera actualizar para compatibilidad total.",
+        "FINISH_DAY_SYNC_ERROR": "Error de sincronización al finalizar el día. Inténtalo de nuevo.",
         "FRESH_CLIENT_SYNC_CANCELLED": "Sincronización inicial cancelada. No se aplicaron datos remotos.",
-        "LOCAL_DATA_REPLACE_CANCELLED": "Sincronización cancelada. Tus datos locales han sido preservados.",
-        "RESTORE_SUCCESS": "Datos restaurados con éxito",
-        "RESTORE_ERROR": "Fallo al restaurar datos",
-        "TIMEOUT_ERROR": "La operación de sincronización expiró. {{suggestion}}",
-        "PARTIAL_APPLY_FAILURE": "Algunas operaciones de sincronización fallaron al aplicarse. Los datos han sido validados.",
-        "REPLAY_LOCAL_OPS_FAILED": "Fallo al reproducir operaciones locales tras importar. Algunos cambios recientes pueden perderse. Datos validados.",
-        "ARCHIVE_OPERATION_FAILED": "Operación de archivo fallida. Alguna limpieza podría no haberse completado.",
-        "LWW_CONFLICTS_AUTO_RESOLVED": "Conflictos auto-resueltos: {{localWins}} ganados locales, {{remoteWins}} ganados remotos",
+        "HYDRATION_FAILED": "Fallo al cargar datos. Por favor recarga la app.",
+        "IMPORTING": "Importando datos",
+        "INCOMPLETE_CFG": "La autenticación para sincronización falló. ¡Por favor comprueba tu Configuración!",
+        "INCOMPLETE_OP_SYNC": "Sincronización incompleta: falló la descarga de {{count}} archivo(s) de operación",
+        "INITIAL_SYNC_ERROR": "Fallo en la sincronización inicial",
+        "INTEGRITY_CHECK_FAILED": "Problema de integridad detectado. Auto-reparación intentada. Si tienes problemas, recarga la app.",
+        "INVALID_OPERATION_PAYLOAD": "Operación inválida detectada. Puede que no se guarden los cambios - por favor recarga.",
         "LOCAL_CHANGES_DISCARDED": "{{count}} cambio(s) locales descartados - elemento(s) eliminados en otro dispositivo",
         "LOCAL_CHANGES_DISCARDED_SNAPSHOT": "{{count}} cambio(s) locales no guardados descartados - la sincronización descargó datos más nuevos",
-        "FINISH_DAY_SYNC_ERROR": "Error de sincronización al finalizar el día. Inténtalo de nuevo.",
-        "SERVER_MIGRATION_VALIDATION_FAILED": "No se pudieron migrar datos al servidor - validación local fallida. Intenta importar una copia de seguridad.",
+        "LOCAL_DATA_REPLACE_CANCELLED": "Sincronización cancelada. Tus datos locales han sido preservados.",
+        "LWW_CONFLICTS_AUTO_RESOLVED": "Conflictos auto-resueltos: {{localWins}} ganados locales, {{remoteWins}} ganados remotos",
         "MIGRATION_FAILED": "Algunos datos no pudieron migrarse y se omitieron. Esto puede indicar corrupción o un error.",
+        "NEWER_VERSION_AVAILABLE": "Algunos cambios son de una versión más nueva. Considera actualizar para compatibilidad total.",
+        "OPERATION_PERMANENTLY_FAILED": "Algunas operaciones fallaron y no se aplicaron. Los datos podrían estar incompletos.",
+        "OVERWRITE_SERVER_FAILED": "Error al sobrescribir los datos del servidor: {{message}}",
+        "PARTIAL_APPLY_FAILURE": "Algunas operaciones de sincronización fallaron al aplicarse. Los datos han sido validados.",
+        "PERSIST_FAILED": "Fallo al guardar cambios. El estado puede ser inconsistente - por favor recarga.",
+        "REMOTE_DATA_TOO_OLD": "Los datos remotos son demasiado antiguos. Por favor actualiza tu app remota.",
+        "REPLAY_LOCAL_OPS_FAILED": "Fallo al reproducir operaciones locales tras importar. Algunos cambios recientes pueden perderse. Datos validados.",
+        "RESTORE_ERROR": "Fallo al restaurar datos",
+        "RESTORE_SUCCESS": "Datos restaurados con éxito",
+        "SERVER_MIGRATION_VALIDATION_FAILED": "No se pudieron migrar datos al servidor - validación local fallida. Intenta importar una copia de seguridad.",
+        "STORAGE_QUOTA_EXCEEDED": "Almacenamiento del servidor lleno. ¡Tus cambios NO se están sincronizando! Archiva tareas antiguas o mejora tu plan.",
+        "STORAGE_RECOVERED_AFTER_COMPACTION": "Poco almacenamiento disponible. Datos antiguos limpiados con éxito.",
+        "SUCCESS_DOWNLOAD": "Datos sincronizados desde remoto",
+        "SUCCESS_VIA_BUTTON": "Datos sincronizados exitosamente",
+        "TIMEOUT_ERROR": "La operación de sincronización expiró. {{suggestion}}",
+        "TOO_MANY_OPS_TO_DOWNLOAD": "Demasiadas operaciones para descargar. Algunos cambios podrían faltar.",
+        "UNKNOWN_ERROR": "Error de Sincronización Desconocido: {{err}}",
+        "UPLOAD_ERROR": "Error de subida desconocido (¿Ajustes correctos?): {{err}}",
+        "UPLOAD_OPS_REJECTED": "{{count}} operación(es) fueron rechazadas permanentemente por el servidor y no se sincronizarán.",
         "VECTOR_CLOCK_LIMIT_REACHED": "La sincronización registró {{originalSize}} dispositivos/navegadores, superando el límite de {{maxSize}}. Se eliminaron las entradas inactivas. Considera un reinicio de sincronización si tienes problemas.",
-        "ENABLE_ENCRYPTION_FAILED": "Error al habilitar el cifrado: {{message}}",
-        "DISABLE_ENCRYPTION_FAILED": "Error al deshabilitar el cifrado: {{message}}",
-        "CHANGE_PASSWORD_FAILED": "Error al cambiar la contraseña: {{message}}",
-        "OVERWRITE_SERVER_FAILED": "Error al sobrescribir los datos del servidor: {{message}}"
+        "VERSION_TOO_OLD": "Tu versión de la app es demasiado antigua para los datos sincronizados. ¡Por favor actualiza!",
+        "VERSION_UNSUPPORTED": "No se puede sincronizar: los datos requieren una versión más nueva. Por favor actualiza.",
+        "WEB_CRYPTO_NOT_AVAILABLE": "Cifrado no disponible en este dispositivo. En Android requiere HTTPS. Por favor deshabilita el cifrado o sincroniza desde un navegador de escritorio."
       },
       "SAFETY_BACKUP": {
         "BTN_CLEAR_ALL": "Limpiar todo",
@@ -1298,10 +1323,14 @@
         "ADD_ATTACHMENT": "Añadir adjunto",
         "ADD_SUB_TASK": "Añadir Subtarea",
         "ATTACHMENTS": "Adjuntos ({{nr}})",
+        "COMPLETED_ON": "Completado el",
+        "CREATED_ON": "Creado el",
+        "DEADLINE": "Fecha límite",
         "DUE": "Planificada para",
         "LOCAL_ATTACHMENTS": "Adjuntos Locales",
         "NOTES": "Descripción",
         "PARENT": "Padre",
+        "REMINDER": "Recordatorio",
         "REPEAT": "Repetir",
         "SCHEDULE_TASK": "Programar Tarea",
         "SUB_TASKS": "Subtareas ({{nr}})",
@@ -1343,6 +1372,9 @@
         "UNSCHEDULE_TASK": "Desprogramar tarea",
         "UPDATE_ISSUE_DATA": "Actualizar datos de incidencia"
       },
+      "D_CONFIRM_DELETE": {
+        "OK": "Eliminar"
+      },
       "D_CONFIRM_SHORT_SYNTAX_NEW_TAG": {
         "MSG": "¿Quieres crear la nueva etiqueta {{tagsTxt}}?",
         "OK": "Crear etiqueta"
@@ -1351,14 +1383,23 @@
         "MSG": "¿Quieres crear las nuevas etiquetas {{tagsTxt}}?",
         "OK": "Crear etiquetas"
       },
+      "D_DEADLINE": {
+        "QA_NEXT_MONTH": "Próximo mes",
+        "QA_NEXT_WEEK": "Próxima semana",
+        "QA_TODAY": "Hoy",
+        "QA_TOMORROW": "Mañana",
+        "RO_NEVER": "Nunca"
+      },
       "D_REMINDER_VIEW": {
         "ADD_ALL_TO_TODAY": "Añadir todo a hoy",
         "ADD_TO_TODAY": "Añadir a hoy",
         "COMPLETE": "Completar",
         "COMPLETE_ALL": "Completar todo",
+        "DEADLINE_SECTION": "Fechas límite",
         "DISMISS_ALL_REMINDERS_KEEP_TODAY": "Descartar Todos los Recordatorios (Mantener en Hoy)",
         "DISMISS_REMINDER_KEEP_TODAY": "Descartar Recordatorio (Mantener en Hoy)",
         "DONE": "Hecho",
+        "DUE_SECTION": "Planificado",
         "DUE_TASK": "Recordatorio para tarea planificada",
         "DUE_TASKS": "Recordatorio para tareas planificadas",
         "RESCHEDULE_EDIT": "Editar (Re-programar)",
@@ -1478,11 +1519,15 @@
         "ADD": "Añadir Config de Tarea Repetida",
         "ADVANCED_CFG": "Configuración avanzada",
         "EDIT": "Editar Config de Tarea Repetida",
+        "HEATMAP_LABEL": "Actividad",
         "HELP1": "Las tareas repetitivas están pensadas para tareas diarias, p. ej.: \"Organización\", \"Reunión Diaria\", \"Revisión de Código\", \"Revisar correos\" o tareas similares que es probable que ocurran una y otra vez.",
         "HELP2": "Una vez configurada una tarea repetitiva será recreada en cada día seleccionado abajo tan pronto como abras tu proyecto y será marcada automáticamente como completada al final del día. Se manejarán como instancias diferentes. Así que puedes añadir libremente subtareas etc.",
         "HELP3": "Las tareas importadas de Jira o Incidencias Git no se pueden repetir.",
         "HELP4": "Una nota sobre el campo de orden: Referido al orden de creación de tareas repetibles. Solo tiene efecto para tareas repetibles que se crean al mismo tiempo. Un valor más bajo significa que una tarea estará más arriba en la lista, un número más alto que estará más abajo. Un valor mayor que 0 significa que los elementos se crean al final de las tareas normales.",
-        "TAG_LABEL": "Etiquetas para añadir"
+        "TAG_LABEL": "Etiquetas para añadir",
+        "TIME_SPENT_THIS_MONTH": "Este mes",
+        "TIME_SPENT_THIS_WEEK": "ESTA SEMANA",
+        "TIME_SPENT_TOTAL": "Total"
       },
       "F": {
         "C_DAY": "Día",
@@ -1543,18 +1588,18 @@
         "GROUP_SCHEDULED_DATE": "Fecha Programada",
         "GROUP_TAG": "Etiqueta",
         "RESET_ALL": "Restablecer Todo",
+        "SAVE_SORT": "Guardar como predeterminado",
         "SCHEDULED_NEXT_MONTH": "Próximo Mes",
         "SCHEDULED_NEXT_WEEK": "Próxima Semana",
         "SCHEDULED_THIS_MONTH": "Este Mes",
         "SCHEDULED_THIS_WEEK": "Esta Semana",
         "SCHEDULED_TODAY": "Hoy",
         "SCHEDULED_TOMORROW": "Mañana",
+        "SORT": "Ordenar",
         "SORT_CREATION_DATE": "Fecha de Creación",
         "SORT_DEFAULT": "Predeterminado",
         "SORT_NAME": "Nombre",
-        "SAVE_SORT": "Guardar como predeterminado",
         "SORT_SCHEDULED_DATE": "Fecha Programada",
-        "SORT": "Ordenar",
         "TIME_1HOUR": "> 1 Hora",
         "TIME_2HOUR": "> 2 Horas",
         "TIME_10MIN": "> 10 Minutos",
@@ -1571,6 +1616,20 @@
         "ADD_TO_TASK": "Añadir a la Tarea",
         "MSG": "No has estado rastreando tiempo durante {{time}}",
         "MSG_WITHOUT_TIME": "No has estado rastreando tiempo"
+      },
+      "D_ARCHIVE_COMPRESS": {
+        "BTN_COMPRESS": "Comprimir Archivo",
+        "CONFIRM_MSG": "¿Seguro que quieres comprimir el archivo? ¡Esto eliminará permanentemente los datos listados arriba!",
+        "CONFIRM_TITLE": "Confirmar compresión de archivo",
+        "ESTIMATED_SAVINGS": "Ahorro de espacio estimado",
+        "INTRO": "Esto comprimirá tus tareas archivadas eliminando datos antiguos. Esta operación se sincroniza en todos los dispositivos.",
+        "ISSUE_FIELDS_TO_CLEAR": "Campos de incidencia a limpiar",
+        "LOADING": "Analizando archivo...",
+        "NO_DATA": "No hay datos para comprimir. Tu archivo ya está optimizado.",
+        "NOTES_TO_CLEAR": "Notas de tarea a limpiar (más de 1 año)",
+        "SUBTASKS_TO_DELETE": "Subtareas a eliminar (tiempo fusionado a la principal)",
+        "TITLE": "Comprimir Archivo",
+        "WARNING": "Esta operación no se puede deshacer. ¡Asegúrate de tener una copia de seguridad antes de proceder!"
       },
       "D_IDLE": {
         "ADD_ENTRY": "Añadir entrada para seguimiento",
@@ -1596,20 +1655,17 @@
         "TASK": "Tarea",
         "TRACK_TO": "Rastrear en:",
         "UNTRACKED_TIME": "Tiempo no rastreado:"
-      },
-      "D_ARCHIVE_COMPRESS": {
-        "TITLE": "Comprimir Archivo",
-        "LOADING": "Analizando archivo...",
-        "INTRO": "Esto comprimirá tus tareas archivadas eliminando datos antiguos. Esta operación se sincroniza en todos los dispositivos.",
-        "SUBTASKS_TO_DELETE": "Subtareas a eliminar (tiempo fusionado a la principal)",
-        "NOTES_TO_CLEAR": "Notas de tarea a limpiar (más de 1 año)",
-        "ISSUE_FIELDS_TO_CLEAR": "Campos de incidencia a limpiar",
-        "ESTIMATED_SAVINGS": "Ahorro de espacio estimado",
-        "WARNING": "Esta operación no se puede deshacer. ¡Asegúrate de tener una copia de seguridad antes de proceder!",
-        "CONFIRM_TITLE": "Confirmar compresión de archivo",
-        "CONFIRM_MSG": "¿Seguro que quieres comprimir el archivo? ¡Esto eliminará permanentemente los datos listados arriba!",
-        "BTN_COMPRESS": "Comprimir Archivo",
-        "NO_DATA": "No hay datos para comprimir. Tu archivo ya está optimizado."
+      }
+    },
+    "VOICE_REMINDER": {
+      "FORM": {
+        "HELP": "Repite la frase configurada cada X cuando se rastrea tiempo en una tarea.",
+        "L_INTERVAL": "Intervalo para repetir la frase",
+        "L_TEXT": "Texto",
+        "L_TEXT_DESCRIPTION": "P. ej.: \"¡Trabaja en ${currentTaskTitle}!\"",
+        "L_VOICE": "Seleccionar una voz",
+        "L_VOICE_DESCRIPTION": "Elige una voz",
+        "TITLE": "Recordatorio de voz"
       }
     },
     "WORKLOG": {
@@ -1671,10 +1727,10 @@
   },
   "FILE_IMEX": {
     "DIALOG_CONFIRM_URL_IMPORT": {
+      "BTN_COMPRESS_ARCHIVE": "Comprimir Archivo",
       "INITIATED_MSG": "Se ha iniciado una importación automática de datos.",
       "SOURCE_URL_DOMAIN": "Dominio de Origen",
       "TITLE": "Confirmar Importación de Datos desde URL",
-      "BTN_COMPRESS_ARCHIVE": "Comprimir Archivo",
       "WARNING_MSG": "Proceder sobrescribirá los datos y la configuración actuales de tu aplicación con el contenido de la URL especificada. Esta acción no se puede deshacer.",
       "WARNING_TITLE": "Advertencia"
     },
@@ -1696,10 +1752,12 @@
   "G": {
     "ADD": "Agregar",
     "ADVANCED_CFG": "Configuración Avanzada",
+    "APPLY": "Aplicar",
     "CANCEL": "Cancelar",
     "CLOSE": "Cerrar",
     "COMPLETE": "Completo",
     "CONFIRM": "Confirmar",
+    "CONTINUE": "Continuar",
     "DELETE": "Borrar",
     "DISMISS": "Descartar",
     "DO_IT": "¡Hazlo!",
@@ -1715,12 +1773,18 @@
     "MINUTES": "{{m}} minutos",
     "MOVE_BACKWARD": "Mover hacia atrás",
     "MOVE_FORWARD": "Mover hacia adelante",
+    "NEXT": "Siguiente",
     "NO_CON": "Actualmente estás desconectado. Por favor reconecta a internet.",
     "NONE": "Ninguno",
     "OK": "Ok",
     "OVERDUE": "Vencido",
+    "PASSWORD_STRENGTH_FAIR": "Justo",
+    "PASSWORD_STRENGTH_STRONG": "Fuerte",
+    "PASSWORD_STRENGTH_WEAK": "Débil",
+    "PROCESSING": "Procesando",
     "REMOVE": "Quitar",
     "SAVE": "Guardar",
+    "SHARE": "Compartir",
     "SUBMIT": "Enviar",
     "TITLE": "Título",
     "TODAY_TAG_TITLE": "Hoy",
@@ -1734,12 +1798,14 @@
       "BOARDS": "Tableros",
       "DONATE_PAGE": "Página de donaciones",
       "FOCUS_MODE": "Modo concentración",
+      "HABITS": "Hábitos",
       "HELP": "Habilita o deshabilita funciones específicas de la aplicación en la interfaz.",
       "ISSUES_PANEL": "Panel de incidencias",
       "PLANNER": "Planificador",
       "PROJECT_NOTES": "Notas del proyecto",
       "SCHEDULE": "Horario",
       "SCHEDULE_DAY_PANEL": "Panel de horario diario",
+      "SEARCH": "Buscar",
       "SYNC_BUTTON": "Botón de sincronización",
       "TIME_TRACKING": "Seguimiento de tiempo (Cronómetro)",
       "TITLE": "Funciones de la aplicación",
@@ -1894,6 +1960,7 @@
       "SV": "Svenska",
       "TIME_LOCALE": "Configuración regional de formato de fecha y hora",
       "TIME_LOCALE_AUTO": "Predeterminado del sistema",
+      "TIME_LOCALE_CS_CZ": "Checo: 24 horas, DD. MM. AAAA",
       "TIME_LOCALE_DE_DE": "Alemán: 24 horas, DD.MM.AAAA",
       "TIME_LOCALE_DESCRIPTION": "NOTA: ahora estas opciones no pueden cambiar el formato de entrada de hora (12/24 horas) porque está controlado por tu SO",
       "TIME_LOCALE_EN_GB": "Inglés (Reino Unido): 24 horas, DD/MM/AAAA",
@@ -1905,11 +1972,10 @@
       "TIME_LOCALE_KO_KR": "Coreano: 12 horas AM/PM, AAAA. MM. DD",
       "TIME_LOCALE_PT_BR": "Portugués (Brasil): 24 horas, DD/MM/AAAA",
       "TIME_LOCALE_RU_RU": "Ruso: 24 horas, DD.MM.AAAA",
-      "TIME_LOCALE_TR_TR": "Turco: 24 horas, DD.MM.AAAA",
-      "TIME_LOCALE_ZH_CN": "Chino (Simplificado): 24 horas, AAAA/MM/DD",
-      "TIME_LOCALE_CS_CZ": "Checo: 24 horas, DD. MM. AAAA",
       "TIME_LOCALE_SK_SK": "Eslovaco: 24 horas, DD. MM. AAAA",
+      "TIME_LOCALE_TR_TR": "Turco: 24 horas, DD.MM.AAAA",
       "TIME_LOCALE_UK_UA": "Ucraniano: 24 horas, DD.MM.AAAA",
+      "TIME_LOCALE_ZH_CN": "Chino (Simplificado): 24 horas, AAAA/MM/DD",
       "TITLE": "Localización",
       "TR": "Turco",
       "UK": "Ucraniano",
@@ -1944,16 +2010,6 @@
       "THEME_SELECT_LABEL": "Seleccionar Tema",
       "TITLE": "Ajustes Varios"
     },
-    "TASKS": {
-      "DEFAULT_PROJECT": "Proyecto predeterminado a usar para tareas si no se especifica ninguno",
-      "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Añadir automáticamente la etiqueta de hoy a las tareas trabajadas",
-      "IS_AUTO_MARK_PARENT_AS_DONE": "Marcar la tarea principal como realizada, cuando se completen todas las subtareas",
-      "IS_CONFIRM_BEFORE_DELETE": "Confirmar antes de eliminar tareas",
-      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Habilitar formato Markdown en notas de tareas",
-      "IS_TRAY_SHOW_CURRENT": "Mostrar tarea actual en la bandeja / menú de estado (solo escritorio mac/windows)",
-      "NOTES_TEMPLATE": "Plantilla de descripción de tarea",
-      "TITLE": "Tareas"
-    },
     "POMODORO": {
       "BREAK_DURATION": "Duración de descansos cortos",
       "CYCLES_BEFORE_LONGER_BREAK": "Iniciar descanso más largo después de X sesiones de trabajo",
@@ -1976,6 +2032,7 @@
       "L_WORK_END": "Fin del Día de Trabajo",
       "L_WORK_START": "Inicio del Día de Trabajo",
       "LUNCH_BREAK_START_END_DESCRIPTION": "p. ej. 13:00",
+      "MONTH": "Mes",
       "TITLE": "Cronograma",
       "WORK_START_END_DESCRIPTION": "p. ej. 17:00"
     },
@@ -2008,6 +2065,16 @@
       "NOTIFICATION_TITLE": "¡Tómate un descanso!",
       "SNOOZE_TIME": "Tiempo de posponer cuando se pide tomar un descanso",
       "TITLE": "Recordatorio de Descanso"
+    },
+    "TASKS": {
+      "DEFAULT_PROJECT": "Proyecto predeterminado a usar para tareas si no se especifica ninguno",
+      "IS_AUTO_ADD_WORKED_ON_TO_TODAY": "Añadir automáticamente la etiqueta de hoy a las tareas trabajadas",
+      "IS_AUTO_MARK_PARENT_AS_DONE": "Marcar la tarea principal como realizada, cuando se completen todas las subtareas",
+      "IS_CONFIRM_BEFORE_DELETE": "Confirmar antes de eliminar tareas",
+      "IS_MARKDOWN_FORMATTING_IN_NOTES_ENABLED": "Habilitar formato Markdown en notas de tareas",
+      "IS_TRAY_SHOW_CURRENT": "Mostrar tarea actual en la bandeja / menú de estado (solo escritorio mac/windows)",
+      "NOTES_TEMPLATE": "Plantilla de descripción de tarea",
+      "TITLE": "Tareas"
     },
     "TIME_TRACKING": {
       "HELP": "El recordatorio de seguimiento de tiempo es un banner que aparece en caso de que olvides iniciar el seguimiento de tiempo.",
@@ -2067,10 +2134,10 @@
     "PERSISTENCE_DISALLOWED": "Los datos no persistirán permanentemente. ¡Sé consciente de que esto puede llevar a la pérdida de datos!",
     "PERSISTENCE_ERROR": "Error al solicitar la persistencia de datos: {{err}}",
     "RUNNING_X": "Ejecutando \"{{str}}\".",
+    "SAVE_BLOCKED_DURING_SYNC": "Sincronización en curso - es posible que algunos cambios deban guardarse de nuevo",
     "SHARE_FAILED": "Error al compartir. Por favor copia manualmente.",
     "SHARE_FAILED_FALLBACK": "Error al compartir. Copiado al portapapeles en su lugar.",
     "SHARE_UNAVAILABLE_FALLBACK": "Copiado al portapapeles.",
-    "SAVE_BLOCKED_DURING_SYNC": "Sincronización en curso - es posible que algunos cambios deban guardarse de nuevo",
     "UNPLANNED_TODAY_TASKS": "Desplanificadas todas las tareas de Hoy"
   },
   "GPB": {
@@ -2099,6 +2166,7 @@
     "DUPLICATE_PROJECT": "Duplicar",
     "ENTER_FOCUS_MODE": "Entrar en Modo Enfoque",
     "GO_TO_TASK_LIST": "Ir a la lista de tareas",
+    "HABITS": "Hábitos",
     "HELP": "Ayuda",
     "HM": {
       "CALENDARS": "Tutorial: Conectar Calendarios",
@@ -2112,8 +2180,11 @@
     },
     "METRICS": "Métricas",
     "NO_TASKS_TO_TRACK": "Agrega una tarea primero para comenzar a rastrear el tiempo",
+    "NOTES": "Notas",
+    "OPEN_APP_FEATURES": "Abrir configuración",
     "PLANNER": "Planificador",
     "PROJECT_MENU": "Menú del Proyecto",
+    "PROJECT_SETTINGS": "Configuración del proyecto",
     "PROJECTS": "Proyectos",
     "QUICK_HISTORY": "Historial Rápido",
     "SCHEDULE": "Cronograma",
@@ -2122,6 +2193,8 @@
     "SHARE_TASK_LIST_MARKDOWN": "Compartir Lista de Tareas",
     "SIDE_PANEL_MENU": "Menú del Panel Lateral",
     "TAGS": "Etiquetas",
+    "TASK_LIST": "Lista de tareas",
+    "TASKS": "Tareas",
     "TOGGLE_SHOW_ISSUE_PANEL": "Mostrar/Ocultar Panel de Incidencias",
     "TOGGLE_SHOW_NOTES": "Mostrar/Ocultar Notas del Proyecto",
     "TOGGLE_TRACK_TIME": "Iniciar/Detener seguimiento de tiempo",
@@ -2263,22 +2336,22 @@
     "TITLE": "Métricas del Proyecto"
   },
   "PS": {
+    "FAILED_TO_COPY_TO_CLIPBOARD": "Error al copiar al portapapeles",
     "GLOBAL_SETTINGS": "Ajustes globales",
     "NO_PLUGINS_INSTALLED": "Actualmente no hay plugins instalados",
     "PLUGINS": "Plugins",
     "PRIVACY_POLICY": "Política de privacidad",
-    "FAILED_TO_COPY_TO_CLIPBOARD": "Error al copiar al portapapeles",
     "PROJECT_SETTINGS": "Ajustes específicos del proyecto",
     "PROVIDE_FEEDBACK": "Enviar comentarios",
     "RELOAD": "Recargar",
     "SYNC_EXPORT": "Sincronizar y exportar",
     "TABS": {
       "GENERAL": "General",
-      "TASKS": "Tareas",
-      "TIME_TRACKING": "Tiempo y seguimiento",
-      "PRODUCTIVITY": "Productividad",
       "PLUGINS": "Plugins",
-      "SYNC_BACKUP": "Sincronización y copia de seguridad"
+      "PRODUCTIVITY": "Productividad",
+      "SYNC_BACKUP": "Sincronización y copia de seguridad",
+      "TASKS": "Tareas",
+      "TIME_TRACKING": "Tiempo y seguimiento"
     },
     "TAG_SETTINGS": "Ajustes específicos de etiqueta",
     "TOGGLE_DARK_MODE": "Alternar modo oscuro",
@@ -2295,10 +2368,7 @@
     "SCHEDULED_TASKS_WITH_TIME": "Tareas Programadas con Hora de Inicio",
     "START_TASK": "Iniciar tarea y eliminar recordatorio"
   },
-  "Share Chart": "",
-  "Share Heatmap": "",
   "THEMES": {
-    "SELECT_THEME": "Seleccionar tema",
     "amber": "ámbar",
     "blue": "azul",
     "blue-grey": "azul grisáceo",
@@ -2312,9 +2382,10 @@
     "lime": "lima",
     "pink": "rosa",
     "purple": "púrpura",
+    "SCHEDULED_TASKS_WITH_TIME": "Tareas programadas con hora de inicio",
+    "SELECT_THEME": "Seleccionar tema",
     "teal": "verde azulado",
-    "yellow": "amarillo",
-    "SCHEDULED_TASKS_WITH_TIME": "Tareas programadas con hora de inicio"
+    "yellow": "amarillo"
   },
   "USER_PROFILES": {
     "ACTIVE": "Activo",
