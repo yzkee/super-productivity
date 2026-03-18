@@ -67,7 +67,7 @@ export class DatePickerInputComponent implements ControlValueAccessor {
     return value instanceof Date ? value : new Date(value);
   }
 
-  formatDate(value: Date | string): string {
+  formatDate(value: Date | string | undefined): string {
     if (!value) return '';
     return getDbDateStr(this.toDate(value));
   }
