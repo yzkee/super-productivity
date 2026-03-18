@@ -110,5 +110,14 @@ export const APP_FEATURES_FORM_CFG: ConfigFormSection<AppFeaturesConfig> = {
         icon: 'account_circle',
       },
     },
+    {
+      hideExpression: (m: AppFeaturesConfig) => !m.isEnableUserProfiles,
+      type: 'tpl',
+      templateOptions: {
+        tag: 'div',
+        text: T.GCF.APP_FEATURES.USER_PROFILES_WARNING,
+        class: 'sync-warning',
+      },
+    },
   ],
 };
