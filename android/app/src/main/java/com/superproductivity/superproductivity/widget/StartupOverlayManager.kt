@@ -19,7 +19,7 @@ import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.core.content.ContextCompat
+
 import com.superproductivity.superproductivity.R
 
 /**
@@ -127,9 +127,7 @@ class StartupOverlayManager(private val activity: android.app.Activity) {
     }
 
     private fun applyTheme() {
-        val primaryColor = ContextCompat.getColor(activity, R.color.primary)
         val density = activity.resources.displayMetrics.density
-        val strokePx = (3 * density).toInt()
         val cornerPx = 4 * density // match web --card-border-radius: 4px
 
         // Style the FAB — match loading animation color (#6495ed)
@@ -149,10 +147,13 @@ class StartupOverlayManager(private val activity: android.app.Activity) {
         params?.bottomMargin = bottomMarginPx
         barView?.layoutParams = params
 
+        // Match web: elevation shadow instead of colored border
+        barView?.elevation = 12 * density
+        barView?.clipToOutline = true
+
         if (isDarkMode) {
             val barBg = GradientDrawable().apply {
                 setColor(Color.parseColor("#333333"))
-                setStroke(strokePx, primaryColor)
                 cornerRadius = cornerPx
             }
             barView?.background = barBg
@@ -162,7 +163,6 @@ class StartupOverlayManager(private val activity: android.app.Activity) {
         } else {
             val barBg = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                setStroke(strokePx, primaryColor)
                 cornerRadius = cornerPx
             }
             barView?.background = barBg
@@ -194,11 +194,12 @@ class StartupOverlayManager(private val activity: android.app.Activity) {
 
     /**
      * Phase 1: Returns partial text but keeps the native overlay visible.
+     * Returns null if the bar was never opened, empty string if opened but empty.
      */
     fun getPartialTextAndPrepare(): String? {
         if (!isBarVisible) return null
-        val partialText = editText?.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }
-        Log.d(TAG, "getPartialTextAndPrepare: partialText=$partialText, tasksQueued=$taskCount")
+        val partialText = editText?.text?.toString()?.trim() ?: ""
+        Log.d(TAG, "getPartialTextAndPrepare: partialText='$partialText', tasksQueued=$taskCount")
         return partialText
     }
 

@@ -23,12 +23,16 @@ export class StartupOverlayService {
       // effects subscribe, so the event is lost. We must drain here.
       this._processQueuedTasks();
 
-      // Get partial text from native overlay (overlay stays visible)
+      // Get partial text from native overlay (overlay stays visible).
+      // Returns null if bar was never opened, empty string if opened but empty,
+      // or the actual text if user was typing.
       const partialText = androidInterface.getStartupOverlayPartialText?.() ?? null;
 
-      if (partialText) {
-        // Set sessionStorage BEFORE showing AddTaskBar so its signal
-        // initializer picks up the text on construction — no DOM hack needed
+      if (partialText === null) {
+        // Bar was never opened: dismiss immediately
+        androidInterface.dismissStartupOverlay?.();
+      } else if (partialText.length > 0) {
+        // Bar open with text: transfer text to webapp add task bar
         sessionStorage.setItem(SS.ADD_TASK_BAR_TXT, partialText);
         this._layoutService.showAddTaskBar();
 
@@ -43,8 +47,14 @@ export class StartupOverlayService {
           }, 300);
         });
       } else {
-        // No partial text: dismiss immediately
-        androidInterface.dismissStartupOverlay?.();
+        // Bar open but empty: show webapp add task bar and dismiss overlay
+        this._layoutService.showAddTaskBar();
+        this._waitForInput((input) => {
+          setTimeout(() => {
+            input.focus();
+            androidInterface.hideStartupOverlay?.();
+          }, 300);
+        });
       }
     } catch (e) {
       Log.err('StartupOverlayService: processAndDismiss failed', e);
@@ -82,7 +92,7 @@ export class StartupOverlayService {
    * with a safety timeout to prevent leaks.
    */
   private _waitForInput(callback: (input: HTMLInputElement) => void): void {
-    const input = document.querySelector<HTMLInputElement>('add-task-bar input');
+    const input = document.querySelector<HTMLInputElement>('add-task-bar.global input');
     if (input) {
       callback(input);
       return;
@@ -91,7 +101,7 @@ export class StartupOverlayService {
     let resolved = false;
     const observer = new MutationObserver(() => {
       if (resolved) return;
-      const el = document.querySelector<HTMLInputElement>('add-task-bar input');
+      const el = document.querySelector<HTMLInputElement>('add-task-bar.global input');
       if (el) {
         resolved = true;
         observer.disconnect();
