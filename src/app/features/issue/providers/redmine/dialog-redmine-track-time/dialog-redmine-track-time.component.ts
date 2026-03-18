@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, OnDestroy } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  inject,
+  OnDestroy,
+} from '@angular/core';
 import { RedmineApiService } from '../redmine-api.service';
 import {
   MAT_DIALOG_DATA,
@@ -21,7 +27,14 @@ import { expandFadeAnimation } from '../../../../../ui/animations/expand.ani';
 import { DateService } from 'src/app/core/date/date.service';
 import { IssueProviderService } from '../../../issue-provider.service';
 import { RedmineCfg } from '../redmine.model';
-import { concatMap, map, shareReplay, switchMap, takeUntil } from 'rxjs/operators';
+import {
+  catchError,
+  concatMap,
+  map,
+  shareReplay,
+  switchMap,
+  takeUntil,
+} from 'rxjs/operators';
 import { Store } from '@ngrx/store';
 import { IssueProviderActions } from '../../../store/issue-provider.actions';
 import { FormsModule } from '@angular/forms';
@@ -97,6 +110,7 @@ export class DialogRedmineTrackTimeComponent implements OnDestroy {
   private _store = inject(Store);
   private _issueProviderService = inject(IssueProviderService);
   private _taskService = inject(TaskService);
+  private _cdr = inject(ChangeDetectorRef);
   data = inject<{
     redmineIssue: RedmineIssue;
     task: Task;
@@ -116,6 +130,8 @@ export class DialogRedmineTrackTimeComponent implements OnDestroy {
     isChecked: boolean;
   };
   timeSpentToday: number;
+
+  timeSpentLoggedDelta: number;
 
   activityId: number = 1;
 
@@ -146,6 +162,16 @@ export class DialogRedmineTrackTimeComponent implements OnDestroy {
     }),
   );
 
+  private _myLoggedHours$: Observable<number> = this._cfgOnce$.pipe(
+    concatMap((cfg) =>
+      this._redmineApiService.getTimeEntriesForCurrentUser$(
+        this.data.redmineIssue.id,
+        cfg,
+      ),
+    ),
+    catchError(() => of(0)),
+  );
+
   constructor() {
     this._issueProviderIdOnce$.subscribe((v) => IssueLog.log(`_issueProviderIdOnce$`, v));
 
@@ -155,11 +181,25 @@ export class DialogRedmineTrackTimeComponent implements OnDestroy {
     this.comment = this.data.task.parentId ? this.data.task.title : '';
 
     this.timeSpentToday = this.data.task.timeSpentOnDay[this._dateService.todayStr()];
+    this.timeSpentLoggedDelta = Math.max(0, this.data.task.timeSpent);
+
+    this._myLoggedHours$.pipe(takeUntil(this._onDestroy$)).subscribe((myLoggedHours) => {
+      const loggedMs = myLoggedHours * MS_PER_HOUR;
+      this.timeSpentLoggedDelta = Math.max(0, this.data.task.timeSpent - loggedMs);
+      if (
+        this.selectedDefaultTimeMode === JiraWorklogExportDefaultTime.AllTimeMinusLogged
+      ) {
+        this.timeSpent = this.timeSpentLoggedDelta;
+      }
+      this._cdr.markForCheck();
+    });
 
     this._cfgOnce$.subscribe((cfg) => {
       if (cfg.timeTrackingDialogDefaultTime) {
+        this.selectedDefaultTimeMode = cfg.timeTrackingDialogDefaultTime;
         this.timeSpent = this.getTimeToLogForMode(cfg.timeTrackingDialogDefaultTime);
         this.started = this._fillInStarted(cfg.timeTrackingDialogDefaultTime);
+        this._cdr.markForCheck();
       }
     });
   }
@@ -240,7 +280,7 @@ export class DialogRedmineTrackTimeComponent implements OnDestroy {
       case JiraWorklogExportDefaultTime.TimeToday:
         return this.timeSpentToday;
       case JiraWorklogExportDefaultTime.AllTimeMinusLogged:
-        return this.data.task.timeSpent;
+        return this.timeSpentLoggedDelta;
     }
     return 0;
   }
