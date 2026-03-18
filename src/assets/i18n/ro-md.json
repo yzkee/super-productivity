@@ -591,8 +591,6 @@
         "FOCUS_WORK_TIME": "Focused work time",
         "IMPACT_OF_WORK": "How do you rate the impact of your work today?",
         "IMPACT_OF_WORK_HINT": "1: No meaningful progress – 4: Significant impact",
-        "NOTES": "",
-        "PRODUCTIVITY": "",
         "PRODUCTIVITY_SCORE": "Productivity Score",
         "PRODUCTIVITY_SCORE_TOOLTIP": "65% Impact (1-4 scale) • 30% Focus toward 4h target • 5% total work (capped at 10h)",
         "SCORE_BREAKDOWN_TITLE_PRODUCTIVITY": "7-Day Productivity Breakdown",
@@ -2445,8 +2443,6 @@
     "SCHEDULED_TASKS_WITH_TIME": "Scheduled Tasks with Start Time",
     "START_TASK": "Start task and remove reminder"
   },
-  "Share Chart": "",
-  "Share Heatmap": "",
   "THEMES": {
     "SELECT_THEME": "Select Theme",
     "amber": "amber",

@@ -563,8 +563,6 @@
         "FOCUS_WORK_TIME": "专注工作时间",
         "IMPACT_OF_WORK": "您如何评价您今天的工作所产生的影响？",
         "IMPACT_OF_WORK_HINT": "1：没有实质进展 — 4：显著影响",
-        "NOTES": "",
-        "PRODUCTIVITY": "",
         "PRODUCTIVITY_SCORE": "生产力评分",
         "PRODUCTIVITY_SCORE_TOOLTIP": "65% 影响力（1-4分）• 30% 专注度（以4小时为目标）• 5% 总工作时间（最多10小时）",
         "SCORE_BREAKDOWN_TITLE_PRODUCTIVITY": "7天生产力分解",
@@ -2391,8 +2389,6 @@
     "SCHEDULED_TASKS_WITH_TIME": "有开始时间的计划任务",
     "START_TASK": "开始任务并移除提醒"
   },
-  "Share Chart": "",
-  "Share Heatmap": "",
   "THEMES": {
     "SELECT_THEME": "选择主题",
     "amber": "琥珀色",

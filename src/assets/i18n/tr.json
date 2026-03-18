@@ -558,8 +558,6 @@
         "FOCUS_WORK_TIME": "Odaklı çalışma süresi",
         "IMPACT_OF_WORK": "Bugünkü çalışmanızın etkisini nasıl değerlendiriyorsunuz?",
         "IMPACT_OF_WORK_HINT": "1: Anlamlı ilerleme yok – 4: Önemli etki",
-        "NOTES": "",
-        "PRODUCTIVITY": "",
         "PRODUCTIVITY_SCORE": "Üretkenlik Puanı",
         "PRODUCTIVITY_SCORE_TOOLTIP": "65% Etki (1-4 ölçeği) • 30% 4 saat hedefe odaklanma • 5% toplam çalışma (10 saatte sınırlı)",
         "SCORE_BREAKDOWN_TITLE_PRODUCTIVITY": "7 Günlük Üretkenlik Dağılımı",
@@ -2265,8 +2263,6 @@
     "SCHEDULED_TASKS_WITH_TIME": "Hatırlatıcılı zamanlanmış görevler",
     "START_TASK": "Görevi başlat ve hatırlatıcıyı kaldır"
   },
-  "Share Chart": "",
-  "Share Heatmap": "",
   "THEMES": {
     "SELECT_THEME": "Tema Seç",
     "amber": "kehribar",
