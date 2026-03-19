@@ -30,6 +30,7 @@ import { HANDLED_ERROR_PROP_STR } from '../../../../app.constants';
 import { DialogConfirmComponent } from '../../../../ui/dialog-confirm/dialog-confirm.component';
 import { isJiraEnabled } from './is-jira-enabled.util';
 import { IssueProviderService } from '../../issue-provider.service';
+import { TrackTimeSubmitParams } from '../../shared/dialog-track-time/track-time-dialog.model';
 import { assertTruthy } from '../../../../util/assert-truthy';
 import { devError } from '../../../../util/dev-error';
 import { LOCAL_ACTIONS } from '../../../../util/local-actions.token';
@@ -349,13 +350,34 @@ export class JiraIssueEffects {
       .getReducedIssueById$(issueId, jiraCfg)
       .pipe(take(1))
       .subscribe(async (issue) => {
-        const { DialogJiraAddWorklogComponent } =
-          await import('./jira-view-components/dialog-jira-add-worklog/dialog-jira-add-worklog.component');
-        this._matDialog.open(DialogJiraAddWorklogComponent, {
+        const { DialogTrackTimeComponent } =
+          await import('../../shared/dialog-track-time/dialog-track-time.component');
+        const timeLogged = issue.timespent * 1000;
+        this._matDialog.open(DialogTrackTimeComponent, {
           restoreFocus: true,
           data: {
-            issue,
             task,
+            issueIcon: 'jira',
+            issueLabel: `${issue.key} ${issue.summary}`,
+            timeLogged,
+            issueProviderType: 'JIRA',
+            configTimeKey: 'worklogDialogDefaultTime',
+            onSubmit: (params: TrackTimeSubmitParams) =>
+              this._jiraApiService.addWorklog$({
+                issueId: issue.id,
+                started: params.started,
+                timeSpent: params.timeSpent,
+                comment: params.comment,
+                cfg: jiraCfg,
+              }),
+            successMsg: T.F.JIRA.S.ADDED_WORKLOG_FOR,
+            successTranslateParams: { issueKey: issue.key },
+            t: {
+              title: T.F.JIRA.DIALOG_WORKLOG.TITLE,
+              submitFor: T.F.JIRA.DIALOG_WORKLOG.SUBMIT_WORKLOG_FOR,
+              currentlyLogged: T.F.JIRA.DIALOG_WORKLOG.CURRENTLY_LOGGED,
+              submit: T.F.JIRA.DIALOG_WORKLOG.SAVE_WORKLOG,
+            },
           },
         });
       });

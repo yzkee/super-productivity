@@ -1,34 +1,43 @@
 <form
-  (submit)="$event.preventDefault(); postTime()"
+  (submit)="$event.preventDefault(); submit()"
   class="mat-body"
   name="time-estimate-form"
 >
   <h1 mat-dialog-title>
     <mat-icon
       class="dialog-header-icon"
-      svgIcon="redmine"
+      [svgIcon]="data.issueIcon"
     ></mat-icon>
-    <span>{{ T.F.REDMINE.DIALOG_TRACK_TIME.TITLE | translate }}</span>
+    <span>{{ data.t.title | translate }}</span>
   </h1>
 
   <mat-dialog-content>
     <p>
-      {{ T.F.REDMINE.DIALOG_TRACK_TIME.SUBMIT_TIME_FOR | translate }}<br />
+      {{ data.t.submitFor | translate }}<br />
       <strong>
-        <a
-          [href]="redmineIssue?.url"
-          target="_blank"
-        >
-          #{{ redmineIssue.id }} {{ redmineIssue.subject }}</a
-        ></strong
+        @if (data.issueUrl) {
+          <a
+            [href]="data.issueUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ data.issueLabel }}</a
+          >
+        } @else {
+          {{ data.issueLabel }}
+        } </strong
       >.
     </p>
-    <br />
-    <br />
+    @if (data.t.currentlyLogged) {
+      <p>
+        {{ data.t.currentlyLogged | translate }}
+        <strong>{{ timeLogged | msToString }}</strong>
+      </p>
+    }
 
     <div class="form-wrapper">
+      <mat-label>{{ T.F.JIRA.DIALOG_WORKLOG.TIME_SPENT | translate }}</mat-label>
       <mat-form-field>
-        <mat-label>{{ T.F.REDMINE.DIALOG_TRACK_TIME.TIME_SPENT | translate }}</mat-label>
         <input
           [(ngModel)]="timeSpent"
           inputDuration="optional"
@@ -37,6 +46,7 @@
           required
           type="text"
         />
+
         <div
           class="suffix-wrapper"
           matSuffix
@@ -85,7 +95,7 @@
       }
 
       <mat-form-field>
-        <mat-label>{{ T.F.REDMINE.DIALOG_TRACK_TIME.STARTED | translate }}</mat-label>
+        <mat-label>{{ T.F.JIRA.DIALOG_WORKLOG.STARTED | translate }}</mat-label>
         <input
           [(ngModel)]="started"
           matInput
@@ -93,22 +103,22 @@
           required
           type="datetime-local"
         />
-        <mat-error>{{
-          T.F.REDMINE.DIALOG_TRACK_TIME.INVALID_DATE | translate
-        }}</mat-error>
+        <mat-error>{{ T.F.JIRA.DIALOG_WORKLOG.INVALID_DATE | translate }}</mat-error>
       </mat-form-field>
 
-      <mat-form-field>
-        <mat-label>{{ T.F.REDMINE.DIALOG_TRACK_TIME.ACTIVITY | translate }}</mat-label>
-        <mat-select
-          [(ngModel)]="activityId"
-          name="activity"
-        >
-          @for (activity of activities$ | async; track activity) {
-            <mat-option [value]="activity.id"> {{ activity.name }} </mat-option>
-          }
-        </mat-select>
-      </mat-form-field>
+      @if (data.activities$) {
+        <mat-form-field>
+          <mat-label>{{ T.F.OPEN_PROJECT.DIALOG_TRACK_TIME.ACTIVITY | translate }}</mat-label>
+          <mat-select
+            [(ngModel)]="activityId"
+            name="activity"
+          >
+            @for (activity of data.activities$ | async; track activity) {
+              <mat-option [value]="activity.id"> {{ activity.name }} </mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
+      }
 
       <mat-form-field>
         <mat-label>Comment</mat-label>
@@ -140,7 +150,7 @@
         type="submit"
       >
         <mat-icon>save</mat-icon>
-        {{ T.F.REDMINE.DIALOG_TRACK_TIME.POST_TIME | translate }}
+        {{ data.t.submit | translate }}
       </button>
     </div>
   </mat-dialog-actions>

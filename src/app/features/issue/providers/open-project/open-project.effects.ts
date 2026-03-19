@@ -29,6 +29,11 @@ import { T } from 'src/app/t.const';
 import { IssueProviderService } from '../../issue-provider.service';
 import { assertTruthy } from '../../../../util/assert-truthy';
 import { LOCAL_ACTIONS } from '../../../../util/local-actions.token';
+import { parseOpenProjectDuration } from './open-project-view-components/parse-open-project-duration.util';
+import { formatOpenProjectWorkPackageSubjectForSnack } from './format-open-project-work-package-subject.util';
+import { msToIsoDuration } from '../../../../util/ms-to-iso-duration';
+import { getDbDateStr } from 'src/app/util/get-db-date-str';
+import { TrackTimeSubmitParams } from '../../shared/dialog-track-time/track-time-dialog.model';
 
 @Injectable()
 export class OpenProjectEffects {
@@ -170,13 +175,42 @@ export class OpenProjectEffects {
       .getById$(workPackageId, openProjectCfg)
       .pipe(take(1))
       .subscribe(async (workPackage) => {
-        const { DialogOpenProjectTrackTimeComponent } =
-          await import('./open-project-view-components/dialog-open-project-track-time/dialog-open-project-track-time.component');
-        this._matDialog.open(DialogOpenProjectTrackTimeComponent, {
+        const { DialogTrackTimeComponent } =
+          await import('../../shared/dialog-track-time/dialog-track-time.component');
+        const timeLogged = parseOpenProjectDuration(workPackage.spentTime);
+        this._matDialog.open(DialogTrackTimeComponent, {
           restoreFocus: true,
           data: {
-            workPackage,
             task,
+            issueIcon: 'open_project',
+            issueLabel: `${workPackage.id} ${workPackage.subject}`,
+            issueUrl: workPackage.url,
+            timeLogged,
+            activities$: this._openProjectApiService.getActivitiesForTrackTime$(
+              workPackage.id,
+              openProjectCfg,
+            ),
+            issueProviderType: 'OPEN_PROJECT',
+            configTimeKey: 'timeTrackingDialogDefaultTime',
+            onSubmit: (params: TrackTimeSubmitParams) =>
+              this._openProjectApiService.trackTime$({
+                workPackage,
+                spentOn: getDbDateStr(params.started),
+                hours: msToIsoDuration(params.timeSpent),
+                comment: params.comment,
+                activityId: params.activityId ?? 1,
+                cfg: openProjectCfg,
+              }),
+            successMsg: T.F.OPEN_PROJECT.S.POST_TIME_SUCCESS,
+            successTranslateParams: {
+              issueTitle: formatOpenProjectWorkPackageSubjectForSnack(workPackage),
+            },
+            t: {
+              title: T.F.OPEN_PROJECT.DIALOG_TRACK_TIME.TITLE,
+              submitFor: T.F.OPEN_PROJECT.DIALOG_TRACK_TIME.SUBMIT_TIME_FOR,
+              currentlyLogged: T.F.OPEN_PROJECT.DIALOG_TRACK_TIME.CURRENTLY_LOGGED,
+              submit: T.F.OPEN_PROJECT.DIALOG_TRACK_TIME.POST_TIME,
+            },
           },
         });
       });
