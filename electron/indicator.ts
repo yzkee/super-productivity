@@ -146,7 +146,9 @@ function initListeners(): void {
   });
 
   ipcMain.on(IPC.SET_PROGRESS_BAR, (ev: IpcMainEvent, { progress }) => {
-    setTrayIcon(tray, getRunningIconPath(progress));
+    if (_isRunning) {
+      setTrayIcon(tray, getRunningIconPath(progress));
+    }
 
     // Also update the context menu and tray title during the progress bar tick
     // This perfectly synchronizes the text "blinking" with the pie chart animation
