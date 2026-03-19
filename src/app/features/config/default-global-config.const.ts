@@ -1,12 +1,9 @@
 import { environment } from '../../../environments/environment';
 
-import { getDefaultVoice } from '../voice-reminder/getAvailableVoices';
 import { TaskReminderOptionId } from '../tasks/task.model';
 import { GlobalConfigState } from './global-config.model';
 
 const minute = 60 * 1000;
-const defaultVoice = getDefaultVoice();
-
 const defaultTaskNotesTemplate = `**How can I best achieve it now?**
 
 **What do I want?**
@@ -90,7 +87,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     interval: 5 * minute,
     volume: 75,
     text: 'Your current task is: ${currentTaskTitle}',
-    voice: defaultVoice,
+    voice: '',
   },
   focusMode: {
     isSkipPreparation: false,

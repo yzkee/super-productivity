@@ -113,6 +113,11 @@ export class PluginAPI implements PluginAPIInterface {
     this._boundMethods.registerMenuEntry(menuEntryCfg);
   }
 
+  registerConfigHandler(handler: () => void): void {
+    PluginLog.log(`Plugin ${this._pluginId} registered config handler`);
+    this._boundMethods.registerConfigHandler(handler);
+  }
+
   registerShortcut(
     shortcutCfg: Omit<PluginShortcutCfg, 'pluginId'> & { id?: string },
   ): void {

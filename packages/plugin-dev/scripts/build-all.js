@@ -240,6 +240,35 @@ const plugins = [
     },
   },
   {
+    name: 'voice-reminder',
+    path: 'voice-reminder',
+    needsInstall: false,
+    copyToAssets: true,
+    buildCommand: async (pluginPath) => {
+      const targetDir = path.join(
+        __dirname,
+        '../../../src/assets/bundled-plugins/voice-reminder',
+      );
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+      const files = ['manifest.json', 'plugin.js', 'icon.svg'];
+      for (const file of files) {
+        const src = path.join(pluginPath, file);
+        const dest = path.join(targetDir, file);
+        if (fs.existsSync(src)) {
+          fs.copyFileSync(src, dest);
+        }
+      }
+      // Copy i18n directory
+      const i18nSrc = path.join(pluginPath, 'i18n');
+      if (fs.existsSync(i18nSrc)) {
+        copyRecursive(i18nSrc, path.join(targetDir, 'i18n'));
+      }
+      return 'Copied to assets';
+    },
+  },
+  {
     name: 'clickup-issue-provider',
     path: 'clickup-issue-provider',
     needsInstall: true,

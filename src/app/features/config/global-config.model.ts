@@ -204,9 +204,9 @@ export type TrackingReminderConfigOld = Readonly<{
   minTime: number;
 }>;
 
-// @todo - rename to VoiceReminderConfig
-// @todo - but save DominaModeConfig for backward compatibility
-// @todo - and make migration when loading old config
+/**
+ * @deprecated Exists only for migration to the voice-reminder plugin. Can be removed once migration is no longer needed.
+ */
 export type DominaModeConfig = Readonly<{
   isEnabled: boolean;
   text: string;

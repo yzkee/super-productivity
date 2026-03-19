@@ -123,6 +123,9 @@ export class PluginBridgeService implements OnDestroy {
   private readonly _sidePanelButtons = signal<PluginSidePanelBtnCfg[]>([]);
   public readonly sidePanelButtons = this._sidePanelButtons.asReadonly();
 
+  // Track config handlers registered by plugins (for settings button on plugin card)
+  private readonly _configHandlers = new Map<string, () => void>();
+
   constructor() {
     // Initialize window focus tracking
     this._initWindowFocusTracking();
@@ -164,6 +167,7 @@ export class PluginBridgeService implements OnDestroy {
     deleteSimpleCounter: (id: string) => Promise<void>;
     setSimpleCounterToday: (id: string, value: number) => Promise<void>;
     setSimpleCounterDate: (id: string, date: string, value: number) => Promise<void>;
+    registerConfigHandler: (handler: () => void) => void;
     registerIssueProvider: (definition: IssueProviderPluginDefinition) => void;
     unregisterIssueProvider: () => void;
     log: ReturnType<typeof Log.withContext>;
@@ -184,6 +188,8 @@ export class PluginBridgeService implements OnDestroy {
       registerSidePanelButton: (cfg: Omit<PluginSidePanelBtnCfg, 'pluginId'>) =>
         this._registerSidePanelButton(pluginId, cfg),
       registerShortcut: (cfg: PluginShortcutCfg) => this._registerShortcut(pluginId, cfg),
+      registerConfigHandler: (handler: () => void) =>
+        this._configHandlers.set(pluginId, handler),
 
       // Navigation
       showIndexHtmlAsView: () => this._showIndexHtmlAsView(pluginId),
@@ -875,6 +881,7 @@ export class PluginBridgeService implements OnDestroy {
     this._removePluginMenuEntries(pluginId);
     this._removePluginSidePanelButtons(pluginId);
     this.unregisterPluginShortcuts(pluginId);
+    this._configHandlers.delete(pluginId);
 
     // Clean up window focus handler
     this._windowFocusHandlers.delete(pluginId);
@@ -976,6 +983,14 @@ export class PluginBridgeService implements OnDestroy {
     this._headerButtons.set(filteredButtons);
 
     PluginLog.log('PluginBridge: Header buttons removed for plugin', { pluginId });
+  }
+
+  hasConfigHandler(pluginId: string): boolean {
+    return this._configHandlers.has(pluginId);
+  }
+
+  invokeConfigHandler(pluginId: string): void {
+    this._configHandlers.get(pluginId)?.();
   }
 
   /**

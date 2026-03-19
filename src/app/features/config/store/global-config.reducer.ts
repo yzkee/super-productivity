@@ -67,6 +67,7 @@ export const selectTimelineConfig = createSelector(
   (cfg): ScheduleConfig => cfg?.schedule ?? DEFAULT_GLOBAL_CONFIG.schedule,
 );
 
+/** @deprecated Exists only for migration to the voice-reminder plugin. */
 export const selectIsDominaModeConfig = createSelector(
   selectConfigFeatureState,
   (cfg): DominaModeConfig => cfg?.dominaMode ?? DEFAULT_GLOBAL_CONFIG.dominaMode,

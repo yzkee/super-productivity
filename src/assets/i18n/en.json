@@ -1776,17 +1776,6 @@
         "UNTRACKED_TIME": "Untracked time:"
       }
     },
-    "VOICE_REMINDER": {
-      "FORM": {
-        "HELP": "Repeats the configured phrase every X when tracking time for a task.",
-        "L_INTERVAL": "Interval to repeat phrase",
-        "L_TEXT": "Text",
-        "L_TEXT_DESCRIPTION": "e.g. \"Work on ${currentTaskTitle}!\"",
-        "L_VOICE": "Select a voice",
-        "L_VOICE_DESCRIPTION": "Choose a voice",
-        "TITLE": "Voice Reminder"
-      }
-    },
     "WORKLOG": {
       "CMP": {
         "DAYS_WORKED": "Days, worked:",
