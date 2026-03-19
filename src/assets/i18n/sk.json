@@ -1194,60 +1194,60 @@
         "SUCCESS_DOWNLOAD": "Synchronizované dáta zo vzdialeného",
         "SUCCESS_VIA_BUTTON": "Údaje boli úspešne synchronizované",
         "UNKNOWN_ERROR": "Neznáma chyba synchronizácie: {{err}}",
-        "ARCHIVE_OPERATION_FAILED": "Archive operation failed. Some cleanup may not have completed.",
-        "AUTH_SETUP_FAILED": "Failed to set up authentication. If you're using the web app, make sure you're accessing it over HTTPS. Otherwise, please try the stable version or report this as a bug.",
-        "AUTH_TOKEN_REJECTED": "Sync token was rejected by the server: {{reason}}. Please get a new token.",
-        "CHANGE_PASSWORD_FAILED": "Failed to change password: {{message}}",
-        "CLOCK_DRIFT_WARNING": "Your device clock appears to be off by {{minutes}} minutes. This may cause sync issues.",
-        "COMPACTION_FAILED": "Database cleanup failed. App may slow down.",
-        "CONFLICT_DIALOG_TIMEOUT": "Sync conflict dialog timed out and was cancelled. Sync will retry on next trigger.",
-        "CONFLICT_RESOLUTION_FAILED": "Sync conflict resolution failed. Please reload.",
-        "DATA_REPAIRED": "Data automatically repaired ({{count}} issues fixed)",
-        "DECRYPTION_FAILED": "Failed to decrypt synced data. Please check your encryption password.",
-        "DEFERRED_ACTION_FAILED": "Some changes made during sync could not be saved. Please reload to recover.",
-        "DIALOG_RESULT_ERROR": "An error occurred while processing the sync dialog. Please try again.",
-        "DISABLE_ENCRYPTION_FAILED": "Failed to disable encryption: {{message}}",
-        "ENABLE_ENCRYPTION_FAILED": "Failed to enable encryption: {{message}}",
-        "ENCRYPTION_DISABLED_ON_OTHER_DEVICE": "Encryption was disabled on another device. Your sync settings have been updated.",
-        "ENCRYPTION_PASSWORD_REQUIRED": "Encrypted data received but no encryption password is configured. Please set your encryption password in sync settings.",
-        "ENCRYPTION_REQUIRED_FOR_SUPERSYNC": "Encryption is required for SuperSync. Please set an encryption password to continue syncing.",
-        "ERROR_PAYLOAD_TOO_LARGE": "Sync Error: Your data is too large to upload.\n\nThis happens when you have many archived tasks. Your data was NOT synced!\n\nPlease contact support for assistance.",
-        "ERROR_UNABLE_TO_READ_REMOTE_DATA": "Error while syncing. Unable to read remote data. Maybe you enabled encryption and your local password does not match the one used to encrypt the remote data?",
-        "FINISH_DAY_SYNC_ERROR": "Sync error while finishing day. Please try again.",
-        "FRESH_CLIENT_SYNC_CANCELLED": "Initial sync cancelled. Remote data was not applied.",
-        "HYDRATION_FAILED": "Failed to load data. Please reload the app.",
-        "IMPORTING": "Importing data",
-        "INCOMPLETE_OP_SYNC": "Sync incomplete: {{count}} operation file(s) failed to download",
-        "INITIAL_SYNC_ERROR": "Initial Sync failed",
-        "INTEGRITY_CHECK_FAILED": "Data integrity issue detected. Auto-repair attempted. If you experience issues, please reload the app.",
-        "INVALID_AUTH_CODE": "The authorization code was rejected. Please try authenticating again and make sure to copy the code exactly.",
-        "INVALID_OPERATION_PAYLOAD": "Invalid operation detected. Changes may not be saved - please reload.",
-        "LOCAL_CHANGES_DISCARDED": "{{count}} local change(s) discarded - item(s) were deleted on another device",
-        "LOCAL_CHANGES_DISCARDED_SNAPSHOT": "{{count}} unsaved local change(s) discarded - sync downloaded newer data",
-        "LOCAL_DATA_REPLACE_CANCELLED": "Sync cancelled. Your local data has been preserved.",
-        "LOCK_TIMEOUT_ERROR": "Sync timed out waiting for a previous operation to finish. Please try again.",
-        "LWW_CONFLICTS_AUTO_RESOLVED": "Sync conflicts auto-resolved: {{localWins}} local win(s), {{remoteWins}} remote win(s)",
-        "MIGRATION_FAILED": "Some sync data could not be migrated and was skipped. This may indicate data corruption or a bug.",
-        "NEWER_VERSION_AVAILABLE": "Some changes are from a newer app version. Consider updating for full compatibility.",
-        "OPERATION_PERMANENTLY_FAILED": "Some sync operations failed and could not be applied. Data may be incomplete.",
-        "OVERWRITE_SERVER_FAILED": "Failed to overwrite server data: {{message}}",
-        "PARTIAL_APPLY_FAILURE": "Some sync operations failed to apply. Data has been validated.",
-        "PERSIST_FAILED": "Failed to save changes. State may be inconsistent - please reload.",
-        "REMOTE_DATA_TOO_OLD": "Remote data is too old to be processed. Please update your remote app.",
-        "REPLAY_LOCAL_OPS_FAILED": "Failed to replay local operations after import. Some recent changes may be lost. Data has been validated.",
-        "RESTORE_ERROR": "Failed to restore data",
-        "RESTORE_SUCCESS": "Data restored successfully",
-        "SERVER_MIGRATION_VALIDATION_FAILED": "Could not migrate data to server - local data validation failed. Please try importing a backup.",
-        "STORAGE_QUOTA_EXCEEDED": "Sync server storage is full. Your changes are NOT syncing! Please archive old tasks or upgrade your plan.",
-        "STORAGE_RECOVERED_AFTER_COMPACTION": "Storage was running low. Old data cleaned up successfully.",
-        "TIMEOUT_ERROR": "Sync operation timed out. {{suggestion}}",
-        "TOO_MANY_OPS_TO_DOWNLOAD": "Too many sync operations to download. Some changes may be missing.",
-        "UPLOAD_ERROR": "Unknown Upload Error (Settings correct?): {{err}}",
-        "UPLOAD_OPS_REJECTED": "{{count}} operation(s) were permanently rejected by the server and won't be synced.",
-        "VECTOR_CLOCK_LIMIT_REACHED": "Sync has tracked {{originalSize}} devices/browsers, exceeding the limit of {{maxSize}}. Inactive device entries were pruned. Consider a sync reset if you experience issues.",
-        "VERSION_TOO_OLD": "Your app version is too old for the synced data. Please update!",
-        "VERSION_UNSUPPORTED": "Cannot sync: data requires a newer app version. Please update.",
-        "WEB_CRYPTO_NOT_AVAILABLE": "Encryption is not available on this device. On Android, encryption requires a secure context (HTTPS) which is not available. Please disable encryption in sync settings or sync from a desktop web browser."
+        "ARCHIVE_OPERATION_FAILED": "Operácia archívu zlyhala. Niektoré čistenie nemuselo byť dokončené.",
+        "AUTH_SETUP_FAILED": "Nastavenie autentifikácie zlyhalo. Ak používate webovú aplikáciu, uistite sa, že pristupujete cez HTTPS. V opačnom prípade skúste stabilnú verziu alebo nahláste chybu.",
+        "AUTH_TOKEN_REJECTED": "Synchronizačný token bol odmietnutý serverom: {{reason}}. Získajte nový token.",
+        "CHANGE_PASSWORD_FAILED": "Zmena hesla zlyhala: {{message}}",
+        "CLOCK_DRIFT_WARNING": "Hodiny vášho zariadenia sa zdajú byť posunuté o {{minutes}} minút. Môže to spôsobiť problémy so synchronizáciou.",
+        "COMPACTION_FAILED": "Čistenie databázy zlyhalo. Aplikácia sa môže spomaliť.",
+        "CONFLICT_DIALOG_TIMEOUT": "Dialóg konfliktu synchronizácie vypršal a bol zrušený. Synchronizácia sa opakuje pri ďalšom spustení.",
+        "CONFLICT_RESOLUTION_FAILED": "Riešenie konfliktu synchronizácie zlyhalo. Prosím znovu načítajte stránku.",
+        "DATA_REPAIRED": "Dáta boli automaticky opravené ({{count}} problémov opravených)",
+        "DECRYPTION_FAILED": "Dešifrovanie synchronizovaných dát zlyhalo. Skontrolujte šifrovacie heslo.",
+        "DEFERRED_ACTION_FAILED": "Niektoré zmeny vykonané počas synchronizácie sa nepodarilo uložiť. Znovu načítajte stránku na obnovenie.",
+        "DIALOG_RESULT_ERROR": "Pri spracovaní dialógu synchronizácie došlo k chybe. Skúste to znova.",
+        "DISABLE_ENCRYPTION_FAILED": "Zakázanie šifrovania zlyhalo: {{message}}",
+        "ENABLE_ENCRYPTION_FAILED": "Povolenie šifrovania zlyhalo: {{message}}",
+        "ENCRYPTION_DISABLED_ON_OTHER_DEVICE": "Šifrovanie bolo zakázané na inom zariadení. Vaše nastavenia synchronizácie boli aktualizované.",
+        "ENCRYPTION_PASSWORD_REQUIRED": "Boli prijaté zašifrované dáta, ale nie je nakonfigurované žiadne šifrovacie heslo. Nastavte šifrovacie heslo v nastaveniach synchronizácie.",
+        "ENCRYPTION_REQUIRED_FOR_SUPERSYNC": "Pre SuperSync sa vyžaduje šifrovanie. Nastavte šifrovacie heslo na pokračovanie synchronizácie.",
+        "ERROR_PAYLOAD_TOO_LARGE": "Chyba synchronizácie: Vaše dáta sú príliš veľké na nahranie.\n\nToto sa stáva, keď máte veľa archivovaných úloh. Vaše dáta NEBOLI synchronizované!\n\nProsím kontaktujte podporu.",
+        "ERROR_UNABLE_TO_READ_REMOTE_DATA": "Chyba pri synchronizácii. Nie je možné prečítať vzdialené dáta. Možno ste povolili šifrovanie a vaše lokálne heslo sa nezhoduje s heslom použitým na zašifrovanie vzdialených dát?",
+        "FINISH_DAY_SYNC_ERROR": "Chyba synchronizácie pri ukončení dňa. Skúste to znova.",
+        "FRESH_CLIENT_SYNC_CANCELLED": "Úvodná synchronizácia bola zrušená. Vzdialené dáta neboli aplikované.",
+        "HYDRATION_FAILED": "Nepodarilo sa načítať dáta. Znovu načítajte aplikáciu.",
+        "IMPORTING": "Importovanie dát",
+        "INCOMPLETE_OP_SYNC": "Synchronizácia neúplná: {{count}} súborov operácií sa nepodarilo stiahnuť",
+        "INITIAL_SYNC_ERROR": "Úvodná synchronizácia zlyhala",
+        "INTEGRITY_CHECK_FAILED": "Zistený problém s integritou dát. Pokus o automatickú opravu. Ak máte problémy, znovu načítajte aplikáciu.",
+        "INVALID_AUTH_CODE": "Autorizačný kód bol odmietnutý. Skúste sa znova autentifikovať a uistite sa, že ste kód skopírovali presne.",
+        "INVALID_OPERATION_PAYLOAD": "Zistená neplatná operácia. Zmeny sa nemusia uložiť - znovu načítajte stránku.",
+        "LOCAL_CHANGES_DISCARDED": "{{count}} lokálnych zmien zahodených - položky boli odstránené na inom zariadení",
+        "LOCAL_CHANGES_DISCARDED_SNAPSHOT": "{{count}} neuložených lokálnych zmien zahodených - synchronizácia stiahla novšie dáta",
+        "LOCAL_DATA_REPLACE_CANCELLED": "Synchronizácia bola zrušená. Vaše lokálne dáta boli zachované.",
+        "LOCK_TIMEOUT_ERROR": "Synchronizácia vypršala pri čakaní na dokončenie predchádzajúcej operácie. Skúste to znova.",
+        "LWW_CONFLICTS_AUTO_RESOLVED": "Konflikty synchronizácie automaticky vyriešené: {{localWins}} lokálnych výhier, {{remoteWins}} vzdialených výhier",
+        "MIGRATION_FAILED": "Niektoré synchronizačné dáta sa nepodarilo migrovať a boli preskočené. Môže to naznačovať poškodenie dát alebo chybu.",
+        "NEWER_VERSION_AVAILABLE": "Niektoré zmeny sú z novšej verzie aplikácie. Zvážte aktualizáciu pre úplnú kompatibilitu.",
+        "OPERATION_PERMANENTLY_FAILED": "Niektoré synchronizačné operácie zlyhali a nebolo ich možné aplikovať. Dáta môžu byť neúplné.",
+        "OVERWRITE_SERVER_FAILED": "Prepísanie dát na serveri zlyhalo: {{message}}",
+        "PARTIAL_APPLY_FAILURE": "Niektoré synchronizačné operácie sa nepodarilo aplikovať. Dáta boli overené.",
+        "PERSIST_FAILED": "Nepodarilo sa uložiť zmeny. Stav môže byť nekonzistentný - znovu načítajte stránku.",
+        "REMOTE_DATA_TOO_OLD": "Vzdialené dáta sú príliš staré na spracovanie. Aktualizujte vzdialenú aplikáciu.",
+        "REPLAY_LOCAL_OPS_FAILED": "Nepodarilo sa prehrať lokálne operácie po importe. Niektoré nedávne zmeny mohli byť stratené. Dáta boli overené.",
+        "RESTORE_ERROR": "Nepodarilo sa obnoviť dáta",
+        "RESTORE_SUCCESS": "Dáta boli úspešne obnovené",
+        "SERVER_MIGRATION_VALIDATION_FAILED": "Nie je možné migrovať dáta na server - overenie lokálnych dát zlyhalo. Skúste importovať zálohu.",
+        "STORAGE_QUOTA_EXCEEDED": "Úložisko synchronizačného servera je plné. Vaše zmeny sa NESYNCHRONIZUJÚ! Archivujte staré úlohy alebo inovujte plán.",
+        "STORAGE_RECOVERED_AFTER_COMPACTION": "Úložisko bolo takmer plné. Staré dáta boli úspešne vyčistené.",
+        "TIMEOUT_ERROR": "Synchronizačná operácia vypršala. {{suggestion}}",
+        "TOO_MANY_OPS_TO_DOWNLOAD": "Príliš veľa synchronizačných operácií na stiahnutie. Niektoré zmeny môžu chýbať.",
+        "UPLOAD_ERROR": "Neznáma chyba nahrávania (správne nastavenia?): {{err}}",
+        "UPLOAD_OPS_REJECTED": "{{count}} operácií bolo trvalo odmietnutých serverom a nebude synchronizovaných.",
+        "VECTOR_CLOCK_LIMIT_REACHED": "Synchronizácia sledovala {{originalSize}} zariadení/prehliadačov, čo presahuje limit {{maxSize}}. Neaktívne záznamy zariadení boli vyčistené. Ak máte problémy, zvážte reset synchronizácie.",
+        "VERSION_TOO_OLD": "Vaša verzia aplikácie je príliš stará pre synchronizované dáta. Aktualizujte prosím!",
+        "VERSION_UNSUPPORTED": "Nie je možné synchronizovať: dáta vyžadujú novšiu verziu aplikácie. Aktualizujte prosím.",
+        "WEB_CRYPTO_NOT_AVAILABLE": "Šifrovanie nie je na tomto zariadení dostupné. Na Androide vyžaduje šifrovanie bezpečný kontext (HTTPS), ktorý nie je dostupný. Zakážte šifrovanie v nastaveniach synchronizácie alebo synchronizujte z desktopového prehliadača."
       },
       "SAFETY_BACKUP": {
         "BTN_CLEAR_ALL": "Vymazať všetko",
@@ -1357,7 +1357,7 @@
       },
       "S": {
         "UPDATED": "Nastavenia štítkov boli aktualizované",
-        "ARCHIVE_CLEANUP_FAILED": "Failed to clean up archived data for deleted tag"
+        "ARCHIVE_CLEANUP_FAILED": "Nepodarilo sa vyčistiť archivované dáta pre odstránený štítok"
       },
       "TTL": {
         "ADD_NEW_TAG": "Pridať novú značku"
@@ -1403,10 +1403,10 @@
         "TOOLTIP_CLEAR_TAGS": "Vymazať značky",
         "TOOLTIP_DISABLE_SEARCH": "Zakázať vyhľadávanie problémov (Ctrl+2)",
         "TOOLTIP_ENABLE_SEARCH": "Povoliť vyhľadávanie problémov (Ctrl+2)",
-        "REPEAT_BUTTON": "Repeat",
-        "TOGGLE_ADD_TO_BACKLOG_TODAY": "Toggle adding task to backlog / today's list",
-        "TOGGLE_ADD_TOP_OR_BOTTOM": "Toggle adding task to top & bottom of list",
-        "TOOLTIP_CLEAR_REPEAT": "Clear repeat setting"
+        "REPEAT_BUTTON": "Opakovať",
+        "TOGGLE_ADD_TO_BACKLOG_TODAY": "Prepnúť pridanie úlohy do nevybavených / dnešného zoznamu",
+        "TOGGLE_ADD_TOP_OR_BOTTOM": "Prepnúť pridanie úlohy na začiatok / koniec zoznamu",
+        "TOOLTIP_CLEAR_REPEAT": "Vymazať nastavenie opakovania"
       },
       "ADDITIONAL_INFO": {
         "ADD_ATTACHMENT": "Pridať prílohu",
@@ -1421,20 +1421,20 @@
         "SUB_TASKS": "Podúlohy ({{nr}})",
         "TIME": "Čas",
         "TITLE_PLACEHOLDER": "Zadajte názov",
-        "COMPLETED_ON": "Completed on",
-        "CREATED_ON": "Created on",
-        "DEADLINE": "Deadline",
-        "DEADLINE_DUE_BY": "Due by",
-        "DEADLINE_OVERDUE": "Overdue!",
-        "FROM_PARENT": "(from parent)",
-        "ISSUE": "Issue Link",
-        "REMINDER": "Reminder"
+        "COMPLETED_ON": "Dokončené dňa",
+        "CREATED_ON": "Vytvorené dňa",
+        "DEADLINE": "Termín",
+        "DEADLINE_DUE_BY": "Do",
+        "DEADLINE_OVERDUE": "Po termíne!",
+        "FROM_PARENT": "(z nadradenej úlohy)",
+        "ISSUE": "Odkaz na úlohu",
+        "REMINDER": "Pripomienka"
       },
       "B": {
         "ADD_HALF_HOUR": "Pridať 1/2 hodiny",
         "ESTIMATE_EXCEEDED": "Odhadovaný čas prekročený pre \"{{title}}\"",
-        "ADD_ALL_TO_TODAY": "Add all to today",
-        "DEADLINES_TODAY": "{{count}} task(s) due today not yet planned"
+        "ADD_ALL_TO_TODAY": "Pridať všetko na dnes",
+        "DEADLINES_TODAY": "{{count}} úloh s termínom dnes ešte nie je naplánovaných"
       },
       "CMP": {
         "ADD_SUB_TASK": "Pridať podúlohu",
@@ -1466,13 +1466,13 @@
         "TRACK_TIME_STOP": "Pozastaviť sledovanie času",
         "UNSCHEDULE_TASK": "Zrušenie plánovania úlohy",
         "UPDATE_ISSUE_DATA": "Aktualizujte údaje o probléme",
-        "EDIT_DEADLINE": "Edit deadline",
-        "REMOVE_DEADLINE": "Remove deadline",
-        "SET_DEADLINE": "Set deadline"
+        "EDIT_DEADLINE": "Upraviť termín",
+        "REMOVE_DEADLINE": "Odstrániť termín",
+        "SET_DEADLINE": "Nastaviť termín"
       },
       "D_CONFIRM_DELETE": {
         "OK": "Odstrániť",
-        "MSG": "Are you sure you want to delete the task \"{{title}}\"?"
+        "MSG": "Naozaj chcete odstrániť úlohu \"{{title}}\"?"
       },
       "D_CONFIRM_SHORT_SYNTAX_NEW_TAG": {
         "MSG": "Chcete vytvoriť nový tag {{tagsTxt}}?",
@@ -1488,16 +1488,16 @@
         "QA_TODAY": "Dnes",
         "QA_TOMORROW": "Zajtra",
         "RO_NEVER": "Nikdy",
-        "ADD_TIME": "Add time",
-        "REMIND_AT": "Remind at",
-        "REMOVE_DEADLINE": "Remove deadline",
-        "RO_1H": "1 hour before",
-        "RO_5M": "5 minutes before",
-        "RO_10M": "10 minutes before",
-        "RO_15M": "15 minutes before",
-        "RO_30M": "30 minutes before",
-        "RO_AT_DEADLINE": "At deadline",
-        "SET_DEADLINE": "Set deadline"
+        "ADD_TIME": "Pridať čas",
+        "REMIND_AT": "Pripomenúť o",
+        "REMOVE_DEADLINE": "Odstrániť termín",
+        "RO_1H": "1 hodinu pred",
+        "RO_5M": "5 minút pred",
+        "RO_10M": "10 minút pred",
+        "RO_15M": "15 minút pred",
+        "RO_30M": "30 minút pred",
+        "RO_AT_DEADLINE": "V čase termínu",
+        "SET_DEADLINE": "Nastaviť termín"
       },
       "D_REMINDER_VIEW": {
         "ADD_ALL_TO_TODAY": "Pridať všetko k dnešnému dňu",
@@ -1516,12 +1516,12 @@
         "START": "Začať",
         "UNSCHEDULE": "Zrušiť plán",
         "UNSCHEDULE_ALL": "Zrušiť plán všetkých",
-        "CLEAR_ALL_REMINDERS": "Clear all reminders",
-        "CLEAR_REMINDER": "Clear reminder",
-        "DEADLINE_REMINDER": "Deadline Reminder",
-        "DEADLINE_SECTION": "Deadlines",
-        "DUE_SECTION": "Planned",
-        "TASK_REMINDERS": "Task Reminders"
+        "CLEAR_ALL_REMINDERS": "Vymazať všetky pripomienky",
+        "CLEAR_REMINDER": "Vymazať pripomienku",
+        "DEADLINE_REMINDER": "Pripomienka termínu",
+        "DEADLINE_SECTION": "Termíny",
+        "DUE_SECTION": "Naplánované",
+        "TASK_REMINDERS": "Pripomienky úloh"
       },
       "D_SCHEDULE_TASK": {
         "QA_NEXT_MONTH": "Plán na ďalší mesiac",
@@ -1578,8 +1578,8 @@
         "REMINDER_UPDATED": "Updated reminder for task \"{{title}}\"",
         "TASK_ALREADY_EXISTS": "Úloha <strong>{{title}}<\\/strong> už existuje",
         "TASK_CREATED": "Created task \"{{taskTitle}}\"",
-        "DEADLINE_REMOVED": "Deadline removed",
-        "DEADLINE_SET": "Deadline set for {{date}}"
+        "DEADLINE_REMOVED": "Termín bol odstránený",
+        "DEADLINE_SET": "Termín nastavený na {{date}}"
       },
       "SELECT_OR_CREATE": "Select or create task",
       "SUMMARY_TABLE": {
@@ -1676,12 +1676,12 @@
         "TITLE": "Názov pre úlohu",
         "TUESDAY": "Utorok",
         "WEDNESDAY": "Streda",
-        "Q_MONTHLY_FIRST_DAY": "Every month on the first day",
-        "Q_MONTHLY_LAST_DAY": "Every month on the last day",
-        "SKIP_OVERDUE": "Skip overdue instances",
-        "SKIP_OVERDUE_DESCRIPTION": "When enabled, if the app is opened after missing a scheduled occurrence (e.g. a weekly task where today is not a scheduled day), the missed instance will be silently skipped instead of being created as an overdue task"
+        "Q_MONTHLY_FIRST_DAY": "Každý mesiac v prvý deň",
+        "Q_MONTHLY_LAST_DAY": "Každý mesiac v posledný deň",
+        "SKIP_OVERDUE": "Preskočiť oneskorené výskyty",
+        "SKIP_OVERDUE_DESCRIPTION": "Keď je povolené a aplikácia je otvorená po zmeškaní plánovaného výskytu (napr. týždenná úloha, keď dnes nie je plánovaný deň), zmeškaný výskyt bude ticho preskočený namiesto vytvorenia oneskorenej úlohy"
       },
-      "SNACK_REPEAT_DIALOG_FAIL": "Could not open repeat config dialog. You can configure it from the task menu."
+      "SNACK_REPEAT_DIALOG_FAIL": "Nepodarilo sa otvoriť dialóg nastavenia opakovania. Môžete ho nakonfigurovať z menu úlohy."
     },
     "TASK_VIEW": {
       "CUSTOMIZER": {
@@ -1757,18 +1757,18 @@
         "UNTRACKED_TIME": "Nesledovaný čas:"
       },
       "D_ARCHIVE_COMPRESS": {
-        "BTN_COMPRESS": "Compress Archive",
-        "CONFIRM_MSG": "Are you sure you want to compress the archive? This will permanently delete the data listed above!",
-        "CONFIRM_TITLE": "Confirm Archive Compression",
-        "ESTIMATED_SAVINGS": "Estimated space savings",
-        "INTRO": "This will compress your archived tasks by removing old data. This operation is synced across all devices.",
-        "ISSUE_FIELDS_TO_CLEAR": "Issue fields to clear",
-        "LOADING": "Analyzing archive...",
-        "NO_DATA": "No data to compress. Your archive is already optimized.",
-        "NOTES_TO_CLEAR": "Task notes to clear (older than 1 year)",
-        "SUBTASKS_TO_DELETE": "Subtasks to delete (time merged to parent)",
-        "TITLE": "Compress Archive",
-        "WARNING": "This operation cannot be undone. Make sure you have a backup before proceeding!"
+        "BTN_COMPRESS": "Komprimovať archív",
+        "CONFIRM_MSG": "Naozaj chcete komprimovať archív? Tým sa trvalo odstránia vyššie uvedené dáta!",
+        "CONFIRM_TITLE": "Potvrdiť kompresiu archívu",
+        "ESTIMATED_SAVINGS": "Odhadovaná úspora miesta",
+        "INTRO": "Tým sa skomprimujú archivované úlohy odstránením starých dát. Táto operácia sa synchronizuje na všetkých zariadeniach.",
+        "ISSUE_FIELDS_TO_CLEAR": "Polia úloh na vymazanie",
+        "LOADING": "Analyzovanie archívu...",
+        "NO_DATA": "Žiadne dáta na kompresiu. Váš archív je už optimalizovaný.",
+        "NOTES_TO_CLEAR": "Poznámky úloh na vymazanie (staršie ako 1 rok)",
+        "SUBTASKS_TO_DELETE": "Podúlohy na odstránenie (čas zlúčený do nadradenej úlohy)",
+        "TITLE": "Komprimovať archív",
+        "WARNING": "Túto operáciu nie je možné vrátiť späť. Pred pokračovaním sa uistite, že máte zálohu!"
       }
     },
     "VOICE_REMINDER": {
@@ -1791,8 +1791,8 @@
         "TOTAL_TIME": "Time spent total:",
         "WEEK_NR": "Week {{nr}}",
         "WORKED": "Worked",
-        "RESTORE_TASK_FROM_ARCHIVE": "Restore task from archive",
-        "VIEW_TASK_DETAILS": "View task details"
+        "RESTORE_TASK_FROM_ARCHIVE": "Obnoviť úlohu z archívu",
+        "VIEW_TASK_DETAILS": "Zobraziť podrobnosti úlohy"
       },
       "D_CONFIRM_RESTORE": "Are you sure you want to move the task <strong>\"{{title}}\"</strong> into your todays task list?",
       "D_EXPORT_TITLE": "Worklog Export {{start}}–{{end}}",
@@ -1868,7 +1868,7 @@
     "S_ERR_NETWORK": "Import zlyhal: Chyba siete pri získavaní údajov z URL",
     "S_IMPORT_FROM_URL_ERR_DECODE": "Chyba: Nepodarilo sa dekódovať parameter URL pre import. Uistite sa, že je správne naformátovaný.",
     "URL_PLACEHOLDER": "Zadajte URL pre import",
-    "BTN_COMPRESS_ARCHIVE": "Compress Archive"
+    "BTN_COMPRESS_ARCHIVE": "Komprimovať archív"
   },
   "G": {
     "ADD": "Pridať",
@@ -1909,11 +1909,11 @@
     "UNDO": "Undo",
     "WITHOUT_PROJECT": "Without Project",
     "YESTERDAY": "Yesterday",
-    "APPLY": "Apply",
-    "CONTINUE": "Continue",
-    "DONT_SHOW_AGAIN": "Do not show again",
-    "PASSWORD_STRENGTH_FAIR": "Fair",
-    "TOGGLE_PASSWORD_VISIBILITY": "Toggle password visibility"
+    "APPLY": "Použiť",
+    "CONTINUE": "Pokračovať",
+    "DONT_SHOW_AGAIN": "Nezobrazovať znova",
+    "PASSWORD_STRENGTH_FAIR": "Priemerné",
+    "TOGGLE_PASSWORD_VISIBILITY": "Prepnúť viditeľnosť hesla"
   },
   "GCF": {
     "APP_FEATURES": {
@@ -1932,8 +1932,8 @@
       "TITLE": "Funkcie aplikácie",
       "USER_PROFILES": "Používateľské profily (experimentálne)",
       "USER_PROFILES_HINT": "Umožňuje vytvárať a prepínať medzi rôznymi používateľskými profilmi, každý s vlastnými nastaveniami, úlohami a konfiguráciami synchronizácie. Tlačidlo správy profilu sa zobrazí v pravom hornom rohu po povolení. Poznámka: Zakázanie tejto funkcie skryje používateľské rozhranie, ale zachová údaje profilu (experimentálna funkcia, bez záruk. Uistite sa, že máte zálohu).",
-      "HABITS": "Habits",
-      "USER_PROFILES_WARNING": "<strong>Experimental feature:</strong> This feature is still in development and may be removed or significantly changed in a future update. Use at your own risk and make sure to keep backups of your data."
+      "HABITS": "Návyky",
+      "USER_PROFILES_WARNING": "<strong>Experimentálna funkcia:</strong> Táto funkcia je stále vo vývoji a môže byť v budúcej aktualizácii odstránená alebo výrazne zmenená. Používajte na vlastné riziko a uistite sa, že máte zálohy dát."
     },
     "AUTO_BACKUPS": {
       "HELP": "Auto save all data to your app folder in order to have it ready in case something goes wrong.",
@@ -1952,31 +1952,31 @@
       "SELECT_PATH": "Vybrať priečinok",
       "SORT_BY": "Triediť podľa",
       "SORT_NEWEST": "Najnovšie najprv",
-      "DELETE": "Delete image",
-      "DELETE_ALL": "Delete All",
-      "DELETE_ALL_SUCCESS": "All clipboard images deleted successfully",
-      "DELETE_SUCCESS": "Clipboard image deleted successfully",
-      "ERROR_DELETING": "Failed to delete clipboard image",
-      "ERROR_DELETING_ALL": "Failed to delete all clipboard images",
-      "ERROR_LOADING": "Failed to load clipboard images",
-      "HELP": "Manage images pasted from clipboard. For browser version, images are stored in IndexedDB. For desktop version, configure the storage path.",
-      "LOADING": "Loading images...",
-      "MANAGE_DESCRIPTION": "View and delete images stored from pasting in markdown fields",
-      "MANAGE_TITLE": "Manage Stored Images",
-      "MANAGER_TITLE": "Clipboard Images",
-      "NO_IMAGES": "No clipboard images stored",
-      "OPEN_MANAGER": "Manage Images",
-      "PATH_DESCRIPTION": "Configure where clipboard images are stored on your filesystem (leave empty for default location)",
-      "PATH_LABEL": "Image Storage Path",
-      "PATH_PLACEHOLDER": "Leave empty for default location",
-      "PATH_TITLE": "Storage Location",
-      "SELECT_PATH_TITLE": "Select Clipboard Images Folder",
-      "SORT_LARGEST": "Largest first",
-      "SORT_OLDEST": "Oldest first",
-      "SORT_SMALLEST": "Smallest first",
-      "TITLE": "Clipboard Images",
-      "TOTAL_IMAGES": "Total images",
-      "TOTAL_SIZE": "Total size"
+      "DELETE": "Odstrániť obrázok",
+      "DELETE_ALL": "Odstrániť všetky",
+      "DELETE_ALL_SUCCESS": "Všetky obrázky zo schránky boli úspešne odstránené",
+      "DELETE_SUCCESS": "Obrázok zo schránky bol úspešne odstránený",
+      "ERROR_DELETING": "Nepodarilo sa odstrániť obrázok zo schránky",
+      "ERROR_DELETING_ALL": "Nepodarilo sa odstrániť všetky obrázky zo schránky",
+      "ERROR_LOADING": "Nepodarilo sa načítať obrázky zo schránky",
+      "HELP": "Spravujte obrázky vložené zo schránky. V prehliadači sú obrázky uložené v IndexedDB. Pre desktopovú verziu nakonfigurujte cestu k úložisku.",
+      "LOADING": "Načítavanie obrázkov...",
+      "MANAGE_DESCRIPTION": "Zobrazenie a odstránenie obrázkov uložených z vkladania do markdown polí",
+      "MANAGE_TITLE": "Spravovať uložené obrázky",
+      "MANAGER_TITLE": "Obrázky zo schránky",
+      "NO_IMAGES": "Žiadne obrázky zo schránky nie sú uložené",
+      "OPEN_MANAGER": "Spravovať obrázky",
+      "PATH_DESCRIPTION": "Nastavte, kam sa majú ukladať obrázky zo schránky na vašom súborovom systéme (nechajte prázdne pre predvolené umiestnenie)",
+      "PATH_LABEL": "Cesta k úložisku obrázkov",
+      "PATH_PLACEHOLDER": "Nechajte prázdne pre predvolené umiestnenie",
+      "PATH_TITLE": "Umiestnenie úložiska",
+      "SELECT_PATH_TITLE": "Vybrať priečinok pre obrázky zo schránky",
+      "SORT_LARGEST": "Najväčšie ako prvé",
+      "SORT_OLDEST": "Najstaršie ako prvé",
+      "SORT_SMALLEST": "Najmenšie ako prvé",
+      "TITLE": "Obrázky zo schránky",
+      "TOTAL_IMAGES": "Celkový počet obrázkov",
+      "TOTAL_SIZE": "Celková veľkosť"
     },
     "EVALUATION": {
       "IS_HIDE_EVALUATION_SHEET": "Hide evaluation sheet on daily summary",
@@ -2057,7 +2057,7 @@
       "ZOOM_DEFAULT": "Predvolené zväčšenie (Desktop only)",
       "ZOOM_IN": "Priblížiť (Desktop only)",
       "ZOOM_OUT": "Oddialiť (Desktop only)",
-      "TASK_UNSCHEDULE": "Unschedule task"
+      "TASK_UNSCHEDULE": "Zrušiť naplánovanie úlohy"
     },
     "LANG": {
       "AR": "عربى",
@@ -2107,8 +2107,8 @@
       "ZH_TW": "中文(繁體)",
       "RO": "Română",
       "RO_MD": "Română (Moldova)",
-      "TIME_LOCALE_RO_MD": "Romanian (Moldova): 24-hour, DD.MM.YYYY",
-      "TIME_LOCALE_RO_RO": "Romanian: 24-hour, DD.MM.YYYY"
+      "TIME_LOCALE_RO_MD": "Rumunčina (Moldavsko): 24-hodinový, DD.MM.YYYY",
+      "TIME_LOCALE_RO_RO": "Rumunčina: 24-hodinový, DD.MM.YYYY"
     },
     "MISC": {
       "DARK_MODE": "Tmavý režim",
@@ -2149,12 +2149,12 @@
       "DISABLE_REMINDERS": "Zakázať všetky pripomienky",
       "IS_COUNTDOWN_BANNER_ENABLED": "Zobrazenie bannera s odpočítavaním pred termínom pripomenutia",
       "TITLE": "Pripomienky",
-      "DUE_DATE_NOTIFICATION_HOUR": "Hour to show due-date notifications (0-23)",
-      "HELP": "<p><strong>Important:</strong> Reminders use <strong>local notifications</strong>, not push notifications. This means the app needs to have been opened at least once on your device for reminders to be scheduled. Reminders set on another device will only appear after the app syncs on the target device.</p><p>On <strong>iOS</strong>, make sure notifications are enabled for Super Productivity in your device settings under 'Settings' > 'Notifications'.</p>",
-      "IS_FOCUS_WINDOW": "Focus application window when reminder is triggered",
-      "NOTIFY_ON_DUE_DATE": "Show notifications for tasks due today",
-      "USE_ALARM_STYLE_REMINDERS": "Use alarm-style notifications (Android only)",
-      "USE_ALARM_STYLE_REMINDERS_DESCRIPTION": "When enabled, reminders use louder alarm sounds and more intrusive notifications. Recommended for critical reminders."
+      "DUE_DATE_NOTIFICATION_HOUR": "Hodina zobrazenia upozornení na termíny (0-23)",
+      "HELP": "<p><strong>Dôležité:</strong> Pripomienky používajú <strong>lokálne upozornenia</strong>, nie push upozornenia. To znamená, že aplikácia musí byť na vašom zariadení aspoň raz otvorená, aby boli pripomienky naplánované. Pripomienky nastavené na inom zariadení sa zobrazia až po synchronizácii aplikácie na cieľovom zariadení.</p><p>Na <strong>iOS</strong> sa uistite, že upozornenia pre Super Productivity sú povolené v nastaveniach zariadenia pod 'Nastavenia' > 'Upozornenia'.</p>",
+      "IS_FOCUS_WINDOW": "Zamerať okno aplikácie pri spustení pripomienky",
+      "NOTIFY_ON_DUE_DATE": "Zobraziť upozornenia pre úlohy s termínom dnes",
+      "USE_ALARM_STYLE_REMINDERS": "Použiť upozornenia typu alarm (len Android)",
+      "USE_ALARM_STYLE_REMINDERS_DESCRIPTION": "Keď je povolené, pripomienky používajú hlasnejšie zvuky alarmu a výraznejšie upozornenia. Odporúča sa pre kritické pripomienky."
     },
     "SCHEDULE": {
       "HELP": "The schedule feature should provide you with a quick overview over how your planned tasks play out over time. You can find it in the left hand menu under <a href='#/schedule'>'Schedule'</a>. ",
@@ -2175,10 +2175,10 @@
       "IS_ENABLE_PROJECT": "Povolenie krátkej syntaxe projektu (+<Project name>)",
       "IS_ENABLE_TAG": "Povolenie krátkej syntaxe značky (#<Tag>)",
       "TITLE": "Krátka syntax",
-      "URL_BEHAVIOR_EXTRACT": "Extract URL to attachments",
-      "URL_BEHAVIOR_KEEP": "Keep URL in task title",
-      "URL_BEHAVIOR_KEEP_AND_ATTACH": "Keep URL in task title and add to attachments",
-      "URL_BEHAVIOR_LABEL": "URL behavior when adding tasks"
+      "URL_BEHAVIOR_EXTRACT": "Extrahovať URL do príloh",
+      "URL_BEHAVIOR_KEEP": "Ponechať URL v názve úlohy",
+      "URL_BEHAVIOR_KEEP_AND_ATTACH": "Ponechať URL v názve úlohy a pridať do príloh",
+      "URL_BEHAVIOR_LABEL": "Správanie URL pri pridávaní úloh"
     },
     "SOUND": {
       "BREAK_REMINDER_SOUND": "Zvuk pripomínajúci prestávku",
@@ -2274,8 +2274,8 @@
     "SHARE_FAILED_FALLBACK": "Zdieľanie zlyhalo. Namiesto toho skopírované do schránky.",
     "SHARE_UNAVAILABLE_FALLBACK": "Skopírované do schránky.",
     "UNPLANNED_TODAY_TASKS": "Zrušené plánovanie všetkých úloh z Dnes",
-    "OPEN_SETTINGS_ERROR": "Could not open settings",
-    "SAVE_BLOCKED_DURING_SYNC": "Sync in progress - some changes may need to be re-saved"
+    "OPEN_SETTINGS_ERROR": "Nepodarilo sa otvoriť nastavenia",
+    "SAVE_BLOCKED_DURING_SYNC": "Prebieha synchronizácia - niektoré zmeny bude potrebné znovu uložiť"
   },
   "GPB": {
     "ASSETS": "Loading assets...",
@@ -2333,18 +2333,18 @@
     "TRIGGER_SYNC": "Ručné spustenie synchronizácie",
     "UNPLAN_ALL_TASKS": "Zrušiť plánovanie všetkých úloh",
     "WORKLOG": "Pracovný denník",
-    "DISABLE_FEATURE": "Disable feature",
-    "FEATURE_DISABLED_SNACK": "\"{{featureName}}\" disabled. Re-enable in App Features settings.",
-    "HABITS": "Habits",
-    "NO_PROJECT_INFO": "No projects available. You can create a new project by clicking the 'Create Project' button.",
-    "NO_TAG_INFO": "There are currently no tags. You can add tags by entering `#yourTagName` when adding or editing tasks.",
-    "NOTES_PANEL_INFO": "Notes can only be shown in the schedule and the regular task list views.",
-    "OPEN_APP_FEATURES": "Open Settings",
-    "PROCRASTINATE": "Procrastinate",
-    "PROJECT_SETTINGS": "Project Settings",
-    "SHOW_TRACKED_TASK": "Show tracked task",
-    "TASKS": "Tasks",
-    "TOGGLE_SHOW_BOOKMARKS": "Show/hide bookmarks"
+    "DISABLE_FEATURE": "Zakázať funkciu",
+    "FEATURE_DISABLED_SNACK": "\"{{featureName}}\" zakázané. Znovu povolíte v nastaveniach funkcií aplikácie.",
+    "HABITS": "Návyky",
+    "NO_PROJECT_INFO": "Žiadne projekty nie sú dostupné. Nový projekt vytvoríte kliknutím na tlačidlo 'Vytvoriť projekt'.",
+    "NO_TAG_INFO": "Momentálne nemáte žiadne štítky. Štítky pridáte zadaním `#názovŠtítku` pri pridávaní alebo úprave úloh.",
+    "NOTES_PANEL_INFO": "Poznámky je možné zobraziť len v zobrazení plánu a bežného zoznamu úloh.",
+    "OPEN_APP_FEATURES": "Otvoriť nastavenia",
+    "PROCRASTINATE": "Prokrastinácia",
+    "PROJECT_SETTINGS": "Nastavenia projektu",
+    "SHOW_TRACKED_TASK": "Zobraziť sledovanú úlohu",
+    "TASKS": "Úlohy",
+    "TOGGLE_SHOW_BOOKMARKS": "Zobraziť/skryť záložky"
   },
   "MIGRATE": {
     "C_DOWNLOAD_BACKUP": "Chcete si stiahnuť zálohu starších údajov (možno ich použiť so staršími verziami Super Productivity)?",
@@ -2352,12 +2352,12 @@
     "E_MIGRATION_FAILED": "Migrácia zlyhala! s chybou:",
     "E_RESTART_FAILED": "Automatický reštart zlyhal. Reštartujte aplikáciu manuálne!",
     "SUCCESS": "Migrácia je hotová! Reštartujte aplikáciu teraz...",
-    "DIALOG_MESSAGE": "We're updating how your data is stored for improved sync reliability. A backup will be downloaded automatically.",
-    "DIALOG_TITLE": "Migrating Your Data",
-    "STATUS_BACKUP": "Creating backup of your data...",
-    "STATUS_COMPLETE": "Migration complete!",
-    "STATUS_MIGRATING": "Migrating data...",
-    "STATUS_PREPARING": "Preparing migration..."
+    "DIALOG_MESSAGE": "Aktualizujeme spôsob ukladania vašich dát pre spoľahlivejšiu synchronizáciu. Záloha sa automaticky stiahne.",
+    "DIALOG_TITLE": "Migrácia vašich dát",
+    "STATUS_BACKUP": "Vytváranie zálohy vašich dát...",
+    "STATUS_COMPLETE": "Migrácia dokončená!",
+    "STATUS_MIGRATING": "Migrácia dát...",
+    "STATUS_PREPARING": "Príprava migrácie..."
   },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Pridanie úloh z dnešného dňa",
@@ -2481,13 +2481,13 @@
     "UNKNOWN_ERROR": "Vyskytla sa neznáma chyba",
     "UPLOAD_PLUGIN_INSTRUCTION": "Nahrajte ZIP súbor pluginu na jeho inštaláciu:",
     "VALIDATION_FAILED": "Overenie zlyhalo",
-    "CONFIRM_DISABLE_WITH_ISSUE_PROVIDERS": "This plugin provides issue integration that is currently in use ({{count}} issue provider(s)). Disabling it will temporarily break issue syncing for those providers until the plugin is re-enabled. Are you sure you want to disable \"{{name}}\"?",
-    "FAILED_TO_LOAD_COMMUNITY_PLUGINS": "Failed to load community plugins list",
-    "LANGUAGES": "Languages:"
+    "CONFIRM_DISABLE_WITH_ISSUE_PROVIDERS": "Tento doplnok poskytuje integráciu úloh, ktorá sa momentálne používa ({{count}} poskytovateľov úloh). Zakázanie dočasne preruší synchronizáciu úloh pre týchto poskytovateľov, kým nebude doplnok znovu povolený. Naozaj chcete zakázať \"{{name}}\"?",
+    "FAILED_TO_LOAD_COMMUNITY_PLUGINS": "Nepodarilo sa načítať zoznam komunitných doplnkov",
+    "LANGUAGES": "Jazyky:"
   },
   "PM": {
     "TITLE": "Project Metrics",
-    "ALL_TASKS_TITLE": "Metrics (all tasks)"
+    "ALL_TASKS_TITLE": "Metriky (všetky úlohy)"
   },
   "PS": {
     "GLOBAL_SETTINGS": "Global Settings",
@@ -2500,16 +2500,16 @@
     "SYNC_EXPORT": "Sync & Export",
     "TABS": {
       "PLUGINS": "Pluginy",
-      "GENERAL": "General",
-      "PRODUCTIVITY": "Productivity",
-      "SYNC_BACKUP": "Sync & Backup",
-      "TASKS": "Tasks",
-      "TIME_TRACKING": "Time & Tracking"
+      "GENERAL": "Všeobecné",
+      "PRODUCTIVITY": "Produktivita",
+      "SYNC_BACKUP": "Synchronizácia a záloha",
+      "TASKS": "Úlohy",
+      "TIME_TRACKING": "Čas a sledovanie"
     },
     "TAG_SETTINGS": "Tag Specific Settings",
-    "FAILED_TO_COPY_TO_CLIPBOARD": "Failed to copy to clipboard",
-    "TOGGLE_DARK_MODE": "Toggle Dark Mode",
-    "UPDATE_APP": "Update App"
+    "FAILED_TO_COPY_TO_CLIPBOARD": "Nepodarilo sa skopírovať do schránky",
+    "TOGGLE_DARK_MODE": "Prepnúť tmavý režim",
+    "UPDATE_APP": "Aktualizovať aplikáciu"
   },
   "SCHEDULE": {
     "LAST": "Posledné:",
@@ -2520,9 +2520,9 @@
     "REPEATED_TASKS": "Repeated tasks",
     "SCHEDULED_TASKS": "Scheduled tasks",
     "SCHEDULED_TASKS_WITH_TIME": "Naplánované úlohy s pripomienkou",
-    "NO_DEADLINES": "There are currently no tasks with deadlines. You can set a deadline via the task's context menu or detail panel.",
-    "START_TASK": "Start task and remove reminder",
-    "TASKS_WITH_DEADLINES": "Tasks with Deadlines"
+    "NO_DEADLINES": "Momentálne nemáte žiadne úlohy s termínmi. Termín môžete nastaviť cez kontextové menu úlohy alebo panel podrobností.",
+    "START_TASK": "Začať úlohu a odstrániť pripomienku",
+    "TASKS_WITH_DEADLINES": "Úlohy s termínmi"
   },
   "THEMES": {
     "blue": "Modrá",
@@ -2532,16 +2532,16 @@
     "SELECT_THEME": "Vybrať tému",
     "teal": "Tyrkysová",
     "yellow": "žltá",
-    "amber": "amber",
-    "blue-grey": "blue-grey",
-    "cyan": "cyan",
-    "deep-orange": "deep-orange",
-    "deep-purple": "deep-purple",
+    "amber": "jantárová",
+    "blue-grey": "modro-sivá",
+    "cyan": "azúrová",
+    "deep-orange": "tmavo-oranžová",
+    "deep-purple": "tmavo-fialová",
     "indigo": "indigo",
-    "light-blue": "light-blue",
-    "light-green": "light-green",
-    "lime": "lime",
-    "SCHEDULED_TASKS_WITH_TIME": "Scheduled Tasks with Start Time"
+    "light-blue": "svetlo-modrá",
+    "light-green": "svetlo-zelená",
+    "lime": "limetková",
+    "SCHEDULED_TASKS_WITH_TIME": "Naplánované úlohy s časom začiatku"
   },
   "USER_PROFILES": {
     "ACTIVE": "Aktívny",
@@ -2590,15 +2590,15 @@
     "WITHOUT_BREAK": "Without break:",
     "WORKING_TODAY": "Working today:",
     "WORKING_TODAY_ARCHIVED": "Čas, ktorý ste dnes odpracovali na archivovaných úlohách",
-    "RECURRING_TASKS": "Recurring Tasks"
+    "RECURRING_TASKS": "Opakujúce sa úlohy"
   },
   "NOTIFICATION": {
-    "EXACT_ALARM_DENIED": "Exact alarm permission denied. Reminders may be delayed by up to 15 minutes.",
-    "TASK_ALREADY_COMPLETED": "Task already completed",
-    "TASK_MARKED_DONE": "Task marked as done"
+    "EXACT_ALARM_DENIED": "Oprávnenie na presný alarm bolo zamietnuté. Pripomienky môžu byť oneskorené až o 15 minút.",
+    "TASK_ALREADY_COMPLETED": "Úloha je už dokončená",
+    "TASK_MARKED_DONE": "Úloha označená ako hotová"
   },
   "PRE_MIGRATION": {
-    "DIALOG_MESSAGE": "We're updating how your data is stored for improved sync reliability.<br><br>A backup of your data will be downloaded automatically. You can use this backup to restore your data if needed (File > Import).",
-    "DIALOG_TITLE": "System Update"
+    "DIALOG_MESSAGE": "Aktualizujeme spôsob ukladania vašich dát pre spoľahlivejšiu synchronizáciu.<br><br>Záloha vašich dát sa automaticky stiahne. Túto zálohu môžete použiť na obnovenie dát v prípade potreby (Súbor > Import).",
+    "DIALOG_TITLE": "Aktualizácia systému"
   }
 }
