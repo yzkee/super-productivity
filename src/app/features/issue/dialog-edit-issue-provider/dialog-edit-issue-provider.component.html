@@ -129,14 +129,6 @@
           ></trello-additional-cfg>
           <!-- -->
         }
-        @case ('CLICKUP') {
-          <clickup-additional-cfg
-            [section]="configFormSection"
-            [cfg]="model"
-            (modelChange)="customCfgCmpSave($event)"
-          ></clickup-additional-cfg>
-          <!-- -->
-        }
         @case ('NEXTCLOUD_DECK') {
           <nextcloud-deck-additional-cfg
             [section]="configFormSection"

@@ -51,7 +51,7 @@ import { devError } from '../../../util/dev-error';
 import { IssueLog } from '../../../core/log';
 import { PluginIssueProviderRegistryService } from '../../../plugins/issue-provider/plugin-issue-provider-registry.service';
 import { TrelloAdditionalCfgComponent } from '../providers/trello/trello-view-components/trello_cfg/trello_additional_cfg.component';
-import { ClickUpAdditionalCfgComponent } from '../providers/clickup/clickup-view-components/clickup-cfg/clickup-additional-cfg.component';
+// ClickUp is now a plugin — no built-in config component needed
 import { NextcloudDeckAdditionalCfgComponent } from '../providers/nextcloud-deck/nextcloud-deck-additional-cfg.component';
 import { TaskService } from '../../tasks/task.service';
 import { firstValueFrom } from 'rxjs';
@@ -78,7 +78,6 @@ import { ISSUE_PROVIDER_COMMON_FORM_FIELDS } from '../common-issue-form-stuff.co
     MatIcon,
     MatDialogTitle,
     TrelloAdditionalCfgComponent, // added for custom trello board loading support
-    ClickUpAdditionalCfgComponent, // added for custom clickup workspace selection
     NextcloudDeckAdditionalCfgComponent,
   ],
   templateUrl: './dialog-edit-issue-provider.component.html',

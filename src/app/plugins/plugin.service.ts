@@ -108,6 +108,7 @@ export class PluginService implements OnDestroy {
       'assets/bundled-plugins/ai-productivity-prompts',
       'assets/bundled-plugins/automations',
       'assets/bundled-plugins/github-issue-provider',
+      'assets/bundled-plugins/clickup-issue-provider',
       'assets/bundled-plugins/brain-dump',
     ];
 
@@ -198,6 +199,7 @@ export class PluginService implements OnDestroy {
       'assets/bundled-plugins/procrastination-buster',
       'assets/bundled-plugins/automations',
       'assets/bundled-plugins/github-issue-provider',
+      'assets/bundled-plugins/clickup-issue-provider',
       'assets/bundled-plugins/brain-dump',
     ];
 
@@ -281,6 +283,47 @@ export class PluginService implements OnDestroy {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Returns discovered issue provider plugins that are NOT yet enabled.
+   * Used by the issue-provider setup overview to show available plugins.
+   */
+  getDisabledIssueProviderPlugins(): Array<{
+    pluginId: string;
+    name: string;
+    icon: string;
+    issueProviderKey: string;
+  }> {
+    const result: Array<{
+      pluginId: string;
+      name: string;
+      icon: string;
+      issueProviderKey: string;
+    }> = [];
+    for (const [, state] of this._pluginStates()) {
+      if (
+        !state.isEnabled &&
+        state.manifest.issueProvider?.issueProviderKey &&
+        state.manifest.type === 'issueProvider'
+      ) {
+        result.push({
+          pluginId: state.manifest.id,
+          name: state.manifest.name,
+          icon: state.manifest.issueProvider.icon || 'extension',
+          issueProviderKey: state.manifest.issueProvider.issueProviderKey,
+        });
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Enable and activate a plugin. Returns the activated instance.
+   */
+  async enableAndActivatePlugin(pluginId: string): Promise<PluginInstance | null> {
+    await this._pluginMetaPersistenceService.setPluginEnabled(pluginId, true);
+    return this.activatePlugin(pluginId, true);
   }
 
   private _updatePluginIcons(): void {
