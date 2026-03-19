@@ -25,7 +25,7 @@
           >
         } @else {
           {{ data.issueLabel }}
-        } </strong
+        }</strong
       >.
     </p>
     @if (data.t.currentlyLogged) {
@@ -36,7 +36,7 @@
     }
 
     <div class="form-wrapper">
-      <mat-label>{{ T.F.JIRA.DIALOG_WORKLOG.TIME_SPENT | translate }}</mat-label>
+      <mat-label>{{ data.t.timeSpent | translate }}</mat-label>
       <mat-form-field>
         <input
           [(ngModel)]="timeSpent"
@@ -51,7 +51,7 @@
           class="suffix-wrapper"
           matSuffix
           [matMenuTriggerFor]="contextMenu"
-          [matTooltip]="T.F.JIRA.DIALOG_WORKLOG.TIME_SPENT_TOOLTIP | translate"
+          [matTooltip]="data.t.timeSpentTooltip | translate"
         >
           <button
             mat-icon-button
@@ -95,7 +95,7 @@
       }
 
       <mat-form-field>
-        <mat-label>{{ T.F.JIRA.DIALOG_WORKLOG.STARTED | translate }}</mat-label>
+        <mat-label>{{ data.t.started | translate }}</mat-label>
         <input
           [(ngModel)]="started"
           matInput
@@ -103,12 +103,12 @@
           required
           type="datetime-local"
         />
-        <mat-error>{{ T.F.JIRA.DIALOG_WORKLOG.INVALID_DATE | translate }}</mat-error>
+        <mat-error>{{ data.t.invalidDate | translate }}</mat-error>
       </mat-form-field>
 
       @if (data.activities$) {
         <mat-form-field>
-          <mat-label>{{ T.F.OPEN_PROJECT.DIALOG_TRACK_TIME.ACTIVITY | translate }}</mat-label>
+          <mat-label>{{ data.t.activity | translate }}</mat-label>
           <mat-select
             [(ngModel)]="activityId"
             name="activity"
@@ -121,7 +121,7 @@
       }
 
       <mat-form-field>
-        <mat-label>Comment</mat-label>
+        <mat-label>{{ data.t.comment | translate }}</mat-label>
         <textarea
           [(ngModel)]="comment"
           cdkAutosizeMaxRows="5"

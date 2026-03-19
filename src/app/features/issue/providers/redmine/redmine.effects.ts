@@ -102,7 +102,7 @@ export class RedmineEffects {
                 catchError(() => of(0)),
               ),
             activities$: this._redmineApiService.getActivitiesForTrackTime$(redmineCfg),
-            issueProviderType: 'REDMINE',
+            defaultTime: redmineCfg.timeTrackingDialogDefaultTime,
             configTimeKey: 'timeTrackingDialogDefaultTime',
             onSubmit: (params: TrackTimeSubmitParams) =>
               this._redmineApiService.trackTime$({
@@ -121,6 +121,12 @@ export class RedmineEffects {
               title: T.F.REDMINE.DIALOG_TRACK_TIME.TITLE,
               submitFor: T.F.REDMINE.DIALOG_TRACK_TIME.SUBMIT_TIME_FOR,
               submit: T.F.REDMINE.DIALOG_TRACK_TIME.POST_TIME,
+              timeSpent: T.F.REDMINE.DIALOG_TRACK_TIME.TIME_SPENT,
+              timeSpentTooltip: T.F.JIRA.DIALOG_WORKLOG.TIME_SPENT_TOOLTIP,
+              started: T.F.REDMINE.DIALOG_TRACK_TIME.STARTED,
+              invalidDate: T.F.REDMINE.DIALOG_TRACK_TIME.INVALID_DATE,
+              comment: T.G.COMMENT,
+              activity: T.F.REDMINE.DIALOG_TRACK_TIME.ACTIVITY,
             },
           },
         });

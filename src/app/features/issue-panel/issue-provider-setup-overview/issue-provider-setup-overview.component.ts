@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { T } from '../../../t.const';
 import { MatIcon } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
-import { IssueProviderKey } from '../../issue/issue.model';
+import { IssueProviderKey, isValidIssueProviderKey } from '../../issue/issue.model';
 import { DialogEditIssueProviderComponent } from '../../issue/dialog-edit-issue-provider/dialog-edit-issue-provider.component';
 import { Store } from '@ngrx/store';
 import { MatDialog } from '@angular/material/dialog';
@@ -54,6 +54,10 @@ export class IssueProviderSetupOverviewComponent {
       (p) => p.pluginId !== pluginId,
     );
     this.pluginProviders = this._pluginRegistry.getAvailableProviders();
-    this.openSetupDialog(issueProviderKey as IssueProviderKey);
+    if (!isValidIssueProviderKey(issueProviderKey)) {
+      console.error(`Invalid issue provider key from plugin: "${issueProviderKey}"`);
+      return;
+    }
+    this.openSetupDialog(issueProviderKey);
   }
 }

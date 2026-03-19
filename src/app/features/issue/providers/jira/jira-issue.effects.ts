@@ -360,7 +360,7 @@ export class JiraIssueEffects {
             issueIcon: 'jira',
             issueLabel: `${issue.key} ${issue.summary}`,
             timeLogged,
-            issueProviderType: 'JIRA',
+            defaultTime: jiraCfg.worklogDialogDefaultTime,
             configTimeKey: 'worklogDialogDefaultTime',
             onSubmit: (params: TrackTimeSubmitParams) =>
               this._jiraApiService.addWorklog$({
@@ -377,6 +377,11 @@ export class JiraIssueEffects {
               submitFor: T.F.JIRA.DIALOG_WORKLOG.SUBMIT_WORKLOG_FOR,
               currentlyLogged: T.F.JIRA.DIALOG_WORKLOG.CURRENTLY_LOGGED,
               submit: T.F.JIRA.DIALOG_WORKLOG.SAVE_WORKLOG,
+              timeSpent: T.F.JIRA.DIALOG_WORKLOG.TIME_SPENT,
+              timeSpentTooltip: T.F.JIRA.DIALOG_WORKLOG.TIME_SPENT_TOOLTIP,
+              started: T.F.JIRA.DIALOG_WORKLOG.STARTED,
+              invalidDate: T.F.JIRA.DIALOG_WORKLOG.INVALID_DATE,
+              comment: T.G.COMMENT,
             },
           },
         });

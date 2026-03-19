@@ -22,8 +22,7 @@ import {
 import { firstValueFrom, Observable, of, Subject } from 'rxjs';
 import { expandFadeAnimation } from '../../../../ui/animations/expand.ani';
 import { DateService } from 'src/app/core/date/date.service';
-import { IssueProviderService } from '../../issue-provider.service';
-import { map, switchMap, takeUntil } from 'rxjs/operators';
+import { map, takeUntil } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
 import { IssueProviderActions } from '../../store/issue-provider.actions';
 import { FormsModule } from '@angular/forms';
@@ -92,7 +91,6 @@ export class DialogTrackTimeComponent implements OnDestroy {
   private _matDialogRef = inject<MatDialogRef<DialogTrackTimeComponent>>(MatDialogRef);
   private _snackService = inject(SnackService);
   private _store = inject(Store);
-  private _issueProviderService = inject(IssueProviderService);
   private _taskService = inject(TaskService);
   private _cdr = inject(ChangeDetectorRef);
   private _dateService = inject(DateService);
@@ -148,24 +146,11 @@ export class DialogTrackTimeComponent implements OnDestroy {
       });
     }
 
-    this._issueProviderIdOnce$
-      .pipe(
-        switchMap((id) =>
-          this._issueProviderService.getCfgOnce$(id, this.data.issueProviderType),
-        ),
-        takeUntil(this._onDestroy$),
-      )
-      .subscribe((cfg) => {
-        const defaultTime = (cfg as unknown as Record<string, unknown>)[
-          this.data.configTimeKey
-        ] as JiraWorklogExportDefaultTime | undefined;
-        if (defaultTime) {
-          this.selectedDefaultTimeMode = defaultTime;
-          this.timeSpent = this.getTimeToLogForMode(defaultTime);
-          this.started = this._fillInStarted(defaultTime);
-          this._cdr.markForCheck();
-        }
-      });
+    if (this.data.defaultTime) {
+      this.selectedDefaultTimeMode = this.data.defaultTime;
+      this.timeSpent = this.getTimeToLogForMode(this.data.defaultTime);
+      this.started = this._fillInStarted(this.data.defaultTime);
+    }
   }
 
   ngOnDestroy(): void {

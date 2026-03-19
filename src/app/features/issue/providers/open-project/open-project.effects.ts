@@ -190,7 +190,7 @@ export class OpenProjectEffects {
               workPackage.id,
               openProjectCfg,
             ),
-            issueProviderType: 'OPEN_PROJECT',
+            defaultTime: openProjectCfg.timeTrackingDialogDefaultTime,
             configTimeKey: 'timeTrackingDialogDefaultTime',
             onSubmit: (params: TrackTimeSubmitParams) =>
               this._openProjectApiService.trackTime$({
@@ -210,6 +210,12 @@ export class OpenProjectEffects {
               submitFor: T.F.OPEN_PROJECT.DIALOG_TRACK_TIME.SUBMIT_TIME_FOR,
               currentlyLogged: T.F.OPEN_PROJECT.DIALOG_TRACK_TIME.CURRENTLY_LOGGED,
               submit: T.F.OPEN_PROJECT.DIALOG_TRACK_TIME.POST_TIME,
+              timeSpent: T.F.OPEN_PROJECT.DIALOG_TRACK_TIME.TIME_SPENT,
+              timeSpentTooltip: T.F.JIRA.DIALOG_WORKLOG.TIME_SPENT_TOOLTIP,
+              started: T.F.OPEN_PROJECT.DIALOG_TRACK_TIME.STARTED,
+              invalidDate: T.F.OPEN_PROJECT.DIALOG_TRACK_TIME.INVALID_DATE,
+              comment: T.G.COMMENT,
+              activity: T.F.OPEN_PROJECT.DIALOG_TRACK_TIME.ACTIVITY,
             },
           },
         });

@@ -1,6 +1,6 @@
 import { Task } from '../../../tasks/task.model';
 import { Observable } from 'rxjs';
-import { IssueProviderKey } from '../../issue.model';
+import { JiraWorklogExportDefaultTime } from '../../providers/jira/jira.model';
 
 export interface TrackTimeSubmitParams {
   timeSpent: number;
@@ -24,8 +24,8 @@ export interface TrackTimeDialogData {
   // Activities (Redmine/OpenProject)
   activities$?: Observable<Array<{ id: number; name: string }>>;
 
-  // Provider config
-  issueProviderType: IssueProviderKey;
+  // Provider config — passed directly so the dialog doesn't need to fetch it
+  defaultTime?: JiraWorklogExportDefaultTime;
   configTimeKey: 'worklogDialogDefaultTime' | 'timeTrackingDialogDefaultTime';
 
   // Submit handling
@@ -39,5 +39,11 @@ export interface TrackTimeDialogData {
     submitFor: string;
     currentlyLogged?: string;
     submit: string;
+    timeSpent: string;
+    timeSpentTooltip: string;
+    started: string;
+    invalidDate: string;
+    comment: string;
+    activity?: string;
   };
 }
