@@ -54,7 +54,7 @@
     &.active {
       background: var(--sidenav-item-active-bg);
       color: var(--sidenav-active-text);
-      box-shadow: 0 -1px 1px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 -1px 1px var(--c-dark-10);
       margin-bottom: 2px;
 
       mat-icon {
@@ -78,7 +78,7 @@
     margin-bottom: 24px;
     box-shadow:
       0 -2px 6px rgba(0, 0, 0, 0.15),
-      0 2px 4px rgba(0, 0, 0, 0.2);
+      0 2px 4px var(--c-dark-20);
     transition: var(--transition-standard);
 
     &:hover {

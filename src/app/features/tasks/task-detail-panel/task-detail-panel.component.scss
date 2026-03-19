@@ -104,3 +104,15 @@ progress-bar {
   display: flex;
   z-index: 2;
 }
+
+.add-btn-wrapper {
+  text-align: center;
+}
+
+.attachment-list-panel-content-wrapper {
+  padding-bottom: var(--s);
+}
+
+.local-attachments-heading {
+  margin-bottom: 0;
+}

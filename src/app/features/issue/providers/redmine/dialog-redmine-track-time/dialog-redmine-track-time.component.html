@@ -47,13 +47,13 @@
             mat-icon-button
             type="button"
           >
-            <mat-icon style="font-size: 24px">add</mat-icon>
+            <mat-icon class="suffix-icon">add</mat-icon>
           </button>
           <button
             mat-icon-button
             type="button"
           >
-            <mat-icon style="font-size: 24px">timer</mat-icon>
+            <mat-icon class="suffix-icon">timer</mat-icon>
           </button>
         </div>
       </mat-form-field>
@@ -79,7 +79,7 @@
           [@expandFade]
           [checked]="defaultTimeCheckboxContent.isChecked"
           (change)="defaultTimeCheckboxContent.isChecked = $event.checked"
-          style="margin-bottom: 20px"
+          class="default-time-checkbox"
           >{{ defaultTimeCheckboxContent.label | translate }}
         </mat-checkbox>
       }

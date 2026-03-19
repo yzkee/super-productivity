@@ -96,7 +96,7 @@
   }
 
   @include darkTheme {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--c-light-60);
   }
 }
 
@@ -122,7 +122,7 @@
   }
 
   @include darkTheme {
-    color: rgba(255, 255, 255, 0.6);
+    color: var(--c-light-60);
   }
 }
 
@@ -131,7 +131,7 @@
   padding: 12px;
   background: rgba(255, 152, 0, 0.08);
   border-radius: var(--card-border-radius);
-  color: rgba(0, 0, 0, 0.8);
+  color: var(--c-dark-80);
 
   mat-icon {
     color: var(--color-warning);
@@ -139,7 +139,7 @@
 
   @include darkTheme {
     background: rgba(255, 152, 0, 0.15);
-    color: rgba(255, 255, 255, 0.9);
+    color: var(--c-light-90);
   }
 }
 
