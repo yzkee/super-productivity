@@ -28,43 +28,42 @@ test.describe('Recurring Task - Future Start Date (#6856)', () => {
 
     // 2. Open task detail and click on recur to open the repeat dialog
     await task.hover();
-    await page.waitForTimeout(200);
     const detailBtn = page.getByRole('button', {
       name: 'Show/Hide additional info',
     });
+    await expect(detailBtn).toBeVisible({ timeout: 5000 });
     await detailBtn.click();
-    await page.waitForTimeout(300);
 
     const recurItem = page
       .locator('task-detail-item')
       .filter({ has: page.locator('mat-icon[svgIcon="repeat"]') });
+    await expect(recurItem).toBeVisible({ timeout: 5000 });
     await recurItem.click();
 
-    // 3. Wait for the repeat dialog and set a future start date
+    // 3. Wait for the repeat dialog and set a future start date via calendar
     const repeatDialog = page.locator('mat-dialog-container');
     await repeatDialog.waitFor({ state: 'visible', timeout: 10000 });
 
-    // Set startDate via Angular's dialog component model signal
-    // (mat-datepicker's signal-based inputs don't work from page.evaluate)
-    const futureDate = new Date();
-    futureDate.setMonth(futureDate.getMonth() + 1);
-    futureDate.setDate(15);
-    const year = futureDate.getFullYear();
-    const month = String(futureDate.getMonth() + 1).padStart(2, '0');
-    const day = String(futureDate.getDate()).padStart(2, '0');
-    const futureDateStr = `${year}-${month}-${day}`;
+    // Open the calendar popup
+    const calendarToggle = repeatDialog.locator('mat-datepicker-toggle button');
+    await calendarToggle.click();
 
-    await page.evaluate((dateStr) => {
-      const ng = (window as any).ng;
-      const dialogEl = document.querySelector(
-        'mat-dialog-container dialog-edit-task-repeat-cfg',
-      );
-      if (!ng || !dialogEl) throw new Error('Dialog component not found');
-      const component = ng.getComponent(dialogEl);
-      if (!component) throw new Error('Dialog component instance not found');
-      component.repeatCfg.update((cfg: any) => ({ ...cfg, startDate: dateStr }));
-    }, futureDateStr);
-    await page.waitForTimeout(300);
+    const calendar = page.locator('.mat-calendar');
+    await expect(calendar).toBeVisible({ timeout: 5000 });
+
+    // Navigate to next month to ensure the date is in the future
+    const nextMonthBtn = page.getByRole('button', { name: /next month/i });
+    await nextMonthBtn.click();
+
+    // Select the first available day in next month
+    const firstDay = page
+      .locator('.mat-calendar-body-cell:not(.mat-calendar-body-disabled)')
+      .first();
+    await expect(firstDay).toBeVisible({ timeout: 5000 });
+    await firstDay.click();
+
+    // Wait for calendar to close
+    await expect(calendar).not.toBeVisible({ timeout: 5000 });
 
     // Save the repeat config — wait for the button to be enabled first
     const saveBtn = repeatDialog.getByRole('button', { name: /Save/i });
@@ -72,16 +71,13 @@ test.describe('Recurring Task - Future Start Date (#6856)', () => {
     await saveBtn.click();
     await repeatDialog.waitFor({ state: 'hidden', timeout: 10000 });
 
-    // 4. Wait for effects and persistence to process
-    await page.waitForTimeout(5000);
-
-    // 5. Reload and navigate to today view to verify persisted state
+    // 4. Reload and navigate to today view to verify persisted state
     await page.reload();
     await workViewPage.waitForTaskList();
     await page.goto('/#/tag/TODAY/tasks');
     await workViewPage.waitForTaskList();
 
-    // 6. Assert: task should NOT be visible in today's task list
+    // 5. Assert: task should NOT be visible in today's task list
     // Bug #6856: The task appears immediately instead of being scheduled
     // for the configured future start date.
     await expect(taskPage.getTaskByText(taskTitle)).not.toBeVisible({ timeout: 5000 });
