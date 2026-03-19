@@ -98,13 +98,13 @@
 
   // Milkglass effect when background image is present (light theme)
   :host-context(.hasBgImage) & {
-    background: rgba(255, 255, 255, 0.5);
+    background: var(--c-light-50);
     backdrop-filter: blur(20px) saturate(180%);
   }
 
   // Milkglass effect for dark theme with background image
   :host-context(.isDarkTheme.hasBgImage) & {
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--c-dark-50);
     backdrop-filter: blur(20px) saturate(180%);
   }
 
@@ -124,7 +124,7 @@
   &.mobile {
     width: var(--sidenav-width-expanded);
     background: var(--sidenav-bg-mobile);
-    box-shadow: 4px 0 16px rgba(0, 0, 0, 0.3);
+    box-shadow: 4px 0 16px var(--c-dark-30);
     // Remove CSS transitions - let Angular animations handle it
     transition: none !important;
   }
@@ -146,7 +146,7 @@
     }
 
     &.mobile {
-      box-shadow: -4px 0 16px rgba(0, 0, 0, 0.3);
+      box-shadow: -4px 0 16px var(--c-dark-30);
     }
   }
 

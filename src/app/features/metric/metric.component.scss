@@ -57,3 +57,12 @@ section {
 .metric-metrics {
   margin-top: var(--s6);
 }
+
+.heatmap-section {
+  max-width: 880px;
+  margin: var(--s4) auto 0;
+}
+
+.no-data-msg {
+  margin-top: var(--s4);
+}

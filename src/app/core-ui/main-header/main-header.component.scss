@@ -332,7 +332,7 @@ page-title {
     border-bottom-left-radius: var(--card-border-radius);
 
     @include darkTheme() {
-      border-right-color: rgba(255, 255, 255, 0.1);
+      border-right-color: var(--c-light-10);
     }
   }
 }
