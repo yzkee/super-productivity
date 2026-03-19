@@ -137,6 +137,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     triggerSync: 'Ctrl+S',
     taskEditTitle: null,
     taskToggleDetailPanelOpen: 'I',
+    taskOpenNotesFullscreen: null,
     taskOpenEstimationDialog: 'T',
     taskSchedule: 'S',
     taskUnschedule: 'U',
