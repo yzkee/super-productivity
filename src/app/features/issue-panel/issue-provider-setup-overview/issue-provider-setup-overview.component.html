@@ -84,13 +84,6 @@
   </button>
   <button
     mat-raised-button
-    (click)="openSetupDialog('CLICKUP')"
-  >
-    <mat-icon svgIcon="clickup"></mat-icon>
-    <span>ClickUp</span>
-  </button>
-  <button
-    mat-raised-button
     (click)="openSetupDialog('AZURE_DEVOPS')"
   >
     <mat-icon svgIcon="azure_devops"></mat-icon>
@@ -107,6 +100,19 @@
     <button
       mat-raised-button
       (click)="openSetupDialog(provider.registeredKey)"
+    >
+      @if (provider.icon && provider.icon !== 'extension') {
+        <mat-icon [svgIcon]="provider.icon"></mat-icon>
+      } @else {
+        <mat-icon>extension</mat-icon>
+      }
+      <span>{{ provider.name }}</span>
+    </button>
+  }
+  @for (provider of disabledPluginProviders; track provider.pluginId) {
+    <button
+      mat-raised-button
+      (click)="enablePluginAndOpenSetup(provider.pluginId, provider.issueProviderKey)"
     >
       @if (provider.icon && provider.icon !== 'extension') {
         <mat-icon [svgIcon]="provider.icon"></mat-icon>

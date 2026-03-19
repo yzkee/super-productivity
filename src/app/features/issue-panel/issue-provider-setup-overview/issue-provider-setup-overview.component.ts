@@ -10,6 +10,7 @@ import { CalendarContextInfoTarget } from '../../issue/providers/calendar/calend
 import { selectEnabledIssueProviders } from '../../issue/store/issue-provider.selectors';
 import { MatButton } from '@angular/material/button';
 import { PluginIssueProviderRegistryService } from '../../../plugins/issue-provider/plugin-issue-provider-registry.service';
+import { PluginService } from '../../../plugins/plugin.service';
 
 @Component({
   selector: 'issue-provider-setup-overview',
@@ -23,10 +24,12 @@ export class IssueProviderSetupOverviewComponent {
   private _store = inject(Store);
   private _matDialog = inject(MatDialog);
   private _pluginRegistry = inject(PluginIssueProviderRegistryService);
+  private _pluginService = inject(PluginService);
 
   enabledProviders$ = this._store.select(selectEnabledIssueProviders);
   // NOTE: intentionally non-reactive for v1 — plugins load at startup before this dialog opens
   pluginProviders = this._pluginRegistry.getAvailableProviders();
+  disabledPluginProviders = this._pluginService.getDisabledIssueProviderPlugins();
 
   openSetupDialog(
     issueProviderKey: IssueProviderKey,
@@ -39,5 +42,18 @@ export class IssueProviderSetupOverviewComponent {
         calendarContextInfoTarget,
       },
     });
+  }
+
+  async enablePluginAndOpenSetup(
+    pluginId: string,
+    issueProviderKey: string,
+  ): Promise<void> {
+    await this._pluginService.enableAndActivatePlugin(pluginId);
+    // Remove from disabled list and refresh enabled list
+    this.disabledPluginProviders = this.disabledPluginProviders.filter(
+      (p) => p.pluginId !== pluginId,
+    );
+    this.pluginProviders = this._pluginRegistry.getAvailableProviders();
+    this.openSetupDialog(issueProviderKey as IssueProviderKey);
   }
 }

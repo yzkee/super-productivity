@@ -17,8 +17,6 @@ import { TrelloCfg } from './providers/trello/trello.model';
 import { TrelloIssue, TrelloIssueReduced } from './providers/trello/trello-issue.model';
 import { LinearCfg } from './providers/linear/linear.model';
 import { LinearIssue, LinearIssueReduced } from './providers/linear/linear-issue.model';
-import { ClickUpCfg } from './providers/clickup/clickup.model';
-import { ClickUpTask, ClickUpTaskReduced } from './providers/clickup/clickup-issue.model';
 import { EntityState } from '@ngrx/entity';
 import {
   CalendarProviderCfg,
@@ -55,12 +53,11 @@ export type BuiltInIssueProviderKey =
   | 'TRELLO'
   | 'REDMINE'
   | 'LINEAR'
-  | 'CLICKUP'
   | 'AZURE_DEVOPS'
   | 'NEXTCLOUD_DECK';
 
 // Keys migrated from built-in to plugin — still valid as IssueProviderKey
-export type MigratedIssueProviderKey = 'GITHUB';
+export type MigratedIssueProviderKey = 'GITHUB' | 'CLICKUP';
 
 // Plugin issue provider keys use a 'plugin:' prefix to avoid collision
 export type PluginIssueProviderKey = `plugin:${string}`;
@@ -87,7 +84,6 @@ export type IssueIntegrationCfg =
   | TrelloCfg
   | RedmineCfg
   | LinearCfg
-  | ClickUpCfg
   | AzureDevOpsCfg
   | NextcloudDeckCfg;
 
@@ -108,7 +104,6 @@ export interface IssueIntegrationCfgs {
   GITEA?: GiteaCfg;
   REDMINE?: RedmineCfg;
   LINEAR?: LinearCfg;
-  CLICKUP?: ClickUpCfg;
   AZURE_DEVOPS?: AzureDevOpsCfg;
   NEXTCLOUD_DECK?: NextcloudDeckCfg;
 }
@@ -123,7 +118,6 @@ export type IssueData =
   | RedmineIssue
   | TrelloIssue
   | LinearIssue
-  | ClickUpTask
   | AzureDevOpsIssue
   | NextcloudDeckIssue
   | PluginIssue;
@@ -138,7 +132,6 @@ export type IssueDataReduced =
   | RedmineIssue
   | TrelloIssueReduced
   | LinearIssueReduced
-  | ClickUpTaskReduced
   | AzureDevOpsIssueReduced
   | NextcloudDeckIssueReduced
   | PluginSearchResult;
@@ -162,17 +155,15 @@ export type IssueDataReducedMap = {
                   ? RedmineIssue
                   : K extends 'LINEAR'
                     ? LinearIssueReduced
-                    : K extends 'CLICKUP'
-                      ? ClickUpTaskReduced
-                      : K extends 'AZURE_DEVOPS'
-                        ? AzureDevOpsIssueReduced
-                        : K extends 'NEXTCLOUD_DECK'
-                          ? NextcloudDeckIssueReduced
-                          : K extends MigratedIssueProviderKey
+                    : K extends 'AZURE_DEVOPS'
+                      ? AzureDevOpsIssueReduced
+                      : K extends 'NEXTCLOUD_DECK'
+                        ? NextcloudDeckIssueReduced
+                        : K extends MigratedIssueProviderKey
+                          ? PluginSearchResult
+                          : K extends PluginIssueProviderKey
                             ? PluginSearchResult
-                            : K extends PluginIssueProviderKey
-                              ? PluginSearchResult
-                              : never;
+                            : never;
 };
 
 // TODO: add issue model to the IssueDataReducedMap
@@ -255,10 +246,6 @@ export interface IssueProviderLinear extends IssueProviderBase, LinearCfg {
   issueProviderKey: 'LINEAR';
 }
 
-export interface IssueProviderClickUp extends IssueProviderBase, ClickUpCfg {
-  issueProviderKey: 'CLICKUP';
-}
-
 export interface IssueProviderAzureDevOps extends IssueProviderBase, AzureDevOpsCfg {
   issueProviderKey: 'AZURE_DEVOPS';
 }
@@ -284,7 +271,6 @@ export type IssueProvider =
   | IssueProviderRedmine
   | IssueProviderTrello
   | IssueProviderLinear
-  | IssueProviderClickUp
   | IssueProviderAzureDevOps
   | IssueProviderNextcloudDeck
   | IssueProviderPluginType;
@@ -309,14 +295,12 @@ export type IssueProviderTypeMap<T extends IssueProviderKey> = T extends 'JIRA'
                   ? IssueProviderTrello
                   : T extends 'LINEAR'
                     ? IssueProviderLinear
-                    : T extends 'CLICKUP'
-                      ? IssueProviderClickUp
-                      : T extends 'AZURE_DEVOPS'
-                        ? IssueProviderAzureDevOps
-                        : T extends 'NEXTCLOUD_DECK'
-                          ? IssueProviderNextcloudDeck
-                          : T extends PluginIssueProviderKey
+                    : T extends 'AZURE_DEVOPS'
+                      ? IssueProviderAzureDevOps
+                      : T extends 'NEXTCLOUD_DECK'
+                        ? IssueProviderNextcloudDeck
+                        : T extends PluginIssueProviderKey
+                          ? IssueProviderPluginType
+                          : T extends MigratedIssueProviderKey
                             ? IssueProviderPluginType
-                            : T extends MigratedIssueProviderKey
-                              ? IssueProviderPluginType
-                              : never;
+                            : never;

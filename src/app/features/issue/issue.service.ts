@@ -26,7 +26,6 @@ import {
   TRELLO_TYPE,
   REDMINE_TYPE,
   LINEAR_TYPE,
-  CLICKUP_TYPE,
   AZURE_DEVOPS_TYPE,
   NEXTCLOUD_DECK_TYPE,
 } from './issue.const';
@@ -43,7 +42,7 @@ import { OpenProjectCommonInterfacesService } from './providers/open-project/ope
 import { GiteaCommonInterfacesService } from './providers/gitea/gitea-common-interfaces.service';
 import { RedmineCommonInterfacesService } from './providers/redmine/redmine-common-interfaces.service';
 import { LinearCommonInterfacesService } from './providers/linear/linear-common-interfaces.service';
-import { ClickUpCommonInterfacesService } from './providers/clickup/clickup-common-interfaces.service';
+// ClickUp is now a plugin — no built-in service needed
 import { AzureDevOpsCommonInterfacesService } from './providers/azure-devops/azure-devops-common-interfaces.service';
 import { NextcloudDeckCommonInterfacesService } from './providers/nextcloud-deck/nextcloud-deck-common-interfaces.service';
 import { SnackService } from '../../core/snack/snack.service';
@@ -82,7 +81,6 @@ export class IssueService {
   private _giteaInterfaceService = inject(GiteaCommonInterfacesService);
   private _redmineInterfaceService = inject(RedmineCommonInterfacesService);
   private _linearCommonInterfaceService = inject(LinearCommonInterfacesService);
-  private _clickUpCommonInterfaceService = inject(ClickUpCommonInterfacesService);
   private _azureDevOpsCommonInterfaceService = inject(AzureDevOpsCommonInterfacesService);
   private _nextcloudDeckCommonInterfaceService = inject(
     NextcloudDeckCommonInterfacesService,
@@ -109,7 +107,6 @@ export class IssueService {
     [REDMINE_TYPE]: this._redmineInterfaceService,
     [ICAL_TYPE]: this._calendarCommonInterfaceService,
     [LINEAR_TYPE]: this._linearCommonInterfaceService,
-    [CLICKUP_TYPE]: this._clickUpCommonInterfaceService,
     [AZURE_DEVOPS_TYPE]: this._azureDevOpsCommonInterfaceService,
     [NEXTCLOUD_DECK_TYPE]: this._nextcloudDeckCommonInterfaceService,
 
