@@ -309,11 +309,10 @@ jobs:
           release: false
           args: "--publish never" # Explicit: don't auto-publish unsigned exe files
 
-      # --- Code signing (SignPath failure is tolerated; post-signing verification failures will block the release) ---
+      # --- Code signing (must succeed — we never publish unsigned exe files) ---
 
       - name: Upload unsigned executables for SignPath
         id: upload-unsigned
-        continue-on-error: true
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: unsigned-windows-executables
@@ -322,9 +321,6 @@ jobs:
           retention-days: 1
 
       - name: Sign Windows executables with SignPath
-        id: signpath
-        if: steps.upload-unsigned.outcome == 'success'
-        continue-on-error: true
         uses: signpath/github-action-submit-signing-request@3f9250c56651ff692d6729a2fbb0603a42d7d322 # v2
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
@@ -335,10 +331,9 @@ jobs:
           github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
           output-artifact-directory: '.tmp/app-builds-signed/'
           wait-for-completion: true
-          wait-for-completion-timeout-in-seconds: 600
+          wait-for-completion-timeout-in-seconds: 3600
 
       - name: Move signed executables back to build directory
-        if: steps.signpath.outcome == 'success'
         shell: pwsh
         run: |
           $signed = Get-ChildItem -Path .tmp/app-builds-signed -Filter *.exe -Recurse
@@ -370,7 +365,6 @@ jobs:
           Get-ChildItem -Path .tmp/app-builds -Filter *.exe | Format-Table -AutoSize
 
       - name: Verify code signatures
-        if: steps.signpath.outcome == 'success'
         shell: pwsh
         run: |
           $exeFiles = Get-ChildItem -Path .tmp/app-builds -Filter *.exe
@@ -384,7 +378,6 @@ jobs:
           }
 
       - name: Regenerate blockmaps and generate latest.yml for signed executables
-        if: steps.signpath.outcome == 'success'
         shell: pwsh
         run: |
           $buildDir = ".tmp/app-builds"
@@ -479,9 +472,7 @@ jobs:
             }
           "
 
-      # Only publish signed Windows binaries
       - name: Publish signed Windows binaries to GitHub Release
-        if: steps.signpath.outcome == 'success'
         uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
