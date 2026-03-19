@@ -83,9 +83,11 @@ class CapacitorMainActivity : BridgeActivity() {
 
         // DEBUG ONLY
         if (BuildConfig.DEBUG) {
-            val debugToast = Toast.makeText(this, "DEBUG", Toast.LENGTH_SHORT)
-            debugToast.show()
-            Handler(Looper.getMainLooper()).postDelayed({ debugToast.cancel() }, 100)
+            Handler(Looper.getMainLooper()).postDelayed({
+                val debugToast = Toast.makeText(this, "DEBUG", Toast.LENGTH_SHORT)
+                debugToast.show()
+                Handler(Looper.getMainLooper()).postDelayed({ debugToast.cancel() }, 100)
+            }, 10_000)
             WebView.setWebContentsDebuggingEnabled(true)
         }
 
