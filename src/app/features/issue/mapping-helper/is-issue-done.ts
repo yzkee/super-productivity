@@ -1,6 +1,5 @@
 import { SearchResultItem } from '../issue.model';
 import { isLinearIssueDone } from '../providers/linear/linear-issue-map.util';
-import { LinearIssueReduced } from '../providers/linear/linear-issue.model';
 
 const ISSUE_DONE_STATE_NAME_GUESSES = ['closed', 'done', 'completed', 'resolved'];
 
@@ -34,7 +33,7 @@ export const isIssueDone = (searchResultItem: SearchResultItem): boolean => {
 
     case 'LINEAR':
       return isLinearIssueDone(
-        searchResultItem.issueData as unknown as LinearIssueReduced,
+        (searchResultItem as SearchResultItem<'LINEAR'>).issueData,
       );
 
     default: {
