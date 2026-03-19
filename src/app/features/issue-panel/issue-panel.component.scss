@@ -2,7 +2,7 @@
 
 :host {
   // NOTE 0 because we want the inner scrollbars at the very right
-  padding: 8px 0;
+  padding: var(--s) 0;
   position: absolute;
   inset: 0;
   display: flex;
@@ -60,8 +60,8 @@
 .tab-header-item {
   min-width: 52px;
   min-height: 48px;
-  padding-left: 8px;
-  padding-right: 8px;
+  padding-left: var(--s);
+  padding-right: var(--s);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -20,7 +20,7 @@ h3 {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--s);
   position: relative;
 
   h1 {

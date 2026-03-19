@@ -194,7 +194,7 @@ $this-border-radius: 8px;
 
   mat-icon {
     font-size: 18px;
-    margin-right: 2px;
+    margin-right: var(--s-quarter);
   }
 }
 

@@ -1,3 +1,5 @@
+@use '../../../styles/_globals.scss' as *;
+
 :host {
   --sidenav-width-expanded: var(--side-nav-width, 260px);
   --mobile-breakpoint: 768px;
@@ -36,7 +38,7 @@
   background: var(--sidenav-bg);
   border: 1px solid var(--sidenav-border-color);
   border-radius: 8px;
-  padding: 8px;
+  padding: var(--s);
   cursor: pointer;
   transition: var(--transition-standard);
   color: var(--text-color);
@@ -199,7 +201,7 @@
   flex-direction: column;
   justify-content: flex-start;
 
-  @media (max-width: 600px) {
+  @include mq(xs, max) {
     padding-top: var(--safe-area-top);
     padding-bottom: calc(var(--safe-area-bottom) + var(--bottom-nav-height));
   }
@@ -210,11 +212,11 @@
 }
 
 .nav-item {
-  margin-bottom: 2px;
+  margin-bottom: var(--s-quarter);
   -webkit-app-region: no-drag;
 
   &.has-children {
-    margin-bottom: 4px;
+    margin-bottom: var(--s-half);
   }
 }
 

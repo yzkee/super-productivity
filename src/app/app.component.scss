@@ -170,7 +170,7 @@ mat-sidenav {
   border-right-color: var(--sidebar-border-color);
 }
 
-@media (min-width: 800px) {
+@include mq(component) {
   button.mat-mdc-menu-item {
     width: 600px;
   }

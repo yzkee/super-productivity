@@ -16,7 +16,7 @@
   box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.12);
   align-items: center;
   justify-content: space-between;
-  padding: 0 8px;
+  padding: 0 var(--s);
   padding-bottom: calc(env(safe-area-inset-bottom) / 2);
   z-index: var(--z-mobile-bottom-nav);
   display: flex;
@@ -55,7 +55,7 @@
       background: var(--sidenav-item-active-bg);
       color: var(--sidenav-active-text);
       box-shadow: 0 -1px 1px var(--c-dark-10);
-      margin-bottom: 2px;
+      margin-bottom: var(--s-quarter);
 
       mat-icon {
         color: var(--sidenav-active-text);
@@ -73,9 +73,9 @@
   .add-task-button {
     width: 56px;
     height: 56px;
-    margin-left: 8px;
-    margin-right: 8px;
-    margin-bottom: 24px;
+    margin-left: var(--s);
+    margin-right: var(--s);
+    margin-bottom: var(--s3);
     box-shadow:
       0 -2px 6px rgba(0, 0, 0, 0.15),
       0 2px 4px var(--c-dark-20);
@@ -94,8 +94,8 @@
 
     &.smaller {
       height: 40px;
-      margin-left: 8px;
-      margin-right: 8px;
+      margin-left: var(--s);
+      margin-right: var(--s);
       margin-bottom: 0px;
     }
 

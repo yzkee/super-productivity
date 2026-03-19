@@ -23,9 +23,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding: 16px;
-  margin-bottom: 16px;
+  gap: var(--s2);
+  padding: var(--s2);
+  margin-bottom: var(--s2);
   background: rgba(0, 0, 0, 0.03);
   border-radius: var(--card-border-radius);
 
@@ -46,7 +46,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: var(--s-half);
   text-align: center;
 
   .state-label {

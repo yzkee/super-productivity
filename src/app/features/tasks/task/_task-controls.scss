@@ -23,7 +23,7 @@
   flex-direction: row;
   align-items: stretch;
   text-align: right;
-  margin-right: 2px;
+  margin-right: var(--s-quarter);
   position: relative;
 
   button {
@@ -160,17 +160,17 @@
       display: inline-flex;
       vertical-align: middle;
       height: 16px;
-      margin-right: 2px;
+      margin-right: var(--s-quarter);
       margin-top: -2px;
 
       @include mq(xs, max) {
-        margin-right: 2px;
+        margin-right: var(--s-quarter);
         height: 14px;
       }
     }
 
     span:not(:last-child) {
-      margin-right: 2px;
+      margin-right: var(--s-quarter);
     }
   }
 
@@ -581,7 +581,7 @@ progress-bar {
   z-index: 10;
   line-height: 1;
   text-align: center;
-  padding: 1px 2px 0;
+  padding: 1px var(--s-quarter) 0;
   @include extraBorder();
   border-radius: var(--card-border-radius);
   white-space: nowrap;
@@ -614,5 +614,5 @@ progress-bar {
   width: 20px;
   display: inline-block;
   vertical-align: middle;
-  margin-right: 4px;
+  margin-right: var(--s-half);
 }
