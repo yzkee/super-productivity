@@ -7,11 +7,12 @@ import androidx.work.WorkerParameters
 
 /**
  * WorkManager CoroutineWorker that periodically fetches operations from the sync
- * server and cancels stale Android reminders (AlarmManager alarms + active notifications).
+ * server, cancels stale Android reminders (AlarmManager alarms + active notifications),
+ * and schedules new/updated reminders.
  *
  * Runs every 15 minutes when network is available. Does NOT apply full state changes —
- * only cancels reminders for tasks that are done, deleted, archived, or had their
- * reminders dismissed/cleared on another device.
+ * only manages reminders for tasks that changed on another device (done, deleted,
+ * archived, dismissed, or newly created/updated).
  */
 class SyncReminderWorker(
     appContext: Context,
@@ -37,6 +38,7 @@ class SyncReminderWorker(
         Log.d(TAG, "Starting sync check from seq=$lastSeq")
 
         var totalCancelled = 0
+        var totalScheduled = 0
         var hasMore = true
         var iterations = 0
         val maxIterations = 100
@@ -56,8 +58,14 @@ class SyncReminderWorker(
 
             // Cancel reminders for each affected task
             for (taskId in result.taskIdsToCancel) {
-                cancelReminderForTask(taskId)
+                cancelRemindersForTask(applicationContext, taskId)
                 totalCancelled++
+            }
+
+            // Schedule new reminders
+            for (reminder in result.remindersToSchedule) {
+                scheduleReminderFromSync(applicationContext, reminder)
+                totalScheduled++
             }
 
             // Update sequence cursor
@@ -75,28 +83,13 @@ class SyncReminderWorker(
             Log.w(TAG, "Hit max pagination iterations ($maxIterations), stopping. seq=$lastSeq")
         }
 
-        if (totalCancelled > 0) {
-            Log.d(TAG, "Cancelled $totalCancelled reminder(s), seq now=$lastSeq")
+        if (totalCancelled > 0 || totalScheduled > 0) {
+            Log.d(TAG, "Cancelled $totalCancelled, scheduled $totalScheduled reminder(s), seq now=$lastSeq")
         } else {
-            Log.d(TAG, "No reminders to cancel, seq now=$lastSeq")
+            Log.d(TAG, "No reminder changes, seq now=$lastSeq")
         }
 
         return Result.success()
     }
 
-    private fun cancelReminderForTask(taskId: String) {
-        try {
-            // Cancel the standard reminder notification
-            val notificationId = SuperSyncBackgroundProvider.generateNotificationId(taskId)
-            ReminderNotificationHelper.cancelReminder(applicationContext, notificationId)
-
-            // Cancel the due-date variant notification
-            val dueDayNotificationId = SuperSyncBackgroundProvider.generateNotificationId(taskId + "_dueday")
-            ReminderNotificationHelper.cancelReminder(applicationContext, dueDayNotificationId)
-
-            Log.d(TAG, "Cancelled reminder for task=$taskId (ids=$notificationId, $dueDayNotificationId)")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to cancel reminder for task=$taskId", e)
-        }
-    }
 }

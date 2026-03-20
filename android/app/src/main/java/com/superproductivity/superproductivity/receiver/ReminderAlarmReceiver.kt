@@ -4,10 +4,18 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import com.superproductivity.superproductivity.service.BackgroundSyncCredentialStore
 import com.superproductivity.superproductivity.service.ReminderNotificationHelper
+import com.superproductivity.superproductivity.service.SuperSyncBackgroundProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * Receives alarm broadcasts and shows reminder notifications.
+ * Before showing, does a quick server check to suppress stale notifications
+ * (task deleted/done/dismissed on another device). Fail-open on any error.
  */
 class ReminderAlarmReceiver : BroadcastReceiver() {
 
@@ -34,17 +42,57 @@ class ReminderAlarmReceiver : BroadcastReceiver() {
         val useAlarmStyle = intent.getBooleanExtra(EXTRA_USE_ALARM_STYLE, false)
         val isOngoing = intent.getBooleanExtra(EXTRA_IS_ONGOING, false)
 
-        Log.d(TAG, "Alarm triggered: id=$notificationId, title=$title, useAlarmStyle=$useAlarmStyle")
+        Log.d(TAG, "Alarm triggered: id=$notificationId, title=$title")
 
-        ReminderNotificationHelper.showNotification(
-            context,
-            notificationId,
-            reminderId,
-            relatedId,
-            title,
-            reminderType,
-            useAlarmStyle,
-            isOngoing
+        val pendingResult = goAsync()
+
+        CoroutineScope(Dispatchers.IO + SupervisorJob()).launch {
+            try {
+                val isStale = isTaskStale(context, relatedId)
+                if (isStale) {
+                    Log.d(TAG, "Suppressed stale notification: id=$notificationId, task=$relatedId")
+                    ReminderNotificationHelper.cancelReminder(context, notificationId)
+                } else {
+                    ReminderNotificationHelper.showNotification(
+                        context, notificationId, reminderId, relatedId,
+                        title, reminderType, useAlarmStyle, isOngoing
+                    )
+                }
+            } catch (e: Exception) {
+                // Fail-open: show notification on any error
+                Log.w(TAG, "Check failed, showing notification anyway: id=$notificationId", e)
+                ReminderNotificationHelper.showNotification(
+                    context, notificationId, reminderId, relatedId,
+                    title, reminderType, useAlarmStyle, isOngoing
+                )
+            } finally {
+                pendingResult.finish()
+            }
+        }
+    }
+
+    /**
+     * Quick server check: is this task stale (deleted/done/dismissed/rescheduled)?
+     * Uses fetchQuick with tight OkHttp timeouts (5s callTimeout) that actually
+     * interrupt blocking I/O. Returns false (fail-open) on any error or timeout.
+     *
+     * Only checks the triggering task — all other reminder management is left
+     * to the SyncReminderWorker which owns the seq cursor and handles pagination.
+     */
+    private suspend fun isTaskStale(context: Context, taskId: String): Boolean {
+        val credentials = BackgroundSyncCredentialStore.get(context) ?: return false
+        val lastSeq = BackgroundSyncCredentialStore.getLastServerSeq(
+            context, credentials.baseUrl
         )
+
+        val result = SuperSyncBackgroundProvider().fetchQuick(
+            credentials.baseUrl, credentials.accessToken, lastSeq
+        ) ?: return false  // Error -> fail-open
+
+        // Stale if cancelled (deleted/done/dismissed) or rescheduled to a different time.
+        // If rescheduled, the new alarm is already in remindersToSchedule and will be
+        // scheduled by the Worker — suppress this outdated notification.
+        return taskId in result.taskIdsToCancel
+            || result.remindersToSchedule.any { it.taskId == taskId }
     }
 }

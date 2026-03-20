@@ -34,6 +34,13 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
             .callTimeout(60, TimeUnit.SECONDS)
             .build()
 
+        /** Tight-timeout client for BroadcastReceiver checks that must complete within goAsync()'s ~10s window. */
+        private val quickHttpClient = httpClient.newBuilder()
+            .connectTimeout(2, TimeUnit.SECONDS)
+            .readTimeout(3, TimeUnit.SECONDS)
+            .callTimeout(5, TimeUnit.SECONDS)
+            .build()
+
         /**
          * Port of TypeScript generateNotificationId() from android-notification-id.util.ts.
          * Must produce identical output for the same input string.
@@ -56,6 +63,31 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
         lastSeq: Long,
         limit: Int
     ): ReminderChangeResult? {
+        return doFetch(httpClient, baseUrl, accessToken, lastSeq, limit)
+    }
+
+    /**
+     * Same as [fetchReminderChanges] but with tight OkHttp timeouts (5s total).
+     * Use from BroadcastReceivers where goAsync() limits total execution time to ~10s.
+     * OkHttp's own callTimeout enforces the deadline — unlike coroutine cancellation,
+     * this actually interrupts the blocking I/O.
+     */
+    suspend fun fetchQuick(
+        baseUrl: String,
+        accessToken: String,
+        lastSeq: Long,
+        limit: Int = 100
+    ): ReminderChangeResult? {
+        return doFetch(quickHttpClient, baseUrl, accessToken, lastSeq, limit)
+    }
+
+    private suspend fun doFetch(
+        client: OkHttpClient,
+        baseUrl: String,
+        accessToken: String,
+        lastSeq: Long,
+        limit: Int
+    ): ReminderChangeResult? {
         val url = "${baseUrl.trimEnd('/')}/api/sync/ops?sinceSeq=$lastSeq&limit=$limit"
         val request = Request.Builder()
             .url(url)
@@ -66,7 +98,7 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
             .build()
 
         return try {
-            val response = httpClient.newCall(request).execute()
+            val response = client.newCall(request).execute()
             response.use { resp ->
                 if (!resp.isSuccessful) {
                     Log.w(TAG, "HTTP ${resp.code} from $baseUrl")
@@ -84,18 +116,26 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
     private fun parseResponse(body: String): ReminderChangeResult {
         val json = JSONObject(body)
         val ops = json.optJSONArray("ops")
-            ?: return ReminderChangeResult(emptySet(), json.optLong("latestSeq", 0L), false)
+            ?: return ReminderChangeResult(emptySet(), emptyList(), json.optLong("latestSeq", 0L), false)
         val hasMore = json.optBoolean("hasMore", false)
         val latestSeq = json.optLong("latestSeq", 0L)
         val taskIds = mutableSetOf<String>()
+        // Keyed by (taskId, isDueDate) so later ops naturally overwrite earlier ones
+        val reminderMap = mutableMapOf<Pair<String, Boolean>, ReminderToSchedule>()
+        val now = System.currentTimeMillis()
 
         for (i in 0 until ops.length()) {
             val op = ops.getJSONObject(i)
             extractReminderRelevantTaskIds(op, taskIds)
+            extractRemindersToSchedule(op, reminderMap, now)
         }
+
+        // If a task is both scheduled and cancelled in the same batch, cancellation wins
+        val reminders = reminderMap.values.filter { it.taskId !in taskIds }
 
         return ReminderChangeResult(
             taskIdsToCancel = taskIds,
+            remindersToSchedule = reminders,
             latestSeq = latestSeq,
             hasMore = hasMore
         )
@@ -209,6 +249,51 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
                 val id = entityIds.optString(i, "")
                 if (id.isNotEmpty()) {
                     out.add(id)
+                }
+            }
+        }
+    }
+
+    /**
+     * Extracts reminders to schedule from an operation.
+     * Checks entityChanges for tasks with remindAt or deadlineRemindAt set to a future timestamp.
+     */
+    private fun extractRemindersToSchedule(op: JSONObject, out: MutableMap<Pair<String, Boolean>, ReminderToSchedule>, now: Long) {
+        val entityType = op.optString("e", "")
+        if (entityType != "TASK") return
+
+        val opType = op.optString("o", "")
+        // Only CRT and UPD operations can create/update reminders
+        if (opType != "CRT" && opType != "UPD") return
+
+        val payload = op.optJSONObject("p") ?: return
+        val entityChanges = payload.optJSONArray("entityChanges") ?: return
+
+        for (i in 0 until entityChanges.length()) {
+            val entry = entityChanges.optJSONObject(i) ?: continue
+            if (entry.optString("entityType", "") != "TASK") continue
+
+            val entityId = entry.optString("entityId", "")
+            if (entityId.isEmpty()) continue
+
+            val changes = entry.optJSONObject("changes") ?: continue
+
+            // Extract title: available for CRT (full task), may be missing for UPD
+            val title = changes.optString("title", "").ifEmpty { "Task reminder" }
+
+            // Check remindAt (standard reminder) — later ops overwrite earlier ones for same key
+            if (changes.has("remindAt") && !changes.isNull("remindAt")) {
+                val remindAt = changes.optLong("remindAt", 0L)
+                if (remindAt > now) {
+                    out[Pair(entityId, false)] = ReminderToSchedule(entityId, title, remindAt, isDueDate = false)
+                }
+            }
+
+            // Check deadlineRemindAt (deadline reminder)
+            if (changes.has("deadlineRemindAt") && !changes.isNull("deadlineRemindAt")) {
+                val deadlineRemindAt = changes.optLong("deadlineRemindAt", 0L)
+                if (deadlineRemindAt > now) {
+                    out[Pair(entityId, true)] = ReminderToSchedule(entityId, title, deadlineRemindAt, isDueDate = true)
                 }
             }
         }
