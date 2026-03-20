@@ -79,6 +79,7 @@ import { GlobalConfigService } from './app/features/config/global-config.service
 import { LocaleDatePipe } from './app/ui/pipes/locale-date.pipe';
 import { DateTimeFormatService } from './app/core/date-time-format/date-time-format.service';
 import { CustomDateAdapter } from './app/core/date-time-format/custom-date-adapter';
+import { unlockAudioContext } from './app/util/audio-context';
 
 if (environment.production || environment.stage) {
   enableProdMode();
@@ -89,6 +90,10 @@ if (environment.production || environment.stage) {
 // Module-level injector for use in Capacitor lifecycle handlers.
 // Set after Angular bootstrap completes.
 let appInjector: Injector | null = null;
+
+// Register one-time user gesture listener to unlock AudioContext.
+// Required on iOS/Android where AudioContext starts suspended.
+unlockAudioContext();
 
 bootstrapApplication(AppComponent, {
   providers: [
