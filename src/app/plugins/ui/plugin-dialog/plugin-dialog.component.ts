@@ -84,10 +84,11 @@ import { PluginLog } from '../../../core/log';
       :host ::ng-deep select,
       :host ::ng-deep textarea,
       :host ::ng-deep input {
-        background: var(--bg-darker);
+        background: var(--bg-lighter);
         color: var(--text-color);
-        border: 1px solid var(--divider-color);
-        border-radius: 4px;
+        border: none;
+        border-bottom: 1px solid var(--divider-color);
+        border-radius: 4px 4px 0 0;
         padding: 8px;
         font-family: var(--font-primary-stack);
         font-size: 14px;
@@ -97,11 +98,17 @@ import { PluginLog } from '../../../core/log';
       :host ::ng-deep textarea:focus,
       :host ::ng-deep input:focus {
         outline: none;
-        border-color: var(--c-primary);
+        border-bottom-color: var(--c-primary);
+        border-bottom-width: 2px;
+      }
+
+      :host ::ng-deep input[type='checkbox'],
+      :host ::ng-deep input[type='radio'] {
+        accent-color: var(--c-primary);
       }
 
       :host ::ng-deep select option {
-        background: var(--bg-darker);
+        background: var(--bg-lighter);
         color: var(--text-color);
       }
 
