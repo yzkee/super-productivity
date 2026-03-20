@@ -373,6 +373,7 @@ export class PluginBridgeService implements OnDestroy {
           autoFocus: true,
           restoreFocus: true,
           disableClose: false,
+          closeOnNavigation: false,
         });
 
         dialogRef.afterClosed().subscribe((result) => {

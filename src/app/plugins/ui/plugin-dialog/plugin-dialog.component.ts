@@ -72,6 +72,13 @@ import { PluginLog } from '../../../core/log';
         overflow-y: auto;
       }
 
+      @media (max-width: 599px) {
+        mat-dialog-content {
+          min-width: unset;
+          width: auto;
+        }
+      }
+
       mat-dialog-actions {
         gap: 8px;
       }
