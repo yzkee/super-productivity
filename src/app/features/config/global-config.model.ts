@@ -32,7 +32,6 @@ export type MiscConfig = Readonly<{
   isDisableCelebration?: boolean;
   isShowProductivityTipLonger?: boolean;
   isTrayShowCurrentCountdown?: boolean;
-  isOverlayIndicatorEnabled?: boolean;
   isUseCustomWindowTitleBar?: boolean;
   customTheme?: string;
   defaultStartPage?: number;
@@ -46,6 +45,8 @@ export type MiscConfig = Readonly<{
   isTurnOffMarkdown?: boolean; // Deprecated
   defaultProjectId?: string | null | false; // Deprecated
   taskNotesTpl?: string; // Deprecated
+  isOverlayIndicatorEnabled?: boolean; // Deprecated – moved to overlayIndicator.isEnabled
+  overlayIndicatorOpacity?: number; // Deprecated – moved to overlayIndicator.opacity
 }>;
 
 export type TasksConfig = Readonly<{
@@ -224,6 +225,12 @@ export type FocusModeConfig = Readonly<{
   isManualBreakStart?: boolean;
 }>;
 
+export type OverlayIndicatorConfig = Readonly<{
+  isEnabled?: boolean;
+  isAlwaysShow?: boolean;
+  opacity?: number;
+}>;
+
 export type ClipboardImagesConfig = Readonly<{
   imagePath?: string | null;
 }>;
@@ -252,6 +259,7 @@ export type GlobalConfigState = Readonly<{
   schedule: ScheduleConfig;
   dominaMode: DominaModeConfig;
   focusMode: FocusModeConfig;
+  overlayIndicator: OverlayIndicatorConfig;
   clipboardImages?: ClipboardImagesConfig;
 
   sync: SyncConfig;
@@ -269,7 +277,8 @@ export type GlobalSectionConfig =
   | ReminderConfig
   | DailySummaryNote
   | SyncConfig
-  | ClipboardImagesConfig;
+  | ClipboardImagesConfig
+  | OverlayIndicatorConfig;
 type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 
 export interface LimitedFormlyFieldConfig<FormModel> extends Omit<

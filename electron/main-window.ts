@@ -19,6 +19,7 @@ import { error, log } from 'electron-log/main';
 import { IS_MAC } from './common.const';
 import {
   destroyOverlayWindow,
+  getIsOverlayAlwaysShow,
   hideOverlayWindow,
   showOverlayWindow,
 } from './overlay-indicator/overlay-indicator';
@@ -331,15 +332,21 @@ function initWinEventListeners(app: Electron.App): void {
 
   // Handle restore and show events to hide overlay
   mainWin.on('restore', () => {
-    hideOverlayWindow();
+    if (!getIsOverlayAlwaysShow()) {
+      hideOverlayWindow();
+    }
   });
 
   mainWin.on('show', () => {
-    hideOverlayWindow();
+    if (!getIsOverlayAlwaysShow()) {
+      hideOverlayWindow();
+    }
   });
 
   mainWin.on('focus', () => {
-    hideOverlayWindow();
+    if (mainWin.isVisible() && !mainWin.isMinimized() && !getIsOverlayAlwaysShow()) {
+      hideOverlayWindow();
+    }
   });
 
   // Handle hide event to show overlay

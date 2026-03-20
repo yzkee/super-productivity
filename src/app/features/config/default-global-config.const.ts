@@ -51,7 +51,6 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isDisableAnimations: false,
     isDisableCelebration: false,
     isShowProductivityTipLonger: false,
-    isOverlayIndicatorEnabled: false,
     customTheme: 'default',
     defaultStartPage: 0,
   },
@@ -95,6 +94,11 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isPauseTrackingDuringBreak: false,
     isSyncSessionWithTracking: false,
     isStartInBackground: false,
+  },
+  overlayIndicator: {
+    isEnabled: false,
+    isAlwaysShow: false,
+    opacity: 95,
   },
   clipboardImages: {
     imagePath: null,

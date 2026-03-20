@@ -6,8 +6,9 @@ import { TaskCopy } from '../src/app/features/tasks/task.model';
 import { GlobalConfigState } from '../src/app/features/config/global-config.model';
 import { release } from 'os';
 import {
-  initOverlayIndicator,
+  updateOverlayAlwaysShow,
   updateOverlayEnabled,
+  updateOverlayOpacity,
   updateOverlayTask,
 } from './overlay-indicator/overlay-indicator';
 import { getWin } from './main-window';
@@ -131,17 +132,19 @@ function initListeners(): void {
   let isOverlayEnabled = false;
   // Listen for settings updates to handle overlay enable/disable
   ipcMain.on(IPC.UPDATE_SETTINGS, (ev, settings: GlobalConfigState) => {
-    const isOverlayEnabledNew = settings?.misc?.isOverlayIndicatorEnabled || false;
-    if (isOverlayEnabledNew === isOverlayEnabled) {
-      return;
+    const isOverlayEnabledNew = settings?.overlayIndicator?.isEnabled || false;
+
+    if (isOverlayEnabledNew !== isOverlayEnabled) {
+      isOverlayEnabled = isOverlayEnabledNew;
+      updateOverlayEnabled(isOverlayEnabled);
     }
 
-    isOverlayEnabled = isOverlayEnabledNew;
-    updateOverlayEnabled(isOverlayEnabled);
-
-    // Initialize overlay without shortcut (overlay doesn't need shortcut, that's for focus mode)
     if (isOverlayEnabled) {
-      initOverlayIndicator(isOverlayEnabled);
+      const opacity = settings?.overlayIndicator?.opacity ?? 95;
+      updateOverlayOpacity(opacity);
+      updateOverlayAlwaysShow(settings?.overlayIndicator?.isAlwaysShow || false);
+    } else {
+      updateOverlayAlwaysShow(false);
     }
   });
 
