@@ -237,6 +237,39 @@ TODO configure more restrictive Content-Security-Policy
     </app-root>
     <noscript>Please enable JavaScript to use this application.</noscript>
     <script>
+      // Browser compatibility check — must use ES5 syntax only.
+      // The app targets ES2022+ (Safari 18+, Chrome 107+). On older browsers the
+      // compiled JS will fail to parse, leaving the user stuck on the splash screen.
+      // This detects unsupported browsers early and shows a helpful message.
+      (function () {
+        var unsupported = false;
+        if (typeof structuredClone !== 'function') {
+          unsupported = true;
+        }
+        if (!unsupported) {
+          try {
+            new Function('class C { static {} }')();
+          } catch (e) {
+            unsupported = true;
+          }
+        }
+        if (unsupported) {
+          var el = document.querySelector('.app-loading');
+          if (el) {
+            el.innerHTML =
+              '<div style="text-align:center;padding:32px 24px;max-width:400px">' +
+              '<h2 style="font:500 20px/28px sans-serif;margin:0 0 16px">Browser Update Required</h2>' +
+              '<p style="font:400 14px/22px sans-serif;margin:0 0 12px">' +
+              'Super Productivity requires a newer browser version to run.' +
+              '</p>' +
+              '<p style="font:400 14px/22px sans-serif;margin:0">' +
+              'Please update your operating system or browser and try again.' +
+              '</p>' +
+              '</div>';
+          }
+        }
+      })();
+
       var productivityTips = [
         [
           'Be kind',
@@ -363,8 +396,12 @@ TODO configure more restrictive Content-Security-Policy
         ],
       ];
       var randomIndex = Math.floor(Math.random() * productivityTips.length);
-      document.getElementById('heading').innerText = productivityTips[randomIndex][0];
-      document.getElementById('text').innerText = productivityTips[randomIndex][1];
+      var headingEl = document.getElementById('heading');
+      var textEl = document.getElementById('text');
+      if (headingEl && textEl) {
+        headingEl.innerText = productivityTips[randomIndex][0];
+        textEl.innerText = productivityTips[randomIndex][1];
+      }
 
       (function () {})();
     </script>
