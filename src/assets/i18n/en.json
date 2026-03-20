@@ -190,6 +190,7 @@
         "POMODORO_BREAK_RUNNING": "Break #{{cycleNr}} is running",
         "POMODORO_SESSION_RUNNING": "Pomodoro session #{{cycleNr}} is running",
         "RESUME": "Resume",
+        "SESSION_OVERTIME": "Session overtime — take a break when ready",
         "SESSION_RUNNING": "Focus session is running",
         "START": "Start",
         "TO_FOCUS_OVERLAY": "To focus overlay"
@@ -211,6 +212,7 @@
       "LONG_BREAK": "Long Break",
       "LONG_BREAK_TITLE": "Long Break - Cycle {{cycle}}",
       "ON": "on",
+      "OVERTIME_MSG": "Time's up — take a break when you're ready",
       "OPEN_ISSUE_IN_BROWSER": "Open issue in web browser",
       "PAUSE_BREAK": "Pause break",
       "PAUSE_SESSION": "Pause session",

@@ -210,6 +210,13 @@
   @include center;
 }
 
+.overtime-msg {
+  text-align: center;
+  font-size: 14px;
+  opacity: 0.8;
+  margin-top: 8px;
+}
+
 .duration-slider-overlay-wrapper {
   @include center;
   width: 200px;
