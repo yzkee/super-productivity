@@ -17,15 +17,14 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
     companion object {
         private const val TAG = "SuperSyncBgProvider"
 
-        // Action type codes for reminder-relevant actions.
-        // These are abbreviations of NgRx action types defined in:
-        //   src/app/op-log/core/action-types.enum.ts (full names)
-        //   src/app/core/persistence/operation-log/compact/action-type-codes.ts (short codes)
-        // If the frontend codes change, these must be updated to match.
-        private const val ACTION_DISMISS_REMINDER = "HRX"       // TASK_SHARED_DISMISS_REMINDER
-        private const val ACTION_MOVE_TO_ARCHIVE = "HX"         // TASK_SHARED_MOVE_TO_ARCHIVE
-        private const val ACTION_CLEAR_DEADLINE_REMINDER = "HCR" // TASK_SHARED_CLEAR_DEADLINE_REMINDER
-        private const val ACTION_DELETE_TASK = "HD"              // TASK_SHARED_DELETE
+        // Full NgRx action type strings for reminder-relevant actions.
+        // Defined in: src/app/op-log/core/action-types.enum.ts
+        // The SuperSync server returns these full strings (not compact codes).
+        // If the frontend action types change, these must be updated to match.
+        private const val ACTION_DISMISS_REMINDER = "[Task Shared] dismissReminderOnly"
+        private const val ACTION_MOVE_TO_ARCHIVE = "[Task Shared] moveToArchive"
+        private const val ACTION_CLEAR_DEADLINE_REMINDER = "[Task Shared] clearDeadlineReminder"
+        private const val ACTION_DELETE_TASK = "[Task Shared] deleteTask"
 
         private val httpClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
@@ -125,7 +124,8 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
         val now = System.currentTimeMillis()
 
         for (i in 0 until ops.length()) {
-            val op = ops.getJSONObject(i)
+            val serverOp = ops.getJSONObject(i)
+            val op = serverOp.getJSONObject("op")
             extractReminderRelevantTaskIds(op, taskIds)
             extractRemindersToSchedule(op, reminderMap, now)
         }
@@ -143,17 +143,18 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
 
     /**
      * Extracts task IDs from an operation if it represents a reminder-relevant change.
-     * Compact operation format:
-     *   a = actionType code, o = opType, e = entityType,
-     *   d = entityId (single), ds = entityIds (batch),
-     *   p = { actionPayload: {...}, entityChanges: [...] }
+     * Server operation format:
+     *   actionType = full NgRx action string, opType = "CRT"/"UPD"/"DEL",
+     *   entityType = "TASK"/"PROJECT"/etc.,
+     *   entityId = single ID, entityIds = batch IDs,
+     *   payload = { actionPayload: {...}, entityChanges: [...] }
      */
     private fun extractReminderRelevantTaskIds(op: JSONObject, out: MutableSet<String>) {
-        val entityType = op.optString("e", "")
+        val entityType = op.optString("entityType", "")
         if (entityType != "TASK") return
 
-        val actionType = op.optString("a", "")
-        val opType = op.optString("o", "")
+        val actionType = op.optString("actionType", "")
+        val opType = op.optString("opType", "")
 
         // Action-based detection: these actions always mean the reminder should be cancelled
         when (actionType) {
@@ -173,10 +174,10 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
         }
 
         // For UPD operations, check if the payload contains reminder-relevant field changes.
-        // The payload structure is: p.entityChanges[] with per-entity changes,
-        // and p.actionPayload with the original action payload.
+        // The payload structure is: payload.entityChanges[] with per-entity changes,
+        // and payload.actionPayload with the original action payload.
         if (opType == "UPD") {
-            val payload = op.optJSONObject("p") ?: return
+            val payload = op.optJSONObject("payload") ?: return
 
             // Primary: check entityChanges array (always present, consistent structure).
             // Each entry has: { entityType, entityId, opType, changes: { isDone, remindAt, ... } }
@@ -238,12 +239,12 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
 
     private fun collectEntityIds(op: JSONObject, out: MutableSet<String>) {
         // Single entity ID
-        val entityId = op.optString("d", "")
+        val entityId = op.optString("entityId", "")
         if (entityId.isNotEmpty()) {
             out.add(entityId)
         }
         // Batch entity IDs
-        val entityIds = op.optJSONArray("ds")
+        val entityIds = op.optJSONArray("entityIds")
         if (entityIds != null) {
             for (i in 0 until entityIds.length()) {
                 val id = entityIds.optString(i, "")
@@ -259,14 +260,14 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
      * Checks entityChanges for tasks with remindAt or deadlineRemindAt set to a future timestamp.
      */
     private fun extractRemindersToSchedule(op: JSONObject, out: MutableMap<Pair<String, Boolean>, ReminderToSchedule>, now: Long) {
-        val entityType = op.optString("e", "")
+        val entityType = op.optString("entityType", "")
         if (entityType != "TASK") return
 
-        val opType = op.optString("o", "")
+        val opType = op.optString("opType", "")
         // Only CRT and UPD operations can create/update reminders
         if (opType != "CRT" && opType != "UPD") return
 
-        val payload = op.optJSONObject("p") ?: return
+        val payload = op.optJSONObject("payload") ?: return
         val entityChanges = payload.optJSONArray("entityChanges") ?: return
 
         for (i in 0 until entityChanges.length()) {
