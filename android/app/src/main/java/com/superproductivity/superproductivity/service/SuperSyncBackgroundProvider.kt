@@ -10,7 +10,12 @@ import kotlin.math.abs
 /**
  * SuperSync implementation of BackgroundSyncProvider.
  * Fetches operations from the SuperSync server and parses them
- * for reminder-relevant changes (task done, deleted, reminder cleared, archived).
+ * for reminder-relevant changes (scheduled, unscheduled, done, deleted, archived).
+ *
+ * IMPORTANT: The op-log system returns empty entityChanges for most actions —
+ * only TIME_TRACKING and CRT (addTask) ops populate it. For schedule/unschedule/
+ * deadline actions, the actual data is in actionPayload. This provider uses
+ * action-type matching to handle both paths.
  */
 class SuperSyncBackgroundProvider : BackgroundSyncProvider {
 
@@ -25,6 +30,15 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
         private const val ACTION_MOVE_TO_ARCHIVE = "[Task Shared] moveToArchive"
         private const val ACTION_CLEAR_DEADLINE_REMINDER = "[Task Shared] clearDeadlineReminder"
         private const val ACTION_DELETE_TASK = "[Task Shared] deleteTask"
+        private const val ACTION_UNSCHEDULE = "[Task Shared] unscheduleTask"
+        private const val ACTION_REMOVE_DEADLINE = "[Task Shared] removeDeadline"
+
+        // Actions that carry scheduling data in actionPayload (not entityChanges).
+        // The op-log returns empty entityChanges for these — the actual changes
+        // (remindAt, deadlineRemindAt) are only in actionPayload.
+        private const val ACTION_SCHEDULE_WITH_TIME = "[Task Shared] scheduleTaskWithTime"
+        private const val ACTION_RESCHEDULE_WITH_TIME = "[Task Shared] reScheduleTaskWithTime"
+        private const val ACTION_SET_DEADLINE = "[Task Shared] setDeadline"
 
         private val httpClient = OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
@@ -175,12 +189,17 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
         val actionType = op.optString("actionType", "")
         val opType = op.optString("opType", "")
 
-        // Action-based detection: these actions always mean the reminder should be cancelled
+        // Action-based detection: these actions always mean the reminder should be cancelled.
+        // NOTE: Most of these actions produce empty entityChanges in the op-log
+        // (the op-log system only populates entityChanges for TIME_TRACKING actions).
+        // That's why we match on actionType strings rather than inspecting field changes.
         when (actionType) {
             ACTION_DISMISS_REMINDER,
             ACTION_MOVE_TO_ARCHIVE,
             ACTION_CLEAR_DEADLINE_REMINDER,
-            ACTION_DELETE_TASK -> {
+            ACTION_DELETE_TASK,
+            ACTION_UNSCHEDULE,
+            ACTION_REMOVE_DEADLINE -> {
                 collectEntityIds(op, out)
                 return
             }
@@ -276,7 +295,11 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
 
     /**
      * Extracts reminders to schedule from an operation.
-     * Checks entityChanges for tasks with remindAt or deadlineRemindAt set to a future timestamp.
+     *
+     * Two detection paths:
+     * 1. entityChanges — populated for CRT ops (addTask) where the full entity is in changes.
+     * 2. actionPayload — for schedule/reschedule/setDeadline actions where the op-log
+     *    returns empty entityChanges and the reminder data is only in the action payload.
      */
     private fun extractRemindersToSchedule(op: JSONObject, out: MutableMap<Pair<String, Boolean>, ReminderToSchedule>, now: Long) {
         val entityType = op.optString("entityType", "")
@@ -287,41 +310,75 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
         if (opType != "CRT" && opType != "UPD") return
 
         val payload = op.optJSONObject("payload") ?: return
-        val entityChanges = payload.optJSONArray("entityChanges") ?: return
+        val actionType = op.optString("actionType", "")
 
-        for (i in 0 until entityChanges.length()) {
-            val entry = entityChanges.optJSONObject(i) ?: continue
-            if (entry.optString("entityType", "") != "TASK") continue
+        // Path 1: Check entityChanges (populated for CRT/addTask ops)
+        val entityChanges = payload.optJSONArray("entityChanges")
+        if (entityChanges != null) {
+            for (i in 0 until entityChanges.length()) {
+                val entry = entityChanges.optJSONObject(i) ?: continue
+                if (entry.optString("entityType", "") != "TASK") continue
 
-            val entityId = entry.optString("entityId", "")
-            if (entityId.isEmpty()) continue
+                val entityId = entry.optString("entityId", "")
+                if (entityId.isEmpty()) continue
 
-            val changes = entry.optJSONObject("changes") ?: continue
+                val changes = entry.optJSONObject("changes") ?: continue
 
-            // Extract title with fallback chain:
-            // 1. From entityChanges.changes.title (present for CRT ops or when title was changed)
-            // 2. From payload.actionPayload.task.title (present for schedule/reschedule actions)
-            // 3. Fallback: "Task reminder"
-            val title = changes.optString("title", "").ifEmpty {
-                payload.optJSONObject("actionPayload")
-                    ?.optJSONObject("task")
-                    ?.optString("title", "")
-                    ?: ""
-            }.ifEmpty { "Task reminder" }
+                val title = changes.optString("title", "").ifEmpty {
+                    payload.optJSONObject("actionPayload")
+                        ?.optJSONObject("task")
+                        ?.optString("title", "")
+                        ?: ""
+                }.ifEmpty { "Task reminder" }
 
-            // Check remindAt (standard reminder) — later ops overwrite earlier ones for same key
-            if (changes.has("remindAt") && !changes.isNull("remindAt")) {
-                val remindAt = changes.optLong("remindAt", 0L)
-                if (remindAt > now) {
-                    out[Pair(entityId, false)] = ReminderToSchedule(entityId, title, remindAt, isDueDate = false)
+                if (changes.has("remindAt") && !changes.isNull("remindAt")) {
+                    val remindAt = changes.optLong("remindAt", 0L)
+                    if (remindAt > now) {
+                        out[Pair(entityId, false)] = ReminderToSchedule(entityId, title, remindAt, isDueDate = false)
+                    }
+                }
+
+                if (changes.has("deadlineRemindAt") && !changes.isNull("deadlineRemindAt")) {
+                    val deadlineRemindAt = changes.optLong("deadlineRemindAt", 0L)
+                    if (deadlineRemindAt > now) {
+                        out[Pair(entityId, true)] = ReminderToSchedule(entityId, title, deadlineRemindAt, isDueDate = true)
+                    }
                 }
             }
+        }
 
-            // Check deadlineRemindAt (deadline reminder)
-            if (changes.has("deadlineRemindAt") && !changes.isNull("deadlineRemindAt")) {
-                val deadlineRemindAt = changes.optLong("deadlineRemindAt", 0L)
-                if (deadlineRemindAt > now) {
-                    out[Pair(entityId, true)] = ReminderToSchedule(entityId, title, deadlineRemindAt, isDueDate = true)
+        // Path 2: Check actionPayload for schedule/setDeadline actions.
+        // These actions have empty entityChanges — the reminder fields are in actionPayload.
+        // scheduleTaskWithTime / reScheduleTaskWithTime payload:
+        //   { task: { id, title, ... }, dueWithTime: number, remindAt?: number, ... }
+        // setDeadline payload:
+        //   { taskId: string, deadlineRemindAt?: number, ... }
+        val actionPayload = payload.optJSONObject("actionPayload") ?: return
+
+        when (actionType) {
+            ACTION_SCHEDULE_WITH_TIME,
+            ACTION_RESCHEDULE_WITH_TIME -> {
+                val taskObj = actionPayload.optJSONObject("task") ?: return
+                val taskId = taskObj.optString("id", "")
+                if (taskId.isEmpty()) return
+
+                if (actionPayload.has("remindAt") && !actionPayload.isNull("remindAt")) {
+                    val remindAt = actionPayload.optLong("remindAt", 0L)
+                    if (remindAt > now) {
+                        val title = taskObj.optString("title", "").ifEmpty { "Task reminder" }
+                        out[Pair(taskId, false)] = ReminderToSchedule(taskId, title, remindAt, isDueDate = false)
+                    }
+                }
+            }
+            ACTION_SET_DEADLINE -> {
+                val taskId = actionPayload.optString("taskId", "")
+                if (taskId.isEmpty()) return
+
+                if (actionPayload.has("deadlineRemindAt") && !actionPayload.isNull("deadlineRemindAt")) {
+                    val deadlineRemindAt = actionPayload.optLong("deadlineRemindAt", 0L)
+                    if (deadlineRemindAt > now) {
+                        out[Pair(taskId, true)] = ReminderToSchedule(taskId, "Task reminder", deadlineRemindAt, isDueDate = true)
+                    }
                 }
             }
         }
