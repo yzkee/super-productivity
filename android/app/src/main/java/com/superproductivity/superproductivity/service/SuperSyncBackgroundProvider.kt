@@ -118,23 +118,42 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
             ?: return ReminderChangeResult(emptySet(), emptyList(), json.optLong("latestSeq", 0L), false)
         val hasMore = json.optBoolean("hasMore", false)
         val latestSeq = json.optLong("latestSeq", 0L)
-        val taskIds = mutableSetOf<String>()
+        val now = System.currentTimeMillis()
+
         // Keyed by (taskId, isDueDate) so later ops naturally overwrite earlier ones
         val reminderMap = mutableMapOf<Pair<String, Boolean>, ReminderToSchedule>()
-        val now = System.currentTimeMillis()
+        // Per-task: tracks whether the LAST op affecting this task was a cancel or a schedule.
+        // Ops are in server sequence order, so processing forward ensures the latest op wins.
+        // This handles dismiss-then-reschedule: the reschedule (later op) takes precedence.
+        val taskLastAction = mutableMapOf<String, String>()
 
         for (i in 0 until ops.length()) {
             val serverOp = ops.getJSONObject(i)
             val op = serverOp.getJSONObject("op")
-            extractReminderRelevantTaskIds(op, taskIds)
-            extractRemindersToSchedule(op, reminderMap, now)
+
+            // Process schedules first so that within the same op, cancels take precedence
+            val tempMap = mutableMapOf<Pair<String, Boolean>, ReminderToSchedule>()
+            extractRemindersToSchedule(op, tempMap, now)
+            for ((key, reminder) in tempMap) {
+                reminderMap[key] = reminder
+                taskLastAction[reminder.taskId] = "schedule"
+            }
+
+            val cancelIds = mutableSetOf<String>()
+            extractReminderRelevantTaskIds(op, cancelIds)
+            for (id in cancelIds) {
+                taskLastAction[id] = "cancel"
+            }
         }
 
-        // If a task is both scheduled and cancelled in the same batch, cancellation wins
-        val reminders = reminderMap.values.filter { it.taskId !in taskIds }
+        val taskIdsToCancel = taskLastAction
+            .filter { it.value == "cancel" }
+            .keys
+            .toSet()
+        val reminders = reminderMap.values.filter { taskLastAction[it.taskId] == "schedule" }
 
         return ReminderChangeResult(
-            taskIdsToCancel = taskIds,
+            taskIdsToCancel = taskIdsToCancel,
             remindersToSchedule = reminders,
             latestSeq = latestSeq,
             hasMore = hasMore
@@ -279,8 +298,16 @@ class SuperSyncBackgroundProvider : BackgroundSyncProvider {
 
             val changes = entry.optJSONObject("changes") ?: continue
 
-            // Extract title: available for CRT (full task), may be missing for UPD
-            val title = changes.optString("title", "").ifEmpty { "Task reminder" }
+            // Extract title with fallback chain:
+            // 1. From entityChanges.changes.title (present for CRT ops or when title was changed)
+            // 2. From payload.actionPayload.task.title (present for schedule/reschedule actions)
+            // 3. Fallback: "Task reminder"
+            val title = changes.optString("title", "").ifEmpty {
+                payload.optJSONObject("actionPayload")
+                    ?.optJSONObject("task")
+                    ?.optString("title", "")
+                    ?: ""
+            }.ifEmpty { "Task reminder" }
 
             // Check remindAt (standard reminder) — later ops overwrite earlier ones for same key
             if (changes.has("remindAt") && !changes.isNull("remindAt")) {
