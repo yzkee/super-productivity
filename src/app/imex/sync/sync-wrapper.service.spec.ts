@@ -681,16 +681,14 @@ describe('SyncWrapperService', () => {
       );
     });
 
-    it('should call clearAuthCredentials on AuthFailSPError', async () => {
+    it('should NOT call clearAuthCredentials on AuthFailSPError for SuperSync', async () => {
       mockSyncService.downloadRemoteOps.and.returnValue(
         Promise.reject(new AuthFailSPError()),
       );
 
       await service.sync();
 
-      expect(mockProviderManager.clearAuthCredentials).toHaveBeenCalledWith(
-        SyncProviderId.SuperSync,
-      );
+      expect(mockProviderManager.clearAuthCredentials).not.toHaveBeenCalled();
     });
 
     it('should call clearAuthCredentials on MissingCredentialsSPError', async () => {
@@ -722,7 +720,7 @@ describe('SyncWrapperService', () => {
         Promise.reject(new Error('IndexedDB error')),
       );
       mockSyncService.downloadRemoteOps.and.returnValue(
-        Promise.reject(new AuthFailSPError()),
+        Promise.reject(new MissingCredentialsSPError('no token')),
       );
 
       const result = await service.sync();
