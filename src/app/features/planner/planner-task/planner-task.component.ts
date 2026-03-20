@@ -85,6 +85,11 @@ export class PlannerTaskComponent extends BaseComponent implements OnInit, OnDes
     return this.task.id === this._taskService.currentTaskId();
   }
 
+  @HostListener('contextmenu', ['$event'])
+  onContextMenu(event: MouseEvent): void {
+    this.openContextMenu(event);
+  }
+
   @HostListener('click')
   async clickHandler(): Promise<void> {
     if (this.task) {
@@ -135,6 +140,8 @@ export class PlannerTaskComponent extends BaseComponent implements OnInit, OnDes
   }
 
   openContextMenu(event: TouchEvent | MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
     if (!this.isContextMenuLoaded()) {
       this.isContextMenuLoaded.set(true);
       setTimeout(() => {
