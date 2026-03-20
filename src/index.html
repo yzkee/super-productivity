@@ -100,18 +100,6 @@ TODO configure more restrictive Content-Security-Policy
         color: #fff;
       }
 
-      @media (prefers-color-scheme: light) {
-        body {
-          background: transparent;
-          background-image: none;
-          color: #000000;
-        }
-
-        .app-loading .logo path {
-          fill: #000;
-        }
-      }
-
       .loading-full-page-wrapper {
         position: absolute;
         top: 0;
@@ -144,6 +132,18 @@ TODO configure more restrictive Content-Security-Policy
 
       .app-loading .logo path {
         fill: #fff;
+      }
+
+      @media (prefers-color-scheme: light) {
+        body {
+          background: transparent;
+          background-image: none;
+          color: #000000;
+        }
+
+        .app-loading .logo path {
+          fill: #000;
+        }
       }
 
       .app-loading .spinner {
