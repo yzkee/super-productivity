@@ -52,7 +52,7 @@ import { TaskRepeatCfgService } from '../../task-repeat-cfg/task-repeat-cfg.serv
 import { DialogConfirmComponent } from '../../../ui/dialog-confirm/dialog-confirm.component';
 import { DialogFullscreenMarkdownComponent } from '../../../ui/dialog-fullscreen-markdown/dialog-fullscreen-markdown.component';
 import { Update } from '@ngrx/entity';
-import { getDbDateStr } from '../../../util/get-db-date-str';
+import { getDbDateStr, isDBDateStr } from '../../../util/get-db-date-str';
 import { DateService } from '../../../core/date/date.service';
 import { IS_TOUCH_PRIMARY } from '../../../util/is-mouse-primary';
 import { KeyboardConfig } from '../../config/keyboard-config.model';
@@ -193,7 +193,12 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
         // Note: String comparison works correctly here because dueDay is in YYYY-MM-DD format
         // which is lexicographically sortable. This avoids timezone conversion issues that occur
         // when creating Date objects from date strings.
-        (t.dueDay && t.dueDay !== todayStr && t.dueDay < todayStr))
+        // Guard: only compare if dueDay is a valid YYYY-MM-DD string to avoid corrupted data
+        // producing false overdue results (see #6908)
+        (t.dueDay &&
+          isDBDateStr(t.dueDay) &&
+          t.dueDay !== todayStr &&
+          t.dueDay < todayStr))
     );
   });
   isScheduledToday = computed(() => {
@@ -206,11 +211,13 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   });
 
   isShowDueDayBtn = computed(() => {
+    const dueDay = this.task().dueDay;
     return (
-      this.task().dueDay &&
+      dueDay &&
+      isDBDateStr(dueDay) &&
       (!this.isTodayListActive() ||
         this.isOverdue() ||
-        this.task().dueDay !== this.globalTrackingIntervalService.todayDateStr())
+        dueDay !== this.globalTrackingIntervalService.todayDateStr())
     );
   });
 
