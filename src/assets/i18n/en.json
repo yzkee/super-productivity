@@ -1911,6 +1911,7 @@
     "APP_FEATURES": {
       "BOARDS": "Boards",
       "DONATE_PAGE": "Donate page",
+      "FINISH_DAY": "Finish day",
       "FOCUS_MODE": "Focus mode",
       "HABITS": "Habits",
       "HELP": "Enable or disable specific app features across the UI.",
