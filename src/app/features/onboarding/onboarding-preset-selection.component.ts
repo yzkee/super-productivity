@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, output } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  output,
+  signal,
+} from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ONBOARDING_PRESETS, OnboardingPreset } from './onboarding-presets.const';
@@ -16,8 +22,13 @@ export class OnboardingPresetSelectionComponent {
   private _globalConfigService = inject(GlobalConfigService);
   presets = ONBOARDING_PRESETS;
   presetSelected = output<void>();
+  selectedPreset = signal<OnboardingPreset | null>(null);
 
   selectPreset(preset: OnboardingPreset): void {
+    if (this.selectedPreset()) {
+      return;
+    }
+    this.selectedPreset.set(preset);
     this._globalConfigService.updateSection('appFeatures', preset.features, true);
     localStorage.setItem(LS.ONBOARDING_PRESET_DONE, 'true');
     this.presetSelected.emit();

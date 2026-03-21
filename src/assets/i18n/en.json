@@ -2365,7 +2365,7 @@
   "ONBOARDING": {
     "TITLE": "How do you want to use Super Productivity?",
     "SUBTITLE": "Pick a setup that matches your workflow. You can always change this later in Settings.",
-    "FOOTER_HINT": "You can enable or disable individual features anytime in Settings > App Features.",
+    "PRIVACY_HINT": "Your data stays securely on your device. Nothing is sent to a server.",
     "PRESETS": {
       "SIMPLE_TODO": {
         "TITLE": "Simple Todo List",

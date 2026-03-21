@@ -33,7 +33,8 @@
 } @else {
   <div
     class="app-container"
-    [class.has-mobile-bottom-nav]="isShowMobileButtonNav"
+    [class.has-mobile-bottom-nav]="isShowMobileButtonNav()"
+    [class.app-entrance]="isAppEntrance()"
     [dir]="isRTL ? 'rtl' : 'ltr'"
   >
     <magic-side-nav
@@ -67,6 +68,7 @@
     <!-- Mobile Bottom Navigation -->
     @if (isShowMobileButtonNav()) {
       <mobile-bottom-nav
+        [isEntrance]="isAppEntrance()"
         (toggleMobileNavEvent)="magicSideNav.toggleMobileNav()"
       ></mobile-bottom-nav>
     }

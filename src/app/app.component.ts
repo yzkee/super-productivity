@@ -192,6 +192,13 @@ export class AppComponent implements OnDestroy, AfterViewInit {
         });
     }
 
+    // Clear app entrance animation after it completes
+    if (this.isAppEntrance()) {
+      setTimeout(() => {
+        this.isAppEntrance.set(false);
+      }, 1500);
+    }
+
     // Use effect to react to language RTL changes
     effect(() => {
       const val = this._languageService.isLangRTL();
@@ -384,8 +391,16 @@ export class AppComponent implements OnDestroy, AfterViewInit {
       });
   }
 
+  isAppEntrance = signal(!this.isShowOnboardingPresets());
+
   onPresetSelected(): void {
-    this.isShowOnboardingPresets.set(false);
+    this.isAppEntrance.set(true);
+    setTimeout(() => {
+      this.isShowOnboardingPresets.set(false);
+    }, 1000);
+    setTimeout(() => {
+      this.isAppEntrance.set(false);
+    }, 2000);
   }
 
   ngAfterViewInit(): void {
