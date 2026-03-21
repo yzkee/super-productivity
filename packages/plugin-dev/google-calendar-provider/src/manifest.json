@@ -1,0 +1,17 @@
+{
+  "id": "google-calendar-provider",
+  "name": "Google Calendar",
+  "version": "1.0.0",
+  "manifestVersion": 1,
+  "minSupVersion": "13.0.0",
+  "type": "issueProvider",
+  "permissions": ["oauth", "http"],
+  "hooks": [],
+  "issueProvider": {
+    "pollIntervalMs": 60000,
+    "icon": "calendar",
+    "issueStrings": { "singular": "Event", "plural": "Events" },
+    "useAgendaView": true,
+    "defaultAutoAddToBacklog": true
+  }
+}

@@ -15,16 +15,18 @@ export class PluginIssueProviderRegistryService {
   /** Maps pluginId → registeredKey for cleanup */
   private _pluginIdToKey = new Map<string, string>();
 
-  register(
-    pluginId: string,
-    definition: IssueProviderPluginDefinition,
-    name: string,
-    icon: string,
-    pollIntervalMs: number,
-    issueStrings: { singular: string; plural: string },
-    issueProviderKey?: string,
-  ): void {
-    const key = issueProviderKey ?? `plugin:${pluginId}`;
+  register(opts: {
+    pluginId: string;
+    definition: IssueProviderPluginDefinition;
+    name: string;
+    icon: string;
+    pollIntervalMs: number;
+    issueStrings: { singular: string; plural: string };
+    issueProviderKey?: string;
+    useAgendaView?: boolean;
+    defaultAutoAddToBacklog?: boolean;
+  }): void {
+    const key = opts.issueProviderKey ?? `plugin:${opts.pluginId}`;
     if (this._providers.has(key)) {
       console.warn(
         `[PluginIssueProviderRegistry] Duplicate registration for '${key}', ignoring.`,
@@ -32,15 +34,17 @@ export class PluginIssueProviderRegistryService {
       return;
     }
     this._providers.set(key, {
-      pluginId,
+      pluginId: opts.pluginId,
       registeredKey: key as IssueProviderKey,
-      definition,
-      name,
-      icon,
-      pollIntervalMs,
-      issueStrings,
+      definition: opts.definition,
+      name: opts.name,
+      icon: opts.icon,
+      pollIntervalMs: opts.pollIntervalMs,
+      issueStrings: opts.issueStrings,
+      useAgendaView: opts.useAgendaView,
+      defaultAutoAddToBacklog: opts.defaultAutoAddToBacklog,
     });
-    this._pluginIdToKey.set(pluginId, key);
+    this._pluginIdToKey.set(opts.pluginId, key);
   }
 
   unregister(pluginId: string): void {
@@ -105,5 +109,9 @@ export class PluginIssueProviderRegistryService {
 
   getFieldMappings(key: string): PluginFieldMapping[] | undefined {
     return this._providers.get(key)?.definition.fieldMappings;
+  }
+
+  getUseAgendaView(key: string): boolean {
+    return this._providers.get(key)?.useAgendaView ?? false;
   }
 }

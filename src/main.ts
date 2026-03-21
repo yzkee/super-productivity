@@ -75,6 +75,8 @@ import { PLUGIN_INITIALIZER_PROVIDER } from './app/plugins/plugin-initializer';
 import { initializeMatMenuTouchFix } from './app/features/tasks/task-context-menu/mat-menu-touch-monkey-patch';
 import { Log } from './app/core/log';
 import { OperationWriteFlushService } from './app/op-log/sync/operation-write-flush.service';
+import { PluginOAuthRedirectHandler } from './app/plugins/oauth/plugin-oauth-redirect.handler';
+import { OAuthCallbackHandlerService } from './app/imex/sync/oauth-callback-handler.service';
 import { GlobalConfigService } from './app/features/config/global-config.service';
 import { LocaleDatePipe } from './app/ui/pipes/locale-date.pipe';
 import { DateTimeFormatService } from './app/core/date-time-format/date-time-format.service';
@@ -227,7 +229,7 @@ bootstrapApplication(AppComponent, {
       multi: true,
     },
     // Ensure DataInitService is instantiated at bootstrap.
-    // Its constructor triggers reInit() → hydrateStore() → loadAllData into NgRx.
+    // Its constructor triggers reInit() -> hydrateStore() -> loadAllData into NgRx.
     {
       provide: APP_INITIALIZER,
       useFactory: (_dataInit: DataInitService) => {
@@ -244,6 +246,28 @@ bootstrapApplication(AppComponent, {
         return () => {};
       },
       deps: [EncryptionPasswordDialogOpenerService],
+      multi: true,
+    },
+    // Ensure PluginOAuthRedirectHandler is instantiated at bootstrap.
+    // Its constructor registers platform-specific listeners (postMessage / Electron IPC)
+    // that bridge OAuth redirect callbacks to PluginOAuthService.
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (_handler: PluginOAuthRedirectHandler) => {
+        return () => {};
+      },
+      deps: [PluginOAuthRedirectHandler],
+      multi: true,
+    },
+    // Ensure OAuthCallbackHandlerService is instantiated at bootstrap on native platforms.
+    // Its constructor registers Capacitor's appUrlOpen listener that bridges
+    // both Dropbox and plugin OAuth redirect callbacks.
+    {
+      provide: APP_INITIALIZER,
+      useFactory: (_handler: OAuthCallbackHandlerService) => {
+        return () => {};
+      },
+      deps: [OAuthCallbackHandlerService],
       multi: true,
     },
     // Note: ImmediateUploadService now initializes itself in constructor

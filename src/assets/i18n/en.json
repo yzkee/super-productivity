@@ -323,10 +323,6 @@
       },
       "DEFAULT_PROJECT_DESCRIPTION": "Project assigned to tasks created from issues.",
       "DEFAULT_PROJECT_LABEL": "Default Super Productivity Project",
-      "DIALOG": {
-        "ADVANCED_CONFIG": "Advanced Config",
-        "DELETE_CONFIRM": "Are you sure you want to delete this issue provider? Deleting it means that <strong>all previously imported issue tasks will loose their reference</strong>. This cannot be undone!"
-      },
       "HOW_TO_GET_A_TOKEN": "How to get a token?",
       "ISSUE_CONTENT": {
         "ASSIGNEE": "Assignee",
@@ -369,19 +365,35 @@
         "PLUGIN_NOT_INSTALLED": "Required plugin \"{{pluginName}}\" is not installed.",
         "POLLING_BACKLOG": "{{issueProviderName}}: Polling for new {{issuesStr}}",
         "POLLING_CHANGES": "{{issueProviderName}}: Polling Changes for {{issuesStr}}",
+        "DELETE_REMOTE_FAILED": "Failed to delete remote issue",
+        "LOAD_OPTIONS_FAILED": "Failed to load options for {{fieldKey}}",
+        "OAUTH_CONNECTED": "OAuth account connected successfully.",
+        "OAUTH_DISCONNECTED": "OAuth account disconnected.",
+        "OAUTH_FAILED": "Authentication failed.",
+        "REMOTE_ISSUE_DELETED": "Remote issue was deleted. Delete linked task \"{{taskTitle}}\"?",
+        "REMOTE_ISSUE_DELETED_WITH_TIME": "Remote issue was deleted but task \"{{taskTitle}}\" has tracked time. Delete anyway?",
         "TWO_WAY_SYNC_PUSH_FAILED": "Two-way sync push failed: {{errorMsg}}"
       },
       "TWO_WAY_SYNC": {
         "AUTO_CREATE_ISSUES": "Auto-create issues for new tasks",
         "AUTO_CREATE_ISSUES_DESCRIPTION": "Automatically creates an issue when you add a new top-level task to the default project. Requires a default project to be set.",
         "BOTH": "Both (bidirectional)",
+        "DUE_DAY": "Due Day",
+        "DUE_WITH_TIME": "Due Date/Time",
         "NOTES": "Notes / Description sync direction",
         "OFF": "Off",
         "PULL_ONLY": "Pull only",
         "PUSH_ONLY": "Push only",
         "SECTION": "Two-Way Sync (experimental)",
         "STATUS": "Status sync direction",
+        "TIME_ESTIMATE": "Time Estimate",
         "TITLE": "Title sync direction"
+      },
+      "DIALOG": {
+        "ADVANCED_CONFIG": "Advanced Config",
+        "CONNECTED": "Connected",
+        "DELETE_CONFIRM": "Are you sure you want to delete this issue provider? Deleting it means that <strong>all previously imported issue tasks will loose their reference</strong>. This cannot be undone!",
+        "DISCONNECT": "Disconnect"
       }
     },
     "ISSUE_PANEL": {

@@ -28,4 +28,6 @@ export interface RegisteredPluginIssueProvider {
   icon: string;
   pollIntervalMs: number;
   issueStrings: { singular: string; plural: string };
+  useAgendaView?: boolean;
+  defaultAutoAddToBacklog?: boolean;
 }

@@ -1,4 +1,5 @@
 import { initIpcInterfaces } from './ipc-handler';
+import { initPluginOAuth } from './plugin-oauth';
 import electronLog, { info, log } from 'electron-log/main';
 import {
   App,
@@ -370,6 +371,8 @@ export const startApp = (): void => {
       quitApp,
       customUrl,
     });
+
+    initPluginOAuth(mainWin);
 
     // Process any pending protocol URLs after window is created
     setTimeout(() => {

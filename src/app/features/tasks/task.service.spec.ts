@@ -26,11 +26,13 @@ import { TaskDetailTargetPanel, TaskReminderOptionId } from './task.model';
 import { TODAY_TAG } from '../tag/tag.const';
 import { INBOX_PROJECT } from '../project/project.const';
 import { signal } from '@angular/core';
+import { DeletedTaskIssueSidecarService } from '../issue/two-way-sync/deleted-task-issue-sidecar.service';
 
 describe('TaskService', () => {
   let service: TaskService;
   let store: MockStore;
   let archiveService: jasmine.SpyObj<ArchiveService>;
+  let deletedTaskIssueSidecar: DeletedTaskIssueSidecarService;
   let tickSubject: Subject<{ duration: number; date: string }>;
 
   const createMockTask = (id: string, overrides: Partial<Task> = {}): Task =>
@@ -159,6 +161,7 @@ describe('TaskService', () => {
     service = TestBed.inject(TaskService);
     store = TestBed.inject(MockStore);
     archiveService = TestBed.inject(ArchiveService) as jasmine.SpyObj<ArchiveService>;
+    deletedTaskIssueSidecar = TestBed.inject(DeletedTaskIssueSidecarService);
 
     spyOn(store, 'dispatch').and.callThrough();
   });
@@ -297,12 +300,19 @@ describe('TaskService', () => {
   });
 
   describe('removeMultipleTasks', () => {
-    it('should dispatch deleteTasks', () => {
+    it('should dispatch deleteTasks with only taskIds', () => {
       service.removeMultipleTasks(['task-1', 'task-2']);
 
       expect(store.dispatch).toHaveBeenCalledWith(
         TaskSharedActions.deleteTasks({ taskIds: ['task-1', 'task-2'] }),
       );
+    });
+
+    it('should populate sidecar with issue info before dispatch', () => {
+      spyOn(deletedTaskIssueSidecar, 'set');
+      service.removeMultipleTasks(['task-1', 'task-2']);
+
+      expect(deletedTaskIssueSidecar.set).toHaveBeenCalledWith([]);
     });
   });
 

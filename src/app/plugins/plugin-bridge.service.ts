@@ -22,6 +22,8 @@ import {
   BatchTaskCreate,
   BatchUpdateRequest,
   BatchUpdateResult,
+  OAuthFlowConfig,
+  OAuthTokenResult,
   PluginManifest,
   SnackCfg,
 } from '@super-productivity/plugin-api';
@@ -58,6 +60,7 @@ import { GlobalThemeService } from '../core/theme/global-theme.service';
 import { IssueSyncAdapterRegistryService } from '../features/issue/two-way-sync/issue-sync-adapter-registry.service';
 import { PluginHttpService } from './issue-provider/plugin-http.service';
 import { createPluginSyncAdapter } from './issue-provider/plugin-sync-adapter.service';
+import { PluginOAuthBridgeService } from './oauth/plugin-oauth-bridge.service';
 import { ISSUE_PROVIDER_TYPES } from '../features/issue/issue.const';
 
 // New imports for simple counters
@@ -107,6 +110,7 @@ export class PluginBridgeService implements OnDestroy {
   private _globalThemeService = inject(GlobalThemeService);
   private _syncAdapterRegistry = inject(IssueSyncAdapterRegistryService);
   private _pluginHttpService = inject(PluginHttpService);
+  private _pluginOAuthBridge = inject(PluginOAuthBridgeService);
 
   // Track header buttons registered by plugins
   private readonly _headerButtons = signal<PluginHeaderBtnCfg[]>([]);
@@ -141,7 +145,7 @@ export class PluginBridgeService implements OnDestroy {
   ): {
     persistDataSynced: (dataStr: string) => Promise<void>;
     loadPersistedData: () => Promise<string | null>;
-    getConfig: () => Promise<any>;
+    getConfig: () => Promise<unknown>;
     downloadFile: (filename: string, data: string) => Promise<void>;
     registerHeaderButton: (cfg: PluginHeaderBtnCfg) => void;
     registerMenuEntry: (cfg: Omit<PluginMenuEntryCfg, 'pluginId'>) => void;
@@ -170,6 +174,9 @@ export class PluginBridgeService implements OnDestroy {
     registerConfigHandler: (handler: () => void) => void;
     registerIssueProvider: (definition: IssueProviderPluginDefinition) => void;
     unregisterIssueProvider: () => void;
+    startOAuthFlow: (config: OAuthFlowConfig) => Promise<OAuthTokenResult>;
+    getOAuthToken: () => Promise<string | null>;
+    clearOAuthToken: () => Promise<void>;
     log: ReturnType<typeof Log.withContext>;
   } {
     return {
@@ -241,6 +248,14 @@ export class PluginBridgeService implements OnDestroy {
         }
       },
 
+      // OAuth
+      startOAuthFlow: (config: OAuthFlowConfig): Promise<OAuthTokenResult> =>
+        this._pluginOAuthBridge.startOAuthFlow(pluginId, config),
+      getOAuthToken: (): Promise<string | null> =>
+        this._pluginOAuthBridge.getOAuthToken(pluginId),
+      clearOAuthToken: (): Promise<void> =>
+        this._pluginOAuthBridge.clearOAuthTokens(pluginId),
+
       // Logging
       log: Log.withContext(`${pluginId}`),
     };
@@ -289,15 +304,17 @@ export class PluginBridgeService implements OnDestroy {
       plural: 'Issues',
     };
 
-    this._pluginIssueProviderRegistry.register(
+    this._pluginIssueProviderRegistry.register({
       pluginId,
       definition,
       name,
       icon,
       pollIntervalMs,
       issueStrings,
-      customKey,
-    );
+      issueProviderKey: customKey,
+      useAgendaView: issueProviderCfg?.useAgendaView,
+      defaultAutoAddToBacklog: issueProviderCfg?.defaultAutoAddToBacklog,
+    });
 
     const registeredKey = this._pluginIssueProviderRegistry.getRegisteredKey(pluginId);
     if (!registeredKey) {
@@ -320,6 +337,21 @@ export class PluginBridgeService implements OnDestroy {
     PluginLog.log(
       `Plugin ${pluginId} registered issue provider under '${registeredKey}'`,
     );
+  }
+
+  async startOAuthFlow(
+    pluginId: string,
+    config: OAuthFlowConfig,
+  ): Promise<OAuthTokenResult> {
+    return this._pluginOAuthBridge.startOAuthFlow(pluginId, config);
+  }
+
+  async clearOAuthTokens(pluginId: string): Promise<void> {
+    return this._pluginOAuthBridge.clearOAuthTokens(pluginId);
+  }
+
+  async restoreAndCheckOAuthTokens(pluginId: string): Promise<boolean> {
+    return this._pluginOAuthBridge.restoreAndCheckOAuthTokens(pluginId);
   }
 
   private async _downloadFile(filename: string, data: string): Promise<void> {
@@ -833,7 +865,7 @@ export class PluginBridgeService implements OnDestroy {
   /**
    * Internal method to get plugin configuration
    */
-  private async _getConfig(pluginId: string): Promise<any> {
+  private async _getConfig(pluginId: string): Promise<unknown> {
     try {
       return await this._pluginConfigService.getPluginConfig(pluginId);
     } catch (error) {
