@@ -94,7 +94,7 @@ import { ArchiveService } from '../archive/archive.service';
 import { TaskArchiveService } from '../archive/task-archive.service';
 import { TODAY_TAG } from '../tag/tag.const';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
-import { getDbDateStr } from '../../util/get-db-date-str';
+import { getDbDateStr, isDBDateStr } from '../../util/get-db-date-str';
 import { INBOX_PROJECT } from '../project/project.const';
 import { GlobalConfigService } from '../config/global-config.service';
 import { TaskLog } from '../../core/log';
@@ -1279,6 +1279,20 @@ export class TaskService {
 
       ...additional,
     };
+
+    // Guard against corrupted date strings (#6908)
+    if (d1.dueDay && typeof d1.dueDay === 'string' && !isDBDateStr(d1.dueDay)) {
+      d1.dueDay = undefined;
+      devError('createNewTaskWithDefaults: Invalid dueDay, clearing');
+    }
+    if (
+      d1.deadlineDay &&
+      typeof d1.deadlineDay === 'string' &&
+      !isDBDateStr(d1.deadlineDay)
+    ) {
+      d1.deadlineDay = undefined;
+      devError('createNewTaskWithDefaults: Invalid deadlineDay, clearing');
+    }
 
     if (!d1.projectId) {
       d1.projectId =

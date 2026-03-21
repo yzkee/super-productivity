@@ -646,6 +646,53 @@ describe('TaskService', () => {
 
       expect(task.projectId).toBe(INBOX_PROJECT.id);
     });
+
+    it('should clear invalid dueDay from additional fields', () => {
+      // Prevent devError from throwing (it calls alert + confirm -> throws if true)
+      if (!jasmine.isSpy(window.alert)) {
+        spyOn(window, 'alert');
+      }
+      if (!jasmine.isSpy(window.confirm)) {
+        spyOn(window, 'confirm').and.returnValue(false);
+      } else {
+        (window.confirm as jasmine.Spy).and.returnValue(false);
+      }
+
+      const task = service.createNewTaskWithDefaults({
+        title: 'Test',
+        additional: { dueDay: '-/-/2026' as any },
+      });
+
+      expect(task.dueDay).toBeUndefined();
+    });
+
+    it('should clear invalid deadlineDay from additional fields', () => {
+      // Prevent devError from throwing (it calls alert + confirm -> throws if true)
+      if (!jasmine.isSpy(window.alert)) {
+        spyOn(window, 'alert');
+      }
+      if (!jasmine.isSpy(window.confirm)) {
+        spyOn(window, 'confirm').and.returnValue(false);
+      } else {
+        (window.confirm as jasmine.Spy).and.returnValue(false);
+      }
+
+      const task = service.createNewTaskWithDefaults({
+        title: 'Test',
+        additional: { deadlineDay: '3/14/2026' as any },
+      });
+
+      expect(task.deadlineDay).toBeUndefined();
+    });
+
+    it('should preserve valid dueDay from additional fields', () => {
+      const task = service.createNewTaskWithDefaults({
+        title: 'Test',
+        additional: { dueDay: '2026-03-21' },
+      });
+
+      expect(task.dueDay).toBe('2026-03-21');
+    });
   });
 
   describe('getByIdOnce$', () => {
