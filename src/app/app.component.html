@@ -15,7 +15,6 @@
     (done)="layoutService.hideAddTaskBar()"
     (afterTaskAdd)="onTaskAdded($event)"
     [isGlobalBarVariant]="true"
-    [isDisableAutoFocus]="shepherdService.isActive"
     class="global"
   ></add-task-bar>
 }
@@ -75,8 +74,10 @@
 }
 <!-- -->
 
-@defer {
-  <shepherd></shepherd>
+@if (isShowOnboardingPresets()) {
+  <onboarding-preset-selection
+    (presetSelected)="onPresetSelected()"
+  ></onboarding-preset-selection>
 }
 
 <!-- Background context menu -->

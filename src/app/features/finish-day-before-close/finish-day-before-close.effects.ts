@@ -12,7 +12,7 @@ import {
   tap,
 } from 'rxjs/operators';
 import { IS_ELECTRON } from '../../app.constants';
-import { combineLatest, EMPTY, Observable } from 'rxjs';
+import { EMPTY, Observable } from 'rxjs';
 import { WorkContextService } from '../work-context/work-context.service';
 import { TaskService } from '../tasks/task.service';
 import { Router } from '@angular/router';
@@ -37,16 +37,8 @@ export class FinishDayBeforeCloseEffects {
 
   isEnabled$: Observable<boolean> =
     this._dataInitStateService.isAllDataLoadedInitially$.pipe(
-      concatMap(() =>
-        combineLatest([
-          this._globalConfigService.misc$,
-          this._globalConfigService.appFeatures$,
-        ]),
-      ),
-      map(
-        ([misc, appFeatures]) =>
-          appFeatures.isFinishDayEnabled && misc.isConfirmBeforeExitWithoutFinishDay,
-      ),
+      concatMap(() => this._globalConfigService.misc$),
+      map((misc) => misc.isConfirmBeforeExitWithoutFinishDay),
       distinctUntilChanged(),
     );
 

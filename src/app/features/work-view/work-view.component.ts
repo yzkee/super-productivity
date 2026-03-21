@@ -60,7 +60,6 @@ import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { TODAY_TAG } from '../tag/tag.const';
 import { LS } from '../../core/persistence/storage-keys.const';
 import { FinishDayBtnComponent } from './finish-day-btn/finish-day-btn.component';
-import { GlobalConfigService } from '../config/global-config.service';
 import { ScheduledDateGroupPipe } from '../../ui/pipes/scheduled-date-group.pipe';
 import {
   selectTaskRepeatCfgsByProjectId,
@@ -112,11 +111,6 @@ export class WorkViewComponent implements OnInit, OnDestroy {
   private _cd = inject(ChangeDetectorRef);
   private _store = inject(Store);
   private _snackService = inject(SnackService);
-  private _globalConfigService = inject(GlobalConfigService);
-
-  isFinishDayEnabled = computed(
-    () => this._globalConfigService.appFeatures().isFinishDayEnabled,
-  );
 
   // TODO refactor all to signals
   overdueTasks = toSignal(this._store.select(selectOverdueTasksWithSubTasks), {
