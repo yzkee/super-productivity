@@ -31,7 +31,6 @@ import {
 import { TaskWithSubTasks } from '../tasks/task.model';
 import { delay, filter, map, observeOn, switchMap } from 'rxjs/operators';
 import { fadeAnimation } from '../../ui/animations/fade.ani';
-import { PlanningModeService } from '../planning-mode/planning-mode.service';
 import { T } from '../../t.const';
 import { workViewProjectChangeAnimation } from '../../ui/animations/work-view-project-change.ani';
 import { WorkContextService } from '../work-context/work-context.service';
@@ -43,7 +42,6 @@ import { CdkScrollable } from '@angular/cdk/scrolling';
 import { MatTooltip } from '@angular/material/tooltip';
 import { MatIcon } from '@angular/material/icon';
 import { MatButton, MatMiniFabButton } from '@angular/material/button';
-import { AddTaskBarComponent } from '../tasks/add-task-bar/add-task-bar.component';
 import { AddScheduledTodayOrTomorrowBtnComponent } from '../add-tasks-for-tomorrow/add-scheduled-for-tomorrow/add-scheduled-today-or-tomorrow-btn.component';
 import { TaskListComponent } from '../tasks/task-list/task-list.component';
 import { SplitComponent } from './split/split.component';
@@ -89,7 +87,6 @@ import { RepeatCfgPreviewComponent } from '../task-repeat-cfg/repeat-cfg-preview
     MatIcon,
     MatMiniFabButton,
     MatButton,
-    AddTaskBarComponent,
     AddScheduledTodayOrTomorrowBtnComponent,
     TaskListComponent,
     SplitComponent,
@@ -107,7 +104,6 @@ import { RepeatCfgPreviewComponent } from '../task-repeat-cfg/repeat-cfg-preview
 export class WorkViewComponent implements OnInit, OnDestroy {
   taskService = inject(TaskService);
   takeABreakService = inject(TakeABreakService);
-  planningModeService = inject(PlanningModeService);
   layoutService = inject(LayoutService);
   customizerService = inject(TaskViewCustomizerService);
   workContextService = inject(WorkContextService);
@@ -140,7 +136,6 @@ export class WorkViewComponent implements OnInit, OnDestroy {
 
   hasDoneTasks = computed(() => this.doneTasks().length > 0);
 
-  isPlanningMode = this.planningModeService.isPlanningMode;
   todayRemainingInProject = toSignal(this.workContextService.todayRemainingInProject$, {
     initialValue: 0,
   });
@@ -299,14 +294,6 @@ export class WorkViewComponent implements OnInit, OnDestroy {
     }
     this._subs.unsubscribe();
     this.layoutService.isScrolled.set(false);
-  }
-
-  planMore(): void {
-    this.planningModeService.enterPlanningMode();
-  }
-
-  startWork(): void {
-    this.planningModeService.leavePlanningMode();
   }
 
   resetBreakTimer(): void {

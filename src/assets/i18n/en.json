@@ -2582,7 +2582,6 @@
   "WW": {
     "ADD_MORE": "Add more",
     "ADD_SCHEDULED_FOR_TOMORROW": "Add tasks planned for tomorrow ({{nr}})",
-    "ADD_SOME_TASKS": "Add some tasks to plan your day!",
     "DONE_TASKS": "Completed Tasks",
     "DONE_TASKS_IN_ARCHIVE": "There are currently no completed tasks here, but there are some already archived.",
     "ESTIMATE_REMAINING": "Estimate remaining:",
@@ -2593,7 +2592,6 @@
     "NO_DONE_TASKS": "There are currently no completed tasks",
     "NO_PLANNED_TASK_ALL_DONE": "all tasks completed",
     "NO_PLANNED_TASKS": "No tasks planned",
-    "READY_TO_WORK": "Ready to work!",
     "RECURRING_TASKS": "Recurring Tasks",
     "RESET_BREAK_TIMER": "Reset without break timer",
     "TIME_ESTIMATED": "Time estimated:",

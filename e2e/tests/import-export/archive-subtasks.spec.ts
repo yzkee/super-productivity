@@ -199,19 +199,10 @@ test.describe('@legacy-archive Legacy Archive Subtasks via Finish Day', () => {
     console.log('[Legacy Archive Test] All tasks marked as done');
 
     // Step 4: Navigate to TODAY tag to access Finish Day button
-    // Note: Finish Day button is only visible on TODAY tag view when not in planning mode
     console.log('[Legacy Archive Test] Step 4: Navigating to TODAY for Finish Day...');
     await page.goto('/#/tag/TODAY/tasks');
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
-
-    // Exit planning mode if we're in it (planning mode hides the Finish Day button)
-    const readyToWorkBtn = page.locator('button:has-text("Ready to work!")');
-    if (await readyToWorkBtn.isVisible().catch(() => false)) {
-      console.log('[Legacy Archive Test] Exiting planning mode...');
-      await readyToWorkBtn.click();
-      await page.waitForTimeout(500);
-    }
 
     // Step 5: Finish day to archive tasks
     console.log('[Legacy Archive Test] Step 5: Finishing day...');
@@ -297,13 +288,6 @@ test.describe('@legacy-archive Legacy Archive Subtasks via Finish Day', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
 
-    // Exit planning mode if we're in it (planning mode hides the Finish Day button)
-    const readyToWorkBtn = page.locator('button:has-text("Ready to work!")');
-    if (await readyToWorkBtn.isVisible().catch(() => false)) {
-      await readyToWorkBtn.click();
-      await page.waitForTimeout(500);
-    }
-
     // Finish day
     await finishDay(page);
 
@@ -358,12 +342,6 @@ test.describe('@legacy-archive Legacy Archive Subtasks via Finish Day', () => {
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
 
-    // Exit planning mode if we're in it (planning mode hides the Finish Day button)
-    const readyToWorkBtn = page.locator('button:has-text("Ready to work!")');
-    if (await readyToWorkBtn.isVisible().catch(() => false)) {
-      await readyToWorkBtn.click();
-      await page.waitForTimeout(500);
-    }
     await finishDay(page);
 
     // Export - wait for IndexedDB writes
