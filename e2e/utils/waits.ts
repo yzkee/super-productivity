@@ -66,9 +66,12 @@ const dismissOnboardingPresets = async (page: Page): Promise<void> => {
       .then(() => true)
       .catch(() => false);
     if (isVisible) {
-      await page.evaluate(() =>
-        localStorage.setItem('SUP_ONBOARDING_PRESET_DONE', 'true'),
-      );
+      await page.evaluate(() => {
+        localStorage.setItem('SUP_ONBOARDING_PRESET_DONE', 'true');
+        localStorage.setItem('SUP_ONBOARDING_HINTS_DONE', 'true');
+        localStorage.setItem('SUP_IS_SHOW_TOUR', 'true');
+        localStorage.setItem('SUP_EXAMPLE_TASKS_CREATED', 'true');
+      });
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForTimeout(500);
     }
