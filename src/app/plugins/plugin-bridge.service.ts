@@ -294,6 +294,7 @@ export class PluginBridgeService implements OnDestroy {
       throw new Error(`Plugin cannot register under built-in key "${customKey}"`);
     }
     const name = manifest?.name ?? pluginId;
+    const humanReadableName = issueProviderCfg?.humanReadableName ?? name;
     const customIconName = `plugin-${pluginId}-icon`;
     const icon = this._globalThemeService.hasPluginIcon(customIconName)
       ? customIconName
@@ -308,6 +309,7 @@ export class PluginBridgeService implements OnDestroy {
       pluginId,
       definition,
       name,
+      humanReadableName,
       icon,
       pollIntervalMs,
       issueStrings,

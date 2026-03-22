@@ -247,7 +247,7 @@
                 listModelId="DONE"
               ></task-list>
               <div class="finish-day-button-wrapper">
-                @if (!isOnTodayList() && hasDoneTasks()) {
+                @if (hasDoneTasks() && (!isOnTodayList() || !isFinishDayEnabled())) {
                   <button
                     class="e2e-move-done-to-archive"
                     mat-stroked-button

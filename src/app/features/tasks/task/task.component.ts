@@ -35,7 +35,6 @@ import { fadeAnimation } from '../../../ui/animations/fade.ani';
 import { PanDirective, PanEvent } from '../../../ui/swipe-gesture/pan.directive';
 import { TaskAttachmentService } from '../task-attachment/task-attachment.service';
 import { DialogEditTaskAttachmentComponent } from '../task-attachment/dialog-edit-attachment/dialog-edit-task-attachment.component';
-import { swirlAnimation } from '../../../ui/animations/swirl-in-out.ani';
 import { ProjectService } from '../../project/project.service';
 import { Project } from '../../project/project.model';
 import { _MISSING_PROJECT_ } from '../../project/project.const';
@@ -55,6 +54,7 @@ import { Update } from '@ngrx/entity';
 import { getDbDateStr, isDBDateStr } from '../../../util/get-db-date-str';
 import { DateService } from '../../../core/date/date.service';
 import { IS_TOUCH_PRIMARY } from '../../../util/is-mouse-primary';
+import { DRAG_DELAY_FOR_TOUCH } from '../../../app.constants';
 import { KeyboardConfig } from '../../config/keyboard-config.model';
 import { DialogScheduleTaskComponent } from '../../planner/dialog-schedule-task/dialog-schedule-task.component';
 import { DialogDeadlineComponent } from '../dialog-deadline/dialog-deadline.component';
@@ -64,7 +64,6 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ICAL_TYPE } from '../../issue/issue.const';
 import { TaskTitleComponent } from '../../../ui/task-title/task-title.component';
 import { MatIcon } from '@angular/material/icon';
-import { LongPressIOSDirective } from '../../../ui/longpress/longpress-ios.directive';
 import { MatIconButton, MatMiniFabButton } from '@angular/material/button';
 import { TaskHoverControlsComponent } from './task-hover-controls/task-hover-controls.component';
 import { ProgressBarComponent } from '../../../ui/progress-bar/progress-bar.component';
@@ -73,10 +72,8 @@ import { MsToStringPipe } from '../../../ui/duration/ms-to-string.pipe';
 import { ShortPlannedAtPipe } from '../../../ui/pipes/short-planned-at.pipe';
 import { LocalDateStrPipe } from '../../../ui/pipes/local-date-str.pipe';
 import { TranslatePipe } from '@ngx-translate/core';
-import { IssueIconPipe } from '../../issue/issue-icon/issue-icon.pipe';
 import { SubTaskTotalTimeSpentPipe } from '../pipes/sub-task-total-time-spent.pipe';
 import { TagListComponent } from '../../tag/tag-list/tag-list.component';
-import { ShortDate2Pipe } from '../../../ui/pipes/short-date2.pipe';
 import { TagToggleMenuListComponent } from '../../tag/tag-toggle-menu-list/tag-toggle-menu-list.component';
 import { Store } from '@ngrx/store';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
@@ -92,7 +89,7 @@ import { TaskFocusService } from '../task-focus.service';
   templateUrl: './task.component.html',
   styleUrls: ['./task.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  animations: [expandAnimation, fadeAnimation, swirlAnimation, expandInOnlyAnimation],
+  animations: [expandAnimation, fadeAnimation, expandInOnlyAnimation],
   /* eslint-disable @typescript-eslint/naming-convention*/
   host: {
     '[id]': 'taskIdWithPrefix()',
@@ -101,11 +98,12 @@ import { TaskFocusService } from '../task-focus.service';
     '[class.isCurrent]': 'isCurrent()',
     '[class.isSelected]': 'isSelected()',
     '[class.hasNoSubTasks]': 'task().subTaskIds.length === 0',
+    '[class.isDragReady]': 'isDragReady()',
+    '(contextmenu)': 'onHostContextMenu($event)',
   },
   imports: [
     MatIcon,
     MatMenuTrigger,
-    LongPressIOSDirective,
     MatIconButton,
     TaskTitleComponent,
     TaskHoverControlsComponent,
@@ -117,10 +115,8 @@ import { TaskFocusService } from '../task-focus.service';
     MatMenuContent,
     MatMenuItem,
     MsToStringPipe,
-    ShortDate2Pipe,
     LocalDateStrPipe,
     TranslatePipe,
-    IssueIconPipe,
     SubTaskTotalTimeSpentPipe,
     TagListComponent,
     ShortPlannedAtPipe,
@@ -149,6 +145,7 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   task = input.required<TaskWithSubTasks>();
   isBacklog = input<boolean>(false);
   isInSubTaskList = input<boolean>(false);
+  showDoneAnimation = signal(false);
 
   // Use shared signals from services to avoid creating 600+ subscriptions on initial render
   isCurrent = computed(() => this._taskService.currentTaskId() === this.task().id);
@@ -259,6 +256,10 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   T: typeof T = T;
   IS_TOUCH_PRIMARY: boolean = IS_TOUCH_PRIMARY;
   isDragOver: boolean = false;
+  isDragReady = signal(false);
+  private _dragReadyTimeout: number | undefined;
+  private _doneAnimationTimeout: number | undefined;
+  private _touchListenerCleanups: (() => void)[] = [];
   isLockPanLeft: boolean = false;
   isLockPanRight: boolean = false;
   isPreventPointerEventsWhilePanning: boolean = false;
@@ -365,14 +366,21 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     this.isDragOver = false;
   }
 
-  // NOTE: this prevents dragging on mobile for no touch area
-  onTouchStart(ev: TouchEvent): void {
-    if (!ev.target || !(ev.target as HTMLElement).classList?.contains('drag-handle')) {
-      ev.stopPropagation();
-    }
-  }
-
   ngAfterViewInit(): void {
+    if (IS_TOUCH_PRIMARY) {
+      const el = this._elementRef.nativeElement;
+      const onStart = (): void => this.onHostTouchStart();
+      const onEnd = (): void => this.onHostTouchEnd();
+      el.addEventListener('touchstart', onStart, { passive: true });
+      el.addEventListener('touchend', onEnd, { passive: true });
+      el.addEventListener('touchmove', onEnd, { passive: true });
+      this._touchListenerCleanups = [
+        () => el.removeEventListener('touchstart', onStart),
+        () => el.removeEventListener('touchend', onEnd),
+        () => el.removeEventListener('touchmove', onEnd),
+      ];
+    }
+
     // Dev-time sanity check: TODAY_TAG should NEVER be in task.tagIds (virtual tag pattern)
     // Membership is determined by task.dueDay. See: docs/ai/today-tag-architecture.md
     if (!environment.production) {
@@ -404,6 +412,9 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   ngOnDestroy(): void {
     window.clearTimeout(this._currentPanTimeout);
     window.clearTimeout(this._doubleClickTimeout);
+    window.clearTimeout(this._dragReadyTimeout);
+    window.clearTimeout(this._doneAnimationTimeout);
+    this._touchListenerCleanups.forEach((fn) => fn());
     this._moveToProjectListSub?.unsubscribe();
     if (this._panHelperVisibilityTimeout) {
       window.clearTimeout(this._panHelperVisibilityTimeout);
@@ -699,12 +710,17 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   }
 
   toggleTaskDone(): void {
+    window.clearTimeout(this._doneAnimationTimeout);
     this.focusNext(true, true);
 
     if (this.task().isDone) {
+      this.showDoneAnimation.set(false);
       this._taskService.setUnDone(this.task().id);
     } else {
-      this._taskService.setDone(this.task().id);
+      this.showDoneAnimation.set(true);
+      this._doneAnimationTimeout = window.setTimeout(() => {
+        this._taskService.setDone(this.task().id);
+      }, 200);
     }
   }
 
@@ -897,12 +913,33 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     taskTitleEditEl.focusInput();
   }
 
-  openContextMenu(event: TouchEvent | MouseEvent): void {
+  onHostTouchStart(): void {
+    this._dragReadyTimeout = window.setTimeout(() => {
+      this.isDragReady.set(true);
+    }, DRAG_DELAY_FOR_TOUCH);
+  }
+
+  onHostTouchEnd(): void {
+    window.clearTimeout(this._dragReadyTimeout);
+    this.isDragReady.set(false);
+  }
+
+  onHostContextMenu(event: MouseEvent): void {
+    if (IS_TOUCH_PRIMARY) {
+      event.preventDefault();
+      return;
+    }
+    this.openContextMenu(event);
+  }
+
+  openContextMenu(event?: TouchEvent | MouseEvent | KeyboardEvent): void {
     this.taskTitleEditEl()?.cancelEditing();
-    event.preventDefault();
-    event.stopPropagation();
-    if ('stopImmediatePropagation' in event) {
-      event.stopImmediatePropagation();
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      if ('stopImmediatePropagation' in event) {
+        event.stopImmediatePropagation();
+      }
     }
 
     if (!this.isContextMenuLoaded()) {
@@ -932,7 +969,7 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     this._resetAfterPan();
     const targetEl: HTMLElement = ev.target as HTMLElement;
     if (
-      (targetEl.className.indexOf && targetEl.className.indexOf('drag-handle') > -1) ||
+      targetEl.closest('.done-toggle') ||
       Math.abs(ev.deltaY) > Math.abs(ev.deltaX) ||
       taskTitleEditEl.isEditing() ||
       ev.isFinal
@@ -974,12 +1011,7 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
           );
         }
         this._currentPanTimeout = window.setTimeout(() => {
-          if (this.task().repeatCfgId) {
-            this.editTaskRepeatCfg();
-          } else {
-            this.scheduleTask();
-          }
-
+          this.openContextMenu();
           this._resetAfterPan(hideDelay);
         }, 100);
       } else if (this.isLockPanRight) {

@@ -198,27 +198,79 @@ export class TaskContextMenuInnerComponent implements AfterViewInit {
     });
   }
 
-  open(ev: MouseEvent | KeyboardEvent | TouchEvent, isOpenedFromKeyBoard = false): void {
-    ev.preventDefault();
-    ev.stopPropagation();
-    ev.stopImmediatePropagation();
+  open(ev?: MouseEvent | KeyboardEvent | TouchEvent, isOpenedFromKeyBoard = false): void {
+    if (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      ev.stopImmediatePropagation();
 
-    if (ev instanceof MouseEvent || isTouchEventInstance(ev)) {
-      this.contextMenuPosition.x =
-        ('touches' in ev ? ev.touches[0].clientX : ev.clientX) + 10 + 'px';
-      const rawY = ('touches' in ev ? ev.touches[0].clientY : ev.clientY) - 48;
-      const safeAreaTop =
-        parseInt(
-          getComputedStyle(document.documentElement).getPropertyValue(
-            '--safe-area-inset-top',
-          ),
-          10,
-        ) || 0;
-      this.contextMenuPosition.y = Math.max(rawY, safeAreaTop) + 'px';
+      if (!IS_TOUCH_PRIMARY && (ev instanceof MouseEvent || isTouchEventInstance(ev))) {
+        const clientX = 'touches' in ev ? ev.touches[0].clientX : ev.clientX;
+        const clientY = 'touches' in ev ? ev.touches[0].clientY : ev.clientY;
+        this.contextMenuPosition.x = clientX + 10 + 'px';
+        const rawY = clientY - 48;
+        const safeAreaTop =
+          parseInt(
+            getComputedStyle(document.documentElement).getPropertyValue(
+              '--safe-area-inset-top',
+            ),
+            10,
+          ) || 0;
+        this.contextMenuPosition.y = Math.max(rawY, safeAreaTop) + 'px';
+      }
     }
 
     this._isOpenedFromKeyboard = isOpenedFromKeyBoard;
     this.contextMenuTrigger()?.openMenu();
+
+    if (IS_TOUCH_PRIMARY) {
+      setTimeout(() => {
+        const boxes = document.querySelectorAll(
+          '.cdk-overlay-connected-position-bounding-box',
+        );
+        const boundingBox = boxes[boxes.length - 1] as HTMLElement | undefined;
+        if (!boundingBox) {
+          return;
+        }
+        boundingBox.style.position = 'fixed';
+        boundingBox.style.inset = '0';
+        boundingBox.style.display = 'flex';
+        boundingBox.style.justifyContent = 'center';
+        boundingBox.style.alignItems = 'flex-end';
+
+        const pane = boundingBox.querySelector('.cdk-overlay-pane') as HTMLElement;
+        if (pane) {
+          pane.style.position = 'static';
+          pane.style.width = '100%';
+          pane.style.display = 'flex';
+          pane.style.justifyContent = 'center';
+        }
+
+        boundingBox.addEventListener(
+          'click',
+          (e: Event) => {
+            if (e.target === boundingBox || e.target === pane) {
+              this.contextMenuTrigger()?.closeMenu();
+            }
+          },
+          { once: true },
+        );
+
+        const menuPanel = boundingBox.querySelector('.mat-mdc-menu-panel') as HTMLElement;
+        if (menuPanel) {
+          menuPanel.style.maxWidth = '300px';
+          menuPanel.style.width = '100%';
+          menuPanel.style.borderRadius =
+            'var(--card-border-radius) var(--card-border-radius) 0 0';
+          menuPanel.style.maxHeight = '80vh';
+          menuPanel.style.transform = 'translateY(100%)';
+          menuPanel.style.transition = 'transform 200ms ease-out';
+          requestAnimationFrame(() => {
+            menuPanel.style.transform = 'translateY(0)';
+          });
+        }
+      });
+    }
   }
 
   focusRelatedTaskOrNext(): void {

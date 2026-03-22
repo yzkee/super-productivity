@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 import {
   RegisteredPluginIssueProvider,
   IssueProviderPluginDefinition,
@@ -15,10 +15,14 @@ export class PluginIssueProviderRegistryService {
   /** Maps pluginId → registeredKey for cleanup */
   private _pluginIdToKey = new Map<string, string>();
 
+  /** Signal that increments on each registration/unregistration, so computed signals can react */
+  readonly registrationVersion = signal(0);
+
   register(opts: {
     pluginId: string;
     definition: IssueProviderPluginDefinition;
     name: string;
+    humanReadableName: string;
     icon: string;
     pollIntervalMs: number;
     issueStrings: { singular: string; plural: string };
@@ -38,6 +42,7 @@ export class PluginIssueProviderRegistryService {
       registeredKey: key as IssueProviderKey,
       definition: opts.definition,
       name: opts.name,
+      humanReadableName: opts.humanReadableName,
       icon: opts.icon,
       pollIntervalMs: opts.pollIntervalMs,
       issueStrings: opts.issueStrings,
@@ -45,6 +50,7 @@ export class PluginIssueProviderRegistryService {
       defaultAutoAddToBacklog: opts.defaultAutoAddToBacklog,
     });
     this._pluginIdToKey.set(opts.pluginId, key);
+    this.registrationVersion.update((v) => v + 1);
   }
 
   unregister(pluginId: string): void {
@@ -52,6 +58,7 @@ export class PluginIssueProviderRegistryService {
     if (key) {
       this._providers.delete(key);
       this._pluginIdToKey.delete(pluginId);
+      this.registrationVersion.update((v) => v + 1);
     }
   }
 
@@ -78,6 +85,10 @@ export class PluginIssueProviderRegistryService {
 
   getName(key: string): string {
     return this._providers.get(key)?.name ?? 'Plugin';
+  }
+
+  getHumanReadableName(key: string): string {
+    return this._providers.get(key)?.humanReadableName ?? 'Plugin';
   }
 
   getIssueStrings(key: string): {

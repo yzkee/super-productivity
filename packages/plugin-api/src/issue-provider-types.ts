@@ -163,6 +163,9 @@ export interface IssueProviderPluginDefinition {
 export interface IssueProviderManifestConfig {
   pollIntervalMs: number;
   icon: string;
+  /** Short human-readable name for the issue provider (e.g. 'GitHub', 'ClickUp').
+   * Used in UI chips and labels. Falls back to the plugin name if not set. */
+  humanReadableName?: string;
   issueStrings?: { singular: string; plural: string };
   /** Show calendar-style agenda view instead of search-based list */
   useAgendaView?: boolean;
