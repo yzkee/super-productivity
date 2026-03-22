@@ -372,7 +372,7 @@ $circle-circumference: 62.83;
   }
 
   .progress-ring {
-    stroke: var(--c-accent);
+    stroke: currentColor;
     stroke-width: 2;
     fill: none;
     stroke-dasharray: $circle-circumference;
@@ -405,7 +405,7 @@ $circle-circumference: 62.83;
     }
 
     .done-circle {
-      opacity: 0.15;
+      opacity: 0;
     }
 
     .progress-ring {
