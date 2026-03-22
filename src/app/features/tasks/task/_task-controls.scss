@@ -384,7 +384,7 @@ $circle-circumference: 62.83;
   }
 
   .play-indicator {
-    fill: var(--c-accent);
+    fill: currentColor;
     opacity: 0;
     transition: opacity var(--transition-duration-m) var(--ani-standard-timing);
   }
@@ -410,7 +410,7 @@ $circle-circumference: 62.83;
 
     .progress-ring {
       opacity: 1;
-      animation: circle-draw 3s ease-in-out infinite;
+      animation: circle-draw 2s ease-in-out infinite;
     }
 
     .play-indicator {
