@@ -124,6 +124,10 @@ export const createWindow = async ({
       webSecurity: false,
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
+      // Required: preload.js uses require() for local modules (e.g. ./shared-with-frontend/ipc-events.const).
+      // Electron 20+ defaults sandbox to true, and sandboxed preloads can only require built-in Electron
+      // modules. This does NOT disable Chromium's OS-level process sandbox (that's --no-sandbox).
+      sandbox: false,
       // make remote module work with those two settings
       contextIsolation: true,
       // Additional settings for better Linux/Wayland compatibility
