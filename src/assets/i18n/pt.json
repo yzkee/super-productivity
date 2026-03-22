@@ -41,6 +41,24 @@
     "INTRO_1": "O Super Productivity é financiado inteiramente pela comunidade. Não há rastreamento, anúncios, nem recolha de dados — as suas tarefas permanecem no seu dispositivo.",
     "INTRO_2": "Se valoriza esta abordagem e quer manter o projeto saudável e em evolução, uma doação voluntária é muito apreciada."
   },
+  "EXAMPLE_TASKS": {
+    "LEARN_KEYBOARD_SHORTCUTS": {
+      "TITLE": "Aprenda os atalhos de teclado",
+      "NOTES": "O Super Productivity foi concebido para ser utilizado com o teclado. Aprenda os atalhos para trabalhar mais depressa.\n\n**Como começar:**\n1. Abra o **menu da barra lateral**\n2. Vá a **Ajuda**\n3. Clique em **Tour de navegação por teclado**"
+    },
+    "CREATE_PROJECT": {
+      "TITLE": "Crie o seu primeiro projeto",
+      "NOTES": "Os projetos ajudam-no a organizar as suas tarefas por área de trabalho. Cada projeto tem a sua própria lista de tarefas e backlog.\n\n**Como criar um projeto:**\n1. Clique no botão **+** junto a **Projetos** na barra lateral\n2. Dê-lhe um nome e escolha uma cor\n3. Comece a adicionar tarefas"
+    },
+    "SET_UP_SYNC": {
+      "TITLE": "Configurar a sincronização",
+      "NOTES": "Mantenha os seus dados seguros e acessíveis em todos os dispositivos.\n\n**Como configurar:**\n1. Abra as **Definições** (ícone de engrenagem na barra lateral)\n2. Vá a **Sincronização**\n3. Escolha um fornecedor: Super Sync, Dropbox, WebDAV ou sincronização por ficheiro local\n4. Siga as instruções de configuração"
+    },
+    "GO_FURTHER": {
+      "TITLE": "Vá mais longe",
+      "NOTES": "Há muito mais para descobrir!\n\n**Funcionalidades da app** (nas Definições) — Ative integrações, hábitos e outras funcionalidades. Vá a **Definições → Funcionalidades da app** para ver o que está disponível.\n\n**Quadros** — Visualize suas tarefas em quadros Kanban personalizáveis. Ative-os em **Funcionalidades do App** e encontre-os no **menu lateral**.\n\n**Agenda** — Planeje seu dia atribuindo tarefas a horários específicos. Arraste as tarefas para a vista de **Agenda** na barra lateral.\n\n**Integrações** — Depois de ativadas nas Funcionalidades da app, importe tarefas do Jira, GitHub, GitLab, Gitea, OpenProject, CalDAV e muitos mais. Também pode integrar o seu calendário. Configure-as no **Painel de fornecedores de tickets**.\n\n**Hábitos** — Acompanhe hábitos e rotinas recorrentes. Encontre-os no **menu da barra lateral** depois de ativados.\n\n**Plugins** — Adicione funcionalidades como o Quebra-procrastinação, Automatizações ou Lembretes por voz. Vá a **Definições → Plugins**.\n\n**Personalizar** — Temas, modo escuro, atalhos de teclado, idioma e ferramentas de produtividade estão todos nas **Definições**."
+    }
+  },
   "F": {
     "ATTACHMENT": {
       "DIALOG_EDIT": {
