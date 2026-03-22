@@ -25,11 +25,20 @@ const registerProvider = (
   pluginId: string,
   definition: IssueProviderPluginDefinition,
   name: string,
+  humanReadableName: string,
   icon: string,
   pollIntervalMs: number,
   issueStrings: { singular: string; plural: string },
 ): void =>
-  svc.register({ pluginId, definition, name, icon, pollIntervalMs, issueStrings });
+  svc.register({
+    pluginId,
+    definition,
+    name,
+    humanReadableName,
+    icon,
+    pollIntervalMs,
+    issueStrings,
+  });
 
 describe('PluginIssueProviderRegistryService', () => {
   let service: PluginIssueProviderRegistryService;
@@ -45,10 +54,19 @@ describe('PluginIssueProviderRegistryService', () => {
     it('should register a provider and store it under plugin:<pluginId>', () => {
       const definition = createMockDefinition();
 
-      registerProvider(service,'my-plugin', definition, 'My Plugin', 'bug_report', 5000, {
-        singular: 'Bug',
-        plural: 'Bugs',
-      });
+      registerProvider(
+        service,
+        'my-plugin',
+        definition,
+        'My Plugin',
+        'My Plugin',
+        'bug_report',
+        5000,
+        {
+          singular: 'Bug',
+          plural: 'Bugs',
+        },
+      );
 
       expect(service.hasProvider('plugin:my-plugin')).toBeTrue();
     });
@@ -57,11 +75,11 @@ describe('PluginIssueProviderRegistryService', () => {
       const definition = createMockDefinition();
       spyOn(console, 'warn');
 
-      registerProvider(service,'dup', definition, 'First', 'icon1', 1000, {
+      registerProvider(service, 'dup', definition, 'First', 'First', 'icon1', 1000, {
         singular: 'A',
         plural: 'As',
       });
-      registerProvider(service,'dup', definition, 'Second', 'icon2', 2000, {
+      registerProvider(service, 'dup', definition, 'Second', 'Second', 'icon2', 2000, {
         singular: 'B',
         plural: 'Bs',
       });
@@ -79,10 +97,19 @@ describe('PluginIssueProviderRegistryService', () => {
     it('should return the registered provider by key', () => {
       const definition = createMockDefinition();
 
-      registerProvider(service,'provider-a', definition, 'Provider A', 'star', 3000, {
-        singular: 'Ticket',
-        plural: 'Tickets',
-      });
+      registerProvider(
+        service,
+        'provider-a',
+        definition,
+        'Provider A',
+        'Provider A',
+        'star',
+        3000,
+        {
+          singular: 'Ticket',
+          plural: 'Tickets',
+        },
+      );
 
       const provider = service.getProvider('plugin:provider-a');
 
@@ -107,10 +134,19 @@ describe('PluginIssueProviderRegistryService', () => {
     it('should remove a previously registered provider', () => {
       const definition = createMockDefinition();
 
-      registerProvider(service,'to-remove', definition, 'Remove Me', 'delete', 1000, {
-        singular: 'X',
-        plural: 'Xs',
-      });
+      registerProvider(
+        service,
+        'to-remove',
+        definition,
+        'Remove Me',
+        'Remove Me',
+        'delete',
+        1000,
+        {
+          singular: 'X',
+          plural: 'Xs',
+        },
+      );
 
       expect(service.hasProvider('plugin:to-remove')).toBeTrue();
 
@@ -127,7 +163,7 @@ describe('PluginIssueProviderRegistryService', () => {
 
   describe('hasProvider', () => {
     it('should return true for a registered provider', () => {
-      registerProvider(service,'exists', createMockDefinition(), 'E', 'e', 0, {
+      registerProvider(service, 'exists', createMockDefinition(), 'E', 'E', 'e', 0, {
         singular: 'a',
         plural: 'as',
       });
@@ -142,11 +178,11 @@ describe('PluginIssueProviderRegistryService', () => {
 
   describe('getAvailableProviders', () => {
     it('should return all registered providers', () => {
-      registerProvider(service,'p1', createMockDefinition(), 'P1', 'i1', 100, {
+      registerProvider(service, 'p1', createMockDefinition(), 'P1', 'P1', 'i1', 100, {
         singular: 'a',
         plural: 'as',
       });
-      registerProvider(service,'p2', createMockDefinition(), 'P2', 'i2', 200, {
+      registerProvider(service, 'p2', createMockDefinition(), 'P2', 'P2', 'i2', 200, {
         singular: 'b',
         plural: 'bs',
       });
@@ -166,10 +202,19 @@ describe('PluginIssueProviderRegistryService', () => {
 
   describe('getIcon', () => {
     it('should return the icon for a registered provider', () => {
-      registerProvider(service,'icon-test', createMockDefinition(), 'N', 'custom_icon', 0, {
-        singular: 'a',
-        plural: 'as',
-      });
+      registerProvider(
+        service,
+        'icon-test',
+        createMockDefinition(),
+        'N',
+        'N',
+        'custom_icon',
+        0,
+        {
+          singular: 'a',
+          plural: 'as',
+        },
+      );
 
       expect(service.getIcon('plugin:icon-test')).toBe('custom_icon');
     });
@@ -181,10 +226,19 @@ describe('PluginIssueProviderRegistryService', () => {
 
   describe('getName', () => {
     it('should return the name for a registered provider', () => {
-      registerProvider(service,'name-test', createMockDefinition(), 'My Provider', 'i', 0, {
-        singular: 'a',
-        plural: 'as',
-      });
+      registerProvider(
+        service,
+        'name-test',
+        createMockDefinition(),
+        'My Provider',
+        'My Provider',
+        'i',
+        0,
+        {
+          singular: 'a',
+          plural: 'as',
+        },
+      );
 
       expect(service.getName('plugin:name-test')).toBe('My Provider');
     });
@@ -196,7 +250,7 @@ describe('PluginIssueProviderRegistryService', () => {
 
   describe('getIssueStrings', () => {
     it('should return mapped issue strings for a registered provider', () => {
-      registerProvider(service,'str-test', createMockDefinition(), 'N', 'i', 0, {
+      registerProvider(service, 'str-test', createMockDefinition(), 'N', 'N', 'i', 0, {
         singular: 'Task',
         plural: 'Tasks',
       });
@@ -215,10 +269,19 @@ describe('PluginIssueProviderRegistryService', () => {
 
   describe('getPollIntervalMs', () => {
     it('should return the poll interval for a registered provider', () => {
-      registerProvider(service,'poll-test', createMockDefinition(), 'N', 'i', 7500, {
-        singular: 'a',
-        plural: 'as',
-      });
+      registerProvider(
+        service,
+        'poll-test',
+        createMockDefinition(),
+        'N',
+        'N',
+        'i',
+        7500,
+        {
+          singular: 'a',
+          plural: 'as',
+        },
+      );
 
       expect(service.getPollIntervalMs('plugin:poll-test')).toBe(7500);
     });
@@ -236,7 +299,7 @@ describe('PluginIssueProviderRegistryService', () => {
       ];
       const definition = createMockDefinition({ issueDisplay });
 
-      registerProvider(service,'display-test', definition, 'N', 'i', 0, {
+      registerProvider(service, 'display-test', definition, 'N', 'N', 'i', 0, {
         singular: 'a',
         plural: 'as',
       });
@@ -257,7 +320,7 @@ describe('PluginIssueProviderRegistryService', () => {
       ];
       const definition = createMockDefinition({ configFields });
 
-      registerProvider(service,'config-test', definition, 'N', 'i', 0, {
+      registerProvider(service, 'config-test', definition, 'N', 'N', 'i', 0, {
         singular: 'a',
         plural: 'as',
       });
@@ -280,7 +343,7 @@ describe('PluginIssueProviderRegistryService', () => {
       };
       const definition = createMockDefinition({ commentsConfig });
 
-      registerProvider(service,'comments-test', definition, 'N', 'i', 0, {
+      registerProvider(service, 'comments-test', definition, 'N', 'N', 'i', 0, {
         singular: 'a',
         plural: 'as',
       });
@@ -289,7 +352,7 @@ describe('PluginIssueProviderRegistryService', () => {
     });
 
     it('should return undefined when no commentsConfig is set', () => {
-      registerProvider(service,'no-comments', createMockDefinition(), 'N', 'i', 0, {
+      registerProvider(service, 'no-comments', createMockDefinition(), 'N', 'N', 'i', 0, {
         singular: 'a',
         plural: 'as',
       });
@@ -315,7 +378,7 @@ describe('PluginIssueProviderRegistryService', () => {
       ];
       const definition = createMockDefinition({ fieldMappings });
 
-      registerProvider(service,'mappings-test', definition, 'N', 'i', 0, {
+      registerProvider(service, 'mappings-test', definition, 'N', 'N', 'i', 0, {
         singular: 'a',
         plural: 'as',
       });
@@ -329,7 +392,7 @@ describe('PluginIssueProviderRegistryService', () => {
     });
 
     it('should return undefined when no fieldMappings are set', () => {
-      registerProvider(service,'no-mappings', createMockDefinition(), 'N', 'i', 0, {
+      registerProvider(service, 'no-mappings', createMockDefinition(), 'N', 'N', 'i', 0, {
         singular: 'a',
         plural: 'as',
       });

@@ -72,6 +72,7 @@ describe('PluginIssueProviderAdapterService', () => {
     registeredKey: PLUGIN_KEY,
     definition: createMockDefinition(defOverrides),
     name: 'Test Plugin',
+    humanReadableName: 'Test Plugin',
     icon: 'bug_report',
     pollIntervalMs: 5000,
     issueStrings: { singular: 'Issue', plural: 'Issues' },
