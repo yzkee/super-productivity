@@ -2369,6 +2369,33 @@
     "STATUS_MIGRATING": "データを移行中...",
     "STATUS_PREPARING": "移行を準備中..."
   },
+  "ONBOARDING": {
+    "TITLE": "Super Productivityをどのように使いますか？",
+    "SUBTITLE": "あなたのワークフローに合ったセットアップを選んでください。後からいつでも設定で変更できます。",
+    "PRIVACY_HINT": "データはお使いのデバイスに安全に保存されます。サーバーには何も送信されません。",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "シンプルなToDoリスト",
+        "DESCRIPTION": "プロジェクト、タグ、メモ付きのすっきりしたタスク管理。余計な機能なし。"
+      },
+      "TIME_TRACKER": {
+        "TITLE": "タイムトラッカー",
+        "DESCRIPTION": "タスクにかかる時間を記録。請求時間の管理や時間の使い方の把握に最適。"
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "生産性スイート",
+        "DESCRIPTION": "一日を計画し、習慣を身につけ、集中し、時間を記録。すべてを一か所で。"
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "+をクリックして最初のタスクを追加しましょう",
+      "CREATE_TASK_TOUCH": "+をタップして最初のタスクを追加しましょう",
+      "EXPLORE": "自由にクリックして探索してみてください！サイドバーにヘルプがあります。",
+      "EXPLORE_TOUCH": "自由にタップして探索してみてください！メニューにヘルプがあります。",
+      "OR_PRESS": "または",
+      "SKIP_ARIA": "ヒントを閉じる"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "今日のタスクを追加",
     "ARCHIVED_TASKS": {

@@ -2377,6 +2377,33 @@
     "STATUS_COMPLETE": "Migration abgeschlossen!",
     "STATUS_MIGRATING": "Daten werden migriert..."
   },
+  "ONBOARDING": {
+    "TITLE": "Wie möchtest du Super Productivity nutzen?",
+    "SUBTITLE": "Wähle ein Setup, das zu deinem Workflow passt. Du kannst das später jederzeit in den Einstellungen ändern.",
+    "PRIVACY_HINT": "Deine Daten bleiben sicher auf deinem Gerät. Es wird nichts an einen Server gesendet.",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "Einfache Aufgabenliste",
+        "DESCRIPTION": "Ein übersichtlicher Aufgabenmanager mit Projekten, Tags und Notizen. Ohne Extras."
+      },
+      "TIME_TRACKER": {
+        "TITLE": "Zeiterfassung",
+        "DESCRIPTION": "Erfasse, wie lange Aufgaben dauern. Ideal für Stundenabrechnung oder um zu verstehen, wofür deine Zeit draufgeht."
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "Produktivitäts-Suite",
+        "DESCRIPTION": "Plane deinen Tag, baue Gewohnheiten auf, arbeite fokussiert und erfasse deine Zeit. Alles an einem Ort."
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "Klicke auf +, um deine erste Aufgabe hinzuzufügen",
+      "CREATE_TASK_TOUCH": "Tippe auf +, um deine erste Aufgabe hinzuzufügen",
+      "EXPLORE": "Klick dich ruhig durch und entdecke alles! Hilfe findest du in der Seitenleiste.",
+      "EXPLORE_TOUCH": "Tipp dich ruhig durch und entdecke alles! Hilfe findest du im Menü.",
+      "OR_PRESS": "oder drücke",
+      "SKIP_ARIA": "Hinweis schließen"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Aufgaben von heute hinzufügen",
     "ARCHIVED_TASKS": {

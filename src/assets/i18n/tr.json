@@ -2381,6 +2381,33 @@
     "DIALOG_TITLE": "Sistem Güncellemesi",
     "DIALOG_MESSAGE": "Verilerinizin nasıl depolandığını geliştirilmiş senkronizasyon güvenilirliği için güncelliyoruz.<br><br>Verilerinizin bir yedeği otomatik olarak indirilecek. Gerekirse bu yedeği kullanarak verilerinizi geri yükleyebilirsiniz (Dosya > İçe Aktar)."
   },
+  "ONBOARDING": {
+    "TITLE": "Super Productivity'yi nasıl kullanmak istiyorsunuz?",
+    "SUBTITLE": "Çalışma tarzınıza uygun bir kurulum seçin. Bunu daha sonra Ayarlar'dan istediğiniz zaman değiştirebilirsiniz.",
+    "PRIVACY_HINT": "Verileriniz cihazınızda güvenle kalır. Sunucuya hiçbir şey gönderilmez.",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "Basit yapılacaklar listesi",
+        "DESCRIPTION": "Projeler, etiketler ve notlarla temiz bir görev yöneticisi. Ekstra özellik yok."
+      },
+      "TIME_TRACKER": {
+        "TITLE": "Zaman takibi",
+        "DESCRIPTION": "Görevlerin ne kadar sürdüğünü izleyin. Saat faturalandırma veya zamanınızın nereye gittiğini anlamak için mükemmel."
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "Verimlilik Paketi",
+        "DESCRIPTION": "Gününüzü planlayın, alışkanlıklar edinin, derinden odaklanın ve zamanınızı takip edin. Hepsi tek bir yerde."
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "İlk görevinizi eklemek için + işaretine tıklayın",
+      "CREATE_TASK_TOUCH": "İlk görevinizi eklemek için + işaretine dokunun",
+      "EXPLORE": "Tıklayarak keşfedin! Yardımı yan panelde bulabilirsiniz.",
+      "EXPLORE_TOUCH": "Dokunarak keşfedin! Yardımı menüde bulabilirsiniz.",
+      "OR_PRESS": "veya basın",
+      "SKIP_ARIA": "İpucunu kapat"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Bugünden itibaren görev ekleme",
     "ARCHIVED_TASKS": {

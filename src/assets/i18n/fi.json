@@ -2377,6 +2377,33 @@
     "STATUS_MIGRATING": "Siirretään tietoja...",
     "STATUS_PREPARING": "Valmistellaan siirtoa..."
   },
+  "ONBOARDING": {
+    "TITLE": "Miten haluat käyttää Super Productivitya?",
+    "SUBTITLE": "Valitse asetukset, jotka sopivat työtapaasi. Voit aina muuttaa tätä myöhemmin Asetuksissa.",
+    "PRIVACY_HINT": "Tietosi pysyvät turvallisesti laitteellasi. Mitään ei lähetetä palvelimelle.",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "Yksinkertainen tehtävälista",
+        "DESCRIPTION": "Selkeä tehtävienhallinta projekteilla, tunnisteilla ja muistiinpanoilla. Ilman ylimääräistä."
+      },
+      "TIME_TRACKER": {
+        "TITLE": "Ajanseuranta",
+        "DESCRIPTION": "Seuraa, kuinka kauan tehtävät kestävät. Erinomainen tuntilaskutukseen tai ajankäytön ymmärtämiseen."
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "Tuottavuuspaketti",
+        "DESCRIPTION": "Suunnittele päiväsi, rakenna tapoja, keskity syvästi ja seuraa aikaa. Kaikki yhdessä paikassa."
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "Napsauta + lisätäksesi ensimmäisen tehtävän",
+      "CREATE_TASK_TOUCH": "Napauta + lisätäksesi ensimmäisen tehtävän",
+      "EXPLORE": "Napsauttele vapaasti ja tutustu! Ohje löytyy sivupalkista.",
+      "EXPLORE_TOUCH": "Napauttele vapaasti ja tutustu! Ohje löytyy valikosta.",
+      "OR_PRESS": "tai paina",
+      "SKIP_ARIA": "Sulje vihje"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Lisää tehtäviä tänään",
     "ARCHIVED_TASKS": {

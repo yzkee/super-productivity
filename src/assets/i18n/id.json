@@ -2377,6 +2377,33 @@
     "STATUS_MIGRATING": "Memigrasi data...",
     "STATUS_PREPARING": "Mempersiapkan migrasi..."
   },
+  "ONBOARDING": {
+    "TITLE": "Bagaimana Anda ingin menggunakan Super Productivity?",
+    "SUBTITLE": "Pilih pengaturan yang sesuai dengan alur kerja Anda. Anda selalu bisa mengubahnya nanti di Pengaturan.",
+    "PRIVACY_HINT": "Data Anda tetap aman di perangkat Anda. Tidak ada yang dikirim ke server.",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "Daftar tugas sederhana",
+        "DESCRIPTION": "Pengelola tugas yang bersih dengan proyek, tag, dan catatan. Tanpa tambahan."
+      },
+      "TIME_TRACKER": {
+        "TITLE": "Pelacak waktu",
+        "DESCRIPTION": "Lacak berapa lama tugas membutuhkan waktu. Cocok untuk penagihan jam kerja atau memahami ke mana waktu Anda dihabiskan."
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "Paket Produktivitas",
+        "DESCRIPTION": "Rencanakan hari Anda, bangun kebiasaan, fokus mendalam, dan lacak waktu. Semua di satu tempat."
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "Klik + untuk menambahkan tugas pertama Anda",
+      "CREATE_TASK_TOUCH": "Ketuk + untuk menambahkan tugas pertama Anda",
+      "EXPLORE": "Silakan klik-klik dan jelajahi! Bantuan bisa ditemukan di bilah samping.",
+      "EXPLORE_TOUCH": "Silakan jelajahi! Bantuan bisa ditemukan di menu.",
+      "OR_PRESS": "atau tekan",
+      "SKIP_ARIA": "Tutup petunjuk"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Tambahkan tugas mulai hari ini",
     "ARCHIVED_TASKS": {

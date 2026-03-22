@@ -2412,6 +2412,14 @@
         "TITLE": "Productivity Suite",
         "DESCRIPTION": "Plan your day, build habits, focus deeply, and track your time. All in one place."
       }
+    },
+    "HINTS": {
+      "CREATE_TASK": "Click + to add your first task",
+      "CREATE_TASK_TOUCH": "Tap + to add your first task",
+      "EXPLORE": "Feel free to click around and explore! You can find help in the sidebar.",
+      "EXPLORE_TOUCH": "Feel free to tap around and explore! You can find help in the menu.",
+      "OR_PRESS": "or press",
+      "SKIP_ARIA": "Dismiss hint"
     }
   },
   "PDS": {

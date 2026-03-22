@@ -2381,6 +2381,33 @@
     "DIALOG_TITLE": "System Update",
     "DIALOG_MESSAGE": "We're updating how your data is stored for improved sync reliability.<br><br>A backup of your data will be downloaded automatically. You can use this backup to restore your data if needed (File > Import)."
   },
+  "ONBOARDING": {
+    "TITLE": "Cum vrei să folosești Super Productivity?",
+    "SUBTITLE": "Alege o configurare potrivită stilului tău de lucru. Poți schimba oricând mai târziu în Setări.",
+    "PRIVACY_HINT": "Datele tale rămân în siguranță pe dispozitivul tău. Nimic nu este trimis la un server.",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "Listă simplă de sarcini",
+        "DESCRIPTION": "Un manager de sarcini curat cu proiecte, etichete și notițe. Fără extra."
+      },
+      "TIME_TRACKER": {
+        "TITLE": "Urmărire timp",
+        "DESCRIPTION": "Urmărește cât durează sarcinile. Ideal pentru facturarea orelor sau pentru a înțelege unde îți petreci timpul."
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "Suită de productivitate",
+        "DESCRIPTION": "Planifică-ți ziua, construiește obiceiuri, concentrează-te profund și urmărește timpul. Totul într-un singur loc."
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "Apasă pe + pentru a adăuga prima ta sarcină",
+      "CREATE_TASK_TOUCH": "Atinge + pentru a adăuga prima ta sarcină",
+      "EXPLORE": "Apasă liber și explorează! Poți găsi ajutor în bara laterală.",
+      "EXPLORE_TOUCH": "Explorează liber! Poți găsi ajutor în meniu.",
+      "OR_PRESS": "sau apasă",
+      "SKIP_ARIA": "Închide indicația"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Add tasks from today",
     "ARCHIVED_TASKS": {

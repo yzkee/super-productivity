@@ -339,6 +339,11 @@ export const selectCurrentTaskParentOrCurrent = createSelector(
   },
 );
 
+export const selectHasAnyTasks = createSelector(
+  selectTaskFeatureState,
+  (state: TaskState): boolean => state.ids.length > 0,
+);
+
 export const selectAllTasks = createSelector(
   selectTaskFeatureState,
   (state: TaskState): Task[] => {

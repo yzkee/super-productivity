@@ -2381,6 +2381,33 @@
     "DIALOG_TITLE": "系统更新",
     "DIALOG_MESSAGE": "我们正在更新数据存储方式以提升同步可靠性。<br><br>您的数据备份将自动下载。如果需要，您可以使用此备份恢复数据（文件 > 导入）。"
   },
+  "ONBOARDING": {
+    "TITLE": "你想如何使用 Super Productivity？",
+    "SUBTITLE": "选择适合你工作方式的设置。你可以随时在设置中更改。",
+    "PRIVACY_HINT": "你的数据安全地保存在你的设备上。不会向服务器发送任何内容。",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "简单待办列表",
+        "DESCRIPTION": "简洁的任务管理器，支持项目、标签和笔记。没有多余功能。"
+      },
+      "TIME_TRACKER": {
+        "TITLE": "时间追踪",
+        "DESCRIPTION": "记录任务所花的时间。非常适合计费或了解时间都花在了哪里。"
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "生产力套件",
+        "DESCRIPTION": "规划你的一天，养成习惯，深度专注，追踪时间。一站式搞定。"
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "点击 + 添加你的第一个任务",
+      "CREATE_TASK_TOUCH": "点按 + 添加你的第一个任务",
+      "EXPLORE": "随意点击探索吧！你可以在侧边栏找到帮助。",
+      "EXPLORE_TOUCH": "随意点按探索吧！你可以在菜单中找到帮助。",
+      "OR_PRESS": "或按",
+      "SKIP_ARIA": "关闭提示"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "从今日添加任务",
     "ARCHIVED_TASKS": {
