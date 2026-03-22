@@ -310,6 +310,18 @@ $check-len: 16;
   }
 }
 
+// circumference of r=10 circle: 2 * π * 10 ≈ 62.83
+$circle-circumference: 62.83;
+
+@keyframes progress-spin {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -#{$circle-circumference};
+  }
+}
+
 .done-toggle {
   margin-left: var(--s);
   margin-right: 0;
@@ -356,6 +368,24 @@ $check-len: 16;
     stroke-dashoffset: $check-len;
   }
 
+  .progress-ring {
+    stroke: var(--c-accent);
+    stroke-width: 2;
+    fill: none;
+    stroke-dasharray: $circle-circumference;
+    stroke-dashoffset: 0;
+    transform-origin: center;
+    transform: rotate(-90deg);
+    opacity: 0;
+    transition: opacity var(--transition-duration-m) var(--ani-standard-timing);
+  }
+
+  .play-indicator {
+    fill: var(--c-accent);
+    opacity: 0;
+    transition: opacity var(--transition-duration-m) var(--ani-standard-timing);
+  }
+
   &.is-done {
     .done-toggle-svg {
       opacity: 0.5;
@@ -363,6 +393,28 @@ $check-len: 16;
 
     .done-check {
       animation: draw-check 150ms ease-out forwards;
+    }
+  }
+
+  &.is-current:not(.is-done) {
+    .done-toggle-svg {
+      opacity: 1;
+    }
+
+    .done-circle {
+      opacity: 0.3;
+    }
+
+    .progress-ring {
+      opacity: 1;
+    }
+
+    .play-indicator {
+      opacity: 1;
+    }
+
+    &.no-time-estimate .progress-ring {
+      animation: progress-spin 60s linear infinite;
     }
   }
 
