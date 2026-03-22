@@ -22,7 +22,7 @@ import { SnackService } from './core/snack/snack.service';
 import { IS_ELECTRON } from './app.constants';
 import { expandAnimation } from './ui/animations/expand.ani';
 import { warpRouteAnimation } from './ui/animations/warp-route';
-import { Subscription } from 'rxjs';
+import { firstValueFrom, Subscription } from 'rxjs';
 import { fadeAnimation } from './ui/animations/fade.ani';
 import { BannerService } from './core/banner/banner.service';
 import { LS } from './core/persistence/storage-keys.const';
@@ -33,7 +33,7 @@ import { LanguageService } from './core/language/language.service';
 import { WorkContextService } from './features/work-context/work-context.service';
 import { SyncTriggerService } from './imex/sync/sync-trigger.service';
 import { ActivatedRoute, RouterOutlet } from '@angular/router';
-import { concatMap, filter, first, map, switchMap, take } from 'rxjs/operators';
+import { concatMap, first, take } from 'rxjs/operators';
 
 import { IS_MOBILE } from './util/is-mobile';
 import { warpAnimation, warpInAnimation } from './ui/animations/warp.ani';
@@ -54,12 +54,12 @@ import { MarkdownPasteService } from './features/tasks/markdown-paste.service';
 import { TaskService } from './features/tasks/task.service';
 import { MatMenuItem } from '@angular/material/menu';
 import { MatIcon } from '@angular/material/icon';
-import { DialogUnsplashPickerComponent } from './ui/dialog-unsplash-picker/dialog-unsplash-picker.component';
 import { NoteStartupBannerService } from './features/note/note-startup-banner.service';
 import { ProjectService } from './features/project/project.service';
 import { TagService } from './features/tag/tag.service';
 import { ContextMenuComponent } from './ui/context-menu/context-menu.component';
-import { WorkContextThemeCfg } from './features/work-context/work-context.model';
+import { WorkContextType } from './features/work-context/work-context.model';
+import type { WorkContextSettingsDialogData } from './features/work-context/dialog-work-context-settings/dialog-work-context-settings.component';
 import { isInputElement } from './util/dom-element';
 import { MobileBottomNavComponent } from './core-ui/mobile-bottom-nav/mobile-bottom-nav.component';
 import { StartupService } from './core/startup/startup.service';
@@ -342,56 +342,27 @@ export class AppComponent implements OnDestroy, AfterViewInit {
     return baseOpacity * 0.01;
   });
 
-  changeBackgroundFromUnsplash(): void {
-    const dialogRef = this._matDialog.open(DialogUnsplashPickerComponent, {
-      width: '900px',
-      maxWidth: '95vw',
+  async openSettings(): Promise<void> {
+    const isForProject =
+      this.workContextService.activeWorkContextType === WorkContextType.PROJECT;
+    const contextId = this.workContextService.activeWorkContextId;
+    if (!contextId) {
+      return;
+    }
+    const entity = isForProject
+      ? await firstValueFrom(this._projectService.getByIdOnce$(contextId))
+      : await firstValueFrom(this._tagService.getTagById$(contextId).pipe(first()));
+
+    const { DialogWorkContextSettingsComponent } =
+      await import('./features/work-context/dialog-work-context-settings/dialog-work-context-settings.component');
+    this._matDialog.open(DialogWorkContextSettingsComponent, {
+      restoreFocus: true,
+      backdropClass: 'cdk-overlay-transparent-backdrop',
+      data: {
+        isProject: isForProject,
+        entity,
+      } as WorkContextSettingsDialogData,
     });
-
-    dialogRef
-      .afterClosed()
-      .pipe(
-        filter((result) => !!result),
-        switchMap((result) =>
-          this.workContextService.activeWorkContext$.pipe(
-            take(1),
-            map((activeContext) => ({ result, activeContext })),
-          ),
-        ),
-      )
-      .subscribe(({ result, activeContext }) => {
-        if (!activeContext) {
-          this._snackService.open({
-            type: 'ERROR',
-            msg: 'No active work context',
-          });
-          return;
-        }
-
-        // Extract the URL from the result object
-        const backgroundUrl = result.url || result;
-        const isDarkMode = this._globalThemeService.isDarkTheme();
-        const contextKey: keyof WorkContextThemeCfg = isDarkMode
-          ? 'backgroundImageDark'
-          : 'backgroundImageLight';
-
-        // Update the theme based on context type
-        if (activeContext.type === 'PROJECT') {
-          this._projectService.update(activeContext.id, {
-            theme: {
-              ...(activeContext.theme || {}),
-              [contextKey]: backgroundUrl,
-            },
-          });
-        } else if (activeContext.type === 'TAG') {
-          this._tagService.updateTag(activeContext.id, {
-            theme: {
-              ...(activeContext.theme || {}),
-              [contextKey]: backgroundUrl,
-            },
-          });
-        }
-      });
   }
 
   isAppEntrance = signal(!this.isShowOnboardingPresets());

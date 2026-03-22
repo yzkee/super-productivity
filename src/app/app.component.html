@@ -97,12 +97,17 @@
   <div style="min-width: 200px; max-width: 300px">
     <button
       mat-menu-item
-      (click)="changeBackgroundFromUnsplash()"
+      (click)="openSettings()"
       class="background-menu-item"
       style="width: 100%; overflow: hidden"
     >
-      <mat-icon>image</mat-icon>
-      <span>{{ T.APP.CONTEXT_MENU.CHANGE_BACKGROUND | translate }}</span>
+      <mat-icon>settings</mat-icon>
+      <span>{{
+        (workContextService.activeWorkContextType === 'PROJECT'
+          ? T.APP.CONTEXT_MENU.CHANGE_PROJECT_SETTINGS
+          : T.APP.CONTEXT_MENU.CHANGE_TAG_SETTINGS
+        ) | translate
+      }}</span>
     </button>
   </div>
 </ng-template>
