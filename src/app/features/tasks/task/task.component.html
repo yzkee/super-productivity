@@ -52,7 +52,6 @@
         class="done-toggle"
         [class.is-done]="showDoneAnimation() || t.isDone"
         [class.is-current]="isCurrent()"
-        [class.no-time-estimate]="!hasTimeEstimate()"
       >
         <svg
           class="done-toggle-svg"
@@ -68,7 +67,6 @@
           />
           <!-- Progress ring (only styled when playing) -->
           <circle
-            #progressCircle
             class="progress-ring"
             cx="12"
             cy="12"

@@ -16,7 +16,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { TaskService } from '../task.service';
-import { animationFrameScheduler, EMPTY, forkJoin, Subscription } from 'rxjs';
+import { EMPTY, forkJoin, Subscription } from 'rxjs';
 import {
   HideSubTasksMode,
   TaskCopy,
@@ -30,7 +30,7 @@ import {
   expandInOnlyAnimation,
 } from '../../../ui/animations/expand.ani';
 import { GlobalConfigService } from '../../config/global-config.service';
-import { concatMap, distinctUntilChanged, first, observeOn, tap } from 'rxjs/operators';
+import { concatMap, first, tap } from 'rxjs/operators';
 import { fadeAnimation } from '../../../ui/animations/fade.ani';
 import { PanDirective, PanEvent } from '../../../ui/swipe-gesture/pan.directive';
 import { TaskAttachmentService } from '../task-attachment/task-attachment.service';
@@ -223,11 +223,6 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     return (t.timeEstimate && (t.timeSpent / t.timeEstimate) * 100) || 0;
   });
 
-  hasTimeEstimate = computed(() => {
-    const t = this.task();
-    return !!(t.timeEstimate && t.timeEstimate > 0);
-  });
-
   isShowRemoveFromToday = computed(() => {
     return (
       !this.isTodayListActive() &&
@@ -264,7 +259,6 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   isDragReady = signal(false);
   private _dragReadyTimeout: number | undefined;
   private _doneAnimationTimeout: number | undefined;
-  private readonly _circumference = 10 * 2 * Math.PI;
   private _touchListenerCleanups: (() => void)[] = [];
   isLockPanLeft: boolean = false;
   isLockPanRight: boolean = false;
@@ -275,7 +269,6 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   _nextFocusTaskEl?: HTMLElement;
 
   readonly taskTitleEditEl = viewChild<TaskTitleComponent>('taskTitleEditEl');
-  readonly progressCircleRef = viewChild<ElementRef<SVGCircleElement>>('progressCircle');
   readonly blockLeftElRef = viewChild<ElementRef>('blockLeftEl');
   readonly blockRightElRef = viewChild<ElementRef>('blockRightEl');
   readonly innerWrapperElRef = viewChild<ElementRef>('innerWrapperEl');
@@ -318,28 +311,6 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     const sub = this._taskService.getByIdLive$(t.parentId).subscribe((parent) => {
       this._parentTaskTitle.set(parent?.title ?? null);
     });
-    onCleanup(() => sub.unsubscribe());
-  });
-
-  private _progressRingEffect = effect((onCleanup) => {
-    const current = this.isCurrent();
-    const task = this.task();
-    if (!current || task.isDone) {
-      return;
-    }
-    if (!task.timeEstimate || task.timeEstimate <= 0) {
-      return;
-    }
-    const sub = this._taskService.currentTaskProgress$
-      .pipe(observeOn(animationFrameScheduler), distinctUntilChanged())
-      .subscribe((progressIn) => {
-        const el = this.progressCircleRef()?.nativeElement;
-        if (el) {
-          const progress = Math.min(progressIn || 0, 1);
-          const dashOffset = this._circumference * -progress;
-          this._renderer.setStyle(el, 'stroke-dashoffset', String(dashOffset));
-        }
-      });
     onCleanup(() => sub.unsubscribe());
   });
 

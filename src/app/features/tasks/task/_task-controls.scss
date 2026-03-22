@@ -313,12 +313,15 @@ $check-len: 16;
 // circumference of r=10 circle: 2 * π * 10 ≈ 62.83
 $circle-circumference: 62.83;
 
-@keyframes progress-spin {
-  from {
+@keyframes circle-draw {
+  0% {
+    stroke-dashoffset: $circle-circumference;
+  }
+  80% {
     stroke-dashoffset: 0;
   }
-  to {
-    stroke-dashoffset: -#{$circle-circumference};
+  100% {
+    stroke-dashoffset: 0;
   }
 }
 
@@ -402,19 +405,30 @@ $circle-circumference: 62.83;
     }
 
     .done-circle {
-      opacity: 0.3;
+      opacity: 0.15;
     }
 
     .progress-ring {
       opacity: 1;
+      animation: circle-draw 3s ease-in-out infinite;
     }
 
     .play-indicator {
-      opacity: 1;
+      opacity: 0.5;
     }
 
-    &.no-time-estimate .progress-ring {
-      animation: progress-spin 60s linear infinite;
+    &:hover {
+      .done-circle {
+        opacity: 1;
+      }
+
+      .progress-ring {
+        opacity: 0;
+      }
+
+      .play-indicator {
+        opacity: 0;
+      }
     }
   }
 
