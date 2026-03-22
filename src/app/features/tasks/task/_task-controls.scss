@@ -317,7 +317,7 @@ $circle-circumference: 62.83;
   0% {
     stroke-dashoffset: $circle-circumference;
   }
-  80% {
+  50% {
     stroke-dashoffset: 0;
   }
   100% {
@@ -401,21 +401,17 @@ $circle-circumference: 62.83;
   }
 
   &.is-current:not(.is-done) {
-    .done-toggle-svg {
-      opacity: 1;
-    }
-
     .done-circle {
       opacity: 0;
     }
 
     .progress-ring {
       opacity: 1;
-      animation: circle-draw 2s ease-in-out infinite;
+      animation: circle-draw 4s ease-in-out infinite;
     }
 
     .play-indicator {
-      opacity: 0.5;
+      opacity: 1;
     }
 
     &:hover {
