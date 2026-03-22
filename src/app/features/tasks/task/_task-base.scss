@@ -241,5 +241,9 @@
 
   @include isDoneForFirstLine {
     opacity: var(--task-is-done-dim-opacity);
+
+    ::ng-deep .display-value {
+      text-decoration: line-through;
+    }
   }
 }

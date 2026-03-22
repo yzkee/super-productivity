@@ -53,3 +53,17 @@ body .first-line:hover .all-controls-wrapper {
   background: var(--bg) !important;
   border-radius: var(--task-border-radius);
 }
+
+/* Flatten subtask toggle button */
+body .toggle-sub-tasks-btn.toggle-sub-tasks-btn {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body .toggle-sub-tasks-btn.toggle-sub-tasks-btn:hover {
+  background: rgba(128, 128, 128, 0.12) !important;
+}
+
+body.isDarkTheme .toggle-sub-tasks-btn.toggle-sub-tasks-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
