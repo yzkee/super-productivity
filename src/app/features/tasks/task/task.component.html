@@ -51,21 +51,36 @@
         tabindex="0"
         class="done-toggle"
         [class.is-done]="showDoneAnimation() || t.isDone"
+        [class.is-current]="isCurrent()"
       >
         <svg
           class="done-toggle-svg"
           viewBox="0 0 24 24"
           fill="none"
         >
+          <!-- Background circle (always visible) -->
           <circle
             class="done-circle"
             cx="12"
             cy="12"
             r="10"
           />
+          <!-- Progress ring (only styled when playing) -->
+          <circle
+            class="progress-ring"
+            cx="12"
+            cy="12"
+            r="10"
+          />
+          <!-- Checkmark (shown when done) -->
           <polyline
             class="done-check"
             points="8,12 11,15 16,9"
+          />
+          <!-- Play triangle (shown when current/playing) -->
+          <polygon
+            class="play-indicator"
+            points="10,7 10,17 17,12"
           />
         </svg>
       </div>

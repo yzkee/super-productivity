@@ -310,6 +310,21 @@ $check-len: 16;
   }
 }
 
+// circumference of r=10 circle: 2 * π * 10 ≈ 62.83
+$circle-circumference: 62.83;
+
+@keyframes circle-draw {
+  0% {
+    stroke-dashoffset: $circle-circumference;
+  }
+  35% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
 .done-toggle {
   margin-left: var(--s);
   margin-right: 0;
@@ -356,6 +371,25 @@ $check-len: 16;
     stroke-dashoffset: $check-len;
   }
 
+  .progress-ring {
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    fill: none;
+    stroke-dasharray: $circle-circumference;
+    stroke-dashoffset: 0;
+    transform-origin: center;
+    transform: rotate(-90deg);
+    opacity: 0;
+    transition: opacity var(--transition-duration-m) var(--ani-standard-timing);
+  }
+
+  .play-indicator {
+    fill: currentColor;
+    opacity: 0;
+    transition: opacity var(--transition-duration-m) var(--ani-standard-timing);
+  }
+
   &.is-done {
     .done-toggle-svg {
       opacity: 0.5;
@@ -363,6 +397,35 @@ $check-len: 16;
 
     .done-check {
       animation: draw-check 150ms ease-out forwards;
+    }
+  }
+
+  &.is-current:not(.is-done) {
+    .done-circle {
+      opacity: 0;
+    }
+
+    .progress-ring {
+      opacity: 1;
+      animation: circle-draw 6s ease-in-out infinite;
+    }
+
+    .play-indicator {
+      opacity: 1;
+    }
+
+    &:hover {
+      .done-circle {
+        opacity: 1;
+      }
+
+      .progress-ring {
+        opacity: 0;
+      }
+
+      .play-indicator {
+        opacity: 0;
+      }
     }
   }
 
