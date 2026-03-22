@@ -55,6 +55,7 @@ import {
 } from '../tasks/store/task.selectors';
 import { CollapsibleComponent } from '../../ui/collapsible/collapsible.component';
 import { SnackService } from '../../core/snack/snack.service';
+import { GlobalConfigService } from '../config/global-config.service';
 import { Store } from '@ngrx/store';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { TODAY_TAG } from '../tag/tag.const';
@@ -111,6 +112,11 @@ export class WorkViewComponent implements OnInit, OnDestroy {
   private _cd = inject(ChangeDetectorRef);
   private _store = inject(Store);
   private _snackService = inject(SnackService);
+  private _globalConfigService = inject(GlobalConfigService);
+
+  isFinishDayEnabled = computed(
+    () => this._globalConfigService.appFeatures().isFinishDayEnabled,
+  );
 
   // TODO refactor all to signals
   overdueTasks = toSignal(this._store.select(selectOverdueTasksWithSubTasks), {

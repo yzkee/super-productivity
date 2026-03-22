@@ -26,23 +26,6 @@ const FINISH_DAY_BTN = '.e2e-finish-day';
 const SAVE_AND_GO_HOME_BTN = 'button[mat-flat-button][color="primary"]:last-of-type';
 
 /**
- * Helper to dismiss welcome tour dialog if present
- */
-const dismissWelcomeDialog = async (page: Page): Promise<void> => {
-  try {
-    // Try multiple selectors for the close button
-    const closeBtn = page.locator('button:has-text("No thanks")').first();
-    const isVisible = await closeBtn.isVisible().catch(() => false);
-    if (isVisible) {
-      await closeBtn.click();
-      await page.waitForTimeout(500);
-    }
-  } catch {
-    // Dialog not present, ignore
-  }
-};
-
-/**
  * Helper to trigger and capture download
  */
 const captureDownload = async (page: Page): Promise<Download> => {
@@ -80,9 +63,6 @@ const markAllTasksDone = async (page: Page): Promise<void> => {
   const maxAttempts = 6;
 
   while (attempts < maxAttempts) {
-    // Check for and dismiss welcome dialog if it appeared
-    await dismissWelcomeDialog(page);
-
     const undoneLocator = page.locator('task:not(.isDone)');
     const undoneCount = await undoneLocator.count();
     console.log(
@@ -174,16 +154,12 @@ test.describe('@legacy-archive Legacy Archive Subtasks via Finish Day', () => {
     await expect(page).toHaveURL(/.*tag.*TODAY.*tasks/);
     console.log('[Legacy Archive Test] Import completed');
 
-    // Dismiss welcome dialog if present
-    await dismissWelcomeDialog(page);
-
     // Step 2: Navigate to INBOX project to see tasks
     // Note: We navigate to INBOX project because the backup has dueDay in the past,
     // and TODAY tag only shows tasks with dueDay === today (virtual tag pattern)
     console.log('[Legacy Archive Test] Step 2: Navigating to INBOX project...');
     await page.goto('/#/project/INBOX_PROJECT/tasks');
     await page.waitForLoadState('networkidle');
-    await dismissWelcomeDialog(page);
     await page.waitForTimeout(1000);
 
     // Verify tasks are visible (parent tasks - subtasks are nested)
@@ -273,13 +249,11 @@ test.describe('@legacy-archive Legacy Archive Subtasks via Finish Day', () => {
     const backupPath = ImportPage.getFixturePath('legacy-archive-subtasks-backup.json');
     await importPage.importBackupFile(backupPath);
     await expect(page).toHaveURL(/.*tag.*TODAY.*tasks/);
-    await dismissWelcomeDialog(page);
 
     // Navigate to INBOX project and mark all done
     // Note: We navigate to INBOX project because the backup has dueDay in the past
     await page.goto('/#/project/INBOX_PROJECT/tasks');
     await page.waitForLoadState('networkidle');
-    await dismissWelcomeDialog(page);
     await page.waitForTimeout(1000);
     await markAllTasksDone(page);
 
@@ -328,12 +302,10 @@ test.describe('@legacy-archive Legacy Archive Subtasks via Finish Day', () => {
     const backupPath = ImportPage.getFixturePath('legacy-archive-subtasks-backup.json');
     await importPage.importBackupFile(backupPath);
     await expect(page).toHaveURL(/.*tag.*TODAY.*tasks/);
-    await dismissWelcomeDialog(page);
 
     // Navigate to INBOX project because backup has dueDay in the past
     await page.goto('/#/project/INBOX_PROJECT/tasks');
     await page.waitForLoadState('networkidle');
-    await dismissWelcomeDialog(page);
     await page.waitForTimeout(1000);
     await markAllTasksDone(page);
 
