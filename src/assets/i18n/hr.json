@@ -2358,6 +2358,33 @@
     "STATUS_MIGRATING": "Migracija podataka...",
     "STATUS_PREPARING": "Priprema migracije..."
   },
+  "ONBOARDING": {
+    "TITLE": "Kako želite koristiti Super Productivity?",
+    "SUBTITLE": "Odaberite postavke koje odgovaraju vašem načinu rada. Uvijek to možete promijeniti kasnije u Postavkama.",
+    "PRIVACY_HINT": "Vaši podaci ostaju sigurni na vašem uređaju. Ništa se ne šalje na poslužitelj.",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "Jednostavan popis zadataka",
+        "DESCRIPTION": "Pregledni upravitelj zadataka s projektima, oznakama i bilješkama. Bez dodataka."
+      },
+      "TIME_TRACKER": {
+        "TITLE": "Praćenje vremena",
+        "DESCRIPTION": "Pratite koliko vremena zadaci oduzimaju. Idealno za fakturiranje sati ili razumijevanje na što trošite vrijeme."
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "Paket produktivnosti",
+        "DESCRIPTION": "Planirajte dan, izgradite navike, duboko se koncentrirajte i pratite vrijeme. Sve na jednom mjestu."
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "Kliknite + za dodavanje prvog zadatka",
+      "CREATE_TASK_TOUCH": "Dodirnite + za dodavanje prvog zadatka",
+      "EXPLORE": "Slobodno klikajte i istražujte! Pomoć možete pronaći u bočnoj traci.",
+      "EXPLORE_TOUCH": "Slobodno istražujte! Pomoć možete pronaći u izborniku.",
+      "OR_PRESS": "ili pritisnite",
+      "SKIP_ARIA": "Zatvori savjet"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Ajoute travay ki soti nan jodi a",
     "BREAK_LABEL": "Pauze (broj / vrijeme)",

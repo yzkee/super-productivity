@@ -303,22 +303,7 @@ export class WorkViewComponent implements OnInit, OnDestroy {
   async moveDoneToArchive(): Promise<void> {
     const doneTasks = this.doneTasks();
 
-    // Add detailed logging for debugging
-    console.log('[WorkView] moveDoneToArchive called with:', {
-      doneTasks,
-      type: typeof doneTasks,
-      isArray: Array.isArray(doneTasks),
-      length: doneTasks?.length,
-      projectId: this.workContextService.activeWorkContextId,
-      contextType: this.workContextService.activeWorkContextType,
-    });
-
-    if (!doneTasks || !Array.isArray(doneTasks)) {
-      console.error('[WorkView] doneTasks is not an array:', doneTasks);
-      return;
-    }
-
-    if (doneTasks.length === 0) {
+    if (!doneTasks || doneTasks.length === 0) {
       return;
     }
 

@@ -2382,6 +2382,33 @@
     "TASK_ALREADY_COMPLETED": "任務已完成",
     "TASK_MARKED_DONE": "任務已標記為完成"
   },
+  "ONBOARDING": {
+    "TITLE": "你想如何使用 Super Productivity？",
+    "SUBTITLE": "選擇適合你工作方式的設定。你可以隨時在設定中更改。",
+    "PRIVACY_HINT": "你的資料安全地保存在你的裝置上。不會向伺服器傳送任何內容。",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "簡單待辦清單",
+        "DESCRIPTION": "簡潔的任務管理器，支援專案、標籤和筆記。沒有多餘功能。"
+      },
+      "TIME_TRACKER": {
+        "TITLE": "時間追蹤",
+        "DESCRIPTION": "記錄任務所花的時間。非常適合計費或了解時間都花在了哪裡。"
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "生產力套件",
+        "DESCRIPTION": "規劃你的一天，養成習慣，深度專注，追蹤時間。一站式搞定。"
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "點擊 + 新增你的第一個任務",
+      "CREATE_TASK_TOUCH": "點按 + 新增你的第一個任務",
+      "EXPLORE": "隨意點擊探索吧！你可以在側邊欄找到說明。",
+      "EXPLORE_TOUCH": "隨意點按探索吧！你可以在選單中找到說明。",
+      "OR_PRESS": "或按",
+      "SKIP_ARIA": "關閉提示"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "從今天新增工作",
     "ARCHIVED_TASKS": {

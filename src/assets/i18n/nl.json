@@ -2377,6 +2377,33 @@
     "STATUS_MIGRATING": "Gegevens migreren...",
     "STATUS_PREPARING": "Migratie voorbereiden..."
   },
+  "ONBOARDING": {
+    "TITLE": "Hoe wil je Super Productivity gebruiken?",
+    "SUBTITLE": "Kies een instelling die bij je werkwijze past. Je kunt dit later altijd wijzigen in Instellingen.",
+    "PRIVACY_HINT": "Je gegevens blijven veilig op je apparaat. Er wordt niets naar een server verzonden.",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "Eenvoudige takenlijst",
+        "DESCRIPTION": "Een overzichtelijke taakbeheerder met projecten, tags en notities. Zonder extra's."
+      },
+      "TIME_TRACKER": {
+        "TITLE": "Tijdregistratie",
+        "DESCRIPTION": "Registreer hoeveel tijd taken kosten. Ideaal voor het factureren van uren of om te begrijpen waar je tijd naartoe gaat."
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "Productiviteitspakket",
+        "DESCRIPTION": "Plan je dag, bouw gewoontes op, focus diep en registreer je tijd. Alles op één plek."
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "Klik op + om je eerste taak toe te voegen",
+      "CREATE_TASK_TOUCH": "Tik op + om je eerste taak toe te voegen",
+      "EXPLORE": "Klik gerust rond en ontdek alles! Je vindt hulp in de zijbalk.",
+      "EXPLORE_TOUCH": "Tik gerust rond en ontdek alles! Je vindt hulp in het menu.",
+      "OR_PRESS": "of druk op",
+      "SKIP_ARIA": "Hint sluiten"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Taken toevoegen vanaf vandaag",
     "ARCHIVED_TASKS": {

@@ -2369,6 +2369,33 @@
     "STATUS_MIGRATING": "Migrerar data...",
     "STATUS_PREPARING": "Förbereder migrering..."
   },
+  "ONBOARDING": {
+    "TITLE": "Hur vill du använda Super Productivity?",
+    "SUBTITLE": "Välj en inställning som passar ditt arbetsflöde. Du kan alltid ändra detta senare i Inställningar.",
+    "PRIVACY_HINT": "Dina data förblir säkert på din enhet. Inget skickas till en server.",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "Enkel uppgiftslista",
+        "DESCRIPTION": "En ren uppgiftshanterare med projekt, taggar och anteckningar. Inga extra funktioner."
+      },
+      "TIME_TRACKER": {
+        "TITLE": "Tidsspårning",
+        "DESCRIPTION": "Spåra hur lång tid uppgifter tar. Perfekt för tidsredovisning eller för att förstå var din tid går."
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "Produktivitetspaket",
+        "DESCRIPTION": "Planera din dag, bygg vanor, fokusera djupt och spåra tid. Allt på ett ställe."
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "Klicka på + för att lägga till din första uppgift",
+      "CREATE_TASK_TOUCH": "Tryck på + för att lägga till din första uppgift",
+      "EXPLORE": "Klicka runt och utforska fritt! Du hittar hjälp i sidopanelen.",
+      "EXPLORE_TOUCH": "Tryck runt och utforska fritt! Du hittar hjälp i menyn.",
+      "OR_PRESS": "eller tryck",
+      "SKIP_ARIA": "Stäng ledtråd"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Lägg till uppgifter från idag",
     "ARCHIVED_TASKS": {

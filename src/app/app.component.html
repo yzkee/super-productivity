@@ -82,6 +82,10 @@
   ></onboarding-preset-selection>
 }
 
+@if (onboardingHintService.currentStep()) {
+  <onboarding-hint></onboarding-hint>
+}
+
 <!-- Background context menu -->
 @if (routeWrapper) {
   <context-menu

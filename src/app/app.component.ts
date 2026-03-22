@@ -68,6 +68,8 @@ import { ExampleTasksService } from './core/example-tasks/example-tasks.service'
 import { KeyboardLayoutService } from './core/keyboard-layout/keyboard-layout.service';
 import { setKeyboardLayoutService } from './util/check-key-combo';
 import { OnboardingPresetSelectionComponent } from './features/onboarding/onboarding-preset-selection.component';
+import { OnboardingHintComponent } from './features/onboarding/onboarding-hint.component';
+import { OnboardingHintService } from './features/onboarding/onboarding-hint.service';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -102,6 +104,7 @@ interface BeforeInstallPromptEvent extends Event {
     ContextMenuComponent,
     MobileBottomNavComponent,
     OnboardingPresetSelectionComponent,
+    OnboardingHintComponent,
   ],
 })
 export class AppComponent implements OnDestroy, AfterViewInit {
@@ -126,6 +129,7 @@ export class AppComponent implements OnDestroy, AfterViewInit {
   private _exampleTasksService = inject(ExampleTasksService);
   private _keyboardLayoutService = inject(KeyboardLayoutService);
   private _dataInitStateService = inject(DataInitStateService);
+  readonly onboardingHintService = inject(OnboardingHintService);
 
   private _syncTriggerService = inject(SyncTriggerService);
   readonly workContextService = inject(WorkContextService);
@@ -293,7 +297,11 @@ export class AppComponent implements OnDestroy, AfterViewInit {
   @HostListener('window:beforeinstallprompt', ['$event']) onBeforeInstallPrompt(
     e: BeforeInstallPromptEvent,
   ): void {
-    if (IS_ELECTRON || localStorage.getItem(LS.WEB_APP_INSTALL)) {
+    if (
+      IS_ELECTRON ||
+      localStorage.getItem(LS.WEB_APP_INSTALL) ||
+      OnboardingHintService.isOnboardingInProgress()
+    ) {
       return;
     }
 
@@ -403,6 +411,7 @@ export class AppComponent implements OnDestroy, AfterViewInit {
     }, 1000);
     setTimeout(() => {
       this.isAppEntrance.set(false);
+      this.onboardingHintService.startAfterPresetSelection();
     }, 2000);
   }
 

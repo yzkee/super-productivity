@@ -2377,6 +2377,33 @@
     "STATUS_MIGRATING": "Migrando dados...",
     "STATUS_PREPARING": "Preparando migração..."
   },
+  "ONBOARDING": {
+    "TITLE": "Como você quer usar o Super Productivity?",
+    "SUBTITLE": "Escolha uma configuração que combine com seu fluxo de trabalho. Você pode mudar isso depois nas Configurações.",
+    "PRIVACY_HINT": "Seus dados ficam seguros no seu dispositivo. Nada é enviado para um servidor.",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "Lista de tarefas simples",
+        "DESCRIPTION": "Um gerenciador de tarefas limpo com projetos, tags e notas. Sem extras."
+      },
+      "TIME_TRACKER": {
+        "TITLE": "Controle de tempo",
+        "DESCRIPTION": "Acompanhe quanto tempo suas tarefas levam. Ótimo para faturar horas ou entender onde seu tempo é gasto."
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "Suíte de Produtividade",
+        "DESCRIPTION": "Planeje seu dia, crie hábitos, foque e acompanhe seu tempo. Tudo em um só lugar."
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "Clique em + para adicionar sua primeira tarefa",
+      "CREATE_TASK_TOUCH": "Toque em + para adicionar sua primeira tarefa",
+      "EXPLORE": "Fique à vontade para clicar e explorar! Você encontra ajuda na barra lateral.",
+      "EXPLORE_TOUCH": "Fique à vontade para explorar! Você encontra ajuda no menu.",
+      "OR_PRESS": "ou pressione",
+      "SKIP_ARIA": "Fechar dica"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Adicionar tarefas de hoje",
     "ARCHIVED_TASKS": {

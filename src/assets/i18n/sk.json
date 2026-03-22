@@ -2377,6 +2377,33 @@
     "STATUS_MIGRATING": "Migrácia dát...",
     "STATUS_PREPARING": "Príprava migrácie..."
   },
+  "ONBOARDING": {
+    "TITLE": "Ako chcete používať Super Productivity?",
+    "SUBTITLE": "Vyberte si nastavenie, ktoré zodpovedá vášmu pracovnému postupu. Môžete to kedykoľvek zmeniť v Nastaveniach.",
+    "PRIVACY_HINT": "Vaše údaje zostávajú bezpečne na vašom zariadení. Na server sa nič neodosiela.",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "Jednoduchý zoznam úloh",
+        "DESCRIPTION": "Prehľadný správca úloh s projektmi, štítkami a poznámkami. Bez zbytočností."
+      },
+      "TIME_TRACKER": {
+        "TITLE": "Sledovanie času",
+        "DESCRIPTION": "Sledujte, koľko času zaberajú úlohy. Skvelé na fakturáciu hodín alebo pochopenie, kam váš čas odchádza."
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "Sada produktivity",
+        "DESCRIPTION": "Plánujte svoj deň, budujte návyky, sústreďte sa a sledujte čas. Všetko na jednom mieste."
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "Kliknite na + pre pridanie prvej úlohy",
+      "CREATE_TASK_TOUCH": "Ťuknite na + pre pridanie prvej úlohy",
+      "EXPLORE": "Kľudne klikajte a objavujte! Pomoc nájdete v bočnom paneli.",
+      "EXPLORE_TOUCH": "Kľudne objavujte! Pomoc nájdete v menu.",
+      "OR_PRESS": "alebo stlačte",
+      "SKIP_ARIA": "Zavrieť nápovedu"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Pridanie úloh z dnešného dňa",
     "ARCHIVED_TASKS": {

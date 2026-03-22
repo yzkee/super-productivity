@@ -44,6 +44,8 @@ export const ONBOARDING_PRESETS: OnboardingPreset[] = [
     features: {
       ...BASE_FEATURES,
       isTimeTrackingEnabled: true,
+      isPlannerEnabled: true,
+      isFinishDayEnabled: true,
       isScheduleDayPanelEnabled: true,
       isProjectNotesEnabled: true,
     },

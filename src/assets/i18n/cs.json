@@ -2381,6 +2381,33 @@
     "DIALOG_TITLE": "Aktualizace systému",
     "DIALOG_MESSAGE": "Aktualizujeme způsob ukládání dat pro lepší spolehlivost synchronizace.<br><br>Záloha vašich dat bude automaticky stažena. Tuto zálohu můžete použít k obnovení dat v případě potřeby (Soubor > Import)."
   },
+  "ONBOARDING": {
+    "TITLE": "Jak chcete používat Super Productivity?",
+    "SUBTITLE": "Vyberte si nastavení, které odpovídá vašemu pracovnímu postupu. Můžete to kdykoliv změnit v Nastavení.",
+    "PRIVACY_HINT": "Vaše data zůstávají bezpečně na vašem zařízení. Na server se nic neodesílá.",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "Jednoduchý seznam úkolů",
+        "DESCRIPTION": "Přehledný správce úkolů s projekty, štítky a poznámkami. Bez zbytečností."
+      },
+      "TIME_TRACKER": {
+        "TITLE": "Sledování času",
+        "DESCRIPTION": "Sledujte, kolik času zabírají úkoly. Skvělé pro fakturaci hodin nebo pochopení, kam váš čas odchází."
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "Sada produktivity",
+        "DESCRIPTION": "Plánujte svůj den, budujte návyky, soustřeďte se a sledujte čas. Vše na jednom místě."
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "Klikněte na + pro přidání prvního úkolu",
+      "CREATE_TASK_TOUCH": "Klepněte na + pro přidání prvního úkolu",
+      "EXPLORE": "Klidně klikejte a prozkoumávejte! Nápovědu najdete v postranním panelu.",
+      "EXPLORE_TOUCH": "Klidně prozkoumávejte! Nápovědu najdete v menu.",
+      "OR_PRESS": "nebo stiskněte",
+      "SKIP_ARIA": "Zavřít nápovědu"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "Přidat úkoly z dneška",
     "ARCHIVED_TASKS": {

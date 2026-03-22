@@ -2358,6 +2358,33 @@
     "STATUS_MIGRATING": "데이터 마이그레이션 중...",
     "STATUS_PREPARING": "마이그레이션 준비 중..."
   },
+  "ONBOARDING": {
+    "TITLE": "Super Productivity를 어떻게 사용하시겠어요?",
+    "SUBTITLE": "작업 방식에 맞는 설정을 선택하세요. 나중에 설정에서 언제든지 변경할 수 있습니다.",
+    "PRIVACY_HINT": "데이터는 기기에 안전하게 저장됩니다. 서버로 전송되는 것은 없습니다.",
+    "PRESETS": {
+      "SIMPLE_TODO": {
+        "TITLE": "간단한 할 일 목록",
+        "DESCRIPTION": "프로젝트, 태그, 메모가 있는 깔끔한 작업 관리자. 부가 기능 없음."
+      },
+      "TIME_TRACKER": {
+        "TITLE": "시간 추적",
+        "DESCRIPTION": "작업에 걸리는 시간을 기록하세요. 근무 시간 청구나 시간 사용 파악에 적합합니다."
+      },
+      "PRODUCTIVITY_PRO": {
+        "TITLE": "생산성 스위트",
+        "DESCRIPTION": "하루를 계획하고, 습관을 만들고, 깊이 집중하고, 시간을 추적하세요. 모두 한 곳에서."
+      }
+    },
+    "HINTS": {
+      "CREATE_TASK": "+를 클릭하여 첫 번째 작업을 추가하세요",
+      "CREATE_TASK_TOUCH": "+를 탭하여 첫 번째 작업을 추가하세요",
+      "EXPLORE": "자유롭게 클릭하며 둘러보세요! 사이드바에서 도움말을 찾을 수 있습니다.",
+      "EXPLORE_TOUCH": "자유롭게 탭하며 둘러보세요! 메뉴에서 도움말을 찾을 수 있습니다.",
+      "OR_PRESS": "또는",
+      "SKIP_ARIA": "힌트 닫기"
+    }
+  },
   "PDS": {
     "ADD_TASKS_FROM_TODAY": "오늘부터 할 일 추가",
     "BREAK_LABEL": "휴식 (nr / 시간)",
