@@ -1,4 +1,5 @@
-import { test, expect, type Page, type Download } from '@playwright/test';
+import { test, expect } from '../../fixtures/test.fixture';
+import { type Page, type Download } from '@playwright/test';
 import { ImportPage } from '../../pages/import.page';
 import * as fs from 'fs';
 
