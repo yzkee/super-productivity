@@ -374,6 +374,7 @@ $circle-circumference: 62.83;
   .progress-ring {
     stroke: currentColor;
     stroke-width: 2;
+    stroke-linecap: round;
     fill: none;
     stroke-dasharray: $circle-circumference;
     stroke-dashoffset: 0;
