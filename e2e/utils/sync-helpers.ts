@@ -6,11 +6,7 @@ import {
 } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { waitForAppReady } from './waits';
-import { dismissTourIfVisible, dismissWelcomeDialog } from './tour-helpers';
 import type { SyncPage } from '../pages/sync.page';
-
-// Re-export tour helpers for convenience
-export { dismissTourIfVisible, dismissWelcomeDialog };
 
 /**
  * WebDAV configuration interface
@@ -91,7 +87,7 @@ export const createWebDavFolder = async (
 
 /**
  * Creates a new browser context and page for sync testing.
- * Handles app initialization, tour dismissal, and auto-accepts fresh client sync confirmations.
+ * Handles app initialization and auto-accepts fresh client sync confirmations.
  *
  * @param browser - Playwright Browser instance
  * @param baseURL - Base URL for the app
@@ -128,7 +124,6 @@ export const setupSyncClient = async (
 
   await page.goto('/');
   await waitForAppReady(page);
-  await dismissTourIfVisible(page);
   return { context, page };
 };
 

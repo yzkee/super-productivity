@@ -10,7 +10,6 @@ import { TagPage } from '../pages/tag.page';
 import { NotePage } from '../pages/note.page';
 import { SideNavPage } from '../pages/side-nav.page';
 import { waitForAppReady } from '../utils/waits';
-import { dismissTourIfVisible } from '../utils/tour-helpers';
 
 type TestFixtures = {
   workViewPage: WorkViewPage;
@@ -81,9 +80,6 @@ export const test = base.extend<TestFixtures>({
       }
 
       await waitForAppReady(page);
-
-      // Dismiss Shepherd tour if it appears
-      await dismissTourIfVisible(page);
 
       await use(page);
     } finally {
