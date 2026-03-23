@@ -68,6 +68,13 @@ body.isDarkTheme .toggle-sub-tasks-btn.toggle-sub-tasks-btn:hover {
   background: rgba(255, 255, 255, 0.08) !important;
 }
 
+/* Remove borders from repeat projections and non-added calendar events */
+body planner-repeat-projection > div,
+body planner-calendar-event {
+  --extra-border-color: transparent;
+  --separator-color: transparent;
+}
+
 /* Give current task a background when sticky (page scrolled) */
 app-root.isWorkViewScrolled task.isCurrent .box {
   background: var(--bg);
