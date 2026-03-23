@@ -65,7 +65,7 @@
             cy="12"
             r="10"
           />
-          @if (isCurrent() && !t.isDone) {
+          @if (isCurrent() && !t.isDone && !showDoneAnimation()) {
             <!-- Progress ring (only rendered for current task) -->
             <circle
               class="progress-ring"
