@@ -340,8 +340,10 @@
         "ISSUE_STR": "issue",
         "ISSUES_STR": "issues"
       },
+      "DEFAULT_NOTE_LABEL": "Default note for imported tasks",
       "DEFAULT_PROJECT_DESCRIPTION": "Project assigned to tasks created from issues.",
       "DEFAULT_PROJECT_LABEL": "Default Super Productivity Project",
+      "DEFAULT_TAGS_LABEL": "Default tags for imported tasks",
       "HOW_TO_GET_A_TOKEN": "How to get a token?",
       "ISSUE_CONTENT": {
         "ASSIGNEE": "Assignee",
