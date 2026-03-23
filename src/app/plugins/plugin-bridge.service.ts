@@ -37,7 +37,8 @@ import { WorkContextService } from '../features/work-context/work-context.servic
 import { ProjectService } from '../features/project/project.service';
 import { TagService } from '../features/tag/tag.service';
 import typia from 'typia';
-import { first, take, map } from 'rxjs/operators';
+import { first, map, take } from 'rxjs/operators';
+import { firstValueFrom } from 'rxjs';
 import { selectTaskByIdWithSubTaskData } from '../features/tasks/store/task.selectors';
 import { PluginUserPersistenceService } from './plugin-user-persistence.service';
 import { PluginConfigService } from './plugin-config.service';
@@ -71,10 +72,10 @@ import {
 } from '../features/simple-counter/simple-counter.model';
 import { EMPTY_SIMPLE_COUNTER } from '../features/simple-counter/simple-counter.const';
 import {
-  upsertSimpleCounter,
-  updateSimpleCounter,
   deleteSimpleCounter,
   toggleSimpleCounterCounter,
+  updateSimpleCounter,
+  upsertSimpleCounter,
 } from '../features/simple-counter/store/simple-counter.actions';
 import { getDbDateStr } from '../util/get-db-date-str';
 
@@ -483,15 +484,52 @@ export class PluginBridgeService implements OnDestroy {
     typia.assert<string>(taskId);
     typia.assert<Partial<TaskCopy>>(updates);
 
-    // Validate that referenced project, tags, and parent task exist if they are being updated
+    // Validate that referenced project, tags and parent task exist if they are being updated
     await this._validateTaskReferences(
       updates.projectId,
       updates.tagIds,
       updates.parentId,
     );
 
-    // Update the task using TaskService (TaskCopy is compatible with Task)
-    this._taskService.update(taskId, updates);
+    const { projectId, ...otherUpdates } = updates;
+
+    if (projectId !== undefined) {
+      const taskWithSubTasks = await firstValueFrom(
+        this._store.select((state) =>
+          selectTaskByIdWithSubTaskData(state, { id: taskId }),
+        ),
+      );
+
+      if (!taskWithSubTasks?.id || taskWithSubTasks.id !== taskId) {
+        throw new Error(
+          this._translateService.instant(T.PLUGINS.TASK_NOT_FOUND, { taskId }),
+        );
+      }
+
+      if (taskWithSubTasks.parentId) {
+        throw new Error(
+          'Subtasks cannot be moved directly. Move the parent task instead.',
+        );
+      }
+
+      if (taskWithSubTasks.projectId === projectId) {
+        PluginLog.log('PluginBridge: Task already in target project', {
+          taskId,
+          projectId,
+        });
+      } else {
+        this._taskService.moveToProject(taskWithSubTasks, projectId);
+
+        PluginLog.log('PluginBridge: Task moved to project successfully', {
+          taskId,
+          projectId,
+        });
+      }
+    }
+
+    if (Object.keys(otherUpdates).length > 0) {
+      this._taskService.update(taskId, otherUpdates);
+    }
 
     PluginLog.log('PluginBridge: Task updated successfully', { taskId, updates });
   }
