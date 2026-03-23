@@ -344,6 +344,14 @@
       "DEFAULT_PROJECT_DESCRIPTION": "Project assigned to tasks created from issues.",
       "DEFAULT_PROJECT_LABEL": "Default Super Productivity Project",
       "DEFAULT_TAGS_LABEL": "Default tags for imported tasks",
+      "FORM": {
+        "AUTO_ADD_TO_BACKLOG": "Auto import to default project (requires default project)",
+        "AUTO_POLL": "Poll imported for changes and notify",
+        "POLLING_MODE": "Polling trigger",
+        "POLLING_MODE_DESCRIPTION": "When to poll: only when the default project is open, or always in the background",
+        "POLLING_MODE_WHEN_PROJECT_OPEN": "When project is open",
+        "POLLING_MODE_ALWAYS": "Always (in background)"
+      },
       "HOW_TO_GET_A_TOKEN": "How to get a token?",
       "ISSUE_CONTENT": {
         "ASSIGNEE": "Assignee",
