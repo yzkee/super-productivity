@@ -77,5 +77,5 @@ body planner-calendar-event {
 
 /* Give current task a background when sticky (page scrolled) */
 app-root.isWorkViewScrolled task.isCurrent .box {
-  background: var(--bg);
+  background: var(--bg-lighter) !important;
 }
