@@ -223,13 +223,21 @@ flatpak install flathub com.super_productivity.SuperProductivity
 flatpak run com.super_productivity.SuperProductivity
 ```
 
-#### Aur - Arch Linux
+#### AUR - Arch Linux
 
-```bash
-git clone https://aur.archlinux.org/superproductivity-bin.git
-cd superproductivity-bin
-makepkg -si
-```
+- With AUR helpers
+    ```bash
+    paru -S superproductivity-bin
+    # or
+    yay -S superproductivity-bin
+    ```
+
+- Without AUR helpers
+    ```bash
+    git clone https://aur.archlinux.org/superproductivity-bin.git
+    cd superproductivity-bin
+    makepkg -si
+    ```
 
 #### AppImage
 
