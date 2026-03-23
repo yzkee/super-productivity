@@ -145,6 +145,10 @@ export class AppComponent implements OnDestroy, AfterViewInit {
 
   @ViewChild('routeWrapper', { read: ElementRef }) routeWrapper?: ElementRef<HTMLElement>;
 
+  @HostBinding('class.isWorkViewScrolled') get isWorkViewScrolledClass(): boolean {
+    return this.layoutService.isWorkViewScrolled();
+  }
+
   @HostBinding('@.disabled') get isDisableAnimations(): boolean {
     return this._isDisableAnimations();
   }

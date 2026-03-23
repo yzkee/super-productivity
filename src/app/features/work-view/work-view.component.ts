@@ -189,7 +189,7 @@ export class WorkViewComponent implements OnInit, OnDestroy {
       delay(50),
       switchMap(() => this.splitTopEl$),
       switchMap((el) =>
-        // Defer scroll reactions to the next frame so layoutService.isScrolled
+        // Defer scroll reactions to the next frame so layoutService.isWorkViewScrolled
         // toggles happen in sync with the browser repaint.
         fromEvent(el, 'scroll').pipe(observeOn(animationFrameScheduler)),
       ),
@@ -291,7 +291,7 @@ export class WorkViewComponent implements OnInit, OnDestroy {
       window.clearTimeout(this._switchListAnimationTimeout);
     }
     this._subs.unsubscribe();
-    this.layoutService.isScrolled.set(false);
+    this.layoutService.isWorkViewScrolled.set(false);
   }
 
   resetBreakTimer(): void {
@@ -329,9 +329,9 @@ export class WorkViewComponent implements OnInit, OnDestroy {
     this._subs.add(
       this.upperContainerScroll$.subscribe(({ target }) => {
         if ((target as HTMLElement).scrollTop !== 0) {
-          this.layoutService.isScrolled.set(true);
+          this.layoutService.isWorkViewScrolled.set(true);
         } else {
-          this.layoutService.isScrolled.set(false);
+          this.layoutService.isWorkViewScrolled.set(false);
         }
       }),
     );

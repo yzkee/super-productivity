@@ -67,3 +67,8 @@ body .toggle-sub-tasks-btn.toggle-sub-tasks-btn:hover {
 body.isDarkTheme .toggle-sub-tasks-btn.toggle-sub-tasks-btn:hover {
   background: rgba(255, 255, 255, 0.08) !important;
 }
+
+/* Give current task a background when sticky (page scrolled) */
+app-root.isWorkViewScrolled task.isCurrent .box {
+  background: var(--bg);
+}
