@@ -129,7 +129,12 @@ export class IssueTwoWaySyncEffects {
           ),
         ),
         filter(({ fullTask }) => {
-          if (!fullTask.issueType || !fullTask.issueProviderId || !fullTask.issueId) {
+          if (
+            !fullTask ||
+            !fullTask.issueType ||
+            !fullTask.issueProviderId ||
+            !fullTask.issueId
+          ) {
             return false;
           }
           return this._adapterRegistry.has(fullTask.issueType);

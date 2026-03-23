@@ -211,6 +211,31 @@ describe('IssueTwoWaySyncEffects', () => {
       adapterRegistry.unregister('TEST_PROVIDER');
     }));
 
+    it('should not crash when task is deleted before effect processes updateTask', fakeAsync(() => {
+      const adapter = createMockAdapter({
+        getFieldMappings: jasmine
+          .createSpy('getFieldMappings')
+          .and.returnValue([isDoneFieldMapping]),
+      });
+      adapterRegistry.register('TEST_PROVIDER', adapter);
+
+      taskServiceSpy.getByIdOnce$.and.returnValue(of(undefined as any));
+
+      effects.pushFieldsOnTaskUpdate$.subscribe();
+
+      actions$.next(
+        TaskSharedActions.updateTask({
+          task: { id: 'deleted-task', changes: { isDone: true } },
+        }),
+      );
+
+      tick();
+
+      expect(adapter.pushChanges).not.toHaveBeenCalled();
+
+      adapterRegistry.unregister('TEST_PROVIDER');
+    }));
+
     it('should skip push for sync-bookkeeping changes (issueLastSyncedValues)', fakeAsync(() => {
       const adapter = createMockAdapter();
       adapterRegistry.register('TEST_PROVIDER', adapter);
