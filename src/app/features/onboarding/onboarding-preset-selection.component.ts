@@ -31,7 +31,6 @@ export class OnboardingPresetSelectionComponent {
     this.selectedPreset.set(preset);
     this._globalConfigService.updateSection('appFeatures', preset.features, true);
     localStorage.setItem(LS.ONBOARDING_PRESET_DONE, 'true');
-    localStorage.setItem(LS.ONBOARDING_PRESET_ID, preset.id);
     this.presetSelected.emit();
   }
 }
