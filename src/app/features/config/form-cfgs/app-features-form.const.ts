@@ -58,7 +58,7 @@ export const APP_FEATURES_FORM_CFG: ConfigFormSection<AppFeaturesConfig> = {
       type: 'slide-toggle',
       templateOptions: {
         label: T.GCF.APP_FEATURES.ISSUES_PANEL,
-        icon: 'dashboard_customize',
+        icon: 'webhook',
       },
     },
     {
