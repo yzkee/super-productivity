@@ -74,8 +74,8 @@
     ...
     <!-- -->
   } @else {
-    @if (isMonthView()) {
-      {{ title() }}
+    @if (titleHasLinks()) {
+      <span [innerHTML]="title() | renderLinks"></span>
     } @else {
       {{ title() }}
     }

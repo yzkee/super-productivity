@@ -28,6 +28,7 @@ import { TagListComponent } from '../../tag/tag-list/tag-list.component';
 import { InlineInputComponent } from '../../../ui/inline-input/inline-input.component';
 import { MsToStringPipe } from '../../../ui/duration/ms-to-string.pipe';
 import { Log } from '../../../core/log';
+import { hasLinkHints, RenderLinksPipe } from '../../../ui/pipes/render-links.pipe';
 
 @Component({
   selector: 'planner-task',
@@ -42,12 +43,17 @@ import { Log } from '../../../core/log';
     InlineInputComponent,
     TaskContextMenuComponent,
     MsToStringPipe,
+    RenderLinksPipe,
   ],
 })
 export class PlannerTaskComponent extends BaseComponent implements OnInit, OnDestroy {
   private _taskService = inject(TaskService);
   private _cd = inject(ChangeDetectorRef);
   private _projectService = inject(ProjectService);
+  get titleHasLinks(): boolean {
+    const title = this.task?.title;
+    return !!title && hasLinkHints(title);
+  }
 
   // TODO: Skipped for migration because:
   //  This input is used in a control flow expression (e.g. `@if` or `*ngIf`)
@@ -84,8 +90,12 @@ export class PlannerTaskComponent extends BaseComponent implements OnInit, OnDes
     this.openContextMenu(event);
   }
 
-  @HostListener('click')
-  async clickHandler(): Promise<void> {
+  @HostListener('click', ['$event'])
+  async clickHandler(event: MouseEvent): Promise<void> {
+    const target = event.target as HTMLElement | null;
+    if (target?.tagName === 'A' || target?.closest('a')) {
+      return;
+    }
     if (this.task) {
       // Use bottom panel on mobile, dialog on desktop
       this._taskService.setSelectedId(this.task.id);
