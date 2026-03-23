@@ -94,7 +94,9 @@ export class OnboardingHintService {
       )
       .subscribe((ctx) => {
         if (ctx.taskIds.length > 0) {
-          this.skip();
+          // Tasks already exist (e.g. from example tasks) — skip "create-task"
+          // but still show the "explore" hint
+          this._showExploreStep();
         } else {
           this.currentStep.set('create-task');
           this._listenForTaskCreation();
