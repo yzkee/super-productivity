@@ -26,8 +26,13 @@ describe('TaskTitleComponent', () => {
       component.tmpValue.set('Test task with https://example.com');
       fixture.detectChanges();
 
-      const mouseEvent = new MouseEvent('mousedown', { button: 0 });
-      component.onMouseDown(mouseEvent);
+      const clickEvent = new MouseEvent('click', { bubbles: true });
+      Object.defineProperty(clickEvent, 'target', {
+        value: document.createElement('span'),
+        enumerable: true,
+      });
+
+      component.onClick(clickEvent);
 
       expect(component.isEditing()).toBe(false);
     });
@@ -59,13 +64,13 @@ describe('TaskTitleComponent', () => {
       component.tmpValue.set('Visit https://example.com');
       fixture.detectChanges();
 
-      const anchorClickEvent = new MouseEvent('mousedown', { button: 0 });
-      Object.defineProperty(anchorClickEvent, 'target', {
+      const clickEvent = new MouseEvent('click', { bubbles: true });
+      Object.defineProperty(clickEvent, 'target', {
         value: document.createElement('a'),
         enumerable: true,
       });
 
-      component.onMouseDown(anchorClickEvent);
+      component.onClick(clickEvent);
 
       expect(component.isEditing()).toBe(false);
     });
@@ -75,47 +80,47 @@ describe('TaskTitleComponent', () => {
       component.tmpValue.set('Test task');
       fixture.detectChanges();
 
-      const mouseEvent = new MouseEvent('mousedown', { button: 0 });
-      Object.defineProperty(mouseEvent, 'target', {
+      const clickEvent = new MouseEvent('click', { bubbles: true });
+      Object.defineProperty(clickEvent, 'target', {
         value: document.createElement('span'),
         enumerable: true,
       });
 
-      component.onMouseDown(mouseEvent);
+      component.onClick(clickEvent);
 
       expect(component.isEditing()).toBe(true);
     });
 
-    it('should not stop mousedown propagation in readonly mode (allows drag)', () => {
+    it('should not stop click propagation in readonly mode', () => {
       fixture.componentRef.setInput('readonly', true);
       component.tmpValue.set('Test task');
       fixture.detectChanges();
 
-      const mouseEvent = new MouseEvent('mousedown', { bubbles: true, button: 0 });
-      Object.defineProperty(mouseEvent, 'target', {
+      const clickEvent = new MouseEvent('click', { bubbles: true });
+      Object.defineProperty(clickEvent, 'target', {
         value: document.createElement('span'),
         enumerable: true,
       });
 
-      const stopPropagationSpy = spyOn(mouseEvent, 'stopPropagation');
-      component.onMouseDown(mouseEvent);
+      const stopPropagationSpy = spyOn(clickEvent, 'stopPropagation');
+      component.onClick(clickEvent);
 
       expect(stopPropagationSpy).not.toHaveBeenCalled();
     });
 
-    it('should stop mousedown propagation when entering edit mode', () => {
+    it('should stop click propagation when entering edit mode', () => {
       fixture.componentRef.setInput('readonly', false);
       component.tmpValue.set('Test task');
       fixture.detectChanges();
 
-      const mouseEvent = new MouseEvent('mousedown', { bubbles: true, button: 0 });
-      Object.defineProperty(mouseEvent, 'target', {
+      const clickEvent = new MouseEvent('click', { bubbles: true });
+      Object.defineProperty(clickEvent, 'target', {
         value: document.createElement('span'),
         enumerable: true,
       });
 
-      const stopPropagationSpy = spyOn(mouseEvent, 'stopPropagation');
-      component.onMouseDown(mouseEvent);
+      const stopPropagationSpy = spyOn(clickEvent, 'stopPropagation');
+      component.onClick(clickEvent);
 
       expect(stopPropagationSpy).toHaveBeenCalled();
       expect(component.isEditing()).toBe(true);
@@ -165,7 +170,7 @@ describe('TaskTitleComponent', () => {
       expect(stopPropagationSpy).toHaveBeenCalled();
     });
 
-    it('should not stop click propagation when clicking on non-link text', () => {
+    it('should enter edit mode and stop click propagation when clicking on non-link text', () => {
       component.tmpValue.set('Just plain text task');
       fixture.detectChanges();
 
@@ -182,7 +187,8 @@ describe('TaskTitleComponent', () => {
       const stopPropagationSpy = spyOn(clickEvent, 'stopPropagation');
       component.onClick(clickEvent);
 
-      expect(stopPropagationSpy).not.toHaveBeenCalled();
+      expect(stopPropagationSpy).toHaveBeenCalled();
+      expect(component.isEditing()).toBe(true);
     });
   });
 });

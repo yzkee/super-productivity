@@ -89,35 +89,26 @@ export class TaskTitleComponent implements OnDestroy {
 
   constructor() {}
 
-  // Click anywhere to enter edit mode (except links)
-  @HostListener('mousedown', ['$event'])
-  onMouseDown(event: MouseEvent): void {
-    const target = event.target as HTMLElement | null;
-    // Don't enter edit mode if readonly, clicking a link, or clicking textarea
-    if (
-      this.readonly() ||
-      event.button !== 0 ||
-      target?.tagName === 'TEXTAREA' ||
-      target?.tagName === 'A'
-    ) {
-      // Let event propagate for drag-and-drop, link clicks, etc.
-      return;
-    }
-    // Only stop propagation when entering edit mode
-    // This prevents parent click handlers while allowing drag in readonly mode
-    event.stopPropagation();
-    this.focusInput();
-  }
-
-  // Stop click events from propagating when clicking links
-  // This prevents parent components (board, planner) from handling the click
+  // Click to enter edit mode or follow links.
+  // Using click (not mousedown) allows CDK drag-and-drop to work from the title:
+  // mousedown propagates → CDK tracks pointer → drag (≥5px) prevents click; click (<5px) enters edit mode.
   @HostListener('click', ['$event'])
   onClick(event: MouseEvent): void {
     const target = event.target as HTMLElement | null;
-    // If clicking on a link or any element inside a link, stop propagation
+
+    // Let link clicks propagate to the browser but not to parent components
     if (target?.tagName === 'A' || target?.closest('a')) {
       event.stopPropagation();
+      return;
     }
+
+    // Don't enter edit mode if readonly or clicking the textarea (already editing)
+    if (this.readonly() || target?.tagName === 'TEXTAREA') {
+      return;
+    }
+
+    event.stopPropagation();
+    this.focusInput();
   }
 
   focusInput(): void {
