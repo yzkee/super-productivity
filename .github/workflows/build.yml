@@ -37,6 +37,7 @@ jobs:
           draft: true
           prerelease: ${{ contains(github.ref, 'RC') || contains(github.ref, 'beta') || contains(github.ref, 'alpha') }}
           body_path: /tmp/release-body.md
+          generate_release_notes: true
 
   linux-bin-and-snap-release:
     runs-on: ubuntu-latest
