@@ -119,18 +119,36 @@ class FocusModeForegroundService : Service() {
                 if (isRunning) {
                     stopFocusMode()
                 } else {
-                    Log.d(TAG, "Ignoring STOP action - service not running")
+                    Log.d(TAG, "STOP action but not running, stopping service")
+                    safeStopSelf()
                 }
             }
 
             else -> {
-                // Service restarted by system - we have no state to restore
                 Log.d(TAG, "Service started without action, stopping")
-                stopSelf()
+                safeStopSelf()
             }
         }
 
         return START_NOT_STICKY
+    }
+
+    /**
+     * Safely stops the service after a startForegroundService() call.
+     * Android requires startForeground() before stopSelf() when started via
+     * startForegroundService(), otherwise ForegroundServiceDidNotStartInTimeException is thrown.
+     */
+    private fun safeStopSelf() {
+        try {
+            val notification = FocusModeNotificationHelper.buildNotification(
+                this, "", null, 0, isPaused = false, isBreak = false
+            )
+            startForeground(FocusModeNotificationHelper.NOTIFICATION_ID, notification)
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start foreground for safe stop", e)
+        }
+        stopSelf()
     }
 
     private fun startFocusMode() {

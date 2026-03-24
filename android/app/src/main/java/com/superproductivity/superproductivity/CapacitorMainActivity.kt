@@ -79,6 +79,12 @@ class CapacitorMainActivity : BridgeActivity() {
             return
         }
 
+        if (bridge?.webView == null) {
+            throw IllegalStateException(
+                "Capacitor bridge failed to initialize. bridge=$bridge"
+            )
+        }
+
         printWebViewVersion(bridge.webView)
 
         // DEBUG ONLY
@@ -296,14 +302,14 @@ class CapacitorMainActivity : BridgeActivity() {
         super.onSaveInstanceState(outState)
         // Save scoped storage permission on Android 10+
         storageHelper.onSaveInstanceState(outState)
-        bridge.webView.saveState(outState)
+        bridge?.webView?.saveState(outState)
     }
 
     override fun onRestoreInstanceState(savedInstanceState: Bundle) {
         super.onRestoreInstanceState(savedInstanceState)
         // Restore scoped storage permission on Android 10+
         storageHelper.onRestoreInstanceState(savedInstanceState)
-        bridge.webView.restoreState(savedInstanceState)
+        bridge?.webView?.restoreState(savedInstanceState)
     }
 
     override fun onPause() {
