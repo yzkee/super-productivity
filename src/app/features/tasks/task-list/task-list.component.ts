@@ -31,6 +31,7 @@ import { WorkContextService } from '../../work-context/work-context.service';
 import { Store } from '@ngrx/store';
 import { moveItemBeforeItem } from '../../../util/move-item-before-item';
 import { DropListService } from '../../../core-ui/drop-list/drop-list.service';
+import { LayoutService } from '../../../core-ui/layout/layout.service';
 import { IssueService } from '../../issue/issue.service';
 import { SearchResultItem } from '../../issue/issue.model';
 import { MatButton } from '@angular/material/button';
@@ -77,8 +78,12 @@ export class TaskListComponent implements OnDestroy, AfterViewInit {
   private _taskViewCustomizerService = inject(TaskViewCustomizerService);
   private _scheduleExternalDragService = inject(ScheduleExternalDragService);
   dropListService = inject(DropListService);
+  private _layoutService = inject(LayoutService);
   protected readonly IS_TOUCH_PRIMARY = IS_TOUCH_PRIMARY;
   protected readonly DRAG_DELAY_FOR_TOUCH = DRAG_DELAY_FOR_TOUCH;
+  // Lock Y-axis on small screens only — on wider screens the task list may sit
+  // beside a side-nav or other drop targets that require horizontal dragging.
+  protected readonly isXs = this._layoutService.isXs;
 
   tasks = input<TaskWithSubTasks[]>([]);
   isHideDone = input(false);

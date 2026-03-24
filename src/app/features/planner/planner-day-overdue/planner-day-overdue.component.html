@@ -23,6 +23,7 @@
         cdkDrag
         [cdkDragData]="task"
         [cdkDragStartDelay]="IS_TOUCH_PRIMARY ? DRAG_DELAY_FOR_TOUCH : 0"
+        [cdkDragLockAxis]="isXs() ? 'y' : ''"
         [task]="task"
         [day]=""
       ></planner-task>

@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+} from '@angular/core';
 import { T } from '../../../t.const';
 import { CdkDrag, CdkDropList } from '@angular/cdk/drag-drop';
 import { PlannerTaskComponent } from '../planner-task/planner-task.component';
@@ -11,6 +17,7 @@ import { OVERDUE_LIST_ID } from '../planner.model';
 import { TranslatePipe } from '@ngx-translate/core';
 import { IS_TOUCH_PRIMARY } from '../../../util/is-mouse-primary';
 import { DRAG_DELAY_FOR_TOUCH } from '../../../app.constants';
+import { LayoutService } from '../../../core-ui/layout/layout.service';
 
 @Component({
   selector: 'planner-day-overdue',
@@ -29,6 +36,7 @@ import { DRAG_DELAY_FOR_TOUCH } from '../../../app.constants';
   ],
 })
 export class PlannerDayOverdueComponent {
+  private _layoutService = inject(LayoutService);
   overdueTasks = input<TaskCopy[] | null>();
   overdueDeadlineTasks = input<TaskCopy[] | null>();
   totalEstimate = computed(() => {
@@ -41,6 +49,9 @@ export class PlannerDayOverdueComponent {
   protected readonly T = T;
   protected readonly IS_TOUCH_PRIMARY = IS_TOUCH_PRIMARY;
   protected readonly DRAG_DELAY_FOR_TOUCH = DRAG_DELAY_FOR_TOUCH;
+  // Lock Y-axis on small screens only — on wider screens the planner uses a
+  // multi-column grid where cross-column dragging requires horizontal movement.
+  protected readonly isXs = this._layoutService.isXs;
 
   enterPredicate(drag: CdkDrag, drop: CdkDropList): boolean {
     return false;

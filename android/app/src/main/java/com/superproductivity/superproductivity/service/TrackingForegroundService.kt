@@ -73,12 +73,7 @@ class TrackingForegroundService : Service() {
 
         when (intent?.action) {
             ACTION_START -> {
-                val taskId = intent.getStringExtra(EXTRA_TASK_ID)
-                if (taskId == null) {
-                    Log.w(TAG, "ACTION_START without task ID, stopping")
-                    safeStopSelf()
-                    return START_NOT_STICKY
-                }
+                val taskId = intent.getStringExtra(EXTRA_TASK_ID) ?: return START_NOT_STICKY
                 val title = intent.getStringExtra(EXTRA_TASK_TITLE) ?: "Task"
                 val timeSpentMs = intent.getLongExtra(EXTRA_TIME_SPENT, 0L)
 
@@ -94,34 +89,18 @@ class TrackingForegroundService : Service() {
                 if (isTracking) {
                     stopTracking()
                 } else {
-                    Log.d(TAG, "STOP action but not tracking, stopping service")
-                    safeStopSelf()
+                    Log.d(TAG, "Ignoring STOP action - service not tracking")
                 }
             }
 
             else -> {
+                // Service restarted by system - we have no state to restore
                 Log.d(TAG, "Service started without action, stopping")
-                safeStopSelf()
+                stopSelf()
             }
         }
 
         return START_NOT_STICKY
-    }
-
-    /**
-     * Safely stops the service after a startForegroundService() call.
-     * Android requires startForeground() before stopSelf() when started via
-     * startForegroundService(), otherwise ForegroundServiceDidNotStartInTimeException is thrown.
-     */
-    private fun safeStopSelf() {
-        try {
-            val notification = TrackingNotificationHelper.buildNotification(this, "", 0)
-            startForeground(TrackingNotificationHelper.NOTIFICATION_ID, notification)
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to start foreground for safe stop", e)
-        }
-        stopSelf()
     }
 
     private fun startTracking(taskId: String, title: String, timeSpentMs: Long) {
