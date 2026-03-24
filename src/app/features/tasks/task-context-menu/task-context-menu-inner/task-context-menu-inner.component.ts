@@ -247,6 +247,7 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
           return;
         }
         // Layout only — CDK backdrop handles scrim + click-to-close
+        // pointer-events: none so taps pass through to the backdrop sibling
         boundingBox.style.position = 'fixed';
         boundingBox.style.inset = '0';
         boundingBox.style.width = '';
@@ -254,6 +255,7 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
         boundingBox.style.display = 'flex';
         boundingBox.style.justifyContent = 'center';
         boundingBox.style.alignItems = 'flex-end';
+        boundingBox.style.pointerEvents = 'none';
 
         const pane = boundingBox.querySelector('.cdk-overlay-pane') as HTMLElement;
         if (pane) {
@@ -261,10 +263,13 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
           pane.style.width = '100%';
           pane.style.display = 'flex';
           pane.style.justifyContent = 'center';
+          pane.style.pointerEvents = 'none';
         }
 
         const menuPanel = boundingBox.querySelector('.mat-mdc-menu-panel') as HTMLElement;
         if (menuPanel) {
+          // Re-enable pointer events on the menu panel itself
+          menuPanel.style.pointerEvents = 'auto';
           menuPanel.style.maxWidth = '300px';
           menuPanel.style.width = '100%';
           menuPanel.style.borderRadius =
