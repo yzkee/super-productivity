@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, screen, app } from 'electron';
+import { BrowserWindow, ipcMain, screen } from 'electron';
 import { join } from 'path';
 import { TaskCopy } from '../../src/app/features/tasks/task.model';
 import { info } from 'electron-log/main';

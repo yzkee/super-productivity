@@ -10,7 +10,9 @@
   #contextMenu="matMenu"
   yPosition="below"
   xPosition="after"
-  [backdropClass]="IS_TOUCH_PRIMARY ? 'cdk-overlay-dark-backdrop' : 'cdk-overlay-transparent-backdrop'"
+  [backdropClass]="
+    IS_TOUCH_PRIMARY ? 'cdk-overlay-dark-backdrop' : 'cdk-overlay-transparent-backdrop'
+  "
   (close)="onClose()"
 >
   <div

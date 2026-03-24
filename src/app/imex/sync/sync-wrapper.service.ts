@@ -439,8 +439,7 @@ export class SyncWrapperService {
         // a "Configure" button so users can re-auth on genuine failures. Other providers
         // (Dropbox, WebDAV) must clear immediately so their OAuth/re-auth flows work.
         const skipClear =
-          error instanceof AuthFailSPError &&
-          providerId === SyncProviderId.SuperSync;
+          error instanceof AuthFailSPError && providerId === SyncProviderId.SuperSync;
         if (providerId && !skipClear) {
           try {
             await this._providerManager.clearAuthCredentials(providerId);

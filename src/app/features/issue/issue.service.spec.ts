@@ -304,7 +304,7 @@ describe('IssueService', () => {
   describe('addTaskFromIssue - getTaskDefaults', () => {
     const jiraIssue = { id: 'JIRA-1', title: 'Test Jira Issue' };
 
-    function setupForNewTask(): void {
+    const setupForNewTask = (): void => {
       // No existing task found
       taskServiceSpy.checkForTaskWithIssueEverywhere.and.resolveTo(null);
       taskServiceSpy.add.and.returnValue('new-task-id');
@@ -313,7 +313,7 @@ describe('IssueService', () => {
       (service.ISSUE_SERVICE_MAP['JIRA'] as any).getAddTaskData = () => ({
         title: 'Test Jira Issue',
       });
-    }
+    };
 
     it('should filter out TODAY_TAG.id from defaultTagIds', async () => {
       setupForNewTask();

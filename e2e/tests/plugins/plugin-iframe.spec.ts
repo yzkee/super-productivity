@@ -60,7 +60,6 @@ test.describe.serial('Plugin Iframe', () => {
     if (!pluginInMenu) {
       throw new Error('API Test Plugin not found in menu after enabling');
     }
-
   });
 
   test('open plugin iframe view', async ({ page }) => {
