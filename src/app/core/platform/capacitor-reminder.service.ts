@@ -154,6 +154,10 @@ export class CapacitorReminderService {
               id: options.notificationId,
               title: options.title,
               body: `Reminder: ${options.title}`,
+              // Play the default system notification sound.
+              // Without this, iOS delivers notifications silently (content.sound = nil).
+              // The string 'default' triggers iOS's file-not-found fallback to the system sound.
+              sound: 'default',
               // Include action type for iOS notification actions (Done/Snooze buttons)
               actionTypeId: this._platformService.isIOS()
                 ? REMINDER_ACTION_TYPE_ID
