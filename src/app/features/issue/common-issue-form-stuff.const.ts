@@ -98,6 +98,8 @@ export const ISSUE_PROVIDER_COMMON_FORM_FIELDS: LimitedFormlyFieldConfig<IssuePr
       expressions: {
         // eslint-disable-next-line @typescript-eslint/naming-convention
         'props.disabled': '!model.isAutoPoll && !model.isAutoAddToBacklog',
+        // ICAL already polls globally via selectAllCalendarIssueTasks, so pollingMode has no effect
+        hide: 'model.issueProviderKey === "ICAL"',
       },
       props: {
         label: T.F.ISSUE.FORM.POLLING_MODE,
