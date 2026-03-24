@@ -79,6 +79,12 @@ body.isDarkTheme task.isSelected .box {
   border-color: rgba(255, 255, 255, 0.15) !important;
 }
 
+/* Don't apply selected border to subtask boxes */
+body task.isSelected .sub-tasks .box {
+  border-color: transparent !important;
+  border-radius: 0;
+}
+
 /* Restore background when dragging */
 body task.isDragReady:not(.cdk-drag-placeholder) .box {
   background: var(--bg) !important;
