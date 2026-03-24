@@ -32,7 +32,6 @@ import { selectTaskByIdWithSubTaskData } from '../../tasks/store/task.selectors'
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
 import { TaskService } from '../../tasks/task.service';
 import { DialogTimeEstimateComponent } from '../../tasks/dialog-time-estimate/dialog-time-estimate.component';
-import { IS_TOUCH_PRIMARY } from '../../../util/is-mouse-primary';
 import { TaskContextMenuComponent } from '../../tasks/task-context-menu/task-context-menu.component';
 import { IssueService } from '../../issue/issue.service';
 import { DateTimeFormatService } from '../../../core/date-time-format/date-time-format.service';
@@ -285,7 +284,6 @@ export class ScheduleEventComponent {
     ) {
       const repeatCfg: TaskRepeatCfg = evt.data as TaskRepeatCfg;
       this._matDialog.open(DialogEditTaskRepeatCfgComponent, {
-        autoFocus: false,
         data: {
           repeatCfg,
           targetDate: (evt.id.includes('_') && evt.id.split('_')[1]) || undefined,
@@ -340,7 +338,6 @@ export class ScheduleEventComponent {
 
     this._matDialog.open(DialogTimeEstimateComponent, {
       data: { task: t, isFocusEstimateOnMousePrimaryDevice: true },
-      autoFocus: !IS_TOUCH_PRIMARY,
     });
   }
 

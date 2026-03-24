@@ -719,7 +719,6 @@ export class SyncWrapperService {
     const dialogRef = this._matDialog.open(DialogSyncErrorComponent, {
       data,
       disableClose: true,
-      autoFocus: false,
     });
 
     firstValueFrom(dialogRef.afterClosed())
@@ -782,7 +781,6 @@ export class SyncWrapperService {
     this._passwordDialog = this._matDialog.open(DialogEnterEncryptionPasswordComponent, {
       width: '450px',
       disableClose: true,
-      autoFocus: false,
     });
 
     firstValueFrom(this._passwordDialog.afterClosed())
@@ -834,7 +832,6 @@ export class SyncWrapperService {
     // Open dialog for password correction
     this._passwordDialog = this._matDialog.open(DialogHandleDecryptErrorComponent, {
       disableClose: true,
-      autoFocus: false,
     });
 
     firstValueFrom(this._passwordDialog.afterClosed())
@@ -1113,7 +1110,6 @@ export class SyncWrapperService {
     }
     this.lastConflictDialog = this._matDialog.open(DialogSyncConflictComponent, {
       restoreFocus: true,
-      autoFocus: false,
       disableClose: true,
       data: conflictData,
     });

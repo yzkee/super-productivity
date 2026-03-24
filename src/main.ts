@@ -29,6 +29,8 @@ import { bootstrapApplication, BrowserModule } from '@angular/platform-browser';
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http';
 import { MarkdownModule, MARKED_OPTIONS, SANITIZE } from 'ngx-markdown';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
+import { MAT_DIALOG_DEFAULT_OPTIONS } from '@angular/material/dialog';
+import { IS_TOUCH_PRIMARY } from './app/util/is-mouse-primary';
 import { FeatureStoresModule } from './app/root-store/feature-stores.module';
 import {
   MATERIAL_ANIMATIONS,
@@ -206,6 +208,10 @@ bootstrapApplication(AppComponent, {
       provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
       useValue: { appearance: 'fill', subscriptSizing: 'dynamic' },
     },
+    // Disable autofocus for touch-primary devices to prevent virtual keyboard popup
+    ...(IS_TOUCH_PRIMARY
+      ? [{ provide: MAT_DIALOG_DEFAULT_OPTIONS, useValue: { autoFocus: false } }]
+      : []),
     provideAnimationsAsync(),
     {
       provide: MATERIAL_ANIMATIONS,

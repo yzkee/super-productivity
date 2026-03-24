@@ -424,7 +424,6 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
     this._matDialog
       .open(DialogTimeEstimateComponent, {
         data: { task: this.task },
-        autoFocus: !IS_TOUCH_PRIMARY,
       })
       .afterClosed()
       .subscribe(() => this.focusRelatedTaskOrNext());

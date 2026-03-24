@@ -93,7 +93,6 @@ export class ScheduledListPageComponent {
 
   editTaskRepeatCfg(repeatCfg: TaskRepeatCfg): void {
     this._matDialog.open(DialogEditTaskRepeatCfgComponent, {
-      autoFocus: false,
       restoreFocus: false,
       data: {
         repeatCfg,

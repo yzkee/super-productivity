@@ -36,7 +36,6 @@ import { fadeAnimation } from '../../../ui/animations/fade.ani';
 import { swirlAnimation } from '../../../ui/animations/swirl-in-out.ani';
 import { DialogTimeEstimateComponent } from '../dialog-time-estimate/dialog-time-estimate.component';
 import { MatDialog } from '@angular/material/dialog';
-import { isTouchOnly } from '../../../util/is-touch-only';
 import { DialogEditTaskRepeatCfgComponent } from '../../task-repeat-cfg/dialog-edit-task-repeat-cfg/dialog-edit-task-repeat-cfg.component';
 import { TaskRepeatCfgService } from '../../task-repeat-cfg/task-repeat-cfg.service';
 import { DialogEditTaskAttachmentComponent } from '../task-attachment/dialog-edit-attachment/dialog-edit-task-attachment.component';
@@ -466,7 +465,6 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
   estimateTime(): void {
     this._matDialog.open(DialogTimeEstimateComponent, {
       data: { task: this.task() },
-      autoFocus: !isTouchOnly(),
     });
   }
 
@@ -488,7 +486,6 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
 
   editTaskRepeatCfg(): void {
     this._matDialog.open(DialogEditTaskRepeatCfgComponent, {
-      autoFocus: false,
       restoreFocus: true,
       data: {
         task: this.task(),

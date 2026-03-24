@@ -123,7 +123,6 @@ export class DialogViewArchivedTaskComponent {
 
   openRepeatCfg(): void {
     this._matDialog.open(DialogEditTaskRepeatCfgComponent, {
-      autoFocus: false,
       restoreFocus: true,
       data: {
         task: this.task,

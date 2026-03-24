@@ -437,7 +437,6 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
       await import('../../task-repeat-cfg/dialog-edit-task-repeat-cfg/dialog-edit-task-repeat-cfg.component');
     this._matDialog
       .open(DialogEditTaskRepeatCfgComponent, {
-        autoFocus: false,
         data: {
           task: this.task(),
           targetDate: this.task().dueDay || getDbDateStr(new Date(this.task().created)),
@@ -665,7 +664,6 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     this._matDialog
       .open(DialogTimeEstimateComponent, {
         data: { task: this.task() },
-        autoFocus: !IS_TOUCH_PRIMARY,
       })
       .afterClosed()
       .subscribe(() => this.focusSelf());
