@@ -31,6 +31,7 @@ import {
   map,
   switchMap,
   take,
+  takeUntil,
   tap,
 } from 'rxjs/operators';
 import { Project } from '../../../project/project.model';
@@ -245,8 +246,11 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
         if (!boundingBox) {
           return;
         }
+        // Layout only — CDK backdrop handles scrim + click-to-close
         boundingBox.style.position = 'fixed';
         boundingBox.style.inset = '0';
+        boundingBox.style.width = '';
+        boundingBox.style.height = '';
         boundingBox.style.display = 'flex';
         boundingBox.style.justifyContent = 'center';
         boundingBox.style.alignItems = 'flex-end';
@@ -259,16 +263,6 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
           pane.style.justifyContent = 'center';
         }
 
-        boundingBox.addEventListener(
-          'click',
-          (e: Event) => {
-            if (e.target === boundingBox || e.target === pane) {
-              this.contextMenuTrigger()?.closeMenu();
-            }
-          },
-          { once: true },
-        );
-
         const menuPanel = boundingBox.querySelector('.mat-mdc-menu-panel') as HTMLElement;
         if (menuPanel) {
           menuPanel.style.maxWidth = '300px';
@@ -276,13 +270,19 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
           menuPanel.style.borderRadius =
             'var(--card-border-radius) var(--card-border-radius) 0 0';
           menuPanel.style.maxHeight = '80vh';
-          menuPanel.style.transform = 'translateY(100%)';
-          menuPanel.style.transition = 'transform 200ms ease-out';
+          menuPanel.style.animation = 'none';
+          menuPanel.style.transform = 'translateY(24px)';
+          menuPanel.style.opacity = '0';
+          void menuPanel.offsetHeight;
+          menuPanel.style.transition =
+            'transform 250ms cubic-bezier(0.2, 0, 0, 1), opacity 150ms ease-out';
           this._touchMenuRafId = requestAnimationFrame(() => {
             menuPanel.style.transform = 'translateY(0)';
+            menuPanel.style.opacity = '1';
           });
         }
       });
+      this._highlightSourceTask();
     }
   }
 
@@ -678,6 +678,19 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
 
   trackByProjectId(i: number, project: Project): string {
     return project.id;
+  }
+
+  private _highlightSourceTask(): void {
+    const taskEl = document.querySelector(`#t-${this.task.id}`);
+    if (!taskEl) {
+      return;
+    }
+    taskEl.classList.add('context-menu-highlight');
+    this.contextMenu()
+      ?.closed.pipe(takeUntil(this._destroy$), first())
+      .subscribe(() => {
+        taskEl.classList.remove('context-menu-highlight');
+      });
   }
 
   private async _getTaskWithSubtasks(): Promise<TaskWithSubTasks> {

@@ -31,6 +31,16 @@
   text-overflow: ellipsis;
 }
 
+.task-title-header {
+  padding: 3px 8px;
+  @include extraBorder('-bottom');
+  @include truncateText();
+  opacity: 0.6;
+  font-size: 11px;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
 .quick-access {
   display: flex;
   justify-content: space-evenly;
