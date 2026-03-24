@@ -164,6 +164,7 @@ body:not(.isDarkTheme) .mat-mdc-menu-panel {
 
 body.isDarkTheme .mat-mdc-dialog-surface,
 body.isDarkTheme .mat-mdc-menu-panel {
+  background: color-mix(in srgb, var(--bg), #fff 5%) !important;
   border-color: rgba(255, 255, 255, 0.1);
 }
 
