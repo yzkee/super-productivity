@@ -1,7 +1,7 @@
 @use '../../../styles/_globals.scss' as *;
 
 // approximate length of checkmark polyline
-$check-len: 16;
+$check-len: 18;
 
 @keyframes draw-check {
   from {
@@ -28,7 +28,7 @@ $circle-circumference: 62.83;
 }
 
 :host {
-  --done-toggle-size: 40px;
+  --done-toggle-size: 36px;
 
   width: var(--done-toggle-size);
   height: var(--done-toggle-size);
@@ -47,16 +47,16 @@ $circle-circumference: 62.83;
   }
 
   .done-toggle-svg {
-    width: 24px;
-    height: 24px;
-    opacity: 0.3;
-    transition: opacity var(--transition-duration-m) var(--ani-standard-timing);
+    width: 22px;
+    height: 22px;
   }
 
   .done-circle {
     stroke: currentColor;
     stroke-width: 2;
     fill: none;
+    opacity: 0.3;
+    transition: opacity var(--transition-duration-m) var(--ani-standard-timing);
   }
 
   .done-check {
@@ -67,6 +67,8 @@ $circle-circumference: 62.83;
     stroke-linejoin: round;
     stroke-dasharray: $check-len;
     stroke-dashoffset: $check-len;
+    opacity: 0.3;
+    transition: opacity var(--transition-duration-m) var(--ani-standard-timing);
   }
 
   .progress-ring {
@@ -79,20 +81,23 @@ $circle-circumference: 62.83;
     transform-origin: center;
     transform: rotate(-90deg);
     animation: circle-draw 6s ease-in-out infinite;
+    opacity: 0.3;
     transition: opacity var(--transition-duration-m) var(--ani-standard-timing);
   }
 
   .play-indicator {
-    fill: currentColor;
+    fill: var(--c-accent);
+    opacity: 1;
     transition: opacity var(--transition-duration-m) var(--ani-standard-timing);
   }
 
   &.is-done {
-    .done-toggle-svg {
+    .done-circle {
       opacity: 0.5;
     }
 
     .done-check {
+      opacity: 0.5;
       animation: draw-check 150ms ease-out forwards;
     }
   }
@@ -104,7 +109,7 @@ $circle-circumference: 62.83;
 
     &:hover {
       .done-circle {
-        opacity: 1;
+        opacity: 0.6;
       }
 
       .progress-ring,
@@ -115,12 +120,22 @@ $circle-circumference: 62.83;
   }
 
   &:hover {
-    .done-toggle-svg {
+    .done-circle {
       opacity: 0.6;
     }
 
-    &.is-done .done-toggle-svg {
-      opacity: 0.8;
+    .done-check {
+      opacity: 0.6;
+    }
+
+    &.is-done {
+      .done-circle {
+        opacity: 0.8;
+      }
+
+      .done-check {
+        opacity: 0.8;
+      }
     }
   }
 
