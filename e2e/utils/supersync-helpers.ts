@@ -500,7 +500,7 @@ export const markTaskDone = async (
 ): Promise<void> => {
   const task = getTaskElement(client, taskName);
   await task.hover();
-  await task.locator('.done-toggle').click();
+  await task.locator('done-toggle').click();
 };
 
 /**
@@ -516,7 +516,7 @@ export const markSubtaskDone = async (
 ): Promise<void> => {
   const subtask = getSubtaskElement(client, subtaskName);
   await subtask.hover();
-  await subtask.locator('.done-toggle').click();
+  await subtask.locator('done-toggle').click();
 };
 
 /**
