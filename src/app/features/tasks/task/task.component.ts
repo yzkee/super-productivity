@@ -11,7 +11,6 @@ import {
   inject,
   input,
   OnDestroy,
-  Renderer2,
   signal,
   viewChild,
 } from '@angular/core';
@@ -32,7 +31,8 @@ import {
 import { GlobalConfigService } from '../../config/global-config.service';
 import { concatMap, first, tap } from 'rxjs/operators';
 import { fadeAnimation } from '../../../ui/animations/fade.ani';
-import { PanDirective, PanEvent } from '../../../ui/swipe-gesture/pan.directive';
+import { DoneToggleComponent } from '../../../ui/done-toggle/done-toggle.component';
+import { SwipeBlockComponent } from '../../../ui/swipe-block/swipe-block.component';
 import { TaskAttachmentService } from '../task-attachment/task-attachment.service';
 import { DialogEditTaskAttachmentComponent } from '../task-attachment/dialog-edit-attachment/dialog-edit-task-attachment.component';
 import { ProjectService } from '../../project/project.service';
@@ -121,7 +121,8 @@ import { TaskFocusService } from '../task-focus.service';
     TagListComponent,
     ShortPlannedAtPipe,
     TagToggleMenuListComponent,
-    PanDirective,
+    DoneToggleComponent,
+    SwipeBlockComponent,
   ],
 })
 export class TaskComponent implements OnDestroy, AfterViewInit {
@@ -131,7 +132,6 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   private readonly _configService = inject(GlobalConfigService);
   private readonly _attachmentService = inject(TaskAttachmentService);
   private readonly _elementRef = inject(ElementRef);
-  private readonly _renderer = inject(Renderer2);
   private readonly _store = inject(Store);
   private readonly _projectService = inject(ProjectService);
   private readonly _taskFocusService = inject(TaskFocusService);
@@ -251,8 +251,6 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     return !!(t.deadlineDay || t.deadlineWithTime);
   });
 
-  isPanHelperVisible = signal(false);
-
   T: typeof T = T;
   IS_TOUCH_PRIMARY: boolean = IS_TOUCH_PRIMARY;
   isDragOver: boolean = false;
@@ -260,18 +258,11 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   private _dragReadyTimeout: number | undefined;
   private _doneAnimationTimeout: number | undefined;
   private _touchListenerCleanups: (() => void)[] = [];
-  isLockPanLeft: boolean = false;
-  isLockPanRight: boolean = false;
-  isPreventPointerEventsWhilePanning: boolean = false;
-  isActionTriggered: boolean = false;
   ShowSubTasksMode: typeof HideSubTasksMode = HideSubTasksMode;
   isFirstLineHover: boolean = false;
   _nextFocusTaskEl?: HTMLElement;
 
   readonly taskTitleEditEl = viewChild<TaskTitleComponent>('taskTitleEditEl');
-  readonly blockLeftElRef = viewChild<ElementRef>('blockLeftEl');
-  readonly blockRightElRef = viewChild<ElementRef>('blockRightEl');
-  readonly innerWrapperElRef = viewChild<ElementRef>('innerWrapperEl');
   readonly projectMenuTrigger = viewChild('projectMenuTriggerEl', {
     read: MatMenuTrigger,
   });
@@ -315,11 +306,8 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   });
 
   private _dragEnterTarget?: HTMLElement;
-  private _currentPanTimeout?: number;
   private _doubleClickTimeout?: number;
   private _isTaskDeleteTriggered = false;
-  private _panHelperVisibilityTimeout?: number;
-  private readonly _snapBackHideDelayMs = 200;
   isContextMenuLoaded = signal(false);
 
   // methods come last
@@ -410,15 +398,11 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   }
 
   ngOnDestroy(): void {
-    window.clearTimeout(this._currentPanTimeout);
     window.clearTimeout(this._doubleClickTimeout);
     window.clearTimeout(this._dragReadyTimeout);
     window.clearTimeout(this._doneAnimationTimeout);
     this._touchListenerCleanups.forEach((fn) => fn());
     this._moveToProjectListSub?.unsubscribe();
-    if (this._panHelperVisibilityTimeout) {
-      window.clearTimeout(this._panHelperVisibilityTimeout);
-    }
   }
 
   scheduleTask(): void {
@@ -712,16 +696,11 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   toggleTaskDone(): void {
     window.clearTimeout(this._doneAnimationTimeout);
     this.focusNext(true, true);
-
-    if (this.task().isDone) {
-      this.showDoneAnimation.set(false);
-      this._taskService.setUnDone(this.task().id);
-    } else {
-      this.showDoneAnimation.set(true);
-      this._doneAnimationTimeout = window.setTimeout(() => {
-        this._taskService.setDone(this.task().id);
-      }, 200);
-    }
+    this._doneAnimationTimeout = this._taskService.toggleDoneWithAnimation(
+      this.task().id,
+      this.task().isDone,
+      (v) => this.showDoneAnimation.set(v),
+    );
   }
 
   showDetailPanel(): void {
@@ -957,85 +936,6 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     this._taskService.updateTags(this.task(), tagIds);
   }
 
-  onPanStart(ev: PanEvent): void {
-    if (!IS_TOUCH_PRIMARY) {
-      return;
-    }
-    const taskTitleEditEl = this.taskTitleEditEl();
-    if (!taskTitleEditEl) {
-      throw new Error('No el');
-    }
-
-    this._resetAfterPan();
-    const targetEl: HTMLElement = ev.target as HTMLElement;
-    if (
-      targetEl.closest('.done-toggle') ||
-      Math.abs(ev.deltaY) > Math.abs(ev.deltaX) ||
-      taskTitleEditEl.isEditing() ||
-      ev.isFinal
-    ) {
-      this._hidePanHelper();
-      return;
-    }
-    this._showPanHelper();
-    this.isPreventPointerEventsWhilePanning = true;
-  }
-
-  onPanEnd(): void {
-    if (!IS_TOUCH_PRIMARY || (!this.isLockPanLeft && !this.isLockPanRight)) {
-      return;
-    }
-    const blockLeftElRef = this.blockLeftElRef();
-    const blockRightElRef = this.blockRightElRef();
-    const hideDelay = this._snapBackHideDelayMs;
-
-    this.isPreventPointerEventsWhilePanning = false;
-    if (blockLeftElRef) {
-      this._renderer.removeStyle(blockLeftElRef.nativeElement, 'transition');
-    }
-    if (blockRightElRef) {
-      this._renderer.removeStyle(blockRightElRef.nativeElement, 'transition');
-    }
-
-    if (this._currentPanTimeout) {
-      window.clearTimeout(this._currentPanTimeout);
-    }
-
-    if (this.isActionTriggered) {
-      if (this.isLockPanLeft) {
-        if (blockRightElRef) {
-          this._renderer.setStyle(
-            blockRightElRef.nativeElement,
-            'transform',
-            `scaleX(1)`,
-          );
-        }
-        this._currentPanTimeout = window.setTimeout(() => {
-          this.openContextMenu();
-          this._resetAfterPan(hideDelay);
-        }, 100);
-      } else if (this.isLockPanRight) {
-        if (blockLeftElRef) {
-          this._renderer.setStyle(blockLeftElRef.nativeElement, 'transform', `scaleX(1)`);
-        }
-        this._currentPanTimeout = window.setTimeout(() => {
-          this.toggleTaskDone();
-          this._resetAfterPan(hideDelay);
-        }, 100);
-      }
-    } else {
-      this._resetAfterPan(hideDelay);
-    }
-  }
-
-  onPanLeft(ev: PanEvent): void {
-    this._handlePan(ev);
-  }
-
-  onPanRight(ev: PanEvent): void {
-    this._handlePan(ev);
-  }
-
   // TODO extract so service
   moveTaskToProject(projectId: string): void {
     const t = this.task();
@@ -1175,109 +1075,6 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
         })()
       : (taskEls[currentIndex + 1] as HTMLElement);
     return nextEl;
-  }
-
-  private _handlePan(ev: PanEvent): void {
-    if (!IS_TOUCH_PRIMARY || ev.eventType === 8) {
-      return;
-    }
-    const innerWrapperElRef = this.innerWrapperElRef();
-    const blockLeftElRef = this.blockLeftElRef();
-    const blockRightElRef = this.blockRightElRef();
-    if (!innerWrapperElRef || !blockLeftElRef || !blockRightElRef) {
-      return;
-    }
-
-    // Dynamically determine direction based on current pan position
-    const isPanningRight = ev.deltaX > 0;
-    const isPanningLeft = ev.deltaX < 0;
-
-    // Update lock state dynamically
-    this.isLockPanRight = isPanningRight;
-    this.isLockPanLeft = isPanningLeft;
-
-    // Select the appropriate block element based on current direction
-    const targetRef = isPanningRight ? blockLeftElRef : blockRightElRef;
-
-    const MAGIC_FACTOR = 2;
-    this.isPreventPointerEventsWhilePanning = true;
-
-    // Reset both blocks first
-    this._renderer.setStyle(blockLeftElRef.nativeElement, 'width', '0');
-    this._renderer.setStyle(blockRightElRef.nativeElement, 'width', '0');
-    this._renderer.removeClass(blockLeftElRef.nativeElement, 'isActive');
-    this._renderer.removeClass(blockRightElRef.nativeElement, 'isActive');
-
-    if (targetRef && ev.deltaX !== 0) {
-      let scale =
-        (Math.abs(ev.deltaX) / this._elementRef.nativeElement.offsetWidth) * MAGIC_FACTOR;
-      scale = Math.min(1, Math.max(0, scale));
-
-      if (scale > 0.5) {
-        this.isActionTriggered = true;
-        this._renderer.addClass(targetRef.nativeElement, 'isActive');
-      } else {
-        this.isActionTriggered = false;
-      }
-
-      const moveBy = Math.abs(ev.deltaX);
-      this._renderer.setStyle(targetRef.nativeElement, 'width', `${moveBy}px`);
-      this._renderer.setStyle(targetRef.nativeElement, 'transition', `none`);
-      this._renderer.setStyle(
-        innerWrapperElRef.nativeElement,
-        'transform',
-        `translateX(${ev.deltaX}px)`,
-      );
-    }
-  }
-
-  private _showPanHelper(): void {
-    if (this._panHelperVisibilityTimeout) {
-      window.clearTimeout(this._panHelperVisibilityTimeout);
-      this._panHelperVisibilityTimeout = undefined;
-    }
-    this.isPanHelperVisible.set(true);
-  }
-
-  private _hidePanHelper(delayMs: number = 0): void {
-    if (this._panHelperVisibilityTimeout) {
-      window.clearTimeout(this._panHelperVisibilityTimeout);
-    }
-    if (delayMs > 0) {
-      this._panHelperVisibilityTimeout = window.setTimeout(() => {
-        this.isPanHelperVisible.set(false);
-        this._panHelperVisibilityTimeout = undefined;
-      }, delayMs);
-    } else {
-      this.isPanHelperVisible.set(false);
-      this._panHelperVisibilityTimeout = undefined;
-    }
-  }
-
-  private _resetAfterPan(hideDelay: number = 0): void {
-    const blockLeftElRef = this.blockLeftElRef();
-    const blockRightElRef = this.blockRightElRef();
-    const innerWrapperElRef = this.innerWrapperElRef();
-    this.isPreventPointerEventsWhilePanning = false;
-    this.isActionTriggered = false;
-    this.isLockPanLeft = false;
-    this.isLockPanRight = false;
-    if (blockLeftElRef) {
-      this._renderer.removeClass(blockLeftElRef.nativeElement, 'isActive');
-      this._renderer.setStyle(blockLeftElRef.nativeElement, 'width', '0');
-      this._renderer.removeStyle(blockLeftElRef.nativeElement, 'transition');
-      this._renderer.removeStyle(blockLeftElRef.nativeElement, 'transform');
-    }
-    if (blockRightElRef) {
-      this._renderer.removeClass(blockRightElRef.nativeElement, 'isActive');
-      this._renderer.setStyle(blockRightElRef.nativeElement, 'width', '0');
-      this._renderer.removeStyle(blockRightElRef.nativeElement, 'transition');
-      this._renderer.removeStyle(blockRightElRef.nativeElement, 'transform');
-    }
-    if (innerWrapperElRef) {
-      this._renderer.setStyle(innerWrapperElRef.nativeElement, 'transform', ``);
-    }
-    this._hidePanHelper(hideDelay);
   }
 
   get kb(): KeyboardConfig {

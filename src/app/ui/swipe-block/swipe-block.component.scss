@@ -1,0 +1,54 @@
+@use '../../../styles/_globals.scss' as *;
+
+:host {
+  display: block;
+  position: relative;
+}
+
+.inner-wrapper {
+  position: relative;
+}
+
+// SWIPE BLOCKS
+.block-left,
+.block-right {
+  pointer-events: none;
+  color: var(--palette-primary-contrast-500);
+  position: absolute;
+  bottom: 2px;
+  top: 1px;
+  width: 0;
+  z-index: var(--z-swipe-block);
+  transition: var(--transition-standard);
+  border-radius: var(--task-border-radius);
+  overflow: hidden;
+
+  &.isActive {
+    background-color: var(--c-accent);
+  }
+
+  mat-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scaleX(1);
+  }
+}
+
+.block-left {
+  left: 0;
+}
+
+.block-right {
+  right: 0;
+}
+
+.isPreventPointerEventsWhilePanning {
+  user-select: none !important;
+  pointer-events: none !important;
+  transition: none !important;
+
+  > * {
+    pointer-events: none !important;
+  }
+}

@@ -9,6 +9,8 @@ import { MatIcon } from '@angular/material/icon';
 import { TaskCopy } from '../../tasks/task.model';
 import { OVERDUE_LIST_ID } from '../planner.model';
 import { TranslatePipe } from '@ngx-translate/core';
+import { IS_TOUCH_PRIMARY } from '../../../util/is-mouse-primary';
+import { DRAG_DELAY_FOR_TOUCH } from '../../../app.constants';
 
 @Component({
   selector: 'planner-day-overdue',
@@ -37,6 +39,8 @@ export class PlannerDayOverdueComponent {
 
   OVERDUE_LIST_ID = OVERDUE_LIST_ID;
   protected readonly T = T;
+  protected readonly IS_TOUCH_PRIMARY = IS_TOUCH_PRIMARY;
+  protected readonly DRAG_DELAY_FOR_TOUCH = DRAG_DELAY_FOR_TOUCH;
 
   enterPredicate(drag: CdkDrag, drop: CdkDropList): boolean {
     return false;

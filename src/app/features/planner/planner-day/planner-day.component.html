@@ -43,6 +43,7 @@
       <planner-task
         cdkDrag
         [cdkDragData]="task"
+        [cdkDragStartDelay]="IS_TOUCH_PRIMARY ? DRAG_DELAY_FOR_TOUCH : 0"
         [task]="task"
         [day]="day.dayDate"
       ></planner-task>
@@ -126,6 +127,7 @@
               [task]="scheduledItem.task"
               [day]="day.dayDate"
               [cdkDragData]="scheduledItem.task"
+              [cdkDragStartDelay]="IS_TOUCH_PRIMARY ? DRAG_DELAY_FOR_TOUCH : 0"
             ></planner-task>
           }
           @case (SCHEDULE_ITEM_TYPE.CalEvent) {

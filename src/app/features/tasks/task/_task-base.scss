@@ -82,7 +82,7 @@
     background: var(--task-c-selected-bg);
   }
 
-  :host.isSelected.isSelected > .inner-wrapper > & {
+  :host.isSelected.isSelected .inner-wrapper > & {
     transition: var(--transition-enter);
     transition-property: left, right, box-shadow;
     box-shadow: var(--task-selected-shadow);
@@ -108,7 +108,7 @@
     }
   }
 
-  :host:focus > .inner-wrapper > & {
+  :host:focus .inner-wrapper > & {
     border-radius: var(--task-border-radius);
     // we don't want focus borders for touch only devices
     @include noTouchOnly() {
@@ -118,7 +118,7 @@
     }
   }
 
-  :host:focus.mobile-highlight-searched-item > .inner-wrapper > & {
+  :host:focus.mobile-highlight-searched-item .inner-wrapper > & {
     border-color: var(--palette-primary-400);
     border-width: 1px;
     border-style: solid !important;
@@ -137,7 +137,7 @@
     }
   }
 
-  :host.isSelected.isSelected > .inner-wrapper > &,
+  :host.isSelected.isSelected .inner-wrapper > &,
   :host.isSelected.isCurrent.isCurrent.isCurrent.isCurrent & {
     @include mq(xs) {
       right: -34px;
@@ -161,12 +161,12 @@
     box-shadow: var(--task-current-shadow);
   }
 
-  :host:first-child > .inner-wrapper > & {
+  :host:first-child .inner-wrapper > & {
     border-top-left-radius: var(--task-border-radius);
     border-top-right-radius: var(--task-border-radius);
   }
 
-  :host:last-child > .inner-wrapper > & {
+  :host:last-child .inner-wrapper > & {
     border-bottom-left-radius: var(--task-border-radius);
     border-bottom-right-radius: var(--task-border-radius);
   }

@@ -39,6 +39,13 @@ body.isDarkTheme task .inner-wrapper {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* Remove borders and shadows from planner tasks */
+body planner-task {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
 /* Restore background when dragging */
 body task.isDragReady:not(.cdk-drag-placeholder) .box {
   background: var(--bg-lighter) !important;

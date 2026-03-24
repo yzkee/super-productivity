@@ -1080,6 +1080,25 @@ export class TaskService {
     this.update(id, { isDone: false });
   }
 
+  /**
+   * Toggle done state with checkmark animation.
+   * Returns the timeout handle so callers can clear it on destroy.
+   */
+  toggleDoneWithAnimation(
+    taskId: string,
+    isDone: boolean,
+    setAnimation: (animate: boolean) => void,
+  ): number | undefined {
+    if (isDone) {
+      setAnimation(false);
+      this.setUnDone(taskId);
+      return undefined;
+    } else {
+      setAnimation(true);
+      return window.setTimeout(() => this.setDone(taskId), 200);
+    }
+  }
+
   showSubTasks(id: string): void {
     this.updateUi(id, { _hideSubTasksMode: undefined });
   }

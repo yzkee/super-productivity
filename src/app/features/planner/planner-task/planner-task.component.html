@@ -1,59 +1,64 @@
 <ng-content></ng-content>
 
-<div class="drag-handle">
-  <mat-icon class="drag-handle-ico">drag_indicator</mat-icon>
-  @if (isCurrent) {
-    <mat-icon class="play-icon-indicator">play_arrow </mat-icon>
-  }
-</div>
-
-<div
-  class="no-drag"
-  (longPressIOS)="openContextMenu($event)"
-  (touchstart)="onTouchStart($event)"
+<swipe-block
+  [isDone]="task.isDone"
+  [excludeSelector]="'done-toggle'"
+  (swipeRight)="toggleTaskDone()"
+  (swipeLeft)="openContextMenu()"
 >
-  <div class="wrap">
-    @if (parentTitle) {
-      <div class="parent-title">{{ parentTitle }}</div>
-    }
+  <div class="task-content">
+    <done-toggle
+      [isDone]="task.isDone"
+      [isCurrent]="isCurrent"
+      [showDoneAnimation]="showDoneAnimation()"
+      [attr.aria-label]="T.F.TASK.CMP.TOGGLE_DONE | translate"
+      (toggled)="toggleTaskDone()"
+    ></done-toggle>
 
-    @if (titleHasLinks) {
+    <div class="no-drag">
+      <div class="wrap">
+        @if (parentTitle) {
+          <div class="parent-title">{{ parentTitle }}</div>
+        }
+
+        @if (titleHasLinks) {
+          <div
+            class="title"
+            [innerHTML]="task.title | renderLinks"
+          ></div>
+        } @else {
+          <div class="title">{{ task.title }}</div>
+        }
+
+        <tag-list
+          [isShowProjectTagAlways]="true"
+          [tagsToHide]="tagsToHide()"
+          [task]="task"
+        ></tag-list>
+      </div>
+
       <div
-        class="title"
-        [innerHTML]="task.title | renderLinks"
-      ></div>
-    } @else {
-      <div class="title">{{ task.title }}</div>
-    }
-
-    <tag-list
-      [isShowProjectTagAlways]="true"
-      [tagsToHide]="tagsToHide()"
-      [task]="task"
-    ></tag-list>
+        (click)="estimateTimeClick($event)"
+        [class.hasNoTimeSpentOrEstimate]="!task.timeSpent && !task.timeEstimate"
+        [style.pointer-events]="task.subTaskIds?.length && 'none'"
+        class="planner-time-remaining-shared"
+      >
+        <inline-input
+          (changed)="updateTimeEstimate($event)"
+          [displayValue]="timeEstimate | msToString"
+          [type]="'duration'"
+          [value]="timeEstimate"
+        >
+        </inline-input>
+        @if (task.subTaskIds?.length) {
+          <span class="sub-task-count">
+            <mat-icon inline="true">account_tree</mat-icon>{{ task.subTaskIds.length }}
+          </span>
+        }
+      </div>
+    </div>
   </div>
-
-  <ng-content></ng-content>
-
-  <div
-    (click)="estimateTimeClick($event)"
-    [class.hasNoTimeSpentOrEstimate]="!task.timeSpent && !task.timeEstimate"
-    [style.pointer-events]="task.subTaskIds?.length && 'none'"
-    class="planner-time-remaining-shared"
-  >
-    @if (task.subTaskIds?.length) {
-      <mat-icon inline="true">hourglass_empty</mat-icon>
-    }
-
-    <inline-input
-      (changed)="updateTimeEstimate($event)"
-      [displayValue]="timeEstimate | msToString"
-      [type]="'duration'"
-      [value]="timeEstimate"
-    >
-    </inline-input>
-  </div>
-</div>
+</swipe-block>
 
 @if (isContextMenuLoaded()) {
   <task-context-menu

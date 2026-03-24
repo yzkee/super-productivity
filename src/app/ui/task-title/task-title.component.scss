@@ -90,6 +90,7 @@
   cursor: text;
   position: absolute;
   inset: 0;
+  font-weight: 500;
   font-size: inherit;
   letter-spacing: inherit;
   font-family: var(--font-primary-stack);
@@ -126,6 +127,7 @@
   visibility: hidden;
   pointer-events: none;
   display: block;
+  font-weight: 500;
   font-size: inherit;
   letter-spacing: inherit;
   font-family: var(--font-primary-stack);

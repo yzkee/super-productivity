@@ -32,6 +32,8 @@ import { ShortTimeHtmlPipe } from '../../../ui/pipes/short-time-html.pipe';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ShortDate2Pipe } from '../../../ui/pipes/short-date2.pipe';
 import { ProgressBarComponent } from '../../../ui/progress-bar/progress-bar.component';
+import { IS_TOUCH_PRIMARY } from '../../../util/is-mouse-primary';
+import { DRAG_DELAY_FOR_TOUCH } from '../../../app.constants';
 
 @Component({
   selector: 'planner-day',
@@ -74,6 +76,8 @@ export class PlannerDayComponent {
 
   protected readonly T = T;
   protected readonly SCHEDULE_ITEM_TYPE = ScheduleItemType;
+  protected readonly IS_TOUCH_PRIMARY = IS_TOUCH_PRIMARY;
+  protected readonly DRAG_DELAY_FOR_TOUCH = DRAG_DELAY_FOR_TOUCH;
 
   getProgressBarClass(percentage: number | undefined): string {
     if (!percentage) return 'bg-success';

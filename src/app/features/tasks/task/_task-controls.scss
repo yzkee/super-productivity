@@ -225,40 +225,6 @@
   z-index: var(--z-drag-over-msg);
 }
 
-// SWIPE BLOCKS
-.block-left,
-.block-right {
-  pointer-events: none;
-  color: var(--palette-primary-contrast-500);
-  position: absolute;
-  bottom: 2px;
-  top: 1px;
-  width: 0;
-  z-index: var(--z-swipe-block);
-  transition: var(--transition-standard);
-  border-radius: var(--task-border-radius);
-  overflow: hidden;
-
-  &.isActive {
-    background-color: var(--c-accent);
-  }
-
-  mat-icon {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) scaleX(1);
-  }
-}
-
-.block-left {
-  left: 0;
-}
-
-.block-right {
-  right: 0;
-}
-
 progress-bar {
   z-index: var(--z-progress-bar);
 }
@@ -298,149 +264,14 @@ progress-bar {
   }
 }
 
-// approximate length of checkmark polyline
-$check-len: 16;
-
-@keyframes draw-check {
-  from {
-    stroke-dashoffset: $check-len;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-// circumference of r=10 circle: 2 * π * 10 ≈ 62.83
-$circle-circumference: 62.83;
-
-@keyframes circle-draw {
-  0% {
-    stroke-dashoffset: $circle-circumference;
-  }
-  35% {
-    stroke-dashoffset: 0;
-  }
-  100% {
-    stroke-dashoffset: 0;
-  }
-}
-
-.done-toggle {
+done-toggle {
   margin-left: var(--s);
   margin-right: 0;
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  z-index: var(--z-drag-handle);
-  position: relative;
-  touch-action: none;
-  pointer-events: all;
-  cursor: pointer;
 
   @include verySmallMainContainer {
     width: 8px;
     min-width: 0;
     opacity: 0;
-  }
-
-  > * {
-    pointer-events: none;
-    @include center;
-  }
-
-  .done-toggle-svg {
-    width: 24px;
-    height: 24px;
-    opacity: 0.3;
-    transition: opacity var(--transition-duration-m) var(--ani-standard-timing);
-  }
-
-  .done-circle {
-    stroke: currentColor;
-    stroke-width: 2;
-    fill: none;
-  }
-
-  .done-check {
-    stroke: currentColor;
-    stroke-width: 2;
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-dasharray: $check-len;
-    stroke-dashoffset: $check-len;
-  }
-
-  .progress-ring {
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    fill: none;
-    stroke-dasharray: $circle-circumference;
-    stroke-dashoffset: 0;
-    transform-origin: center;
-    transform: rotate(-90deg);
-    animation: circle-draw 6s ease-in-out infinite;
-    transition: opacity var(--transition-duration-m) var(--ani-standard-timing);
-  }
-
-  .play-indicator {
-    fill: currentColor;
-    transition: opacity var(--transition-duration-m) var(--ani-standard-timing);
-  }
-
-  &.is-done {
-    .done-toggle-svg {
-      opacity: 0.5;
-    }
-
-    .done-check {
-      animation: draw-check 150ms ease-out forwards;
-    }
-  }
-
-  &.is-current:not(.is-done) {
-    .done-circle {
-      opacity: 0;
-    }
-
-    &:hover {
-      .done-circle {
-        opacity: 1;
-      }
-
-      .progress-ring,
-      .play-indicator {
-        opacity: 0;
-      }
-    }
-  }
-
-  &:hover {
-    .done-toggle-svg {
-      opacity: 0.6;
-    }
-
-    &.is-done .done-toggle-svg {
-      opacity: 0.8;
-    }
-  }
-
-  // hit area
-  &:after {
-    content: '';
-    position: absolute;
-    top: calc(-1 * var(--s-quarter));
-    bottom: calc(-1 * var(--s-quarter));
-    left: calc(-1 * var(--s-quarter));
-    right: calc(-1 * var(--s-quarter));
-
-    @include mq(xs) {
-      top: calc(-1 * var(--s));
-      bottom: calc(-1 * var(--s));
-      left: calc(-1 * var(--s));
-      right: calc(-1 * var(--s-half));
-    }
   }
 }
 
@@ -538,14 +369,6 @@ $circle-circumference: 62.83;
 .start-task-btn {
   :host-context(.isHidePlayBtn) & {
     display: none !important;
-  }
-}
-
-.isPreventPointerEventsWhilePanning {
-  * {
-    user-select: none !important;
-    pointer-events: none !important;
-    transition: none !important;
   }
 }
 
