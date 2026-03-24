@@ -192,6 +192,29 @@
       bottom: 0;
     }
   }
+
+  // Prevent parent's focus border from leaking into subtask boxes.
+  // The focus rule (:host:focus .inner-wrapper > .box) leaks into subtask
+  // components because Angular emulated encapsulation shares the same
+  // _ngcontent attribute across all instances of the same component type.
+  // This override is more specific (adds .sub-tasks) so it wins.
+  :host:focus & .inner-wrapper > .box {
+    @include noTouchOnly() {
+      border-color: transparent;
+
+      @include lightTheme {
+        border-color: var(--extra-border-color);
+      }
+    }
+  }
+
+  :host:focus.mobile-highlight-searched-item & .inner-wrapper > .box {
+    border-color: transparent;
+
+    @include lightTheme {
+      border-color: var(--extra-border-color);
+    }
+  }
 }
 
 :host-context(.isDarkTheme) ::ng-deep .isDone.isDone .box {
