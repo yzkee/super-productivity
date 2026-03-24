@@ -812,6 +812,7 @@ export class AddTaskBarComponent implements AfterViewInit, OnInit, OnDestroy {
           const { DialogEditTaskRepeatCfgComponent } =
             await import('../../task-repeat-cfg/dialog-edit-task-repeat-cfg/dialog-edit-task-repeat-cfg.component');
           this._matDialog.open(DialogEditTaskRepeatCfgComponent, {
+            autoFocus: false,
             data: { task, defaultRemindOption: remindOption },
           });
         },

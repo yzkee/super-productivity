@@ -1674,9 +1674,9 @@
         "MSG": "There are {{tasksNr}} instances created for this recurring task. Do you want to update all of them with the new defaults or only update future tasks?",
         "OK": "Update all instances"
       },
-      "D_DELETE_INSTANCE": {
-        "MSG": "Remove the recurring task instance on {{date}}? This will prevent the task from being created on this date only.",
-        "OK": "Remove Instance"
+      "D_SKIP_INSTANCE": {
+        "MSG": "Skip the recurring task on {{date}}? This will prevent the task from being created on this date only.",
+        "OK": "Skip"
       },
       "D_EDIT": {
         "ADD": "Add Recurring Task Config",
@@ -1712,8 +1712,8 @@
         "QUICK_SETTING": "Recurring Config",
         "REMIND_AT": "Remind at",
         "REMIND_AT_PLACEHOLDER": "Select when to remind",
-        "REMOVE_FOR_DATE": "Remove for {{date}}",
-        "REMOVE_INSTANCE": "Remove today",
+        "SKIP_FOR_DATE": "Skip for {{date}}",
+        "SKIP_INSTANCE": "Skip for today",
         "REPEAT_CYCLE": "Recur cycle",
         "REPEAT_EVERY": "Recur every",
         "SATURDAY": "Saturday",

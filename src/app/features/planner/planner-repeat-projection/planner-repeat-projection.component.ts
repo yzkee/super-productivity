@@ -26,6 +26,7 @@ export class PlannerRepeatProjectionComponent {
 
   editTaskRepeatCfg(): void {
     this._matDialog.open(DialogEditTaskRepeatCfgComponent, {
+      autoFocus: false,
       restoreFocus: false,
       data: {
         repeatCfg: this.repeatCfg(),

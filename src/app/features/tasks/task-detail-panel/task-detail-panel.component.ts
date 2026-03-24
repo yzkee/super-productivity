@@ -488,6 +488,7 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
 
   editTaskRepeatCfg(): void {
     this._matDialog.open(DialogEditTaskRepeatCfgComponent, {
+      autoFocus: false,
       restoreFocus: true,
       data: {
         task: this.task(),

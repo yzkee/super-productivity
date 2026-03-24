@@ -285,6 +285,7 @@ export class ScheduleEventComponent {
     ) {
       const repeatCfg: TaskRepeatCfg = evt.data as TaskRepeatCfg;
       this._matDialog.open(DialogEditTaskRepeatCfgComponent, {
+        autoFocus: false,
         data: {
           repeatCfg,
           targetDate: (evt.id.includes('_') && evt.id.split('_')[1]) || undefined,
