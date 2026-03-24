@@ -49,6 +49,7 @@ const BUNDLED_PLUGIN_PATHS = [
   'assets/bundled-plugins/clickup-issue-provider',
   'assets/bundled-plugins/brain-dump',
   'assets/bundled-plugins/voice-reminder',
+  'assets/bundled-plugins/google-calendar-provider',
 ] as const;
 
 @Injectable({
