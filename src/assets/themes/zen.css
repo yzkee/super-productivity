@@ -39,14 +39,18 @@ body.isDarkTheme {
   /* Use main bg instead of lighter grays */
   --bg-lighter: var(--bg);
   --bg-lightest: var(--bg);
-  --schedule-event-bg: var(--bg);
+  --schedule-event-bg: transparent;
+  --schedule-event-bg-in-side-panel: transparent;
 
   /* Selected task: flat with border */
   --task-c-selected-bg: transparent;
   --task-selected-shadow: none;
 }
 
-body.isDarkTheme {
+/* Light mode: use pure white for elevated surfaces instead of off-white (#f8f8f7) */
+body:not(.isDarkTheme) {
+  --bg-lighter: #fff;
+  --bg-lightest: #fff;
 }
 
 /* Schedule events: semi-transparent bg with bg image */
@@ -146,11 +150,16 @@ body task-detail-item .markdown-wrapper {
   box-shadow: none !important;
 }
 
-/* Material dialogs, cards, and context menus: use main bg */
+/* Material dialogs, cards, and context menus */
 body .mat-mdc-dialog-surface,
 body .mat-mdc-menu-panel {
   background: var(--bg) !important;
   border: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+body:not(.isDarkTheme) .mat-mdc-dialog-surface,
+body:not(.isDarkTheme) .mat-mdc-menu-panel {
+  background: #fff !important;
 }
 
 body.isDarkTheme .mat-mdc-dialog-surface,
@@ -162,6 +171,15 @@ body .mat-mdc-card {
   background: var(--bg) !important;
   box-shadow: none !important;
   border: 1px solid rgba(128, 128, 128, 0.2);
+}
+
+body:not(.isDarkTheme) .mat-mdc-card {
+  background: #fff !important;
+}
+
+body .mat-mdc-card.repeat-task-cfg {
+  background: transparent !important;
+  border: none;
 }
 
 body.isDarkTheme .mat-mdc-card {
