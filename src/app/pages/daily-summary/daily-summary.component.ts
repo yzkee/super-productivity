@@ -8,7 +8,6 @@ import {
   linkedSignal,
   OnDestroy,
   OnInit,
-  signal,
   Signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -30,7 +29,6 @@ import {
   switchMap,
   take,
   takeUntil,
-  tap,
   timeout,
   withLatestFrom,
 } from 'rxjs/operators';
@@ -67,6 +65,7 @@ import { MsToClockStringPipe } from '../../ui/duration/ms-to-clock-string.pipe';
 import { InlineInputComponent } from '../../ui/inline-input/inline-input.component';
 import { InlineMarkdownComponent } from '../../ui/inline-markdown/inline-markdown.component';
 import { MomentFormatPipe } from '../../ui/pipes/moment-format.pipe';
+import { IS_TOUCH_ONLY } from '../../util/is-touch-only';
 import { getPluralKey } from '../../util/get-plural-key';
 import { shareReplayUntil } from '../../util/share-replay-until';
 import { unToggleCheckboxesInMarkdownTxt } from '../../util/untoggle-checkboxes-in-markdown-txt';
@@ -169,8 +168,6 @@ export class DailySummaryComponent implements OnInit, OnDestroy, AfterViewInit {
     switchMap((dayStr) => this._getDailySummaryTasksFlat$(dayStr)),
     shareReplay(1),
   );
-
-  isArchiveLoaded = signal(false);
 
   hasTasksForToday$: Observable<boolean> = this.tasksWorkedOnOrDoneOrRepeatableFlat$.pipe(
     map((tasks) => tasks && !!tasks.length),
@@ -314,16 +311,12 @@ export class DailySummaryComponent implements OnInit, OnDestroy, AfterViewInit {
       return;
     }
 
-    this.tasksWorkedOnOrDoneOrRepeatableFlat$
-      .pipe(
-        first((tasks) => tasks.length > 0),
-        takeUntil(this._onDestroy$),
-      )
-      .subscribe(() => {
-        this._startCelebrationTimeout = window.setTimeout(() => {
-          this._celebrate();
-        }, 300);
-      });
+    this._startCelebrationTimeout = window.setTimeout(
+      () => {
+        this._celebrate();
+      },
+      IS_TOUCH_ONLY ? 1500 : 500,
+    );
   }
 
   ngOnDestroy(): void {
@@ -500,7 +493,7 @@ export class DailySummaryComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   private _getDailySummaryTasksFlat$(dayStr: string): Observable<Task[]> {
-    this.isArchiveLoaded.set(false);
+    // TODO make more performant!!
     const _isWorkedOnDoneOrDueToday = (() => {
       if (this.isIncludeYesterday) {
         const yesterday = new Date();
@@ -621,7 +614,6 @@ export class DailySummaryComponent implements OnInit, OnDestroy, AfterViewInit {
       withLatestFrom(this.workContextService.activeWorkContextTypeAndId$),
       map(_mapEntities),
       map(_mapFilterToFlatToday),
-      tap(() => this.isArchiveLoaded.set(true)),
     );
 
     const todayTasks: Observable<TaskWithSubTasks[]> =
@@ -631,10 +623,9 @@ export class DailySummaryComponent implements OnInit, OnDestroy, AfterViewInit {
         map(_mapFilterToFlatOrRepeatToday),
       );
 
-    return combineLatest([
-      todayTasks,
-      archiveTasks.pipe(startWith([] as TaskWithSubTasks[])),
-    ]).pipe(map(([today, archive]) => today.concat(archive)));
+    return combineLatest([todayTasks, archiveTasks]).pipe(
+      map(([t1, t2]) => t1.concat(t2)),
+    );
   }
 
   private _celebrate(): void {
