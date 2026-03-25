@@ -387,7 +387,11 @@ export class OperationLogSyncService {
       );
       localWinOpsCreated += rejectionResult.mergedOpsCreated;
     } catch (rejectionError) {
+      // FIX #6571: Propagate rejection handler errors instead of swallowing them.
+      // Previously, errors here were logged but not rethrown, causing uploadPendingOps
+      // to return kind='completed' with permanentRejectionCount=0, masking the failure.
       OpLog.err('OperationLogSyncService: Error handling rejected ops', rejectionError);
+      throw rejectionError;
     }
 
     // Update pending ops status for UI indicator
@@ -429,6 +433,16 @@ export class OperationLogSyncService {
     options?: { forceFromSeq0?: boolean },
   ): Promise<DownloadOutcome> {
     const result = await this.downloadService.downloadRemoteOps(syncProvider, options);
+
+    // FIX #6571: Check download success before processing results.
+    // Previously, success=false was ignored and treated as "no new ops",
+    // causing sync to report IN_SYNC despite a failed download.
+    if (!result.success) {
+      throw new Error(
+        'Download failed - partial or no data received. ' +
+          `failedFileCount=${result.failedFileCount}`,
+      );
+    }
 
     // Server migration detected: gap on empty server
     // Create a SYNC_IMPORT operation with full local state to seed the new server
