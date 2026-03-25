@@ -17,6 +17,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
     tabindex: '0',
     '[class.is-done]': '(showDoneAnimation() || isDone()) && !showUndoneAnimation()',
     '[class.is-current]': 'isCurrent()',
+    '[class.is-scale-up]': 'showDoneAnimation() || showUndoneAnimation()',
   },
   /* eslint-enable @typescript-eslint/naming-convention */
 })

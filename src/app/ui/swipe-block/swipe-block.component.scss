@@ -18,10 +18,10 @@
   top: 50%;
   transform: translateY(-50%);
   z-index: calc(var(--z-swipe-block) + 1);
-  background: var(--text-color);
+  background: var(--text-color-muted);
 
   :host-context(.isDarkTheme) & {
-    height: 3px;
+    height: 2px;
     background: var(--text-color-muted);
   }
   border-radius: 2px;

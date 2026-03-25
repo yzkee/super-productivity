@@ -253,6 +253,8 @@ export class SwipeBlockComponent implements OnDestroy {
   }
 
   private _completeRightSwipe(): void {
+    const isMarkingDone = !this.isDone();
+
     if (this.isDone() && this._displayValueEl) {
       this._renderer.setStyle(
         this._displayValueEl,
@@ -286,7 +288,9 @@ export class SwipeBlockComponent implements OnDestroy {
     }
     this._currentPanTimeout = window.setTimeout(() => {
       this.swipeRight.emit();
-      this._resetAfterPan(this._snapBackHideDelayMs);
+      // When marking done, keep the gesture strikethrough visible until the
+      // CSS isDone styling takes over (setDone dispatches ~200ms after emit).
+      this._resetAfterPan(isMarkingDone ? 500 : this._snapBackHideDelayMs, isMarkingDone);
     }, 200);
   }
 
@@ -425,7 +429,10 @@ export class SwipeBlockComponent implements OnDestroy {
     }
   }
 
-  private _resetAfterPan(hideDelay: number = 0): void {
+  private _resetAfterPan(
+    hideDelay: number = 0,
+    keepStrikethrough: boolean = false,
+  ): void {
     if (this._currentPanTimeout) {
       window.clearTimeout(this._currentPanTimeout);
       this._currentPanTimeout = undefined;
@@ -437,14 +444,18 @@ export class SwipeBlockComponent implements OnDestroy {
     this._isLockPanLeft = false;
     this._isLockPanRight = false;
 
-    // Reset triggered state and notify parent to clear animation signals
+    // Reset triggered state and notify parent to clear animation signals.
+    // When keepStrikethrough is true (marking done via swipe), keep the animation
+    // signals alive so the checkmark stays visible until the store updates.
     if (this._isActionTriggered) {
       this._isActionTriggered = false;
-      this.swipeRightTriggered.emit(false);
+      if (!keepStrikethrough) {
+        this.swipeRightTriggered.emit(false);
+      }
     }
 
-    // Reset strikethrough div
-    if (strikethroughElRef) {
+    // Reset strikethrough div (skip when marking done so it bridges until the CSS isDone class)
+    if (!keepStrikethrough && strikethroughElRef) {
       this._renderer.setStyle(strikethroughElRef.nativeElement, 'width', '0');
       this._renderer.setStyle(strikethroughElRef.nativeElement, 'opacity', '1');
       this._renderer.removeStyle(strikethroughElRef.nativeElement, 'transition');
