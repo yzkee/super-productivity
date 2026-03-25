@@ -773,9 +773,8 @@ const _addInboxProjectIdIfNecessary = (
     }
   });
 
-  OpLog.log(taskArchiveYoungIds);
-  OpLog.log(Object.keys(archiveYoung.task.entities));
-
+  // Archive tasks: set INBOX for missing projectId and enforce TODAY_TAG invariant.
+  // These are structural/invariant fixes, not stale-reference cleanup (#6270).
   taskArchiveYoungIds.forEach((id) => {
     const t = archiveYoung.task.entities[id] as TaskCopy;
     if (!t.projectId) {
@@ -783,14 +782,10 @@ const _addInboxProjectIdIfNecessary = (
       t.projectId = INBOX_PROJECT.id;
       summary.relationshipsFixed++;
     }
-    // while we are at it, we also cleanup the today tag
     if (t.tagIds?.includes(TODAY_TAG.id)) {
       t.tagIds = t.tagIds.filter((idI) => idI !== TODAY_TAG.id);
     }
   });
-
-  OpLog.log(taskArchiveOldIds);
-  OpLog.log(Object.keys(archiveOld.task.entities));
 
   taskArchiveOldIds.forEach((id) => {
     const t = archiveOld.task.entities[id] as TaskCopy;
@@ -799,7 +794,6 @@ const _addInboxProjectIdIfNecessary = (
       t.projectId = INBOX_PROJECT.id;
       summary.relationshipsFixed++;
     }
-    // while we are at it, we also cleanup the today tag
     if (t.tagIds?.includes(TODAY_TAG.id)) {
       t.tagIds = t.tagIds.filter((idI) => idI !== TODAY_TAG.id);
     }
@@ -830,40 +824,16 @@ const _removeNonExistentProjectIdsFromTasks = (
   data: AppDataComplete,
   summary: RepairSummary,
 ): AppDataComplete => {
-  const { task, project, archiveYoung, archiveOld } = data;
+  const { task, project } = data;
   const projectIds: string[] = project.ids as string[];
   const taskIds: string[] = task.ids;
-  const taskArchiveYoungIds: string[] = archiveYoung.task.ids as string[];
-  const taskArchiveOldIds: string[] = archiveOld.task.ids as string[];
 
+  // Active tasks only — archived tasks with stale projectId are harmless
+  // and no longer fail validation. See: https://github.com/super-productivity/super-productivity/issues/6270
   taskIds.forEach((id) => {
     const t = task.entities[id] as TaskCopy;
     if (t.projectId && !projectIds.includes(t.projectId)) {
       OpLog.log('Delete missing project id from task ' + t.projectId);
-      t.projectId = INBOX_PROJECT.id;
-      summary.invalidReferencesRemoved++;
-    }
-  });
-
-  OpLog.log(taskArchiveYoungIds);
-  OpLog.log(Object.keys(archiveYoung.task.entities));
-
-  taskArchiveYoungIds.forEach((id) => {
-    const t = archiveYoung.task.entities[id] as TaskCopy;
-    if (t.projectId && !projectIds.includes(t.projectId)) {
-      OpLog.log('Delete missing project id from archive task ' + t.projectId);
-      t.projectId = INBOX_PROJECT.id;
-      summary.invalidReferencesRemoved++;
-    }
-  });
-
-  OpLog.log(taskArchiveOldIds);
-  OpLog.log(Object.keys(archiveOld.task.entities));
-
-  taskArchiveOldIds.forEach((id) => {
-    const t = archiveOld.task.entities[id] as TaskCopy;
-    if (t.projectId && !projectIds.includes(t.projectId)) {
-      OpLog.log('Delete missing project id from old archive task ' + t.projectId);
       t.projectId = INBOX_PROJECT.id;
       summary.invalidReferencesRemoved++;
     }
@@ -876,18 +846,15 @@ const _removeNonExistentTagsFromTasks = (
   data: AppDataComplete,
   summary: RepairSummary,
 ): AppDataComplete => {
-  const { task, tag, archiveYoung, archiveOld } = data;
+  const { task, tag } = data;
   const tagIds: string[] = tag.ids as string[];
   const taskIds: string[] = task.ids;
-  const taskArchiveYoungIds: string[] = archiveYoung.task.ids as string[];
-  const taskArchiveOldIds: string[] = archiveOld.task.ids as string[];
   let removedCount = 0;
 
   // Helper function to filter valid tags
   // Note: We exclude TODAY_TAG.id as it's handled separately and removed elsewhere
   const filterValidTags = (taskTagIds: string[]): string[] => {
     return taskTagIds.filter((tagId) => {
-      // Skip TODAY_TAG as it's handled elsewhere
       if (tagId === TODAY_TAG.id) {
         return false;
       }
@@ -895,7 +862,8 @@ const _removeNonExistentTagsFromTasks = (
     });
   };
 
-  // Fix tasks in main task state
+  // Active tasks only — archived tasks with stale tagIds are harmless
+  // and no longer fail validation. See: https://github.com/super-productivity/super-productivity/issues/6270
   taskIds.forEach((id) => {
     const t = task.entities[id] as TaskCopy;
     if (t.tagIds && t.tagIds.length > 0) {
@@ -907,46 +875,6 @@ const _removeNonExistentTagsFromTasks = (
         if (removedTags.length > 0) {
           OpLog.log(
             `Removing non-existent tags from task ${t.id}: ${removedTags.join(', ')}`,
-          );
-          removedCount += removedTags.length;
-        }
-        t.tagIds = validTagIds;
-      }
-    }
-  });
-
-  // Fix tasks in archiveYoung
-  taskArchiveYoungIds.forEach((id) => {
-    const t = archiveYoung.task.entities[id] as TaskCopy;
-    if (t.tagIds && t.tagIds.length > 0) {
-      const validTagIds = filterValidTags(t.tagIds);
-      if (validTagIds.length !== t.tagIds.length) {
-        const removedTags = t.tagIds.filter(
-          (tagId) => !tagIds.includes(tagId) && tagId !== TODAY_TAG.id,
-        );
-        if (removedTags.length > 0) {
-          OpLog.log(
-            `Removing non-existent tags from archive task ${t.id}: ${removedTags.join(', ')}`,
-          );
-          removedCount += removedTags.length;
-        }
-        t.tagIds = validTagIds;
-      }
-    }
-  });
-
-  // Fix tasks in archiveOld
-  taskArchiveOldIds.forEach((id) => {
-    const t = archiveOld.task.entities[id] as TaskCopy;
-    if (t.tagIds && t.tagIds.length > 0) {
-      const validTagIds = filterValidTags(t.tagIds);
-      if (validTagIds.length !== t.tagIds.length) {
-        const removedTags = t.tagIds.filter(
-          (tagId) => !tagIds.includes(tagId) && tagId !== TODAY_TAG.id,
-        );
-        if (removedTags.length > 0) {
-          OpLog.log(
-            `Removing non-existent tags from old archive task ${t.id}: ${removedTags.join(', ')}`,
           );
           removedCount += removedTags.length;
         }
@@ -1017,43 +945,18 @@ const _removeNonExistentRepeatCfgIdsFromTasks = (
   data: AppDataComplete,
   summary: RepairSummary,
 ): AppDataComplete => {
-  const { task, taskRepeatCfg, archiveYoung, archiveOld } = data;
+  const { task, taskRepeatCfg } = data;
   if (!taskRepeatCfg?.ids) return data;
   const repeatCfgIds: string[] = taskRepeatCfg.ids as string[];
   const taskIds: string[] = task.ids;
-  const taskArchiveYoungIds: string[] = archiveYoung.task.ids as string[];
-  const taskArchiveOldIds: string[] = archiveOld.task.ids as string[];
   let removedCount = 0;
 
-  // Fix tasks in main task state
+  // Active tasks only — archived tasks with stale repeatCfgId are harmless
+  // and no longer fail validation. See: https://github.com/super-productivity/super-productivity/issues/6270
   taskIds.forEach((id) => {
     const t = task.entities[id] as TaskCopy;
     if (t.repeatCfgId && !repeatCfgIds.includes(t.repeatCfgId)) {
       OpLog.log(`Clearing non-existent repeatCfgId from task ${t.id}: ${t.repeatCfgId}`);
-      t.repeatCfgId = undefined;
-      removedCount++;
-    }
-  });
-
-  // Fix tasks in archiveYoung
-  taskArchiveYoungIds.forEach((id) => {
-    const t = archiveYoung.task.entities[id] as TaskCopy;
-    if (t.repeatCfgId && !repeatCfgIds.includes(t.repeatCfgId)) {
-      OpLog.log(
-        `Clearing non-existent repeatCfgId from archive task ${t.id}: ${t.repeatCfgId}`,
-      );
-      t.repeatCfgId = undefined;
-      removedCount++;
-    }
-  });
-
-  // Fix tasks in archiveOld
-  taskArchiveOldIds.forEach((id) => {
-    const t = archiveOld.task.entities[id] as TaskCopy;
-    if (t.repeatCfgId && !repeatCfgIds.includes(t.repeatCfgId)) {
-      OpLog.log(
-        `Clearing non-existent repeatCfgId from old archive task ${t.id}: ${t.repeatCfgId}`,
-      );
       t.repeatCfgId = undefined;
       removedCount++;
     }
