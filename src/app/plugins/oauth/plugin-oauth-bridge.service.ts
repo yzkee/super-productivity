@@ -36,7 +36,11 @@ export class PluginOAuthBridgeService {
     pluginId: string,
     config: OAuthFlowConfig,
   ): Promise<OAuthTokenResult> {
-    const redirectUri = this._pluginOAuthService.getRedirectUri();
+    // Validate URLs before starting the loopback server. On Electron,
+    // getRedirectUri() starts a server — avoid leaking it if config is invalid.
+    this._pluginOAuthService.validateOAuthConfig(config);
+
+    const redirectUri = await this._pluginOAuthService.getRedirectUri();
     const { url, codeVerifier, state } = await this._pluginOAuthService.buildAuthUrl(
       config,
       redirectUri,

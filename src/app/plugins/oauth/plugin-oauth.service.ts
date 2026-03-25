@@ -37,9 +37,12 @@ export class PluginOAuthService {
   /** Emits the pluginId when a token refresh fails and in-memory tokens are cleared. */
   tokenInvalidated$ = new Subject<string>();
 
-  getRedirectUri(): string {
+  async getRedirectUri(): Promise<string> {
     if (IS_ELECTRON) {
-      return 'super-productivity://oauth';
+      // Google Desktop OAuth requires loopback redirect URIs (http://127.0.0.1:<port>).
+      // Start a temporary loopback server in the main process and use its port.
+      const { port } = await window.ea.pluginOAuthPrepare();
+      return `http://127.0.0.1:${port}`;
     }
     if (IS_ANDROID_WEB_VIEW) {
       return 'com.super-productivity.app://plugin-oauth-callback';
@@ -83,6 +86,11 @@ export class PluginOAuthService {
       codeVerifier,
       state,
     };
+  }
+
+  validateOAuthConfig(config: OAuthFlowConfig): void {
+    this._validateHttpsUrl(config.authUrl, 'authUrl');
+    this._validateHttpsUrl(config.tokenUrl, 'tokenUrl');
   }
 
   private _validateHttpsUrl(url: string, label: string): void {
