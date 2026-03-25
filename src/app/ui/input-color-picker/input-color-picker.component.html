@@ -8,11 +8,13 @@
   class="color-trigger"
   [style.background-color]="value()"
   (click)="toggle()"
->
-</button>
+></button>
 
 @if (isOpen()) {
-  <div class="backdrop" (click)="isOpen.set(false)"></div>
+  <div
+    class="backdrop"
+    (click)="isOpen.set(false)"
+  ></div>
   <div
     class="color-panel"
     [style.position]="'fixed'"
