@@ -73,6 +73,7 @@ export class PlannerTaskComponent implements OnInit, OnDestroy, AfterViewInit {
   parentTitle: string | null = null;
   isContextMenuLoaded = signal(false);
   showDoneAnimation = signal(false);
+  showUndoneAnimation = signal(false);
   isDragReady = signal(false);
   private _doneAnimationTimeout?: number;
   private _dragReadyTimeout?: number;
@@ -166,6 +167,14 @@ export class PlannerTaskComponent implements OnInit, OnDestroy, AfterViewInit {
     window.clearTimeout(this._doneAnimationTimeout);
     window.clearTimeout(this._dragReadyTimeout);
     this._touchListenerCleanups.forEach((fn) => fn());
+  }
+
+  onSwipeRightTriggered(isTriggered: boolean): void {
+    if (this.task.isDone) {
+      this.showUndoneAnimation.set(isTriggered);
+    } else {
+      this.showDoneAnimation.set(isTriggered);
+    }
   }
 
   toggleTaskDone(): void {

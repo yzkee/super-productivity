@@ -146,6 +146,7 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   isBacklog = input<boolean>(false);
   isInSubTaskList = input<boolean>(false);
   showDoneAnimation = signal(false);
+  showUndoneAnimation = signal(false);
 
   // Use shared signals from services to avoid creating 600+ subscriptions on initial render
   isCurrent = computed(() => this._taskService.currentTaskId() === this.task().id);
@@ -690,6 +691,14 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   @throttle(200, { leading: true, trailing: false })
   toggleDoneKeyboard(): void {
     this.toggleTaskDone();
+  }
+
+  onSwipeRightTriggered(isTriggered: boolean): void {
+    if (this.task().isDone) {
+      this.showUndoneAnimation.set(isTriggered);
+    } else {
+      this.showDoneAnimation.set(isTriggered);
+    }
   }
 
   toggleTaskDone(): void {
