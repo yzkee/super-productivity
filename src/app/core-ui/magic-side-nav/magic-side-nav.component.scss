@@ -101,7 +101,7 @@
   // Milkglass effect when background image is present (light theme)
   :host-context(.hasBgImage) & {
     background: var(--c-light-50);
-    backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px);
   }
 
   // Milkglass effect for dark theme with background image
@@ -129,6 +129,10 @@
     box-shadow: 4px 0 16px var(--c-dark-30);
     // Remove CSS transitions - let Angular animations handle it
     transition: none !important;
+  }
+
+  :host-context(.hasBgImage:not(.isDarkTheme)) &.mobile {
+    background: var(--bg);
   }
 
   :host-context(body.isNativeMobile) &.mobile {
