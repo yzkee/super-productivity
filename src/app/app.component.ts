@@ -349,6 +349,7 @@ export class AppComponent implements OnDestroy, AfterViewInit {
 
   onTaskAdded({ taskId }: { taskId: string; isAddToBottom: boolean }): void {
     this.layoutService.setPendingFocusTaskId(taskId);
+    this.layoutService.scrollToNewTask(taskId);
   }
 
   readonly bgOverlayOpacity = computed((): number => {
