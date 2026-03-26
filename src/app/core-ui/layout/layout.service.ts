@@ -25,6 +25,7 @@ import { map } from 'rxjs/operators';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TaskService } from '../../features/tasks/task.service';
+import { IS_TOUCH_ONLY } from '../../util/is-touch-only';
 
 const XS_BREAKPOINT = 600;
 const XXXS_BREAKPOINT = 398;
@@ -119,6 +120,16 @@ export class LayoutService {
     this._store$.dispatch(hideAddTaskBar());
     const focusTaskId = newTaskId ?? this._pendingFocusTaskId ?? undefined;
     this._pendingFocusTaskId = null;
+
+    // On touch-only devices, skip focusing a task element after closing the bar.
+    // focus() causes the browser to scroll the focused element into view, which
+    // results in an unwanted scroll-to-top on mobile.  Touch users don't rely on
+    // keyboard navigation so the focus is unnecessary.
+    if (IS_TOUCH_ONLY) {
+      this._previouslyFocusedElement = null;
+      return;
+    }
+
     // Wait a moment so the DOM can render the new task before we try to focus anything.
     window.setTimeout(() => {
       if (focusTaskId) {
