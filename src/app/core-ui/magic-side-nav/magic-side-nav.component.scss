@@ -27,6 +27,42 @@
   transition: none !important;
 }
 
+:host(.initializing),
+:host(.initializing) * {
+  transition: none !important;
+  animation: none !important;
+}
+
+:host(.initializing) {
+  .nav-sidenav,
+  .resize-handle {
+    opacity: 0;
+  }
+}
+
+:host(.initial-shell-enter) {
+  .nav-sidenav {
+    animation: sidenav-fade-in var(--transition-duration-l) var(--ani-enter-timing) both;
+  }
+}
+
+:host(.initial-enter) {
+  .nav-list,
+  .resize-handle {
+    animation: sidenav-fade-in var(--transition-duration-l) var(--ani-enter-timing) both;
+  }
+}
+
+@keyframes sidenav-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
 // Mobile menu open button (only shows when menu is closed)
 .mobile-menu-open {
   display: flex;
