@@ -2437,7 +2437,10 @@
       "CREATE_TASK": "Click + to add your first task",
       "CREATE_TASK_TOUCH": "Tap + to add your first task",
       "EXPLORE": "Feel free to click around and explore! You can find help in the sidebar.",
-      "EXPLORE_TOUCH": "Feel free to tap around and explore! You can find help in the menu.",
+      "EXPLORE_TOUCH": "Feel free to explore. You can find help in the sidebar.",
+      "TASK_TAP_TOUCH": "Tap a task to open its details.",
+      "TASK_SWIPE_LEFT_TOUCH": "Swipe task left for more actions",
+      "TASK_SWIPE_RIGHT_TOUCH": "Swipe task right to mark it as done",
       "OR_PRESS": "or press",
       "SKIP_ARIA": "Dismiss hint"
     }

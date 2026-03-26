@@ -2400,6 +2400,9 @@
       "CREATE_TASK_TOUCH": "Dotknij +, aby dodać pierwsze zadanie",
       "EXPLORE": "Klikaj i odkrywaj! Pomoc znajdziesz w panelu bocznym.",
       "EXPLORE_TOUCH": "Odkrywaj swobodnie! Pomoc znajdziesz w menu.",
+      "TASK_TAP_TOUCH": "Dotknij zadania, aby otworzyć jego szczegóły.",
+      "TASK_SWIPE_LEFT_TOUCH": "Przesuń zadanie w lewo, aby zobaczyć więcej akcji",
+      "TASK_SWIPE_RIGHT_TOUCH": "Przesuń zadanie w prawo, aby oznaczyć je jako ukończone",
       "OR_PRESS": "lub naciśnij",
       "SKIP_ARIA": "Zamknij wskazówkę"
     }

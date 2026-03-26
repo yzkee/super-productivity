@@ -236,6 +236,7 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
 
     this._isOpenedFromKeyboard = isOpenedFromKeyBoard;
     this.contextMenuTrigger()?.openMenu();
+    this._taskFocusService.isTaskContextMenuOpen.set(true);
 
     if (IS_TOUCH_PRIMARY) {
       this._touchMenuTimeout = setTimeout(() => {
@@ -307,6 +308,7 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
   onClose(): void {
     // Don't manually set focusedTaskId to null here - let the task component's
     // focus/blur handlers manage it automatically to avoid race conditions
+    this._taskFocusService.isTaskContextMenuOpen.set(false);
     this.focusRelatedTaskOrNext();
     this.close.emit();
   }

@@ -2404,6 +2404,9 @@
       "CREATE_TASK_TOUCH": "Atinge + pentru a adăuga prima ta sarcină",
       "EXPLORE": "Apasă liber și explorează! Poți găsi ajutor în bara laterală.",
       "EXPLORE_TOUCH": "Explorează liber! Poți găsi ajutor în meniu.",
+      "TASK_TAP_TOUCH": "Atinge o sarcină pentru a-i deschide detaliile.",
+      "TASK_SWIPE_LEFT_TOUCH": "Glisează sarcina spre stânga pentru mai multe acțiuni",
+      "TASK_SWIPE_RIGHT_TOUCH": "Glisează sarcina spre dreapta pentru a o marca drept finalizată",
       "OR_PRESS": "sau apasă",
       "SKIP_ARIA": "Închide indicația"
     }
