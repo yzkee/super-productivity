@@ -59,10 +59,16 @@ export class OnboardingHintService {
   }
 
   static isOnboardingInProgress(): boolean {
-    return (
-      !!localStorage.getItem(LS.ONBOARDING_PRESET_DONE) &&
-      !localStorage.getItem(LS.ONBOARDING_HINTS_DONE)
-    );
+    // Onboarding is fully completed
+    if (localStorage.getItem(LS.ONBOARDING_HINTS_DONE)) {
+      return false;
+    }
+    // Already past preset selection, hints still pending
+    if (localStorage.getItem(LS.ONBOARDING_PRESET_DONE)) {
+      return true;
+    }
+    // Fresh user still on preset selection screen (no preset done, no skip tour)
+    return !localStorage.getItem(LS.IS_SKIP_TOUR);
   }
 
   startAfterPresetSelection(): void {
