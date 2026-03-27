@@ -335,13 +335,17 @@ export interface OAuthFlowConfig {
    */
   clientSecret?: string;
   /**
-   * Client ID for native mobile platforms (Android/iOS).
-   * Mobile OAuth client types authenticate via app signing (package name + SHA-1
-   * on Android, bundle ID on iOS) and have no client secret. When set, this
-   * overrides `clientId` on native platforms and `clientSecret` is omitted.
-   * PKCE is used as the sole proof mechanism.
+   * Client ID for Android (authenticates via package name + SHA-1 signing key).
+   * Overrides `clientId` on Android and omits `clientSecret`.
+   * Requires "Custom URI scheme" enabled in Google Cloud Console.
    */
   mobileClientId?: string;
+  /**
+   * Client ID for iOS (authenticates via bundle ID).
+   * Overrides `clientId` on iOS and omits `clientSecret`.
+   * Requires "Custom URI scheme" enabled in Google Cloud Console.
+   */
+  iosClientId?: string;
   scopes: string[];
   /** Additional query parameters to append to the authorization URL (e.g. access_type, prompt). */
   extraAuthParams?: Record<string, string>;

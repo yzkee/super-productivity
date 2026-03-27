@@ -5,7 +5,7 @@ import { OAuthFlowConfig, OAuthTokenResult } from '@super-productivity/plugin-ap
 import { PluginOAuthTokens } from './plugin-oauth.model';
 import { generateCodeVerifier, generateCodeChallenge } from './pkce.util';
 import { IS_ELECTRON } from '../../app.constants';
-import { IS_NATIVE_PLATFORM } from '../../util/is-native-platform';
+import { IS_NATIVE_PLATFORM, IS_ANDROID_NATIVE } from '../../util/is-native-platform';
 import { PluginLog } from '../../core/log';
 
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
@@ -45,7 +45,12 @@ export class PluginOAuthService {
       return `http://127.0.0.1:${port}`;
     }
     if (IS_NATIVE_PLATFORM) {
-      return 'com.super-productivity.app://plugin-oauth-callback';
+      // Scheme must match the platform's app identifier:
+      // Android: applicationId from build.gradle
+      // iOS: bundle ID (matches Capacitor appId)
+      return IS_ANDROID_NATIVE
+        ? 'com.superproductivity.superproductivity:/plugin-oauth-callback'
+        : 'com.super-productivity.app:/plugin-oauth-callback';
     }
     return `${window.location.origin}/assets/oauth-callback.html`;
   }

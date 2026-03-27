@@ -30,8 +30,13 @@ const CLIENT_ID =
 const CLIENT_SECRET = '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';
 // Android OAuth client ID — authenticates via package name + SHA-1 signing key.
 // No client secret needed; PKCE is the sole proof mechanism.
+// Requires "Custom URI scheme" to be enabled in Google Cloud Console.
 const MOBILE_CLIENT_ID =
   '637968426975-ks6oveqe619324pimp8f7e1uqovfg65b.apps.googleusercontent.com';
+// iOS OAuth client ID — authenticates via bundle ID.
+// Requires "Custom URI scheme" to be enabled in Google Cloud Console.
+const IOS_CLIENT_ID =
+  '637968426975-ka1muro7mee1go0m7hhog49fm7svr4os.apps.googleusercontent.com';
 
 interface GoogleCalendarConfig {
   calendarId?: string;
@@ -140,6 +145,7 @@ PluginAPI.registerIssueProvider({
         clientId: CLIENT_ID,
         clientSecret: CLIENT_SECRET,
         mobileClientId: MOBILE_CLIENT_ID,
+        iosClientId: IOS_CLIENT_ID,
         scopes: [CALENDAR_EVENTS_SCOPE, CALENDAR_READONLY_SCOPE],
         extraAuthParams: { access_type: 'offline', prompt: 'consent' },
       },

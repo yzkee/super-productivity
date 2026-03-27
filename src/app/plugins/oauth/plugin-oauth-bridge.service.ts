@@ -8,7 +8,11 @@ import {
   deleteOAuthTokens,
 } from './plugin-oauth-token-store';
 import { IS_ELECTRON } from '../../app.constants';
-import { IS_NATIVE_PLATFORM } from '../../util/is-native-platform';
+import {
+  IS_NATIVE_PLATFORM,
+  IS_IOS_NATIVE,
+  IS_ANDROID_NATIVE,
+} from '../../util/is-native-platform';
 import { PluginLog } from '../../core/log';
 
 /**
@@ -40,12 +44,16 @@ export class PluginOAuthBridgeService {
     // getRedirectUri() starts a server — avoid leaking it if config is invalid.
     this._pluginOAuthService.validateOAuthConfig(config);
 
-    // On native mobile platforms, use the mobile-specific client ID (which
-    // authenticates via app signing, not a client secret) and drop the secret.
-    const effectiveConfig: OAuthFlowConfig =
-      IS_NATIVE_PLATFORM && config.mobileClientId
-        ? { ...config, clientId: config.mobileClientId, clientSecret: undefined }
-        : config;
+    // On native mobile, use the platform-specific client ID (which authenticates
+    // via app signing, not a client secret) and drop the secret.
+    const nativeClientId = IS_ANDROID_NATIVE
+      ? config.mobileClientId
+      : IS_IOS_NATIVE
+        ? config.iosClientId
+        : undefined;
+    const effectiveConfig: OAuthFlowConfig = nativeClientId
+      ? { ...config, clientId: nativeClientId, clientSecret: undefined }
+      : config;
 
     const redirectUri = await this._pluginOAuthService.getRedirectUri();
     const { url, codeVerifier, state } = await this._pluginOAuthService.buildAuthUrl(
