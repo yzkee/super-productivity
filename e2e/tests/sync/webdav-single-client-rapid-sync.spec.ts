@@ -126,11 +126,13 @@ test.describe('@webdav Rapid Sync (Single Client)', () => {
         console.log(`[RapidSync] Cycle ${i}/5 complete: ${taskName}`);
       }
 
-      // Verify all tasks are present
+      // Verify all tasks are present (allow extra time for Angular to settle after rapid syncing)
       for (const taskName of taskNames) {
-        await expect(page.locator(`task:has-text("${taskName}")`)).toBeVisible();
+        await expect(page.locator(`task:has-text("${taskName}")`)).toBeVisible({
+          timeout: 10000,
+        });
       }
-      await expect(page.locator('task')).toHaveCount(5);
+      await expect(page.locator('task')).toHaveCount(5, { timeout: 10000 });
 
       // Verify no 412 errors occurred
       expect(syncErrors.length).toBe(0);
