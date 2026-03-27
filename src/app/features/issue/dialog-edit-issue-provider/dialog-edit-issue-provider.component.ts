@@ -53,6 +53,7 @@ import { IssueLog } from '../../../core/log';
 import { PluginIssueProviderRegistryService } from '../../../plugins/issue-provider/plugin-issue-provider-registry.service';
 import { PluginBridgeService } from '../../../plugins/plugin-bridge.service';
 import { PluginHttpService } from '../../../plugins/issue-provider/plugin-http.service';
+import { OAuthFlowConfig } from '@super-productivity/plugin-api';
 import { TrelloAdditionalCfgComponent } from '../providers/trello/trello-view-components/trello_cfg/trello_additional_cfg.component';
 // ClickUp is now a plugin — no built-in config component needed
 import { NextcloudDeckAdditionalCfgComponent } from '../providers/nextcloud-deck/nextcloud-deck-additional-cfg.component';
@@ -331,13 +332,7 @@ export class DialogEditIssueProviderComponent {
     this.isConnectionWorks.set(false);
   }
 
-  async connectOAuth(oauthConfig: {
-    authUrl: string;
-    tokenUrl: string;
-    clientId: string;
-    clientSecret?: string;
-    scopes: string[];
-  }): Promise<void> {
+  async connectOAuth(oauthConfig: OAuthFlowConfig): Promise<void> {
     const pluginId = this._pluginRegistry.getProvider(this.issueProviderKey)?.pluginId;
     if (!pluginId) {
       return;
@@ -582,13 +577,7 @@ export class DialogEditIssueProviderComponent {
 
   private _getOAuthButtons(): {
     label: string;
-    oauthConfig: {
-      authUrl: string;
-      tokenUrl: string;
-      clientId: string;
-      clientSecret?: string;
-      scopes: string[];
-    };
+    oauthConfig: OAuthFlowConfig;
   }[] {
     if (!this._pluginRegistry.hasProvider(this.issueProviderKey)) {
       return [];

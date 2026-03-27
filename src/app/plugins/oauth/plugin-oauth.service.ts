@@ -5,7 +5,7 @@ import { OAuthFlowConfig, OAuthTokenResult } from '@super-productivity/plugin-ap
 import { PluginOAuthTokens } from './plugin-oauth.model';
 import { generateCodeVerifier, generateCodeChallenge } from './pkce.util';
 import { IS_ELECTRON } from '../../app.constants';
-import { IS_ANDROID_WEB_VIEW } from '../../util/is-android-web-view';
+import { IS_NATIVE_PLATFORM } from '../../util/is-native-platform';
 import { PluginLog } from '../../core/log';
 
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
@@ -44,7 +44,7 @@ export class PluginOAuthService {
       const { port } = await window.ea.pluginOAuthPrepare();
       return `http://127.0.0.1:${port}`;
     }
-    if (IS_ANDROID_WEB_VIEW) {
+    if (IS_NATIVE_PLATFORM) {
       return 'com.super-productivity.app://plugin-oauth-callback';
     }
     return `${window.location.origin}/assets/oauth-callback.html`;
