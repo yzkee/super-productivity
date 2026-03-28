@@ -432,7 +432,15 @@
         "ADVANCED_CONFIG": "Advanced Config",
         "CONNECTED": "Connected",
         "DELETE_CONFIRM": "Are you sure you want to delete this issue provider? Deleting it means that <strong>all previously imported issue tasks will loose their reference</strong>. This cannot be undone!",
-        "DISCONNECT": "Disconnect"
+        "DISCONNECT": "Disconnect",
+        "EDIT_TITLE": "Edit {{title}} Config",
+        "LOAD_OPTIONS": "Load Options",
+        "LOAD_OPTIONS_FAILED": "Failed to load options",
+        "LOADING_OPTIONS": "Loading options...",
+        "OPTIONS_LOADED": "Options loaded",
+        "RELOAD_OPTIONS": "Reload Options",
+        "SETUP_TITLE": "Setup {{title}} Config",
+        "TEST_CONNECTION": "Test Connection"
       }
     },
     "ISSUE_PANEL": {

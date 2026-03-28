@@ -209,8 +209,9 @@ export class CalendarIntegrationService {
       return [];
     }
 
-    const http = this._pluginHttp.createHttpHelper(() =>
-      Promise.resolve(provider.definition.getHeaders(pluginProvider.pluginConfig)),
+    const http = this._pluginHttp.createHttpHelper(
+      () => Promise.resolve(provider.definition.getHeaders(pluginProvider.pluginConfig)),
+      { allowPrivateNetwork: provider.allowPrivateNetwork },
     );
     const results: PluginSearchResult[] =
       await provider.definition.getNewIssuesForBacklog(pluginProvider.pluginConfig, http);

@@ -63,6 +63,7 @@ import { PluginHttpService } from './issue-provider/plugin-http.service';
 import { createPluginSyncAdapter } from './issue-provider/plugin-sync-adapter.service';
 import { PluginOAuthBridgeService } from './oauth/plugin-oauth-bridge.service';
 import { ISSUE_PROVIDER_TYPES } from '../features/issue/issue.const';
+import { PluginService } from './plugin.service';
 
 // New imports for simple counters
 import { selectAllSimpleCounters } from '../features/simple-counter/store/simple-counter.reducer';
@@ -262,6 +263,12 @@ export class PluginBridgeService implements OnDestroy {
     };
   }
 
+  private _isPluginBundled(pluginId: string): boolean {
+    const pluginService = this._injector.get(PluginService);
+    const path = pluginService.getPluginPath(pluginId);
+    return !!path && path.startsWith('assets/bundled-plugins/');
+  }
+
   /**
    * Register an issue provider plugin.
    */
@@ -317,6 +324,8 @@ export class PluginBridgeService implements OnDestroy {
       issueProviderKey: customKey,
       useAgendaView: issueProviderCfg?.useAgendaView,
       defaultAutoAddToBacklog: issueProviderCfg?.defaultAutoAddToBacklog,
+      allowPrivateNetwork:
+        issueProviderCfg?.allowPrivateNetwork && this._isPluginBundled(pluginId),
     });
 
     const registeredKey = this._pluginIssueProviderRegistry.getRegisteredKey(pluginId);
@@ -327,9 +336,10 @@ export class PluginBridgeService implements OnDestroy {
 
     // Register sync adapter if plugin supports two-way sync
     if (definition.fieldMappings?.length && definition.updateIssue) {
-      const adapter = createPluginSyncAdapter(
-        definition,
-        this._pluginHttpService.createHttpHelper.bind(this._pluginHttpService),
+      const registered = this._pluginIssueProviderRegistry.getProvider(registeredKey);
+      const httpOpts = { allowPrivateNetwork: registered?.allowPrivateNetwork };
+      const adapter = createPluginSyncAdapter(definition, (getHeaders) =>
+        this._pluginHttpService.createHttpHelper(getHeaders, httpOpts),
       );
       this._syncAdapterRegistry.register(registeredKey, adapter);
       PluginLog.log(

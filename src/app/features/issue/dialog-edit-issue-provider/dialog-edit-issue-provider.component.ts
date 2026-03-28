@@ -111,7 +111,9 @@ export class DialogEditIssueProviderComponent {
   isConnectionWorks = signal(false);
   isOAuthConnected = signal(false);
   isOAuthConnecting = signal(false);
+  optionsLoadState = signal<'idle' | 'loading' | 'loaded' | 'failed'>('idle');
   form = new FormGroup({});
+  showLoadOptionsButton = false;
 
   private _pluginRegistry = inject(PluginIssueProviderRegistryService);
   private _pluginBridge = inject(PluginBridgeService);
@@ -288,6 +290,8 @@ export class DialogEditIssueProviderComponent {
           type: 'SUCCESS',
           msg: T.F.ISSUE.S.CONNECTION_SUCCESS,
         });
+        // Reload dynamic options (e.g. calendar lists) after successful connection
+        await this._loadDynamicOptions();
       } else {
         this._snackService.open({
           type: 'ERROR',
@@ -383,22 +387,27 @@ export class DialogEditIssueProviderComponent {
   protected readonly IS_ELECTRON = IS_ELECTRON;
   protected readonly IS_WEB_EXTENSION_REQUIRED_FOR_JIRA = IS_WEB_BROWSER;
 
-  private async _loadDynamicOptions(): Promise<void> {
+  /**
+   * @returns true if all fields loaded successfully, false if any failed
+   */
+  private async _loadDynamicOptions(): Promise<boolean> {
     const provider = this._pluginRegistry.getProvider(this.issueProviderKey);
     if (!provider) {
-      return;
+      return false;
     }
     const configFields = this._pluginRegistry.getConfigFields(this.issueProviderKey);
     const dynamicFields = configFields.filter((f) => typeof f.loadOptions === 'function');
     if (!dynamicFields.length) {
-      return;
+      return true;
     }
 
     const pluginConfig = (this.model as Record<string, unknown>)['pluginConfig'] ?? {};
-    const http = this._pluginHttp.createHttpHelper(() =>
-      provider.definition.getHeaders(pluginConfig as Record<string, unknown>),
+    const http = this._pluginHttp.createHttpHelper(
+      () => provider.definition.getHeaders(pluginConfig as Record<string, unknown>),
+      { allowPrivateNetwork: provider.allowPrivateNetwork },
     );
 
+    let anyFailed = false;
     for (const field of dynamicFields) {
       try {
         const options = await field.loadOptions!(
@@ -415,6 +424,7 @@ export class DialogEditIssueProviderComponent {
           formlyField.props.options = options;
         }
       } catch (e) {
+        anyFailed = true;
         console.error(
           `[DialogEditIssueProvider] loadOptions failed for field '${field.key}':`,
           e,
@@ -439,6 +449,7 @@ export class DialogEditIssueProviderComponent {
         }
       : { ...this.model };
     this._cdr.detectChanges();
+    return !anyFailed;
   }
 
   private _findFormlyField(
@@ -667,6 +678,26 @@ export class DialogEditIssueProviderComponent {
     this.isOAuthConnected.set(hasTokens);
     if (hasTokens) {
       await this._loadDynamicOptions();
+    } else {
+      // For non-OAuth plugins (e.g. CalDAV with Basic Auth), show a "Load Calendars"
+      // button and attempt to load dynamic options if credentials are already saved.
+      const configFields = this._pluginRegistry.getConfigFields(this.issueProviderKey);
+      const hasLoadOptions = configFields.some(
+        (f) => typeof f.loadOptions === 'function',
+      );
+      const hasNoOAuth = !configFields.some((f) => f.type === 'oauthButton');
+      if (hasLoadOptions && hasNoOAuth) {
+        this.showLoadOptionsButton = true;
+        if (this.isEdit) {
+          await this.loadDynamicOptions();
+        }
+      }
     }
+  }
+
+  async loadDynamicOptions(): Promise<void> {
+    this.optionsLoadState.set('loading');
+    const success = await this._loadDynamicOptions();
+    this.optionsLoadState.set(success ? 'loaded' : 'failed');
   }
 }

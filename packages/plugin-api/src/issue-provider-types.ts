@@ -114,6 +114,8 @@ export interface PluginHttpOptions {
   params?: Record<string, string>;
   headers?: Record<string, string>;
   timeout?: number;
+  /** Response type — 'json' (default) or 'text' for XML/iCal responses */
+  responseType?: 'json' | 'text';
 }
 
 export interface PluginHttp {
@@ -122,6 +124,13 @@ export interface PluginHttp {
   put<T = unknown>(url: string, body: unknown, options?: PluginHttpOptions): Promise<T>;
   patch<T = unknown>(url: string, body: unknown, options?: PluginHttpOptions): Promise<T>;
   delete<T = unknown>(url: string, options?: PluginHttpOptions): Promise<T>;
+  /** Send a request with an arbitrary HTTP method (e.g. PROPFIND, REPORT) */
+  request<T = unknown>(
+    method: string,
+    url: string,
+    body?: unknown,
+    options?: PluginHttpOptions,
+  ): Promise<T>;
 }
 
 export interface IssueProviderPluginDefinition {
@@ -205,4 +214,7 @@ export interface IssueProviderManifestConfig {
   /** Custom issue provider key for migrated built-in providers (e.g. 'GITHUB').
    * When set, the plugin registers under this key instead of 'plugin:<pluginId>'. */
   issueProviderKey?: string;
+  /** Allow requests to private/local network addresses (e.g. for self-hosted CalDAV).
+   * Default is false — SSRF protections block private IPs and localhost. */
+  allowPrivateNetwork?: boolean;
 }

@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { createEffect, ofType } from '@ngrx/effects';
 import { EMPTY, Observable, from } from 'rxjs';
-import { catchError, concatMap, filter, map, first } from 'rxjs/operators';
+import { catchError, concatMap, filter, map, mergeMap, first, tap } from 'rxjs/operators';
 import { LOCAL_ACTIONS } from '../../../util/local-actions.token';
 import { TaskService } from '../../tasks/task.service';
 import { Task } from '../../tasks/task.model';
@@ -13,14 +13,17 @@ import { PluginIssueProviderRegistryService } from '../../../plugins/issue-provi
 import { PluginHttp } from '../../../plugins/issue-provider/plugin-issue-provider.model';
 import { selectEnabledIssueProviders } from '../../issue/store/issue-provider.selectors';
 import { IssueProviderPluginType, isPluginIssueProvider } from '../../issue/issue.model';
+import { IssueProviderActions } from '../../issue/store/issue-provider.actions';
 import { SnackService } from '../../../core/snack/snack.service';
 import { getErrorTxt } from '../../../util/get-error-text';
 import { TimeBlockDeleteSidecarService } from './time-block-delete-sidecar.service';
 import { IssueProviderPluginDefinition } from '../../../plugins/issue-provider/plugin-issue-provider.model';
+import { selectAllTasksWithDueTimeSorted } from '../../tasks/store/task.selectors';
 import { T } from '../../../t.const';
 import { Log } from '../../../core/log';
 
 interface TimeBlockContext {
+  providerId: string;
   definition: IssueProviderPluginDefinition;
   config: Record<string, unknown>;
   http: PluginHttp;
@@ -35,6 +38,7 @@ export class TimeBlockSyncEffects {
   private readonly _pluginHttpService = inject(PluginHttpService);
   private readonly _snackService = inject(SnackService);
   private readonly _deletesSidecar = inject(TimeBlockDeleteSidecarService);
+  private readonly _backfilledProviderIds = new Set<string>();
 
   /**
    * When a task is scheduled or rescheduled, create/update the time-block event.
@@ -173,21 +177,81 @@ export class TimeBlockSyncEffects {
     { dispatch: false },
   );
 
+  /**
+   * When a provider config is updated and isAutoTimeBlock is now enabled,
+   * backfill all existing tasks with dueWithTime within the sync range.
+   * This ensures existing scheduled tasks appear as calendar events immediately.
+   */
+  backfillOnAutoTimeBlockEnabled$: Observable<unknown> = createEffect(
+    () =>
+      this._actions$.pipe(
+        ofType(IssueProviderActions.updateIssueProvider),
+        filter((action) => 'pluginConfig' in (action.issueProvider.changes ?? {})),
+        concatMap((action) =>
+          this._withTimeBlockContext$((ctx) => {
+            if (this._backfilledProviderIds.has(ctx.providerId)) return EMPTY;
+
+            const syncRangeWeeks =
+              parseInt(
+                (ctx.config as Record<string, unknown>)['syncRangeWeeks'] as string,
+                10,
+              ) || 2;
+            const now = Date.now();
+            const rangeMs = syncRangeWeeks * 7 * 24 * 60 * 60 * 1000;
+            const rangeEnd = now + rangeMs;
+
+            return this._store.select(selectAllTasksWithDueTimeSorted).pipe(
+              first(),
+              concatMap((tasks) => {
+                const tasksInRange = tasks.filter(
+                  (t) => t.dueWithTime >= now && t.dueWithTime <= rangeEnd,
+                );
+                if (!tasksInRange.length) {
+                  this._backfilledProviderIds.add(ctx.providerId);
+                  return EMPTY;
+                }
+                Log.log(
+                  `[TimeBlock] Backfilling ${tasksInRange.length} existing scheduled tasks`,
+                );
+                return from(tasksInRange).pipe(
+                  mergeMap(
+                    (task) =>
+                      from(this._upsertEvent(ctx, task, task.dueWithTime)).pipe(
+                        catchError((err) => this._handleError(err)),
+                      ),
+                    3,
+                  ),
+                  // Mark as backfilled only after all upserts complete successfully
+                  tap({
+                    complete: () => this._backfilledProviderIds.add(ctx.providerId),
+                  }),
+                );
+              }),
+            );
+          }, action.issueProvider.id as string),
+        ),
+      ),
+    { dispatch: false },
+  );
+
   // --- Helpers ---
 
   /**
-   * Find the first enabled plugin provider with timeBlock support and
+   * Find an enabled plugin provider with timeBlock support and
    * isAutoTimeBlock config, create an authenticated HTTP helper, and run the callback.
-   * Returns EMPTY if no provider is configured.
+   * When filterProviderId is given, only that provider is considered.
+   * Returns EMPTY if no matching provider is configured.
    */
   private _withTimeBlockContext$<T>(
     fn: (ctx: TimeBlockContext) => Observable<T>,
+    filterProviderId?: string,
   ): Observable<T> {
     return this._store.select(selectEnabledIssueProviders).pipe(
       first(),
       concatMap((providers) => {
         const provider = providers.find(
           (p): p is IssueProviderPluginType =>
+            (!filterProviderId || p.id === filterProviderId) &&
             isPluginIssueProvider(p.issueProviderKey) &&
             !!(p as IssueProviderPluginType).pluginConfig?.['isAutoTimeBlock'],
         );
@@ -196,10 +260,12 @@ export class TimeBlockSyncEffects {
         const registered = this._pluginRegistry.getProvider(provider.issueProviderKey);
         if (!registered?.definition.timeBlock) return EMPTY;
 
-        const http = this._pluginHttpService.createHttpHelper(() =>
-          registered.definition.getHeaders(provider.pluginConfig),
+        const http = this._pluginHttpService.createHttpHelper(
+          () => registered.definition.getHeaders(provider.pluginConfig),
+          { allowPrivateNetwork: registered.allowPrivateNetwork },
         );
         return fn({
+          providerId: provider.id,
           definition: registered.definition,
           config: provider.pluginConfig,
           http,
