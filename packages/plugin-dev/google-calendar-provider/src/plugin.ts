@@ -45,6 +45,8 @@ interface GoogleCalendarConfig {
   writeCalendarId?: string;
   syncRangeWeeks?: string;
   showDeclinedEvents?: boolean;
+  isAutoTimeBlock?: boolean;
+  timeBlockCalendarId?: string;
   // Legacy field — migrated at runtime
   calendarId?: string;
 }
@@ -64,6 +66,9 @@ const migrateConfig = (raw: Record<string, unknown>): GoogleCalendarConfig => {
 
 const getWriteCalendarId = (cfg: GoogleCalendarConfig): string =>
   cfg.writeCalendarId || 'primary';
+
+const getTimeBlockCalendarId = (cfg: GoogleCalendarConfig): string =>
+  cfg.timeBlockCalendarId || getWriteCalendarId(cfg);
 
 const getReadCalendarIds = (cfg: GoogleCalendarConfig): string[] =>
   cfg.readCalendarIds?.length ? cfg.readCalendarIds : ['primary'];
@@ -289,6 +294,23 @@ PluginAPI.registerIssueProvider({
       label: 'Show declined events',
       description: 'Display events you have declined in your calendar views.',
       advanced: true,
+    },
+    {
+      key: 'isAutoTimeBlock',
+      type: 'checkbox' as const,
+      label: 'Auto-create time blocks',
+      description:
+        'Automatically push scheduled tasks to Google Calendar as time-block events.',
+    },
+    {
+      key: 'timeBlockCalendarId',
+      type: 'select' as const,
+      label: 'Time block calendar',
+      description:
+        'Calendar for auto-created time block events. Defaults to the calendar for new events.',
+      required: false,
+      options: [{ label: 'Primary', value: 'primary' }],
+      loadOptions: loadWritableCalendars,
     },
   ],
 

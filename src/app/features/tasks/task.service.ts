@@ -103,6 +103,7 @@ import { devError } from '../../util/dev-error';
 import { DEFAULT_GLOBAL_CONFIG } from '../config/default-global-config.const';
 import { TaskFocusService } from './task-focus.service';
 import { DeletedTaskIssueSidecarService } from '../issue/two-way-sync/deleted-task-issue-sidecar.service';
+import { TimeBlockDeleteSidecarService } from '../calendar-integration/time-block/time-block-delete-sidecar.service';
 
 @Injectable({
   providedIn: 'root',
@@ -119,6 +120,7 @@ export class TaskService {
   private readonly _globalConfigService = inject(GlobalConfigService);
   private readonly _taskFocusService = inject(TaskFocusService);
   private readonly _deletedTaskIssueSidecar = inject(DeletedTaskIssueSidecarService);
+  private readonly _timeBlockDeleteSidecar = inject(TimeBlockDeleteSidecarService);
 
   currentTaskId$: Observable<string | null> = this._store.pipe(
     select(selectCurrentTaskId),
@@ -463,6 +465,9 @@ export class TaskService {
           issueType: t.issueType!,
           issueProviderId: t.issueProviderId!,
         })),
+    );
+    this._timeBlockDeleteSidecar.set(
+      tasks.filter((t) => !!t.dueWithTime).map((t) => t.id),
     );
     this._store.dispatch(TaskSharedActions.deleteTasks({ taskIds }));
   }
