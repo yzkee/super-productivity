@@ -4,7 +4,7 @@
 :host {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   flex-direction: row;
   border: 1px solid var(--separator-color);
   border-radius: var(--task-border-radius);
@@ -36,13 +36,20 @@
   }
 }
 
-.event-trigger {
+.event-content {
   display: flex;
   align-items: center;
   flex: 1;
   min-width: 0;
   padding-top: var(--s-quarter);
   padding-bottom: var(--s-quarter);
+}
+
+.menu-trigger {
+  position: absolute;
+  width: 0;
+  height: 0;
+  visibility: hidden;
 }
 
 .title {

@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  inject,
+  signal,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   MAT_DIALOG_DATA,
@@ -110,6 +116,7 @@ export class DialogEditIssueProviderComponent {
   private _pluginRegistry = inject(PluginIssueProviderRegistryService);
   private _pluginBridge = inject(PluginBridgeService);
   private _pluginHttp = inject(PluginHttpService);
+  private _cdr = inject(ChangeDetectorRef);
 
   issueProviderKey: IssueProviderKey = (this.d.issueProvider?.issueProviderKey ||
     this.d.issueProviderKey) as IssueProviderKey;
@@ -143,6 +150,8 @@ export class DialogEditIssueProviderComponent {
   title: string = this._pluginRegistry.hasProvider(this.issueProviderKey)
     ? this._pluginRegistry.getName(this.issueProviderKey) || this.issueProviderKey
     : ISSUE_PROVIDER_HUMANIZED[this.issueProviderKey as BuiltInIssueProviderKey];
+
+  isAgendaView = this._pluginRegistry.getUseAgendaView(this.issueProviderKey);
 
   configFormSection: ConfigFormSection<IssueIntegrationCfg> | undefined =
     this._pluginRegistry.hasProvider(this.issueProviderKey)
@@ -413,8 +422,19 @@ export class DialogEditIssueProviderComponent {
         });
       }
     }
-    // Trigger formly refresh
+    // Trigger formly refresh — reassign both fields and model so mat-select
+    // re-evaluates display labels for already-selected values.
+    // Use detectChanges() instead of markForCheck() because plugin bridge
+    // async calls may resolve outside Zone.js (e.g. Electron IPC).
     this.fields = [...this.fields];
+    const currentPluginCfg = (this.model as Record<string, unknown>)['pluginConfig'];
+    this.model = currentPluginCfg
+      ? {
+          ...this.model,
+          pluginConfig: { ...(currentPluginCfg as Record<string, unknown>) },
+        }
+      : { ...this.model };
+    this._cdr.detectChanges();
   }
 
   private _findFormlyField(
@@ -458,6 +478,8 @@ export class DialogEditIssueProviderComponent {
       return undefined;
     }
 
+    const isAgendaView = this._pluginRegistry.getUseAgendaView(pluginKey);
+
     const regularFields = configFields.filter(
       (f) => !f.advanced && f.type !== 'oauthButton',
     );
@@ -469,16 +491,25 @@ export class DialogEditIssueProviderComponent {
       this._mapPluginConfigField(f),
     ) as LimitedFormlyFieldConfig<IssueIntegrationCfg>[];
 
-    items.push({
-      type: 'collapsible' as any,
-      props: { label: T.F.ISSUE.DIALOG.ADVANCED_CONFIG },
-      fieldGroup: [
-        ...(ISSUE_PROVIDER_COMMON_FORM_FIELDS as any[]),
-        ...advancedFields.map((f) => this._mapPluginConfigField(f)),
-      ],
-    } as any);
+    // For agenda-view providers (e.g. Google Calendar), skip generic issue provider
+    // fields (auto-import, polling, default note) and two-way sync config — the
+    // ownership model makes them unnecessary.
+    const advancedFieldGroup = isAgendaView
+      ? advancedFields.map((f) => this._mapPluginConfigField(f))
+      : [
+          ...(ISSUE_PROVIDER_COMMON_FORM_FIELDS as any[]),
+          ...advancedFields.map((f) => this._mapPluginConfigField(f)),
+        ];
 
-    if (fieldMappings?.length) {
+    if (advancedFieldGroup.length) {
+      items.push({
+        type: 'collapsible' as any,
+        props: { label: T.F.ISSUE.DIALOG.ADVANCED_CONFIG },
+        fieldGroup: advancedFieldGroup,
+      } as any);
+    }
+
+    if (!isAgendaView && fieldMappings?.length) {
       items.push(this._buildTwoWaySyncSection(pluginKey, fieldMappings) as any);
     }
 
@@ -508,7 +539,7 @@ export class DialogEditIssueProviderComponent {
     const formlyType =
       f.type === 'checkbox'
         ? 'checkbox'
-        : f.type === 'select'
+        : f.type === 'select' || f.type === 'multiSelect'
           ? 'select'
           : f.type === 'textarea'
             ? 'textarea'
@@ -521,7 +552,10 @@ export class DialogEditIssueProviderComponent {
         required: f.required ?? false,
         ...(f.description ? { description: f.description } : {}),
         ...(f.type === 'password' ? { type: 'password' } : {}),
-        ...(f.type === 'select' ? { options: f.options } : {}),
+        ...(f.type === 'select' || f.type === 'multiSelect'
+          ? { options: f.options }
+          : {}),
+        ...(f.type === 'multiSelect' ? { multiple: true } : {}),
         ...(f.pattern ? { pattern: f.pattern } : {}),
       },
     };

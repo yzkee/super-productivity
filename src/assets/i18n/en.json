@@ -167,8 +167,17 @@
         "EVENT_STR": "event",
         "EVENTS_STR": "events"
       },
+      "CONTEXT_MENU": {
+        "CREATE_TASK": "Create as task",
+        "OPEN_IN_CALENDAR": "Open in calendar",
+        "RESCHEDULE": "Reschedule",
+        "DELETE_EVENT": "Delete event"
+      },
       "S": {
-        "CAL_PROVIDER_ERROR": "Calendar Provider Error: {{errTxt}}"
+        "CAL_PROVIDER_ERROR": "Calendar Provider Error: {{errTxt}}",
+        "EVENT_HIDDEN": "Calendar event hidden",
+        "EVENT_RESCHEDULED": "Event rescheduled",
+        "EVENT_DELETED": "Event deleted"
       }
     },
     "CLIPBOARD_IMAGE": {

@@ -13,7 +13,6 @@ import { CdkDrag } from '@angular/cdk/drag-drop';
 import { ScheduleEvent, ScheduleFromCalendarEvent } from '../schedule.model';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
-import { CalendarIntegrationService } from '../../calendar-integration/calendar-integration.service';
 import { delay, first } from 'rxjs/operators';
 import { Store } from '@ngrx/store';
 import { selectProjectById } from '../../project/store/project.selectors';
@@ -35,10 +34,9 @@ import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions'
 import { TaskService } from '../../tasks/task.service';
 import { DialogTimeEstimateComponent } from '../../tasks/dialog-time-estimate/dialog-time-estimate.component';
 import { TaskContextMenuComponent } from '../../tasks/task-context-menu/task-context-menu.component';
-import { IssueService } from '../../issue/issue.service';
 import { DateTimeFormatService } from '../../../core/date-time-format/date-time-format.service';
 import { FH } from '../schedule.const';
-import { IS_ELECTRON } from '../../../app.constants';
+import { CalendarEventActionsService } from '../../calendar-integration/calendar-event-actions.service';
 
 const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
 
@@ -80,26 +78,18 @@ export class ScheduleEventComponent {
   private _store = inject(Store);
   private _elRef = inject(ElementRef);
   private _matDialog = inject(MatDialog);
-  private _issueService = inject(IssueService);
   private _dateTimeFormatService = inject(DateTimeFormatService);
   private _taskService = inject(TaskService);
-  private _calendarIntegrationService = inject(CalendarIntegrationService);
-
-  readonly calendarMenuTrigger = viewChild('calendarMenuTrigger', {
-    read: MatMenuTrigger,
-  });
-
+  private _calEventActions = inject(CalendarEventActionsService);
   readonly titleHasLinks = computed(() => {
     const t = this.title();
     return !!t && hasLinkHints(t);
   });
 
-  readonly calendarEventUrl = computed<string | undefined>(() => {
+  readonly hasCalendarEventUrl = computed<boolean>(() => {
     const evt = this.se();
-    if (evt.type === SVEType.CalendarEvent) {
-      return (evt.data as ScheduleFromCalendarEvent)?.url;
-    }
-    return undefined;
+    if (evt.type !== SVEType.CalendarEvent) return false;
+    return this._calEventActions.hasEventUrl(evt.data as ScheduleFromCalendarEvent);
   });
 
   readonly T: typeof T = T;
@@ -110,6 +100,8 @@ export class ScheduleEventComponent {
   readonly taskContextMenu = viewChild('taskContextMenu', {
     read: TaskContextMenuComponent,
   });
+
+  readonly calMenuTrigger = viewChild('calMenuTrigger', { read: MatMenuTrigger });
 
   protected readonly SVEType = SVEType;
   private _isBeingSubmitted = false;
@@ -315,38 +307,46 @@ export class ScheduleEventComponent {
         },
       });
     } else if (evt.type === SVEType.CalendarEvent) {
-      this.calendarMenuTrigger()?.openMenu();
+      this.calMenuTrigger()?.openMenu();
     }
   }
 
-  openCalendarEventInBrowser(): void {
-    const url = this.calendarEventUrl();
-    if (url) {
-      if (IS_ELECTRON) {
-        window.ea.openExternalUrl(url);
-      } else {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
-    }
+  readonly isCalendarEventFromPlugin = computed(() => {
+    const evt = this.se();
+    if (evt.type !== SVEType.CalendarEvent) return false;
+    return this._calEventActions.isPluginEvent(evt.data as ScheduleFromCalendarEvent);
+  });
+
+  async openCalendarEventLink(): Promise<void> {
+    const evt = this.se();
+    if (evt.type !== SVEType.CalendarEvent) return;
+    await this._calEventActions.openEventLink(evt.data as ScheduleFromCalendarEvent);
   }
 
-  addCalendarEventAsTask(): void {
-    if (this._isBeingSubmitted) {
-      return;
-    }
+  createCalendarEventAsTask(): void {
+    const evt = this.se();
+    if (evt.type !== SVEType.CalendarEvent || this._isBeingSubmitted) return;
     this._isBeingSubmitted = true;
     const data = this.se().data as ScheduleFromCalendarEvent;
-    this._issueService.addTaskFromIssue({
-      issueDataReduced: data,
-      issueProviderId: data.calProviderId,
-      issueProviderKey: 'ICAL',
-      isForceDefaultProject: true,
-    });
+    this._calEventActions.createAsTask(data);
+  }
+
+  async rescheduleCalendarEvent(): Promise<void> {
+    const evt = this.se();
+    if (evt.type !== SVEType.CalendarEvent) return;
+    await this._calEventActions.reschedule(evt.data as ScheduleFromCalendarEvent);
+  }
+
+  async deleteCalendarEvent(): Promise<void> {
+    const evt = this.se();
+    if (evt.type !== SVEType.CalendarEvent) return;
+    await this._calEventActions.deleteEvent(evt.data as ScheduleFromCalendarEvent);
   }
 
   hideCalendarEvent(): void {
-    const data = this.se().data as ScheduleFromCalendarEvent;
-    this._calendarIntegrationService.skipCalendarEvent(data);
+    const evt = this.se();
+    if (evt.type !== SVEType.CalendarEvent) return;
+    this._calEventActions.hideForever(evt.data as ScheduleFromCalendarEvent);
   }
 
   onContextMenu(ev: MouseEvent | TouchEvent): void {

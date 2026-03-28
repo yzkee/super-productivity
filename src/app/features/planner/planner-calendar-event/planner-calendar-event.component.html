@@ -1,6 +1,6 @@
 <div
-  class="event-trigger"
-  [matMenuTriggerFor]="calMenu"
+  class="event-content"
+  (click)="openMenu($event)"
 >
   <mat-icon>{{ calendarEvent().icon || 'event' }}</mat-icon>
   <div class="title">
@@ -11,28 +11,50 @@
   </div>
 </div>
 
-<mat-menu #calMenu="matMenu">
-  @if (calendarEvent().url) {
+<div
+  [matMenuTriggerFor]="contextMenu"
+  class="menu-trigger"
+></div>
+<mat-menu #contextMenu="matMenu">
+  @if (hasEventUrl()) {
     <button
       mat-menu-item
-      (click)="openInBrowser()"
+      (click)="openEventLink()"
     >
       <mat-icon>open_in_new</mat-icon>
-      <span>{{ T.G.OPEN_IN_BROWSER | translate }}</span>
+      {{ T.F.CALENDARS.CONTEXT_MENU.OPEN_IN_CALENDAR | translate }}
+    </button>
+  }
+  @if (isPluginEvent()) {
+    <button
+      mat-menu-item
+      (click)="reschedule()"
+    >
+      <mat-icon>schedule</mat-icon>
+      {{ T.F.CALENDARS.CONTEXT_MENU.RESCHEDULE | translate }}
     </button>
   }
   <button
     mat-menu-item
-    (click)="addAsTask()"
+    (click)="createAsTask()"
   >
     <mat-icon>add</mat-icon>
-    <span>{{ T.F.CALENDARS.BANNER.ADD_AS_TASK | translate }}</span>
+    {{ T.F.CALENDARS.CONTEXT_MENU.CREATE_TASK | translate }}
   </button>
   <button
     mat-menu-item
     (click)="hide()"
   >
     <mat-icon>visibility_off</mat-icon>
-    <span>{{ T.G.HIDE | translate }}</span>
+    {{ T.G.HIDE | translate }}
   </button>
+  @if (isPluginEvent()) {
+    <button
+      mat-menu-item
+      (click)="deleteEvent()"
+    >
+      <mat-icon color="warn">delete</mat-icon>
+      {{ T.F.CALENDARS.CONTEXT_MENU.DELETE_EVENT | translate }}
+    </button>
+  }
 </mat-menu>

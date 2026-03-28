@@ -527,13 +527,20 @@ export const selectAllCalendarTaskEventIds = createSelector(
   selectAllTasks,
   (tasks: Task[]): string[] =>
     tasks
-      .filter((task) => !!task && task.issueType === 'ICAL')
+      .filter(
+        (task) =>
+          !!task && (task.issueType === 'ICAL' || task.issueType?.startsWith('plugin:')),
+      )
       .map((t) => t.issueId as string),
 );
 
 export const selectAllCalendarIssueTasks = createSelector(
   selectAllTasks,
-  (tasks: Task[]): Task[] => tasks.filter((task) => !!task && task.issueType === 'ICAL'),
+  (tasks: Task[]): Task[] =>
+    tasks.filter(
+      (task) =>
+        !!task && (task.issueType === 'ICAL' || task.issueType?.startsWith('plugin:')),
+    ),
 );
 
 export const selectTasksWorkedOnOrDoneFlat = createSelector(
