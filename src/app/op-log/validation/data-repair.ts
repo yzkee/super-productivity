@@ -978,7 +978,7 @@ const _cleanupNonExistingTasksFromLists = (
   projectIds.forEach((pid) => {
     const projectItem = data.project.entities[pid];
     if (!projectItem) {
-      OpLog.log(data.project);
+      OpLog.log('Missing project entity for id: ' + pid);
       throw new Error('No project');
     }
     const origTaskIdsLen = projectItem.taskIds.length;
@@ -999,7 +999,7 @@ const _cleanupNonExistingTasksFromLists = (
     .map((id) => data.tag.entities[id])
     .forEach((tagItem) => {
       if (!tagItem) {
-        OpLog.log(data.tag);
+        OpLog.log('Missing tag entity');
         throw new Error('No tag');
       }
       const origLen = tagItem.taskIds.length;
@@ -1019,7 +1019,7 @@ const _cleanupNonExistingNotesFromLists = (
   projectIds.forEach((pid) => {
     const projectItem = data.project.entities[pid];
     if (!projectItem) {
-      OpLog.log(data.project);
+      OpLog.log('Missing project entity for id: ' + pid);
       throw new Error('No project');
     }
     const origLen = (projectItem as ProjectCopy).noteIds?.length ?? 0;
@@ -1047,7 +1047,7 @@ const _fixOrphanedNotes = (
   noteIds.forEach((nId) => {
     const note = data.note.entities[nId];
     if (!note) {
-      OpLog.log(data.note);
+      OpLog.log('Missing note entity for id: ' + nId);
       throw new Error('No note');
     }
     // missing project case
@@ -1097,7 +1097,7 @@ const _fixInconsistentProjectId = (
     .map((id) => data.project.entities[id])
     .forEach((projectItem) => {
       if (!projectItem) {
-        OpLog.log(data.project);
+        OpLog.log('Missing project entity');
         throw new Error('No project');
       }
       projectItem.taskIds.forEach((tid) => {
@@ -1149,7 +1149,7 @@ const _fixInconsistentTagId = (
     .map((id) => data.tag.entities[id])
     .forEach((tagItem) => {
       if (!tagItem) {
-        OpLog.log(data.tag);
+        OpLog.log('Missing tag entity');
         throw new Error('No tag');
       }
       tagItem.taskIds.forEach((tid) => {
@@ -1175,7 +1175,7 @@ const _setTaskProjectIdAccordingToParent = (
     .map((id) => data.task.entities[id])
     .forEach((taskItem) => {
       if (!taskItem) {
-        OpLog.log(data.task);
+        OpLog.log('Missing task entity');
         throw new Error('No task');
       }
       if (taskItem.subTaskIds) {
@@ -1198,7 +1198,7 @@ const _setTaskProjectIdAccordingToParent = (
     .map((id) => data.archiveYoung.task.entities[id])
     .forEach((taskItem) => {
       if (!taskItem) {
-        OpLog.log(data.archiveYoung.task);
+        OpLog.log('Missing archive task entity');
         throw new Error('No archive task');
       }
       if (taskItem.subTaskIds) {
@@ -1221,7 +1221,7 @@ const _setTaskProjectIdAccordingToParent = (
     .map((id) => data.archiveOld.task.entities[id])
     .forEach((taskItem) => {
       if (!taskItem) {
-        OpLog.log(data.archiveOld.task);
+        OpLog.log('Missing old archive task entity');
         throw new Error('No old archive task');
       }
       if (taskItem.subTaskIds) {
@@ -1252,7 +1252,7 @@ const _cleanupOrphanedSubTasks = (
     .map((id) => data.task.entities[id])
     .forEach((taskItem) => {
       if (!taskItem) {
-        OpLog.log(data.task);
+        OpLog.log('Missing task entity');
         throw new Error('No task');
       }
 
@@ -1261,7 +1261,7 @@ const _cleanupOrphanedSubTasks = (
         while (i >= 0) {
           const sid = taskItem.subTaskIds[i];
           if (!data.task.entities[sid]) {
-            OpLog.log('Delete orphaned sub task for ', taskItem);
+            OpLog.log('Delete orphaned sub task ' + sid + ' for ' + taskItem.id);
             taskItem.subTaskIds.splice(i, 1);
             summary.relationshipsFixed++;
           }
@@ -1275,7 +1275,7 @@ const _cleanupOrphanedSubTasks = (
     .map((id) => data.archiveYoung.task.entities[id])
     .forEach((taskItem) => {
       if (!taskItem) {
-        OpLog.log(data.archiveYoung.task);
+        OpLog.log('Missing archive task entity');
         throw new Error('No archive task');
       }
 
@@ -1284,7 +1284,7 @@ const _cleanupOrphanedSubTasks = (
         while (i >= 0) {
           const sid = taskItem.subTaskIds[i];
           if (!data.archiveYoung.task.entities[sid]) {
-            OpLog.log('Delete orphaned archive sub task for ', taskItem);
+            OpLog.log('Delete orphaned archive sub task ' + sid + ' for ' + taskItem.id);
             taskItem.subTaskIds.splice(i, 1);
             summary.relationshipsFixed++;
           }
@@ -1298,7 +1298,7 @@ const _cleanupOrphanedSubTasks = (
     .map((id) => data.archiveOld.task.entities[id])
     .forEach((taskItem) => {
       if (!taskItem) {
-        OpLog.log(data.archiveOld.task);
+        OpLog.log('Missing old archive task entity');
         throw new Error('No old archive task');
       }
 
@@ -1307,7 +1307,9 @@ const _cleanupOrphanedSubTasks = (
         while (i >= 0) {
           const sid = taskItem.subTaskIds[i];
           if (!data.archiveOld.task.entities[sid]) {
-            OpLog.log('Delete orphaned old archive sub task for ', taskItem);
+            OpLog.log(
+              'Delete orphaned old archive sub task ' + sid + ' for ' + taskItem.id,
+            );
             taskItem.subTaskIds.splice(i, 1);
             summary.relationshipsFixed++;
           }

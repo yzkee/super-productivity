@@ -407,7 +407,7 @@ export class TaskService {
       workContextId,
     });
 
-    TaskLog.log(task, additional);
+    TaskLog.log('addTask', { taskId: task.id, workContextId, workContextType });
 
     this._store.dispatch(
       TaskSharedActions.addTask({
@@ -750,7 +750,7 @@ export class TaskService {
       title: additional.title || '',
       additional: { dueDay: additional.dueDay || undefined, ...additional },
     });
-    console.log(task);
+    TaskLog.log('addSubTaskTo', { taskId: task.id, parentId });
 
     this._store.dispatch(
       addSubTask({

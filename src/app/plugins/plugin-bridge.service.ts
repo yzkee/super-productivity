@@ -412,7 +412,7 @@ export class PluginBridgeService implements OnDestroy {
         });
 
         dialogRef.afterClosed().subscribe((result) => {
-          PluginLog.log('PluginBridge: Dialog closed with result:', result);
+          PluginLog.log('PluginBridge: Dialog closed');
           resolve();
         });
       } catch (error) {
@@ -531,7 +531,7 @@ export class PluginBridgeService implements OnDestroy {
       this._taskService.update(taskId, otherUpdates);
     }
 
-    PluginLog.log('PluginBridge: Task updated successfully', { taskId, updates });
+    PluginLog.log('PluginBridge: Task updated successfully', { taskId });
   }
 
   /**
@@ -595,7 +595,7 @@ export class PluginBridgeService implements OnDestroy {
         false, // isAddToBottom
       );
 
-      PluginLog.log('PluginBridge: Task added successfully', { taskId, taskData });
+      PluginLog.log('PluginBridge: Task added successfully', { taskId });
       return taskId;
     }
   }
@@ -646,7 +646,7 @@ export class PluginBridgeService implements OnDestroy {
   async addProject(projectData: Partial<ProjectCopy>): Promise<string> {
     typia.assert<Partial<ProjectCopy>>(projectData);
 
-    PluginLog.log('PluginBridge: Project add', { projectData });
+    PluginLog.log('PluginBridge: Project add');
     return this._projectService.add(projectData);
   }
 
@@ -660,7 +660,7 @@ export class PluginBridgeService implements OnDestroy {
     // Update the project using ProjectService (ProjectCopy is compatible with Project)
     this._projectService.update(projectId, updates);
 
-    PluginLog.log('PluginBridge: Project updated successfully', { projectId, updates });
+    PluginLog.log('PluginBridge: Project updated successfully', { projectId });
   }
 
   /**
@@ -679,7 +679,7 @@ export class PluginBridgeService implements OnDestroy {
 
     // Add the tag using TagService (TagCopy is compatible with Tag)
     const tagId = this._tagService.addTag(tagData);
-    PluginLog.log('PluginBridge: Tag added successfully', { tagId, tagData });
+    PluginLog.log('PluginBridge: Tag added successfully', { tagId });
     return tagId;
   }
 
@@ -692,7 +692,7 @@ export class PluginBridgeService implements OnDestroy {
 
     // Update the tag using TagService (TagCopy is compatible with Tag)
     this._tagService.updateTag(tagId, updates);
-    PluginLog.log('PluginBridge: Tag updated successfully', { tagId, updates });
+    PluginLog.log('PluginBridge: Tag updated successfully', { tagId });
   }
 
   /**

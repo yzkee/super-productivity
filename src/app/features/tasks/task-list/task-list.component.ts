@@ -200,14 +200,10 @@ export class TaskListComponent implements OnDestroy, AfterViewInit {
     const srcListData = ev.previousContainer.data;
     const targetListData = ev.container.data;
     const draggedTask = ev.item.data;
-    TaskLog.log({
-      ev,
-      srcListData,
-      targetListData,
-      draggedTask,
+    TaskLog.log('drop', {
       listId: this.listId(),
       listModelId: this.listModelId(),
-      filteredTasks: this.filteredTasks(),
+      taskCount: this.filteredTasks()?.length,
     });
 
     if (this._scheduleExternalDragService.isCancelNextDrop()) {
