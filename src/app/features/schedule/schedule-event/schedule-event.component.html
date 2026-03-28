@@ -89,6 +89,39 @@
   ></task-context-menu>
 }
 
+@if (se().type === SVEType.CalendarEvent) {
+  <div
+    class="calendar-menu-anchor"
+    #calendarMenuTrigger="matMenuTrigger"
+    [matMenuTriggerFor]="calMenu"
+  ></div>
+  <mat-menu #calMenu="matMenu">
+    @if (calendarEventUrl()) {
+      <button
+        mat-menu-item
+        (click)="openCalendarEventInBrowser()"
+      >
+        <mat-icon>open_in_new</mat-icon>
+        <span>{{ T.G.OPEN_IN_BROWSER | translate }}</span>
+      </button>
+    }
+    <button
+      mat-menu-item
+      (click)="addCalendarEventAsTask()"
+    >
+      <mat-icon>add</mat-icon>
+      <span>{{ T.F.CALENDARS.BANNER.ADD_AS_TASK | translate }}</span>
+    </button>
+    <button
+      mat-menu-item
+      (click)="hideCalendarEvent()"
+    >
+      <mat-icon>visibility_off</mat-icon>
+      <span>{{ T.G.HIDE | translate }}</span>
+    </button>
+  </mat-menu>
+}
+
 @if (isResizable()) {
   <div
     class="resize-handle"

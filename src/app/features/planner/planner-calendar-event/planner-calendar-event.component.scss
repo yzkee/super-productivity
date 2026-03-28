@@ -6,8 +6,6 @@
   display: flex;
   align-items: center;
   flex-direction: row;
-  padding-top: var(--s-quarter);
-  padding-bottom: var(--s-quarter);
   border: 1px solid var(--separator-color);
   border-radius: var(--task-border-radius);
   opacity: 0.9;
@@ -24,7 +22,6 @@
   &:hover {
     border-color: var(--c-accent);
     color: var(--c-accent);
-    //outline: 1px solid var(--c-accent);
 
     mat-icon.add {
       display: block;
@@ -49,6 +46,15 @@
       display: none;
     }
   }
+}
+
+.event-trigger {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  padding-top: var(--s-quarter);
+  padding-bottom: var(--s-quarter);
 }
 
 .title {
