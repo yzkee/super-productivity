@@ -22,14 +22,6 @@
   &:hover {
     border-color: var(--c-accent);
     color: var(--c-accent);
-
-    mat-icon.add {
-      display: block;
-    }
-
-    mat-icon.default {
-      display: none;
-    }
   }
 
   mat-icon {
@@ -41,10 +33,6 @@
     width: var(--planner-item-ico-size);
     min-width: var(--planner-item-ico-size);
     max-width: var(--planner-item-ico-size);
-
-    &.add {
-      display: none;
-    }
   }
 }
 

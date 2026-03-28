@@ -42,8 +42,11 @@
       </mat-icon>
     }
     @case ('CAL_PROJECTION') {
-      <mat-icon>{{ $any(se().data)?.icon || 'event' }}</mat-icon>
-      <mat-icon>add</mat-icon>
+      <mat-icon
+        class="ico"
+        inline="true"
+        >{{ $any(se().data)?.icon || 'event' }}
+      </mat-icon>
     }
     <!--- --->
     @default {}

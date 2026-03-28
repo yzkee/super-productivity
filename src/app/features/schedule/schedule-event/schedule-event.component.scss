@@ -235,20 +235,6 @@
 
   mat-icon {
     display: block;
-
-    & + mat-icon {
-      display: none;
-    }
-  }
-
-  :host:hover & mat-icon {
-    &:first-of-type:not(:last-of-type) {
-      display: none;
-    }
-
-    &:nth-child(2) {
-      display: block;
-    }
   }
 }
 

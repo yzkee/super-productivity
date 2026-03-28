@@ -129,11 +129,55 @@ const buildExceptionMap = (vevents: ICalVEvent[]): ExceptionMap => {
   return exceptionMap;
 };
 
+/**
+ * Extracts the calendar email from a Google Calendar iCal URL.
+ * Google iCal URLs follow: https://calendar.google.com/calendar/ical/<email>/basic.ics
+ */
+const getGoogleCalendarEmail = (icalUrl: string): string | undefined => {
+  const match = icalUrl.match(/calendar\.google\.com\/calendar\/ical\/([^/]+)\//i);
+  if (!match) {
+    return undefined;
+  }
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return undefined;
+  }
+};
+
+/**
+ * Checks whether an iCal UID looks like a Google-native event ID.
+ * Google-native UIDs end with @google.com or @group.calendar.google.com.
+ * Imported/subscribed events in Google feeds have foreign UIDs and won't
+ * produce valid Google Calendar links.
+ */
+const isGoogleNativeUid = (uid: string): boolean =>
+  /(@google\.com|@group\.calendar\.google\.com)(_|$)/.test(uid);
+
+/**
+ * Generates a Google Calendar event URL from an event ID and calendar email.
+ * Strips the @google.com / @group.calendar.google.com domain and any
+ * recurring-instance suffix we appended (e.g. "_20240115T100000Z").
+ */
+const generateGoogleCalendarEventUrl = (
+  eventId: string,
+  calendarEmail: string,
+): string | undefined => {
+  try {
+    const cleanId = eventId.replace(/@(group\.calendar\.)?google\.com.*$/, '');
+    const eid = btoa(unescape(encodeURIComponent(`${cleanId} ${calendarEmail}`)));
+    return `https://calendar.google.com/calendar/event?eid=${eid}`;
+  } catch {
+    return undefined;
+  }
+};
+
 export const getRelevantEventsForCalendarIntegrationFromIcal = async (
   icalData: string,
   calProviderId: string,
   startTimestamp: number,
   endTimestamp: number,
+  icalUrl?: string,
 ): Promise<CalendarIntegrationEvent[]> => {
   const ICAL = await loadIcalModule();
   let calendarIntegrationEvents: CalendarIntegrationEvent[] = [];
@@ -222,6 +266,19 @@ export const getRelevantEventsForCalendarIntegrationFromIcal = async (
     });
   });
   // Log.timeEnd('TEST');
+
+  // Generate URLs for Google Calendar events that don't already have one
+  if (icalUrl) {
+    const googleEmail = getGoogleCalendarEmail(icalUrl);
+    if (googleEmail) {
+      for (const ev of calendarIntegrationEvents) {
+        if (!ev.url && isGoogleNativeUid(ev.id)) {
+          ev.url = generateGoogleCalendarEventUrl(ev.id, googleEmail);
+        }
+      }
+    }
+  }
+
   return calendarIntegrationEvents;
 };
 

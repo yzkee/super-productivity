@@ -240,6 +240,7 @@ export class CalendarIntegrationService {
             calProvider.id,
             start,
             end,
+            calProvider.icalUrl,
           ),
         ),
         catchError((err) => {

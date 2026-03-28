@@ -2,8 +2,7 @@
   class="event-trigger"
   [matMenuTriggerFor]="calMenu"
 >
-  <mat-icon class="default">{{ calendarEvent().icon || 'event' }}</mat-icon>
-  <mat-icon class="add">add</mat-icon>
+  <mat-icon>{{ calendarEvent().icon || 'event' }}</mat-icon>
   <div class="title">
     {{ calendarEvent().title }}
   </div>
