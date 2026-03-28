@@ -166,6 +166,23 @@ const mapEventToSearchResult = (
   };
 };
 
+/**
+ * Derive a deterministic Google Calendar event ID from a task ID.
+ * Google Calendar event IDs: base32hex chars (a-v, 0-9), 5-1024 length.
+ * SP task IDs are nanoid strings — hex-encode all bytes to stay within charset.
+ */
+const taskIdToGcalEventId = (taskId: string): string =>
+  'sp' +
+  Array.from(new TextEncoder().encode(taskId))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+
+const isHttpStatus = (err: unknown, status: number): boolean =>
+  typeof err === 'object' &&
+  err !== null &&
+  'status' in err &&
+  (err as { status: number }).status === status;
+
 const isDeclined = (event: GoogleCalendarEvent): boolean =>
   event.attendees?.some((a) => a.self && a.responseStatus === 'declined') ?? false;
 
@@ -215,33 +232,30 @@ const fetchEvents = async (
 
 // --- Load calendar list helpers ---
 
-const loadAllCalendars = async (
+const loadCalendarList = async (
   _config: Record<string, unknown>,
   http: PluginHttp,
+  params?: Record<string, string>,
 ): Promise<{ label: string; value: string }[]> => {
   const res = await http.get<{
     items?: { id: string; summary: string; primary?: boolean }[];
-  }>(`${GOOGLE_CALENDAR_API}/users/me/calendarList`);
+  }>(`${GOOGLE_CALENDAR_API}/users/me/calendarList`, params ? { params } : undefined);
   return (res.items || []).map((cal) => ({
     label: cal.summary + (cal.primary ? ' (Primary)' : ''),
     value: cal.id,
   }));
 };
 
-const loadWritableCalendars = async (
-  _config: Record<string, unknown>,
+const loadAllCalendars = (
+  config: Record<string, unknown>,
   http: PluginHttp,
-): Promise<{ label: string; value: string }[]> => {
-  const res = await http.get<{
-    items?: { id: string; summary: string; primary?: boolean }[];
-  }>(`${GOOGLE_CALENDAR_API}/users/me/calendarList`, {
-    params: { minAccessRole: 'writer' },
-  });
-  return (res.items || []).map((cal) => ({
-    label: cal.summary + (cal.primary ? ' (Primary)' : ''),
-    value: cal.id,
-  }));
-};
+): Promise<{ label: string; value: string }[]> => loadCalendarList(config, http);
+
+const loadWritableCalendars = (
+  config: Record<string, unknown>,
+  http: PluginHttp,
+): Promise<{ label: string; value: string }[]> =>
+  loadCalendarList(config, http, { minAccessRole: 'writer' });
 
 // --- Plugin registration ---
 
@@ -357,7 +371,8 @@ PluginAPI.registerIssueProvider({
   getIssueLink(issueId: string, config: Record<string, unknown>): string {
     const cfg = migrateConfig(config);
     const { calendarId, eventId } = parseCompoundId(issueId, getWriteCalendarId(cfg));
-    const eid = btoa(`${eventId} ${calendarId}`)
+    const raw = `${eventId} ${calendarId}`;
+    const eid = btoa(String.fromCharCode(...new TextEncoder().encode(raw)))
       .replace(/\+/g, '-')
       .replace(/\//g, '_')
       .replace(/=+$/, '');
@@ -590,6 +605,61 @@ PluginAPI.registerIssueProvider({
   },
 
   deletedStates: ['cancelled'],
+
+  timeBlock: {
+    async upsertEvent(
+      taskId: string,
+      eventData: {
+        title: string;
+        dueWithTime: number;
+        durationMs: number;
+        isDone: boolean;
+      },
+      config: Record<string, unknown>,
+      http: PluginHttp,
+    ): Promise<void> {
+      const cfg = migrateConfig(config);
+      const calendarId = getTimeBlockCalendarId(cfg);
+      const gcalEventId = taskIdToGcalEventId(taskId);
+      const summary = eventData.isDone ? `[DONE] ${eventData.title}` : eventData.title;
+      const body = {
+        id: gcalEventId,
+        summary,
+        start: { dateTime: toUTCISO(eventData.dueWithTime) },
+        end: { dateTime: toUTCISO(eventData.dueWithTime + eventData.durationMs) },
+        extendedProperties: { private: { spTaskId: taskId } },
+      };
+
+      try {
+        await http.post(eventUrl(calendarId), body);
+      } catch (err: unknown) {
+        if (isHttpStatus(err, 409)) {
+          await http.patch(eventUrl(calendarId, gcalEventId), {
+            summary: body.summary,
+            start: body.start,
+            end: body.end,
+          });
+        } else {
+          throw err;
+        }
+      }
+    },
+
+    async deleteEvent(
+      taskId: string,
+      config: Record<string, unknown>,
+      http: PluginHttp,
+    ): Promise<void> {
+      const cfg = migrateConfig(config);
+      const calendarId = getTimeBlockCalendarId(cfg);
+      const gcalEventId = taskIdToGcalEventId(taskId);
+      try {
+        await http.delete(eventUrl(calendarId, gcalEventId));
+      } catch (err: unknown) {
+        if (!isHttpStatus(err, 404)) throw err;
+      }
+    },
+  },
 
   async deleteIssue(
     id: string,

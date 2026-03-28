@@ -124,9 +124,13 @@ export class DialogEditIssueProviderComponent {
   isEdit: boolean = !!this.issueProvider && !this.d.isDuplicate;
 
   model: Partial<IssueProvider> = this.isEdit
-    ? { ...this.issueProvider }
+    ? this._migratePluginConfigForEdit({ ...this.issueProvider })
     : this.d.isDuplicate && this.issueProvider
-      ? { ...this.issueProvider, id: nanoid(), migratedFromProjectId: undefined }
+      ? this._migratePluginConfigForEdit({
+          ...this.issueProvider,
+          id: nanoid(),
+          migratedFromProjectId: undefined,
+        })
       : ({
           ...ISSUE_PROVIDER_DEFAULT_COMMON_CFG,
           ...(this._pluginRegistry.hasProvider(this.issueProviderKey)
@@ -453,6 +457,29 @@ export class DialogEditIssueProviderComponent {
       }
     }
     return undefined;
+  }
+
+  /**
+   * For plugin providers, run any necessary config migrations so the edit dialog
+   * displays migrated values instead of showing empty required fields.
+   */
+  private _migratePluginConfigForEdit(
+    model: Partial<IssueProvider>,
+  ): Partial<IssueProvider> {
+    const pluginConfig = (model as { pluginConfig?: Record<string, unknown> })
+      .pluginConfig;
+    if (!pluginConfig) return model;
+    // Deep-clone pluginConfig to avoid mutating store state
+    const migrated = { ...pluginConfig };
+    // Migrate old single-calendar calendarId to multi-calendar config shape
+    if (
+      migrated['calendarId'] &&
+      !((migrated['readCalendarIds'] as string[])?.length > 0)
+    ) {
+      migrated['readCalendarIds'] = [migrated['calendarId'] as string];
+      migrated['writeCalendarId'] = migrated['writeCalendarId'] || migrated['calendarId'];
+    }
+    return { ...model, pluginConfig: migrated } as Partial<IssueProvider>;
   }
 
   private _getDefaultPluginConfig(): Record<string, unknown> {

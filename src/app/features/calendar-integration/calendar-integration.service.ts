@@ -73,7 +73,7 @@ export class CalendarIntegrationService {
   private _hiddenEventsService = inject(HiddenCalendarEventsService);
   private _refreshTrigger$ = new Subject<void>();
 
-  icalEvents$: Observable<ScheduleCalendarMapEntry[]> = merge(
+  calendarEvents$: Observable<ScheduleCalendarMapEntry[]> = merge(
     // NOTE: we're using this rather than startWith since we want to use the freshest available cached value
     defer(() => of(this._getCalProviderFromCache())),
     combineLatest([
@@ -125,10 +125,7 @@ export class CalendarIntegrationService {
       return this.requestEventsForSchedule$(calProvider, true).pipe(
         first(),
         map((itemsForProvider: CalendarIntegrationEvent[]) => ({
-          itemsForProvider: itemsForProvider.map((ev) => ({
-            ...ev,
-            issueProviderKey: 'ICAL',
-          })),
+          itemsForProvider,
           providerId: calProvider.id,
           didError: false,
         })),

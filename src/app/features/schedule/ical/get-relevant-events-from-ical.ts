@@ -165,7 +165,8 @@ const generateGoogleCalendarEventUrl = (
 ): string | undefined => {
   try {
     const cleanId = eventId.replace(/@(group\.calendar\.)?google\.com.*$/, '');
-    const eid = btoa(unescape(encodeURIComponent(`${cleanId} ${calendarEmail}`)));
+    const raw = `${cleanId} ${calendarEmail}`;
+    const eid = btoa(String.fromCharCode(...new TextEncoder().encode(raw)));
     return `https://calendar.google.com/calendar/event?eid=${eid}`;
   } catch {
     return undefined;
@@ -382,6 +383,7 @@ const getForRecurring = (
           duration,
           id: baseId + '_' + next,
           calProviderId,
+          issueProviderKey: 'ICAL',
           description: (description as string) || undefined,
           ...(isAllDay && { isAllDay }),
           ...(url && { url }),
@@ -472,6 +474,7 @@ const convertVEventToCalendarIntegrationEvent = (
     start,
     duration,
     calProviderId,
+    issueProviderKey: 'ICAL',
     legacyIds: options?.legacyIds,
     ...(isAllDay && { isAllDay }),
     ...(url && { url }),

@@ -32,7 +32,7 @@ describe('Planner Selectors - All Day Events', () => {
 
   // Replicate the getIcalEventsForDay logic for testing
   const getIcalEventsForDay = (
-    icalEvents: ScheduleCalendarMapEntry[],
+    calendarEvents: ScheduleCalendarMapEntry[],
     currentDayDate: Date,
   ): { timedEvents: any[]; allDayEvents: ScheduleFromCalendarEvent[] } => {
     const timedEvents: any[] = [];
@@ -47,7 +47,7 @@ describe('Planner Selectors - All Day Events', () => {
       );
     };
 
-    icalEvents.forEach((icalMapEntry) => {
+    calendarEvents.forEach((icalMapEntry) => {
       icalMapEntry.items.forEach((calEv) => {
         const start = calEv.start;
         if (isSameDay(start, currentDayDate)) {
@@ -77,12 +77,13 @@ describe('Planner Selectors - All Day Events', () => {
     const testDate = new Date(2025, 0, 15, 12, 0, 0, 0); // Jan 15, 2025 at noon local
 
     it('should separate all-day events from timed events', () => {
-      const icalEvents: ScheduleCalendarMapEntry[] = [
+      const calendarEvents: ScheduleCalendarMapEntry[] = [
         {
           items: [
             {
               id: 'all-day-1',
               calProviderId: 'provider-1',
+              issueProviderKey: 'ICAL',
               title: 'All Day Event',
               description: 'Full day meeting',
               start: getLocalNoon(2025, 1, 15),
@@ -92,6 +93,7 @@ describe('Planner Selectors - All Day Events', () => {
             {
               id: 'timed-1',
               calProviderId: 'provider-1',
+              issueProviderKey: 'ICAL',
               title: 'Timed Event',
               start: getLocalTime(2025, 1, 15, 14),
               duration: 3600000,
@@ -100,7 +102,7 @@ describe('Planner Selectors - All Day Events', () => {
         },
       ];
 
-      const result = getIcalEventsForDay(icalEvents, testDate);
+      const result = getIcalEventsForDay(calendarEvents, testDate);
 
       expect(result.allDayEvents.length).toBe(1);
       expect(result.allDayEvents[0].id).toBe('all-day-1');
@@ -115,12 +117,13 @@ describe('Planner Selectors - All Day Events', () => {
     });
 
     it('should handle multiple all-day events', () => {
-      const icalEvents: ScheduleCalendarMapEntry[] = [
+      const calendarEvents: ScheduleCalendarMapEntry[] = [
         {
           items: [
             {
               id: 'all-day-1',
               calProviderId: 'provider-1',
+              issueProviderKey: 'ICAL',
               title: 'Holiday',
               start: getLocalNoon(2025, 1, 15),
               duration: 86400000,
@@ -129,6 +132,7 @@ describe('Planner Selectors - All Day Events', () => {
             {
               id: 'all-day-2',
               calProviderId: 'provider-2',
+              issueProviderKey: 'ICAL',
               title: 'Conference',
               start: getLocalTime(2025, 1, 15, 9),
               duration: 0,
@@ -138,19 +142,20 @@ describe('Planner Selectors - All Day Events', () => {
         },
       ];
 
-      const result = getIcalEventsForDay(icalEvents, testDate);
+      const result = getIcalEventsForDay(calendarEvents, testDate);
 
       expect(result.allDayEvents.length).toBe(2);
       expect(result.timedEvents.length).toBe(0);
     });
 
     it('should handle only timed events', () => {
-      const icalEvents: ScheduleCalendarMapEntry[] = [
+      const calendarEvents: ScheduleCalendarMapEntry[] = [
         {
           items: [
             {
               id: 'timed-1',
               calProviderId: 'provider-1',
+              issueProviderKey: 'ICAL',
               title: 'Meeting 1',
               start: getLocalTime(2025, 1, 15, 9),
               duration: 3600000,
@@ -158,6 +163,7 @@ describe('Planner Selectors - All Day Events', () => {
             {
               id: 'timed-2',
               calProviderId: 'provider-1',
+              issueProviderKey: 'ICAL',
               title: 'Meeting 2',
               start: getLocalTime(2025, 1, 15, 14),
               duration: 1800000,
@@ -166,19 +172,20 @@ describe('Planner Selectors - All Day Events', () => {
         },
       ];
 
-      const result = getIcalEventsForDay(icalEvents, testDate);
+      const result = getIcalEventsForDay(calendarEvents, testDate);
 
       expect(result.allDayEvents.length).toBe(0);
       expect(result.timedEvents.length).toBe(2);
     });
 
     it('should filter events by day', () => {
-      const icalEvents: ScheduleCalendarMapEntry[] = [
+      const calendarEvents: ScheduleCalendarMapEntry[] = [
         {
           items: [
             {
               id: 'today',
               calProviderId: 'provider-1',
+              issueProviderKey: 'ICAL',
               title: 'Today Event',
               start: getLocalTime(2025, 1, 15, 10),
               duration: 3600000,
@@ -186,6 +193,7 @@ describe('Planner Selectors - All Day Events', () => {
             {
               id: 'tomorrow',
               calProviderId: 'provider-1',
+              issueProviderKey: 'ICAL',
               title: 'Tomorrow Event',
               start: getLocalTime(2025, 1, 16, 10),
               duration: 3600000,
@@ -193,6 +201,7 @@ describe('Planner Selectors - All Day Events', () => {
             {
               id: 'all-day-today',
               calProviderId: 'provider-1',
+              issueProviderKey: 'ICAL',
               title: 'All Day Today',
               start: getLocalNoon(2025, 1, 15),
               duration: 0,
@@ -201,6 +210,7 @@ describe('Planner Selectors - All Day Events', () => {
             {
               id: 'all-day-tomorrow',
               calProviderId: 'provider-1',
+              issueProviderKey: 'ICAL',
               title: 'All Day Tomorrow',
               start: getLocalNoon(2025, 1, 16),
               duration: 0,
@@ -210,7 +220,7 @@ describe('Planner Selectors - All Day Events', () => {
         },
       ];
 
-      const result = getIcalEventsForDay(icalEvents, testDate);
+      const result = getIcalEventsForDay(calendarEvents, testDate);
 
       expect(result.allDayEvents.length).toBe(1);
       expect(result.allDayEvents[0].id).toBe('all-day-today');
@@ -219,7 +229,7 @@ describe('Planner Selectors - All Day Events', () => {
       expect(result.timedEvents[0].id).toBe('today');
     });
 
-    it('should handle empty icalEvents', () => {
+    it('should handle empty calendarEvents', () => {
       const result = getIcalEventsForDay([], testDate);
 
       expect(result.allDayEvents.length).toBe(0);
@@ -227,12 +237,13 @@ describe('Planner Selectors - All Day Events', () => {
     });
 
     it('should handle events from multiple providers', () => {
-      const icalEvents: ScheduleCalendarMapEntry[] = [
+      const calendarEvents: ScheduleCalendarMapEntry[] = [
         {
           items: [
             {
               id: 'provider1-allday',
               calProviderId: 'provider-1',
+              issueProviderKey: 'ICAL',
               title: 'Provider 1 All Day',
               start: getLocalNoon(2025, 1, 15),
               duration: 0,
@@ -245,6 +256,7 @@ describe('Planner Selectors - All Day Events', () => {
             {
               id: 'provider2-timed',
               calProviderId: 'provider-2',
+              issueProviderKey: 'ICAL',
               title: 'Provider 2 Timed',
               start: getLocalTime(2025, 1, 15, 11),
               duration: 3600000,
@@ -252,6 +264,7 @@ describe('Planner Selectors - All Day Events', () => {
             {
               id: 'provider2-allday',
               calProviderId: 'provider-2',
+              issueProviderKey: 'ICAL',
               title: 'Provider 2 All Day',
               start: getLocalTime(2025, 1, 15, 8),
               duration: 0,
@@ -261,7 +274,7 @@ describe('Planner Selectors - All Day Events', () => {
         },
       ];
 
-      const result = getIcalEventsForDay(icalEvents, testDate);
+      const result = getIcalEventsForDay(calendarEvents, testDate);
 
       expect(result.allDayEvents.length).toBe(2);
       expect(result.timedEvents.length).toBe(1);
@@ -269,12 +282,13 @@ describe('Planner Selectors - All Day Events', () => {
 
     it('should preserve all event properties for all-day events', () => {
       const eventStart = getLocalNoon(2025, 1, 15);
-      const icalEvents: ScheduleCalendarMapEntry[] = [
+      const calendarEvents: ScheduleCalendarMapEntry[] = [
         {
           items: [
             {
               id: 'all-day-full',
               calProviderId: 'provider-1',
+              issueProviderKey: 'ICAL',
               title: 'Full Properties Event',
               description: 'Has description',
               start: eventStart,
@@ -286,7 +300,7 @@ describe('Planner Selectors - All Day Events', () => {
         },
       ];
 
-      const result = getIcalEventsForDay(icalEvents, testDate);
+      const result = getIcalEventsForDay(calendarEvents, testDate);
 
       expect(result.allDayEvents.length).toBe(1);
       const allDayEvent = result.allDayEvents[0];

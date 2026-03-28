@@ -177,7 +177,8 @@
         "CAL_PROVIDER_ERROR": "Calendar Provider Error: {{errTxt}}",
         "EVENT_HIDDEN": "Calendar event hidden",
         "EVENT_RESCHEDULED": "Event rescheduled",
-        "EVENT_DELETED": "Event deleted"
+        "EVENT_DELETED": "Event deleted",
+        "TIME_BLOCK_ERROR": "Failed to sync time block: {{errTxt}}"
       }
     },
     "CLIPBOARD_IMAGE": {

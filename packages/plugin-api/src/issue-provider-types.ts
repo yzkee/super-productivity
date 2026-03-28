@@ -167,6 +167,28 @@ export interface IssueProviderPluginDefinition {
   ): Promise<void>;
   /** Issue states that indicate the issue was deleted remotely (e.g. ['cancelled'] for Google Calendar) */
   deletedStates?: string[];
+  /** Optional time-block integration. Plugins that implement this allow SP tasks
+   *  to automatically create/update/delete calendar events when scheduled to a specific time. */
+  timeBlock?: {
+    /** Create or update a time-block event for the given task. */
+    upsertEvent(
+      taskId: string,
+      eventData: {
+        title: string;
+        dueWithTime: number;
+        durationMs: number;
+        isDone: boolean;
+      },
+      config: Record<string, unknown>,
+      http: PluginHttp,
+    ): Promise<void>;
+    /** Delete the time-block event for the given task. */
+    deleteEvent(
+      taskId: string,
+      config: Record<string, unknown>,
+      http: PluginHttp,
+    ): Promise<void>;
+  };
 }
 
 export interface IssueProviderManifestConfig {

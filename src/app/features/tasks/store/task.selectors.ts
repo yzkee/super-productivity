@@ -12,7 +12,7 @@ import { taskAdapter } from './task.adapter';
 import { devError } from '../../../util/dev-error';
 import { isDBDateStr } from '../../../util/get-db-date-str';
 import { TODAY_TAG } from '../../tag/tag.const';
-import { IssueProvider } from '../../issue/issue.model';
+import { IssueProvider, isPluginIssueProvider } from '../../issue/issue.model';
 import { Project } from '../../project/project.model';
 import { selectAllProjects } from '../../project/store/project.selectors';
 import {
@@ -529,7 +529,9 @@ export const selectAllCalendarTaskEventIds = createSelector(
     tasks
       .filter(
         (task) =>
-          !!task && (task.issueType === 'ICAL' || task.issueType?.startsWith('plugin:')),
+          !!task &&
+          !!task.issueType &&
+          (task.issueType === 'ICAL' || isPluginIssueProvider(task.issueType)),
       )
       .map((t) => t.issueId as string),
 );
@@ -539,7 +541,9 @@ export const selectAllCalendarIssueTasks = createSelector(
   (tasks: Task[]): Task[] =>
     tasks.filter(
       (task) =>
-        !!task && (task.issueType === 'ICAL' || task.issueType?.startsWith('plugin:')),
+        !!task &&
+        !!task.issueType &&
+        (task.issueType === 'ICAL' || isPluginIssueProvider(task.issueType)),
     ),
 );
 

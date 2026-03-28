@@ -23,6 +23,7 @@ import {
 import { selectEnabledIssueProviders } from '../store/issue-provider.selectors';
 import { getErrorTxt } from '../../../util/get-error-text';
 import { T } from '../../../t.const';
+import { PluginIssueProviderRegistryService } from '../../../plugins/issue-provider/plugin-issue-provider-registry.service';
 import { PlannerActions } from '../../planner/store/planner.actions';
 
 const SYNCABLE_TASK_FIELDS: ReadonlySet<string> = new Set([
@@ -89,6 +90,7 @@ export class IssueTwoWaySyncEffects {
   private readonly _adapterRegistry = inject(IssueSyncAdapterRegistryService);
   private readonly _snackService = inject(SnackService);
   private readonly _deletedTaskIssueSidecar = inject(DeletedTaskIssueSidecarService);
+  private readonly _pluginRegistry = inject(PluginIssueProviderRegistryService);
   private _syncOriginatedTaskIds = new Set<string>();
   private static readonly _MAX_SYNC_ORIGINATED_IDS = 1000;
 
@@ -321,6 +323,10 @@ export class IssueTwoWaySyncEffects {
   }
 
   private _hasAutoCreateEnabled(provider: IssueProvider): boolean {
+    // Agenda-view providers (e.g. Google Calendar) should never auto-create issues
+    if (this._pluginRegistry.getUseAgendaView(provider.issueProviderKey)) {
+      return false;
+    }
     // Check for plugin providers (both plugin:* and migrated keys like GITHUB)
     const pluginCfg = (provider as { pluginConfig?: Record<string, unknown> })
       .pluginConfig;

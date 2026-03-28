@@ -24,5 +24,5 @@ export interface CalendarIntegrationEvent {
    * The issue provider key for this event's provider (e.g., 'ICAL' or 'plugin:google-calendar-provider').
    * Used to determine if event supports CRUD operations (plugin providers) vs read-only (iCal).
    */
-  issueProviderKey?: string;
+  issueProviderKey: string;
 }

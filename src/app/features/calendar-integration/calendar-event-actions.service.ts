@@ -37,10 +37,7 @@ export class CalendarEventActionsService {
   private _snackService = inject(SnackService);
 
   isPluginEvent(calEv: ScheduleFromCalendarEvent): boolean {
-    return (
-      !!calEv.issueProviderKey &&
-      isPluginIssueProvider(calEv.issueProviderKey as IssueProviderKey)
-    );
+    return isPluginIssueProvider(calEv.issueProviderKey as IssueProviderKey);
   }
 
   hasEventUrl(calEv: ScheduleFromCalendarEvent): boolean {
@@ -56,7 +53,7 @@ export class CalendarEventActionsService {
       return;
     }
     // For plugin events, resolve the link via the plugin registry
-    const provider = this._pluginRegistry.getProvider(calEv.issueProviderKey!);
+    const provider = this._pluginRegistry.getProvider(calEv.issueProviderKey);
     if (!provider?.definition.getIssueLink) {
       return;
     }
@@ -75,8 +72,7 @@ export class CalendarEventActionsService {
     this._issueService.addTaskFromIssue({
       issueDataReduced: calEv,
       issueProviderId: calEv.calProviderId,
-      issueProviderKey:
-        (calEv.issueProviderKey as IssueProviderKey) || ('ICAL' as IssueProviderKey),
+      issueProviderKey: calEv.issueProviderKey as IssueProviderKey,
       isForceDefaultProject: true,
     });
   }
@@ -151,12 +147,19 @@ export class CalendarEventActionsService {
     let changes: Record<string, unknown>;
     if (result.time) {
       const newStartMs = getDateTimeFromClockString(result.time, result.date);
+      // For all-day events being rescheduled to a specific time, use a 1-hour default
+      // instead of the 24-hour all-day duration
+      const durationMs =
+        calEv.isAllDay || calEv.duration >= 24 * 60 * 60 * 1000
+          ? 60 * 60 * 1000
+          : calEv.duration;
       changes = {
         start_dateTime: new Date(newStartMs).toISOString(),
-        duration_ms: calEv.duration,
+        duration_ms: durationMs,
       };
     } else {
-      const d = new Date(result.date);
+      // Parse as local midnight to avoid UTC date shift in western timezones
+      const d = new Date(result.date + 'T00:00:00');
       changes = {
         start_date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
       };
