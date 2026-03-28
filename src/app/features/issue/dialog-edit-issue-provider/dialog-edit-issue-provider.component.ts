@@ -529,6 +529,7 @@ export class DialogEditIssueProviderComponent {
     url?: string;
     pattern?: string;
     options?: { value: string; label: string }[];
+    showIf?: string;
   }): unknown {
     if (f.type === 'link') {
       return {
@@ -547,6 +548,12 @@ export class DialogEditIssueProviderComponent {
     return {
       key: ('pluginConfig.' + f.key) as keyof IssueIntegrationCfg,
       type: formlyType,
+      ...(f.showIf
+        ? {
+            hideExpression: (m: Record<string, unknown>) =>
+              !(m['pluginConfig'] as Record<string, unknown> | undefined)?.[f.showIf!],
+          }
+        : {}),
       templateOptions: {
         label: f.label,
         required: f.required ?? false,

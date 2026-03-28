@@ -99,6 +99,8 @@ export interface PluginFormField {
   pattern?: string;
   /** Place this field in the collapsible "Advanced Config" section */
   advanced?: boolean;
+  /** Only show this field when the specified config key is truthy */
+  showIf?: string;
   /** For type 'oauthButton': OAuth flow configuration */
   oauthConfig?: OAuthFlowConfig;
   /** For type 'select': dynamically load options at runtime (e.g. after OAuth) */

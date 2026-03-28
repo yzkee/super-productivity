@@ -274,9 +274,8 @@ PluginAPI.registerIssueProvider({
     {
       key: 'writeCalendarId',
       type: 'select' as const,
-      label: 'Calendar for new events',
-      description:
-        'Events created from Super Productivity will be added to this calendar.',
+      label: 'Default calendar for new events',
+      description: 'Used when creating or rescheduling events directly from the planner.',
       required: true,
       options: [{ label: 'Primary', value: 'primary' }],
       loadOptions: loadWritableCalendars,
@@ -298,17 +297,17 @@ PluginAPI.registerIssueProvider({
     {
       key: 'isAutoTimeBlock',
       type: 'checkbox' as const,
-      label: 'Auto-create time blocks',
+      label: 'Auto time blocking',
       description:
-        'Automatically push scheduled tasks to Google Calendar as time-block events.',
+        'When you schedule a task to a specific time, automatically create a matching event in Google Calendar. Rescheduling, completing, or deleting the task updates the event.',
     },
     {
       key: 'timeBlockCalendarId',
       type: 'select' as const,
       label: 'Time block calendar',
-      description:
-        'Calendar for auto-created time block events. Defaults to the calendar for new events.',
+      description: 'Which calendar to create time block events in.',
       required: false,
+      showIf: 'isAutoTimeBlock',
       options: [{ label: 'Primary', value: 'primary' }],
       loadOptions: loadWritableCalendars,
     },
