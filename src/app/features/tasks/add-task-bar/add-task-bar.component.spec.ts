@@ -534,6 +534,31 @@ describe('AddTaskBarComponent', () => {
     });
   });
 
+  describe('_setProjectInitially', () => {
+    it('should use projectId from additionalFields instead of defaultProject$', () => {
+      // Set tag work context (would normally fall back to INBOX_PROJECT)
+      (
+        mockWorkContextService.activeWorkContext$ as BehaviorSubject<WorkContext | null>
+      ).next(mockTagWorkContext);
+
+      fixture.componentRef.setInput('additionalFields', { projectId: 'project-2' });
+      fixture.detectChanges();
+
+      expect(component.stateService.state().projectId).toBe('project-2');
+    });
+
+    it('should fall back to defaultProject$ when additionalFields has no projectId', () => {
+      (
+        mockWorkContextService.activeWorkContext$ as BehaviorSubject<WorkContext | null>
+      ).next(mockTagWorkContext);
+
+      fixture.componentRef.setInput('additionalFields', { isDone: false });
+      fixture.detectChanges();
+
+      expect(component.stateService.state().projectId).toBe('INBOX_PROJECT');
+    });
+  });
+
   describe('document click handling', () => {
     beforeEach(() => {
       fixture.detectChanges();
