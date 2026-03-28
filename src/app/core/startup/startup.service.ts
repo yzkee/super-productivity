@@ -1,4 +1,4 @@
-import { effect, inject, Injectable } from '@angular/core';
+import { effect, inject, Injectable, Injector } from '@angular/core';
 import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
 import { TranslateService } from '@ngx-translate/core';
 import { LocalBackupService } from '../../imex/local-backup/local-backup.service';
@@ -36,6 +36,7 @@ import { CapacitorPlatformService } from '../platform/capacitor-platform.service
 import { alertDialog } from '../../util/native-dialogs';
 import { DataInitStateService } from '../data-init/data-init-state.service';
 import { OnboardingHintService } from '../../features/onboarding/onboarding-hint.service';
+import { LocalRestApiHandlerService } from '../electron/local-rest-api-handler.service';
 
 const w = window as Window & { productivityTips?: string[][]; randomIndex?: number };
 
@@ -64,6 +65,7 @@ export class StartupService {
   private _store = inject(Store);
   private _platformService = inject(CapacitorPlatformService);
   private _dataInitStateService = inject(DataInitStateService);
+  private _injector = inject(Injector);
 
   constructor() {
     // Initialize electron error handler in an effect
@@ -130,6 +132,7 @@ export class StartupService {
     }, DEFERRED_INIT_DELAY_MS);
 
     if (IS_ELECTRON) {
+      this._injector.get(LocalRestApiHandlerService).init();
       window.ea.informAboutAppReady();
       this._uiHelperService.initElectron();
 
