@@ -129,8 +129,11 @@ export class TaskDueEffects {
             TaskLog.log('[TaskDueEffects] Removing overdue tasks from today', {
               overdueCount: overdueIds.length,
             });
+            // Use non-persistent action to avoid LWW conflicts with user
+            // actions on other devices (#6992). Every device runs this effect
+            // independently, so syncing the removal is redundant.
             return of(
-              TaskSharedActions.removeTasksFromTodayTag({
+              TaskSharedActions.localRemoveOverdueFromToday({
                 taskIds: overdueIds,
               }),
             );
