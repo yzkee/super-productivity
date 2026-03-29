@@ -8,6 +8,7 @@ import { GlobalConfigState } from '../src/app/features/config/global-config.mode
 import {
   LOCAL_REST_API_HOST,
   LOCAL_REST_API_MAX_BODY_BYTES,
+  LOCAL_REST_API_MAX_CONCURRENT_REQUESTS,
   LOCAL_REST_API_PORT,
   LOCAL_REST_API_TIMEOUT_MS,
   LocalRestApiRequestPayload,
@@ -107,10 +108,41 @@ const handleResponse = (_event: unknown, payload: LocalRestApiResponsePayload): 
   pending.resolve(payload);
 };
 
+const ALLOWED_HOSTS = new Set([
+  `${LOCAL_REST_API_HOST}:${LOCAL_REST_API_PORT}`,
+  `localhost:${LOCAL_REST_API_PORT}`,
+  LOCAL_REST_API_HOST,
+  'localhost',
+]);
+
 const handleHttpRequest = async (
   req: IncomingMessage,
   res: ServerResponse,
 ): Promise<void> => {
+  // Block DNS rebinding: reject requests with unexpected Host headers
+  const host = req.headers.host;
+  if (!host || !ALLOWED_HOSTS.has(host)) {
+    writeJson(res, 403, {
+      ok: false,
+      error: {
+        code: 'FORBIDDEN',
+        message: 'Invalid Host header',
+      },
+    });
+    return;
+  }
+
+  if (pendingRequests.size >= LOCAL_REST_API_MAX_CONCURRENT_REQUESTS) {
+    writeJson(res, 429, {
+      ok: false,
+      error: {
+        code: 'TOO_MANY_REQUESTS',
+        message: `Too many concurrent requests (limit: ${LOCAL_REST_API_MAX_CONCURRENT_REQUESTS})`,
+      },
+    });
+    return;
+  }
+
   const requestUrl = new URL(req.url ?? '/', `http://${LOCAL_REST_API_HOST}`);
   const method = req.method ?? 'GET';
 
