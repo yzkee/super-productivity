@@ -96,9 +96,7 @@ test.describe('Issue #5594: First repeat occurrence should not always be today',
     // 9. ASSERTION: The task should NOT be in today's undone task list
     // because Saturday is not in the Mon/Wed/Fri pattern.
     // The task should have been rescheduled to Monday (2026-06-15).
-    const undoneTasksWithTitle = taskPage
-      .getUndoneTasks()
-      .filter({ hasText: taskTitle });
+    const undoneTasksWithTitle = taskPage.getUndoneTasks().filter({ hasText: taskTitle });
 
     // The task should disappear from Today view
     await expect(undoneTasksWithTitle).toHaveCount(0, { timeout: 15000 });
@@ -114,7 +112,9 @@ test.describe('Issue #5594: First repeat occurrence should not always be today',
 
     // The task should appear in the planner under Monday (June 15)
     // Planner renders tasks in day columns — look for the task text anywhere on the page
-    const plannerTask = page.getByText(taskTitle.replace(testPrefix + '-', testPrefix + '-'));
+    const plannerTask = page.getByText(
+      taskTitle.replace(testPrefix + '-', testPrefix + '-'),
+    );
     await expect(plannerTask.first()).toBeVisible({ timeout: 15000 });
 
     console.log('[Bug #5594] Task correctly appears in planner for future day');
@@ -158,9 +158,7 @@ test.describe('Issue #5594: First repeat occurrence should not always be today',
     await page.keyboard.press('Escape');
 
     // 5. ASSERTION: Task SHOULD remain in Today for DAILY repeat
-    const undoneTasksWithTitle = taskPage
-      .getUndoneTasks()
-      .filter({ hasText: taskTitle });
+    const undoneTasksWithTitle = taskPage.getUndoneTasks().filter({ hasText: taskTitle });
     await expect(undoneTasksWithTitle.first()).toBeVisible({ timeout: 10000 });
 
     console.log('[Bug #5594] Daily repeat task correctly stays in Today');
