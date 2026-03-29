@@ -101,7 +101,7 @@ export const selectPlannerDays = (
   dayDates: string[],
   taskRepeatCfgs: TaskRepeatCfg[],
   todayListTaskIds: string[],
-  icalEvents: ScheduleCalendarMapEntry[],
+  calendarEvents: ScheduleCalendarMapEntry[],
   allPlannedTasks: TaskWithDueTime[],
   todayStr: string,
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -136,7 +136,7 @@ export const selectPlannerDays = (
           plannerState,
           taskRepeatCfgs,
           allPlannedTasks,
-          icalEvents,
+          calendarEvents,
           unplannedTaskIdsToday,
           deadlineMap,
           globalConfig.schedule,
@@ -174,7 +174,7 @@ const getPlannerDay = (
   plannerState: any,
   taskRepeatCfgs: TaskRepeatCfg[],
   allPlannedTasks: TaskWithDueTime[],
-  icalEvents: ScheduleCalendarMapEntry[],
+  calendarEvents: ScheduleCalendarMapEntry[],
   unplannedTaskIdsToday: string[] | false,
   deadlineTasksByDay: Record<string, TaskCopy[]>,
   scheduleConfig?: ScheduleConfig,
@@ -202,7 +202,7 @@ const getPlannerDay = (
     startOfNextDayDiffMs,
   );
   const { timedEvents, allDayEvents } = getIcalEventsForDay(
-    icalEvents,
+    calendarEvents,
     dayDate,
     startOfNextDayDiffMs,
   );
@@ -336,14 +336,14 @@ interface IcalEventsForDayResult {
 }
 
 const getIcalEventsForDay = (
-  icalEvents: ScheduleCalendarMapEntry[],
+  calendarEvents: ScheduleCalendarMapEntry[],
   dayDate: string,
   startOfNextDayDiffMs: number = 0,
 ): IcalEventsForDayResult => {
   const timedEvents: ScheduleItemEvent[] = [];
   const allDayEvents: ScheduleFromCalendarEvent[] = [];
 
-  icalEvents.forEach((icalMapEntry) => {
+  calendarEvents.forEach((icalMapEntry) => {
     icalMapEntry.items.forEach((calEv) => {
       const start = calEv.start;
       if (getDbDateStr(new Date(start - startOfNextDayDiffMs)) === dayDate) {

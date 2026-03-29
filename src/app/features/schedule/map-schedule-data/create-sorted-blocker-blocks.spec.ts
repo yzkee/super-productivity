@@ -973,6 +973,7 @@ describe('createBlockerBlocks()', () => {
             {
               id: 'AllDayEvent',
               calProviderId: 'PR',
+              issueProviderKey: 'ICAL',
               start: getDateTimeFromClockString('00:00', 24 * 60 * 60 * 1000),
               title: 'All Day Event',
               duration: 0,
@@ -981,6 +982,7 @@ describe('createBlockerBlocks()', () => {
             {
               id: 'TimedEvent',
               calProviderId: 'PR',
+              issueProviderKey: 'ICAL',
               start: getDateTimeFromClockString('14:00', 24 * 60 * 60 * 1000),
               title: 'Timed Event',
               duration: hours(1),
@@ -1004,6 +1006,7 @@ describe('createBlockerBlocks()', () => {
             {
               id: 'AllDay1',
               calProviderId: 'PR',
+              issueProviderKey: 'ICAL',
               start: getDateTimeFromClockString('00:00', 0),
               title: 'All Day 1',
               duration: 24 * 60 * 60 * 1000, // 24 hours
@@ -1012,6 +1015,7 @@ describe('createBlockerBlocks()', () => {
             {
               id: 'AllDay2',
               calProviderId: 'PR',
+              issueProviderKey: 'ICAL',
               start: getDateTimeFromClockString('00:00', 24 * 60 * 60 * 1000),
               title: 'All Day 2',
               duration: 0,
@@ -1037,6 +1041,7 @@ describe('createBlockerBlocks()', () => {
             {
               id: 'EventId',
               calProviderId: 'PR',
+              issueProviderKey: 'ICAL',
               start: getDateTimeFromClockString('10:00', 24 * 60 * 60 * 1000),
               title: 'XXX',
               icon: 'aaa',
@@ -1091,6 +1096,7 @@ describe('createBlockerBlocks()', () => {
             {
               data: {
                 calProviderId: 'PR',
+                issueProviderKey: 'ICAL',
                 duration: 3600000,
                 icon: 'aaa',
                 start: 118800000,
@@ -1530,6 +1536,7 @@ describe('createBlockerBlocks()', () => {
             {
               id: 'CalEvent',
               calProviderId: 'PR',
+              issueProviderKey: 'ICAL',
               start: getDateTimeFromClockString('11:00', 0), // 11:00 - 12:00 (overlaps task)
               title: 'Calendar Event',
               duration: hours(1),

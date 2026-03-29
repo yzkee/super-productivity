@@ -167,8 +167,18 @@
         "EVENT_STR": "event",
         "EVENTS_STR": "events"
       },
+      "CONTEXT_MENU": {
+        "CREATE_TASK": "Create as task",
+        "OPEN_IN_CALENDAR": "Open in calendar",
+        "RESCHEDULE": "Reschedule",
+        "DELETE_EVENT": "Delete event"
+      },
       "S": {
-        "CAL_PROVIDER_ERROR": "Calendar Provider Error: {{errTxt}}"
+        "CAL_PROVIDER_ERROR": "Calendar Provider Error: {{errTxt}}",
+        "EVENT_HIDDEN": "Calendar event hidden",
+        "EVENT_RESCHEDULED": "Event rescheduled",
+        "EVENT_DELETED": "Event deleted",
+        "TIME_BLOCK_ERROR": "Failed to sync time block: {{errTxt}}"
       }
     },
     "CLIPBOARD_IMAGE": {
@@ -422,7 +432,15 @@
         "ADVANCED_CONFIG": "Advanced Config",
         "CONNECTED": "Connected",
         "DELETE_CONFIRM": "Are you sure you want to delete this issue provider? Deleting it means that <strong>all previously imported issue tasks will loose their reference</strong>. This cannot be undone!",
-        "DISCONNECT": "Disconnect"
+        "DISCONNECT": "Disconnect",
+        "EDIT_TITLE": "Edit {{title}} Config",
+        "LOAD_OPTIONS": "Load Options",
+        "LOAD_OPTIONS_FAILED": "Failed to load options",
+        "LOADING_OPTIONS": "Loading options...",
+        "OPTIONS_LOADED": "Options loaded",
+        "RELOAD_OPTIONS": "Reload Options",
+        "SETUP_TITLE": "Setup {{title}} Config",
+        "TEST_CONNECTION": "Test Connection"
       }
     },
     "ISSUE_PANEL": {
