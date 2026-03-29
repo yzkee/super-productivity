@@ -38,6 +38,7 @@ import { ConfigSectionComponent } from '../../features/config/config-section/con
 import { ConfigSoundFormComponent } from '../../features/config/config-sound-form/config-sound-form.component';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { SYNC_FORM } from '../../features/config/form-cfgs/sync-form.const';
+import { EXPERIMENTAL_APP_FEATURE_KEYS } from '../../features/config/form-cfgs/app-features-form.const';
 import { SyncProviderManager } from '../../op-log/sync-providers/provider-manager.service';
 import { map } from 'rxjs/operators';
 import { SyncConfigService } from '../../imex/sync/sync-config.service';
@@ -573,6 +574,21 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
       throw new Error('Not enough data');
     }
 
+    // Check if user is trying to enable an experimental feature
+    const currentAppFeatures = this.globalCfg?.appFeatures;
+    if (
+      sectionKey === 'appFeatures' &&
+      currentAppFeatures &&
+      EXPERIMENTAL_APP_FEATURE_KEYS.some(
+        (key) => config[key] === true && currentAppFeatures[key] === false,
+      )
+    ) {
+      const confirmed = await this._showExperimentalWarningDialog();
+      if (!confirmed) {
+        return;
+      }
+    }
+
     // Check if user is trying to disable user profiles when multiple profiles exist
     if (
       sectionKey === 'appFeatures' &&
@@ -617,6 +633,20 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
         resolve(!!result);
       });
     });
+  }
+
+  private async _showExperimentalWarningDialog(): Promise<boolean> {
+    const dialogRef = this._matDialog.open(DialogConfirmComponent, {
+      restoreFocus: true,
+      data: {
+        title: T.GCF.APP_FEATURES.EXPERIMENTAL_WARNING_TITLE,
+        titleIcon: 'warning',
+        message: T.GCF.APP_FEATURES.EXPERIMENTAL_WARNING_MSG,
+        okTxt: T.G.CONFIRM,
+        cancelTxt: T.G.CANCEL,
+      },
+    });
+    return !!(await firstValueFrom(dialogRef.afterClosed()));
   }
 
   getGlobalCfgSection(

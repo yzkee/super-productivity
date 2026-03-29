@@ -1997,7 +1997,9 @@
       "TITLE": "App Features",
       "USER_PROFILES": "User profiles (experimental — might be removed)",
       "USER_PROFILES_HINT": "Allows you to create and switch between different user profiles, each with separate settings, tasks, and sync configurations. The profile management button will appear in the top-right corner when enabled. Note: Disabling this feature will hide the UI but preserve your profile data. (Experimental feature. No guarantees. Make sure to have a backup!)",
-      "USER_PROFILES_WARNING": "<strong>Experimental feature:</strong> This feature is still in development and may be removed or significantly changed in a future update. Use at your own risk and make sure to keep backups of your data."
+      "USER_PROFILES_WARNING": "<strong>Experimental feature:</strong> This feature is still in development and may be removed or significantly changed in a future update. Use at your own risk and make sure to keep backups of your data.",
+      "EXPERIMENTAL_WARNING_TITLE": "Experimental Feature",
+      "EXPERIMENTAL_WARNING_MSG": "This feature is experimental. It may have bugs, change significantly, or be removed in a future update. Make sure to keep backups of your data.<br/><br/>Do you want to enable it?"
     },
     "AUTO_BACKUPS": {
       "HELP": "Automatically save all data to your app folder to have it ready if something goes wrong.",
