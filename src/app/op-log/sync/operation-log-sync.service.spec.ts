@@ -1937,7 +1937,7 @@ describe('OperationLogSyncService', () => {
         rejectedOps: [],
       });
 
-      // No pending ops but meaningful local data
+      // No pending ops but meaningful local data — dialog should show
       opLogStoreSpy.getUnsynced.and.resolveTo([]);
       stateSnapshotServiceSpy.getStateSnapshot.and.returnValue({
         task: { ids: ['task-1'] },

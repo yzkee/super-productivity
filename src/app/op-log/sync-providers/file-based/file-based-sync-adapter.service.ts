@@ -23,6 +23,7 @@ import {
   ActionType,
   OpType,
   EntityType,
+  SyncImportReason,
 } from '../../core/operation.types';
 import {
   FileBasedSyncData,
@@ -290,6 +291,7 @@ export class FileBasedSyncAdapterService {
         _opId: string, // Not used in file-based sync (operation IDs are client-local)
         _isCleanSlate?: boolean, // Not used - file-based sync replaces entire file
         _snapshotOpType?: RestorePointType, // Not used - file-based sync has no server-side op log
+        _syncImportReason?: string, // Not used - file-based sync has no server-side conflict dialog
       ): Promise<SnapshotUploadResponse> => {
         return this._uploadSnapshot(
           provider,
@@ -990,6 +992,9 @@ export class FileBasedSyncAdapterService {
       vectorClock: op.vectorClock,
       timestamp: op.timestamp,
       schemaVersion: op.schemaVersion,
+      ...(op.syncImportReason
+        ? { syncImportReason: op.syncImportReason as SyncImportReason }
+        : {}),
     };
     return encodeOperation(fullOp);
   }
@@ -1011,6 +1016,7 @@ export class FileBasedSyncAdapterService {
       vectorClock: fullOp.vectorClock,
       timestamp: fullOp.timestamp,
       schemaVersion: fullOp.schemaVersion,
+      ...(fullOp.syncImportReason ? { syncImportReason: fullOp.syncImportReason } : {}),
     };
   }
 }
