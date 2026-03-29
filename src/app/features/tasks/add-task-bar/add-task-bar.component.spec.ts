@@ -273,6 +273,17 @@ describe('AddTaskBarComponent', () => {
     });
   });
 
+  describe('addTask', () => {
+    it('should not add a task when the visible input is empty', async () => {
+      component.stateService.updateCleanText('Stale task');
+      component.stateService.updateInputTxt('   ');
+
+      await component.addTask();
+
+      expect(mockTaskService.add).not.toHaveBeenCalled();
+    });
+  });
+
   describe('defaultProject$ observable', () => {
     it('should return current project when in project work context', async () => {
       // Set project work context
