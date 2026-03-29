@@ -9,7 +9,7 @@ import { LOCAL_ACTIONS } from '../../util/local-actions.token';
 import { LayoutService } from '../../core-ui/layout/layout.service';
 import { DataInitStateService } from '../../core/data-init/data-init-state.service';
 import { selectActiveWorkContext } from '../work-context/store/work-context.selectors';
-import { IS_TOUCH_PRIMARY } from '../../util/is-mouse-primary';
+import { isTouchActive } from '../../util/input-intent';
 import { TaskService } from '../tasks/task.service';
 import { TaskFocusService } from '../tasks/task-focus.service';
 
@@ -54,7 +54,7 @@ export class OnboardingHintService {
       return;
     }
 
-    if (IS_TOUCH_PRIMARY) {
+    if (isTouchActive()) {
       this._listenForTaskCompletion();
     }
 
@@ -179,7 +179,7 @@ export class OnboardingHintService {
   }
 
   private _showPostCreateStep(): void {
-    if (IS_TOUCH_PRIMARY && this._layoutService.isShowMobileBottomNav()) {
+    if (isTouchActive() && this._layoutService.isShowMobileBottomNav()) {
       this._showTaskTapStep();
       return;
     }

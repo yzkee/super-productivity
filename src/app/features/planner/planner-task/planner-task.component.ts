@@ -18,7 +18,8 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TaskCopy } from '../../tasks/task.model';
 import { TaskService } from '../../tasks/task.service';
-import { IS_TOUCH_PRIMARY } from '../../../util/is-mouse-primary';
+import { isTouchActive } from '../../../util/input-intent';
+import { IS_HYBRID_DEVICE } from '../../../util/is-mouse-primary';
 import { DRAG_DELAY_FOR_TOUCH } from '../../../app.constants';
 import { T } from '../../../t.const';
 import { TaskContextMenuComponent } from '../../tasks/task-context-menu/task-context-menu.component';
@@ -69,7 +70,7 @@ export class PlannerTaskComponent implements OnInit, OnDestroy, AfterViewInit {
   readonly tagsToHide = input<string[]>();
 
   readonly T = T;
-  readonly IS_TOUCH_PRIMARY = IS_TOUCH_PRIMARY;
+  readonly isTouchActive = isTouchActive;
   parentTitle: string | null = null;
   isContextMenuLoaded = signal(false);
   showDoneAnimation = signal(false);
@@ -100,7 +101,7 @@ export class PlannerTaskComponent implements OnInit, OnDestroy, AfterViewInit {
 
   @HostListener('contextmenu', ['$event'])
   onContextMenu(event: MouseEvent): void {
-    if (IS_TOUCH_PRIMARY) {
+    if (isTouchActive()) {
       event.preventDefault();
       return;
     }
@@ -141,7 +142,7 @@ export class PlannerTaskComponent implements OnInit, OnDestroy, AfterViewInit {
   }
 
   ngAfterViewInit(): void {
-    if (IS_TOUCH_PRIMARY) {
+    if (isTouchActive() || IS_HYBRID_DEVICE) {
       const el = this._elementRef.nativeElement;
       const onStart = (): void => {
         this._dragReadyTimeout = window.setTimeout(() => {

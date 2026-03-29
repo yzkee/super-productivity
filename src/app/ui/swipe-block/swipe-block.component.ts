@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { PanDirective, PanEvent } from '../swipe-gesture/pan.directive';
-import { IS_TOUCH_PRIMARY } from '../../util/is-mouse-primary';
+import { isTouchActive } from '../../util/input-intent';
 
 /** Scale factor so the swipe block reaches full width at 50% pan distance */
 const PAN_SCALE_FACTOR = 2;
@@ -38,7 +38,7 @@ export class SwipeBlockComponent implements OnDestroy {
   readonly swipeRightTriggered = output<boolean>();
   readonly swipeLeft = output<void>();
 
-  readonly IS_TOUCH_PRIMARY = IS_TOUCH_PRIMARY;
+  readonly isTouchActive = isTouchActive;
 
   readonly isPanHelperVisible = signal(false);
   readonly isPreventPointerEventsWhilePanning = signal(false);
@@ -71,7 +71,7 @@ export class SwipeBlockComponent implements OnDestroy {
   }
 
   onPanStart(ev: PanEvent): void {
-    if (!IS_TOUCH_PRIMARY || !this.canSwipe()) {
+    if (!isTouchActive() || !this.canSwipe()) {
       return;
     }
     this._resetAfterPan();
@@ -93,7 +93,7 @@ export class SwipeBlockComponent implements OnDestroy {
   }
 
   onPanEnd(): void {
-    if (!IS_TOUCH_PRIMARY || (!this._isLockPanLeft && !this._isLockPanRight)) {
+    if (!isTouchActive() || (!this._isLockPanLeft && !this._isLockPanRight)) {
       return;
     }
     this.isPreventPointerEventsWhilePanning.set(false);
@@ -117,7 +117,7 @@ export class SwipeBlockComponent implements OnDestroy {
   }
 
   handlePan(ev: PanEvent): void {
-    if (!IS_TOUCH_PRIMARY) {
+    if (!isTouchActive()) {
       return;
     }
     if (!this.innerWrapperEl()) {

@@ -23,7 +23,7 @@ import { EMPTY_SIMPLE_COUNTER } from '../simple-counter.const';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { moveItemInArray } from '../../../util/move-item-in-array';
 import { DRAG_DELAY_FOR_TOUCH } from '../../../app.constants';
-import { IS_TOUCH_PRIMARY } from '../../../util/is-mouse-primary';
+import { isTouchActive } from '../../../util/input-intent';
 
 @Component({
   selector: 'habit-tracker',
@@ -54,7 +54,7 @@ export class HabitTrackerComponent {
   T = T;
   SimpleCounterType = SimpleCounterType;
   DRAG_DELAY_FOR_TOUCH = DRAG_DELAY_FOR_TOUCH;
-  IS_TOUCH_PRIMARY = IS_TOUCH_PRIMARY;
+  protected readonly isTouchActive = isTouchActive;
 
   dayOffset = signal(0);
 

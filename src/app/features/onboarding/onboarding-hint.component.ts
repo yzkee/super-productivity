@@ -11,7 +11,7 @@ import {
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { OnboardingHintService, OnboardingStep } from './onboarding-hint.service';
-import { IS_TOUCH_PRIMARY } from '../../util/is-mouse-primary';
+import { isTouchActive } from '../../util/input-intent';
 import { GlobalConfigService } from '../config/global-config.service';
 import { LayoutService } from '../../core-ui/layout/layout.service';
 import { T } from '../../t.const';
@@ -189,7 +189,7 @@ export class OnboardingHintComponent {
 
     this._updateMessage(config);
 
-    const isMobile = IS_TOUCH_PRIMARY && this._layoutService.isShowMobileBottomNav();
+    const isMobile = isTouchActive() && this._layoutService.isShowMobileBottomNav();
     const selector = config.selector?.(isMobile) ?? null;
 
     // Floating hint (no target element)
@@ -229,9 +229,9 @@ export class OnboardingHintComponent {
   }
 
   private _updateMessage(config: StepConfig): void {
-    this.hintMessage.set(IS_TOUCH_PRIMARY ? (config.touchMessage ?? '') : config.message);
-    this.hintActions.set(IS_TOUCH_PRIMARY ? (config.touchActions ?? []) : []);
-    if (!IS_TOUCH_PRIMARY && config.showShortcut) {
+    this.hintMessage.set(isTouchActive() ? (config.touchMessage ?? '') : config.message);
+    this.hintActions.set(isTouchActive() ? (config.touchActions ?? []) : []);
+    if (!isTouchActive() && config.showShortcut) {
       const shortcut = this._globalConfigService.cfg()?.keyboard?.addNewTask;
       this.shortcutHint.set(shortcut || null);
     } else {
@@ -249,7 +249,7 @@ export class OnboardingHintComponent {
     const hintWidth = 260;
     // Approximate rendered height of the hint chip.
     // Touch hints can wrap to multiple lines, especially for task gesture onboarding.
-    const estimatedHintHeight = IS_TOUCH_PRIMARY
+    const estimatedHintHeight = isTouchActive()
       ? this.hintActions().length > 0
         ? 136
         : 76
@@ -261,7 +261,7 @@ export class OnboardingHintComponent {
     const placeBelow = spaceBelow > hintHeight + gap;
 
     const verticalOffset =
-      step === 'create-task' && IS_TOUCH_PRIMARY && !placeBelow
+      step === 'create-task' && isTouchActive() && !placeBelow
         ? MOBILE_CREATE_TASK_HINT_VERTICAL_OFFSET
         : 0;
     const top = Math.max(
