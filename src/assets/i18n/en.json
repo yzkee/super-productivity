@@ -2673,6 +2673,7 @@
     "CREATE_NEW_PROFILE": "Create New Profile",
     "CREATED": "Created:",
     "DELETE_PROFILE": "Delete Profile",
+    "DEPRECATION_WARNING": "The experimental User Profiles feature will be removed in a future update. Please export your profile data as a backup.",
     "DIALOG_TITLE": "Manage User Profiles",
     "EXISTING_PROFILES": "Existing Profiles",
     "EXPORT_PROFILE": "Export Profile",

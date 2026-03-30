@@ -6,6 +6,7 @@ import { BackupService } from '../../op-log/backup/backup.service';
 import { Log } from '../../core/log';
 import { nanoid } from 'nanoid';
 import { SnackService } from '../../core/snack/snack.service';
+import { T } from '../../t.const';
 import { DEFAULT_GLOBAL_CONFIG } from '../config/default-global-config.const';
 import { AppDataComplete, MODEL_CONFIGS } from '../../op-log/model/model-config';
 import type { SyncWrapperService } from '../../imex/sync/sync-wrapper.service';
@@ -99,6 +100,7 @@ export class UserProfileService {
       this.activeProfile.set(defaultMetadata.profiles[0]);
       this.isInitialized.set(true);
     }
+    this._showDeprecationWarning();
   }
 
   /**
@@ -489,6 +491,7 @@ export class UserProfileService {
       this.profiles.set(metadata.profiles);
       this.activeProfile.set(metadata.profiles[0]);
       this.isInitialized.set(true);
+      this._showDeprecationWarning();
 
       Log.log('UserProfileService: Migration completed successfully');
     } catch (error) {
@@ -503,6 +506,14 @@ export class UserProfileService {
   hasMultipleProfiles(): boolean {
     const profiles = this.profiles();
     return profiles.length > 1;
+  }
+
+  private _showDeprecationWarning(): void {
+    this._snackService.open({
+      msg: T.USER_PROFILES.DEPRECATION_WARNING,
+      type: 'WARNING',
+      config: { duration: 10000 },
+    });
   }
 
   /**
