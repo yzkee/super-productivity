@@ -1,27 +1,27 @@
 import {
   ConfigFormSection,
   LimitedFormlyFieldConfig,
-  OverlayIndicatorConfig,
+  TaskWidgetConfig,
 } from '../global-config.model';
 import { T } from '../../../t.const';
 
-export const OVERLAY_INDICATOR_FORM_CFG: ConfigFormSection<OverlayIndicatorConfig> = {
-  title: T.GCF.OVERLAY_INDICATOR.TITLE,
-  key: 'overlayIndicator',
+export const TASK_WIDGET_FORM_CFG: ConfigFormSection<TaskWidgetConfig> = {
+  title: T.GCF.TASK_WIDGET.TITLE,
+  key: 'taskWidget',
   isElectronOnly: true,
   items: [
     {
       key: 'isEnabled',
       type: 'checkbox',
       templateOptions: {
-        label: T.GCF.OVERLAY_INDICATOR.IS_ENABLED,
+        label: T.GCF.TASK_WIDGET.IS_ENABLED,
       },
     },
     {
       key: 'isAlwaysShow',
       type: 'checkbox',
       templateOptions: {
-        label: T.GCF.OVERLAY_INDICATOR.IS_ALWAYS_SHOW,
+        label: T.GCF.TASK_WIDGET.IS_ALWAYS_SHOW,
       },
     },
     {
@@ -31,8 +31,8 @@ export const OVERLAY_INDICATOR_FORM_CFG: ConfigFormSection<OverlayIndicatorConfi
         type: 'number',
         min: 10,
         max: 100,
-        label: T.GCF.OVERLAY_INDICATOR.OPACITY,
+        label: T.GCF.TASK_WIDGET.OPACITY,
       },
     },
-  ] as LimitedFormlyFieldConfig<OverlayIndicatorConfig>[],
+  ] as LimitedFormlyFieldConfig<TaskWidgetConfig>[],
 };

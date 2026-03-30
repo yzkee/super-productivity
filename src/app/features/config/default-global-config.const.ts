@@ -97,7 +97,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     isSyncSessionWithTracking: false,
     isStartInBackground: false,
   },
-  overlayIndicator: {
+  taskWidget: {
     isEnabled: false,
     isAlwaysShow: false,
     opacity: 95,

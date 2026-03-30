@@ -47,8 +47,8 @@ export type MiscConfig = Readonly<{
   isTurnOffMarkdown?: boolean; // Deprecated
   defaultProjectId?: string | null | false; // Deprecated
   taskNotesTpl?: string; // Deprecated
-  isOverlayIndicatorEnabled?: boolean; // Deprecated – moved to overlayIndicator.isEnabled
-  overlayIndicatorOpacity?: number; // Deprecated – moved to overlayIndicator.opacity
+  isOverlayIndicatorEnabled?: boolean; // Deprecated – moved to taskWidget.isEnabled
+  overlayIndicatorOpacity?: number; // Deprecated – moved to taskWidget.opacity
 }>;
 
 export type TasksConfig = Readonly<{
@@ -236,7 +236,7 @@ export type FocusModeConfig = Readonly<{
   isManualBreakStart?: boolean;
 }>;
 
-export type OverlayIndicatorConfig = Readonly<{
+export type TaskWidgetConfig = Readonly<{
   isEnabled?: boolean;
   isAlwaysShow?: boolean;
   opacity?: number;
@@ -270,7 +270,7 @@ export type GlobalConfigState = Readonly<{
   schedule: ScheduleConfig;
   dominaMode: DominaModeConfig;
   focusMode: FocusModeConfig;
-  overlayIndicator: OverlayIndicatorConfig;
+  taskWidget?: TaskWidgetConfig;
   clipboardImages?: ClipboardImagesConfig;
 
   sync: SyncConfig;
@@ -289,7 +289,7 @@ export type GlobalSectionConfig =
   | DailySummaryNote
   | SyncConfig
   | ClipboardImagesConfig
-  | OverlayIndicatorConfig;
+  | TaskWidgetConfig;
 type Omit<T, K extends keyof T> = Pick<T, Exclude<keyof T, K>>;
 
 export interface LimitedFormlyFieldConfig<FormModel> extends Omit<

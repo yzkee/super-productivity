@@ -5,8 +5,8 @@ import { info } from 'electron-log/main';
 import { IPC } from '../shared-with-frontend/ipc-events.const';
 import { loadSimpleStoreAll, saveSimpleStore } from '../simple-store';
 
-let overlayWindow: BrowserWindow | null = null;
-let isOverlayEnabled = false;
+let taskWidgetWin: BrowserWindow | null = null;
+let isTaskWidgetEnabled = false;
 let isAlwaysShow = false;
 let currentTask: TaskCopy | null = null;
 let isPomodoroEnabled = false;
@@ -18,29 +18,30 @@ let currentOpacity = 95;
 let listenersRegistered = false;
 let isCreatingWindow = false;
 
-const OVERLAY_BOUNDS_KEY = 'overlayBounds';
+const TASK_WIDGET_BOUNDS_KEY = 'taskWidgetBounds';
+const LEGACY_BOUNDS_KEY = 'overlayBounds';
 let boundsDebounceTimer: NodeJS.Timeout | null = null;
 
-export const updateOverlayEnabled = (isEnabled: boolean): void => {
-  isOverlayEnabled = isEnabled;
+export const updateTaskWidgetEnabled = (isEnabled: boolean): void => {
+  isTaskWidgetEnabled = isEnabled;
 
-  if (isEnabled && !overlayWindow && !isCreatingWindow) {
+  if (isEnabled && !taskWidgetWin && !isCreatingWindow) {
     initListeners();
-    createOverlayWindow().then(() => {
+    createTaskWidgetWindow().then(() => {
       // Request current task state after window is ready
       const mainWindow = BrowserWindow.getAllWindows().find(
-        (win) => win !== overlayWindow,
+        (win) => win !== taskWidgetWin,
       );
       if (mainWindow) {
-        mainWindow.webContents.send(IPC.REQUEST_CURRENT_TASK_FOR_OVERLAY);
+        mainWindow.webContents.send(IPC.REQUEST_CURRENT_TASK_FOR_TASK_WIDGET);
       }
     });
-  } else if (!isEnabled && overlayWindow) {
-    destroyOverlayWindow();
+  } else if (!isEnabled && taskWidgetWin) {
+    destroyTaskWidget();
   }
 };
 
-export const destroyOverlayWindow = (): void => {
+export const destroyTaskWidget = (): void => {
   // Clear any pending timeouts
   if (initTimeoutId) {
     clearTimeout(initTimeoutId);
@@ -53,43 +54,43 @@ export const destroyOverlayWindow = (): void => {
     boundsDebounceTimer = null;
   }
 
-  // Disable overlay to prevent close event prevention
-  isOverlayEnabled = false;
+  // Disable task widget to prevent close event prevention
+  isTaskWidgetEnabled = false;
   isCreatingWindow = false;
 
   // Remove IPC listeners
-  ipcMain.removeAllListeners('overlay-show-main-window');
+  ipcMain.removeAllListeners('task-widget-show-main-window');
   listenersRegistered = false;
 
-  if (overlayWindow && !overlayWindow.isDestroyed()) {
+  if (taskWidgetWin && !taskWidgetWin.isDestroyed()) {
     try {
       // Remove ALL event listeners
-      overlayWindow.removeAllListeners();
+      taskWidgetWin.removeAllListeners();
 
       // Remove webContents listeners
-      if (overlayWindow.webContents && !overlayWindow.webContents.isDestroyed()) {
-        overlayWindow.webContents.removeAllListeners();
+      if (taskWidgetWin.webContents && !taskWidgetWin.webContents.isDestroyed()) {
+        taskWidgetWin.webContents.removeAllListeners();
       }
 
       // Hide first to prevent visual issues
-      overlayWindow.hide();
+      taskWidgetWin.hide();
 
       // Set closable to ensure we can close it
-      overlayWindow.setClosable(true);
+      taskWidgetWin.setClosable(true);
 
       // Force destroy the window
-      overlayWindow.destroy();
+      taskWidgetWin.destroy();
     } catch (e) {
       // Window might already be destroyed
-      console.error('Error destroying overlay window:', e);
+      console.error('Error destroying task widget window:', e);
     }
 
-    overlayWindow = null;
+    taskWidgetWin = null;
   }
 };
 
-const createOverlayWindow = async (): Promise<void> => {
-  if (overlayWindow || isCreatingWindow) {
+const createTaskWidgetWindow = async (): Promise<void> => {
+  if (taskWidgetWin || isCreatingWindow) {
     return;
   }
   isCreatingWindow = true;
@@ -102,7 +103,8 @@ const createOverlayWindow = async (): Promise<void> => {
   let bounds = defaultBounds;
   try {
     const store = await loadSimpleStoreAll();
-    const saved = store[OVERLAY_BOUNDS_KEY] as
+    // Try new key first, fall back to legacy key for migration
+    const saved = (store[TASK_WIDGET_BOUNDS_KEY] || store[LEGACY_BOUNDS_KEY]) as
       | { width: number; height: number; x: number; y: number }
       | undefined;
     if (
@@ -134,12 +136,12 @@ const createOverlayWindow = async (): Promise<void> => {
   }
 
   isCreatingWindow = false;
-  overlayWindow = new BrowserWindow({
+  taskWidgetWin = new BrowserWindow({
     width: bounds.width,
     height: bounds.height,
     x: bounds.x,
     y: bounds.y,
-    title: 'Super Productivity Overlay',
+    title: 'Super Productivity Task Widget',
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -154,7 +156,7 @@ const createOverlayWindow = async (): Promise<void> => {
     autoHideMenuBar: true,
     roundedCorners: false, // Disable rounded corners for better compatibility
     webPreferences: {
-      preload: join(__dirname, 'overlay-preload.js'),
+      preload: join(__dirname, 'task-widget-preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
       disableDialogs: true,
@@ -164,110 +166,104 @@ const createOverlayWindow = async (): Promise<void> => {
     },
   });
 
-  overlayWindow.loadFile(join(__dirname, 'overlay.html'));
+  taskWidgetWin.loadFile(join(__dirname, 'task-widget.html'));
 
   // Set visible on all workspaces immediately after creation
-  overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  taskWidgetWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
-  overlayWindow.on('closed', () => {
-    overlayWindow = null;
+  taskWidgetWin.on('closed', () => {
+    taskWidgetWin = null;
   });
 
-  overlayWindow.on('ready-to-show', () => {
-    if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  taskWidgetWin.on('ready-to-show', () => {
+    if (!taskWidgetWin || taskWidgetWin.isDestroyed()) return;
     // Ensure window stays on all workspaces
-    overlayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    taskWidgetWin.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
 
     // Request current task state from main window
-    const mainWindow = BrowserWindow.getAllWindows().find((win) => win !== overlayWindow);
+    const mainWindow = BrowserWindow.getAllWindows().find((win) => win !== taskWidgetWin);
     if (mainWindow) {
-      mainWindow.webContents.send(IPC.REQUEST_CURRENT_TASK_FOR_OVERLAY);
+      mainWindow.webContents.send(IPC.REQUEST_CURRENT_TASK_FOR_TASK_WIDGET);
     }
-    // Don't show overlay here - it should only show when main window is minimized
+    // Don't show task widget here - it should only show when main window is minimized
   });
 
   const persistBoundsDebounced = (): void => {
     if (boundsDebounceTimer) clearTimeout(boundsDebounceTimer);
     boundsDebounceTimer = setTimeout(() => {
-      if (overlayWindow && !overlayWindow.isDestroyed()) {
-        saveSimpleStore(OVERLAY_BOUNDS_KEY, overlayWindow.getBounds());
+      if (taskWidgetWin && !taskWidgetWin.isDestroyed()) {
+        saveSimpleStore(TASK_WIDGET_BOUNDS_KEY, taskWidgetWin.getBounds());
       }
     }, 300);
   };
 
-  overlayWindow.on('resize', persistBoundsDebounced);
-  overlayWindow.on('move', persistBoundsDebounced);
+  taskWidgetWin.on('resize', persistBoundsDebounced);
+  taskWidgetWin.on('move', persistBoundsDebounced);
 
   // Prevent context menu on right-click to avoid crashes
-  overlayWindow.webContents.on('context-menu', (e) => {
+  taskWidgetWin.webContents.on('context-menu', (e) => {
     e.preventDefault();
   });
 
   // Prevent any window system menu
-  overlayWindow.on('system-context-menu', (e) => {
+  taskWidgetWin.on('system-context-menu', (e) => {
     e.preventDefault();
   });
-
-  // // Prevent window close attempts that might cause issues
-  // overlayWindow.on('close', (e) => {
-  //   if (isOverlayEnabled) {
-  //     e.preventDefault();
-  //     overlayWindow.hide();
-  //     isOverlayVisible = false;
-  //   }
-  // });
 
   // Don't make window click-through initially to allow dragging
   // The renderer process will handle mouse events dynamically
 
   // Update initial state
-  updateOverlayContent();
+  updateTaskWidgetContent();
 };
 
-export const showOverlayWindow = (): void => {
-  if (!isOverlayEnabled) {
+export const showTaskWidget = (): void => {
+  if (!isTaskWidgetEnabled) {
     return;
   }
 
-  // Recreate overlay if it was accidentally closed
-  if (!overlayWindow) {
-    info('Overlay window was destroyed, recreating');
-    createOverlayWindow().then(() => {
-      if (overlayWindow && !overlayWindow.isDestroyed()) {
-        updateOverlayOpacity(currentOpacity);
-        overlayWindow.show();
+  // Recreate task widget if it was accidentally closed
+  if (!taskWidgetWin) {
+    info('Task widget window was destroyed, recreating');
+    createTaskWidgetWindow().then(() => {
+      if (taskWidgetWin && !taskWidgetWin.isDestroyed()) {
+        updateTaskWidgetOpacity(currentOpacity);
+        taskWidgetWin.show();
       }
     });
     return;
   }
 
-  if (overlayWindow.isDestroyed()) {
+  if (taskWidgetWin.isDestroyed()) {
     return;
   }
 
   // Only show if not already visible
-  if (!overlayWindow.isVisible()) {
-    info('Showing overlay window');
-    overlayWindow.show();
+  if (!taskWidgetWin.isVisible()) {
+    info('Showing task widget');
+    taskWidgetWin.show();
   } else {
-    info('Overlay already visible');
+    info('Task widget already visible');
   }
 };
 
-export const hideOverlayWindow = (): void => {
-  if (!overlayWindow || !isOverlayEnabled) {
+export const hideTaskWidget = (): void => {
+  if (!taskWidgetWin || !isTaskWidgetEnabled) {
     info(
-      'Overlay hide skipped: window=' + !!overlayWindow + ', enabled=' + isOverlayEnabled,
+      'Task widget hide skipped: window=' +
+        !!taskWidgetWin +
+        ', enabled=' +
+        isTaskWidgetEnabled,
     );
     return;
   }
 
   // Only hide if currently visible
-  if (overlayWindow.isVisible()) {
-    info('Hiding overlay window');
-    overlayWindow.hide();
+  if (taskWidgetWin.isVisible()) {
+    info('Hiding task widget');
+    taskWidgetWin.hide();
   } else {
-    info('Overlay already hidden');
+    info('Task widget already hidden');
   }
 };
 
@@ -278,19 +274,19 @@ const initListeners = (): void => {
   listenersRegistered = true;
 
   // Listen for show main window request
-  ipcMain.on('overlay-show-main-window', () => {
-    const mainWindow = BrowserWindow.getAllWindows().find((win) => win !== overlayWindow);
+  ipcMain.on('task-widget-show-main-window', () => {
+    const mainWindow = BrowserWindow.getAllWindows().find((win) => win !== taskWidgetWin);
     if (mainWindow) {
       mainWindow.show();
       mainWindow.focus();
       if (!isAlwaysShow) {
-        hideOverlayWindow();
+        hideTaskWidget();
       }
     }
   });
 };
 
-export const updateOverlayTask = (
+export const updateTaskWidgetTask = (
   task: TaskCopy | null,
   pomodoroEnabled: boolean,
   pomodoroTime: number,
@@ -303,11 +299,11 @@ export const updateOverlayTask = (
   isFocusModeEnabled = focusModeEnabled;
   currentFocusSessionTime = focusTime;
 
-  updateOverlayContent();
+  updateTaskWidgetContent();
 };
 
-const updateOverlayContent = (): void => {
-  if (!overlayWindow || !isOverlayEnabled) {
+const updateTaskWidgetContent = (): void => {
+  if (!taskWidgetWin || !isTaskWidgetEnabled) {
     return;
   }
 
@@ -337,27 +333,27 @@ const updateOverlayContent = (): void => {
     }
   }
 
-  overlayWindow.webContents.send('update-content', {
+  taskWidgetWin.webContents.send('update-content', {
     title,
     time: timeStr,
     mode,
   });
 };
 
-export const updateOverlayAlwaysShow = (alwaysShow: boolean): void => {
+export const updateTaskWidgetAlwaysShow = (alwaysShow: boolean): void => {
   isAlwaysShow = alwaysShow;
 };
 
-export const getIsOverlayAlwaysShow = (): boolean => isAlwaysShow;
+export const getIsTaskWidgetAlwaysShow = (): boolean => isAlwaysShow;
 
-export const updateOverlayOpacity = (opacity: number): void => {
+export const updateTaskWidgetOpacity = (opacity: number): void => {
   currentOpacity = opacity;
-  if (!overlayWindow || overlayWindow.isDestroyed()) {
+  if (!taskWidgetWin || taskWidgetWin.isDestroyed()) {
     return;
   }
   // Send opacity to renderer as CSS variable (works on all platforms)
   const cssOpacity = Math.max(0.1, Math.min(1, opacity / 100));
-  overlayWindow.webContents.send('update-opacity', cssOpacity);
+  taskWidgetWin.webContents.send('update-opacity', cssOpacity);
 };
 
 const formatTime = (timeMs: number): string => {

@@ -2038,7 +2038,7 @@
       "L_SYNC_SESSION_WITH_TRACKING": "Synchronizuj sesje skupienia ze śledzeniem czasu",
       "TITLE": "Tryb skupienia"
     },
-    "OVERLAY_INDICATOR": {
+    "TASK_WIDGET": {
       "TITLE": "Wskaźnik nakładki",
       "IS_ENABLED": "Włącz okno wskaźnika nakładki",
       "IS_ALWAYS_SHOW": "Zawsze pokazuj nakładkę (nawet gdy okno główne jest widoczne)",

@@ -1,8 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
-contextBridge.exposeInMainWorld('overlayAPI', {
+contextBridge.exposeInMainWorld('taskWidgetAPI', {
   showMainWindow: () => {
-    ipcRenderer.send('overlay-show-main-window');
+    ipcRenderer.send('task-widget-show-main-window');
   },
   onUpdateContent: (callback: (data: any) => void) => {
     const listener = (event: Electron.IpcRendererEvent, data: any): void =>
