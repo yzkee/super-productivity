@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type,@typescript-eslint/naming-convention */
+/* eslint-disable @typescript-eslint/naming-convention */
 /**
  * Integration test for issue #6992:
  * Sync differences between devices after new-day routines.

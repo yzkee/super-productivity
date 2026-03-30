@@ -1,4 +1,3 @@
-/* eslint-disable */
 /**
  * Integration test for issue #6992:
  * Proves the full conflict chain from operation creation through LWW resolution

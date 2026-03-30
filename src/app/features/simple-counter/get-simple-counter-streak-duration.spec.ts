@@ -3,7 +3,6 @@ import { SimpleCounterCopy } from './simple-counter.model';
 import { getDbDateStr } from '../../util/get-db-date-str';
 
 /* eslint-disable @typescript-eslint/naming-convention */
-/* eslint-disable no-mixed-operators */
 
 // DST-safe helper: uses calendar arithmetic (setDate) instead of
 // millisecond subtraction (Date.now() - N * 86400000) which breaks
