@@ -35,7 +35,7 @@ test.describe('@supersync Realtime Push', () => {
       const syncConfig = getSuperSyncConfig(user);
 
       clientA = await createSimulatedClient(browser, appUrl, 'A', testRunId);
-      await clientA.sync.setupSuperSync(syncConfig);
+      await clientA.sync.setupSuperSync({ ...syncConfig, enableWebSocket: true });
 
       const baselineTask = `Realtime-Baseline-${testRunId}`;
       await clientA.workView.addTask(baselineTask);
@@ -43,7 +43,7 @@ test.describe('@supersync Realtime Push', () => {
       await waitForTask(clientA.page, baselineTask);
 
       clientB = await createSimulatedClient(browser, appUrl, 'B', testRunId);
-      await clientB.sync.setupSuperSync(syncConfig);
+      await clientB.sync.setupSuperSync({ ...syncConfig, enableWebSocket: true });
       await clientB.sync.syncAndWait();
       await waitForTask(clientB.page, baselineTask);
 
