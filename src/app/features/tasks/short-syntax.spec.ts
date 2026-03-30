@@ -1904,6 +1904,32 @@ describe('shortSyntax', () => {
         );
         expect(r?.taskChanges.title).toBe('Read article');
       });
+
+      it('should handle multiple markdown links in extract mode', async () => {
+        const t = {
+          ...TASK,
+          title: '[Site1](https://a.com) and [Site2](https://b.com)',
+        };
+        const r = await shortSyntax(t, { ...CONFIG, urlBehavior: 'extract' });
+        expect(r).toBeDefined();
+        expect(r?.attachments.length).toBe(2);
+        expect(r?.attachments[0].path).toBe('https://a.com');
+        expect(r?.attachments[1].path).toBe('https://b.com');
+        expect(r?.taskChanges.title).toBe('Site1 and Site2');
+      });
+
+      it('should handle mixed markdown link and plain URL in extract mode', async () => {
+        const t = {
+          ...TASK,
+          title: '[docs](https://a.com) and https://b.com',
+        };
+        const r = await shortSyntax(t, { ...CONFIG, urlBehavior: 'extract' });
+        expect(r).toBeDefined();
+        expect(r?.attachments.length).toBe(2);
+        expect(r?.attachments[0].path).toBe('https://a.com');
+        expect(r?.attachments[1].path).toBe('https://b.com');
+        expect(r?.taskChanges.title).toBe('docs and');
+      });
     });
   });
 });

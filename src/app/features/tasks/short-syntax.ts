@@ -499,8 +499,10 @@ export const parseTimeSpentChanges = (task: Partial<TaskCopy>): Partial<Task> =>
 const extractMarkdownLinks = (
   title: string,
 ): { urls: string[]; titleWithoutMarkdown: string } => {
+  if (!title.includes('](')) {
+    return { urls: [], titleWithoutMarkdown: title };
+  }
   const urls: string[] = [];
-  SHORT_SYNTAX_MARKDOWN_LINK_REG_EX.lastIndex = 0;
   const titleWithoutMarkdown = title.replace(
     SHORT_SYNTAX_MARKDOWN_LINK_REG_EX,
     (_match, text: string, url: string) => {
