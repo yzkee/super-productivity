@@ -506,11 +506,12 @@ export class FileBasedSyncAdapterService {
         'FileBasedSyncAdapter._uploadWithRetry(retry)',
       );
 
-      // Compare against previous attempt's rev (not original revToMatch)
-      const isServerRevInconsistent = freshRev === previousRev;
-      if (isServerRevInconsistent) {
+      // Same content hash means the file has not changed since our last download.
+      // Safe to overwrite unconditionally.
+      const isServerUnchanged = freshRev === previousRev;
+      if (isServerUnchanged) {
         OpLog.warn(
-          'FileBasedSyncAdapter: Rev unchanged after re-download, server has inconsistent timestamp handling. Force-uploading.',
+          'FileBasedSyncAdapter: Rev unchanged after re-download, force-uploading.',
         );
       }
 
@@ -519,7 +520,7 @@ export class FileBasedSyncAdapterService {
           FILE_BASED_SYNC_CONSTANTS.SYNC_FILE,
           freshUploadData,
           freshRev,
-          isServerRevInconsistent,
+          isServerUnchanged,
         );
         OpLog.normal(`FileBasedSyncAdapter: Retry ${attempt} upload successful`);
         return { finalSyncVersion: freshNewData.syncVersion };
@@ -527,7 +528,7 @@ export class FileBasedSyncAdapterService {
         if (!(retryErr instanceof UploadRevToMatchMismatchAPIError)) {
           throw retryErr;
         }
-        // If force-upload was used (isServerRevInconsistent), this shouldn't happen
+        // If force-upload was used (isServerUnchanged), this shouldn't happen
         // but if it does, let the loop continue
         previousRev = freshRev;
       }

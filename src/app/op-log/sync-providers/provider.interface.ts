@@ -148,7 +148,6 @@ export const isFileSyncProvider = (
 export interface FileRevResponse {
   /** The current revision identifier for the file */
   rev: string;
-  legacyRev?: string;
 }
 
 /**

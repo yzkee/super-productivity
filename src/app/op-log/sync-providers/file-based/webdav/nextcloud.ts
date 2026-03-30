@@ -67,16 +67,9 @@ export class NextcloudProvider extends WebdavBaseProvider<SyncProviderId.WebDAV>
         'Nextcloud password is not configured. Please check your sync settings.',
       );
     }
-    // Return a WebdavPrivateCfg with the auto-constructed baseUrl and
-    // pre-set Nextcloud capabilities to skip auto-detection on first sync
     return {
       ...cfg,
       baseUrl: this._buildNextcloudBaseUrl(cfg),
-      serverCapabilities: {
-        supportsETags: true,
-        supportsIfHeader: true,
-        supportsLastModified: true,
-      },
     };
   }
 

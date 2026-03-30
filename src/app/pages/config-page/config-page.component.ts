@@ -61,7 +61,6 @@ import { DialogDisableProfilesConfirmationComponent } from '../../features/user-
 import { DialogRestorePointComponent } from '../../imex/sync/dialog-restore-point/dialog-restore-point.component';
 import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { DialogConfirmComponent } from '../../ui/dialog-confirm/dialog-confirm.component';
-import { LS } from '../../core/persistence/storage-keys.const';
 import { MatTab, MatTabGroup, MatTabLabel } from '@angular/material/tabs';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -322,45 +321,6 @@ export class ConfigPageComponent implements OnInit, OnDestroy {
                         await this.syncSettingsService.updateSettingsFromForm(
                           fullSyncModel,
                           true,
-                        );
-                      }
-
-                      // Test conditional header support
-                      const testPath = `${webDavCfg.syncFolderPath || '/'}/.sp-header-test-${Date.now()}`;
-                      try {
-                        const supportsHeaders =
-                          await api.testConditionalHeaders(testPath);
-
-                        if (
-                          !supportsHeaders &&
-                          !localStorage.getItem(
-                            LS.WEBDAV_CONDITIONAL_HEADER_WARNING_DISMISSED,
-                          )
-                        ) {
-                          const dialogRef = this._matDialog.open(DialogConfirmComponent, {
-                            data: {
-                              title:
-                                T.F.SYNC.FORM.WEB_DAV.CONDITIONAL_HEADER_WARNING_TITLE,
-                              message:
-                                T.F.SYNC.FORM.WEB_DAV.CONDITIONAL_HEADER_WARNING_MSG,
-                              okTxt: T.G.OK,
-                              hideCancelButton: true,
-                              showDontShowAgain: true,
-                            },
-                          });
-                          const res = await firstValueFrom(dialogRef.afterClosed());
-                          if (res?.dontShowAgain) {
-                            localStorage.setItem(
-                              LS.WEBDAV_CONDITIONAL_HEADER_WARNING_DISMISSED,
-                              'true',
-                            );
-                          }
-                        }
-                      } catch (headerTestError) {
-                        // Ignore header test errors - connection test was successful
-                        Log.warn(
-                          'WebDAV conditional header test failed:',
-                          headerTestError,
                         );
                       }
                     } else {
