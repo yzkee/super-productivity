@@ -232,5 +232,12 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     localFileSync: {
       syncFolderPath: '',
     },
+
+    nextcloud: {
+      serverUrl: null,
+      userName: null,
+      password: null,
+      syncFolderPath: 'super-productivity',
+    },
   },
 } as const;
