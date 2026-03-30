@@ -1,6 +1,6 @@
 // Get elements
 const showMainBtn = document.getElementById('show-main') as HTMLButtonElement;
-const container = document.getElementById('overlay-container') as HTMLDivElement;
+const container = document.getElementById('task-widget-container') as HTMLDivElement;
 const taskTitle = document.getElementById('task-title') as HTMLDivElement;
 const timeDisplay = document.getElementById('time-display') as HTMLDivElement;
 
@@ -19,11 +19,11 @@ document.addEventListener('mouseup', blockRightClick, true);
 
 // ── Show main button ──
 showMainBtn.addEventListener('click', () => {
-  window.overlayAPI.showMainWindow();
+  window.taskWidgetAPI.showMainWindow();
 });
 
 // ── Content updates ──
-window.overlayAPI.onUpdateContent((data) => {
+window.taskWidgetAPI.onUpdateContent((data) => {
   container.classList.remove('mode-pomodoro', 'mode-focus', 'mode-task', 'mode-idle');
   if (data.mode) {
     container.classList.add(`mode-${data.mode}`);
@@ -33,7 +33,7 @@ window.overlayAPI.onUpdateContent((data) => {
 });
 
 // ── Opacity updates ──
-window.overlayAPI.onUpdateOpacity((opacity) => {
+window.taskWidgetAPI.onUpdateOpacity((opacity) => {
   document.body.style.setProperty('--opacity', opacity.toString());
 });
 

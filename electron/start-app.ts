@@ -23,7 +23,7 @@ import { initIndicator } from './indicator';
 import { quitApp, showOrFocus } from './various-shared';
 import { createWindow } from './main-window';
 import { IdleTimeHandler } from './idle-time-handler';
-import { destroyOverlayWindow } from './overlay-indicator/overlay-indicator';
+import { destroyTaskWidget } from './task-widget/task-widget';
 import {
   initializeProtocolHandling,
   processPendingProtocolUrls,
@@ -304,8 +304,8 @@ export const startApp = (): void => {
   appIN.on('before-quit', () => {
     log('App before-quit: cleaning up resources');
 
-    // Clean up overlay window before quitting
-    destroyOverlayWindow();
+    // Clean up task widget before quitting
+    destroyTaskWidget();
 
     // Remove all IPC listeners to prevent memory leaks
     ipcMain.removeAllListeners();
