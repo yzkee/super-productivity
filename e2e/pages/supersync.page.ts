@@ -23,6 +23,13 @@ export interface SuperSyncConfig {
    * The password is entered and "Retry Decrypt" is clicked to proceed.
    */
   decryptionFailedPassword?: string;
+  /**
+   * If true, allows the WebSocket connection for real-time push notifications.
+   * Default is false: the WS endpoint is blocked so tests have controlled,
+   * sequential sync via syncAndWait(). Set to true only for tests that
+   * specifically verify the WebSocket push flow.
+   */
+  enableWebSocket?: boolean;
 }
 
 /**
@@ -169,6 +176,12 @@ export class SuperSyncPage extends BasePage {
    * @param config - SuperSync configuration (includes optional waitForInitialSync flag)
    */
   async setupSuperSync(config: SuperSyncConfig): Promise<void> {
+    // Block WebSocket connections by default so tests have controlled, sequential sync.
+    // Only the realtime-push test opts in with enableWebSocket: true.
+    if (!config.enableWebSocket) {
+      await this.page.route('**/api/sync/ws**', (route) => route.abort());
+    }
+
     // Extract waitForInitialSync from config, defaulting to true
     const waitForInitialSync = config.waitForInitialSync ?? true;
     // Auto-accept native browser confirm dialogs (window.confirm used for fresh client sync confirmation)
