@@ -1,8 +1,7 @@
 import { Observable, Subject } from 'rxjs';
 import { first, takeUntil, tap } from 'rxjs/operators';
 import { ShepherdService } from './shepherd.service';
-import Step from 'shepherd.js/src/types/step';
-import StepOptionsWhen = Step.StepOptionsWhen;
+import { StepOptionsWhen } from 'shepherd.js';
 import { TourId } from './shepherd-steps.const';
 import { Log } from '../../core/log';
 
