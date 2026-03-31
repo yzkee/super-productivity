@@ -197,6 +197,13 @@ describe('Task Selectors', () => {
     },
   };
 
+  beforeEach(() => {
+    // Release memoized selectors to prevent cross-test pollution in full suite
+    fromSelectors.selectAllTasksWithSubTasks.release();
+    fromSelectors.selectAllRepeatableTaskWithSubTasks.release();
+    fromSelectors.selectTaskByIdWithSubTaskData.release();
+  });
+
   // Basic selectors
   describe('Basic selectors', () => {
     it('should select task feature state', () => {
