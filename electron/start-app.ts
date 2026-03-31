@@ -12,7 +12,6 @@ import {
 } from 'electron';
 import { join } from 'path';
 import { initDebug } from './debug';
-import electronDl from 'electron-dl';
 import { IPC } from './shared-with-frontend/ipc-events.const';
 import { initBackupAdapter } from './backup';
 import { initLocalFileSyncAdapter } from './local-file-sync';
@@ -124,13 +123,21 @@ export const startApp = (): void => {
 
   // NOTE: opening the folder crashes the mas build
   if (!IS_MAC) {
-    electronDl({
-      openFolderWhenDone: true,
-      onCompleted: (file) => {
-        if (mainWin) {
-          mainWin.webContents.send(IPC.ANY_FILE_DOWNLOADED, file);
-        }
-      },
+    // electron-dl v4 is pure ESM — TypeScript's "module": "commonjs" compiles
+    // import() to require(), which cannot load ESM. Use Function to preserve
+    // a real dynamic import() at runtime.
+    const importEsm = Function('modulePath', 'return import(modulePath)') as (
+      m: string,
+    ) => Promise<{ default: (options: Record<string, unknown>) => void }>;
+    importEsm('electron-dl').then(({ default: electronDl }) => {
+      electronDl({
+        openFolderWhenDone: true,
+        onCompleted: (file: Record<string, unknown>) => {
+          if (mainWin) {
+            mainWin.webContents.send(IPC.ANY_FILE_DOWNLOADED, file);
+          }
+        },
+      });
     });
   }
 
