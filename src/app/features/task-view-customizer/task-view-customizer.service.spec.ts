@@ -3,7 +3,7 @@ import { TaskViewCustomizerService } from './task-view-customizer.service';
 import { Project } from '../project/project.model';
 import { Tag } from '../tag/tag.model';
 import { TaskWithSubTasks } from '../tasks/task.model';
-import { provideMockStore } from '@ngrx/store/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { selectAllProjects } from '../project/store/project.selectors';
 import { selectAllTags } from '../tag/store/tag.reducer';
 import { getTomorrow } from '../../util/get-tomorrow';
@@ -1290,6 +1290,10 @@ describe('TaskViewCustomizerService', () => {
       testService = TestBed.inject(TaskViewCustomizerService);
       (testService as any)._allProjects = allProjects;
       (testService as any)._allTags = mockTags;
+    });
+
+    afterEach(() => {
+      TestBed.inject(MockStore).resetSelectors();
     });
 
     it('should show tasks from ALL projects when group by project is selected, not just current context', (done) => {

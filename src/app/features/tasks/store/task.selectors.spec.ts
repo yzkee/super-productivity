@@ -198,7 +198,12 @@ describe('Task Selectors', () => {
   };
 
   beforeEach(() => {
-    // Release memoized selectors to prevent cross-test pollution in full suite
+    // Clear any overrideResult set by MockStore.overrideSelector in other spec files
+    // (e.g., provideMockStore). overrideSelector calls setResult() which persists
+    // across tests and is NOT cleared by release() — only clearResult() clears it.
+    fromSelectors.selectAllTasksWithSubTasks.clearResult();
+    fromSelectors.selectAllRepeatableTaskWithSubTasks.clearResult();
+    fromSelectors.selectTaskByIdWithSubTaskData.clearResult();
     fromSelectors.selectAllTasksWithSubTasks.release();
     fromSelectors.selectAllRepeatableTaskWithSubTasks.release();
     fromSelectors.selectTaskByIdWithSubTaskData.release();
