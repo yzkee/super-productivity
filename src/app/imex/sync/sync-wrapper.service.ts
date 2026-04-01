@@ -18,6 +18,7 @@ import {
   WebCryptoNotAvailableError,
   MissingRefreshTokenAPIError,
   HttpNotOkAPIError,
+  EmptyRemoteBodySPError,
 } from '../../op-log/core/errors/sync-errors';
 import { MAX_LWW_REUPLOAD_RETRIES } from '../../op-log/core/operation-log.const';
 import { SyncConfig } from '../../features/config/global-config.model';
@@ -569,6 +570,28 @@ export class SyncWrapperService {
           type: 'ERROR',
           actionFn: async () => this.forceUpload(),
           actionStr: T.F.SYNC.S.BTN_FORCE_OVERWRITE,
+        });
+        return 'HANDLED_ERROR';
+      } else if (error instanceof EmptyRemoteBodySPError) {
+        // Remote file returned empty body (e.g. Koofr WebDAV corrupted file).
+        // Force overwrite is safe here: local data is intact, remote is empty.
+        this._providerManager.setSyncStatus('ERROR');
+        this._snackService.open({
+          msg: T.F.SYNC.S.ERROR_REMOTE_FILE_EMPTY,
+          type: 'ERROR',
+          config: { duration: 12000 },
+          actionFn: async () => this.forceUpload(),
+          actionStr: T.F.SYNC.S.BTN_FORCE_OVERWRITE,
+        });
+        return 'HANDLED_ERROR';
+      } else if (error instanceof HttpNotOkAPIError && error.response.status === 423) {
+        // HTTP 423 Locked: WebDAV server holds a file lock.
+        // Do NOT offer force overwrite — the PUT will also receive 423.
+        // The lock typically resolves on the next sync attempt.
+        this._providerManager.setSyncStatus('ERROR');
+        this._snackService.open({
+          msg: T.F.SYNC.S.ERROR_REMOTE_FILE_LOCKED,
+          type: 'ERROR',
         });
         return 'HANDLED_ERROR';
       } else if (error instanceof DecryptNoPasswordError) {

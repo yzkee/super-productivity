@@ -3,6 +3,7 @@ import { SyncLog } from '../../../../core/log';
 import { FileMeta, WebdavXmlParser } from './webdav-xml-parser';
 import { WebDavHttpAdapter, WebDavHttpResponse } from './webdav-http-adapter';
 import {
+  EmptyRemoteBodySPError,
   HttpNotOkAPIError,
   InvalidDataSPError,
   MissingCredentialsSPError,
@@ -129,7 +130,7 @@ export class WebdavApi {
 
       // Guard against empty response body (e.g. CapacitorHttp on some Android providers)
       if (!response.data || response.data.length === 0) {
-        throw new InvalidDataSPError(
+        throw new EmptyRemoteBodySPError(
           `Download of ${path} returned empty response body (HTTP ${response.status}).`,
         );
       }

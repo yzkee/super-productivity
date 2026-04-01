@@ -264,6 +264,10 @@ export class InvalidDataSPError extends AdditionalLogErrorBase {
   override name = 'InvalidDataSPError';
 }
 
+export class EmptyRemoteBodySPError extends InvalidDataSPError {
+  override name = 'EmptyRemoteBodySPError';
+}
+
 // --------------OTHER SYNC ERRORS--------------
 export class NoSyncProviderSetError extends Error {
   override name = 'NoSyncProviderSetError';
