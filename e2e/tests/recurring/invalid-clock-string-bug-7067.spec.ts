@@ -52,14 +52,21 @@ test('should not crash when a repeat config has an invalid startTime in the stor
   await saveBtn.click();
   await repeatDialog.waitFor({ state: 'hidden', timeout: 10000 });
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(1000);
+  // Wait for the op to be flushed to IndexedDB before we try to read it
+  await page.waitForTimeout(1500);
 
-  // ── Phase 2: Corrupt the startTime directly via the Angular store ─────────
-  // In Angular dev mode, ng.getComponent(el) exposes component instances.
-  // We walk the DOM to find a component that has an NgRx store injected,
-  // then dispatch updateTaskRepeatCfg with an invalid startTime — simulating
-  // data corruption from sync/import.
-  const corrupted = await page.evaluate((): boolean => {
+  // ── Phase 2: Corrupt the startTime ────────────────────────────────────────
+  // Strategy A (dev mode): use ng.getComponent to dispatch directly to the
+  //   in-memory NgRx store — no page reload needed.
+  // Strategy B (production mode): ng.getComponent is stripped; instead we
+  //   inject a corrupt op directly into IndexedDB and reload the page so the
+  //   hydrator replays it.  The ops store accepts unencoded full-format ops
+  //   alongside compact-encoded ones (isCompactOperation guard in store service).
+
+  const pageErrors: string[] = [];
+  page.on('pageerror', (err) => pageErrors.push(err.message));
+
+  const devModeCorrupted = await page.evaluate((): boolean => {
     const ng = (window as any).ng;
     if (!ng?.getComponent) return false;
 
@@ -97,20 +104,105 @@ test('should not crash when a repeat config has an invalid startTime in the stor
     return false;
   });
 
-  expect(corrupted).toBe(true); // guard: verify injection worked
+  if (devModeCorrupted) {
+    // Dev mode: store already has the corrupt value; just navigate within the SPA.
+    await page.goto('/#/tag/TODAY/tasks');
+    await page.waitForTimeout(2000);
+  } else {
+    // Production mode: write a corrupt op to IndexedDB and reload so the
+    // hydrator replays it.
+    const idbCorrupted = await page.evaluate(async (): Promise<boolean> => {
+      return new Promise<boolean>((resolve) => {
+        const req = indexedDB.open('SUP_OPS', 5);
+        req.onerror = () => resolve(false);
+        req.onsuccess = () => {
+          const db = req.result;
 
-  // ── Phase 3: Verify the crash ─────────────────────────────────────────────
-  // The tag-list component computes indicator chips which call
-  // getTaskRepeatInfoText → getDateTimeFromClockString → throws.
+          // Read all ops to find the TASK_REPEAT_CFG entry with startTime '10:30'
+          const readTx = db.transaction(['ops'], 'readonly');
+          const opsStore = readTx.objectStore('ops');
+          const allOpsReq = opsStore.getAll();
 
-  const pageErrors: string[] = [];
-  page.on('pageerror', (err) => pageErrors.push(err.message));
+          allOpsReq.onerror = () => resolve(false);
+          allOpsReq.onsuccess = () => {
+            const entries: any[] = allOpsReq.result;
 
-  await page.goto('/#/tag/TODAY/tasks');
-  await page.waitForTimeout(2000);
+            // Find the most recent TASK_REPEAT_CFG op
+            let cfgId: string | null = null;
+            let clientId: string | null = null;
+            let vectorClock: Record<string, number> = {};
+            let schemaVersion = 2;
 
-  // EXPECTED (after fix): no "Invalid clock string" error.
-  // ACTUAL (current bug): error thrown, crashing the computed signal.
+            for (let i = entries.length - 1; i >= 0; i--) {
+              const entry = entries[i];
+              const op = entry.op;
+              if (!op) continue;
+
+              // Handle both compact format (short keys) and full format
+              const entityType = op.e ?? op.entityType;
+              if (entityType !== 'TASK_REPEAT_CFG') continue;
+
+              // Compact: op.d = entityId; full: op.entityId
+              cfgId = op.d ?? op.entityId ?? null;
+              clientId = op.c ?? op.clientId ?? null;
+              vectorClock = op.v ?? op.vectorClock ?? {};
+              schemaVersion = op.s ?? op.schemaVersion ?? 2;
+              break;
+            }
+
+            if (!cfgId) {
+              resolve(false);
+              return;
+            }
+
+            // Write a new full-format op (the store decodes compact ops but
+            // passes full ops straight through — see isCompactOperation guard).
+            const writeTx = db.transaction(['ops'], 'readwrite');
+            const writeStore = writeTx.objectStore('ops');
+
+            const corruptEntry = {
+              // seq omitted → IndexedDB auto-increments to max+1
+              op: {
+                id: crypto.randomUUID(),
+                actionType: '[TaskRepeatCfg] Update TaskRepeatCfg',
+                opType: 'UPD',
+                entityType: 'TASK_REPEAT_CFG',
+                entityId: cfgId,
+                payload: {
+                  actionPayload: {
+                    taskRepeatCfg: {
+                      id: cfgId,
+                      changes: { startTime: 'INVALID_CLOCK_STRING' },
+                    },
+                  },
+                  entityChanges: [],
+                },
+                clientId: clientId ?? 'e2e-test-client',
+                vectorClock,
+                timestamp: Date.now(),
+                schemaVersion,
+              },
+              appliedAt: Date.now(),
+              source: 'local' as const,
+            };
+
+            const addReq = writeStore.add(corruptEntry);
+            addReq.onerror = () => resolve(false);
+            addReq.onsuccess = () => resolve(true);
+          };
+        };
+      });
+    });
+
+    expect(idbCorrupted).toBe(true); // guard: verify IDB injection worked
+
+    // Reload so the hydrator replays the corrupt op, then navigate to TODAY tag
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.goto('/#/tag/TODAY/tasks');
+    await page.waitForTimeout(2000);
+  }
+
+  // ── Phase 3: Verify no "Invalid clock string" crash ───────────────────────
   const clockErrors = pageErrors.filter((e) => e.includes('Invalid clock string'));
   expect(clockErrors).toHaveLength(0);
 });
