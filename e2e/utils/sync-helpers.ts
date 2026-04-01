@@ -205,9 +205,15 @@ export const waitForSyncComplete = async (
     const snackBars = page.locator('.mat-mdc-snack-bar-container');
     const count = await snackBars.count();
     for (let i = 0; i < count; ++i) {
-      const text = await snackBars.nth(i).innerText();
-      if (text.toLowerCase().includes('error') || text.toLowerCase().includes('fail')) {
-        throw new Error(`Sync failed with error: ${text}`);
+      // Snack bars can auto-dismiss between count() and innerText(), so catch stale element errors
+      try {
+        const text = await snackBars.nth(i).innerText({ timeout: 2000 });
+        if (text.toLowerCase().includes('error') || text.toLowerCase().includes('fail')) {
+          throw new Error(`Sync failed with error: ${text}`);
+        }
+      } catch (e) {
+        // Re-throw actual sync errors, ignore stale element errors
+        if (e instanceof Error && e.message.startsWith('Sync failed')) throw e;
       }
     }
 

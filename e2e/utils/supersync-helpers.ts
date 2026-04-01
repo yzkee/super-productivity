@@ -586,21 +586,33 @@ export const renameTask = async (
   newName: string,
 ): Promise<void> => {
   const task = getTaskElement(client, oldName);
-  // Click the task-title component to enter edit mode
-  await task.locator('task-title').first().click();
-  await client.page.waitForTimeout(300);
+  // Wait for the task element to be stable before interacting — prevents
+  // "element detached from DOM" errors when Angular re-renders the task list
+  await task.waitFor({ state: 'attached', timeout: 5000 });
 
-  // Wait for the textarea to appear and be focused
-  const textarea = client.page.locator('task-title textarea');
-  await textarea.first().waitFor({ state: 'visible', timeout: 5000 });
-  await textarea.first().focus();
-  await client.page.waitForTimeout(100);
+  // Enter edit mode by dispatching a click event directly on the task-title element.
+  // Using dispatchEvent avoids pointer-events:none and Playwright actionability issues.
+  const taskTitle = task.locator('task-title').first();
+  await taskTitle.dispatchEvent('click');
 
-  // Select all text and delete it, then type new name using keyboard
-  await client.page.keyboard.press('Control+a');
-  await client.page.keyboard.press('Backspace');
-  await client.page.keyboard.type(newName, { delay: 5 });
-  await client.page.keyboard.press('Tab');
+  // Wait for the textarea to appear, then interact quickly before re-renders.
+  // Use a short poll loop to catch the textarea and type immediately.
+  const textarea = client.page.locator('task-title textarea').first();
+  await textarea.waitFor({ state: 'visible', timeout: 5000 });
+
+  // Type directly into the textarea via evaluate to avoid focus/detach races
+  await textarea.evaluate(
+    (el: HTMLTextAreaElement, name: string) => {
+      el.focus();
+      el.value = name;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    },
+    newName,
+  );
+  // Blur to commit the change
+  await textarea.evaluate((el: HTMLTextAreaElement) => {
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+  });
   await client.page.waitForTimeout(UI_SETTLE_MEDIUM);
 };
 

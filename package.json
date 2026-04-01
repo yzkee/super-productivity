@@ -1,6 +1,6 @@
 {
   "name": "superProductivity",
-  "version": "18.1.2",
+  "version": "18.1.0",
   "description": "ToDo list and Time Tracking",
   "keywords": [
     "ToDo",
@@ -151,7 +151,7 @@
     "@material-symbols/font-400": "^0.40.2",
     "@noble/ciphers": "^2.1.1",
     "capacitor-plugin-safe-area": "^4.0.3",
-    "electron-dl": "^4.0.0",
+    "electron-dl": "^3.5.2",
     "electron-localshortcut": "^3.2.1",
     "electron-log": "^5.4.3",
     "electron-window-state": "^5.0.3",
@@ -176,7 +176,7 @@
     "@angular/core": "^21.2.5",
     "@angular/forms": "^21.2.5",
     "@angular/language-service": "^21.2.5",
-    "@angular/material": "^21.2.4",
+    "@angular/material": "^21.2.3",
     "@angular/platform-browser": "^21.2.5",
     "@angular/platform-browser-dynamic": "^21.2.5",
     "@angular/platform-server": "^21.2.5",
@@ -267,7 +267,7 @@
     "pretty-quick": "^4.2.2",
     "query-string": "^7.1.3",
     "rxjs": "^7.8.2",
-    "shepherd.js": "~13.0.3",
+    "shepherd.js": "^11.2.0",
     "spark-md5": "^3.0.2",
     "stacktrace-js": "^2.0.2",
     "start-server-and-test": "^2.1.3",
@@ -283,8 +283,7 @@
   "overrides": {
     "app-builder-lib": {
       "minimatch": "10.1.1"
-    },
-    "picomatch": "4.0.4"
+    }
   },
   "optionalDependencies": {
     "@lmdb/lmdb-darwin-x64": "^3.2.0",

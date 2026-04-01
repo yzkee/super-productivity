@@ -229,8 +229,6 @@ export type DominaModeConfig = Readonly<{
 
 export type FocusModeConfig = Readonly<{
   isSkipPreparation: boolean;
-  focusModeSound?: 'off' | 'tick' | 'whiteNoise';
-  /** @deprecated Use focusModeSound instead. Kept for backward-compat validation of old data. */
   isPlayTick?: boolean;
   isPauseTrackingDuringBreak?: boolean;
   isSyncSessionWithTracking?: boolean;

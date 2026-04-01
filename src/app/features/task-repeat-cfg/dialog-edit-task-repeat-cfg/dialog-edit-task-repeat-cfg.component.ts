@@ -183,7 +183,6 @@ export class DialogEditTaskRepeatCfgComponent {
         notes: this._data.task.notes || undefined,
         tagIds: unique(this._data.task.tagIds),
         defaultEstimate: this._data.task.timeEstimate,
-        shouldInheritSubtasks: this._data.task.subTaskIds.length > 0,
       };
     } else {
       throw new Error('Invalid params given for repeat dialog!');

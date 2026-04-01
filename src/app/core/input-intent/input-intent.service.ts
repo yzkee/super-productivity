@@ -12,11 +12,8 @@ export type InputIntent = 'mouse' | 'touch';
 export const _inputIntentSignal = signal<InputIntent>('mouse');
 
 /**
- * Tracks the current input method (mouse vs touch) on non-mouseOnly devices
- * via Pointer Events API. On mouseOnly devices, does nothing.
- *
- * This allows devices misclassified as touchOnly by detect-it (e.g. Windows
- * touchscreen laptops) to recover to mouse mode on the first mouse move.
+ * Tracks the current input method (mouse vs touch) on hybrid devices
+ * via Pointer Events API. On non-hybrid devices, does nothing.
  *
  * Toggles the existing body classes (isTouchPrimary/isMousePrimary)
  * dynamically so that all existing SCSS rules work without changes.
@@ -29,12 +26,12 @@ export class InputIntentService {
   readonly currentIntent = _inputIntentSignal.asReadonly();
 
   constructor() {
-    if (deviceType === 'mouseOnly') {
+    if (deviceType !== 'hybrid') {
       return;
     }
 
-    // Set initial state: default to touch on touchOnly, mouse on hybrid
-    this._setIntent(deviceType === 'touchOnly' ? 'touch' : 'mouse');
+    // Set initial state: default to mouse on hybrid devices
+    this._setIntent('mouse');
 
     this._zone.runOutsideAngular(() => {
       window.addEventListener(

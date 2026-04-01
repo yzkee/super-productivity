@@ -37,6 +37,7 @@ export class WsTriggeredDownloadService implements OnDestroy {
     this._subscription = this._wsService.newOpsNotification$
       .pipe(
         debounceTime(WS_DOWNLOAD_DEBOUNCE_MS),
+        filter(() => !(globalThis as any).__SP_E2E_BLOCK_WS_DOWNLOAD),
         filter(() => !this._providerManager.isSyncInProgress),
         exhaustMap((notification) => this._downloadOps(notification.latestSeq)),
       )

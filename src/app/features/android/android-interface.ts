@@ -98,7 +98,6 @@ export interface AndroidInterface {
 
   onShareWithAttachment$: Subject<{
     title: string;
-    subject: string;
     type: 'FILE' | 'LINK' | 'IMG' | 'COMMAND' | 'NOTE';
     path: string;
   }>;
