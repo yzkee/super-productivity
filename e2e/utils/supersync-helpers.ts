@@ -601,14 +601,11 @@ export const renameTask = async (
   await textarea.waitFor({ state: 'visible', timeout: 5000 });
 
   // Type directly into the textarea via evaluate to avoid focus/detach races
-  await textarea.evaluate(
-    (el: HTMLTextAreaElement, name: string) => {
-      el.focus();
-      el.value = name;
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-    },
-    newName,
-  );
+  await textarea.evaluate((el: HTMLTextAreaElement, name: string) => {
+    el.focus();
+    el.value = name;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+  }, newName);
   // Blur to commit the change
   await textarea.evaluate((el: HTMLTextAreaElement) => {
     el.dispatchEvent(new Event('blur', { bubbles: true }));

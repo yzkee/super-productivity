@@ -192,9 +192,7 @@ test.describe('@supersync SuperSync LWW Singleton Conflict Resolution', () => {
       const bothStillOn = aAnimFinal && aCelebFinal;
       expect(bothStillOn).toBe(false);
 
-      console.log(
-        '[LWW-Singleton] Global config singleton conflict converged correctly',
-      );
+      console.log('[LWW-Singleton] Global config singleton conflict converged correctly');
     } finally {
       if (clientA) await closeClient(clientA);
       if (clientB) await closeClient(clientB);
