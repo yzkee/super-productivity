@@ -590,15 +590,49 @@ export const renameTask = async (
   // "element detached from DOM" errors when Angular re-renders the task list
   await task.waitFor({ state: 'attached', timeout: 5000 });
 
+  // Wait for Angular enter animations to complete. On slower/loaded CI machines the
+  // task element may still carry the `ng-animating` class when first visible,
+  // causing clicks to be swallowed and `task-title` to be temporarily absent.
+  await task
+    .evaluate((el) =>
+      el.classList.contains('ng-animating')
+        ? new Promise<void>((resolve) => {
+            const observer = new MutationObserver(() => {
+              if (!el.classList.contains('ng-animating')) {
+                observer.disconnect();
+                resolve();
+              }
+            });
+            observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+            setTimeout(() => {
+              observer.disconnect();
+              resolve();
+            }, 2000);
+          })
+        : undefined,
+    )
+    .catch(() => {});
+
   // Enter edit mode by dispatching a click event directly on the task-title element.
   // Using dispatchEvent avoids pointer-events:none and Playwright actionability issues.
+  // Retry up to 3 times: Angular may still re-render the component briefly after
+  // the animation class is removed, causing the click to not open edit mode.
   const taskTitle = task.locator('task-title').first();
-  await taskTitle.dispatchEvent('click');
-
-  // Wait for the textarea to appear, then interact quickly before re-renders.
-  // Use a short poll loop to catch the textarea and type immediately.
   const textarea = client.page.locator('task-title textarea').first();
-  await textarea.waitFor({ state: 'visible', timeout: 5000 });
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await taskTitle.dispatchEvent('click');
+    try {
+      await textarea.waitFor({ state: 'visible', timeout: 3000 });
+      break;
+    } catch {
+      if (attempt === 2) {
+        throw new Error(
+          `renameTask: textarea did not appear after 3 click attempts on "${oldName}"`,
+        );
+      }
+      await client.page.waitForTimeout(500);
+    }
+  }
 
   // Type directly into the textarea via evaluate to avoid focus/detach races
   await textarea.evaluate((el: HTMLTextAreaElement, name: string) => {
