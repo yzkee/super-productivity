@@ -2,6 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { inject, Injectable, NgZone, signal } from '@angular/core';
 import { deviceType } from 'detect-it';
 import { BodyClass } from '../../app.constants';
+import { IS_TOUCH_PRIMARY } from '../../util/is-mouse-primary';
 
 export type InputIntent = 'mouse' | 'touch';
 
@@ -30,8 +31,12 @@ export class InputIntentService {
       return;
     }
 
-    // Set initial state: default to mouse on hybrid devices
-    this._setIntent('mouse');
+    // Use detect-it's primaryInput to set the initial intent. Many phones are classified
+    // as 'hybrid' by detect-it (they expose both touch and pointer APIs), yet their
+    // primaryInput is still 'touch'. Defaulting to 'mouse' would mean the very first
+    // drag on such a phone starts without the touch delay, because CDK reads
+    // cdkDragStartDelay before the pointerdown handler can update the signal.
+    this._setIntent(IS_TOUCH_PRIMARY ? 'touch' : 'mouse');
 
     this._zone.runOutsideAngular(() => {
       window.addEventListener(
