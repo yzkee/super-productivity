@@ -19,6 +19,8 @@ import {
 } from '../../tasks/task.model';
 import { TaskRepeatCfg } from '../../task-repeat-cfg/task-repeat-cfg.model';
 import { getDateTimeFromClockString } from '../../../util/get-date-time-from-clock-string';
+import { isValidSplitTime } from '../../../util/is-valid-split-time';
+import { devError } from '../../../util/dev-error';
 import { getTimeLeftForTask } from '../../../util/get-time-left-for-task';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { ScheduleCalendarMapEntry } from '../../schedule/schedule.model';
@@ -283,7 +285,7 @@ const getAllRepeatableTasksForDay = (
   );
 
   allRepeatableTasksForDay.forEach((repeatCfg) => {
-    if (repeatCfg.startTime) {
+    if (repeatCfg.startTime && isValidSplitTime(repeatCfg.startTime)) {
       const start = getDateTimeFromClockString(repeatCfg.startTime, currentDayTimestamp);
       const end = start + (repeatCfg.defaultEstimate || 0);
       repeatProjectionsForDay.push({
@@ -294,6 +296,9 @@ const getAllRepeatableTasksForDay = (
         repeatCfg,
       });
     } else {
+      if (repeatCfg.startTime) {
+        devError('Planner: Invalid startTime on repeat config');
+      }
       noStartTimeRepeatProjections.push({
         id: repeatCfg.id,
         repeatCfg,
