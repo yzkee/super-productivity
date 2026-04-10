@@ -810,11 +810,87 @@ describe('SyncWrapperService', () => {
       );
     });
 
-    it('should NOT call clearAuthCredentials on AuthFailSPError for SuperSync', async () => {
+    it('should NOT call clearAuthCredentials on first AuthFailSPError for SuperSync', async () => {
       mockSyncService.downloadRemoteOps.and.returnValue(
         Promise.reject(new AuthFailSPError()),
       );
 
+      await service.sync();
+
+      expect(mockProviderManager.clearAuthCredentials).not.toHaveBeenCalled();
+    });
+
+    it('should NOT call clearAuthCredentials on second consecutive AuthFailSPError for SuperSync', async () => {
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.reject(new AuthFailSPError()),
+      );
+
+      await service.sync();
+      await service.sync();
+
+      expect(mockProviderManager.clearAuthCredentials).not.toHaveBeenCalled();
+    });
+
+    it('should call clearAuthCredentials on third consecutive AuthFailSPError for SuperSync', async () => {
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.reject(new AuthFailSPError()),
+      );
+
+      await service.sync();
+      await service.sync();
+      await service.sync();
+
+      expect(mockProviderManager.clearAuthCredentials).toHaveBeenCalledWith(
+        SyncProviderId.SuperSync,
+      );
+    });
+
+    it('should reset auth failure counter after successful sync', async () => {
+      // Fail twice
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.reject(new AuthFailSPError()),
+      );
+      await service.sync();
+      await service.sync();
+      expect(mockProviderManager.clearAuthCredentials).not.toHaveBeenCalled();
+
+      // Succeed once (reset counter)
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.resolve({ kind: 'no_new_ops' as const }),
+      );
+      await service.sync();
+
+      // Fail once more — should NOT clear (counter was reset)
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.reject(new AuthFailSPError()),
+      );
+      mockProviderManager.clearAuthCredentials.calls.reset();
+      await service.sync();
+
+      expect(mockProviderManager.clearAuthCredentials).not.toHaveBeenCalled();
+    });
+
+    it('should reset auth failure counter when a non-auth error occurs between auth errors', async () => {
+      // Fail twice with auth error
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.reject(new AuthFailSPError()),
+      );
+      await service.sync();
+      await service.sync();
+      expect(mockProviderManager.clearAuthCredentials).not.toHaveBeenCalled();
+
+      // Non-auth error resets the counter
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.reject(new Error('network timeout')),
+      );
+      await service.sync();
+
+      // Next two auth failures should NOT clear (counter was reset by non-auth error)
+      mockSyncService.downloadRemoteOps.and.returnValue(
+        Promise.reject(new AuthFailSPError()),
+      );
+      mockProviderManager.clearAuthCredentials.calls.reset();
+      await service.sync();
       await service.sync();
 
       expect(mockProviderManager.clearAuthCredentials).not.toHaveBeenCalled();

@@ -154,6 +154,14 @@ export class SyncWrapperService {
   private _suppressEncryptionDialogs = false;
 
   /**
+   * Tracks consecutive SuperSync AuthFailSPError occurrences.
+   * Tolerates up to 2 transient 401s (e.g. infrastructure errors);
+   * on the 3rd consecutive failure, clears the token so re-auth dialog opens.
+   * Reset to 0 on any successful sync or any non-auth error.
+   */
+  private _consecutiveSuperSyncAuthFailures = 0;
+
+  /**
    * Observable for UI: true when all local changes have been uploaded.
    * Used for all sync providers to show the single checkmark indicator.
    */
@@ -394,6 +402,10 @@ export class SyncWrapperService {
         syncCapableProvider,
         isProviderSwitch ? { forceFromSeq0: true } : undefined,
       );
+      // Auth is confirmed working if download didn't throw AuthFailSPError.
+      // Reset here rather than only at InSync so early returns (cancelled,
+      // LWW pending, payload rejected) also break the consecutive-failure chain.
+      this._consecutiveSuperSyncAuthFailures = 0;
       SyncLog.log(`SyncWrapperService: Download complete. kind=${downloadResult.kind}`);
 
       // If user cancelled the sync import conflict dialog, skip upload entirely.
@@ -501,6 +513,15 @@ export class SyncWrapperService {
     } catch (error) {
       SyncLog.err(error);
 
+      // Reset consecutive SuperSync auth failure counter for non-auth errors.
+      // Only AuthFailSPError for SuperSync should accumulate the counter.
+      if (
+        !(error instanceof AuthFailSPError) ||
+        providerId !== SyncProviderId.SuperSync
+      ) {
+        this._consecutiveSuperSyncAuthFailures = 0;
+      }
+
       if (error instanceof PotentialCorsError) {
         this._snackService.open({
           msg: T.F.SYNC.S.ERROR_CORS,
@@ -517,12 +538,19 @@ export class SyncWrapperService {
         this._providerManager.setSyncStatus('ERROR');
         this._superSyncStatusService.clearScope();
         // Clear stale auth credentials so isReady() returns false and re-auth dialog opens.
-        // Exception: SuperSync AuthFailSPError — the server rejection may be transient
-        // (e.g. an infrastructure error returning 401 instead of 500). The snackbar shows
-        // a "Configure" button so users can re-auth on genuine failures. Other providers
-        // (Dropbox, WebDAV) must clear immediately so their OAuth/re-auth flows work.
-        const skipClear =
-          error instanceof AuthFailSPError && providerId === SyncProviderId.SuperSync;
+        // SuperSync AuthFailSPError gets special handling: tolerate up to 2 transient 401s
+        // (e.g. infrastructure errors returning 401 instead of 500), but on the 3rd
+        // consecutive failure, clear the token to break the stale-credential loop.
+        // Other providers (Dropbox, WebDAV) clear immediately so their OAuth/re-auth flows work.
+        let skipClear = false;
+        if (error instanceof AuthFailSPError && providerId === SyncProviderId.SuperSync) {
+          this._consecutiveSuperSyncAuthFailures++;
+          if (this._consecutiveSuperSyncAuthFailures < 3) {
+            skipClear = true;
+          } else {
+            this._consecutiveSuperSyncAuthFailures = 0;
+          }
+        }
         if (providerId && !skipClear) {
           try {
             await this._providerManager.clearAuthCredentials(providerId);
