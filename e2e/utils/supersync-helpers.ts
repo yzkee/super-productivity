@@ -883,8 +883,11 @@ export const archiveDoneTasks = async (client: SimulatedE2EClient): Promise<void
   await saveAndGoHomeBtn.waitFor({ state: 'visible', timeout: UI_VISIBLE_TIMEOUT });
   await saveAndGoHomeBtn.click();
 
-  // Wait for navigation back to work view
-  await client.page.waitForURL(/(active\/tasks|tag\/TODAY\/tasks)/);
+  // Wait for navigation back to work view.
+  // Use negative lookahead: /(active\/tasks|tag\/TODAY)/ would match the
+  // current /daily-summary URL; adding (?!\/daily-summary) ensures we wait
+  // for a real navigation. Also handles tag/TODAY without /tasks suffix.
+  await client.page.waitForURL(/(active\/tasks|tag\/TODAY(?!\/daily-summary))/);
   await client.page.waitForTimeout(UI_SETTLE_STANDARD);
 };
 
