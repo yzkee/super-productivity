@@ -31,6 +31,7 @@ import {
   MissingRefreshTokenAPIError,
   JsonParseError,
   SyncDataCorruptedError,
+  UploadRevToMatchMismatchAPIError,
 } from '../../op-log/core/errors/sync-errors';
 import { MAX_LWW_REUPLOAD_RETRIES } from '../../op-log/core/operation-log.const';
 
@@ -1278,6 +1279,23 @@ describe('SyncWrapperService', () => {
           type: 'ERROR',
         }),
       );
+    });
+
+    it('should treat UploadRevToMatchMismatchAPIError as transient: set UNKNOWN_OR_CHANGED, no error snackbar', async () => {
+      mockSyncService.uploadPendingOps.and.returnValue(
+        Promise.reject(
+          new UploadRevToMatchMismatchAPIError('Concurrent upload detected'),
+        ),
+      );
+
+      const result = await service.sync();
+
+      expect(result).toBe('HANDLED_ERROR');
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith(
+        'UNKNOWN_OR_CHANGED',
+      );
+      expect(mockSnackService.open).not.toHaveBeenCalled();
+      expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalledWith('ERROR');
     });
   });
 

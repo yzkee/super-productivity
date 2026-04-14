@@ -21,6 +21,7 @@ import {
   EmptyRemoteBodySPError,
   JsonParseError,
   SyncDataCorruptedError,
+  UploadRevToMatchMismatchAPIError,
 } from '../../op-log/core/errors/sync-errors';
 import { MAX_LWW_REUPLOAD_RETRIES } from '../../op-log/core/operation-log.const';
 import { SyncConfig } from '../../features/config/global-config.model';
@@ -704,6 +705,16 @@ export class SyncWrapperService {
           type: 'ERROR',
           config: { duration: 12000 },
         });
+        return 'HANDLED_ERROR';
+      } else if (error instanceof UploadRevToMatchMismatchAPIError) {
+        // Another client uploaded between our download and upload — self-healing.
+        // The next sync cycle will download their ops first, then upload successfully.
+        // Do not show an error snackbar; just mark as UNKNOWN_OR_CHANGED so the
+        // next sync cycle triggers and resolves the state.
+        SyncLog.log(
+          'SyncWrapperService: Concurrent upload detected, will retry on next sync cycle',
+        );
+        this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
         return 'HANDLED_ERROR';
       } else {
         this._providerManager.setSyncStatus('ERROR');

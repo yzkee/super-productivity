@@ -124,10 +124,4 @@ export const FILE_BASED_SYNC_CONSTANTS = {
 
   /** Storage key prefix for last known sync version */
   SYNC_VERSION_STORAGE_KEY_PREFIX: 'FILE_SYNC_VERSION_',
-
-  /** Maximum number of upload retry attempts on revision mismatch */
-  MAX_UPLOAD_RETRIES: 2,
-
-  /** Base delay in ms for exponential backoff between retries */
-  RETRY_BASE_DELAY_MS: 500,
 } as const;
