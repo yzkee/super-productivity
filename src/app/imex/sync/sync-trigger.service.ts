@@ -231,6 +231,11 @@ export class SyncTriggerService {
           this._isOnlineTrigger$,
           this._onIdleTrigger$,
           this._onElectronResumeTrigger$,
+          // Periodic interval timer: fires every syncInterval ms to detect external file
+          // changes (e.g. Syncthing on Linux) even without user activity.
+          // Applies to Electron desktop and web/PWA (not Android, which has its own timer).
+          // Fixes: Linux auto-sync ignoring interval (#4783)
+          timer(syncInterval, syncInterval).pipe(mapTo('I_INTERVAL_TIMER')),
         );
     return merge(
       // once immediately
