@@ -139,4 +139,11 @@ export const FILE_BASED_SYNC_CONSTANTS = {
 
   /** Base delay in ms for exponential backoff between retries */
   RETRY_BASE_DELAY_MS: 500,
+
+  /**
+   * Legacy PFAPI metadata file name written by v16.x clients.
+   * Its presence on a provider (without sync-data.json) signals a version mismatch
+   * where the old client is still writing and the new client must not silently diverge.
+   */
+  LEGACY_META_FILE: '__meta_',
 } as const;

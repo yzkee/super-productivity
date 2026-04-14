@@ -19,6 +19,7 @@ import {
   MissingRefreshTokenAPIError,
   HttpNotOkAPIError,
   EmptyRemoteBodySPError,
+  LegacySyncFormatDetectedError,
 } from '../../op-log/core/errors/sync-errors';
 import { MAX_LWW_REUPLOAD_RETRIES } from '../../op-log/core/operation-log.const';
 import { SyncConfig } from '../../features/config/global-config.model';
@@ -670,6 +671,14 @@ export class SyncWrapperService {
             suggestion:
               'Large sync operations may take up to 90 seconds. Please try again.',
           },
+        });
+        return 'HANDLED_ERROR';
+      } else if (error instanceof LegacySyncFormatDetectedError) {
+        this._providerManager.setSyncStatus('ERROR');
+        this._snackService.open({
+          msg: T.F.SYNC.S.LEGACY_FORMAT_DETECTED,
+          type: 'ERROR',
+          config: { duration: 20000 },
         });
         return 'HANDLED_ERROR';
       } else if (this._isPermissionError(error)) {
