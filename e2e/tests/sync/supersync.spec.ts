@@ -674,7 +674,9 @@ test.describe('@supersync SuperSync E2E', () => {
 
       // Wait for navigation back to work view.
       // Use negative lookahead to avoid matching /tag/TODAY/daily-summary prematurely.
-      await clientB.page.waitForURL(/(tag\/TODAY(?!\/daily-summary))/, { timeout: 10000 });
+      await clientB.page.waitForURL(/(tag\/TODAY(?!\/daily-summary))/, {
+        timeout: 10000,
+      });
       await clientB.page.waitForLoadState('networkidle');
       console.log('[Archive Test] Client B back on work view after archiving');
 
