@@ -81,7 +81,6 @@ import { Log } from './app/core/log';
 import { OperationWriteFlushService } from './app/op-log/sync/operation-write-flush.service';
 import { PluginOAuthRedirectHandler } from './app/plugins/oauth/plugin-oauth-redirect.handler';
 import { OAuthCallbackHandlerService } from './app/imex/sync/oauth-callback-handler.service';
-import { SyncConfigService } from './app/imex/sync/sync-config.service';
 import { GlobalConfigService } from './app/features/config/global-config.service';
 import { LocaleDatePipe } from './app/ui/pipes/locale-date.pipe';
 import { DateTimeFormatService } from './app/core/date-time-format/date-time-format.service';
@@ -279,17 +278,6 @@ bootstrapApplication(AppComponent, {
         return () => {};
       },
       deps: [OAuthCallbackHandlerService],
-      multi: true,
-    },
-    // Ensure SyncConfigService is instantiated at bootstrap so the startup migration
-    // (syncFolderPath from global config → credential store) runs on every app launch,
-    // not only when the sync settings UI is opened. Fixes: #5455 (Mac restart).
-    {
-      provide: APP_INITIALIZER,
-      useFactory: (_svc: SyncConfigService) => {
-        return () => {};
-      },
-      deps: [SyncConfigService],
       multi: true,
     },
     // Note: ImmediateUploadService now initializes itself in constructor

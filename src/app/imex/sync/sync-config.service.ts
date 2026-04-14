@@ -3,7 +3,7 @@ import { SyncProviderManager } from '../../op-log/sync-providers/provider-manage
 import { GlobalConfigService } from '../../features/config/global-config.service';
 import { combineLatest, from, Observable, of } from 'rxjs';
 import { SyncConfig } from '../../features/config/global-config.model';
-import { first, switchMap, tap } from 'rxjs/operators';
+import { switchMap, tap } from 'rxjs/operators';
 import {
   CurrentProviderPrivateCfg,
   PrivateCfgByProviderId,
@@ -14,7 +14,6 @@ import { SyncLog } from '../../core/log';
 import { clearSessionKeyCache } from '../../op-log/encryption/encryption';
 import { SuperSyncPrivateCfg } from '../../op-log/sync-providers/super-sync/super-sync.model';
 import { SyncWrapperService } from './sync-wrapper.service';
-import { LocalFileSyncPrivateCfg } from '../../op-log/core/types/sync.types';
 
 // Maps sync providers to their corresponding form field in SyncConfig
 // Dropbox is null because it doesn't store settings in the form (uses OAuth)
@@ -102,19 +101,6 @@ export class SyncConfigService {
   private _syncWrapper = inject(SyncWrapperService);
 
   private _lastSettings: SyncConfig | null = null;
-
-  constructor() {
-    // One-time startup migration: move syncFolderPath from legacy global config to credential
-    // store. Must run at startup (not only when sync settings UI is open) so that the app
-    // correctly finds the configured folder after a restart. Fixes: #5455 (Mac restart).
-    this._globalConfigService.sync$
-      .pipe(first((cfg) => !!cfg?.localFileSync?.syncFolderPath))
-      .subscribe((cfg) => {
-        this._migrateLegacyLocalFileSyncPath(cfg.localFileSync!.syncFolderPath!).catch(
-          (e) => SyncLog.err('SyncConfigService: LocalFile path migration failed', e),
-        );
-      });
-  }
 
   private _deriveEncryptionState(
     baseConfig: SyncConfig,
@@ -422,48 +408,5 @@ export class SyncConfigService {
       );
       clearSessionKeyCache();
     }
-  }
-
-  /**
-   * Migrates syncFolderPath from the legacy global config storage to SyncCredentialStore.
-   *
-   * Older versions stored the LocalFile sync folder path in globalConfig.sync.localFileSync.
-   * The current architecture stores it in SyncCredentialStore (IndexedDB 'sup-sync').
-   * This one-time migration preserves the user's configured folder across upgrades.
-   * Fixes: Mac forgets sync folder on restart (#5455).
-   */
-  private async _migrateLegacyLocalFileSyncPath(legacyPath: string): Promise<void> {
-    SyncLog.normal(
-      'SyncConfigService: Checking for legacy LocalFile syncFolderPath migration',
-    );
-    const provider = await this._providerManager.getProviderById(
-      SyncProviderId.LocalFile,
-    );
-    if (!provider) {
-      // Provider not registered (e.g. web build). Clear the stale field anyway so
-      // it never triggers migration again and doesn't silently persist.
-      SyncLog.warn(
-        'SyncConfigService: LocalFile provider not found during migration; clearing legacy field',
-      );
-    } else {
-      const existingCfg =
-        (await provider.privateCfg.load()) as LocalFileSyncPrivateCfg | null;
-      if (!existingCfg?.syncFolderPath) {
-        SyncLog.normal(
-          'SyncConfigService: Migrating LocalFile syncFolderPath from global config to credential store',
-        );
-        await provider.privateCfg.upsertPartial({
-          syncFolderPath: legacyPath,
-        } as LocalFileSyncPrivateCfg);
-      }
-    }
-    // Always clear the legacy path from global config so this migration never re-runs.
-    // Spread DEFAULT to avoid shallow-merge data loss on any other localFileSync fields.
-    this._globalConfigService.updateSection('sync', {
-      localFileSync: {
-        ...DEFAULT_GLOBAL_CONFIG.sync.localFileSync,
-        syncFolderPath: null,
-      },
-    });
   }
 }

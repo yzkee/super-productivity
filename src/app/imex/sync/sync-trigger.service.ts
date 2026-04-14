@@ -206,7 +206,10 @@ export class SyncTriggerService {
     shareReplay(1),
   );
 
-  getSyncTrigger$(syncInterval: number = SYNC_DEFAULT_AUDIT_TIME): Observable<unknown> {
+  getSyncTrigger$(
+    syncInterval: number = SYNC_DEFAULT_AUDIT_TIME,
+    useIntervalTimer = false,
+  ): Observable<unknown> {
     const _immediateSyncTrigger$: Observable<string> = IS_ANDROID_WEB_VIEW
       ? // ANDROID ONLY
         merge(
@@ -233,9 +236,11 @@ export class SyncTriggerService {
           this._onElectronResumeTrigger$,
           // Periodic interval timer: fires every syncInterval ms to detect external file
           // changes (e.g. Syncthing on Linux) even without user activity.
-          // Applies to Electron desktop and web/PWA (not Android, which has its own timer).
+          // Only for file-based providers — SuperSync uses WebSocket push and doesn't need polling.
           // Fixes: Linux auto-sync ignoring interval (#4783)
-          timer(syncInterval, syncInterval).pipe(mapTo('I_INTERVAL_TIMER')),
+          ...(useIntervalTimer
+            ? [timer(syncInterval, syncInterval).pipe(mapTo('I_INTERVAL_TIMER'))]
+            : []),
         );
     return merge(
       // once immediately
