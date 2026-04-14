@@ -765,20 +765,20 @@ export class SyncWrapperService {
   async configuredAuthForSyncProviderIfNecessary(
     providerId: SyncProviderId,
     force = false,
-  ): Promise<{ wasConfigured: boolean }> {
+  ): Promise<{ wasConfigured: boolean; authAttempted: boolean }> {
     const provider = await this._providerManager.getProviderById(providerId);
 
     if (!provider) {
-      return { wasConfigured: false };
+      return { wasConfigured: false, authAttempted: false };
     }
 
     if (!provider.getAuthHelper) {
-      return { wasConfigured: false };
+      return { wasConfigured: false, authAttempted: false };
     }
 
     if (!force && (await provider.isReady())) {
       SyncLog.warn('Provider already configured');
-      return { wasConfigured: false };
+      return { wasConfigured: false, authAttempted: false };
     }
 
     try {
@@ -807,9 +807,9 @@ export class SyncWrapperService {
           setTimeout(() => {
             this.sync();
           }, 1000);
-          return { wasConfigured: true };
+          return { wasConfigured: true, authAttempted: true };
         } else {
-          return { wasConfigured: false };
+          return { wasConfigured: false, authAttempted: true };
         }
       }
     } catch (error) {
@@ -823,9 +823,9 @@ export class SyncWrapperService {
         type: 'ERROR',
         config: { duration: 0 },
       });
-      return { wasConfigured: false };
+      return { wasConfigured: false, authAttempted: true };
     }
-    return { wasConfigured: false };
+    return { wasConfigured: false, authAttempted: false };
   }
 
   /**

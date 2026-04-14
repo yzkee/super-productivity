@@ -222,7 +222,16 @@ export class DialogSyncInitialCfgComponent implements AfterViewInit {
     await this.syncConfigService.updateSettingsFromForm(configToSave as SyncConfig, true);
     const providerId = toSyncProviderId(this._tmpUpdatedCfg.syncProvider);
     if (providerId && this._tmpUpdatedCfg.isEnabled) {
-      await this.syncWrapperService.configuredAuthForSyncProviderIfNecessary(providerId);
+      const { wasConfigured, authAttempted } =
+        await this.syncWrapperService.configuredAuthForSyncProviderIfNecessary(
+          providerId,
+        );
+
+      // If auth was attempted (dialog opened) but not completed (cancelled or failed),
+      // keep dialog open so the user can retry without losing their config.
+      if (authAttempted && !wasConfigured) {
+        return;
+      }
     }
 
     this._matDialogRef.close();
