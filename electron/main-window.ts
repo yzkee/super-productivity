@@ -455,7 +455,7 @@ const appCloseHandler = (app: App): void => {
 
   mainWin.on('close', (event) => {
     // NOTE: this might not work if we run a second instance of the app
-    log('close, isQuiting:', getIsQuiting());
+    log('close event: isQuiting=', getIsQuiting(), 'pendingBeforeCloseIds=', ids);
     if (!getIsQuiting()) {
       event.preventDefault();
       if (getIsMinimizeToTray()) {
