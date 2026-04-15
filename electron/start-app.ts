@@ -29,6 +29,7 @@ import {
   processPendingProtocolUrls,
 } from './protocol-handler';
 import { getIsQuiting, setIsQuiting, setIsLocked } from './shared-state';
+import { clearStaleLevelDbLocks } from './clear-stale-idb-locks';
 
 const ICONS_FOLDER = __dirname + '/assets/icons/';
 const IS_MAC = process.platform === 'darwin';
@@ -382,6 +383,10 @@ export const startApp = (): void => {
 
   // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
   async function createMainWin(): Promise<void> {
+    // Remove stale LevelDB LOCK files before the renderer opens IndexedDB.
+    // Orphaned locks from unclean session shutdowns block the backing store open.
+    await clearStaleLevelDbLocks(app.getPath('userData'));
+
     mainWin = await createWindow({
       app,
       IS_DEV,
