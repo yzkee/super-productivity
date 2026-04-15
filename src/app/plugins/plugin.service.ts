@@ -1046,7 +1046,7 @@ export class PluginService implements OnDestroy {
         // Validate index.html size (same as manifest for now)
         if (indexHtmlBytes.length > MAX_PLUGIN_MANIFEST_SIZE) {
           throw new Error(
-            this._translateService.instant(T.PLUGINS.INDEX_HTML_TOO_LARGE, {
+            this._translateService.instant(T.PLUGINS.MANIFEST_TOO_LARGE, {
               maxSize: (MAX_PLUGIN_MANIFEST_SIZE / 1024).toFixed(1),
               fileSize: (indexHtmlBytes.length / 1024).toFixed(1),
             }),
@@ -1062,7 +1062,7 @@ export class PluginService implements OnDestroy {
         // Validate icon size (same as manifest for now)
         if (iconBytes.length > MAX_PLUGIN_MANIFEST_SIZE) {
           throw new Error(
-            this._translateService.instant(T.PLUGINS.ICON_TOO_LARGE, {
+            this._translateService.instant(T.PLUGINS.MANIFEST_TOO_LARGE, {
               maxSize: (MAX_PLUGIN_MANIFEST_SIZE / 1024).toFixed(1),
               fileSize: (iconBytes.length / 1024).toFixed(1),
             }),

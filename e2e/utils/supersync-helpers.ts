@@ -239,34 +239,8 @@ export const createSimulatedClient = async (
     }
   });
 
-  // Navigate to app with retry for transient ERR_CONNECTION_REFUSED.
-  // Under parallel load (many workers × 2-3 browser contexts each), the Angular
-  // dev server can temporarily refuse connections. Retrying recovers from this
-  // without failing the test outright.
-  let lastGotoError: Error | null = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      await page.goto('/');
-      lastGotoError = null;
-      break;
-    } catch (e) {
-      lastGotoError = e as Error;
-      const isConnectionRefused = lastGotoError.message.includes(
-        'ERR_CONNECTION_REFUSED',
-      );
-      if (attempt < 2 && isConnectionRefused) {
-        const delay = 1000 * (attempt + 1);
-        console.log(
-          `[Client ${clientName}] page.goto('/') failed (attempt ${attempt + 1}/3): ERR_CONNECTION_REFUSED — retrying in ${delay}ms`,
-        );
-        await new Promise((r) => setTimeout(r, delay));
-      } else {
-        break; // Non-connection error or last attempt — let it throw below
-      }
-    }
-  }
-  if (lastGotoError) throw lastGotoError;
-
+  // Navigate to app and wait for ready
+  await page.goto('/');
   await waitForAppReady(page);
 
   const workView = new WorkViewPage(page, `${clientName}-${testPrefix}`);
@@ -527,10 +501,6 @@ export const markTaskDone = async (
   const task = getTaskElement(client, taskName);
   await task.hover();
   await task.locator('done-toggle').click();
-  // Wait for the 200ms animation delay in toggleDoneWithAnimation to complete.
-  // During CDK drag animation the task may temporarily resolve to 2 elements;
-  // use .first() to avoid strict-mode violations.
-  await expect(task.first()).toHaveClass(/isDone/, { timeout: UI_VISIBLE_TIMEOUT });
 };
 
 /**
@@ -547,8 +517,6 @@ export const markSubtaskDone = async (
   const subtask = getSubtaskElement(client, subtaskName);
   await subtask.hover();
   await subtask.locator('done-toggle').click();
-  // Wait for the 200ms animation delay in toggleDoneWithAnimation to complete
-  await expect(subtask).toHaveClass(/isDone/, { timeout: UI_VISIBLE_TIMEOUT });
 };
 
 /**
