@@ -97,4 +97,16 @@ export class DialogGetAndEnterAuthCodeComponent implements OnDestroy {
   close(token?: string): void {
     this._matDialogRef.close(token?.trim());
   }
+
+  async copyUrl(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(this.data.url);
+      this._snackService.open(T.GLOBAL_SNACK.COPY_TO_CLIPPBOARD);
+    } catch {
+      this._snackService.open({
+        type: 'ERROR',
+        msg: T.PS.FAILED_TO_COPY_TO_CLIPBOARD,
+      });
+    }
+  }
 }

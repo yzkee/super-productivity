@@ -1018,6 +1018,7 @@
         "FORCE_UPLOAD": "Forcing an upload of your data could lead to data loss. Are you sure you want to continue?"
       },
       "D_AUTH_CODE": {
+        "COPY_URL": "Copy URL",
         "FOLLOW_LINK": "Please open the following link and copy the auth code provided there into the input field below.",
         "FOLLOW_LINK_MOBILE": "Please tap the button below to authorize. You will be automatically redirected back to the app.",
         "GET_AUTH_CODE": "Get Authorization Code",
