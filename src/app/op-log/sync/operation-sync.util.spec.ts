@@ -1,6 +1,10 @@
-import { isOperationSyncCapable, syncOpToOperation } from './operation-sync.util';
 import {
-  SyncProviderServiceInterface,
+  isFileBasedProvider,
+  isOperationSyncCapable,
+  syncOpToOperation,
+} from './operation-sync.util';
+import {
+  SyncProviderBase,
   OperationSyncCapable,
   SyncOperation,
 } from '../sync-providers/provider.interface';
@@ -8,13 +12,50 @@ import { SyncProviderId } from '../sync-providers/provider.const';
 import { ActionType, OpType } from '../core/operation.types';
 
 describe('operation-sync utility', () => {
+  describe('isFileBasedProvider', () => {
+    it('should return true for WebDAV provider', () => {
+      const provider = {
+        id: SyncProviderId.WebDAV,
+      } as unknown as SyncProviderBase<SyncProviderId>;
+      expect(isFileBasedProvider(provider)).toBeTrue();
+    });
+
+    it('should return true for Dropbox provider', () => {
+      const provider = {
+        id: SyncProviderId.Dropbox,
+      } as unknown as SyncProviderBase<SyncProviderId>;
+      expect(isFileBasedProvider(provider)).toBeTrue();
+    });
+
+    it('should return true for LocalFile provider', () => {
+      const provider = {
+        id: SyncProviderId.LocalFile,
+      } as unknown as SyncProviderBase<SyncProviderId>;
+      expect(isFileBasedProvider(provider)).toBeTrue();
+    });
+
+    it('should return true for Nextcloud provider', () => {
+      const provider = {
+        id: SyncProviderId.Nextcloud,
+      } as unknown as SyncProviderBase<SyncProviderId>;
+      expect(isFileBasedProvider(provider)).toBeTrue();
+    });
+
+    it('should return false for SuperSync provider', () => {
+      const provider = {
+        id: SyncProviderId.SuperSync,
+      } as unknown as SyncProviderBase<SyncProviderId>;
+      expect(isFileBasedProvider(provider)).toBeFalse();
+    });
+  });
+
   describe('isOperationSyncCapable', () => {
     it('should return true for provider with supportsOperationSync = true', () => {
       const provider = {
         supportsOperationSync: true,
         downloadOps: jasmine.createSpy(),
         uploadOps: jasmine.createSpy(),
-      } as unknown as SyncProviderServiceInterface<SyncProviderId> & OperationSyncCapable;
+      } as unknown as SyncProviderBase<SyncProviderId> & OperationSyncCapable;
 
       expect(isOperationSyncCapable(provider)).toBeTrue();
     });
@@ -22,7 +63,7 @@ describe('operation-sync utility', () => {
     it('should return false for provider with supportsOperationSync = false', () => {
       const provider = {
         supportsOperationSync: false,
-      } as unknown as SyncProviderServiceInterface<SyncProviderId>;
+      } as unknown as SyncProviderBase<SyncProviderId>;
 
       expect(isOperationSyncCapable(provider)).toBeFalse();
     });
@@ -30,13 +71,13 @@ describe('operation-sync utility', () => {
     it('should return false for provider without supportsOperationSync property', () => {
       const provider = {
         someOtherProp: true,
-      } as unknown as SyncProviderServiceInterface<SyncProviderId>;
+      } as unknown as SyncProviderBase<SyncProviderId>;
 
       expect(isOperationSyncCapable(provider)).toBeFalse();
     });
 
     it('should return false for empty provider object', () => {
-      const provider = {} as unknown as SyncProviderServiceInterface<SyncProviderId>;
+      const provider = {} as unknown as SyncProviderBase<SyncProviderId>;
 
       expect(isOperationSyncCapable(provider)).toBeFalse();
     });

@@ -6,11 +6,12 @@ import {
 } from '../sync-providers/provider.interface';
 import { SyncProviderId } from '../sync-providers/provider.const';
 
-/** Provider IDs that use file-based operation sync (WebDAV, Dropbox, LocalFile) */
+/** Provider IDs that use file-based operation sync (WebDAV, Dropbox, LocalFile, Nextcloud) */
 const FILE_BASED_PROVIDER_IDS: Set<SyncProviderId> = new Set([
   SyncProviderId.WebDAV,
   SyncProviderId.Dropbox,
   SyncProviderId.LocalFile,
+  SyncProviderId.Nextcloud,
 ]);
 
 /**
