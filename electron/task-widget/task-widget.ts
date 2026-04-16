@@ -279,11 +279,22 @@ const initListeners = (): void => {
   ipcMain.on('task-widget-show-main-window', () => {
     const mainWindow = BrowserWindow.getAllWindows().find((win) => win !== taskWidgetWin);
     if (mainWindow) {
+      // Mirror showOrFocus() logic: restore() before show() to handle the case where
+      // the window is minimized+hidden (e.g. minimize-to-tray on Linux where
+      // event.preventDefault() on 'minimize' has no effect).
+      mainWindow.restore();
       mainWindow.show();
-      mainWindow.focus();
       if (!isAlwaysShow) {
         hideTaskWidget();
       }
+      setTimeout(() => {
+        if (!mainWindow.isDestroyed()) {
+          mainWindow.focus();
+          if (!mainWindow.webContents.isDestroyed()) {
+            mainWindow.webContents.focus();
+          }
+        }
+      }, 60);
     }
   });
 };
