@@ -23,7 +23,7 @@ const CLIENT_ID_KEY = '__client_id_';
   providedIn: 'root',
 })
 export class ClientIdService {
-  private _snackService = inject(SnackService);
+  private _snackService = inject(SnackService, { optional: true });
   private _db: IDBPDatabase | null = null;
   private _cachedClientId: string | null = null;
 
@@ -58,7 +58,7 @@ export class ClientIdService {
           length: clientId.length,
         },
       );
-      this._snackService.open({
+      this._snackService?.open({
         msg: T.F.SYNC.S.WARN_CLIENT_ID_REGENERATED,
         type: 'WARNING',
       });
