@@ -149,6 +149,8 @@ const createTaskWidgetWindow = async (): Promise<void> => {
     resizable: true,
     minWidth: 60,
     minHeight: 24,
+    maxWidth: 700,
+    maxHeight: 120,
     minimizable: false,
     maximizable: false,
     closable: true, // Ensure window is closable
