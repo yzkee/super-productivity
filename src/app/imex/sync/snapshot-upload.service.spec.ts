@@ -17,7 +17,10 @@ describe('SnapshotUploadService', () => {
   let mockProviderManager: jasmine.SpyObj<SyncProviderManager>;
   let mockStateSnapshotService: jasmine.SpyObj<StateSnapshotService>;
   let mockVectorClockService: jasmine.SpyObj<VectorClockService>;
-  let mockClientIdProvider: { loadClientId: jasmine.Spy; getOrGenerateClientId: jasmine.Spy };
+  let mockClientIdProvider: {
+    loadClientId: jasmine.Spy;
+    getOrGenerateClientId: jasmine.Spy;
+  };
   let mockEncryptionService: jasmine.SpyObj<OperationEncryptionService>;
   let mockSyncProvider: jasmine.SpyObj<
     SyncProviderServiceInterface<SyncProviderId> & OperationSyncCapable
