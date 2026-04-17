@@ -171,7 +171,7 @@ class FocusModeForegroundService : Service() {
                     .setSilent(true)
                     .build()
             }
-            startForeground(FocusModeNotificationHelper.NOTIFICATION_ID, notification)
+            startForegroundSpecialUse(FocusModeNotificationHelper.NOTIFICATION_ID, notification)
         } catch (e: IllegalArgumentException) {
             // Some Android 14 builds throw this from startForeground() when the
             // notification lacks a content title. We set one above, but keep
@@ -199,7 +199,7 @@ class FocusModeForegroundService : Service() {
             isPaused,
             isBreak
         )
-        startForeground(FocusModeNotificationHelper.NOTIFICATION_ID, notification)
+        startForegroundSpecialUse(FocusModeNotificationHelper.NOTIFICATION_ID, notification)
 
         // Start update loop if not paused
         handler.removeCallbacks(updateRunnable)

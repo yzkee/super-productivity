@@ -145,7 +145,7 @@ class TrackingForegroundService : Service() {
                     .setSilent(true)
                     .build()
             }
-            startForeground(TrackingNotificationHelper.NOTIFICATION_ID, notification)
+            startForegroundSpecialUse(TrackingNotificationHelper.NOTIFICATION_ID, notification)
         } catch (e: IllegalArgumentException) {
             // Some Android 14 builds throw this from startForeground() when the
             // notification lacks a content title. We set one above, but keep
@@ -177,7 +177,7 @@ class TrackingForegroundService : Service() {
             taskTitle,
             getElapsedMs()
         )
-        startForeground(TrackingNotificationHelper.NOTIFICATION_ID, notification)
+        startForegroundSpecialUse(TrackingNotificationHelper.NOTIFICATION_ID, notification)
 
         // Start update loop
         handler.removeCallbacks(updateRunnable)
