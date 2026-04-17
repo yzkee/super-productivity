@@ -86,7 +86,10 @@ export class Dropbox implements SyncProviderServiceInterface<SyncProviderId.Drop
    * @throws RemoteFileNotFoundAPIError if the file doesn't exist
    * @throws AuthFailSPError if authentication fails
    */
-  async getFileRev(targetPath: string, localRev: string): Promise<{ rev: string }> {
+  async getFileRev(
+    targetPath: string,
+    localRev: string | null,
+  ): Promise<{ rev: string }> {
     try {
       const r = await this._api.getMetaData(this._getPath(targetPath), localRev);
       return {

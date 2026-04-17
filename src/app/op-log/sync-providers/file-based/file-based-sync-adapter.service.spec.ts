@@ -12,6 +12,7 @@ import {
   SyncDataCorruptedError,
 } from './file-based-sync.types';
 import {
+  InvalidDataSPError,
   RemoteFileNotFoundAPIError,
   UploadRevToMatchMismatchAPIError,
 } from '../../core/errors/sync-errors';
@@ -1721,6 +1722,24 @@ describe('FileBasedSyncAdapterService', () => {
       mockProvider.getFileRev.and.callFake(async (path: string) => {
         if (path === FILE_BASED_SYNC_CONSTANTS.LEGACY_META_FILE)
           return { rev: 'rev-meta' };
+        throw new RemoteFileNotFoundAPIError('not found');
+      });
+
+      await expectAsync(adapter.downloadOps(0)).toBeRejectedWithError(
+        /Sync format mismatch/,
+      );
+    });
+
+    it('throws LegacySyncFormatDetectedError when __meta_ exists but is unreadable (WebDAV corrupt body)', async () => {
+      // Simulate a WebDAV provider with a present-but-corrupt legacy file:
+      // downloadFile throws InvalidDataSPError for the legacy probe, but
+      // the file exists → still proves v16.x touched this target.
+      mockProvider.downloadFile.and.rejectWith(
+        new RemoteFileNotFoundAPIError('not found'),
+      );
+      mockProvider.getFileRev.and.callFake(async (path: string) => {
+        if (path === FILE_BASED_SYNC_CONSTANTS.LEGACY_META_FILE)
+          throw new InvalidDataSPError('empty body', path);
         throw new RemoteFileNotFoundAPIError('not found');
       });
 

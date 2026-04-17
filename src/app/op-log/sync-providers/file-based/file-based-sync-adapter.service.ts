@@ -924,7 +924,16 @@ export class FileBasedSyncAdapterService {
           await provider.getFileRev(FILE_BASED_SYNC_CONSTANTS.LEGACY_META_FILE, null);
           legacyFileFound = true;
         } catch (innerE) {
-          if (!(innerE instanceof RemoteFileNotFoundAPIError)) throw innerE;
+          // Why: WebDAV surfaces a corrupt/empty legacy __meta_ body as
+          // InvalidDataSPError (not RemoteFileNotFoundAPIError). The presence
+          // of the file — even if unreadable — still proves a v16.x client
+          // touched this target, so treat it the same as a successful probe
+          // rather than letting the unfriendly InvalidDataSPError escape.
+          if (innerE instanceof InvalidDataSPError) {
+            legacyFileFound = true;
+          } else if (!(innerE instanceof RemoteFileNotFoundAPIError)) {
+            throw innerE;
+          }
           // __meta_ not found either → genuine fresh start
         }
         if (legacyFileFound) throw new LegacySyncFormatDetectedError();
