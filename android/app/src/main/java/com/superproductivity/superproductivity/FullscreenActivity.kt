@@ -6,8 +6,10 @@ import android.content.Intent
 import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
+import android.util.AndroidRuntimeException
 import android.util.Log
 import android.view.View
+import android.view.WindowManager
 import android.webkit.JsResult
 import android.webkit.ServiceWorkerClient
 import android.webkit.ServiceWorkerController
@@ -168,10 +170,15 @@ class FullscreenActivity : AppCompatActivity() {
     private fun initWebView(): Boolean {
         try {
             webView = WebHelper().instanceView(this)
-        } catch (e: Exception) {
-            // WebView construction can fail on devices with a broken, missing,
-            // or misbehaving Android System WebView package (e.g. a buggy beta
-            // channel throwing IllegalStateException during factory init).
+        } catch (e: AndroidRuntimeException) {
+            // WebViewFactory.getProvider throws AndroidRuntimeException (incl.
+            // MissingWebViewPackageException) when the system WebView package
+            // is broken, missing, or a buggy beta channel fails factory init.
+            Log.e("SP-WebView", "Failed to instantiate WebView", e)
+            return false
+        } catch (e: IllegalStateException) {
+            // WebChromium factory can throw IllegalStateException mid-init on
+            // certain devices (e.g. "Already registered a list of actions").
             Log.e("SP-WebView", "Failed to instantiate WebView", e)
             return false
         }
@@ -238,8 +245,13 @@ class FullscreenActivity : AppCompatActivity() {
                         .setOnDismissListener { if (!handled) result.cancel() }
                         .create()
                         .show()
-                } catch (e: Exception) {
-                    Log.w("TW", "onJsAlert failed to show", e)
+                } catch (e: WindowManager.BadTokenException) {
+                    // Activity window token invalid between isFinishing check
+                    // and show() (e.g. onDestroy scheduled by the system).
+                    Log.w("TW", "onJsAlert: window token invalid", e)
+                    if (!handled) result.cancel()
+                } catch (e: IllegalStateException) {
+                    Log.w("TW", "onJsAlert: illegal state", e)
                     if (!handled) result.cancel()
                 }
                 return true
@@ -270,8 +282,11 @@ class FullscreenActivity : AppCompatActivity() {
                         .setOnDismissListener { if (!handled) result.cancel() }
                         .create()
                         .show()
-                } catch (e: Exception) {
-                    Log.w("TW", "onJsConfirm failed to show", e)
+                } catch (e: WindowManager.BadTokenException) {
+                    Log.w("TW", "onJsConfirm: window token invalid", e)
+                    if (!handled) result.cancel()
+                } catch (e: IllegalStateException) {
+                    Log.w("TW", "onJsConfirm: illegal state", e)
                     if (!handled) result.cancel()
                 }
                 return true

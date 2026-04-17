@@ -172,8 +172,14 @@ class FocusModeForegroundService : Service() {
                     .build()
             }
             startForeground(FocusModeNotificationHelper.NOTIFICATION_ID, notification)
-        } catch (e: Exception) {
-            Log.e(TAG, "ensureForegroundNotification failed", e)
+        } catch (e: IllegalArgumentException) {
+            // Some Android 14 builds throw this from startForeground() when the
+            // notification lacks a content title. We set one above, but keep
+            // the guard so the FGS timeout path still short-circuits.
+            Log.e(TAG, "ensureForegroundNotification: invalid notification", e)
+        } catch (e: SecurityException) {
+            // Missing POST_NOTIFICATIONS or FGS type permission.
+            Log.e(TAG, "ensureForegroundNotification: missing permission", e)
         }
     }
 
