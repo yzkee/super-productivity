@@ -38,13 +38,9 @@ describe('sanitizePanelCfg', () => {
   it('coerces null sortBy/sortDir/match-mode fields to absent', () => {
     const out = sanitizePanelCfg({
       ...basePanel,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sortBy: null as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sortDir: null as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       includedTagsMatch: null as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       excludedTagsMatch: null as any,
     });
     expect('sortBy' in out).toBe(false);
@@ -56,7 +52,6 @@ describe('sanitizePanelCfg', () => {
   it('drops unknown sortBy values (e.g. from a newer client)', () => {
     const out = sanitizePanelCfg({
       ...basePanel,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       sortBy: 'priority' as any,
       sortDir: 'asc',
     });

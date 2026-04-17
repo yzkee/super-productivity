@@ -202,11 +202,8 @@ describe('Boards Reducer - panel cfg sanitization', () => {
       panels: [
         makePanel({
           id: 'p1',
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           sortBy: null as any,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           sortDir: null as any,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           includedTagsMatch: null as any,
         }),
       ],
