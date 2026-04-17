@@ -1,15 +1,7 @@
 import { initIpcInterfaces } from './ipc-handler';
 import { initPluginOAuth } from './plugin-oauth';
 import electronLog, { info, log, warn } from 'electron-log/main';
-import {
-  App,
-  app,
-  BrowserWindow,
-  globalShortcut,
-  ipcMain,
-  powerMonitor,
-  protocol,
-} from 'electron';
+import { App, app, BrowserWindow, globalShortcut, ipcMain, powerMonitor } from 'electron';
 import { join } from 'path';
 import { initDebug } from './debug';
 import electronDl from 'electron-dl';
@@ -29,6 +21,7 @@ import {
   processPendingProtocolUrls,
 } from './protocol-handler';
 import { getIsQuiting, setIsLocked } from './shared-state';
+import * as fs from 'fs';
 
 const ICONS_FOLDER = __dirname + '/assets/icons/';
 const IS_MAC = process.platform === 'darwin';
@@ -66,6 +59,33 @@ export const startApp = (): void => {
   // https://github.com/super-productivity/super-productivity/issues/4375#issuecomment-2883838113
   // https://github.com/electron/electron/issues/46538#issuecomment-2808806722
   app.commandLine.appendSwitch('gtk-version', '3');
+
+  // Defense-in-depth: Force X11 in Snap if the gnome-42-2204 runtime is not
+  // available or Wayland init fails. The primary fix is the gnome-42-2204
+  // plug override in electron-builder.yaml. This code catches edge cases where
+  // the content snap is not connected or the runtime is missing.
+  // IMPORTANT: Must run before app.whenReady() — ozone platform is set during
+  // Chromium initialization and cannot be changed after the ready event fires.
+  // Users can override with: superproductivity --ozone-platform=wayland
+  if (
+    process.platform === 'linux' &&
+    process.env.SNAP &&
+    !process.argv.some((arg) => arg.includes('--ozone-platform='))
+  ) {
+    const gnomePlatformPath = join(process.env.SNAP || '', 'gnome-platform');
+    try {
+      if (
+        !fs.existsSync(gnomePlatformPath) ||
+        fs.readdirSync(gnomePlatformPath).length === 0
+      ) {
+        app.commandLine.appendSwitch('ozone-platform', 'x11');
+        log('Snap: gnome-42-2204 runtime not found, forcing X11');
+      }
+    } catch {
+      app.commandLine.appendSwitch('ozone-platform', 'x11');
+      log('Snap: Could not check gnome runtime, forcing X11');
+    }
+  }
 
   // NOTE: needs to be executed before everything else
   process.argv.forEach((val) => {
@@ -147,6 +167,38 @@ export const startApp = (): void => {
 
   // APP EVENT LISTENERS
   // -------------------
+  appIN.on('ready', () => {
+    // Clear GPU cache when Electron version changes to prevent blank/black screens.
+    // Stale GPU shader caches from old Electron versions cause rendering failures.
+    // Pattern used by Obsidian's Flatpak wrapper.
+    if (process.platform === 'linux') {
+      const userDataPath = app.getPath('userData');
+      const versionFile = join(userDataPath, '.electron-version');
+      const currentVersion = process.versions.electron;
+      try {
+        let lastVersion = '';
+        try {
+          lastVersion = fs.readFileSync(versionFile, 'utf8').trim();
+        } catch {
+          // File doesn't exist on first run
+        }
+        if (lastVersion !== currentVersion) {
+          const gpuCachePath = join(userDataPath, 'GPUCache');
+          if (fs.existsSync(gpuCachePath)) {
+            fs.rmSync(gpuCachePath, { recursive: true, force: true });
+            log(
+              `Cleared GPUCache after Electron upgrade (${lastVersion} -> ${currentVersion})`,
+            );
+          }
+          fs.mkdirSync(userDataPath, { recursive: true });
+          fs.writeFileSync(versionFile, currentVersion);
+        }
+      } catch (e) {
+        log('Failed to check/clear GPU cache:', e);
+      }
+    }
+  });
+
   appIN.on('ready', () => createMainWin());
   appIN.on('ready', () => initBackupAdapter());
   appIN.on('ready', () => initLocalFileSyncAdapter());
@@ -288,11 +340,6 @@ export const startApp = (): void => {
       if (wasVisibleBeforeSuspend) {
         showOrFocus(mainWin);
       }
-    });
-
-    protocol.registerFileProtocol('file', (request, callback) => {
-      const pathname = decodeURI(request.url.replace('file:///', ''));
-      callback(pathname);
     });
   });
 

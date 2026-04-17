@@ -12,11 +12,10 @@ import {
 import { errorHandlerWithFrontendInform } from './error-handler-with-frontend-inform';
 import * as path from 'path';
 import { join, normalize } from 'path';
-import { format } from 'url';
 import { IPC } from './shared-with-frontend/ipc-events.const';
 import { readFileSync, stat } from 'fs';
 import { error, log } from 'electron-log/main';
-import { IS_MAC } from './common.const';
+import { IS_MAC, IS_GNOME_DESKTOP } from './common.const';
 import {
   destroyTaskWidget,
   getIsTaskWidgetAlwaysShow,
@@ -92,8 +91,15 @@ export const createWindow = async ({
     simpleStore[SimpleStoreKey.IS_USE_CUSTOM_WINDOW_TITLE_BAR];
   const legacyIsUseObsidianStyleHeader =
     simpleStore[SimpleStoreKey.LEGACY_IS_USE_OBSIDIAN_STYLE_HEADER];
-  const isUseCustomWindowTitleBar =
-    persistedIsUseCustomWindowTitleBar ?? legacyIsUseObsidianStyleHeader ?? true;
+  const userPrefersCustomWindowTitleBar =
+    persistedIsUseCustomWindowTitleBar ??
+    legacyIsUseObsidianStyleHeader ??
+    !IS_GNOME_DESKTOP;
+  // GNOME + Wayland combinations can miss native controls when titleBarStyle is hidden.
+  // Force native decorations on GNOME to keep window controls available.
+  const isUseCustomWindowTitleBar = IS_GNOME_DESKTOP
+    ? false
+    : userPrefersCustomWindowTitleBar;
   const titleBarStyle: BrowserWindowConstructorOptions['titleBarStyle'] =
     isUseCustomWindowTitleBar || IS_MAC ? 'hidden' : 'default';
   // Determine initial symbol color based on system theme preference
@@ -208,11 +214,7 @@ export const createWindow = async ({
     ? customUrl
     : IS_DEV
       ? 'http://localhost:4200'
-      : format({
-          pathname: normalize(join(__dirname, '../.tmp/angular-dist/browser/index.html')),
-          protocol: 'file:',
-          slashes: true,
-        });
+      : `file://${normalize(join(__dirname, '../.tmp/angular-dist/browser/index.html'))}`;
 
   mainWin.loadURL(url).then(() => {
     // Set window title for dev mode
