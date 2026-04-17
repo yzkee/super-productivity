@@ -59,6 +59,58 @@ const getDueTs = (task: TaskCopy): number | null => {
 const NO_OP_COMPARATOR = (): number => 0;
 
 /**
+ * Rewrite a task's tagIds so it will match the given panel's include/exclude
+ * filter after a cross-panel drop. Pure function — never mutates inputs.
+ *
+ * Semantics (matches the panel-filter rules):
+ * - Included tags:
+ *   - Default ('all'): append every required tag (caller de-dupes if needed).
+ *   - 'any': append the FIRST required tag only when the task has none of them.
+ * - Excluded tags:
+ *   - Default ('any'): strip ALL excluded tags the task carries.
+ *   - 'all': strip only the FIRST excluded tag when the task has ALL excluded
+ *     tags (breaks the AND-exclude condition without over-removing).
+ *
+ * Duplicates are not de-duplicated here; callers that care should pass the
+ * result through `unique()`.
+ */
+export const rewriteTagIdsForPanel = (
+  currentTagIds: readonly string[],
+  panelCfg: Pick<
+    BoardPanelCfg,
+    'includedTagIds' | 'includedTagsMatch' | 'excludedTagIds' | 'excludedTagsMatch'
+  >,
+): string[] => {
+  let next: string[] = [...currentTagIds];
+
+  if (panelCfg.includedTagIds?.length) {
+    if (panelCfg.includedTagsMatch === 'any') {
+      const hasAny = panelCfg.includedTagIds.some((id) => next.includes(id));
+      if (!hasAny) {
+        next = next.concat(panelCfg.includedTagIds[0]);
+      }
+    } else {
+      next = next.concat(panelCfg.includedTagIds);
+    }
+  }
+
+  if (panelCfg.excludedTagIds?.length) {
+    if (panelCfg.excludedTagsMatch === 'all') {
+      const hasAll = panelCfg.excludedTagIds.every((id) => next.includes(id));
+      if (hasAll) {
+        const firstExcluded = panelCfg.excludedTagIds[0];
+        next = next.filter((id) => id !== firstExcluded);
+      }
+    } else {
+      const excluded = panelCfg.excludedTagIds;
+      next = next.filter((id) => !excluded.includes(id));
+    }
+  }
+
+  return next;
+};
+
+/**
  * Returns an ascending comparator for the given field. Callers multiply by -1
  * for descending. Returns a no-op comparator for unknown fields, so an invalid
  * persisted `sortBy` degrades to manual order instead of crashing the panel.

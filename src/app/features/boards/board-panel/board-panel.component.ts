@@ -14,7 +14,7 @@ import {
   BoardPanelCfgTaskDoneState,
   BoardPanelCfgTaskTypeFilter,
 } from '../boards.model';
-import { buildComparator } from '../boards.util';
+import { buildComparator, rewriteTagIdsForPanel } from '../boards.util';
 import { select, Store } from '@ngrx/store';
 import {
   selectAllTasksWithoutHiddenProjects,
@@ -242,32 +242,7 @@ export class BoardPanelComponent {
       : // NOTE: original array is mutated and splice does not return a new array
         prevTaskIds.splice(ev.currentIndex, 0, task.id) && prevTaskIds;
 
-    let newTagIds: string[] = task.tagIds || [];
-    if (panelCfg.includedTagIds?.length) {
-      if (panelCfg.includedTagsMatch === 'any') {
-        // OR: task only needs one required tag to belong. Add the first if none match.
-        const hasAny = panelCfg.includedTagIds.some((id) => newTagIds.includes(id));
-        if (!hasAny) {
-          newTagIds = newTagIds.concat(panelCfg.includedTagIds[0]);
-        }
-      } else {
-        newTagIds = newTagIds.concat(panelCfg.includedTagIds);
-      }
-    }
-    if (panelCfg.excludedTagIds?.length) {
-      if (panelCfg.excludedTagsMatch === 'all') {
-        // AND-excluded: "exclude only if task has ALL excluded tags". Strip one to
-        // break the condition; don't over-remove tags the user may legitimately want.
-        const hasAll = panelCfg.excludedTagIds.every((id) => newTagIds.includes(id));
-        if (hasAll) {
-          newTagIds = newTagIds.filter((id) => id !== panelCfg.excludedTagIds![0]);
-        }
-      } else {
-        newTagIds = newTagIds.filter(
-          (tagId) => !panelCfg.excludedTagIds!.includes(tagId),
-        );
-      }
-    }
+    const newTagIds = rewriteTagIdsForPanel(task.tagIds || [], panelCfg);
 
     const updates: Partial<TaskCopy> = {};
 

@@ -1,4 +1,4 @@
-import { buildComparator, sanitizePanelCfg } from './boards.util';
+import { buildComparator, rewriteTagIdsForPanel, sanitizePanelCfg } from './boards.util';
 import { BoardPanelCfg } from './boards.model';
 import { TaskCopy } from '../tasks/task.model';
 
@@ -167,5 +167,128 @@ describe('buildComparator', () => {
       expect(items[0].id).toBe('day');
       expect(items[1].id).toBe('ts');
     });
+  });
+});
+
+describe('rewriteTagIdsForPanel', () => {
+  type PanelFilter = Pick<
+    BoardPanelCfg,
+    'includedTagIds' | 'includedTagsMatch' | 'excludedTagIds' | 'excludedTagsMatch'
+  >;
+
+  const mkPanel = (overrides: Partial<PanelFilter> = {}): PanelFilter => ({
+    includedTagIds: [],
+    excludedTagIds: [],
+    ...overrides,
+  });
+
+  it('returns the same tags when no include/exclude filters are set', () => {
+    // Arrange
+    const tags = ['a', 'b'];
+    const panel = mkPanel();
+
+    // Act
+    const out = rewriteTagIdsForPanel(tags, panel);
+
+    // Assert
+    expect(out).toEqual(['a', 'b']);
+  });
+
+  it('"any" include mode: appends the first required tag when task has none', () => {
+    // Arrange
+    const tags = ['other'];
+    const panel = mkPanel({
+      includedTagIds: ['need1', 'need2'],
+      includedTagsMatch: 'any',
+    });
+
+    // Act
+    const out = rewriteTagIdsForPanel(tags, panel);
+
+    // Assert — follow actual implementation: concat appends at the end
+    expect(out).toEqual(['other', 'need1']);
+  });
+
+  it('"any" include mode: leaves tags unchanged when task already has one included', () => {
+    // Arrange
+    const tags = ['need2', 'keep'];
+    const panel = mkPanel({
+      includedTagIds: ['need1', 'need2'],
+      includedTagsMatch: 'any',
+    });
+
+    // Act
+    const out = rewriteTagIdsForPanel(tags, panel);
+
+    // Assert
+    expect(out).toEqual(['need2', 'keep']);
+  });
+
+  it('default ("any") exclude mode: strips ALL excluded tags present', () => {
+    // Arrange
+    const tags = ['x', 'keep', 'y'];
+    const panel = mkPanel({ excludedTagIds: ['x', 'y'] });
+
+    // Act
+    const out = rewriteTagIdsForPanel(tags, panel);
+
+    // Assert
+    expect(out).toEqual(['keep']);
+  });
+
+  it('"all" exclude mode: strips only the FIRST excluded tag when task has every excluded', () => {
+    // Arrange
+    const tags = ['x', 'y', 'keep'];
+    const panel = mkPanel({
+      excludedTagIds: ['x', 'y'],
+      excludedTagsMatch: 'all',
+    });
+
+    // Act
+    const out = rewriteTagIdsForPanel(tags, panel);
+
+    // Assert — only first excluded ('x') is dropped; 'y' stays
+    expect(out).toEqual(['y', 'keep']);
+  });
+
+  it('"all" exclude mode: leaves tags unchanged when task is missing one excluded', () => {
+    // Arrange — task only has 'x' so AND-exclude condition isn't met
+    const tags = ['x', 'keep'];
+    const panel = mkPanel({
+      excludedTagIds: ['x', 'y'],
+      excludedTagsMatch: 'all',
+    });
+
+    // Act
+    const out = rewriteTagIdsForPanel(tags, panel);
+
+    // Assert
+    expect(out).toEqual(['x', 'keep']);
+  });
+
+  it('combines include-add and exclude-strip in a single call', () => {
+    // Arrange — task has one excluded tag AND is missing the required include
+    const tags = ['drop', 'keep'];
+    const panel = mkPanel({
+      includedTagIds: ['need'],
+      includedTagsMatch: 'any',
+      excludedTagIds: ['drop'],
+    });
+
+    // Act
+    const out = rewriteTagIdsForPanel(tags, panel);
+
+    // Assert — 'drop' stripped (default 'any' exclude), 'need' appended
+    expect(out).toEqual(['keep', 'need']);
+  });
+
+  it('does not mutate the input tag array', () => {
+    // Arrange
+    const tags: readonly string[] = Object.freeze(['x', 'y']);
+    const panel = mkPanel({ excludedTagIds: ['x'] });
+
+    // Act + Assert — would throw if mutated
+    expect(() => rewriteTagIdsForPanel(tags, panel)).not.toThrow();
+    expect(tags).toEqual(['x', 'y']);
   });
 });
