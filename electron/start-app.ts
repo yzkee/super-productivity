@@ -60,30 +60,40 @@ export const startApp = (): void => {
   // https://github.com/electron/electron/issues/46538#issuecomment-2808806722
   app.commandLine.appendSwitch('gtk-version', '3');
 
-  // Defense-in-depth: Force X11 in Snap if the gnome-42-2204 runtime is not
-  // available or Wayland init fails. The primary fix is the gnome-42-2204
-  // plug override in electron-builder.yaml. This code catches edge cases where
-  // the content snap is not connected or the runtime is missing.
-  // IMPORTANT: Must run before app.whenReady() — ozone platform is set during
-  // Chromium initialization and cannot be changed after the ready event fires.
-  // Users can override with: superproductivity --ozone-platform=wayland
-  if (
-    process.platform === 'linux' &&
-    process.env.SNAP &&
-    !process.argv.some((arg) => arg.includes('--ozone-platform='))
-  ) {
-    const gnomePlatformPath = join(process.env.SNAP || '', 'gnome-platform');
+  // Force X11 in Snap on Wayland sessions or when the gnome-42-2204 runtime
+  // is missing. Chromium's Wayland EGL/GBM init can fail against the Mesa
+  // shipped by gnome-42-2204 when the snap runtime's Mesa version drifts
+  // out of sync with what Electron's Chromium expects, producing
+  // "Failed to get system egl display" / "MESA-LOADER failed to open
+  // dri_gbm.so" and a failed GPU process. The X11 ozone backend avoids the
+  // failing Wayland EGL init path while keeping hardware acceleration — at
+  // the cost of Wayland-native features (fractional scaling, per-monitor
+  // HiDPI, native IME, client-side decorations). Override with
+  // `--ozone-platform=wayland`.
+  // IMPORTANT: must run before app.whenReady() — ozone platform is read
+  // during Chromium init and cannot be changed after ready fires.
+  const hasOzoneOverride = process.argv.some(
+    (arg) => arg === '--ozone-platform' || arg.startsWith('--ozone-platform='),
+  );
+  if (process.platform === 'linux' && process.env.SNAP && !hasOzoneOverride) {
+    const isWaylandSession =
+      process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
+
+    let isGnomePlatformMissing = false;
     try {
-      if (
+      const gnomePlatformPath = join(process.env.SNAP || '', 'gnome-platform');
+      isGnomePlatformMissing =
         !fs.existsSync(gnomePlatformPath) ||
-        fs.readdirSync(gnomePlatformPath).length === 0
-      ) {
-        app.commandLine.appendSwitch('ozone-platform', 'x11');
-        log('Snap: gnome-42-2204 runtime not found, forcing X11');
-      }
+        fs.readdirSync(gnomePlatformPath).length === 0;
     } catch {
+      isGnomePlatformMissing = true;
+    }
+
+    if (isWaylandSession || isGnomePlatformMissing) {
       app.commandLine.appendSwitch('ozone-platform', 'x11');
-      log('Snap: Could not check gnome runtime, forcing X11');
+      log(
+        `Snap: forcing X11 (wayland=${isWaylandSession}, gnomePlatformMissing=${isGnomePlatformMissing}, XDG_SESSION_TYPE=${process.env.XDG_SESSION_TYPE ?? 'unset'}, WAYLAND_DISPLAY=${process.env.WAYLAND_DISPLAY ? 'set' : 'unset'})`,
+      );
     }
   }
 
