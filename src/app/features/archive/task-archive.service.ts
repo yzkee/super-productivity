@@ -356,7 +356,9 @@ export class TaskArchiveService {
     // Using updateTasks (batch) instead of individual updateTask to create
     // a single operation instead of N operations. This is critical for
     // repeating task config updates that affect many archived instances.
-    if (!options?.isSkipDispatch) {
+    // Skip dispatch for empty updates to avoid an invalid operation-log entry
+    // with entityIds: [] (see operation-log.effects.ts validator).
+    if (!options?.isSkipDispatch && updates.length > 0) {
       this.store.dispatch(TaskSharedActions.updateTasks({ tasks: updates }));
     }
   }

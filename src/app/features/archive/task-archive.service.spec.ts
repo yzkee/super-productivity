@@ -449,6 +449,19 @@ describe('TaskArchiveService', () => {
       );
     });
 
+    it('should NOT dispatch when updates array is empty (issue #7268)', async () => {
+      archiveDbAdapterMock.loadArchiveYoung.and.returnValue(
+        Promise.resolve(createMockArchiveModel([])),
+      );
+      archiveDbAdapterMock.loadArchiveOld.and.returnValue(
+        Promise.resolve(createMockArchiveModel([])),
+      );
+
+      await service.updateTasks([]);
+
+      expect(storeMock.dispatch).not.toHaveBeenCalled();
+    });
+
     it('should NOT dispatch actions when isSkipDispatch is true', async () => {
       const task1 = createMockTask('task1', { title: 'Task 1' });
       const youngArchive = createMockArchiveModel([task1]);
