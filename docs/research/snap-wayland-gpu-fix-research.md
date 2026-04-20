@@ -291,11 +291,16 @@ first released recovery path for confined-Linux users until #7266 ships.
 verified that `superproductivity --ozone-platform=x11` resolves their
 launch failure on Ubuntu 22.04 / 18.2.2-snap. Direct evidence that the
 Mesa ABI-drift diagnosis is correct and #7266's X11 widening is the
-right primary fix. As a result, **PR #7273 was closed** in favor of
-#7266 — the defense-in-depth it offered (Flatpak coverage, Snap+X11
-with still-drifted Mesa, future Chromium regressions) was speculative,
-and KISS/YAGNI says to revisit only if a real report comes in that
-X11 doesn't rescue.
+right primary fix. As a result, **PR #7273 was initially closed** in
+favor of #7266, with a revisit condition: reopen only if a real report
+came in that X11 widening did not rescue.
+
+**Revisit (2026-04-20):** the revisit condition fired. Two post-v18.2.4
+field reports (§16) show #7266's guard firing correctly and still not
+rescuing the user — one on Intel Arrow Lake / Ubuntu 24.04, one on AMD
+Raphael / Ubuntu 25.10. Same Mesa DRI load failure in both. The
+"speculative defense-in-depth" framing is inverted: #7273 is the
+mechanism that rescues the population #7266 provably does not.
 
 ### Mechanism
 
@@ -838,7 +843,7 @@ grepped) or explicitly rejected where agents disagreed.
   "no GPU process"). `fallback.md` documents the mode stack but not
   the Linux `--disable-gpu` behavior.
 - **§13.1§1 `--disable-software-rasterizer` strength**: codex's
-  verification cautions that DISPLAY_COMPOSITOR is still a GPU-process
+  verification cautions that `DISPLAY_COMPOSITOR` is still a GPU-process
   mode, so that flag doesn't _guarantee_ "no GPU process" either.
   Keep the flag as cheap belt-and-braces (no WebGL dep in SP) but
   drop the framing that it fully suppresses the GPU process.
