@@ -27,26 +27,20 @@ import {
 import { TODAY_TAG } from '../tag/tag.const';
 
 /**
- * Tests for issue #7269: Detail panel closes immediately when opened for a task
- * that only appears in the task-view customizer's list.
- *
- * The WorkViewComponent has a constructor `effect()` that deselects the currently
- * selected task whenever it is no longer present in any of the visible task lists.
- * Previously it only consulted the primary context lists (undone / done / later /
- * overdue / backlog). When the customizer pulls tasks in from other work
- * contexts, the selected task would not be found in any of those lists and would
- * be deselected immediately, closing the detail panel.
- *
- * The fix additionally checks `customizedUndoneTasks().list` before resetting
- * the selection. These tests exercise the real component; the template is
- * overridden to a no-op so we don't have to stand up every child component.
+ * Tests for the constructor effect() in WorkViewComponent that deselects the
+ * currently selected task when it is no longer present in any visible task list
+ * (undone / done / later / overdue / backlog). The customizer's list is
+ * intentionally NOT consulted: after #7279 it is always a subset of the context's
+ * undoneTasks, so checking undoneTasks is sufficient. These tests exercise the
+ * real component; the template is overridden to a no-op so we don't have to
+ * stand up every child component.
  */
 
 const buildTask = (id: string, subTasks: TaskWithSubTasks[] = []): TaskWithSubTasks =>
   ({ id, subTasks }) as unknown as TaskWithSubTasks;
 
 describe('WorkViewComponent', () => {
-  describe('selected task retention effect (#7269)', () => {
+  describe('selected task retention effect', () => {
     let selectedTaskId: ReturnType<typeof signal<string | null>>;
     let setSelectedId: jasmine.Spy;
     let customized$: BehaviorSubject<{ list: TaskWithSubTasks[] }>;
@@ -149,29 +143,8 @@ describe('WorkViewComponent', () => {
       store.overrideSelector(selectTaskRepeatCfgsByTagId, []);
     });
 
-    it('keeps the selection when the task is only in customizedUndoneTasks.list (bug #7269)', async () => {
+    it('deselects when the task is absent from every list', async () => {
       await createComponent();
-      customized$.next({ list: [buildTask('cross-ctx-1')] });
-      selectedTaskId.set('cross-ctx-1');
-      TestBed.flushEffects();
-
-      expect(setSelectedId).not.toHaveBeenCalled();
-    });
-
-    it('keeps the selection when the task is a subtask inside customizedUndoneTasks.list', async () => {
-      await createComponent();
-      customized$.next({
-        list: [buildTask('parent', [buildTask('nested-sub')])],
-      });
-      selectedTaskId.set('nested-sub');
-      TestBed.flushEffects();
-
-      expect(setSelectedId).not.toHaveBeenCalled();
-    });
-
-    it('deselects when the task is absent from every list (including customizedUndoneTasks)', async () => {
-      await createComponent();
-      customized$.next({ list: [buildTask('other')] });
       selectedTaskId.set('ghost');
       TestBed.flushEffects();
 

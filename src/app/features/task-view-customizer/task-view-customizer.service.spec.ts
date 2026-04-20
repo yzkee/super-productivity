@@ -9,6 +9,7 @@ import { selectAllTags } from '../tag/store/tag.reducer';
 import { getTomorrow } from '../../util/get-tomorrow';
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { BehaviorSubject, Observable, of } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { WorkContextType } from '../work-context/work-context.model';
 import { WorkContextService } from '../work-context/work-context.service';
 import { selectAllTasksWithSubTasks } from '../tasks/store/task.selectors';
@@ -41,6 +42,7 @@ describe('TaskViewCustomizerService', () => {
       activeId: string;
       activeType: WorkContextType;
     }>;
+    isActiveWorkContextProject$: Observable<boolean>;
     mainListTasks$: Observable<TaskWithSubTasks[]>;
     undoneTasks$: Observable<TaskWithSubTasks[]>;
   };
@@ -133,6 +135,7 @@ describe('TaskViewCustomizerService', () => {
         activeId: 'TODAY',
         activeType: WorkContextType.TAG,
       }),
+      isActiveWorkContextProject$: of(false),
       mainListTasks$: of<TaskWithSubTasks[]>([]),
       undoneTasks$: of<TaskWithSubTasks[]>([]),
     };
@@ -1035,6 +1038,9 @@ describe('TaskViewCustomizerService', () => {
               activeWorkContextId: null,
               activeWorkContextType: null,
               activeWorkContextTypeAndId$: ctx$,
+              isActiveWorkContextProject$: ctx$.pipe(
+                map(({ activeType }) => activeType === WorkContextType.PROJECT),
+              ),
               mainListTasks$: of<TaskWithSubTasks[]>([]),
               undoneTasks$: of<TaskWithSubTasks[]>([]),
             },
@@ -1148,12 +1154,12 @@ describe('TaskViewCustomizerService', () => {
     });
   });
 
-  describe('customizeUndoneTasks with group by project (issue #7050)', () => {
-    const inboxTask: TaskWithSubTasks = {
-      id: 'inbox-task',
-      title: 'Inbox Task',
-      tagIds: [],
-      projectId: 'INBOX_PROJECT',
+  describe('customizeUndoneTasks respects current work context (issue #7279)', () => {
+    const projectATask: TaskWithSubTasks = {
+      id: 'project-a-task',
+      title: 'Project A Task',
+      tagIds: ['Tag A'],
+      projectId: 'Project A',
       timeEstimate: 0,
       timeSpentOnDay: {},
       created: 1,
@@ -1164,11 +1170,11 @@ describe('TaskViewCustomizerService', () => {
       attachments: [],
     } as TaskWithSubTasks;
 
-    const projectATask: TaskWithSubTasks = {
-      id: 'project-a-task',
-      title: 'Project A Task',
-      tagIds: [],
-      projectId: 'Project A',
+    const projectBTask: TaskWithSubTasks = {
+      id: 'project-b-task',
+      title: 'Project B Task',
+      tagIds: ['Tag B'],
+      projectId: 'Project B',
       timeEstimate: 0,
       timeSpentOnDay: {},
       created: 2,
@@ -1179,23 +1185,7 @@ describe('TaskViewCustomizerService', () => {
       attachments: [],
     } as TaskWithSubTasks;
 
-    const projectBTask: TaskWithSubTasks = {
-      id: 'project-b-task',
-      title: 'Project B Task',
-      tagIds: [],
-      projectId: 'Project B',
-      timeEstimate: 0,
-      timeSpentOnDay: {},
-      created: 3,
-      subTasks: [],
-      subTaskIds: [],
-      timeSpent: 0,
-      isDone: false,
-      attachments: [],
-    } as TaskWithSubTasks;
-
     const allProjects: Project[] = [
-      { id: 'INBOX_PROJECT', title: 'Inbox', backlogTaskIds: [] } as unknown as Project,
       { id: 'Project A', title: 'Project A', backlogTaskIds: [] } as unknown as Project,
       { id: 'Project B', title: 'Project B', backlogTaskIds: [] } as unknown as Project,
     ];
@@ -1211,14 +1201,15 @@ describe('TaskViewCustomizerService', () => {
       });
 
       mockWorkContextService = {
-        activeWorkContextId: 'INBOX_PROJECT',
+        activeWorkContextId: 'Project A',
         activeWorkContextType: WorkContextType.PROJECT,
         activeWorkContextTypeAndId$: of({
-          activeId: 'INBOX_PROJECT',
+          activeId: 'Project A',
           activeType: WorkContextType.PROJECT,
         }),
-        mainListTasks$: of<TaskWithSubTasks[]>([inboxTask]),
-        undoneTasks$: of<TaskWithSubTasks[]>([inboxTask]),
+        isActiveWorkContextProject$: of(true),
+        mainListTasks$: of<TaskWithSubTasks[]>([projectATask]),
+        undoneTasks$: of<TaskWithSubTasks[]>([projectATask]),
       };
 
       TestBed.configureTestingModule({
@@ -1242,7 +1233,7 @@ describe('TaskViewCustomizerService', () => {
               { selector: selectAllTags, value: mockTags },
               {
                 selector: selectAllTasksWithSubTasks,
-                value: [inboxTask, projectATask, projectBTask],
+                value: [projectATask, projectBTask],
               },
             ],
           }),
@@ -1253,30 +1244,46 @@ describe('TaskViewCustomizerService', () => {
       (testService as any)._allTags = mockTags;
     });
 
-    it('should show tasks from ALL projects when group by project is selected, not just current context', (done) => {
-      // Simulate being on Inbox — undoneTasks$ only has the inbox task
-      const contextUndoneTasks$ = of<TaskWithSubTasks[]>([inboxTask]);
+    it('should only group tasks from the current project when group by tag is selected', (done) => {
+      // User is in Project A — undoneTasks$ only has Project A's task
+      const contextUndoneTasks$ = of<TaskWithSubTasks[]>([projectATask]);
 
-      // Set group to project
-      testService.setGroup({ type: GROUP_OPTION_TYPE.project, label: 'Project' });
+      testService.setGroup({ type: GROUP_OPTION_TYPE.tag, label: 'Tag' });
 
-      // customizeUndoneTasks uses toObservable which requires injection context
       const result$ = TestBed.runInInjectionContext(() =>
         testService.customizeUndoneTasks(contextUndoneTasks$),
       );
 
-      // Use requestAnimationFrame since customizeUndoneTasks uses animationFrameScheduler
+      requestAnimationFrame(() => {
+        result$.subscribe((result) => {
+          expect(result.grouped).toBeDefined();
+          // Project B's task must NOT leak into the view
+          expect(result.list.map((t) => t.id)).toEqual(['project-a-task']);
+          expect(Object.keys(result.grouped!)).toEqual(['Tag A']);
+          expect(result.grouped!['Tag A']?.length).toBe(1);
+          expect(result.grouped!['Tag A']?.[0].id).toBe('project-a-task');
+          done();
+        });
+      });
+    });
+
+    it('should only group tasks from the current project when group by project is selected', (done) => {
+      // Edge case: even though the panel hides this option in a project context,
+      // the service must still scope to the current context if it's set.
+      const contextUndoneTasks$ = of<TaskWithSubTasks[]>([projectATask]);
+
+      testService.setGroup({ type: GROUP_OPTION_TYPE.project, label: 'Project' });
+
+      const result$ = TestBed.runInInjectionContext(() =>
+        testService.customizeUndoneTasks(contextUndoneTasks$),
+      );
+
       requestAnimationFrame(() => {
         result$.subscribe((result) => {
           expect(result.grouped).toBeDefined();
           const groupKeys = Object.keys(result.grouped!);
-          // Should contain tasks from ALL projects, not just Inbox
-          expect(groupKeys).toContain('Inbox');
-          expect(groupKeys).toContain('Project A');
-          expect(groupKeys).toContain('Project B');
-          expect(result.grouped!['Inbox']?.length).toBe(1);
-          expect(result.grouped!['Project A']?.length).toBe(1);
-          expect(result.grouped!['Project B']?.length).toBe(1);
+          expect(groupKeys).toEqual(['Project A']);
+          expect(groupKeys).not.toContain('Project B');
           done();
         });
       });

@@ -1,14 +1,13 @@
 import { Injectable, signal, inject, effect } from '@angular/core';
 import { Observable, animationFrameScheduler, combineLatest } from 'rxjs';
-import { map, observeOn, switchMap, take } from 'rxjs/operators';
+import { map, observeOn, take } from 'rxjs/operators';
 import { TaskWithSubTasks } from '../tasks/task.model';
 import { selectAllProjects } from '../project/store/project.selectors';
-import { selectAllTasksWithSubTasks } from '../tasks/store/task.selectors';
 import { selectAllTags } from './../tag/store/tag.reducer';
 import { Store } from '@ngrx/store';
 import { Project } from '../project/project.model';
 import { Tag } from '../tag/tag.model';
-import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { computed } from '@angular/core';
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { getWeekRange } from '../../util/get-week-range';
@@ -28,6 +27,7 @@ import {
   FILTER_SCHEDULE,
   SORT_ORDER,
   FILTER_COMMON,
+  OPTIONS,
 } from './types';
 import { DateAdapter } from '@angular/material/core';
 import { lsGetJSON, lsSetJSON } from '../../util/ls-util';
@@ -35,6 +35,10 @@ import { LS } from '../../core/persistence/storage-keys.const';
 import { LanguageService } from 'src/app/core/language/language.service';
 import { TranslateService } from '@ngx-translate/core';
 import { T } from '../../t.const';
+
+const GROUP_OPTIONS_NO_PROJECT = OPTIONS.group.list.filter(
+  (opt) => opt.type !== GROUP_OPTION_TYPE.project,
+);
 
 @Injectable({ providedIn: 'root' })
 export class TaskViewCustomizerService {
@@ -60,6 +64,16 @@ export class TaskViewCustomizerService {
     ].some((x) => x !== null);
   });
 
+  private _isInProject = toSignal(this._workContextService.isActiveWorkContextProject$, {
+    initialValue: false,
+  });
+
+  // "Group By: Project" would collapse into a single group inside a single-project
+  // view, so offer it only for tag contexts. See issue #7279.
+  availableGroupOptions = computed(() =>
+    this._isInProject() ? GROUP_OPTIONS_NO_PROJECT : OPTIONS.group.list,
+  );
+
   private _stateByContext: Record<string, CustomizerContextState> = lsGetJSON<
     Record<string, CustomizerContextState>
   >(LS.TASK_VIEW_CUSTOMIZER_BY_CONTEXT, {});
@@ -77,7 +91,7 @@ export class TaskViewCustomizerService {
         this._currentContextKey = `${activeType}:${activeId}`;
         const stored = this._stateByContext[this._currentContextKey];
         this.selectedSort.set(stored?.sort ?? DEFAULT_OPTIONS.sort);
-        this.selectedGroup.set(stored?.group ?? DEFAULT_OPTIONS.group);
+        this.selectedGroup.set(this._sanitizeGroupForContext(stored?.group, activeType));
         this.selectedFilter.set(stored?.filter ?? DEFAULT_OPTIONS.filter);
       });
 
@@ -123,24 +137,28 @@ export class TaskViewCustomizerService {
     }
   }
 
+  private _sanitizeGroupForContext(
+    stored: GroupOption | undefined,
+    activeType: WorkContextType,
+  ): GroupOption {
+    if (!stored) return DEFAULT_OPTIONS.group;
+    if (
+      activeType === WorkContextType.PROJECT &&
+      stored.type === GROUP_OPTION_TYPE.project
+    ) {
+      return DEFAULT_OPTIONS.group;
+    }
+    return stored;
+  }
+
   customizeUndoneTasks(undoneTasks$: Observable<TaskWithSubTasks[]>): Observable<{
     list: TaskWithSubTasks[];
     grouped?: Record<string, TaskWithSubTasks[]>;
   }> {
-    const group$ = toObservable(this.selectedGroup);
-    const tasks$ = group$.pipe(
-      switchMap((group) => {
-        const isCrossContext =
-          group.type === GROUP_OPTION_TYPE.project ||
-          group.type === GROUP_OPTION_TYPE.tag;
-        return isCrossContext ? this._allUndoneTasksWithSubTasks$() : undoneTasks$;
-      }),
-    );
-
     return combineLatest([
-      tasks$,
+      undoneTasks$,
       toObservable(this.selectedSort),
-      group$,
+      toObservable(this.selectedGroup),
       toObservable(this.selectedFilter),
     ]).pipe(
       observeOn(animationFrameScheduler),
@@ -167,27 +185,6 @@ export class TaskViewCustomizerService {
           : undefined;
 
         return { list: sorted, grouped };
-      }),
-    );
-  }
-
-  private _allUndoneTasksWithSubTasks$(): Observable<TaskWithSubTasks[]> {
-    return this.store.select(selectAllTasksWithSubTasks).pipe(
-      map((tasks) => {
-        const hiddenProjectIds = new Set(
-          this._allProjects
-            .filter((p) => p.isHiddenFromMenu || p.isArchived)
-            .map((p) => p.id),
-        );
-        const backlogTaskIds = new Set(
-          this._allProjects.flatMap((p) => p.backlogTaskIds || []),
-        );
-        return tasks.filter(
-          (task) =>
-            !task.isDone &&
-            (!task.projectId || !hiddenProjectIds.has(task.projectId)) &&
-            !backlogTaskIds.has(task.id),
-        );
       }),
     );
   }
