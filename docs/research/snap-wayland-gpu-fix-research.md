@@ -61,12 +61,12 @@ timing (see Section 9).**
 
 ## 2. Scope
 
-| Population | Affected rate | Confidence |
-|---|---|---|
-| Snap + Electron with Wayland-default + Mesa GPU + Wayland session | ~95–100% | High |
-| Snap + X11 | ~0–5% | High |
-| Snap + Nvidia proprietary | Likely unaffected (uses nvidia EGL, not Mesa) | Medium |
-| Non-snap (.deb, AppImage, AUR) | Unaffected | High |
+| Population                                                        | Affected rate                                 | Confidence |
+| ----------------------------------------------------------------- | --------------------------------------------- | ---------- |
+| Snap + Electron with Wayland-default + Mesa GPU + Wayland session | ~95–100%                                      | High       |
+| Snap + X11                                                        | ~0–5%                                         | High       |
+| Snap + Nvidia proprietary                                         | Likely unaffected (uses nvidia EGL, not Mesa) | Medium     |
+| Non-snap (.deb, AppImage, AUR)                                    | Unaffected                                    | High       |
 
 The bug is **conditional**, not universal: Snap + Mesa + Wayland is the
 trigger combination.
@@ -111,14 +111,14 @@ Three observed modes:
 (2026-04-18) against peer-app source repos, GitHub issues, and
 Flathub/snapcrafters packaging. File:line citations linked where applicable.
 
-| App | Approach | Verification |
-|---|---|---|
-| Signal Desktop (snap) | Community-maintained [`snapcrafters/signal-desktop`](https://github.com/snapcrafters/signal-desktop) snap: wrapper at `snap/local/usr/bin/signal-desktop-wrapper` defaults `--disable-gpu` ON unless user runs `snap set signal-desktop enable-gpu=true`. Upstream Signal has no snap packaging. | **Verified** (snapcrafters repo). |
-| Mattermost Desktop (snap) | Community-maintained [`snapcrafters/mattermost-desktop`](https://github.com/snapcrafters/mattermost-desktop): `command-chain` runs `fix-hardware-accel-with-no-renderer`; it probes `glxinfo`, and on llvmpipe match patches `${SNAP_USER_DATA}/.config/Mattermost/config.json` with `jq '.enableHardwareAcceleration = false'`. | **Verified** (snapcrafters repo). |
-| VS Code (snap) | No explicit X11 force. The snap crashes on Wayland (sandbox missing Mesa drivers / GLib schemas) and falls back to XWayland implicitly. See [microsoft/vscode#202072](https://github.com/microsoft/vscode/issues/202072). | **Claim contradicted**: outcome is X11, mechanism is not a wrapper. |
-| electron-builder [#9452](https://github.com/electron-userland/electron-builder/issues/9452) | Title: "Snap package of Electron ≥ 38 crashes at startup under GNOME on Wayland". Maintainer `@mmaietta` engaged; users `andersk` and `valkirilov` confirm `--ozone-platform=x11` as the working workaround. Trigger identified as Electron ≥38.2.0. | **Verified — strongest external reference.** |
-| Teams-for-Linux | Sets `build.linux.executableArgs: ["--ozone-platform=x11"]` and `build.snap.executableArgs: [...]` in electron-builder config; **no `afterPack` wrapper**. The snap-side setting is dead code per [electron-builder#4587](https://github.com/electron-userland/electron-builder/issues/4587) — `executableArgs` is silently ignored for snap builds. | **Claim partly contradicted**: intended mechanism is `executableArgs`, which is broken on snap. |
-| Obsidian (Flatpak) | Wrapper [`obsidian.sh`](https://github.com/flathub/md.obsidian.Obsidian/blob/master/obsidian.sh) probes for Wayland socket; adds `--ozone-platform-hint=auto` under Wayland, else `--ozone-platform=x11`; respects `OBSIDIAN_DISABLE_GPU` env var. Not snap, but illustrates the compositor+GPU-probe wrapper pattern. | **Verified** (flathub repo). |
+| App                                                                                         | Approach                                                                                                                                                                                                                                                                                                                                             | Verification                                                                                    |
+| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Signal Desktop (snap)                                                                       | Community-maintained [`snapcrafters/signal-desktop`](https://github.com/snapcrafters/signal-desktop) snap: wrapper at `snap/local/usr/bin/signal-desktop-wrapper` defaults `--disable-gpu` ON unless user runs `snap set signal-desktop enable-gpu=true`. Upstream Signal has no snap packaging.                                                     | **Verified** (snapcrafters repo).                                                               |
+| Mattermost Desktop (snap)                                                                   | Community-maintained [`snapcrafters/mattermost-desktop`](https://github.com/snapcrafters/mattermost-desktop): `command-chain` runs `fix-hardware-accel-with-no-renderer`; it probes `glxinfo`, and on llvmpipe match patches `${SNAP_USER_DATA}/.config/Mattermost/config.json` with `jq '.enableHardwareAcceleration = false'`.                     | **Verified** (snapcrafters repo).                                                               |
+| VS Code (snap)                                                                              | No explicit X11 force. The snap crashes on Wayland (sandbox missing Mesa drivers / GLib schemas) and falls back to XWayland implicitly. See [microsoft/vscode#202072](https://github.com/microsoft/vscode/issues/202072).                                                                                                                            | **Claim contradicted**: outcome is X11, mechanism is not a wrapper.                             |
+| electron-builder [#9452](https://github.com/electron-userland/electron-builder/issues/9452) | Title: "Snap package of Electron ≥ 38 crashes at startup under GNOME on Wayland". Maintainer `@mmaietta` engaged; users `andersk` and `valkirilov` confirm `--ozone-platform=x11` as the working workaround. Trigger identified as Electron ≥38.2.0.                                                                                                 | **Verified — strongest external reference.**                                                    |
+| Teams-for-Linux                                                                             | Sets `build.linux.executableArgs: ["--ozone-platform=x11"]` and `build.snap.executableArgs: [...]` in electron-builder config; **no `afterPack` wrapper**. The snap-side setting is dead code per [electron-builder#4587](https://github.com/electron-userland/electron-builder/issues/4587) — `executableArgs` is silently ignored for snap builds. | **Claim partly contradicted**: intended mechanism is `executableArgs`, which is broken on snap. |
+| Obsidian (Flatpak)                                                                          | Wrapper [`obsidian.sh`](https://github.com/flathub/md.obsidian.Obsidian/blob/master/obsidian.sh) probes for Wayland socket; adds `--ozone-platform-hint=auto` under Wayland, else `--ozone-platform=x11`; respects `OBSIDIAN_DISABLE_GPU` env var. Not snap, but illustrates the compositor+GPU-probe wrapper pattern.                               | **Verified** (flathub repo).                                                                    |
 
 What **is** solid: every peer Electron app with a Wayland/GPU workaround on
 Snap uses either an X11 fallback or a GPU-disable; the only maintainer-
@@ -164,14 +164,14 @@ base bump.
 
 ## 7. Options (Ranked)
 
-| # | Option | Fixes errors | Keeps HW accel | Scope | Effort | Evidence alignment |
-|---|---|---|---|---|---|---|
-| 1 | **Narrow: `--ozone-platform=x11` via `app.commandLine.appendSwitch` when Snap + Wayland** | Yes for ~95% | Yes (X11/GLX) | Snap only, conditional | ~1 file, ~20 LOC | Strongest — electron-builder #9452 maintainer + users converge on `--ozone-platform=x11`; matches SP's existing mechanism |
-| 2 | Disable GPU default on Snap, opt-in via env/config | Yes | **No** — loses HW accel for working users | Snap only, unconditional | One-liner + doc | Evidence-backed but blunt |
-| 3 | `afterPack` wrapper: detect GPU at launch, conditionally add flags | Yes when detection works | Yes when works | Snap only | `afterPack` script + wrapper | GL-probe false negatives are a known failure mode |
-| 4 | Migrate to `core24` + custom snapcraft.yaml + `gpu-2404` | Yes (fundamental) | Yes | All Snap users | 1–2 days + auto-connect wait | Best long-term; orthogonal to this PR |
-| 5 | Runtime detection + relaunch (`app.on('child-process-gone')`) | Yes after 1 bad launch | Yes for working users | Snap only | Medium | Clever, but first-launch UX is bad |
-| 6 | Status quo + FAQ | No | Yes | — | Zero | Abandons affected users (issue #5672) |
+| #   | Option                                                                                    | Fixes errors             | Keeps HW accel                            | Scope                    | Effort                       | Evidence alignment                                                                                                        |
+| --- | ----------------------------------------------------------------------------------------- | ------------------------ | ----------------------------------------- | ------------------------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **Narrow: `--ozone-platform=x11` via `app.commandLine.appendSwitch` when Snap + Wayland** | Yes for ~95%             | Yes (X11/GLX)                             | Snap only, conditional   | ~1 file, ~20 LOC             | Strongest — electron-builder #9452 maintainer + users converge on `--ozone-platform=x11`; matches SP's existing mechanism |
+| 2   | Disable GPU default on Snap, opt-in via env/config                                        | Yes                      | **No** — loses HW accel for working users | Snap only, unconditional | One-liner + doc              | Evidence-backed but blunt                                                                                                 |
+| 3   | `afterPack` wrapper: detect GPU at launch, conditionally add flags                        | Yes when detection works | Yes when works                            | Snap only                | `afterPack` script + wrapper | GL-probe false negatives are a known failure mode                                                                         |
+| 4   | Migrate to `core24` + custom snapcraft.yaml + `gpu-2404`                                  | Yes (fundamental)        | Yes                                       | All Snap users           | 1–2 days + auto-connect wait | Best long-term; orthogonal to this PR                                                                                     |
+| 5   | Runtime detection + relaunch (`app.on('child-process-gone')`)                             | Yes after 1 bad launch   | Yes for working users                     | Snap only                | Medium                       | Clever, but first-launch UX is bad                                                                                        |
+| 6   | Status quo + FAQ                                                                          | No                       | Yes                                       | —                        | Zero                         | Abandons affected users (issue #5672)                                                                                     |
 
 ---
 
@@ -234,13 +234,13 @@ risk of new regressions right after shipping 18.2.x. Schedule for 18.3 or
 
 ## 9. Confidence
 
-| Claim | Confidence |
-|---|---|
-| Direction (X11 fallback for Snap + Wayland) | **High** — converged from multiple independent threads (peer app community reports, GitHub issues, scope matrix, Canonical position, escape hatches) |
-| Exact gating predicate (Snap + Wayland vs. just Snap) | **Medium-high** — Wayland is the proximate trigger, but a few X11 reports exist. Keeping the gnome-platform-empty probe as a fallback is the belt-and-suspenders move |
-| `core24` migration as the real long-term fix | **High** on direction, **medium** on timing |
+| Claim                                                                         | Confidence                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Direction (X11 fallback for Snap + Wayland)                                   | **High** — converged from multiple independent threads (peer app community reports, GitHub issues, scope matrix, Canonical position, escape hatches)                                                                                                                                                     |
+| Exact gating predicate (Snap + Wayland vs. just Snap)                         | **Medium-high** — Wayland is the proximate trigger, but a few X11 reports exist. Keeping the gnome-platform-empty probe as a fallback is the belt-and-suspenders move                                                                                                                                    |
+| `core24` migration as the real long-term fix                                  | **High** on direction, **medium** on timing                                                                                                                                                                                                                                                              |
 | Dec 2025 reports correlate with Chromium 140 / Electron ≥38.2 Wayland-default | **High** — SP was on Electron 39.2.5 in Dec 2025 (verified via tagged `package.json`); Chromium 140 (Aug 2025) flipped `--ozone-platform-hint=auto`; [electron-builder#9452](https://github.com/electron-userland/electron-builder/issues/9452) independently identifies Electron ≥38.2.0 as the trigger |
-| Peer-app implementation details in Section 5 | **High** — verified in follow-up pass against snapcrafters repos, `microsoft/vscode#202072`, `electron-builder#4587`, `flathub/md.obsidian.Obsidian`; several original claims contradicted and reframed |
+| Peer-app implementation details in Section 5                                  | **High** — verified in follow-up pass against snapcrafters repos, `microsoft/vscode#202072`, `electron-builder#4587`, `flathub/md.obsidian.Obsidian`; several original claims contradicted and reframed                                                                                                  |
 
 ---
 
@@ -349,12 +349,12 @@ it's strictly better than a non-launching window.
 
 ### Complementary layering (recommended)
 
-| Layer | Where | Who it helps |
-|---|---|---|
-| Snap + Wayland → `--ozone-platform=x11` | `start-app.ts` (shipped in 18.2.3) | ~95% of Snap Wayland users; keeps HW accel |
-| Snap/Flatpak + previous crash → `--disable-gpu` | `gpu-startup-guard.ts` (PR #7273) | Remaining users: Snap X11 with Mesa ABI drift, Flatpak, any future GPU-init regression |
-| Env overrides (`SP_DISABLE_GPU`, `SP_ENABLE_GPU`) | Both | Debugging, user escape hatches |
-| `core24` + `gpu-2404` migration | Packaging | All Snap users, long term (18.3 / 19.0) |
+| Layer                                             | Where                              | Who it helps                                                                           |
+| ------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------- |
+| Snap + Wayland → `--ozone-platform=x11`           | `start-app.ts` (shipped in 18.2.3) | ~95% of Snap Wayland users; keeps HW accel                                             |
+| Snap/Flatpak + previous crash → `--disable-gpu`   | `gpu-startup-guard.ts` (PR #7273)  | Remaining users: Snap X11 with Mesa ABI drift, Flatpak, any future GPU-init regression |
+| Env overrides (`SP_DISABLE_GPU`, `SP_ENABLE_GPU`) | Both                               | Debugging, user escape hatches                                                         |
+| `core24` + `gpu-2404` migration                   | Packaging                          | All Snap users, long term (18.3 / 19.0)                                                |
 
 The research doc's Section 7 framed the options as exclusive. PR #7273
 demonstrates they are composable: Option 1 handles the common case with
@@ -363,15 +363,15 @@ the cost.
 
 ### Risk analysis of PR #7273
 
-| Risk | Likelihood | Mitigation in the PR |
-|---|---|---|
-| User force-quits during normal boot → marker stays → next launch unnecessarily disables GPU | Medium (OS updates, system sleep, SIGKILL on crash elsewhere) | Marker is removed on next `APP_READY`, so cost is capped at one GPU-disabled launch |
-| `APP_READY` IPC doesn't fire (renderer hangs post-Angular-init) → marker never cleared → permanent `--disable-gpu` | Low | Manual escape: `SP_ENABLE_GPU=1` env var or delete `.gpu-launch-incomplete` |
-| Marker write fails (read-only userData, NFS quirks) → guard silently skips, but legacy cleanup still runs | Very low on Snap (`SNAP_USER_COMMON` is always writable) | Errors caught and logged, launch proceeds without guard |
-| False positive on first install after upgrade from a build without the guard | None | Fresh install has no marker; upgrade path writes a new marker on first launch only |
-| `FLATPAK_ID` detection misses edge cases (e.g., custom Flatpak manifests that unset the env) | Low | The env override (`SP_DISABLE_GPU`) still works for those users |
-| `--disable-gpu` breaks a renderer feature we depend on (e.g., WebGL-backed chart) | None identified | SP UI is DOM+text; no WebGL path confirmed |
-| Marker path races with the `app.setPath('userData', ...)` call for Snap (line 149 of `start-app.ts`) | None — PR places `evaluateGpuStartupGuard` **after** the Snap userData redirect | PR comment explicitly flags this invariant |
+| Risk                                                                                                               | Likelihood                                                                      | Mitigation in the PR                                                                |
+| ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| User force-quits during normal boot → marker stays → next launch unnecessarily disables GPU                        | Medium (OS updates, system sleep, SIGKILL on crash elsewhere)                   | Marker is removed on next `APP_READY`, so cost is capped at one GPU-disabled launch |
+| `APP_READY` IPC doesn't fire (renderer hangs post-Angular-init) → marker never cleared → permanent `--disable-gpu` | Low                                                                             | Manual escape: `SP_ENABLE_GPU=1` env var or delete `.gpu-launch-incomplete`         |
+| Marker write fails (read-only userData, NFS quirks) → guard silently skips, but legacy cleanup still runs          | Very low on Snap (`SNAP_USER_COMMON` is always writable)                        | Errors caught and logged, launch proceeds without guard                             |
+| False positive on first install after upgrade from a build without the guard                                       | None                                                                            | Fresh install has no marker; upgrade path writes a new marker on first launch only  |
+| `FLATPAK_ID` detection misses edge cases (e.g., custom Flatpak manifests that unset the env)                       | Low                                                                             | The env override (`SP_DISABLE_GPU`) still works for those users                     |
+| `--disable-gpu` breaks a renderer feature we depend on (e.g., WebGL-backed chart)                                  | None identified                                                                 | SP UI is DOM+text; no WebGL path confirmed                                          |
+| Marker path races with the `app.setPath('userData', ...)` call for Snap (line 149 of `start-app.ts`)               | None — PR places `evaluateGpuStartupGuard` **after** the Snap userData redirect | PR comment explicitly flags this invariant                                          |
 
 ### Testing gap
 
@@ -442,8 +442,8 @@ which is the ABI-drift source we care about. **However**, Ozone platform
 init (Wayland client) and GL-context probing still occur before fallback
 — whether `libgbm.so` is dlopen'd on the SwiftShader path specifically
 on Linux/Ozone is **unverified**; the fallback doc is silent on Linux-
-desktop specifics. On the evidence we have, `--disable-gpu` is *likely
-sufficient* to avoid the `core22-mesa-backports` DRI-driver ABI mismatch
+desktop specifics. On the evidence we have, `--disable-gpu` is _likely
+sufficient_ to avoid the `core22-mesa-backports` DRI-driver ABI mismatch
 signature (which is Mesa DRI, not GBM), but Section 12's "no Mesa, no
 libgbm, no DRI" bullet should be softened to "no hardware Mesa DRI
 driver load" — not "no GPU process."
@@ -474,9 +474,9 @@ Verified from SP source:
   still fire `ready-to-show`" is correct.
 
 **Consequence:** if Angular boots but any later feature crashes the
-renderer *after* `APP_READY`, the marker is already gone — next launch
+renderer _after_ `APP_READY`, the marker is already gone — next launch
 is treated as clean (correct behavior: Angular init succeeded, so GPU
-init also succeeded). If the renderer crashes *before* `APP_READY` but
+init also succeeded). If the renderer crashes _before_ `APP_READY` but
 after the window appears, user sees a broken window and next launch
 disables GPU. This is desired for GPU init failures, but **the same
 signal fires for any crash during Angular bootstrap** (dependency
@@ -486,12 +486,12 @@ self-heals.
 
 #### 3. Alternatives to the pre-launch marker
 
-| Signal | More precise? | Verdict |
-|---|---|---|
-| `app.on('child-process-gone', {type:'GPU', reason:'launch-failed'})` | Yes — distinguishes GPU-init from generic renderer crashes ([electronjs.org/docs/latest/api/app](https://www.electronjs.org/docs/latest/api/app) — `launch-failed` = "Process never successfully launched") | **Useful complement**, but unreliable when the GPU process *hangs* rather than exits (Section 12 notes this is the dominant failure mode per Section 3). Also fires mid-launch, forcing a relaunch with its own UX costs. |
-| `app.on('render-process-gone', reason:'crashed')` | No — fires for any renderer crash | Same false-positive surface as the marker, fires mid-launch. |
-| `app.getGPUInfo('complete')` at startup | No — promise is **reported** to never settle on some broken systems ([electron#17187](https://github.com/electron/electron/issues/17187)); Electron docs don't guarantee this behavior | **Reject** — would hang the app on affected systems. |
-| `gpu-info-update` + `getGPUInfo('basic')` | No — basic info always reports `softwareRendering: false` ([electron#17447](https://github.com/electron/electron/issues/17447)) | **Reject.** |
+| Signal                                                               | More precise?                                                                                                                                                                                               | Verdict                                                                                                                                                                                                                   |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app.on('child-process-gone', {type:'GPU', reason:'launch-failed'})` | Yes — distinguishes GPU-init from generic renderer crashes ([electronjs.org/docs/latest/api/app](https://www.electronjs.org/docs/latest/api/app) — `launch-failed` = "Process never successfully launched") | **Useful complement**, but unreliable when the GPU process _hangs_ rather than exits (Section 12 notes this is the dominant failure mode per Section 3). Also fires mid-launch, forcing a relaunch with its own UX costs. |
+| `app.on('render-process-gone', reason:'crashed')`                    | No — fires for any renderer crash                                                                                                                                                                           | Same false-positive surface as the marker, fires mid-launch.                                                                                                                                                              |
+| `app.getGPUInfo('complete')` at startup                              | No — promise is **reported** to never settle on some broken systems ([electron#17187](https://github.com/electron/electron/issues/17187)); Electron docs don't guarantee this behavior                      | **Reject** — would hang the app on affected systems.                                                                                                                                                                      |
+| `gpu-info-update` + `getGPUInfo('basic')`                            | No — basic info always reports `softwareRendering: false` ([electron#17447](https://github.com/electron/electron/issues/17447))                                                                             | **Reject.**                                                                                                                                                                                                               |
 
 Best pattern: **marker as primary + `child-process-gone` with
 `type:'GPU'` writing a second marker with `reason: 'launch-failed'`** to
@@ -531,13 +531,13 @@ canonical name. Common terms in the literature: **"launch-crash
 detection"** (BugSnag), **"crash loop breaker"** (Sentry), and
 **"startup-crash marker"** (Firefox internals).
 
-| Implementation | Mechanism | Source |
-|---|---|---|
-| Firefox | `toolkit.startup.recent_crashes` pref is incremented on startup-without-clean-shutdown and compared against `max_resumed_crashes` to auto-offer Troubleshoot/Safe Mode. Handled in `nsAppRunner.cpp` via `XRE_mainInit`. | [Bugzilla 294260](https://bugzilla.mozilla.org/show_bug.cgi?id=294260), [Bugzilla 745154](https://bugzilla.mozilla.org/show_bug.cgi?id=745154), [nsAppRunner.cpp (searchfox)](https://searchfox.org/firefox-main/source/toolkit/xre/nsAppRunner.cpp) |
-| Chromium | `GpuProcessHost::RecordProcessCrash()` maintains an in-process crash counter; after `kGpuFallbackCrashCount` crashes it pops the next mode off `GpuDataManagerImplPrivate::fallback_modes_` (HW Vulkan → HW GL → SwiftShader → DisplayCompositor). State is **not** disk-persisted across browser restarts — this is the gap PR #7273 fills for Electron apps. | [fallback.md](https://chromium.googlesource.com/chromium/src/+/60b3c74b7f2ca17a28907fb0b40d9dabeaa48326/content/browser/gpu/fallback.md) |
-| BugSnag | 5-second window after `Bugsnag.start()`; exposes `lastRunInfo.crashedDuringLaunch` so apps can self-remediate. | [BugSnag — Identifying crashes at launch (Android)](https://docs.bugsnag.com/platforms/android/identifying-crashes-at-launch/) |
-| Sentry Cocoa | Open feature request for a native crash-loop detector; ecosystem confirms the pattern is general. | [sentry-cocoa #3639](https://github.com/getsentry/sentry-cocoa/issues/3639) |
-| VS Code / Discord / Slack / Obsidian / Figma | **No automatic self-healing found.** All rely on manual user action (`--disable-gpu`, settings toggle, delete GPUCache). | [vscode FAQ](https://code.visualstudio.com/docs/supporting/FAQ), [microsoft/vscode #214446](https://github.com/microsoft/vscode/issues/214446) |
+| Implementation                               | Mechanism                                                                                                                                                                                                                                                                                                                                                      | Source                                                                                                                                                                                                                                               |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Firefox                                      | `toolkit.startup.recent_crashes` pref is incremented on startup-without-clean-shutdown and compared against `max_resumed_crashes` to auto-offer Troubleshoot/Safe Mode. Handled in `nsAppRunner.cpp` via `XRE_mainInit`.                                                                                                                                       | [Bugzilla 294260](https://bugzilla.mozilla.org/show_bug.cgi?id=294260), [Bugzilla 745154](https://bugzilla.mozilla.org/show_bug.cgi?id=745154), [nsAppRunner.cpp (searchfox)](https://searchfox.org/firefox-main/source/toolkit/xre/nsAppRunner.cpp) |
+| Chromium                                     | `GpuProcessHost::RecordProcessCrash()` maintains an in-process crash counter; after `kGpuFallbackCrashCount` crashes it pops the next mode off `GpuDataManagerImplPrivate::fallback_modes_` (HW Vulkan → HW GL → SwiftShader → DisplayCompositor). State is **not** disk-persisted across browser restarts — this is the gap PR #7273 fills for Electron apps. | [fallback.md](https://chromium.googlesource.com/chromium/src/+/60b3c74b7f2ca17a28907fb0b40d9dabeaa48326/content/browser/gpu/fallback.md)                                                                                                             |
+| BugSnag                                      | 5-second window after `Bugsnag.start()`; exposes `lastRunInfo.crashedDuringLaunch` so apps can self-remediate.                                                                                                                                                                                                                                                 | [BugSnag — Identifying crashes at launch (Android)](https://docs.bugsnag.com/platforms/android/identifying-crashes-at-launch/)                                                                                                                       |
+| Sentry Cocoa                                 | Open feature request for a native crash-loop detector; ecosystem confirms the pattern is general.                                                                                                                                                                                                                                                              | [sentry-cocoa #3639](https://github.com/getsentry/sentry-cocoa/issues/3639)                                                                                                                                                                          |
+| VS Code / Discord / Slack / Obsidian / Figma | **No automatic self-healing found.** All rely on manual user action (`--disable-gpu`, settings toggle, delete GPUCache).                                                                                                                                                                                                                                       | [vscode FAQ](https://code.visualstudio.com/docs/supporting/FAQ), [microsoft/vscode #214446](https://github.com/microsoft/vscode/issues/214446)                                                                                                       |
 
 SP PR #7273 is therefore **novel in the Electron ecosystem** but follows
 an established browser-native pattern (Firefox's `recent_crashes`,
@@ -572,14 +572,18 @@ existing SP util test patterns (see `src/app/util/real-timer.spec.ts`).
 // electron/gpu-startup-guard.spec.ts  (requires the DI refactor below)
 import { evaluateGpuStartupGuard } from './gpu-startup-guard';
 
-type FakeFs = Pick<typeof import('fs'),
-  'existsSync' | 'writeFileSync' | 'unlinkSync' | 'mkdirSync'>;
+type FakeFs = Pick<
+  typeof import('fs'),
+  'existsSync' | 'writeFileSync' | 'unlinkSync' | 'mkdirSync'
+>;
 
 const makeFs = (initial: Record<string, boolean> = {}) => {
   const files: Record<string, boolean> = { ...initial };
   const fs: FakeFs = {
     existsSync: (p) => !!files[p as string],
-    writeFileSync: (p) => { files[p as string] = true; },
+    writeFileSync: (p) => {
+      files[p as string] = true;
+    },
     unlinkSync: (p) => {
       if (!files[p as string]) {
         throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
@@ -597,21 +601,36 @@ describe('evaluateGpuStartupGuard', () => {
 
   it('confined + no marker → writes marker, does not disable GPU', () => {
     const { fs, files } = makeFs();
-    const d = evaluateGpuStartupGuard({ userDataPath: USER, env: CONFINED, platform: 'linux', fs });
+    const d = evaluateGpuStartupGuard({
+      userDataPath: USER,
+      env: CONFINED,
+      platform: 'linux',
+      fs,
+    });
     expect(d.disableGpu).toBeFalse();
     expect(files[`${USER}/.gpu-launch-incomplete`]).toBeTrue();
   });
 
   it('confined + marker present → disables GPU with reason=crash-recovery', () => {
     const { fs } = makeFs({ [`${USER}/.gpu-launch-incomplete`]: true });
-    const d = evaluateGpuStartupGuard({ userDataPath: USER, env: CONFINED, platform: 'linux', fs });
-    expect(d).toEqual(jasmine.objectContaining({ disableGpu: true, reason: 'crash-recovery' }));
+    const d = evaluateGpuStartupGuard({
+      userDataPath: USER,
+      env: CONFINED,
+      platform: 'linux',
+      fs,
+    });
+    expect(d).toEqual(
+      jasmine.objectContaining({ disableGpu: true, reason: 'crash-recovery' }),
+    );
   });
 
   it('SP_ENABLE_GPU=1 overrides a present marker', () => {
     const { fs } = makeFs({ [`${USER}/.gpu-launch-incomplete`]: true });
     const d = evaluateGpuStartupGuard({
-      userDataPath: USER, env: { ...CONFINED, SP_ENABLE_GPU: '1' }, platform: 'linux', fs,
+      userDataPath: USER,
+      env: { ...CONFINED, SP_ENABLE_GPU: '1' },
+      platform: 'linux',
+      fs,
     });
     expect(d.disableGpu).toBeFalse();
   });
@@ -619,7 +638,10 @@ describe('evaluateGpuStartupGuard', () => {
   it('SP_DISABLE_GPU=1 on non-confined Linux → env reason, no marker', () => {
     const { fs, files } = makeFs();
     const d = evaluateGpuStartupGuard({
-      userDataPath: USER, env: { SP_DISABLE_GPU: '1' }, platform: 'linux', fs,
+      userDataPath: USER,
+      env: { SP_DISABLE_GPU: '1' },
+      platform: 'linux',
+      fs,
     });
     expect(d.disableGpu).toBeTrue();
     expect(d.reason).toBe('env');
@@ -628,7 +650,12 @@ describe('evaluateGpuStartupGuard', () => {
 
   it('non-confined Linux → noop, markerPath=null', () => {
     const { fs } = makeFs();
-    const d = evaluateGpuStartupGuard({ userDataPath: USER, env: {}, platform: 'linux', fs });
+    const d = evaluateGpuStartupGuard({
+      userDataPath: USER,
+      env: {},
+      platform: 'linux',
+      fs,
+    });
     expect(d).toEqual({ disableGpu: false, reason: null, markerPath: null });
   });
 
@@ -644,9 +671,16 @@ describe('evaluateGpuStartupGuard', () => {
 
   it('fs.writeFileSync throwing does not break the decision', () => {
     const { fs } = makeFs();
-    fs.writeFileSync = () => { throw new Error('EROFS'); };
+    fs.writeFileSync = () => {
+      throw new Error('EROFS');
+    };
     expect(() =>
-      evaluateGpuStartupGuard({ userDataPath: USER, env: CONFINED, platform: 'linux', fs }),
+      evaluateGpuStartupGuard({
+        userDataPath: USER,
+        env: CONFINED,
+        platform: 'linux',
+        fs,
+      }),
     ).not.toThrow();
   });
 });
@@ -666,7 +700,7 @@ behavior change, fully unit-testable.
   the override **does** clear the marker on success. That is correct:
   the user asserted "GPU is fine now," a successful boot confirms it,
   and fresh crash tracking starts from zero. If the override is
-  removed and GPU fails again, the *next* launch writes a fresh marker
+  removed and GPU fails again, the _next_ launch writes a fresh marker
   and the one after that triggers recovery — two failed launches to
   re-trigger, one more than without the override. Acceptable tradeoff;
   document it. Confidence: high.
@@ -682,6 +716,7 @@ behavior change, fully unit-testable.
 
 PR #7273 is a **genuine stopgap**, not a replacement for `core24` +
 `gpu-2404` migration. Rationale:
+
 1. `--disable-gpu` forces software rendering — fine for SP's DOM/text
    UI but still a visible perf regression vs. HW-accelerated X11/GLX
    (SP's v18.2.3 path).
@@ -717,14 +752,14 @@ Notable agreement:
   "all later renderer failures are covered." Recommend applying this
   in-line in Section 12.
 - **Prior art honesty**: codex explicitly labels "crash sentinel" /
-  "unclean-shutdown marker" as *informal inference*, not a verified
+  "unclean-shutdown marker" as _informal inference_, not a verified
   upstream term. 13.2 cites BugSnag/Sentry/Firefox labels but the SP-
   specific `userData` variant isn't in peer Electron apps.
   Confidence: medium, not high.
 - **`SP_ENABLE_GPU=1` marker-clearing**: codex independently reaches
   the same conclusion as 13.2 (successful boot acknowledges prior
   crash; matches browser convention). If a one-shot diagnostic
-  override is ever wanted that does *not* acknowledge success, it
+  override is ever wanted that does _not_ acknowledge success, it
   should be a separate env var.
 
 Codex's unique contribution:
@@ -804,14 +839,14 @@ grepped) or explicitly rejected where agents disagreed.
   the Linux `--disable-gpu` behavior.
 - **§13.1§1 `--disable-software-rasterizer` strength**: codex's
   verification cautions that DISPLAY_COMPOSITOR is still a GPU-process
-  mode, so that flag doesn't *guarantee* "no GPU process" either.
+  mode, so that flag doesn't _guarantee_ "no GPU process" either.
   Keep the flag as cheap belt-and-braces (no WebGL dep in SP) but
   drop the framing that it fully suppresses the GPU process.
 
 ### Disagreements resolved
 
 - **"`SP_ENABLE_GPU=1` crash leaves no marker → no recovery"** (Agents
-  B and C): **rejected.** A stale marker from a *previous* crash
+  B and C): **rejected.** A stale marker from a _previous_ crash
   persists across the override path — the early return at `pr7273.diff:54`
   does not clear the marker, it just returns early before potentially
   writing a fresh one. Sequence: crash → marker written →
@@ -833,7 +868,7 @@ grepped) or explicitly rejected where agents disagreed.
   corrected by Agent D): reworded. `APP_READY` is sent from the
   synchronous body of `StartupService.init()` (async function; no
   awaits precede it on the Electron path today). The constructor
-  *calls* `init()` but doesn't *fire* `APP_READY` itself. Brittle to
+  _calls_ `init()` but doesn't _fire_ `APP_READY` itself. Brittle to
   upstream refactor (adding an `await` earlier would shift timing).
 - **"`_initBackups()` is awaited and can strand APP_READY"** (Agent
   C): **rejected.** `startup.service.ts:104` is `this._initBackups();`
@@ -846,7 +881,7 @@ grepped) or explicitly rejected where agents disagreed.
   frequent suspend/hibernate can leave markers without a real GPU
   crash. Consider time-bounding the marker (e.g., ignore if marker age
   > 5 minutes — suggests systemd shutdown SIGKILL, not a fast GPU
-  crash).
+  > crash).
 - **First-install `mkdirSync` is load-bearing**: on first-ever Snap
   install, `$SNAP_USER_COMMON/.config/superproductivity` does not
   exist. Electron's `app.setPath('userData', …)` does NOT create the
@@ -980,7 +1015,7 @@ mechanically-wrong code comment. None are blockers.
 
 ### Confidence
 
-- **High** that PR #7273 is the right *class* of fix for the residual
+- **High** that PR #7273 is the right _class_ of fix for the residual
   tail that PR #7266 doesn't cover (GPU process hangs without
   `child-process-gone`, Flatpak, X11 users with ABI-drifted Mesa).
 - **High** that the three bugs listed above are real and should be
@@ -996,16 +1031,21 @@ mechanically-wrong code comment. None are blockers.
 
 ## 16. Field Data — Issue #7270 Follow-up (2026-04-20)
 
-First post-release field report on the Snap+Wayland X11 widening
-shipped in **v18.2.4** (PR #7266). Reporter
+Two post-release field reports on the Snap+Wayland X11 widening shipped
+in **v18.2.4** (PR #7266). First reporter
 [DerEchteKoschi](https://github.com/super-productivity/super-productivity/issues/7270#issuecomment-4279998170)
 labels their install as `18.2.3`, but the attached log contains the
 `"Snap: forcing X11 (wayland=true, gnomePlatformMissing=false, ..."`
 string which **only exists in v18.2.4** (verified via
 `git show v18.2.3:electron/start-app.ts` vs `v18.2.4`). Treat this as a
-**v18.2.4 report**.
+**v18.2.4 report**. Second reporter
+[nekufa](https://github.com/super-productivity/super-productivity/issues/7270#issuecomment-4280307166)
+is on snap revision 3482 (`latest/edge`, v18.2.4) — the same log string
+confirms the guard is active.
 
-### Environment (new to the analysis)
+### Environments (new to the analysis)
+
+**DerEchteKoschi:**
 
 - Ubuntu **24.04** (prior analysis was 22.04-centric).
 - Snap revision 3480, confined.
@@ -1013,31 +1053,52 @@ string which **only exists in v18.2.4** (verified via
   not covered by the `core22-mesa-backports` PPA's Mesa.
 - Wayland session (`XDG_SESSION_TYPE=wayland`, `WAYLAND_DISPLAY=wayland-0`).
 
+**nekufa:**
+
+- Ubuntu **25.10** (`questing`) — even further from core22's mesa baseline.
+- Snap revision 3482 (`latest/edge`), confined.
+- **AMD Raphael** (Zen4 iGPU, `amdgpu`) — a 2022 part, _not_ new hardware.
+- Wayland session (`XDG_SESSION_TYPE=wayland`, `WAYLAND_DISPLAY=wayland-0`).
+
+The two reports span both GPU vendors and two Ubuntu releases newer
+than 22.04. The failure pattern is identical; host-GPU generation is
+**not** the discriminator.
+
 ### What the log proves
 
-1. **#7266's guard fires correctly**: `Snap: forcing X11 (wayland=true, gnomePlatformMissing=false, XDG_SESSION_TYPE=wayland, WAYLAND_DISPLAY=set)`.
+Both logs share the same failure pattern:
+
+1. **#7266's guard fires correctly** on both: `Snap: forcing X11 (wayland=true, gnomePlatformMissing=false, XDG_SESSION_TYPE=wayland, WAYLAND_DISPLAY=set)`.
 2. **Mesa DRI still fails**: `MESA-LOADER: failed to open dri:
-   /usr/lib/x86_64-linux-gnu/gbm/dri_gbm.so: cannot open shared object
-   file` — repeated N times on both the pre-X11-init and post-X11-init
+/usr/lib/x86_64-linux-gnu/gbm/dri_gbm.so: cannot open shared object
+file` — repeated N times on both the pre-X11-init and post-X11-init
    log lines.
 3. **GPU process enters respawn loop on the X11 path**:
    `GPU process exited unexpectedly: exit_code=139` (SIGSEGV) at
    least 3 times within ~400ms. Even with `ozone-platform=x11` applied,
    the GPU process is segfaulting because Mesa DRI can't load.
 4. **`[ERROR:ui/base/x/x11_software_bitmap_presenter.cc:147]
-   XGetWindowAttributes failed for window 1`** — X11 presenter also
+XGetWindowAttributes failed for window 1`** — X11 presenter also
    fails; system compositor context is not usable to Chromium from
    inside this snap sandbox.
-5. **`vaInitialize failed: unknown libva error`** — VA-API (Intel
-   video accel) also broken.
+5. **`vaInitialize failed: unknown libva error`** — VA-API broken on
+   both (DerEchteKoschi via `i965`/Intel path; nekufa via
+   `radeonsi_drv_video.so`/AMD path).
 6. **`dbus-send: ... libdbus-1.so.3: version LIBDBUS_PRIVATE_1.12.20
-   not found (required by dbus-send)`** — bundled libdbus in the
+not found (required by dbus-send)`** — bundled libdbus in the
    snap is **older** than what the copied `dbus-send` expects. Runtime
-   mismatch inside the snap itself.
+   mismatch inside the snap itself. Reproduces on both 24.04 and 25.10.
 7. **Gtk pixbuf icon theme loading fails** across hundreds of log
-   lines — orthogonal snap/AppArmor issue on 24.04.
-8. App eventually quits (`App before-quit: cleaning up resources` at
-   12:44:25, ~18s after launch) without ever showing a window.
+   lines — orthogonal snap/AppArmor issue, present on both hosts.
+8. App eventually quits without ever showing a window.
+
+**nekufa-specific caveat:** the user's CLI invocation was
+`superproductivity --ozon-platform=x11` (typo: missing `e`). Per
+`electron/start-app.ts:73-75`, `hasOzoneOverride` only matches
+`--ozone-platform`, so the programmatic `appendSwitch` still ran. The
+log therefore reflects the **default/programmatic path**, not a CLI
+override — it's a clean test of what v18.2.4 ships. A correctly-spelled
+retest has been requested on the thread.
 
 ### What this changes in the research doc
 
@@ -1045,16 +1106,18 @@ string which **only exists in v18.2.4** (verified via
 with Wayland-default + Mesa GPU + Wayland session: ~95–100% fixed" is
 optimistic. A more honest framing:
 
-| Population | Fixed by #7266 alone | Needs #7273 or manual flag |
-|---|---|---|
-| Snap+Wayland, core22-mesa-backports Mesa aligned with Electron's libgbm | ~high | — |
-| Snap+Wayland, **Mesa too old for host GPU (Arrow Lake, newer)** | **No** | Yes |
-| Snap+Wayland, Ubuntu 24.04 host + core22 snap runtime mismatch | Partially | Likely yes |
-| Snap+X11 users with drifted Mesa | No (guard doesn't fire) | Yes |
+| Population                                                                                       | Fixed by #7266 alone    | Needs #7273 or manual flag |
+| ------------------------------------------------------------------------------------------------ | ----------------------- | -------------------------- |
+| Snap+Wayland, core22-mesa-backports Mesa aligned with Electron's libgbm                          | ~high                   | —                          |
+| Snap+Wayland, **host Mesa/libgbm drifted from core22 baseline** (any vendor, any Ubuntu ≥ 24.04) | **No**                  | Yes                        |
+| Snap+Wayland, Ubuntu 24.04+ host + core22 snap runtime mismatch (libdbus, libva, pixbuf)         | Partially               | Likely yes                 |
+| Snap+X11 users with drifted Mesa                                                                 | No (guard doesn't fire) | Yes                        |
 
 The "~95%" estimate in §2/§7/§9 was derived from peer-app reports, not
-from SP field data. This report is evidence that the tail is larger
-than assumed on **new Intel GPU archs** and/or **Ubuntu 24.04 hosts**.
+from SP field data. The two reports together are evidence that the tail
+is larger than assumed on **any Ubuntu ≥ 24.04 host whose Mesa/libgbm
+has drifted from the core22 baseline** — vendor (Intel/AMD) and GPU
+generation are not the discriminator.
 
 **Section 8 recommendation — stands.** X11 widening is still the right
 primary fix because it preserves HW accel for everyone it rescues.
@@ -1068,27 +1131,30 @@ path would skip that load entirely. This report strengthens the case
 for appending `--disable-software-rasterizer` in #7273 (§13.4 item 1).
 
 **PR #7273 value — upgraded from "tail defense" to "load-bearing
-coverage for the Ubuntu 24.04 / new-GPU tail."** Without #7273, users
-in this population currently need the manual CLI flag as a permanent
-workaround.
+coverage for the Ubuntu 24.04+ / drifted-Mesa tail."** Without #7273,
+users in this population currently need the manual CLI flag as a
+permanent workaround.
 
 **`core24` + `gpu-2404` urgency — upgraded.** Ubuntu 24.04 is now 1
-year released (LTS). Users on 24.04 + a core22-runtime snap will
-continue to accumulate host/snap mismatches (dbus, libva, Mesa,
-pixbuf). Recommend moving the migration from "18.3 / 19.0" to
-**explicitly 18.3** and tracking it as a scoped task, not a long-term
-aspiration.
+year released (LTS) and 25.10 is shipping with the same core22 snap
+mismatch pattern (n=2 reports, one on each release). Users on 24.04+ +
+a core22-runtime snap will continue to accumulate host/snap mismatches
+(dbus, libva, Mesa, pixbuf). Recommend moving the migration from
+"18.3 / 19.0" to **explicitly 18.3** and tracking it as a scoped task,
+not a long-term aspiration.
 
 ### Open question — CLI flag vs programmatic `appendSwitch`
 
-The reporter states `superproductivity --ozone-platform=x11` launches
-successfully. Per the code at `electron/start-app.ts:73-77`, passing
-that flag on the CLI *skips* the programmatic `appendSwitch` block
-(`hasOzoneOverride` short-circuit) — Chromium sees the ozone flag
-only from argv in that path. In the "plain call" path, Chromium sees
-the ozone flag from `app.commandLine.appendSwitch` (called before
-`app.whenReady()`). Per Electron docs these should be equivalent.
-Three hypotheses for the behavioral difference:
+DerEchteKoschi states `superproductivity --ozone-platform=x11` launches
+successfully (n=1; nekufa's CLI attempt used the `--ozon-platform`
+typo and so doesn't count toward this question either way). Per the
+code at `electron/start-app.ts:73-77`, passing that flag on the CLI
+_skips_ the programmatic `appendSwitch` block (`hasOzoneOverride`
+short-circuit) — Chromium sees the ozone flag only from argv in that
+path. In the "plain call" path, Chromium sees the ozone flag from
+`app.commandLine.appendSwitch` (called before `app.whenReady()`). Per
+Electron docs these should be equivalent. Three hypotheses for the
+behavioral difference:
 
 1. **User reporting artifact**: the CLI test may have been on a prior
    revision, after a reboot, or after snap-refresh cleanup that
@@ -1108,32 +1174,43 @@ Documenting as an open question for future diagnosis.
 ### Actionable outcomes
 
 1. **Correct the "~95%" estimates in §2/§7/§9** to acknowledge the
-   Ubuntu 24.04 + new-GPU tail.
+   Ubuntu 24.04+ / drifted-Mesa tail (any vendor).
 2. **Promote §13.4 item 1 (`--disable-software-rasterizer`) from
-   "recommended" to "do before 18.2.5"**. The log is direct evidence
-   that the unmitigated DRI load path is what's crashing.
-3. **Reply to #7270 thread** acknowledging: the fix IS active for
-   this user, the failure is a Mesa/host mismatch unresolved by X11
-   alone, and the CLI flag remains the recommended workaround pending
-   either PR #7273 landing or the `core24`/`gpu-2404` migration.
+   "recommended" to "do before 18.2.5"**. Two independent logs are
+   direct evidence that the unmitigated DRI load path is what's
+   crashing.
+3. **Reply to #7270 thread**:
+   - To DerEchteKoschi: the fix IS active, the failure is a Mesa/host
+     mismatch unresolved by X11 alone; CLI flag remains the
+     recommended workaround pending PR #7273 or `core24` migration.
+   - To nekufa: flag the `--ozon-platform` typo and request a retest
+     with `--ozone-platform=x11` (correct spelling). This is the only
+     way to distinguish whether they're in the "X11 widening would
+     rescue them" bucket or the "X11 path still segfaults" bucket.
 4. **Schedule `core24` + `gpu-2404` migration for 18.3**, not
    18.3/19.0 with open end.
-5. **Snap packaging audit for 24.04 compat**: the libdbus/libva
+5. **Snap packaging audit for 24.04+ compat**: the libdbus/libva
    version mismatches are independent of the ozone question and
-   affect any 24.04 user regardless of GPU. Scope: separate from
-   this research doc; file a new issue/task.
+   affect any Ubuntu ≥ 24.04 user regardless of GPU. Scope: separate
+   from this research doc; file a new issue/task.
+6. **File separate issue for `Ctrl+Shift+X` global shortcut failure
+   on Ubuntu 25.10** (nekufa log). Orthogonal to #7270 — likely a
+   GNOME 46/47 binding collision in questing. Do not let it pollute
+   the GPU thread.
 
 ### Confidence
 
-- **High** that the user is on v18.2.4 (log string match is unique).
-- **High** that #7266 is firing and still not rescuing this user.
+- **High** that both users are on v18.2.4 (log string match is unique;
+  nekufa's snap revision 3482 is the published v18.2.4 build).
+- **High** that #7266 is firing and still not rescuing either user.
 - **High** that the root cause is Mesa DRI load failure on the X11
   path, not an ozone-platform misconfiguration.
-- **Medium** that Arrow Lake specifically drives this vs. "any new
-  Intel GPU on core22 snap" — single data point; more reports would
-  refine.
+- **High** (upgraded from Medium) that this is a generic host
+  Mesa/libgbm drift against the core22 baseline, **not** an
+  arch-specific (Arrow Lake) or vendor-specific (Intel) issue. n=2
+  across Intel/AMD and Ubuntu 24.04/25.10.
 - **Low** that the CLI vs programmatic flag difference is a real
-  Electron mechanism bug (most likely a reporting artifact).
+  Electron mechanism bug (still n=1, most likely a reporting artifact).
 
 ---
 
@@ -1145,6 +1222,8 @@ Documenting as an open question for future diagnosis.
 - [electron-builder#4587](https://github.com/electron-userland/electron-builder/issues/4587) — `snap.executableArgs` silently ignored for snap builds (why mechanism #3 in Section 6 is unusable)
 - [electron/electron#48298](https://github.com/electron/electron/issues/48298) / [PR #48301](https://github.com/electron/electron/pull/48301) — Electron 38.0.0/38.1.0 Wayland auto-detection regression, fixed in 38.2.0
 - [super-productivity#7270](https://github.com/super-productivity/super-productivity/issues/7270) — Snap launch failure on Ubuntu 22.04 / v18.2.2 (no logs); triggered this follow-up
+- [super-productivity#7270 (DerEchteKoschi)](https://github.com/super-productivity/super-productivity/issues/7270#issuecomment-4279998170) — First post-v18.2.4 field report: Ubuntu 24.04 + Intel Arrow Lake-P; §16 primary data
+- [super-productivity#7270 (nekufa)](https://github.com/super-productivity/super-productivity/issues/7270#issuecomment-4280307166) — Second post-v18.2.4 field report: Ubuntu 25.10 + AMD Raphael; §16 corroborating data (vendor- and arch-independent)
 - [super-productivity#7273](https://github.com/super-productivity/super-productivity/pull/7273) — GPU startup guard (orthogonal defense, analyzed in Sections 12–13)
 - [Chromium `content/browser/gpu/fallback.md`](https://chromium.googlesource.com/chromium/src/+/60b3c74b7f2ca17a28907fb0b40d9dabeaa48326/content/browser/gpu/fallback.md) — documents `HARDWARE_VULKAN → HARDWARE_GL → SWIFTSHADER → DISPLAY_COMPOSITOR` fallback stack; why `--disable-gpu` alone doesn't eliminate the GPU process
 - [Chromium SwiftShader docs](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/gpu/swiftshader.md) — JIT CPU rasterizer, no DRI
