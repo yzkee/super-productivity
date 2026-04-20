@@ -96,7 +96,7 @@ Mixins are in `src/styles/mixins/_theming.scss`.
 | Additional | `--transition-duration-enter` (225ms), `--transition-duration-leave` (195ms), `--page-transition-duration` (225ms) |
 | Timing     | `--ani-standard-timing`, `--ani-enter-timing`, `--ani-leave-timing`, `--ani-sharp-timing`                          |
 
-Light theme overrides `-s` to 180ms and `-l` to 400ms; dark uses the `:root` defaults. Pick the nearest bucket when migrating hardcoded durations.
+When migrating hardcoded durations, pick the nearest bucket — up to ~15% drift is acceptable for UI transitions.
 
 ## Focus Ring
 
