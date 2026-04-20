@@ -1219,6 +1219,162 @@ Documenting as an open question for future diagnosis.
 
 ---
 
+## 17. Multi-Agent Review + Research Depth Pass (2026-04-20, post-revival)
+
+After the n=2 field data (§16) triggered the revisit condition and PR
+#7273's 5 commits were cherry-picked onto the working branch, a
+two-layer verification pass was run:
+
+- **7-reviewer multi-review** over the PR-scope diff: Claude agents
+  covering Correctness, Security, Architecture, Alternatives,
+  Performance, Simplicity, plus Codex CLI as an independent model.
+- **5-agent research pass** on the underlying mechanism and
+  ecosystem: Mesa/libgbm root cause, Chromium flag behavior, peer-app
+  field data, core22→core24 migration cost, crash-marker timing.
+
+### 17.1 Findings that changed the PR
+
+**R2 — `--disable-gpu` flag pair has a Flatpak+Wayland gap.** The
+research on `content/browser/gpu/` + electron-builder#9452 +
+Kong/insomnia#9346 showed that on Chromium 140+/Electron 38+, Ozone
+Wayland auto-detection in the **browser process** can `dlopen` libEGL,
+which transitively triggers the GBM driver load — **before** the
+GPU-process gate that `--disable-gpu` actually governs. On Snap the
+existing X11 widening block at `start-app.ts:80-100` already fires on
+`process.env.SNAP` and closes this, but Flatpak users get neither the
+X11 widening (the block requires `SNAP`) nor full coverage from the
+flag pair alone. **Fix (shipped):** append
+`--ozone-platform=x11` inside the `if (gpuDecision.disableGpu)` branch.
+Redundant on Snap (last-flag-wins), load-bearing on Flatpak.
+
+**R1 — Content-based marker with staleness bound + version gating.**
+The research on Mesa's alternate-GBM-backend discovery in
+`src/gbm/main/backend.c` (commit 21ce1ca8) plus the pre-Mesa-24.3
+libgbm ABI instability reports (NixOS discourse 61015, Canonical
+mesa-core22/mesa-2404 testing thread) confirmed the root cause is
+**ABI mismatch between core22 Mesa 23.2.1 and host Mesa 24.x/25.x**,
+not simply "Mesa version drift." The corollary for the marker: a
+systemd-SIGKILL mid-boot or a post-upgrade residue from a different
+Electron version should **not** force GPU-disabled forever. **Fix
+(shipped):** write JSON `{ ts, electronVersion }` and ignore markers
+older than 5 min or from a different Electron version. Drops two
+false-negative classes without adding dependencies.
+
+**Codex W-C2 — Silent unlink failure left the app stuck in recovery
+mode.** `markGpuStartupSuccess`'s `catch {}` swallowed every error
+including EACCES/EROFS/NFS-quirks. A non-ENOENT failure meant the
+marker stayed, next launch re-entered recovery, and nothing in the
+log explained it. **Fix (shipped):** log non-ENOENT errors at `warn`.
+Same pattern applied to the legacy-marker cleanup and the marker
+write.
+
+**Architecture S1+S2 — Naming and precondition documentation.**
+`markStartupSuccess` at a call site in `main-window.ts` gives no clue
+it's gated on a module-level state set by another file's function.
+**Fix (shipped):** renamed to `markGpuStartupSuccess` and added a
+JSDoc line spelling out the precondition (must follow
+`evaluateGpuStartupGuard` in the same process; no-op otherwise).
+
+### 17.2 Disagreements worth noting
+
+**Codex W-C1 vs. Research R2 + six Claude agents — `--disable-gpu` +
+`--disable-software-rasterizer` pair.** Codex flagged that pairing the
+flags "removes Chromium's software fallback on the very launch that
+is supposed to recover" and could leave users with a blank window.
+Three independent sources (Chromium discuss thread, CEF forum #11953,
+OpenFin docs) corroborated by electron/electron#17180/#20702/#28164
+confirm the pair is what Chromium's own GPU integration tests treat as
+"no GPU process" — `DisplayCompositor` mode still renders 2D in the
+browser process without spawning a GPU child. The project's `§13.1 §1`
+already predicted this correctness. **Decision:** keep the pair.
+Verify with a live `SP_DISABLE_GPU=1 npm start` once before a formal
+release; if Codex turns out to be right for this specific Electron
+build, drop `--disable-software-rasterizer` and the guard degrades
+gracefully to SwiftShader.
+
+**Architecture vs. Simplicity — module-level `markerPath` state.**
+Architecture review said "defensible exception, document the
+precondition." Simplicity review said "return `markerPath` in the
+decision object and pass it to `markGpuStartupSuccess(markerPath)` to
+make both functions pure." Git history shows this was already
+refactored away once (`810f6bffa6 refactor(electron): eliminate GPU
+guard module-level state`) and walked back in the current form. The
+alternative threads a handle through `createWindow` across three
+files for no runtime benefit. **Decision:** module state stays;
+precondition now documented on the JSDoc (S2 applied).
+
+### 17.3 Findings that validated existing decisions
+
+- **R5 — `IPC.APP_READY` is the right clearing signal.** Read
+  `startup.service.ts:136` (fires after Angular DI + translations),
+  `preload.ts:168` (`_send('APP_READY')`), and
+  `main-window.ts:279-286` (ipcMain handler). `ready-to-show` would
+  trade bounded false-negatives for **unbounded false-positives**
+  (blank/broken renderers paint a first frame and would clear the
+  marker on broken boots). §13.1 #2 is correct.
+- **R4 — Snap config is straightforwardly core22 / gnome-42-2204.**
+  Read `electron-builder.yaml:77-106`. Migration to `base: core24` +
+  `gpu-2404` + `gnome-46-2404` is medium cost (~3–5 engineering days),
+  blocked partially by electron-builder#8548 (the generator is still
+  core22-shaped) and would require moving to a hand-written
+  `snap/snapcraft.yaml` with explicit content plugs and a
+  `gpu-2404-wrapper` command-chain. No published Electron-app success
+  story found — SP would be an early adopter. **Scoped out of PR
+  #7273; tracked as 18.3 target.**
+- **R3 — No peer Electron snap implements an equivalent crash-loop
+  marker.** Searched VS Code, Slack, Insomnia, LosslessCut, Obsidian
+  flatpak, Canonical `gpu-2404-wrapper`, Firefox snap. Prevailing
+  patterns are manual `--ozone-platform=x11`, proactive env-sniff
+  (Obsidian), edge-channel rebuilds (Firefox), or do-nothing
+  (Canonical). PR #7273's reactive self-healing fallback appears
+  **novel in this ecosystem** — not merely defense-in-depth but the
+  first instance of the pattern for an Electron snap.
+
+### 17.4 Deferred items (intentionally out of scope)
+
+- **Mesa-libgbm pre-flight probe** (R1 recommendation): check
+  `fs.accessSync(/usr/lib/x86_64-linux-gnu/dri/{driver}_dri.so)` and
+  compare libgbm.so.1 major versions between snap and host; on
+  mismatch, apply the fallback bundle on the **first** launch without
+  waiting for a crash. ~2–3 hours. Separate PR — benefits from more
+  field data first.
+- **core24 + gpu-2404 migration** (R4): 3–5 engineering days; target
+  18.3. Tracked separately.
+- **`app.on('child-process-gone')` forensic listener**: logging-only
+  complement to the marker, useful for post-incident triage. Low
+  priority.
+- **Symlink TOCTOU hardening on marker write/delete** (Security W1):
+  low exploitability (attacker with `$SNAP_USER_COMMON` write access
+  already owns SP data); would need `O_NOFOLLOW` + `lstatSync` guard.
+  Defensive polish, not a shipping blocker.
+
+### 17.5 Verification still outstanding
+
+- Live `SP_DISABLE_GPU=1 npm start` to verify the flag pair actually
+  renders (Codex W-C1 test).
+- End-to-end crash-recovery test: force a GPU crash in a Snap build,
+  confirm the marker is written, second launch enters recovery, third
+  launch clears the marker.
+
+### 17.6 Confidence deltas
+
+- **Arch-independence of the failure** (§16): **High (unchanged)** —
+  R1's Mesa-23.2 vs 24.x+ ABI finding confirms the root cause is
+  runtime-version drift, not vendor or GPU generation.
+- **`--disable-gpu` + `--disable-software-rasterizer` pair
+  correctness**: **Medium-High** — three sources agree, Codex dissents,
+  needs one live test to close.
+- **Merge readiness of PR #7273 (this branch)**: **High (~85%)** after
+  the follow-up commit. Static verification is strong (7-reviewer +
+  5-research consensus, tsc clean, checkFile clean); runtime
+  verification is the only remaining gap.
+- **PR #7273 as the correct near-term mechanism**: **High (~90%)** —
+  R3 confirms no peer ships an equivalent, R2+R5 confirm the signal
+  wiring and flag bundle are sound, R4 confirms the "real fix"
+  (core24 migration) is 3–5 days away and needs its own PR.
+
+---
+
 ## 11. References
 
 - [Snapcraft forum #40975](https://forum.snapcraft.io/t/40975) — "DRI driver not from this Mesa build" error signature (reported in a **core24 + experimental gnome** stack, not gnome-42-2204; the error string is real but the environment differs)
@@ -1229,6 +1385,20 @@ Documenting as an open question for future diagnosis.
 - [super-productivity#7270](https://github.com/super-productivity/super-productivity/issues/7270) — Snap launch failure on Ubuntu 22.04 / v18.2.2 (no logs); triggered this follow-up
 - [super-productivity#7270 (DerEchteKoschi)](https://github.com/super-productivity/super-productivity/issues/7270#issuecomment-4279998170) — First post-v18.2.4 field report: Ubuntu 24.04 + Intel Arrow Lake-P; §16 primary data
 - [super-productivity#7270 (nekufa)](https://github.com/super-productivity/super-productivity/issues/7270#issuecomment-4280307166) — Second post-v18.2.4 field report: Ubuntu 25.10 + AMD Raphael; §16 corroborating data (vendor- and arch-independent)
+- [Mesa commit 21ce1ca8 — alternate-GBM-backend discovery](https://cgit.freedesktop.org/mesa/mesa/commit/?id=21ce1ca846698527093b0f8b95a57c550f984ab1) — origin of the `{driver}_gbm.so` lookup that produces the `dri_gbm.so` error string; §17.1 R1
+- [NixOS Discourse 61015 — pre-24.3 libgbm ABI instability](https://discourse.nixos.org/t/mesa-loader-failed-to-find-dri-gdm-so/61015) — evidence that mixing pre-/post-24.3 Mesa libgbm crashes; §17.1 R1
+- [Canonical: mesa-core22 / mesa-2404 call for testing](https://discourse.ubuntu.com/t/call-for-testing-mesa-core22-mesa-2404-nvidia-support-ubuntu-frame-vnc-authentication-ubuntu-frame-osk-themes/54754) — confirms mesa-core22 ships Mesa 23.2.1; §17.1 R1
+- [Launchpad snapd #1966108 — MESA-LOADER in chromium snap](https://bugs.launchpad.net/snapd/+bug/1966108) — prior art on confined-snap DRI failures
+- [Snapcraft forum 48942 — `dri_gbm.so` (OpenChrom, ogra reply)](https://forum.snapcraft.io/t/mesa-loader-failed-to-open-dri/48942) — Canonical staff confirmation of gpu-2404 regression
+- [Kong/insomnia#9346 — snap crash on Ubuntu 25.10](https://github.com/Kong/insomnia/issues/9346) — peer Electron app with identical MESA-LOADER + segfault pattern; §17.3 R3
+- [mifi/lossless-cut#2629 — MESA-LOADER segfault on 25.10](https://github.com/mifi/lossless-cut/issues/2629) — another Electron-snap peer hitting the same failure; §17.3 R3
+- [electron/electron PR #48309 — set ozone platform for wayland](https://github.com/electron/electron/pull/48309) — context on the Electron 38+ Wayland/Ozone regression; §17.1 R2
+- [electron/electron#48001 — deprecate ELECTRON_OZONE_PLATFORM_HINT](https://github.com/electron/electron/issues/48001) — env-var path to force X11 without a CLI flag; §17.1 R2
+- [Snapcraft forum 39718 — RFC migrating GNOME/KDE extensions to gpu-2404](https://forum.snapcraft.io/t/rfc-migrating-gnome-and-kde-snapcraft-extensions-to-gpu-2404-userspace-interface/39718) — Canonical's canonical migration path; §17.3 R4
+- [Snapcraft forum 41100 — core24/gnome-46 migration Q&A](https://forum.snapcraft.io/t/q-about-migration-to-core24-gnome-46/41100) — concrete `LD_LIBRARY_PATH` + libproxy issues; §17.3 R4
+- [electron-userland/electron-builder#8548 — core22/core24 support](https://github.com/electron-userland/electron-builder/issues/8548) — why electron-builder's snap generator blocks an easy core24 move; §17.3 R4
+- [flathub/md.obsidian.Obsidian `obsidian.sh`](https://github.com/flathub/md.obsidian.Obsidian/blob/master/obsidian.sh) — peer app's proactive env-sniff approach (no crash-loop marker); §17.3 R3
+- [canonical/gpu-snap `gpu-2404-wrapper`](https://github.com/canonical/gpu-snap/blob/main/bin/gpu-2404-wrapper) — Canonical's own wrapper lacks crash detection; §17.3 R3
 - [super-productivity#7273](https://github.com/super-productivity/super-productivity/pull/7273) — GPU startup guard (orthogonal defense, analyzed in Sections 12–13)
 - [Chromium `content/browser/gpu/fallback.md`](https://chromium.googlesource.com/chromium/src/+/60b3c74b7f2ca17a28907fb0b40d9dabeaa48326/content/browser/gpu/fallback.md) — documents `HARDWARE_VULKAN → HARDWARE_GL → SWIFTSHADER → DISPLAY_COMPOSITOR` fallback stack; why `--disable-gpu` alone doesn't eliminate the GPU process
 - [Chromium SwiftShader docs](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/docs/gpu/swiftshader.md) — JIT CPU rasterizer, no DRI
