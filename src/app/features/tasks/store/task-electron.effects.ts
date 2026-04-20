@@ -2,7 +2,14 @@ import { inject, Injectable } from '@angular/core';
 import { createEffect, ofType } from '@ngrx/effects';
 import { setCurrentTask, unsetCurrentTask } from './task.actions';
 import { select, Store } from '@ngrx/store';
-import { filter, startWith, take, tap, withLatestFrom } from 'rxjs/operators';
+import {
+  filter,
+  startWith,
+  take,
+  tap,
+  throttleTime,
+  withLatestFrom,
+} from 'rxjs/operators';
 import { selectCurrentTask, selectTaskEntities } from './task.selectors';
 import { selectTodayTaskIds } from '../../work-context/store/work-context.selectors';
 import { GlobalConfigService } from '../../config/global-config.service';
@@ -114,7 +121,11 @@ export class TaskElectronEffects {
           // without an active task (addTimeSpent is gated on currentTask.id).
           tick,
         ),
-
+        // addTimeSpent and tick both fire every 1s during an active-task focus
+        // session (same shared globalInterval source), so collapse them into a
+        // single IPC/sec. Leading+trailing preserves immediate feedback for the
+        // non-tick actions (setCurrentTask, startFocusSession, ...).
+        throttleTime(500, undefined, { leading: true, trailing: true }),
         withLatestFrom(
           this._store$.pipe(select(selectCurrentTask)),
           this._store$.pipe(select(selectIsOverlayShown)),
