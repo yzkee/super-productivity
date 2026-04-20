@@ -994,6 +994,149 @@ mechanically-wrong code comment. None are blockers.
 
 ---
 
+## 16. Field Data — Issue #7270 Follow-up (2026-04-20)
+
+First post-release field report on the Snap+Wayland X11 widening
+shipped in **v18.2.4** (PR #7266). Reporter
+[DerEchteKoschi](https://github.com/super-productivity/super-productivity/issues/7270#issuecomment-4279998170)
+labels their install as `18.2.3`, but the attached log contains the
+`"Snap: forcing X11 (wayland=true, gnomePlatformMissing=false, ..."`
+string which **only exists in v18.2.4** (verified via
+`git show v18.2.3:electron/start-app.ts` vs `v18.2.4`). Treat this as a
+**v18.2.4 report**.
+
+### Environment (new to the analysis)
+
+- Ubuntu **24.04** (prior analysis was 22.04-centric).
+- Snap revision 3480, confined.
+- **Intel Arrow Lake-P** (`i915`/`xe`) — Intel's late-2024 GPU arch,
+  not covered by the `core22-mesa-backports` PPA's Mesa.
+- Wayland session (`XDG_SESSION_TYPE=wayland`, `WAYLAND_DISPLAY=wayland-0`).
+
+### What the log proves
+
+1. **#7266's guard fires correctly**: `Snap: forcing X11 (wayland=true, gnomePlatformMissing=false, XDG_SESSION_TYPE=wayland, WAYLAND_DISPLAY=set)`.
+2. **Mesa DRI still fails**: `MESA-LOADER: failed to open dri:
+   /usr/lib/x86_64-linux-gnu/gbm/dri_gbm.so: cannot open shared object
+   file` — repeated N times on both the pre-X11-init and post-X11-init
+   log lines.
+3. **GPU process enters respawn loop on the X11 path**:
+   `GPU process exited unexpectedly: exit_code=139` (SIGSEGV) at
+   least 3 times within ~400ms. Even with `ozone-platform=x11` applied,
+   the GPU process is segfaulting because Mesa DRI can't load.
+4. **`[ERROR:ui/base/x/x11_software_bitmap_presenter.cc:147]
+   XGetWindowAttributes failed for window 1`** — X11 presenter also
+   fails; system compositor context is not usable to Chromium from
+   inside this snap sandbox.
+5. **`vaInitialize failed: unknown libva error`** — VA-API (Intel
+   video accel) also broken.
+6. **`dbus-send: ... libdbus-1.so.3: version LIBDBUS_PRIVATE_1.12.20
+   not found (required by dbus-send)`** — bundled libdbus in the
+   snap is **older** than what the copied `dbus-send` expects. Runtime
+   mismatch inside the snap itself.
+7. **Gtk pixbuf icon theme loading fails** across hundreds of log
+   lines — orthogonal snap/AppArmor issue on 24.04.
+8. App eventually quits (`App before-quit: cleaning up resources` at
+   12:44:25, ~18s after launch) without ever showing a window.
+
+### What this changes in the research doc
+
+**Section 2 Scope table — lower-bound correction.** "Snap + Electron
+with Wayland-default + Mesa GPU + Wayland session: ~95–100% fixed" is
+optimistic. A more honest framing:
+
+| Population | Fixed by #7266 alone | Needs #7273 or manual flag |
+|---|---|---|
+| Snap+Wayland, core22-mesa-backports Mesa aligned with Electron's libgbm | ~high | — |
+| Snap+Wayland, **Mesa too old for host GPU (Arrow Lake, newer)** | **No** | Yes |
+| Snap+Wayland, Ubuntu 24.04 host + core22 snap runtime mismatch | Partially | Likely yes |
+| Snap+X11 users with drifted Mesa | No (guard doesn't fire) | Yes |
+
+The "~95%" estimate in §2/§7/§9 was derived from peer-app reports, not
+from SP field data. This report is evidence that the tail is larger
+than assumed on **new Intel GPU archs** and/or **Ubuntu 24.04 hosts**.
+
+**Section 8 recommendation — stands.** X11 widening is still the right
+primary fix because it preserves HW accel for everyone it rescues.
+This report doesn't invalidate the primary; it validates the need for
+layered defense (§12–15, PR #7273).
+
+**Section 13.1§1 `--disable-gpu` correctness prediction — supported.**
+The log shows the `gbm/dri_gbm.so` load attempt fires regardless of
+ozone platform. A `--disable-gpu` (+`--disable-software-rasterizer`)
+path would skip that load entirely. This report strengthens the case
+for appending `--disable-software-rasterizer` in #7273 (§13.4 item 1).
+
+**PR #7273 value — upgraded from "tail defense" to "load-bearing
+coverage for the Ubuntu 24.04 / new-GPU tail."** Without #7273, users
+in this population currently need the manual CLI flag as a permanent
+workaround.
+
+**`core24` + `gpu-2404` urgency — upgraded.** Ubuntu 24.04 is now 1
+year released (LTS). Users on 24.04 + a core22-runtime snap will
+continue to accumulate host/snap mismatches (dbus, libva, Mesa,
+pixbuf). Recommend moving the migration from "18.3 / 19.0" to
+**explicitly 18.3** and tracking it as a scoped task, not a long-term
+aspiration.
+
+### Open question — CLI flag vs programmatic `appendSwitch`
+
+The reporter states `superproductivity --ozone-platform=x11` launches
+successfully. Per the code at `electron/start-app.ts:73-77`, passing
+that flag on the CLI *skips* the programmatic `appendSwitch` block
+(`hasOzoneOverride` short-circuit) — Chromium sees the ozone flag
+only from argv in that path. In the "plain call" path, Chromium sees
+the ozone flag from `app.commandLine.appendSwitch` (called before
+`app.whenReady()`). Per Electron docs these should be equivalent.
+Three hypotheses for the behavioral difference:
+
+1. **User reporting artifact**: the CLI test may have been on a prior
+   revision, after a reboot, or after snap-refresh cleanup that
+   happened to succeed for unrelated reasons. Most likely.
+2. **Switch-order interaction**: the app also appends
+   `enable-speech-dispatcher` (line 56) and `gtk-version=3` (line 61)
+   before the ozone switch. Unlikely to interact with ozone, but not
+   proven.
+3. **`process.argv` parsing difference**: Chromium's argv parser may
+   pick up `--ozone-platform=x11` before Electron's
+   `app.commandLine.appendSwitch` is applied, giving the CLI path a
+   marginal timing advantage on slow-startup snaps. Unverified.
+
+Not worth a code change until reproduced in a controlled environment.
+Documenting as an open question for future diagnosis.
+
+### Actionable outcomes
+
+1. **Correct the "~95%" estimates in §2/§7/§9** to acknowledge the
+   Ubuntu 24.04 + new-GPU tail.
+2. **Promote §13.4 item 1 (`--disable-software-rasterizer`) from
+   "recommended" to "do before 18.2.5"**. The log is direct evidence
+   that the unmitigated DRI load path is what's crashing.
+3. **Reply to #7270 thread** acknowledging: the fix IS active for
+   this user, the failure is a Mesa/host mismatch unresolved by X11
+   alone, and the CLI flag remains the recommended workaround pending
+   either PR #7273 landing or the `core24`/`gpu-2404` migration.
+4. **Schedule `core24` + `gpu-2404` migration for 18.3**, not
+   18.3/19.0 with open end.
+5. **Snap packaging audit for 24.04 compat**: the libdbus/libva
+   version mismatches are independent of the ozone question and
+   affect any 24.04 user regardless of GPU. Scope: separate from
+   this research doc; file a new issue/task.
+
+### Confidence
+
+- **High** that the user is on v18.2.4 (log string match is unique).
+- **High** that #7266 is firing and still not rescuing this user.
+- **High** that the root cause is Mesa DRI load failure on the X11
+  path, not an ozone-platform misconfiguration.
+- **Medium** that Arrow Lake specifically drives this vs. "any new
+  Intel GPU on core22 snap" — single data point; more reports would
+  refine.
+- **Low** that the CLI vs programmatic flag difference is a real
+  Electron mechanism bug (most likely a reporting artifact).
+
+---
+
 ## 11. References
 
 - [Snapcraft forum #40975](https://forum.snapcraft.io/t/40975) — "DRI driver not from this Mesa build" error signature (reported in a **core24 + experimental gnome** stack, not gnome-42-2204; the error string is real but the environment differs)
