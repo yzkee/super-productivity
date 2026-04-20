@@ -196,6 +196,38 @@ mat-error {
     }
   }
 
+  .plugin-author {
+    margin: 0 0 var(--s);
+    font-size: 12px;
+    color: var(--c-text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s);
+
+    a {
+      color: inherit;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .plugin-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+
+    mat-icon {
+      font-size: 14px;
+      width: 14px;
+      height: 14px;
+      color: #f5b301;
+    }
+  }
+
   .plugin-desc {
     margin: 0;
     font-size: 14px;

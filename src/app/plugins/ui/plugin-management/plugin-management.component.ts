@@ -45,6 +45,9 @@ interface CommunityPlugin {
   name: string;
   shortDescription: string;
   url: string;
+  author: string;
+  authorUrl?: string;
+  stars?: number;
 }
 
 @Component({
@@ -118,7 +121,9 @@ export class PluginManagementComponent {
   /* eslint-enable @typescript-eslint/naming-convention */
 
   readonly communityPlugins = signal<CommunityPlugin[]>(
-    COMMUNITY_PLUGINS_DATA as CommunityPlugin[],
+    [...(COMMUNITY_PLUGINS_DATA as CommunityPlugin[])].sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+    ),
   );
 
   T: typeof T = T;
