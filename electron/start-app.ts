@@ -22,6 +22,7 @@ import {
 } from './protocol-handler';
 import { getIsQuiting, setIsQuiting, setIsLocked } from './shared-state';
 import { clearStaleLevelDbLocks } from './clear-stale-idb-locks';
+import { evaluateGpuStartupGuard } from './gpu-startup-guard';
 import * as fs from 'fs';
 
 const ICONS_FOLDER = __dirname + '/assets/icons/';
@@ -149,6 +150,41 @@ export const startApp = (): void => {
     // set userDa dir to common data to avoid the data being accessed by the update process
     app.setPath('userData', newPath);
     app.setAppLogsPath();
+  }
+
+  // Defense-in-depth against GPU init failures on confined Linux packages
+  // (Snap Mesa ABI drift, missing DRI nodes under Flatpak, etc.) where the
+  // main process stays alive but the GPU process crashes at init and the
+  // window never renders. `--disable-gpu` avoids the hardware Mesa DRI
+  // driver load path — which is the ABI-drift source on confined Snap.
+  // Note: `--disable-gpu` does NOT guarantee "no GPU process" on Linux
+  // (Chromium may still run a GPU process in SwiftShader or
+  // DisplayCompositor mode), but those modes don't dlopen Mesa DRI
+  // drivers, which is what matters for this bug. `--disable-software-
+  // rasterizer` is added as belt-and-braces; the combined pair is what
+  // Chromium's own GPU integration tests treat as "no GPU process."
+  // `app.disableHardwareAcceleration()` only disables compositor accel
+  // and leaves the failing GPU-process-init path active.
+  //
+  // `--ozone-platform=x11` is also stacked: on Chromium 140+/Electron 38+
+  // the Wayland auto-detection can dlopen libgbm in browser-side init
+  // before the GPU-process gate, so the flag pair alone is a false
+  // negative on Flatpak+Wayland hosts. On Snap this is redundant with
+  // the X11 widening block above, but appending twice is harmless (last
+  // value wins in Chromium argv parsing).
+  //
+  // IMPORTANT: must stay after every `app.setPath('userData', ...)` call
+  // above — the marker lives in userData.
+  const gpuDecision = evaluateGpuStartupGuard(app.getPath('userData'));
+  if (gpuDecision.disableGpu) {
+    app.commandLine.appendSwitch('disable-gpu');
+    app.commandLine.appendSwitch('disable-software-rasterizer');
+    app.commandLine.appendSwitch('ozone-platform', 'x11');
+    log(
+      `Disabling GPU acceleration (reason: ${gpuDecision.reason}). ` +
+        `Set SP_ENABLE_GPU=1 to force-enable on the next launch` +
+        (gpuDecision.markerPath ? ` or delete ${gpuDecision.markerPath}.` : '.'),
+    );
   }
 
   initDebug({ showDevTools: isShowDevTools }, IS_DEV);

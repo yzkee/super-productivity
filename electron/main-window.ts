@@ -26,6 +26,7 @@ import { ensureIndicator } from './indicator';
 import { getIsMinimizeToTray, getIsQuiting, setIsQuiting } from './shared-state';
 import { loadSimpleStoreAll } from './simple-store';
 import { SimpleStoreKey } from './shared-with-frontend/simple-store.const';
+import { markGpuStartupSuccess } from './gpu-startup-guard';
 
 let mainWin: BrowserWindow;
 
@@ -277,6 +278,11 @@ export const createWindow = async ({
   // listen for app ready
   ipcMain.on(IPC.APP_READY, () => {
     mainWinModule.isAppReady = true;
+    // Signal the GPU startup guard that the full boot chain completed
+    // (including Angular init) — not just that the compositor painted a
+    // frame. This avoids clearing the crash counter on blank/broken
+    // renderers that still fire `ready-to-show`.
+    markGpuStartupSuccess();
   });
 
   // Register F11 key handler for fullscreen toggle
