@@ -136,11 +136,14 @@ const createTray = (): Tray => {
   const trayIconPath = DIR + `stopped${suf}`;
   let nextTray: Tray;
   if (IS_WINDOWS) {
+    const guid = getWindowsTrayGuid();
     try {
-      nextTray = new Tray(trayIconPath, getWindowsTrayGuid());
+      nextTray = new Tray(trayIconPath, guid);
+      log('Tray created on Windows with GUID:', guid);
     } catch (e) {
       log('Tray creation with GUID failed, retrying without GUID:', e);
       nextTray = new Tray(trayIconPath);
+      log('Tray created on Windows without GUID');
     }
   } else {
     nextTray = new Tray(trayIconPath);
