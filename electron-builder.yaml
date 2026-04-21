@@ -17,6 +17,11 @@ files:
 directories:
   output: './.tmp/app-builds'
 
+# Post-pack hook that installs a shell wrapper for Linux builds to force
+# --ozone-platform=x11 in Snap+Wayland sessions. See tools/afterPack.js and
+# docs/research/snap-wayland-gpu-fix-research.md §18.
+afterPack: ./tools/afterPack.js
+
 win:
   target:
     - target: nsis

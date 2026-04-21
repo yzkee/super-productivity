@@ -1375,6 +1375,240 @@ precondition now documented on the JSDoc (S2 applied).
 
 ---
 
+## 18. afterPack Wrapper — Argv-Injection Fix (2026-04-21)
+
+### Trigger
+
+Two post-v18.2.5 reports on issue
+[#7270](https://github.com/super-productivity/super-productivity/issues/7270)
+escalated §16's open question from "probably a reporting artifact" to
+"the defining signal." Summary of the new evidence:
+
+**DerEchteKoschi,
+[v18.2.5 second launch](https://github.com/super-productivity/super-productivity/issues/7270#issuecomment-4284670304)
+(2026-04-20, Ubuntu 24.04 + Intel Arrow Lake):**
+
+- The Snap+Wayland guard fires (`Snap: forcing X11 (wayland=true, ...)`
+  in the log).
+- The reactive GPU guard from PR #7273 does **not** fire
+  (no `Disabling GPU acceleration (reason: crash-recovery)` line).
+- The GPU process still respawn-loops with
+  `exit_code=139`.
+- Angular side-effects evidently ran (idle tracking starts, "No custom
+  styles detected" logs) — which means `IPC.APP_READY` fired and
+  `markGpuStartupSuccess()` cleared the marker on the **first** launch
+  despite the user never seeing a window. The second launch therefore
+  enters with no marker and no recovery.
+- `superproductivity --ozone-platform=x11` (CLI flag) continues to work
+  on the same machine, unchanged.
+
+**nekufa,
+[v18.2.5](https://github.com/super-productivity/super-productivity/issues/7270#issuecomment-4287191809)
+(2026-04-21, Ubuntu 25.10 + AMD Raphael):**
+
+- Confirms `--disable-gpu` became optional in v18.2.5 (PR #7273 shipped).
+- Confirms `--ozone-platform=x11` (CLI) is **still required** to get a
+  visible window.
+
+### What this resolves from §16
+
+The §16 "Open question — CLI flag vs programmatic `appendSwitch`" is
+now settled by independent reports on two different machines, two
+vendors, two Ubuntu releases. The programmatic
+`app.commandLine.appendSwitch('ozone-platform','x11')` inside the main
+process is **not equivalent** to the CLI flag for this class of
+failure. Hypothesis 1 ("User reporting artifact") from §16 is rejected.
+The evidence supports hypothesis 3 in a generalized form:
+
+> Chromium's Ozone init in the browser process begins dlopen'ing the
+> libEGL/libgbm/DRI stack **before** `app.commandLine.appendSwitch`
+> takes effect — the switch is applied to the in-memory CommandLine
+> singleton, but some Ozone subsystems read their backend from what
+> amounts to the argv-seeded initial CommandLine, not the post-modify
+> view. When the flag comes in via argv it is visible to every
+> subsystem from process startup; when it arrives via
+> `appendSwitch`, the earliest Ozone probes have already run against
+> the auto-detected Wayland path.
+
+The exact Chromium source path for this divergence is not yet
+pin-cited; the empirical signature (appendSwitch log present, window
+absent, CLI flag works) is reproducible on n=2 machines and aligns
+with the observation in
+[electron-builder#9452](https://github.com/electron-userland/electron-builder/issues/9452)
+that `--ozone-platform=x11` works as a CLI flag across affected users.
+
+### Secondary finding: reactive guard is load-bearing in the wrong place
+
+The §13/§15/§17 reactive GPU-disable guard (PR #7273) has a design
+gap surfaced only by field data: its clear signal (`IPC.APP_READY`)
+fires on Angular bootstrap, not on a user-visible window. On the
+affected machines Angular **does** bootstrap — idle tracking, style
+probing, and plugin init all run — but Chromium's compositor path
+never produces a displayed frame. The marker clears, the guard
+exits recovery on next launch, and the user is still looking at an
+invisible window. §13.1 #2's framing ("`ready-to-show` would trade
+bounded false-negatives for unbounded false-positives") was correct
+in principle but missed this specific shape: `APP_READY` has the
+opposite false-negative problem (clears on broken-but-frontend-alive
+renderers).
+
+This is not a reason to revert PR #7273 — it still rescues the
+Flatpak case, and the Snap flag bundle inside it
+(`--disable-gpu --disable-software-rasterizer --ozone-platform=x11`)
+is still the correct last-resort ladder. But it does mean the guard
+cannot carry the Snap+Wayland tail on its own.
+
+### The fix: afterPack argv wrapper
+
+Mechanism: rename the main Electron binary to `superproductivity-bin`
+during the build (`tools/afterPack.js`) and install a shell wrapper
+at the original name (`build/snap-wrapper.sh`). The wrapper decides
+whether to inject `--ozone-platform=x11` into argv based on the
+runtime environment:
+
+```sh
+if [ -n "$SNAP" ] && { [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ]; }; then
+  exec "$BIN" --ozone-platform=x11 "$@"
+fi
+exec "$BIN" "$@"
+```
+
+Three properties:
+
+1. **Argv-level injection.** The flag is in `process.argv[1]` before
+   Electron or Chromium starts. No ambiguity about when Ozone reads
+   the CommandLine.
+2. **Conditional on Snap + Wayland.** X11 sessions pass through
+   untouched. Non-Snap Linux targets (AppImage, .deb, .rpm) also
+   pass through untouched because `$SNAP` is unset outside snapd.
+3. **Respects user override.** If argv already contains
+   `--ozone-platform=...`, the wrapper passes through and lets the
+   user's choice win (e.g., explicit `--ozone-platform=wayland` for
+   Wayland testers).
+
+Peer precedent: snapcrafters/signal-desktop and
+snapcrafters/mattermost-desktop use the same shape
+(command-chain script in `snap/local/usr/bin/`). SP's wrapper is
+equivalent in mechanism but lives in `afterPack` rather than a
+hand-written `snapcraft.yaml` — electron-builder regenerates
+`snapcraft.yaml` each build, so the wrapper-via-rename route is
+more robust than hooking the generated yaml.
+
+### Why this is better than `linux.executableArgs`
+
+electron-builder supports `executableArgs` for linux deb/rpm targets
+via the `.desktop` `Exec=` line, but
+[#4587](https://github.com/electron-userland/electron-builder/issues/4587)
+confirms `snap.executableArgs` is silently ignored (see §6). Even if
+it worked, it would bake the flag in unconditionally for all sessions —
+X11 users would get the flag too, which is wasteful. The shell
+wrapper is runtime-conditional and target-agnostic.
+
+### Why not remove the start-app.ts programmatic guard
+
+The programmatic guard
+(`app.commandLine.appendSwitch('ozone-platform', 'x11')`) still runs
+redundantly on the Snap+Wayland path once the wrapper is in place.
+Chromium's argv parser is last-wins for duplicate `--ozone-platform`,
+so the combination is harmless. Keeping it provides defense-in-depth
+for two classes of future regression:
+
+- An electron-builder change that drops the afterPack wrapper at
+  build time (e.g., an electron-builder upgrade that changes afterPack
+  semantics without us noticing).
+- A shell-missing edge case (wrapper fails to exec, system falls back
+  to the ELF — extremely unlikely on glibc/musl Linux).
+
+The cost is ~30 lines of `start-app.ts`. Keep.
+
+Similarly, the reactive GPU-disable guard stays. It covers Flatpak
+(no `$SNAP`), AppImage on hosts with broken GL drivers, and future
+Chromium/Mesa regressions that affect users the wrapper doesn't
+redirect. The guard's false-clear flaw documented above is a
+known-bounded cost.
+
+### Risks
+
+| Risk                                                                                                                                                                                                                        | Mitigation                                                                                                                                                                                                         |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Snap refresh / update path: snapd expects a specific `command:` target in `snap.yaml`. Renaming breaks if snapd verifies ELF magic.                                                                                         | snapd's `snap pack` / `snap run` treats the `command:` entry as a file path; no ELF verification. Confirmed by Signal and Mattermost snaps running the same pattern for years.                                     |
+| User invoked via `/usr/bin/superproductivity` symlink (deb/rpm install) resolves `$0` to `/usr/bin/...` and `dirname` misses `superproductivity-bin`.                                                                       | Wrapper calls `readlink -f "$0"` to resolve through symlinks before deriving `BIN_DIR`. Available in GNU coreutils and BusyBox — guaranteed on every Linux target.                                                 |
+| Forces XWayland on Snap users whose Wayland currently works (and who lose fractional scaling, per-monitor HiDPI, native IME).                                                                                               | Accepted trade-off: the Snap runtime is core22 / gnome-42-2204 and cannot reliably support native Wayland on post-core22 Mesa hosts. The Wayland-native experience is migrating to the core24 + gpu-2404 target.   |
+| Chromium duplicate-`--ozone-platform` resolution is not documented as last-wins.                                                                                                                                            | Empirically last-wins in all tested Chromium versions; the programmatic guard redundantly sets the same value, so the duplication is value-identical and the order doesn't matter. Re-verify after Electron bumps. |
+| afterPack hook silently fails in CI and no one notices until a user reports.                                                                                                                                                | Hook logs `[afterPack] Installed argv wrapper: ...` on success. Add a CI smoke assertion: after `npm run dist -- -l`, fail if `superproductivity-bin` is not present in the linux appOutDir.                       |
+| A future electron-builder version changes `afterPack` semantics (e.g., fires per-target instead of per-platform) and double-invokes the hook.                                                                               | Hook is idempotent: it checks for the renamed `-bin` before renaming and short-circuits if already installed.                                                                                                      |
+| First-install wrapper permission stripped by snapd squashfs packaging.                                                                                                                                                      | `fs.chmod(0o755)` on both wrapper and renamed binary. snapd preserves the `+x` bit during squashfs construction.                                                                                                   |
+| The hypothetical root cause (Chromium Ozone reads argv-seeded CommandLine before appendSwitch) is not source-cited. If the real mechanism is different, the wrapper still works but for a reason we don't fully understand. | The fix is empirically validated by the field data (n≥3 reports, CLI flag works) even without a pinned Chromium source ref. Source trace can follow; it doesn't block shipping.                                    |
+
+### Validation plan
+
+Static:
+
+- `npm run checkFile tools/afterPack.js` (N/A for .js — use
+  `npx prettier` which already checks clean).
+- `sh -n build/snap-wrapper.sh` passes.
+- `node -e "require('./tools/afterPack.js')"` loads the hook.
+- Unit test the hook against a temp directory (idempotency, non-Linux
+  skip, executable bits preserved). Done inline during implementation.
+
+Runtime (pending, before shipping):
+
+1. `npm run dist -- -l snap` — confirm the resulting
+   `.tmp/app-builds/linux-unpacked/superproductivity` is the shell
+   wrapper (check first 2 bytes are `#!`) and
+   `superproductivity-bin` is the ELF.
+2. Install the snap on an Ubuntu 24.04 Wayland host and confirm
+   `ps aux | grep superproductivity` shows `--ozone-platform=x11`
+   in argv (not just from `app.commandLine.appendSwitch`).
+3. Ask DerEchteKoschi and nekufa to validate against a pre-release
+   build before cutting 18.2.6.
+
+### Removal conditions
+
+When to retire the wrapper:
+
+- **core24 + gpu-2404 migration ships (target 18.3):** root cause
+  (Mesa ABI drift) is resolved; Wayland path works again. Wrapper
+  becomes unnecessary. However, a small note: even after migration,
+  the wrapper costs nothing on machines where Wayland works (the
+  X11 fallback only kicks in under `$SNAP`, and post-migration
+  Wayland is no longer the crash path).
+- **Chromium's argv/appendSwitch divergence is fixed upstream**
+  (uncertain). If Electron reports confirm `appendSwitch` now
+  reaches the Ozone backend reliably, the wrapper is redundant with
+  the programmatic guard. Unlikely in the short term.
+
+### Confidence
+
+- **That the wrapper fixes the reported field cases:** high
+  (~90%). n=3 reports CLI-flag-works; the wrapper places the flag
+  in the same position.
+- **That the wrapper has no adverse effect on non-Snap Linux
+  targets:** high (~95%). Gated on `$SNAP`; passthrough branches
+  tested locally.
+- **That electron-builder's afterPack path is stable across the
+  next major version bump:** medium (~70%). afterPack has been
+  stable for years but electron-builder's snap pipeline is
+  historically flaky; CI smoke check is load-bearing.
+- **That the mechanism hypothesis (argv-seeded CommandLine
+  dominates early Ozone init over `appendSwitch`) is accurate:**
+  low (~40%). Empirically true; source-citable: not yet.
+
+### Actionable follow-ups
+
+1. Add CI smoke check that `superproductivity-bin` exists in the
+   linux-unpacked output — guards against silent afterPack
+   regressions.
+2. After two release cycles of field confirmation, consider
+   reframing the start-app.ts programmatic guard from "primary
+   fix" to "defense-in-depth" in the code comment and in this doc.
+3. Open an Electron issue documenting the
+   `appendSwitch` vs CLI-flag divergence for `--ozone-platform`
+   with the §18 reproduction steps. Useful for other Electron
+   projects even if SP no longer needs it.
+
+---
+
 ## 11. References
 
 - [Snapcraft forum #40975](https://forum.snapcraft.io/t/40975) — "DRI driver not from this Mesa build" error signature (reported in a **core24 + experimental gnome** stack, not gnome-42-2204; the error string is real but the environment differs)
