@@ -119,6 +119,9 @@ describe('ScheduleComponent', () => {
         '2026-04-25',
         '2026-04-26',
       ]);
+      // Changing _selectedDate invalidates the daysToShow computed so the new
+      // mock return value is picked up (and headerTitle recomputes).
+      component['_selectedDate'].set(new Date(2026, 3, 20));
       fixture.detectChanges();
       // Mon Apr 20 2026 is in ISO week 17
       expect(component.headerTitle()).toMatch(/^Week 17 · .+ – .+$/);
