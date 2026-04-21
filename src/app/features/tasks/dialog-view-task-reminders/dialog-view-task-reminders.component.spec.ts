@@ -545,6 +545,11 @@ describe('DialogViewTaskRemindersComponent destroy clears unhandled deadline rem
   ): DialogViewTaskRemindersComponent => {
     TestBed.overrideProvider(MAT_DIALOG_DATA, { useValue: { reminders } });
     taskServiceSpy.getByIdsLive$.and.returnValue(of(storeTasks));
+    // TestBed becomes instantiated on the first inject/createComponent call,
+    // after which overrideProvider throws. Resolve the store here — after the
+    // override — rather than in beforeEach so the override still applies.
+    store = TestBed.inject(MockStore);
+    dispatchSpy = spyOn(store, 'dispatch').and.callThrough();
     const fixture = TestBed.createComponent(DialogViewTaskRemindersComponent);
     return fixture.componentInstance;
   };
@@ -587,9 +592,6 @@ describe('DialogViewTaskRemindersComponent destroy clears unhandled deadline rem
         TranslateStore,
       ],
     }).compileComponents();
-
-    store = TestBed.inject(MockStore);
-    dispatchSpy = spyOn(store, 'dispatch').and.callThrough();
   });
 
   it('dispatches clearDeadlineReminder on ngOnDestroy for an unhandled deadline reminder', () => {
