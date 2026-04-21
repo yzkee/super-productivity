@@ -13,7 +13,7 @@ import { errorHandlerWithFrontendInform } from './error-handler-with-frontend-in
 import * as path from 'path';
 import { join, normalize } from 'path';
 import { IPC } from './shared-with-frontend/ipc-events.const';
-import { readFileSync, stat } from 'fs';
+import { readFileSync, stat, writeFileSync } from 'fs';
 import { error, log } from 'electron-log/main';
 import { IS_MAC, IS_GNOME_DESKTOP } from './common.const';
 import {
@@ -211,6 +211,26 @@ export const createWindow = async ({
   });
 
   mainWindowState.manage(mainWin);
+
+  // Fix for #7276: electron-window-state saves state in its `closed` handler,
+  // which calls win.isMaximized() on an already-hidden window (tray/shortcut
+  // hide → quit). electron#27838 makes isMaximized() return false in that
+  // case, so the persisted state loses the maximized flag. will-quit is the
+  // only process-level hook guaranteed to fire after every window `closed`
+  // event, so the library's write has always completed by the time we patch.
+  app.once('will-quit', () => {
+    if (!getWasMaximizedBeforeHide()) return;
+    const file = path.join(app.getPath('userData'), 'window-state.json');
+    try {
+      const state = JSON.parse(readFileSync(file, 'utf8'));
+      if (!state || typeof state !== 'object' || Array.isArray(state)) return;
+      if (state.isMaximized === true) return;
+      state.isMaximized = true;
+      writeFileSync(file, JSON.stringify(state));
+    } catch (err) {
+      error('Failed to patch window-state.json for maximized flag:', err);
+    }
+  });
 
   const url = customUrl
     ? customUrl
