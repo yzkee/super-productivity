@@ -148,16 +148,16 @@ Use Angular commit message format: `type(scope): description`
 
 ## 🚫 Anti-Patterns → Do This Instead
 
-| Avoid                                | Do Instead                                                                          |
-| ------------------------------------ | ----------------------------------------------------------------------------------- |
-| `any` type                           | Use proper types, `unknown` if truly unknown                                        |
-| Direct DOM access                    | Use Angular bindings, `viewChild()` if needed                                       |
-| Side effects in constructors         | Prefer `async` pipe or `toSignal`                                                   |
-| Mutating NgRx state directly         | Return new objects in reducers                                                      |
-| Subscribing without cleanup          | Use `takeUntilDestroyed()` or async pipe                                            |
-| `NgModules` for new code             | Use standalone components                                                           |
-| Re-declaring Material theme styles   | Use existing theme variables                                                        |
-| `inject(Actions)` in effects         | Use `inject(LOCAL_ACTIONS)` - effects must not run for remote sync ops              |
-| Selector-based effects that dispatch | Convert to action-based or guard with `HydrationStateService.isApplyingRemoteOps()` |
-| `Log.log(task)` / `Log.log(title)`   | `Log.log({ id: task.id })` — log history is exportable; never log user content      |
+| Avoid                                    | Do Instead                                                                                                      |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `any` type                               | Use proper types, `unknown` if truly unknown                                                                    |
+| Direct DOM access                        | Use Angular bindings, `viewChild()` if needed                                                                   |
+| Side effects in constructors             | Prefer `async` pipe or `toSignal`                                                                               |
+| Mutating NgRx state directly             | Return new objects in reducers                                                                                  |
+| Subscribing without cleanup              | Use `takeUntilDestroyed()` or async pipe                                                                        |
+| `NgModules` for new code                 | Use standalone components                                                                                       |
+| Re-declaring Material theme styles       | Use existing theme variables                                                                                    |
+| `inject(Actions)` in effects             | Use `inject(LOCAL_ACTIONS)` - effects must not run for remote sync ops                                          |
+| Selector-based effects that dispatch     | Convert to action-based or guard with `HydrationStateService.isApplyingRemoteOps()`                             |
+| `Log.log(task)` / `Log.log(title)`       | `Log.log({ id: task.id })` — log history is exportable; never log user content                                  |
 | `Date.now() - startOfNextDayDiff` inline | `dateService.getLogicalTodayDate()` — or `isTodayWithOffset(ts, todayStr, offsetMs)` in pure reducers/selectors |

@@ -1928,7 +1928,8 @@
     "IMPORT_FROM_URL_DIALOG_DESCRIPTION": "Please enter the full URL of the Super Productivity backup JSON file to import.",
     "IMPORT_FROM_URL_DIALOG_TITLE": "Import from URL",
     "OPEN_IMPORT_FROM_URL_DIALOG": "Import from URL",
-    "PRIVACY_EXPORT": "Export anonymized data (to send to contact@super-productivity.com for debugging)",
+    "PRIVACY_EXPORT": "Exportă date (anonimizate)",
+    "PRIVACY_EXPORT_DESCRIPTION": "Exportă date anonimizate (pentru trimitere la contact@super-productivity.com pentru depanare)",
     "S_BACKUP_DOWNLOADED": "Backup downloaded to Android documents folder",
     "S_ERR_IMPORT_FAILED": "Importing data failed",
     "S_ERR_INVALID_DATA": "Import failed: Invalid JSON",
@@ -2006,7 +2007,7 @@
       "USER_PROFILES_WARNING": "<strong>Funcție experimentală:</strong> Această funcție este încă în dezvoltare și ar putea fi eliminată sau modificată semnificativ într-o actualizare viitoare. Folosește cu grijă și asigură-te că ai copii de rezervă ale datelor tale.",
       "EXPERIMENTAL_WARNING_TITLE": "Feature Experimental",
       "EXPERIMENTAL_WARNING_MSG": "Această funcție este experimentală. Poate conține erori, poate fi modificată semnificativ sau poate fi eliminată într-o actualizare viitoare. Asigură-te că ai copii de rezervă ale datelor tale.<br/><br/>Vrei să o activezi?"
-      },
+    },
     "AUTO_BACKUPS": {
       "HELP": "Automatically save all data to your app folder to have it ready if something goes wrong.",
       "LABEL_IS_ENABLED": "Enable automatic backups",
