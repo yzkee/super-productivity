@@ -157,6 +157,17 @@ export class DialogViewTaskRemindersComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
+    // Clear any deadline reminders that were shown but not explicitly handled
+    // (e.g. user closed via ESC/backdrop). Without this, the reminder worker
+    // re-detects the past-due deadlineRemindAt every 10s and the dialog reopens
+    // indefinitely. Explicit user actions add the task to _dismissedReminderIds,
+    // so this only fires for genuinely unhandled reminders. The deadline date
+    // itself is preserved — only the reminder timestamp is cleared.
+    this._deadlineReminderTaskIds.forEach((taskId) => {
+      if (!this._dismissedReminderIds.has(taskId)) {
+        this._store.dispatch(TaskSharedActions.clearDeadlineReminder({ taskId }));
+      }
+    });
     this._subs.unsubscribe();
   }
 
@@ -306,6 +317,7 @@ export class DialogViewTaskRemindersComponent implements OnDestroy {
           if (task.isDeadlineReminder) {
             this._clearDeadlineReminder(task);
           }
+          this._dismissedReminderIds.add(task.id);
           this._finalizeBulkAction();
         }
       }),
@@ -331,6 +343,7 @@ export class DialogViewTaskRemindersComponent implements OnDestroy {
       .filter((t) => t.isDeadlineReminder)
       .forEach((t) => this._clearDeadlineReminder(t));
 
+    selectedTasks.forEach((t) => this._dismissedReminderIds.add(t.id));
     this._finalizeBulkAction();
   }
 
@@ -398,6 +411,7 @@ export class DialogViewTaskRemindersComponent implements OnDestroy {
       if (task.isDeadlineReminder) {
         this._clearDeadlineReminder(task);
       }
+      this._dismissedReminderIds.add(task.id);
     });
     this._finalizeBulkAction();
   }
