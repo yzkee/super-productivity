@@ -174,7 +174,9 @@
               (click)="openDeadlineDialog()"
               [title]="T.F.TASK.ADDITIONAL_INFO.DEADLINE | translate"
               class="ico-btn deadline-btn"
-              [color]="isDeadlineOverdue() ? 'warn' : ''"
+              [color]="
+                isDeadlineOverdue() ? 'warn' : isDeadlineApproaching() ? 'accent' : ''
+              "
               mat-icon-button
             >
               <mat-icon>flag</mat-icon>
