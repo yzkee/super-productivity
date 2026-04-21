@@ -9,7 +9,7 @@ import { DateAdapter } from '@angular/material/core';
 import { signal } from '@angular/core';
 import { of } from 'rxjs';
 import { provideMockStore } from '@ngrx/store/testing';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { SCHEDULE_CONSTANTS } from '../schedule.constants';
 import { GlobalConfigService } from '../../config/global-config.service';
 
@@ -103,6 +103,12 @@ describe('ScheduleComponent', () => {
 
   describe('headerTitle computed', () => {
     it('returns week label and date range in week view', () => {
+      const translate = TestBed.inject(TranslateService);
+      translate.setTranslation('en', {
+        F: { WORKLOG: { CMP: { WEEK_NR: 'Week {{nr}}' } } },
+      });
+      translate.use('en');
+
       mockLayoutService.selectedTimeView.set('week');
       mockScheduleService.getDaysToShow.and.returnValue([
         '2026-04-20',
@@ -153,8 +159,15 @@ describe('ScheduleComponent', () => {
     });
 
     it('should update when goToPreviousPeriod is called in week view', () => {
-      // Arrange - start viewing today (null)
-      expect(component['_selectedDate']()).toBeNull();
+      // Arrange - view a future range that doesn't contain today, so prev nav is enabled
+      mockScheduleService.getDaysToShow.and.returnValue([
+        '2027-06-14',
+        '2027-06-15',
+        '2027-06-16',
+      ]);
+      const startDate = new Date(2027, 5, 15);
+      component['_selectedDate'].set(startDate);
+      fixture.detectChanges();
 
       // Act - navigate to previous week
       component.goToPreviousPeriod();
@@ -162,7 +175,7 @@ describe('ScheduleComponent', () => {
       // Assert
       const newDate = component['_selectedDate']();
       expect(newDate).not.toBeNull();
-      expect(newDate?.getTime()).toBeLessThan(Date.now());
+      expect(newDate?.getTime()).toBeLessThan(startDate.getTime());
     });
 
     it('should update when goToNextPeriod is called in month view', () => {
@@ -181,8 +194,10 @@ describe('ScheduleComponent', () => {
     });
 
     it('should update when goToPreviousPeriod is called in month view', () => {
-      // Arrange - switch to month view
+      // Arrange - view a future month so prev nav is enabled
+      // (default getMonthDaysToShow mock returns Jan 1-3, excluding mocked today Jan 20)
       mockLayoutService.selectedTimeView.set('month');
+      component['_selectedDate'].set(new Date(2026, 1, 15)); // Feb 15, 2026
       fixture.detectChanges();
 
       // Act
@@ -236,11 +251,17 @@ describe('ScheduleComponent', () => {
 
   describe('goToPreviousPeriod', () => {
     it('should navigate backward by the number of days currently shown', () => {
-      // Arrange
-      const startDate = new Date(2026, 0, 20); // Jan 20, 2026
+      // Arrange - view a future range that doesn't contain today
+      mockScheduleService.getDaysToShow.and.returnValue([
+        '2027-06-14',
+        '2027-06-15',
+        '2027-06-16',
+      ]);
+      const startDate = new Date(2027, 5, 15); // Jun 15, 2027
       component['_selectedDate'].set(startDate);
+      fixture.detectChanges();
 
-      // Get the actual number of days being shown (depends on test window size)
+      // Get the actual number of days being shown (mock-controlled)
       const daysShown = component.daysToShow().length;
 
       // Act
@@ -255,22 +276,15 @@ describe('ScheduleComponent', () => {
       expect(newDate?.getHours()).toBe(0); // Normalized to midnight
     });
 
-    it('should navigate backward from today by the number of days shown', () => {
-      // Arrange
+    it('should not navigate backward when already viewing today', () => {
+      // Arrange - viewing today (null selected date)
       component['_selectedDate'].set(null);
-      const startDate = new Date();
-      const daysShown = component.daysToShow().length;
-
-      const expectedDate = new Date(startDate);
-      expectedDate.setDate(startDate.getDate() - daysShown);
 
       // Act
       component.goToPreviousPeriod();
 
-      // Assert
-      const newDate = component['_selectedDate']();
-      expect(newDate?.getDate()).toBe(expectedDate.getDate());
-      expect(newDate?.getHours()).toBe(0); // Normalized to midnight
+      // Assert - prev nav is disabled when today is in view
+      expect(component['_selectedDate']()).toBeNull();
     });
 
     it('should go to previous month in month view', () => {
@@ -390,10 +404,14 @@ describe('ScheduleComponent', () => {
     });
 
     it('should make isViewingToday return true', () => {
-      // Arrange
-      const futureDate = new Date();
-      futureDate.setDate(futureDate.getDate() + 7);
-      component['_selectedDate'].set(futureDate);
+      // Arrange - view a future range that doesn't contain today
+      mockScheduleService.getDaysToShow.and.returnValue([
+        '2027-06-14',
+        '2027-06-15',
+        '2027-06-16',
+      ]);
+      component['_selectedDate'].set(new Date(2027, 5, 15));
+      fixture.detectChanges();
       expect(component.isViewingToday()).toBe(false);
 
       // Act
@@ -503,10 +521,14 @@ describe('ScheduleComponent', () => {
 
   describe('currentTimeRow computed', () => {
     it('should return null when not viewing today', () => {
-      // Arrange
-      const futureDate = new Date();
-      futureDate.setDate(futureDate.getDate() + 7);
-      component['_selectedDate'].set(futureDate);
+      // Arrange - view a future range that doesn't contain today
+      mockScheduleService.getDaysToShow.and.returnValue([
+        '2027-06-14',
+        '2027-06-15',
+        '2027-06-16',
+      ]);
+      component['_selectedDate'].set(new Date(2027, 5, 15));
+      fixture.detectChanges();
 
       // Act
       const timeRow = component.currentTimeRow();
