@@ -1462,29 +1462,37 @@ cannot carry the Snap+Wayland tail on its own.
 
 Mechanism: rename the main Electron binary to `superproductivity-bin`
 during the build (`tools/afterPack.js`) and install a shell wrapper
-at the original name (`build/snap-wrapper.sh`). The wrapper decides
-whether to inject `--ozone-platform=x11` into argv based on the
-runtime environment:
+at the original name (`build/linux/snap-wrapper.sh`). The wrapper
+decides whether to inject `--ozone-platform=x11` into argv based on
+the runtime environment:
 
 ```sh
-if [ -n "$SNAP" ] && { [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ]; }; then
+if [ -n "$IS_OUR_SNAP" ] && { [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ]; }; then
   exec "$BIN" --ozone-platform=x11 "$@"
 fi
 exec "$BIN" "$@"
 ```
 
-Three properties:
+Four properties:
 
 1. **Argv-level injection.** The flag is in `process.argv[1]` before
    Electron or Chromium starts. No ambiguity about when Ozone reads
    the CommandLine.
-2. **Conditional on Snap + Wayland.** X11 sessions pass through
-   untouched. Non-Snap Linux targets (AppImage, .deb, .rpm) also
-   pass through untouched because `$SNAP` is unset outside snapd.
+2. **Conditional on _our_ Snap + Wayland.** The gate requires
+   `$SNAP_NAME = "superproductivity"`, not just `$SNAP` set — this
+   protects `.deb`/`.rpm` installs launched via `xdg-open` from a
+   sibling snap (where `$SNAP` leaks into the child env). X11
+   sessions pass through untouched. Non-Snap Linux targets pass
+   through untouched.
 3. **Respects user override.** If argv already contains
    `--ozone-platform=...`, the wrapper passes through and lets the
-   user's choice win (e.g., explicit `--ozone-platform=wayland` for
-   Wayland testers).
+   user's choice win. The scan stops at `--` so positional args that
+   resemble flags aren't misread.
+4. **Survives `app.relaunch()`.** The `IPC.RELAUNCH` handler explicitly
+   points `execPath` at the sibling wrapper; otherwise Electron would
+   default to `process.execPath` (the renamed ELF) and a relaunched
+   instance would lose the flag injection on Snap+Wayland. See
+   `electron/ipc-handlers/app-control.ts`.
 
 Peer precedent: snapcrafters/signal-desktop and
 snapcrafters/mattermost-desktop use the same shape
@@ -1546,7 +1554,7 @@ Static:
 
 - `npm run checkFile tools/afterPack.js` (N/A for .js — use
   `npx prettier` which already checks clean).
-- `sh -n build/snap-wrapper.sh` passes.
+- `sh -n build/linux/snap-wrapper.sh` passes.
 - `node -e "require('./tools/afterPack.js')"` loads the hook.
 - Unit test the hook against a temp directory (idempotency, non-Linux
   skip, executable bits preserved). Done inline during implementation.
