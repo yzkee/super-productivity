@@ -1780,6 +1780,7 @@ describe('FocusModeEffects', () => {
         createMockTimer({ isRunning: false, purpose: 'work' }),
       );
       store.refreshState();
+      currentTaskId$.next('task-123');
 
       actions$ = of(actions.pauseFocusSession({ pausedTaskId: 'task-123' }));
 
@@ -1787,6 +1788,33 @@ describe('FocusModeEffects', () => {
         expect(action.type).toEqual('[Task] UnsetCurrentTask');
         done();
       });
+    });
+
+    // Skip the redundant unsetCurrentTask when current task is already null —
+    // otherwise the no-op dispatch would clobber lastCurrentTaskId in the reducer.
+    it('should NOT dispatch when currentTaskId is already null', (done) => {
+      store.overrideSelector(selectFocusModeConfig, {
+        isSyncSessionWithTracking: true,
+        isSkipPreparation: false,
+      });
+      store.overrideSelector(
+        selectors.selectTimer,
+        createMockTimer({ isRunning: false, purpose: 'work' }),
+      );
+      store.refreshState();
+      currentTaskId$.next(null);
+
+      actions$ = of(actions.pauseFocusSession({ pausedTaskId: 'task-123' }));
+
+      let emitted = false;
+      effects.syncSessionPauseToTracking$.subscribe(() => {
+        emitted = true;
+      });
+
+      setTimeout(() => {
+        expect(emitted).toBe(false);
+        done();
+      }, 50);
     });
 
     it('should NOT dispatch when pausedTaskId is null', (done) => {
@@ -1848,6 +1876,7 @@ describe('FocusModeEffects', () => {
         createMockTimer({ isRunning: false, purpose: 'break' }),
       );
       store.refreshState();
+      currentTaskId$.next('task-123');
 
       actions$ = of(actions.pauseFocusSession({ pausedTaskId: 'task-123' }));
 

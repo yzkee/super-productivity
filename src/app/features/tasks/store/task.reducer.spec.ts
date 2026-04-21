@@ -530,6 +530,18 @@ describe('Task Reducer', () => {
       expect(state.currentTaskId).toBeNull();
       expect(state.lastCurrentTaskId).toBe('task1');
     });
+
+    it('should preserve lastCurrentTaskId on a no-op unsetCurrentTask', () => {
+      const pausedState: TaskState = {
+        ...stateWithTasks,
+        currentTaskId: null,
+        lastCurrentTaskId: 'task1',
+      };
+      const state = taskReducer(pausedState, fromActions.unsetCurrentTask());
+
+      expect(state.currentTaskId).toBeNull();
+      expect(state.lastCurrentTaskId).toBe('task1');
+    });
   });
 
   describe('removeTasksFromTodayTag action', () => {

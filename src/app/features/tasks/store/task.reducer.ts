@@ -229,7 +229,12 @@ export const taskReducer = createReducer<TaskState>(
   }),
 
   on(unsetCurrentTask, (state) => {
-    return { ...state, currentTaskId: null, lastCurrentTaskId: state.currentTaskId };
+    // Preserve lastCurrentTaskId when currentTaskId is already null (no-op unset).
+    return {
+      ...state,
+      currentTaskId: null,
+      lastCurrentTaskId: state.currentTaskId ?? state.lastCurrentTaskId,
+    };
   }),
 
   on(setSelectedTask, (state, { id, taskDetailTargetPanel, isSkipToggle }) => {

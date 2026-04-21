@@ -183,20 +183,22 @@ export class FocusModeEffects {
   );
 
   // Sync: When focus session pauses → stop tracking
-  // Note: This effect fires AFTER the reducer runs, and the pausedTaskId is already stored
-  // in the action/reducer, so we just need to dispatch unsetCurrentTask
+  // Skip when currentTaskId is already null (pause originated from tracking stop,
+  // which already cleared it); redundant dispatch would clobber lastCurrentTaskId.
   syncSessionPauseToTracking$ = createEffect(() =>
     this.actions$.pipe(
       ofType(actions.pauseFocusSession),
       withLatestFrom(
         this.store.select(selectFocusModeConfig),
         this.store.select(selectors.selectTimer),
+        this.taskService.currentTaskId$,
       ),
       filter(
-        ([action, cfg, timer]) =>
+        ([action, cfg, timer, currentTaskId]) =>
           !!cfg?.isSyncSessionWithTracking &&
           (timer.purpose === 'work' || timer.purpose === 'break') &&
-          !!action.pausedTaskId,
+          !!action.pausedTaskId &&
+          !!currentTaskId,
       ),
       map(() => unsetCurrentTask()),
     ),
