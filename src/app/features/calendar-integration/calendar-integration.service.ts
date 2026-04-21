@@ -57,6 +57,7 @@ import { PluginHttpService } from '../../plugins/issue-provider/plugin-http.serv
 import { selectEnabledIssueProviders } from '../issue/store/issue-provider.selectors';
 import { PluginSearchResult } from '../../plugins/issue-provider/plugin-issue-provider.model';
 import { HiddenCalendarEventsService } from './hidden-calendar-events.service';
+import { NotIcalResponseError } from '../schedule/ical/is-likely-ical';
 
 const ONE_MONTHS = 60 * 60 * 1000 * 24 * 31;
 const PLUGIN_CALENDAR_POLL_INTERVAL = 5 * 60 * 1000; // 5 minutes
@@ -334,15 +335,22 @@ export class CalendarIntegrationService {
         ),
         catchError((err) => {
           Log.err(err);
-          this._snackService.open({
-            type: 'ERROR',
-            msg: T.F.CALENDARS.S.CAL_PROVIDER_ERROR,
-            translateParams: {
-              errTxt: getErrorTxt(err),
-            },
-          });
+          if (err instanceof NotIcalResponseError) {
+            this._snackService.open({
+              type: 'ERROR',
+              msg: T.F.CALENDARS.S.CAL_PROVIDER_NOT_ICAL,
+            });
+          } else {
+            this._snackService.open({
+              type: 'ERROR',
+              msg: T.F.CALENDARS.S.CAL_PROVIDER_ERROR,
+              translateParams: {
+                errTxt: getErrorTxt(err),
+              },
+            });
+          }
           if (isForwardError) {
-            throw new Error(err);
+            throw err;
           }
           return of([]);
         }),

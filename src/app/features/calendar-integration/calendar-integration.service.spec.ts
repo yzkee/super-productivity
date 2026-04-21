@@ -23,6 +23,7 @@ import { getDbDateStr } from '../../util/get-db-date-str';
 import { PluginIssueProviderRegistryService } from '../../plugins/issue-provider/plugin-issue-provider-registry.service';
 import { PluginHttpService } from '../../plugins/issue-provider/plugin-http.service';
 import { IssueProviderPluginType } from '../issue/issue.model';
+import { NotIcalResponseError } from '../schedule/ical/is-likely-ical';
 
 describe('CalendarIntegrationService', () => {
   let service: CalendarIntegrationService;
@@ -661,6 +662,64 @@ END:VCALENDAR`;
 
       tick(0);
       // Should not throw, might return empty array or parsed result
+    }));
+
+    it('should surface a dedicated snack message when the URL returns HTML instead of iCal', fakeAsync(() => {
+      const mockProvider = createMockProvider();
+      mockSnackService.open.calls.reset();
+
+      let result: unknown;
+      const sub = service.requestEvents$(mockProvider).subscribe((val) => {
+        result = val;
+      });
+      subscriptions.push(sub);
+
+      const req = httpMock.expectOne(mockProvider.icalUrl);
+      // Simulate Office365 returning an HTML redirect page when the share link is revoked
+      req.flush(
+        '<html><head><title>Object moved</title></head><body>' +
+          '<h2>Object moved to <a href="https://outlook.office365.com/mail/">here</a>.</h2>' +
+          '</body></html>',
+      );
+
+      tick(0);
+      expect(result).toEqual([]);
+      expect(mockSnackService.open).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          type: 'ERROR',
+          msg: 'F.CALENDARS.S.CAL_PROVIDER_NOT_ICAL',
+        }),
+      );
+    }));
+
+    it('should propagate the typed error and still show the snack when isForwardError=true', fakeAsync(() => {
+      const mockProvider = createMockProvider();
+      mockSnackService.open.calls.reset();
+
+      let caughtError: unknown;
+      const sub = service
+        .requestEvents$(mockProvider, Date.now(), Date.now() + 86_400_000, true)
+        .subscribe({
+          next: () => {},
+          error: (err) => {
+            caughtError = err;
+          },
+        });
+      subscriptions.push(sub);
+
+      const req = httpMock.expectOne(mockProvider.icalUrl);
+      req.flush('<html>not ical</html>');
+
+      tick(0);
+      expect(mockSnackService.open).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          msg: 'F.CALENDARS.S.CAL_PROVIDER_NOT_ICAL',
+        }),
+      );
+      // The NotIcalResponseError must propagate unwrapped so upstream consumers
+      // can branch on its identity via `instanceof`. A plain-Error wrapper (the
+      // prior behaviour via `throw new Error(err)`) would fail this check.
+      expect(caughtError).toBeInstanceOf(NotIcalResponseError);
     }));
   });
 
