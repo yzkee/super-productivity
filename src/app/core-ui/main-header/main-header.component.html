@@ -27,7 +27,7 @@
 
     <nav class="action-nav-right">
       <div class="counters-action-group">
-        @if (isTimeTrackingEnabled()) {
+        @if (isPlayButtonVisible()) {
           <play-button
             [currentTask]="currentTask()"
             [currentTaskId]="currentTaskId()"
