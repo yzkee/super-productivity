@@ -12,7 +12,6 @@ import { TaskService } from '../task.service';
 import { ProjectService } from '../../project/project.service';
 import { ReminderService } from '../../reminder/reminder.service';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
-import { WorkContextService } from '../../work-context/work-context.service';
 
 /**
  * Tests for the tasks$ filter logic in DialogViewTaskRemindersComponent.
@@ -589,18 +588,18 @@ describe('DialogViewTaskRemindersComponent destroy clears unhandled deadline rem
         { provide: ProjectService, useValue: projectServiceSpy },
         { provide: MatDialog, useValue: matDialogSpy },
         { provide: ReminderService, useValue: reminderServiceStub },
-        // TagListComponent (in the dialog's standalone imports) injects
-        // WorkContextService, whose LOCAL_ACTIONS chain needs ScannedActionsSubject
-        // — not provided by provideMockStore. Stub it to keep the injector happy
-        // even though tests don't render the template.
-        {
-          provide: WorkContextService,
-          useValue: { activeWorkContextTypeAndId$: of(null) },
-        },
         TranslateService,
         TranslateStore,
       ],
-    }).compileComponents();
+    })
+      // Stub the template so child components (tag-list → WorkContextService →
+      // LOCAL_ACTIONS → Actions) and template pipes (DateTimeFormatService →
+      // DateAdapter) aren't instantiated. These tests only exercise ngOnDestroy
+      // logic, not rendering.
+      .overrideComponent(DialogViewTaskRemindersComponent, {
+        set: { template: '' },
+      })
+      .compileComponents();
   });
 
   it('dispatches clearDeadlineReminder on ngOnDestroy for an unhandled deadline reminder', () => {
