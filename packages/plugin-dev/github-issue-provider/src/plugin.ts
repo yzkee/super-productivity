@@ -104,6 +104,13 @@ const isAuthOrNotFoundError = (err: unknown): boolean => {
   return false;
 };
 
+// GitHub's search API requires parentheses percent-encoded, but
+// encodeURIComponent leaves them intact (they're unreserved per RFC 3986).
+// Unencoded parens cause HTTP 422 on queries like "(author:@me OR assignee:@me)".
+// See https://github.com/super-productivity/super-productivity/issues/4913
+const encodeGithubQuery = (query: string): string =>
+  encodeURIComponent(query).replace(/\(/g, '%28').replace(/\)/g, '%29');
+
 PluginAPI.registerIssueProvider({
   configFields: [
     {
@@ -162,7 +169,7 @@ PluginAPI.registerIssueProvider({
     const hasTypeFilter =
       searchTerm.includes('is:issue') || searchTerm.includes('is:pull-request');
     const typeFilter = hasTypeFilter ? '' : ' is:issue';
-    const q = encodeURIComponent(`repo:${owner}/${repo}${typeFilter} ${searchTerm}`);
+    const q = encodeGithubQuery(`repo:${owner}/${repo}${typeFilter} ${searchTerm}`);
     const url = `${API_BASE}/search/issues?q=${q}&per_page=50`;
     const response = await http.get<GithubSearchResponse>(url);
     return (response.items || []).map(mapSearchResult);
@@ -262,7 +269,7 @@ PluginAPI.registerIssueProvider({
     const cfg = config as unknown as GithubConfig;
     const { owner, repo } = parseRepo(cfg);
     const query = cfg.backlogQuery || 'sort:updated state:open assignee:@me';
-    const q = encodeURIComponent(`repo:${owner}/${repo} is:issue ${query}`);
+    const q = encodeGithubQuery(`repo:${owner}/${repo} is:issue ${query}`);
     const url = `${API_BASE}/search/issues?q=${q}&per_page=50`;
     const response = await http.get<GithubSearchResponse>(url);
     return (response.items || []).map(mapSearchResult);
