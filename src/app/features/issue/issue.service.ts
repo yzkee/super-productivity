@@ -12,7 +12,7 @@ import {
   SearchResultItemWithProviderId,
 } from './issue.model';
 import { TaskAttachment } from '../tasks/task-attachment/task-attachment.model';
-import { forkJoin, from, merge, Observable, of, Subject } from 'rxjs';
+import { firstValueFrom, forkJoin, from, merge, Observable, of, Subject } from 'rxjs';
 import {
   CALDAV_TYPE,
   GITEA_TYPE,
@@ -569,8 +569,10 @@ export class IssueService {
       issueId: issueDataReduced.id.toString(),
       issueWasUpdated: false,
       issueLastUpdated: Date.now(),
-      // Default plan for today unless a precise time is provided by provider
-      dueDay: getDbDateStr(),
+      // Default plan for today unless a precise time is provided by provider.
+      // Skip when going to backlog — a backlog task that's also "due today"
+      // shows up in the Today tab, defeating the point of the backlog.
+      ...(isAddToBacklog ? {} : { dueDay: getDbDateStr() }),
       ...additionalFromProviderIssueService,
       ...(await getTaskDefaults()),
       ...additional,
@@ -732,6 +734,28 @@ export class IssueService {
         res.task.projectId &&
         res.task.projectId === this._workContextService.activeWorkContextId
       ) {
+        // If the existing task is already in this project's backlog, don't
+        // yank it to Today — that's the whole point of the backlog. Without
+        // this guard, every poll that surfaces an already-imported issue
+        // promotes the task, which spams Today with issues the user
+        // consciously parked in Backlog.
+        const project = await firstValueFrom(
+          this._projectService.getByIdOnce$(res.task.projectId),
+        );
+        const isInBacklog = !!project?.backlogTaskIds?.includes(res.task.id);
+        if (isInBacklog) {
+          const taskId = res.task.id;
+          this._snackService.open({
+            ico: 'info',
+            msg: T.F.TASK.S.TASK_ALREADY_EXISTS,
+            translateParams: { title: res.task.title },
+            actionStr: T.F.TASK.S.GO_TO_TASK,
+            actionFn: () => {
+              this._navigateToTaskService.navigate(taskId, false);
+            },
+          });
+          return true;
+        }
         this._projectService.moveTaskToTodayList(res.task.id, res.task.projectId);
         this._snackService.open({
           ico: 'arrow_upward',
