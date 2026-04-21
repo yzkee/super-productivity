@@ -42,7 +42,6 @@ import { DesktopPanelButtonsComponent } from './desktop-panel-buttons/desktop-pa
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MetricService } from '../../features/metric/metric.service';
 import { DateService } from '../../core/date/date.service';
-import { LS } from '../../core/persistence/storage-keys.const';
 import { UserProfileButtonComponent } from '../../features/user-profile/user-profile-button/user-profile-button.component';
 import { FocusButtonComponent } from './focus-button/focus-button.component';
 import { UserProfileService } from '../../features/user-profile/user-profile.service';
@@ -129,13 +128,6 @@ export class MainHeaderComponent implements OnDestroy {
   );
   isRouteWithSidePanel = toSignal(this._isRouteWithSidePanel$, { initialValue: true });
 
-  private _isScheduleSection$ = this._router.events.pipe(
-    filter((event): event is NavigationEnd => event instanceof NavigationEnd),
-    map((event) => !!event.urlAfterRedirects.match(/(schedule)$/)),
-    startWith(!!this._router.url.match(/(schedule)$/)),
-  );
-  isScheduleSection = toSignal(this._isScheduleSection$, { initialValue: false });
-
   // Convert more observables to signals
 
   currentTask = toSignal(this.taskService.currentTask$);
@@ -197,13 +189,6 @@ export class MainHeaderComponent implements OnDestroy {
   });
 
   private _subs: Subscription = new Subscription();
-
-  selectedTimeView = computed(() => this.layoutService.selectedTimeView());
-
-  selectTimeView(view: 'week' | 'month'): void {
-    this.layoutService.selectedTimeView.set(view);
-    localStorage.setItem(LS.SELECTED_TIME_VIEW, view);
-  }
 
   ngOnDestroy(): void {
     this._subs.unsubscribe();

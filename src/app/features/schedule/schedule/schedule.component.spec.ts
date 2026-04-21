@@ -101,6 +101,38 @@ describe('ScheduleComponent', () => {
     fixture.detectChanges();
   });
 
+  describe('headerTitle computed', () => {
+    it('returns week label and date range in week view', () => {
+      mockLayoutService.selectedTimeView.set('week');
+      mockScheduleService.getDaysToShow.and.returnValue([
+        '2026-04-20',
+        '2026-04-21',
+        '2026-04-22',
+        '2026-04-23',
+        '2026-04-24',
+        '2026-04-25',
+        '2026-04-26',
+      ]);
+      fixture.detectChanges();
+      // Mon Apr 20 2026 is in ISO week 17
+      expect(component.headerTitle()).toMatch(/^Week 17 · .+ – .+$/);
+    });
+
+    it('returns month + year in month view', () => {
+      mockLayoutService.selectedTimeView.set('month');
+      const days = Array.from({ length: 35 }, (_, i) => {
+        const d = new Date(2026, 3, 1 + i);
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      });
+      mockScheduleService.getMonthDaysToShow.and.returnValue(days);
+      fixture.detectChanges();
+      expect(component.headerTitle()).toMatch(/April\s+2026/);
+    });
+  });
+
   describe('_selectedDate signal', () => {
     it('should initialize as null (viewing today)', () => {
       expect(component['_selectedDate']()).toBeNull();
@@ -166,37 +198,38 @@ describe('ScheduleComponent', () => {
 
   describe('isViewingToday computed', () => {
     it('should return true when _selectedDate is null', () => {
-      // Arrange
       component['_selectedDate'].set(null);
-
-      // Act & Assert
       expect(component.isViewingToday()).toBe(true);
     });
 
-    it('should return true when _selectedDate matches today', () => {
-      // Arrange - set to today (must match the mock todayDateStr$ value)
-      const today = new Date('2026-01-20');
-      component['_selectedDate'].set(today);
-
-      // Act & Assert
+    it('should return true when the displayed range contains today', () => {
+      // Mock today = 2026-01-20. Displayed range includes that day.
+      mockScheduleService.getDaysToShow.and.returnValue([
+        '2026-01-19',
+        '2026-01-20',
+        '2026-01-21',
+      ]);
+      component['_selectedDate'].set(new Date('2026-01-19'));
       expect(component.isViewingToday()).toBe(true);
     });
 
-    it('should return false when _selectedDate is in the future', () => {
-      // Arrange
-      const futureDate = new Date('2026-01-27'); // 7 days after mocked today (2026-01-20)
-      component['_selectedDate'].set(futureDate);
-
-      // Act & Assert
+    it('should return false when viewing a future range without today', () => {
+      mockScheduleService.getDaysToShow.and.returnValue([
+        '2026-01-26',
+        '2026-01-27',
+        '2026-01-28',
+      ]);
+      component['_selectedDate'].set(new Date('2026-01-27'));
       expect(component.isViewingToday()).toBe(false);
     });
 
-    it('should return false when _selectedDate is in the past', () => {
-      // Arrange
-      const pastDate = new Date('2026-01-13'); // 7 days before mocked today (2026-01-20)
-      component['_selectedDate'].set(pastDate);
-
-      // Act & Assert
+    it('should return false when viewing a past range without today', () => {
+      mockScheduleService.getDaysToShow.and.returnValue([
+        '2026-01-12',
+        '2026-01-13',
+        '2026-01-14',
+      ]);
+      component['_selectedDate'].set(new Date('2026-01-13'));
       expect(component.isViewingToday()).toBe(false);
     });
   });
