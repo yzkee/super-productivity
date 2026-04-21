@@ -1584,7 +1584,60 @@ When to retire the wrapper:
 - **Chromium's argv/appendSwitch divergence is fixed upstream**
   (uncertain). If Electron reports confirm `appendSwitch` now
   reaches the Ozone backend reliably, the wrapper is redundant with
-  the programmatic guard. Unlikely in the short term.
+  the programmatic guard. Unlikely in the short term — see §18.7 for
+  the source-level reason this divergence is structural, not a bug.
+
+### §18.7 Mechanism (source-level verification, 2026-04-21)
+
+The CLI-vs-`appendSwitch` divergence was previously listed as an
+"open question" with three candidate hypotheses (§16). A source-trace
+pass resolved it: the divergence is **strict initialization-order**,
+not async timing or env-var interaction.
+
+**Call order (verified against Electron master + Chromium source):**
+
+1. Electron's C++ `ElectronBrowserMainParts::PreEarlyInitialization()`
+   calls `SetOzonePlatformForLinuxIfNeeded(*base::CommandLine::ForCurrentProcess())`
+   and then `ui::OzonePlatform::PreEarlyInitialization()`
+   ([electron#48301](https://github.com/electron/electron/pull/48301/files)).
+2. `ui::OzonePlatform::PreEarlyInitialization` reads
+   `--ozone-platform` from `base::CommandLine::ForCurrentProcess()`,
+   resolves the platform name, and memoizes it in the static
+   `g_selected_platform` (see
+   [ui/ozone/platform_selection.cc](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/ui/ozone/platform_selection.cc)).
+3. V8 loads `main.js` later, during `PostEarlyInitialization()`.
+4. User JS runs `app.commandLine.appendSwitch('ozone-platform', 'x11')`.
+   The write succeeds, but the read has already happened and the
+   value is memoized — **nobody reads it again**.
+
+**Consequence:** no Electron-main-process code path can affect Ozone
+platform selection. The argv wrapper is structurally the only fix
+available from _outside_ the Electron binary.
+
+**Rejected alternatives:**
+
+- `ELECTRON_OZONE_PLATFORM_HINT` env var — removed as dead code in
+  Electron 39 ([electron#47983](https://github.com/electron/electron/pull/47983)).
+  Does nothing on Electron ≥39.
+- Setting env var from inside `start-app.ts` before
+  `require('electron')` — the C++ `main()` has already returned from
+  `PreEarlyInitialization` by the time any JS runs. Too late.
+- Setting `XDG_SESSION_TYPE=x11` in `electron-builder.yaml`'s
+  `snap.environment:` block — would work (this is the officially
+  documented replacement for `ELECTRON_OZONE_PLATFORM_HINT`), but
+  would also fool SP's own `IdleTimeHandler`, which reads
+  `XDG_SESSION_TYPE` to choose an idle-detection method. Forcing it
+  to `x11` would silently break GNOME Wayland idle detection on
+  affected hosts. The argv wrapper is preferred because it only
+  touches argv, leaving env vars intact.
+
+**Residual unknown:** the GPU _child_ process inherits its
+`CommandLine` from the parent _after_ user JS has run. A late
+`appendSwitch` in the parent _might_ propagate to the GPU child
+even though the parent's Ozone selection is already locked. This
+could explain partial-success reports (e.g., nekufa's original
+"appendSwitch works, but…"). Not verified from source in this pass.
+Does not change the conclusion: the wrapper is structurally correct.
 
 ### Confidence
 
@@ -1592,15 +1645,19 @@ When to retire the wrapper:
   (~90%). n=3 reports CLI-flag-works; the wrapper places the flag
   in the same position.
 - **That the wrapper has no adverse effect on non-Snap Linux
-  targets:** high (~95%). Gated on `$SNAP`; passthrough branches
-  tested locally.
+  targets:** high (~95%). Gated on `$SNAP_NAME = superproductivity`
+  and Wayland; passthrough branches tested locally (including the
+  sibling-snap bleed-through scenario).
 - **That electron-builder's afterPack path is stable across the
   next major version bump:** medium (~70%). afterPack has been
   stable for years but electron-builder's snap pipeline is
   historically flaky; CI smoke check is load-bearing.
-- **That the mechanism hypothesis (argv-seeded CommandLine
-  dominates early Ozone init over `appendSwitch`) is accurate:**
-  low (~40%). Empirically true; source-citable: not yet.
+- **That the mechanism hypothesis (argv-seeded CommandLine is read
+  and memoized during `PreEarlyInitialization`, before V8 loads
+  `main.js`) is accurate:** high (~85%) — upgraded from ~40% after
+  §18.7 source trace. Verified via electron#48301 diff + Chromium
+  `ui/ozone/platform_selection.cc`. Residual uncertainty is in GPU
+  child-process propagation (not the platform-selection path).
 
 ### Actionable follow-ups
 
@@ -1634,8 +1691,12 @@ When to retire the wrapper:
 - [Snapcraft forum 48942 — `dri_gbm.so` (OpenChrom, ogra reply)](https://forum.snapcraft.io/t/mesa-loader-failed-to-open-dri/48942) — Canonical staff confirmation of gpu-2404 regression
 - [Kong/insomnia#9346 — snap crash on Ubuntu 25.10](https://github.com/Kong/insomnia/issues/9346) — peer Electron app with identical MESA-LOADER + segfault pattern; §17.3 R3
 - [mifi/lossless-cut#2629 — MESA-LOADER segfault on 25.10](https://github.com/mifi/lossless-cut/issues/2629) — another Electron-snap peer hitting the same failure; §17.3 R3
+- [electron/electron PR #48301 — SetOzonePlatformForLinuxIfNeeded in PreEarlyInitialization](https://github.com/electron/electron/pull/48301/files) — §18.7 primary source for the init-order mechanism
 - [electron/electron PR #48309 — set ozone platform for wayland](https://github.com/electron/electron/pull/48309) — context on the Electron 38+ Wayland/Ozone regression; §17.1 R2
-- [electron/electron#48001 — deprecate ELECTRON_OZONE_PLATFORM_HINT](https://github.com/electron/electron/issues/48001) — env-var path to force X11 without a CLI flag; §17.1 R2
+- [electron/electron PR #47983 — remove ELECTRON_OZONE_PLATFORM_HINT](https://github.com/electron/electron/pull/47983) — env-var path removed as dead code in Electron 39; §18.7
+- [electron/electron#48001 — deprecate ELECTRON_OZONE_PLATFORM_HINT](https://github.com/electron/electron/issues/48001) — deprecation tracking issue; §17.1 R2
+- [electron/electron#49244 — Snap+Wayland crash, confirmed on 38.2.0–41.1.1](https://github.com/electron/electron/issues/49244) — still open as of 2026-04-21; §18.7
+- [Chromium ui/ozone/platform_selection.cc](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/ui/ozone/platform_selection.cc) — `g_selected_platform` memoization; §18.7
 - [Snapcraft forum 39718 — RFC migrating GNOME/KDE extensions to gpu-2404](https://forum.snapcraft.io/t/rfc-migrating-gnome-and-kde-snapcraft-extensions-to-gpu-2404-userspace-interface/39718) — Canonical's canonical migration path; §17.3 R4
 - [Snapcraft forum 41100 — core24/gnome-46 migration Q&A](https://forum.snapcraft.io/t/q-about-migration-to-core24-gnome-46/41100) — concrete `LD_LIBRARY_PATH` + libproxy issues; §17.3 R4
 - [electron-userland/electron-builder#8548 — core22/core24 support](https://github.com/electron-userland/electron-builder/issues/8548) — why electron-builder's snap generator blocks an easy core24 move; §17.3 R4
