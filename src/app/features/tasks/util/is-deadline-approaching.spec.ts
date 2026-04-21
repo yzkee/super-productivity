@@ -54,28 +54,33 @@ describe('isDeadlineApproaching', () => {
   });
 
   describe('deadlineWithTime (uses actual wall clock)', () => {
-    const realTodayStr = getDbDateStr();
+    // realTodayStr is captured per-test to avoid a midnight-rollover flake
+    // between describe-time and it-time if the suite straddles local midnight.
     const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
     it('returns true when deadlineWithTime is later today', () => {
-      const task = createTask({ deadlineWithTime: Date.now() + 60_000 });
-      expect(isDeadlineApproaching(task, realTodayStr)).toBe(true);
+      const now = Date.now();
+      const task = createTask({ deadlineWithTime: now + 60_000 });
+      expect(isDeadlineApproaching(task, getDbDateStr(now))).toBe(true);
     });
 
     it('returns true when deadlineWithTime is ~1 day away', () => {
-      const task = createTask({ deadlineWithTime: Date.now() + ONE_DAY_MS });
-      expect(isDeadlineApproaching(task, realTodayStr)).toBe(true);
+      const now = Date.now();
+      const task = createTask({ deadlineWithTime: now + ONE_DAY_MS });
+      expect(isDeadlineApproaching(task, getDbDateStr(now))).toBe(true);
     });
 
     it('returns false when deadlineWithTime is in the past (overdue)', () => {
-      const task = createTask({ deadlineWithTime: Date.now() - 60_000 });
-      expect(isDeadlineApproaching(task, realTodayStr)).toBe(false);
+      const now = Date.now();
+      const task = createTask({ deadlineWithTime: now - 60_000 });
+      expect(isDeadlineApproaching(task, getDbDateStr(now))).toBe(false);
     });
 
     it('returns false when deadlineWithTime is 5 days away (default color)', () => {
+      const now = Date.now();
       const fiveDaysMs = 5 * ONE_DAY_MS;
-      const task = createTask({ deadlineWithTime: Date.now() + fiveDaysMs });
-      expect(isDeadlineApproaching(task, realTodayStr)).toBe(false);
+      const task = createTask({ deadlineWithTime: now + fiveDaysMs });
+      expect(isDeadlineApproaching(task, getDbDateStr(now))).toBe(false);
     });
   });
 

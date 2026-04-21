@@ -268,6 +268,10 @@ export class DialogViewTaskRemindersComponent implements OnDestroy {
             this._removeTaskFromList(task.id);
           }
           if (isCloseAfter) {
+            // If edit was cancelled (wasEdited false), the task stays out of
+            // _dismissedReminderIds, so ngOnDestroy clears deadlineRemindAt —
+            // same treatment as ESC. Intentional: prevents the worker from
+            // re-firing the past-due reminder every 10s.
             this._close();
           }
         }),

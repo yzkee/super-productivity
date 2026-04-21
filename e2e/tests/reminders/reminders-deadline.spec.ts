@@ -149,10 +149,10 @@ test.describe('Deadline Reminders', () => {
     await page.keyboard.press('Escape');
     await page.locator(REMINDER_DIALOG).waitFor({ state: 'hidden', timeout: 10000 });
 
-    // Wait ~15s — longer than the 10s reminder worker poll interval.
-    // If the worker re-fires the past-due deadline, the dialog would reopen here.
-    await page.waitForTimeout(15000);
-    await expect(page.locator(REMINDER_DIALOG)).not.toBeVisible();
+    // Poll over a window longer than the 10s reminder worker tick. If the
+    // worker re-fires the past-due deadline, the dialog becomes visible and
+    // this assertion fails immediately.
+    await expect(page.locator(REMINDER_DIALOG)).not.toBeVisible({ timeout: 15000 });
   });
 
   test('should not re-trigger after reschedule until tomorrow', async ({
