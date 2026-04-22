@@ -146,6 +146,29 @@ export class SimpleCounterButtonComponent implements OnDestroy, OnInit {
     return Math.min(100, Math.max(0, progress));
   }
 
+  hasVisibleCountdownTime(
+    simpleCounter: SimpleCounter,
+    countdownTime: number | null | undefined,
+  ): boolean {
+    if (
+      simpleCounter.type !== SimpleCounterType.RepeatedCountdownReminder ||
+      countdownTime === null ||
+      countdownTime === undefined ||
+      countdownTime <= 0
+    ) {
+      return false;
+    }
+
+    if (simpleCounter.isOn) {
+      return true;
+    }
+
+    return (
+      typeof simpleCounter.countdownDuration === 'number' &&
+      countdownTime < simpleCounter.countdownDuration
+    );
+  }
+
   ngOnDestroy(): void {
     this._subs.unsubscribe();
   }
