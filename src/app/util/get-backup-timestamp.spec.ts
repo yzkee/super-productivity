@@ -1,4 +1,4 @@
-import { getBackupTimestamp } from './get-backup-timestamp';
+import { getBackupTimestamp } from '../../../electron/shared-with-frontend/get-backup-timestamp';
 
 describe('getBackupTimestamp', () => {
   beforeEach(() => {

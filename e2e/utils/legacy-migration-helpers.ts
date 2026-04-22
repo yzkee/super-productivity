@@ -1,6 +1,6 @@
 import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { waitForAppReady } from './waits';
-import { MIGRATION_BACKUP_PREFIX } from '../../src/app/util/get-backup-timestamp';
+import { MIGRATION_BACKUP_PREFIX } from '../../electron/shared-with-frontend/get-backup-timestamp';
 
 /**
  * Legacy Migration E2E Test Helpers
