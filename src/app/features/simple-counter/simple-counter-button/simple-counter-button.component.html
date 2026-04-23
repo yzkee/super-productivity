@@ -57,9 +57,9 @@
     @if (sc.type === SimpleCounterType.RepeatedCountdownReminder) {
       @let countdownTime = countdownTime$ | async;
       @if (sc.isOn && hasVisibleCountdownTime(sc, countdownTime)) {
-          <progress-circle
-            [progress]="calcCountdownProgress(countdownTime, sc.countdownDuration)"
-          ></progress-circle>
+        <progress-circle
+          [progress]="calcCountdownProgress(countdownTime, sc.countdownDuration)"
+        ></progress-circle>
       }
       <button
         (click)="isTimeUp() ? countUpAndNextRepeatCountdownSession() : toggleStopwatch()"

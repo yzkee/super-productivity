@@ -148,8 +148,8 @@ export class SimpleCounterButtonComponent implements OnDestroy, OnInit {
     }
   }
 
-  calcCountdownProgress(remaining: number, total?: number | null): number {
-    if (!total || total <= 0) {
+  calcCountdownProgress(remaining: number | null, total?: number | null): number {
+    if (remaining == null || !total || total <= 0) {
       return 0;
     }
     const elapsed = total - remaining;
