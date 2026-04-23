@@ -84,9 +84,25 @@ export class MobileNotificationEffects {
     createEffect(
       () =>
         timer(DELAY_SCHEDULE).pipe(
-          switchMap(() => this._store.select(selectAllTasksWithReminder)),
-          tap(async (tasksWithReminders) => {
+          switchMap(() =>
+            combineLatest([
+              this._store.select(selectAllTasksWithReminder),
+              this._globalConfigService.cfg$,
+            ]),
+          ),
+          tap(async ([tasksWithReminders, cfg]) => {
             try {
+              // Master kill-switch: cancel everything and short-circuit when disabled.
+              // Without this, alarms scheduled on prior ticks keep firing on Android.
+              if (cfg?.reminder?.disableReminders) {
+                for (const previousId of this._scheduledReminderIds) {
+                  const notificationId = generateNotificationId(previousId);
+                  await this._reminderService.cancelReminder(notificationId);
+                }
+                this._scheduledReminderIds.clear();
+                return;
+              }
+
               const currentReminderIds = new Set(
                 (tasksWithReminders || []).map((t) => t.id),
               );
@@ -175,12 +191,14 @@ export class MobileNotificationEffects {
           tap(async ([tasks, cfg]) => {
             try {
               const notifyOnDueDate = cfg?.reminder?.notifyOnDueDate ?? true;
+              const disableReminders = cfg?.reminder?.disableReminders ?? false;
               const dueDateHour = Math.floor(
                 Math.max(0, Math.min(23, cfg?.reminder?.dueDateNotificationHour ?? 9)),
               );
 
-              // If disabled, cancel all previously scheduled due-date notifications
-              if (!notifyOnDueDate) {
+              // If disabled (by master switch or per-category), cancel previously
+              // scheduled due-date notifications and short-circuit.
+              if (disableReminders || !notifyOnDueDate) {
                 for (const previousId of this._scheduledDueDateIds) {
                   const notificationId = generateNotificationId(previousId + '_dueday');
                   await this._reminderService.cancelReminder(notificationId);
