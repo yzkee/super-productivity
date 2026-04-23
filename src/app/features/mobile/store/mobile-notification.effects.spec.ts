@@ -1,7 +1,7 @@
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { EffectsModule } from '@ngrx/effects';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
-import { BehaviorSubject, Observable } from 'rxjs';
+import { BehaviorSubject, NEVER, Observable } from 'rxjs';
 import { MobileNotificationEffects } from './mobile-notification.effects';
 import { SnackService } from '../../../core/snack/snack.service';
 import { CapacitorReminderService } from '../../../core/platform/capacitor-reminder.service';
@@ -58,7 +58,7 @@ describe('MobileNotificationEffects', () => {
           {
             provide: GlobalConfigService,
             useValue: jasmine.createSpyObj('GlobalConfigService', [], {
-              cfg$: { subscribe: () => {} },
+              cfg$: NEVER,
             }),
           },
         ],
