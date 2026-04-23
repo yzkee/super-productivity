@@ -90,6 +90,19 @@ snap:
     # Fix for issue #4920: Isolate fontconfig cache to prevent GTK dialog rendering issues
     # https://github.com/super-productivity/super-productivity/issues/4920
     FC_CACHEDIR: $SNAP_USER_DATA/.cache/fontconfig
+    # Fix for issue #7298: tray icon renders as three dots on Ubuntu 24.04+ snap.
+    # Chromium's StatusIconLinuxDbus writes the tray PNG to TMPDIR and sends
+    # its path to gnome-shell via the SNI IconThemePath property. The default
+    # /tmp inside a strict snap is bind-mounted to
+    # /tmp/snap-private-tmp/snap.<name>/tmp with mode 0700 on the parent, so
+    # gnome-shell (outside the mount namespace) cannot stat the file and
+    # falls back to 'image-loading-symbolic' (three dots). $XDG_RUNTIME_DIR
+    # (= /run/user/$UID) is visible to both sides, so redirecting Chromium's
+    # temp writes there restores icon rendering. Matches Signal Desktop's
+    # snap and the official Electron snapcraft guide. electron-builder's
+    # SnapOptions docstring claims this as a default but snap.js no longer
+    # injects it (see node_modules/app-builder-lib/out/targets/snap.js).
+    TMPDIR: $XDG_RUNTIME_DIR
   plugs:
     - default # Includes: home, desktop, desktop-legacy, x11, wayland, etc.
     - password-manager-service
