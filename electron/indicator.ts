@@ -1,4 +1,12 @@
-import { App, ipcMain, IpcMainEvent, Menu, nativeTheme, Tray } from 'electron';
+import {
+  App,
+  ipcMain,
+  IpcMainEvent,
+  Menu,
+  nativeImage,
+  nativeTheme,
+  Tray,
+} from 'electron';
 import { log } from 'electron-log/main';
 import { IPC } from './shared-with-frontend/ipc-events.const';
 import { getIsTrayShowCurrentTask, getIsTrayShowCurrentCountdown } from './shared-state';
@@ -134,19 +142,20 @@ export const ensureIndicator = (): Tray | undefined => {
 const createTray = (): Tray => {
   const suf = shouldUseDarkColors ? '-d.png' : '-l.png';
   const trayIconPath = DIR + `stopped${suf}`;
+  const trayIcon = getTrayImage(trayIconPath);
   let nextTray: Tray;
   if (IS_WINDOWS) {
     const guid = getWindowsTrayGuid();
     try {
-      nextTray = new Tray(trayIconPath, guid);
+      nextTray = new Tray(trayIcon, guid);
       log('Tray created on Windows with GUID:', guid);
     } catch (e) {
       log('Tray creation with GUID failed, retrying without GUID:', e);
-      nextTray = new Tray(trayIconPath);
+      nextTray = new Tray(trayIcon);
       log('Tray created on Windows without GUID');
     }
   } else {
-    nextTray = new Tray(trayIconPath);
+    nextTray = new Tray(trayIcon);
   }
   nextTray.setContextMenu(createContextMenu());
 
@@ -558,11 +567,28 @@ function getRunningIconPath(progress?: number): string {
 
 let curIco: string | undefined;
 
+// GNOME AppIndicator can fall back to a generic "three dots" icon for
+// sandboxed Electron apps when given only a file path. Passing a NativeImage
+// keeps the actual pixel data attached to the tray item.
+const getTrayImage = (icoPath: string): string | Electron.NativeImage => {
+  if (!IS_LINUX) {
+    return icoPath;
+  }
+
+  const image = nativeImage.createFromPath(icoPath);
+  if (image.isEmpty()) {
+    log('Tray icon NativeImage is empty, falling back to icon path:', icoPath);
+    return icoPath;
+  }
+
+  return image;
+};
+
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 function setTrayIcon(tr: Tray, icoPath: string): void {
   if (icoPath !== curIco) {
     curIco = icoPath;
-    tr.setImage(icoPath);
+    tr.setImage(getTrayImage(icoPath));
   }
 }
 
