@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { createEffect } from '@ngrx/effects';
-import { switchMap, tap } from 'rxjs/operators';
-import { combineLatest, timer } from 'rxjs';
+import { distinctUntilChanged, map, switchMap, tap } from 'rxjs/operators';
+import { combineLatest, Observable, timer } from 'rxjs';
 import { SnackService } from '../../../core/snack/snack.service';
 import { Log } from '../../../core/log';
 import { T } from '../../../t.const';
@@ -14,6 +14,7 @@ import {
 import { CapacitorReminderService } from '../../../core/platform/capacitor-reminder.service';
 import { CapacitorPlatformService } from '../../../core/platform/capacitor-platform.service';
 import { GlobalConfigService } from '../../config/global-config.service';
+import { ReminderConfig } from '../../config/global-config.model';
 
 const DELAY_PERMISSIONS = 2000;
 const DELAY_SCHEDULE = 5000;
@@ -31,6 +32,16 @@ export class MobileNotificationEffects {
   private _scheduledReminderIds = new Set<string>();
   // Track scheduled due-date notification IDs separately
   private _scheduledDueDateIds = new Set<string>();
+
+  // Narrowed cfg slice so the scheduling effects only re-run on reminder-config
+  // changes, not on every unrelated global-config edit (theme, sync, etc.).
+  // Reference equality is sufficient: NgRx reducers preserve slice references
+  // when that slice is untouched.
+  private _reminderCfg$: Observable<ReminderConfig | undefined> =
+    this._globalConfigService.cfg$.pipe(
+      map((c) => c?.reminder),
+      distinctUntilChanged(),
+    );
 
   /**
    * Check notification permissions on startup for mobile platforms.
@@ -78,6 +89,8 @@ export class MobileNotificationEffects {
    * - We WANT notifications scheduled for synced tasks (user-facing functionality)
    * - Native scheduling calls are idempotent - rescheduling the same reminder is harmless
    * - Cancellation of removed reminders correctly handles tasks deleted via sync
+   * - Reacts to reminder-config changes (disableReminders) so the master toggle
+   *   takes effect immediately; unrelated cfg changes are filtered via _reminderCfg$
    */
   scheduleNotifications$ =
     this._platformService.isNative &&
@@ -87,14 +100,14 @@ export class MobileNotificationEffects {
           switchMap(() =>
             combineLatest([
               this._store.select(selectAllTasksWithReminder),
-              this._globalConfigService.cfg$,
+              this._reminderCfg$,
             ]),
           ),
-          tap(async ([tasksWithReminders, cfg]) => {
+          tap(async ([tasksWithReminders, reminderCfg]) => {
             try {
-              // Master kill-switch: cancel everything and short-circuit when disabled.
-              // Without this, alarms scheduled on prior ticks keep firing on Android.
-              if (cfg?.reminder?.disableReminders) {
+              // Without this, alarms scheduled on prior ticks keep firing on Android
+              // via AlarmManager even after the user disables reminders.
+              if (reminderCfg?.disableReminders) {
                 for (const previousId of this._scheduledReminderIds) {
                   const notificationId = generateNotificationId(previousId);
                   await this._reminderService.cancelReminder(notificationId);
@@ -185,15 +198,15 @@ export class MobileNotificationEffects {
           switchMap(() =>
             combineLatest([
               this._store.select(selectUndoneTasksWithDueDayNoReminder),
-              this._globalConfigService.cfg$,
+              this._reminderCfg$,
             ]),
           ),
-          tap(async ([tasks, cfg]) => {
+          tap(async ([tasks, reminderCfg]) => {
             try {
-              const notifyOnDueDate = cfg?.reminder?.notifyOnDueDate ?? true;
-              const disableReminders = cfg?.reminder?.disableReminders ?? false;
+              const notifyOnDueDate = reminderCfg?.notifyOnDueDate ?? true;
+              const disableReminders = reminderCfg?.disableReminders ?? false;
               const dueDateHour = Math.floor(
-                Math.max(0, Math.min(23, cfg?.reminder?.dueDateNotificationHour ?? 9)),
+                Math.max(0, Math.min(23, reminderCfg?.dueDateNotificationHour ?? 9)),
               );
 
               // If disabled (by master switch or per-category), cancel previously
