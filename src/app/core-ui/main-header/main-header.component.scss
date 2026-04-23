@@ -146,12 +146,21 @@ button.isActive2 {
 
   // Set 20px icon sizing for buttons outside counters-action-group
   // (add button, panel buttons, etc.)
-  > button .mat-icon:not(.sync-state-ico),
-  ::ng-deep > *:not(.counters-action-group) .mat-icon:not(.sync-state-ico) {
+  > button:not(.sync-btn) .mat-icon:not(.sync-state-ico),
+  ::ng-deep
+    > *:not(.counters-action-group):not(.sync-btn)
+    .mat-icon:not(.sync-state-ico) {
     font-size: 20px;
     width: 20px;
     height: 20px;
     line-height: 20px;
+  }
+
+  > button.sync-btn .mat-icon:not(.sync-state-ico) {
+    font-size: 23px;
+    width: 23px;
+    height: 23px;
+    line-height: 23px;
   }
 }
 
