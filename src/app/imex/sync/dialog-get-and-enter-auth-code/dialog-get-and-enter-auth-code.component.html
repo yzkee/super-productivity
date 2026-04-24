@@ -4,45 +4,66 @@
 
 <mat-dialog-content>
   @if (!isNativePlatform) {
-    <p>{{ T.F.SYNC.D_AUTH_CODE.FOLLOW_LINK | translate }}</p>
+    <div class="auth-code-flex">
+      <mat-form-field [style.order]="codeRequested() ? -1 : 1">
+        <mat-label>{{ T.F.SYNC.D_AUTH_CODE.L_AUTH_CODE | translate }}</mat-label>
+        <mat-icon matPrefix>vpn_key</mat-icon>
+        <input
+          #authCodeInput
+          matInput
+          autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+          [(ngModel)]="token"
+        />
+      </mat-form-field>
+
+      <div>
+        <p>{{ T.F.SYNC.D_AUTH_CODE.FOLLOW_LINK | translate }}</p>
+        <a
+          mat-button
+          color="primary"
+          target="_blank"
+          mat-stroked-button
+          [href]="data.url"
+          (click)="onGetAuthCode(authCodeInput)"
+        >
+          <mat-icon>open_in_new</mat-icon>
+          {{ T.F.SYNC.D_AUTH_CODE.GET_AUTH_CODE | translate }}</a
+        >
+        <button
+          mat-button
+          type="button"
+          (click)="copyUrl()"
+        >
+          <mat-icon>content_copy</mat-icon>
+          {{ T.F.SYNC.D_AUTH_CODE.COPY_URL | translate }}
+        </button>
+      </div>
+    </div>
   }
+
   @if (isNativePlatform) {
     <p>{{ T.F.SYNC.D_AUTH_CODE.FOLLOW_LINK_MOBILE | translate }}</p>
-  }
-
-  <a
-    mat-button
-    color="primary"
-    target="_blank"
-    mat-stroked-button
-    [href]="data.url"
-  >
-    <mat-icon>open_in_new</mat-icon>
-    {{ T.F.SYNC.D_AUTH_CODE.GET_AUTH_CODE | translate }}</a
-  >
-  <button
-    mat-button
-    type="button"
-    (click)="copyUrl()"
-  >
-    <mat-icon>content_copy</mat-icon>
-    {{ T.F.SYNC.D_AUTH_CODE.COPY_URL | translate }}
-  </button>
-
-  @if (!isNativePlatform) {
-    <br />
-    <br />
-    <mat-form-field>
-      <mat-label>{{ T.F.SYNC.D_AUTH_CODE.L_AUTH_CODE | translate }}</mat-label>
-      <mat-icon matPrefix>vpn_key</mat-icon>
-      <input
-        matInput
-        [(ngModel)]="token"
-      />
-    </mat-form-field>
-  }
-
-  @if (isNativePlatform) {
+    <a
+      mat-button
+      color="primary"
+      target="_blank"
+      mat-stroked-button
+      [href]="data.url"
+    >
+      <mat-icon>open_in_new</mat-icon>
+      {{ T.F.SYNC.D_AUTH_CODE.GET_AUTH_CODE | translate }}</a
+    >
+    <button
+      mat-button
+      type="button"
+      (click)="copyUrl()"
+    >
+      <mat-icon>content_copy</mat-icon>
+      {{ T.F.SYNC.D_AUTH_CODE.COPY_URL | translate }}
+    </button>
     <br />
     <br />
     <div class="oauth-waiting">
