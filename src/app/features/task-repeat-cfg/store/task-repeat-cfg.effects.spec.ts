@@ -25,6 +25,7 @@ import { getDateTimeFromClockString } from '../../../util/get-date-time-from-clo
 import { remindOptionToMilliseconds } from '../../tasks/util/remind-option-to-milliseconds';
 import { isToday } from '../../../util/is-today.util';
 import { getFirstRepeatOccurrence } from './get-first-repeat-occurrence.util';
+import { getNextRepeatOccurrence } from './get-next-repeat-occurrence.util';
 
 describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
   let actions$: Observable<Action>;
@@ -260,10 +261,7 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         saturday: targetDayOfWeek === 6,
       };
 
-      const firstOccurrence = getFirstRepeatOccurrence(
-        weeklyRepeatCfg as any,
-        new Date(),
-      )!;
+      const firstOccurrence = getFirstRepeatOccurrence(weeklyRepeatCfg as any)!;
       const firstOccurrenceStr = getDbDateStr(firstOccurrence);
 
       const action = addTaskRepeatCfgToTask({
@@ -347,10 +345,7 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         ),
       };
 
-      const firstOccurrence = getFirstRepeatOccurrence(
-        dailyRepeatCfg as any,
-        new Date(),
-      )!;
+      const firstOccurrence = getFirstRepeatOccurrence(dailyRepeatCfg as any)!;
       const firstOccurrenceStr = getDbDateStr(firstOccurrence);
 
       const taskCreatedToday: TaskWithSubTasks = {
@@ -403,10 +398,7 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         startDate: startDateStr, // 1st of month
       };
 
-      const firstOccurrence = getFirstRepeatOccurrence(
-        monthlyRepeatCfg as any,
-        new Date(),
-      )!;
+      const firstOccurrence = getFirstRepeatOccurrence(monthlyRepeatCfg as any)!;
       const isFirstToday = isToday(firstOccurrence);
 
       // Skip this test on the 1st of the month (first occurrence is today, no planTaskForDay)
@@ -481,10 +473,7 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         saturday: targetDayOfWeek === 6,
       };
 
-      const firstOccurrence = getFirstRepeatOccurrence(
-        weeklyRepeatCfg as any,
-        new Date(),
-      )!;
+      const firstOccurrence = getFirstRepeatOccurrence(weeklyRepeatCfg as any)!;
       const firstOccurrenceStr = getDbDateStr(firstOccurrence);
 
       const action = addTaskRepeatCfgToTask({
@@ -545,10 +534,7 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         saturday: targetDayOfWeek === 6,
       };
 
-      const firstOccurrence = getFirstRepeatOccurrence(
-        weeklyRepeatCfg as any,
-        new Date(),
-      )!;
+      const firstOccurrence = getFirstRepeatOccurrence(weeklyRepeatCfg as any)!;
 
       const action = addTaskRepeatCfgToTask({
         taskRepeatCfg: weeklyRepeatCfg,
@@ -762,10 +748,7 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         sunday: false,
       };
 
-      const firstOccurrence = getFirstRepeatOccurrence(
-        monWedFriRepeatCfg as any,
-        new Date(),
-      )!;
+      const firstOccurrence = getFirstRepeatOccurrence(monWedFriRepeatCfg as any)!;
 
       const action = addTaskRepeatCfgToTask({
         taskRepeatCfg: monWedFriRepeatCfg,
@@ -1830,7 +1813,7 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         saturday: targetDayOfWeek === 6,
       };
 
-      const firstOccurrence = getFirstRepeatOccurrence(updatedCfg as any, new Date())!;
+      const firstOccurrence = getNextRepeatOccurrence(updatedCfg as any, new Date())!;
       const firstOccurrenceStr = getDbDateStr(firstOccurrence);
 
       const action = updateTaskRepeatCfg({
@@ -2052,7 +2035,7 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         saturday: targetDayOfWeek === 6,
       };
 
-      const firstOccurrence = getFirstRepeatOccurrence(updatedCfg as any, new Date())!;
+      const firstOccurrence = getNextRepeatOccurrence(updatedCfg as any, new Date())!;
       const firstOccurrenceStr = getDbDateStr(firstOccurrence);
 
       const action = updateTaskRepeatCfg({
@@ -2253,14 +2236,14 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
   });
 
   describe('Scenario: Monthly repeat patterns', () => {
-    it('should schedule for today when MONTHLY and today matches the day of month', () => {
-      // Today is Jan 15, startDate is also the 15th
+    it('should schedule for today when MONTHLY startDate equals today', () => {
+      // Today is Jan 15, startDate is also Jan 15
       testScheduler.run(({ hot, expectObservable }) => {
         const startTimeStr = '09:00';
 
         const repeatCfg: TaskRepeatCfgCopy = {
           ...baseRepeatCfg,
-          startDate: '2024-12-15', // Previous month, same day
+          startDate: '2025-01-15', // today
           repeatCycle: 'MONTHLY',
           repeatEvery: 1,
         };
@@ -2298,17 +2281,15 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
       });
     });
 
-    it('should schedule for future date when MONTHLY day has not occurred yet this month', () => {
-      // Today is Jan 15, repeat is for the 20th
-      // getFirstRepeatOccurrence returns Jan 20 (first future occurrence of the 20th)
+    it('should schedule for future date when MONTHLY startDate is in the future', () => {
+      // Today is Jan 15, startDate is Jan 20 (5 days out)
       testScheduler.run(({ hot, expectObservable }) => {
         const startTimeStr = '09:00';
-        // Jan 20, 2025 is the first 20th ON OR AFTER Jan 15, 2025
         const expectedDateStr = '2025-01-20';
 
         const repeatCfg: TaskRepeatCfgCopy = {
           ...baseRepeatCfg,
-          startDate: '2024-12-20', // 20th of month
+          startDate: '2025-01-20',
           repeatCycle: 'MONTHLY',
           repeatEvery: 1,
         };
@@ -2349,13 +2330,13 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
   });
 
   describe('Scenario: Daily patterns', () => {
-    it('should always schedule for today with DAILY pattern', () => {
+    it('should schedule for startDate when DAILY startDate equals today', () => {
       testScheduler.run(({ hot, expectObservable }) => {
         const startTimeStr = '08:00';
 
         const repeatCfg: TaskRepeatCfgCopy = {
           ...baseRepeatCfg,
-          startDate: '2025-01-01', // Started earlier this month
+          startDate: '2025-01-15', // today
           repeatCycle: 'DAILY',
           repeatEvery: 1,
         };
@@ -2393,15 +2374,14 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
       });
     });
 
-    it('should handle DAILY with repeatEvery > 1', () => {
+    it('should schedule for startDate when DAILY repeatEvery > 1', () => {
       testScheduler.run(({ hot, expectObservable }) => {
         const startTimeStr = '08:00';
 
-        // Start date Jan 13, repeatEvery 2 means: Jan 13, 15, 17...
-        // Today is Jan 15, which is a valid day
+        // First occurrence is startDate itself, regardless of repeatEvery.
         const repeatCfg: TaskRepeatCfgCopy = {
           ...baseRepeatCfg,
-          startDate: '2025-01-13',
+          startDate: '2025-01-15',
           repeatCycle: 'DAILY',
           repeatEvery: 2,
         };
@@ -2416,7 +2396,6 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
         actions$ = hot('-a', { a: action });
         taskService.getByIdOnce$.and.returnValue(of(baseTask));
 
-        // Jan 15 is 2 days from Jan 13, so it matches the pattern
         const expectedDateTime = getDateTimeFromClockString(
           startTimeStr,
           dateStrToUtcDate('2025-01-15').getTime(),
@@ -2594,13 +2573,13 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
     });
 
     it('should set isSkipAutoRemoveFromToday=FALSE when task is scheduled for FUTURE (MONTHLY)', () => {
-      // Today is Jan 15, 2025 - MONTHLY on 20th means scheduled for Jan 20
+      // Today is Jan 15, 2025 - startDate Jan 20 means scheduled for Jan 20
       testScheduler.run(({ hot, expectObservable }) => {
         const startTimeStr = '09:00';
 
         const repeatCfg: TaskRepeatCfgCopy = {
           ...baseRepeatCfg,
-          startDate: '2024-12-20', // 20th of month
+          startDate: '2025-01-20', // 5 days out
           repeatCycle: 'MONTHLY',
           repeatEvery: 1,
         };
@@ -2897,12 +2876,13 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
       expect((effects as any)._updateRegularTaskInstance).toHaveBeenCalled();
     });
 
-    it('should dispatch planTaskForDay for MONTHLY on the 20th (future from Jan 15)', () => {
+    it('should dispatch planTaskForDay for MONTHLY when startDate is in the future', () => {
+      // Today is Wednesday Jan 15, 2025; startDate is Jan 20 (5 days out).
       const monthlyRepeatCfg: TaskRepeatCfgCopy = {
         ...baseRepeatCfg,
         repeatCycle: 'MONTHLY',
         repeatEvery: 1,
-        startDate: '2024-12-20', // 20th of month
+        startDate: '2025-01-20',
       };
 
       const action = addTaskRepeatCfgToTask({
@@ -2935,12 +2915,12 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
       });
     });
 
-    it('should NOT dispatch planTaskForDay for MONTHLY on the 15th (today)', () => {
+    it('should NOT dispatch planTaskForDay for MONTHLY when startDate equals today', () => {
       const monthlyRepeatCfg: TaskRepeatCfgCopy = {
         ...baseRepeatCfg,
         repeatCycle: 'MONTHLY',
         repeatEvery: 1,
-        startDate: '2024-12-15', // 15th of month = today
+        startDate: '2025-01-15', // today
       };
 
       const action = addTaskRepeatCfgToTask({
@@ -2962,14 +2942,13 @@ describe('TaskRepeatCfgEffects - Deterministic Date Scenarios', () => {
       expect(taskService.update).not.toHaveBeenCalled();
     });
 
-    it('should dispatch planTaskForDay for YEARLY when occurrence is in the future', () => {
-      // startDate is Feb 15 of a past year — this year's Feb 15 is still future
-      // (today is Jan 15)
+    it('should dispatch planTaskForDay for YEARLY when startDate is in the future', () => {
+      // Today is Jan 15, 2025; startDate is Feb 15, 2025 (~1 month out).
       const yearlyRepeatCfg: TaskRepeatCfgCopy = {
         ...baseRepeatCfg,
         repeatCycle: 'YEARLY',
         repeatEvery: 1,
-        startDate: '2024-02-15',
+        startDate: '2025-02-15',
       };
 
       const action = addTaskRepeatCfgToTask({

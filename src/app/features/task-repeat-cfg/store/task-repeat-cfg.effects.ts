@@ -18,7 +18,7 @@ import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions'
 import { PlannerActions } from '../../planner/store/planner.actions';
 import { TaskService } from '../../tasks/task.service';
 import { TaskRepeatCfgService } from '../task-repeat-cfg.service';
-import { TaskRepeatCfg, TaskRepeatCfgCopy } from '../task-repeat-cfg.model';
+import { TaskRepeatCfgCopy } from '../task-repeat-cfg.model';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogConfirmComponent } from '../../../ui/dialog-confirm/dialog-confirm.component';
 import { T } from '../../../t.const';
@@ -43,7 +43,8 @@ import { getEffectiveLastTaskCreationDay } from './get-effective-last-task-creat
 import { remindOptionToMilliseconds } from '../../tasks/util/remind-option-to-milliseconds';
 import { devError } from '../../../util/dev-error';
 import { getFirstRepeatOccurrence } from './get-first-repeat-occurrence.util';
-import { getFirstOccurrenceAnchor } from './get-first-occurrence-anchor.util';
+import { getNextRepeatOccurrence } from './get-next-repeat-occurrence.util';
+import { clampPastTimedOccurrence } from './clamp-past-timed-occurrence.util';
 
 const SCHEDULE_AFFECTING_FIELDS: (keyof TaskRepeatCfgCopy)[] = [
   'startDate',
@@ -82,10 +83,9 @@ export class TaskRepeatCfgEffects {
               devError(`Task with id ${taskId} not found`);
               return null; // Return null instead of EMPTY
             }
-            // Anchor honors dialog-default startDate (#5594, #7344); see util.
-            const calculatedTargetDate = getFirstRepeatOccurrence(
-              taskRepeatCfg as TaskRepeatCfg,
-              getFirstOccurrenceAnchor(task, taskRepeatCfg),
+            const calculatedTargetDate = clampPastTimedOccurrence(
+              getFirstRepeatOccurrence(taskRepeatCfg),
+              taskRepeatCfg,
             );
 
             // Use calculated date if available, otherwise fall back to existing logic
@@ -163,10 +163,9 @@ export class TaskRepeatCfgEffects {
         );
       }),
       map(({ task, taskRepeatCfg, subTaskTemplates, isTimedTask }) => {
-        // Anchor honors dialog-default startDate (#7344); see util.
-        const firstOccurrence = getFirstRepeatOccurrence(
-          taskRepeatCfg as TaskRepeatCfg,
-          getFirstOccurrenceAnchor(task, taskRepeatCfg),
+        const firstOccurrence = clampPastTimedOccurrence(
+          getFirstRepeatOccurrence(taskRepeatCfg),
+          taskRepeatCfg,
         );
         const firstOccurrenceStr = firstOccurrence
           ? this._dateService.todayStr(firstOccurrence)
@@ -268,7 +267,10 @@ export class TaskRepeatCfgEffects {
                   a.created > b.created ? a : b,
                 );
 
-                const firstOccurrence = getFirstRepeatOccurrence(fullCfg, new Date());
+                // Editing an existing recurring cfg: compute the next occurrence
+                // from today, not from startDate. Using getFirstRepeatOccurrence
+                // here would retro-anchor on the original startDate.
+                const firstOccurrence = getNextRepeatOccurrence(fullCfg, new Date());
                 const firstOccurrenceStr = firstOccurrence
                   ? this._dateService.todayStr(firstOccurrence)
                   : this._dateService.todayStr();
