@@ -1,5 +1,9 @@
 @use '../../../../styles/_globals.scss' as *;
 
+// Angular Material icon-button footprint; referenced by the --control-offset
+// formula so top/bottom icons sit flush against the digits.
+$mat-icon-btn-size: 40px;
+
 :host {
   position: absolute;
   top: 0;
@@ -25,6 +29,28 @@
   z-index: var(--z-focus-mode-main-selector);
   padding: 0 var(--s2);
   max-width: 600px;
+}
+
+// Pomodoro settings cog — lives inside the clock face during prep (Pomodoro
+// mode only), centered at the bottom. Fades in on hover like the other
+// in-circle controls.
+.pomodoro-settings-btn {
+  position: absolute;
+  bottom: calc(var(--clock-face-size) * 0.05);
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: var(--muted-opacity);
+  transition: var(--transition-standard);
+  pointer-events: auto;
+
+  &:hover,
+  .clock-face:hover & {
+    opacity: 1;
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    opacity: 1;
+  }
 }
 
 // ========== CENTER BLOCK (Preparation & In Progress) ==========
@@ -136,6 +162,26 @@
   align-items: center;
   margin-bottom: var(--s2);
 
+  // Sizing tokens — scoped here so both .clock-face and the overlayed
+  // duration slider can share the same diameter.
+  --clock-face-size: 175px;
+  --clock-time-size: 44px;
+
+  @media (min-height: 800px) and (min-width: 500px) {
+    --clock-face-size: 225px;
+    --clock-time-size: 58px;
+  }
+
+  @media (min-height: 900px) and (min-width: 600px) {
+    --clock-face-size: 280px;
+    --clock-time-size: 72px;
+  }
+
+  @media (max-height: 500px) {
+    --clock-face-size: 110px;
+    --clock-time-size: 28px;
+  }
+
   &__content {
     position: relative;
     display: flex;
@@ -151,21 +197,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  --clock-face-size: 150px;
   width: var(--clock-face-size);
   height: var(--clock-face-size);
-
-  @media (min-height: 800px) and (min-width: 500px) {
-    --clock-face-size: 180px;
-  }
-
-  @media (min-height: 900px) and (min-width: 600px) {
-    --clock-face-size: 220px;
-  }
-
-  @media (max-height: 500px) {
-    --clock-face-size: 90px;
-  }
 
   &__layer {
     position: absolute;
@@ -183,6 +216,12 @@
       pointer-events: none;
     }
   }
+}
+
+// Breathing dot (flow mode) — sized just under the clock face so the task
+// title / "Select task to focus" placeholder above it stays easy to spot.
+breathing-dot {
+  --breathing-dot-size: calc(var(--clock-face-size) * 0.8);
 }
 
 .focus-progress-circle {
@@ -205,8 +244,12 @@
 }
 
 .clock-time {
-  font-size: 24px;
+  font-size: var(--clock-time-size, 52px);
   font-weight: bold;
+  // Locked line-height + tabular digits so the ticking countdown doesn't
+  // shift width or vertical metrics mid-session.
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
   @include center;
 }
 
@@ -217,20 +260,31 @@
   margin-top: 8px;
 }
 
+// Duration slider overlays the clock face so the selector fills the full
+// circle during countdown preparation.
 .duration-slider-overlay-wrapper {
-  @include center;
-  width: 200px;
+  position: absolute;
+  top: calc(var(--clock-face-size) * 0.5);
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: var(--z-focus-mode-duration-slider);
+  pointer-events: auto;
 }
 
 .duration-slider-overlay {
+  --input-duration-slider-size: var(--clock-face-size);
+  // Scale the editable duration text with the circle so it's readable on
+  // large screens; ~16% of diameter keeps proportions close to the clock-time.
+  --input-duration-slider-value-size: calc(var(--clock-face-size) * 0.16);
   display: flex;
   justify-content: center;
-  z-index: var(--z-focus-mode-duration-slider);
+}
 
-  @include mq(xs, max) {
-    width: 160px;
-    bottom: -50px;
-  }
+// When the duration slider is showing (countdown prep), hide the clock
+// digits — the slider's own value display takes over. Toggled by a class
+// bound to isShowDurationSlider() in the template.
+.clock-display__content.is-duration-slider-active .clock-time {
+  visibility: hidden;
 }
 
 // ========== CLOCK WRAPPER (In Progress state) ==========
@@ -241,7 +295,15 @@
   display: grid;
   place-items: center;
   text-align: center;
-  --control-offset: var(--s2);
+  // Sit the top/bottom icon buttons just outside the digits (≈4px visual gap),
+  // falling back to --s when the circle is too small for that to fit.
+  // Subtract the icon-button size + 4px breathing room from the free half.
+  --control-offset: max(
+    var(--s),
+    calc(
+      (var(--clock-face-size) - var(--clock-time-size)) / 2 - #{$mat-icon-btn-size} - 4px
+    )
+  );
 
   &:hover button {
     opacity: 1;
