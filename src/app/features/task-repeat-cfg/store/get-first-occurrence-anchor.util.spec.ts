@@ -1,8 +1,8 @@
-import { getAnchorDateForRepeatCfgConversion } from './get-anchor-date-for-repeat-cfg-conversion.util';
+import { getFirstOccurrenceAnchor } from './get-first-occurrence-anchor.util';
 
-describe('getAnchorDateForRepeatCfgConversion', () => {
+describe('getFirstOccurrenceAnchor', () => {
   it('returns the task dueDay when it matches the config startDate (dialog default)', () => {
-    const result = getAnchorDateForRepeatCfgConversion(
+    const result = getFirstOccurrenceAnchor(
       { dueDay: '2026-04-01', dueWithTime: undefined },
       { startDate: '2026-04-01' },
     );
@@ -13,7 +13,7 @@ describe('getAnchorDateForRepeatCfgConversion', () => {
 
   it('derives dueDay from dueWithTime when dueDay is missing and matches startDate', () => {
     const dueWithTime = new Date(2026, 3, 1, 10, 30).getTime();
-    const result = getAnchorDateForRepeatCfgConversion(
+    const result = getFirstOccurrenceAnchor(
       { dueDay: undefined, dueWithTime },
       { startDate: '2026-04-01' },
     );
@@ -24,7 +24,7 @@ describe('getAnchorDateForRepeatCfgConversion', () => {
 
   it('falls back to today when task has no planned date', () => {
     const before = Date.now();
-    const result = getAnchorDateForRepeatCfgConversion(
+    const result = getFirstOccurrenceAnchor(
       { dueDay: undefined, dueWithTime: undefined },
       { startDate: '2026-04-01' },
     );
@@ -35,7 +35,7 @@ describe('getAnchorDateForRepeatCfgConversion', () => {
 
   it('falls back to today when task dueDay differs from startDate (user override)', () => {
     const before = Date.now();
-    const result = getAnchorDateForRepeatCfgConversion(
+    const result = getFirstOccurrenceAnchor(
       { dueDay: '2025-01-20', dueWithTime: undefined },
       { startDate: '2025-01-15' },
     );

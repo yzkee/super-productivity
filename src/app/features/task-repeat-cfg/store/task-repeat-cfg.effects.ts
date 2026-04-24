@@ -43,7 +43,7 @@ import { getEffectiveLastTaskCreationDay } from './get-effective-last-task-creat
 import { remindOptionToMilliseconds } from '../../tasks/util/remind-option-to-milliseconds';
 import { devError } from '../../../util/dev-error';
 import { getFirstRepeatOccurrence } from './get-first-repeat-occurrence.util';
-import { getAnchorDateForRepeatCfgConversion } from './get-anchor-date-for-repeat-cfg-conversion.util';
+import { getFirstOccurrenceAnchor } from './get-first-occurrence-anchor.util';
 
 const SCHEDULE_AFFECTING_FIELDS: (keyof TaskRepeatCfgCopy)[] = [
   'startDate',
@@ -82,13 +82,10 @@ export class TaskRepeatCfgEffects {
               devError(`Task with id ${taskId} not found`);
               return null; // Return null instead of EMPTY
             }
-            // Calculate the correct target day based on the repeat pattern (fixes #5594).
-            // When the task's existing dueDay matches cfg.startDate (dialog default),
-            // anchor on that date so the first occurrence preserves the user's planned
-            // date instead of auto-advancing to the next future occurrence (#7344).
+            // Anchor honors dialog-default startDate (#5594, #7344); see util.
             const calculatedTargetDate = getFirstRepeatOccurrence(
               taskRepeatCfg as TaskRepeatCfg,
-              getAnchorDateForRepeatCfgConversion(task, taskRepeatCfg),
+              getFirstOccurrenceAnchor(task, taskRepeatCfg),
             );
 
             // Use calculated date if available, otherwise fall back to existing logic
@@ -166,13 +163,10 @@ export class TaskRepeatCfgEffects {
         );
       }),
       map(({ task, taskRepeatCfg, subTaskTemplates, isTimedTask }) => {
-        // When the task's existing dueDay matches cfg.startDate (dialog default),
-        // anchor on that date so the first occurrence preserves the user's planned
-        // date instead of auto-advancing to the next future occurrence (#7344).
-        // If the user overrode startDate in the dialog, fall back to today.
+        // Anchor honors dialog-default startDate (#7344); see util.
         const firstOccurrence = getFirstRepeatOccurrence(
           taskRepeatCfg as TaskRepeatCfg,
-          getAnchorDateForRepeatCfgConversion(task, taskRepeatCfg),
+          getFirstOccurrenceAnchor(task, taskRepeatCfg),
         );
         const firstOccurrenceStr = firstOccurrence
           ? this._dateService.todayStr(firstOccurrence)
