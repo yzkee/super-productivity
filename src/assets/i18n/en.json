@@ -1071,12 +1071,12 @@
         "VECTOR_COMPARISON_LOCAL_LESS": "Local < Remote"
       },
       "D_DATA_REPAIR_CONFIRM": {
-        "MSG": "Your data appears to be damaged. Would you like to attempt automatic repair? This may result in minor data loss.",
-        "TITLE": "Data Damage Detected"
+        "MSG": "Some data references are inconsistent (typically after concurrent edits across devices). Apply automatic cleanup? Unreferenced items may be removed.",
+        "TITLE": "Data Cleanup Needed"
       },
       "D_DATA_REPAIRED": {
-        "MSG": "Your data required automatic repair ({{count}} issues fixed). This should not normally happen. If this occurs repeatedly, please report it.",
-        "TITLE": "Data Repair Executed",
+        "MSG": "Sync cleanup: {{count}} inconsistent reference(s) resolved. This can happen after concurrent edits across devices. Please report if it occurs frequently.",
+        "TITLE": "Sync Cleanup Complete",
         "UNKNOWN_ERROR": "Unknown Sync Error: {{err}}"
       },
       "D_DECRYPT_ERROR": {
@@ -1339,7 +1339,7 @@
         "COMPACTION_FAILED": "Database cleanup failed. App may slow down.",
         "CONFLICT_DIALOG_TIMEOUT": "Sync conflict dialog timed out and was cancelled. Sync will retry on next trigger.",
         "CONFLICT_RESOLUTION_FAILED": "Sync conflict resolution failed. Please reload.",
-        "DATA_REPAIRED": "Data automatically repaired ({{count}} issues fixed)",
+        "DATA_REPAIRED": "Sync cleanup: {{count}} reference(s) resolved",
         "DECRYPTION_FAILED": "Failed to decrypt synced data. Please check your encryption password.",
         "DEFERRED_ACTION_FAILED": "Some changes made during sync could not be saved. Please reload to recover.",
         "DIALOG_RESULT_ERROR": "An error occurred while processing the sync dialog. Please try again.",
