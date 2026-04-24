@@ -170,6 +170,7 @@ export class DialogEditTaskRepeatCfgComponent {
         : undefined;
       return {
         ...DEFAULT_TASK_REPEAT_CFG,
+        // Mirrored by getFirstOccurrenceAnchor's equality check (#7344).
         startDate:
           this._data.task.dueDay ??
           getDbDateStr(this._data.task.dueWithTime || undefined),
