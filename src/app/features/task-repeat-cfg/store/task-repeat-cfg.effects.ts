@@ -43,6 +43,7 @@ import { getEffectiveLastTaskCreationDay } from './get-effective-last-task-creat
 import { remindOptionToMilliseconds } from '../../tasks/util/remind-option-to-milliseconds';
 import { devError } from '../../../util/dev-error';
 import { getFirstRepeatOccurrence } from './get-first-repeat-occurrence.util';
+import { getAnchorDateForRepeatCfgConversion } from './get-anchor-date-for-repeat-cfg-conversion.util';
 
 const SCHEDULE_AFFECTING_FIELDS: (keyof TaskRepeatCfgCopy)[] = [
   'startDate',
@@ -81,11 +82,13 @@ export class TaskRepeatCfgEffects {
               devError(`Task with id ${taskId} not found`);
               return null; // Return null instead of EMPTY
             }
-            // Calculate the correct target day based on the repeat pattern (fixes #5594)
-            // Use getFirstRepeatOccurrence which handles future start dates correctly
+            // Calculate the correct target day based on the repeat pattern (fixes #5594).
+            // When the task's existing dueDay matches cfg.startDate (dialog default),
+            // anchor on that date so the first occurrence preserves the user's planned
+            // date instead of auto-advancing to the next future occurrence (#7344).
             const calculatedTargetDate = getFirstRepeatOccurrence(
               taskRepeatCfg as TaskRepeatCfg,
-              new Date(),
+              getAnchorDateForRepeatCfgConversion(task, taskRepeatCfg),
             );
 
             // Use calculated date if available, otherwise fall back to existing logic
@@ -163,9 +166,13 @@ export class TaskRepeatCfgEffects {
         );
       }),
       map(({ task, taskRepeatCfg, subTaskTemplates, isTimedTask }) => {
+        // When the task's existing dueDay matches cfg.startDate (dialog default),
+        // anchor on that date so the first occurrence preserves the user's planned
+        // date instead of auto-advancing to the next future occurrence (#7344).
+        // If the user overrode startDate in the dialog, fall back to today.
         const firstOccurrence = getFirstRepeatOccurrence(
           taskRepeatCfg as TaskRepeatCfg,
-          new Date(),
+          getAnchorDateForRepeatCfgConversion(task, taskRepeatCfg),
         );
         const firstOccurrenceStr = firstOccurrence
           ? this._dateService.todayStr(firstOccurrence)
@@ -182,12 +189,13 @@ export class TaskRepeatCfgEffects {
         });
 
         if (!isFirstOccurrenceToday_ && firstOccurrence) {
-          // FUTURE FIRST OCCURRENCE:
+          // NON-TODAY FIRST OCCURRENCE (past or future):
           // Update created to match what the repeat processor would set (noon on
           // first occurrence day). This prevents duplicate creation via the
           // created-date check in _getActionsForTaskRepeatCfg (service.ts:217-219).
-          // Also set dueDay so the task is immediately scheduled for the start date
-          // and no longer appears in today's view (#6856).
+          // Also align dueDay with the first occurrence: for future occurrences
+          // this removes the task from today's view (#6856); for past occurrences
+          // this is a no-op when dueDay already matches (#7344 preservation).
           this._taskService.update(task.id, {
             created: firstOccurrence.getTime(),
             dueDay: firstOccurrenceStr,

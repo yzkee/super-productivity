@@ -809,6 +809,77 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         });
       }
     });
+
+    it('should preserve dueDay when converting a task whose dueDay matches startDate to YEARLY recurring (#7344)', (done) => {
+      // Scenario from issue #7344: a task is planned for a past date; user converts
+      // it to a yearly recurrence. The dialog defaults startDate = task.dueDay.
+      // Expected: the task stays planned for its original dueDay, not auto-advanced
+      // to next year's occurrence.
+      const today = new Date();
+      const pastDueDay = new Date(today);
+      pastDueDay.setDate(today.getDate() - 22);
+      const pastDueDayStr = getDbDateStr(pastDueDay);
+      const shiftedByOneYearStr = getDbDateStr(
+        new Date(
+          pastDueDay.getFullYear() + 1,
+          pastDueDay.getMonth(),
+          pastDueDay.getDate(),
+        ),
+      );
+
+      const taskWithPastDueDay: TaskWithSubTasks = {
+        ...mockTask,
+        subTasks: [],
+        dueDay: pastDueDayStr,
+        created: pastDueDay.getTime(),
+      };
+
+      const yearlyRepeatCfg: TaskRepeatCfgCopy = {
+        ...mockRepeatCfg,
+        repeatCycle: 'YEARLY',
+        repeatEvery: 4,
+        startDate: pastDueDayStr,
+      };
+
+      const action = addTaskRepeatCfgToTask({
+        taskRepeatCfg: yearlyRepeatCfg,
+        taskId: 'parent-task-id',
+      });
+
+      actions$ = of(action);
+      taskService.getByIdWithSubTaskData$.and.returnValue(of(taskWithPastDueDay));
+      spyOn(effects as any, '_updateRegularTaskInstance');
+
+      effects.updateTaskAfterMakingItRepeatable$.subscribe((result) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { subTasks: _ignored, ...expectedTask } = taskWithPastDueDay;
+        expect(result).toEqual(
+          PlannerActions.planTaskForDay({
+            task: expectedTask as any,
+            day: pastDueDayStr,
+          }),
+        );
+
+        // Repeat cfg must record pastDueDayStr as the last creation day (so the
+        // next occurrence is computed from the preserved date, not a jumped one).
+        expect(taskRepeatCfgService.updateTaskRepeatCfg).toHaveBeenCalledWith(
+          'repeat-cfg-id',
+          jasmine.objectContaining({
+            lastTaskCreationDay: pastDueDayStr,
+          }),
+        );
+
+        // No update may shift dueDay to next year.
+        taskService.update.calls.allArgs().forEach(([, changes]) => {
+          const c = changes as { dueDay?: string };
+          if ('dueDay' in c) {
+            expect(c.dueDay).not.toBe(shiftedByOneYearStr);
+            expect(c.dueDay).toBe(pastDueDayStr);
+          }
+        });
+        done();
+      });
+    });
   });
 
   describe('updateStartDateOnComplete$', () => {
