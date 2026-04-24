@@ -90,17 +90,10 @@ export const createLegacyMigratedClient = async (
 
   const page = await context.newPage();
 
-  // Set up error logging
+  // pageerror is safe to attach early — it only fires on uncaught JS exceptions,
+  // and no JS runs during the seeding phase (we abort all *.js loads below).
   page.on('pageerror', (error) => {
     console.error(`[Legacy Client ${clientName}] Page error:`, error.message);
-  });
-
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') {
-      console.error(`[Legacy Client ${clientName}] Console error:`, msg.text());
-    } else if (process.env.E2E_VERBOSE) {
-      console.log(`[Legacy Client ${clientName}] Console ${msg.type()}:`, msg.text());
-    }
   });
 
   // Block JS to seed database before app initializes
@@ -118,6 +111,17 @@ export const createLegacyMigratedClient = async (
 
   // Unblock JS so app can load
   await page.unroute('**/*.js');
+
+  // Attach console listener only now — attaching earlier would surface the
+  // `Failed to load resource: net::ERR_FAILED` errors from the intentional
+  // *.js aborts above as spurious `console.error` output.
+  page.on('console', (msg) => {
+    if (msg.type() === 'error') {
+      console.error(`[Legacy Client ${clientName}] Console error:`, msg.text());
+    } else if (process.env.E2E_VERBOSE) {
+      console.log(`[Legacy Client ${clientName}] Console ${msg.type()}:`, msg.text());
+    }
+  });
 
   // Set up download listener for migration backup file
   const downloadPromise = page
