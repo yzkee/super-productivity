@@ -1177,7 +1177,7 @@
           "AUTH_SUCCESS": "Dropbox authentication successful! Credentials saved.",
           "BTN_AUTHENTICATE": "Authenticate with Dropbox",
           "BTN_REAUTHENTICATE": "Re-authenticate with Dropbox",
-          "INFO_TEXT": "Dropbox authentication uses OAuth. Click the button below to authenticate with your Dropbox account.",
+          "INFO_TEXT": "Dropbox uses OAuth. Saving your settings will open Dropbox in your browser to authorize access.",
           "L_ACCESS_TOKEN": "Access Token (generated from Auth Code)",
           "REAUTH_SUCCESS": "Dropbox re-authentication successful! Credentials updated.",
           "STATUS_CONFIGURED": "Dropbox is configured and ready to sync",
@@ -1255,7 +1255,6 @@
           "BTN_CHANGE_PASSWORD": "Change Password",
           "BTN_DISABLE_ENCRYPTION": "Disable Encryption",
           "BTN_ENABLE_ENCRYPTION": "Enable Encryption",
-          "BTN_FORCE_OVERWRITE": "Force Overwrite Server",
           "BTN_GET_TOKEN": "Open Server & Get Token",
           "CHANGE_PASSWORD_SUCCESS": "Encryption password changed successfully",
           "CHANGE_PASSWORD_WARNING": "WARNING: This will permanently delete ALL sync history and backups on the server! Previous versions cannot be recovered. Your current data will be re-uploaded with the new password. All other devices will need the new password.",
@@ -2645,6 +2644,13 @@
     "PROJECT_SETTINGS": "Project Specific Settings",
     "PROVIDE_FEEDBACK": "Provide Feedback",
     "RELOAD": "Reload",
+    "SYNC": {
+      "CONFIGURE": "Configure",
+      "EMPTY_STATE_HINT": "Sync your data with Dropbox, WebDAV, Nextcloud, or a local file.",
+      "ENCRYPTED": "Encrypted",
+      "NEEDS_AUTH": "Authentication required",
+      "SET_UP_SYNC": "Set up sync"
+    },
     "SYNC_EXPORT": "Sync & Export",
     "TABS": {
       "GENERAL": "General",

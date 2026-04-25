@@ -1,25 +1,28 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
-import { MatDialogRef } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
 import { FormlyModule } from '@ngx-formly/core';
 import { of } from 'rxjs';
-import { DialogSyncInitialCfgComponent } from './dialog-sync-initial-cfg.component';
+import { DialogSyncCfgComponent } from './dialog-sync-cfg.component';
 import { SyncConfigService } from '../sync-config.service';
 import { SyncWrapperService } from '../sync-wrapper.service';
 import { SyncProviderManager } from '../../../op-log/sync-providers/provider-manager.service';
 import { GlobalConfigService } from '../../../features/config/global-config.service';
 import { SyncProviderId } from '../../../op-log/sync-providers/provider.const';
 import { SyncConfig } from '../../../features/config/global-config.model';
+import { SnackService } from '../../../core/snack/snack.service';
 
-describe('DialogSyncInitialCfgComponent', () => {
-  let component: DialogSyncInitialCfgComponent;
-  let fixture: ComponentFixture<DialogSyncInitialCfgComponent>;
-  let mockDialogRef: jasmine.SpyObj<MatDialogRef<DialogSyncInitialCfgComponent>>;
+describe('DialogSyncCfgComponent', () => {
+  let component: DialogSyncCfgComponent;
+  let fixture: ComponentFixture<DialogSyncCfgComponent>;
+  let mockDialogRef: jasmine.SpyObj<MatDialogRef<DialogSyncCfgComponent>>;
   let mockSyncConfigService: jasmine.SpyObj<SyncConfigService>;
   let mockSyncWrapperService: jasmine.SpyObj<SyncWrapperService>;
   let mockProviderManager: jasmine.SpyObj<SyncProviderManager>;
   let mockGlobalConfigService: jasmine.SpyObj<GlobalConfigService>;
+  let mockSnackService: jasmine.SpyObj<SnackService>;
+  let mockMatDialog: jasmine.SpyObj<MatDialog>;
 
   const baseSyncConfig: SyncConfig = {
     isEnabled: false,
@@ -55,9 +58,12 @@ describe('DialogSyncInitialCfgComponent', () => {
       sync$: of(baseSyncConfig),
     });
 
+    mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
+    mockMatDialog = jasmine.createSpyObj('MatDialog', ['open']);
+
     TestBed.configureTestingModule({
       imports: [
-        DialogSyncInitialCfgComponent,
+        DialogSyncCfgComponent,
         TranslateModule.forRoot(),
         FormlyModule.forRoot(),
       ],
@@ -68,16 +74,18 @@ describe('DialogSyncInitialCfgComponent', () => {
         { provide: SyncWrapperService, useValue: mockSyncWrapperService },
         { provide: SyncProviderManager, useValue: mockProviderManager },
         { provide: GlobalConfigService, useValue: mockGlobalConfigService },
+        { provide: SnackService, useValue: mockSnackService },
+        { provide: MatDialog, useValue: mockMatDialog },
       ],
     });
     // Replace the Formly-based template with a minimal placeholder so we can
     // test the save() business logic without registering every Formly field type.
-    TestBed.overrideComponent(DialogSyncInitialCfgComponent, {
+    TestBed.overrideComponent(DialogSyncCfgComponent, {
       set: { template: '' },
     });
     await TestBed.compileComponents();
 
-    fixture = TestBed.createComponent(DialogSyncInitialCfgComponent);
+    fixture = TestBed.createComponent(DialogSyncCfgComponent);
     component = fixture.componentInstance;
   });
 
