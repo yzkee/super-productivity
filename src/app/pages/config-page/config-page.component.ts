@@ -45,7 +45,7 @@ import { createPluginShortcutFormItems } from '../../features/config/form-cfgs/p
 import { PluginShortcutCfg } from '../../plugins/plugin-api.model';
 import { ThemeSelectorComponent } from '../../core/theme/theme-selector/theme-selector.component';
 import { Log } from '../../core/log';
-import { downloadLogs } from '../../util/download';
+import { DialogLogsComponent } from '../../ui/dialog-logs/dialog-logs.component';
 import { SnackService } from '../../core/snack/snack.service';
 import { ShareService } from '../../core/share/share.service';
 import { SyncWrapperService } from '../../imex/sync/sync-wrapper.service';
@@ -362,13 +362,12 @@ export class ConfigPageComponent implements OnInit {
     return (this.globalCfg as unknown as Record<string, GlobalSectionConfig>)[sectionKey];
   }
 
-  async downloadLogs(): Promise<void> {
-    try {
-      await downloadLogs();
-      this._snackService.open('Logs downloaded to android documents folder');
-    } catch (error) {
-      this._snackService.open('Failed to download logs');
-    }
+  showLogs(): void {
+    this._matDialog.open(DialogLogsComponent, {
+      width: '600px',
+      maxWidth: '95vw',
+      data: { logs: Log.exportLogHistory() },
+    });
   }
 
   async copyVersionToClipboard(text: string): Promise<void> {
