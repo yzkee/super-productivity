@@ -38,6 +38,7 @@ import { formatMonthDay } from '../../../util/format-month-day.util';
 import { dateStrToUtcDate } from '../../../util/date-str-to-utc-date';
 import { first } from 'rxjs/operators';
 import { getQuickSettingUpdates } from './get-quick-setting-updates';
+import { getTaskRepeatCfgChanges } from './get-task-repeat-cfg-changes';
 import { clockStringFromDate } from '../../../ui/duration/clock-string-from-date';
 import { ChipListInputComponent } from '../../../ui/chip-list-input/chip-list-input.component';
 import { MatButton } from '@angular/material/button';
@@ -50,6 +51,18 @@ import { DEFAULT_GLOBAL_CONFIG } from '../../config/default-global-config.const'
 import { DateTimeFormatService } from 'src/app/core/date-time-format/date-time-format.service';
 import { RepeatTaskHeatmapComponent } from '../repeat-task-heatmap/repeat-task-heatmap.component';
 import { CollapsibleComponent } from '../../../ui/collapsible/collapsible.component';
+
+// Fields whose change requires offering "Update all task instances?" — covers
+// what propagates to existing tasks (vs. schedule fields, which only affect
+// future occurrences).
+const RELEVANT_KEYS_FOR_UPDATE_ALL_TASKS: (keyof TaskRepeatCfgCopy)[] = [
+  'title',
+  'defaultEstimate',
+  'remindAt',
+  'startTime',
+  'notes',
+  'tagIds',
+];
 
 // TASK_REPEAT_CFG_FORM_CFG
 @Component({
@@ -278,17 +291,18 @@ export class DialogEditTaskRepeatCfgComponent {
       if (!initial) {
         throw new Error('Initial task repeat cfg missing (code error)');
       }
-      const isRelevantChangesForUpdateAllTasks =
-        initial.title !== finalRepeatCfg.title ||
-        initial.defaultEstimate !== finalRepeatCfg.defaultEstimate ||
-        initial.remindAt !== finalRepeatCfg.remindAt ||
-        initial.startTime !== finalRepeatCfg.startTime ||
-        initial.notes !== finalRepeatCfg.notes ||
-        JSON.stringify(initial.tagIds) !== JSON.stringify(finalRepeatCfg.tagIds);
+      // Pass only the fields that actually changed. Sending the whole config
+      // would make rescheduleTaskOnRepeatCfgUpdate$ fire on every save (its
+      // filter checks `field in changes`), pushing today's task to tomorrow
+      // when only the time was edited (issue #7373).
+      const changes = getTaskRepeatCfgChanges(initial, finalRepeatCfg);
+      const isRelevantChangesForUpdateAllTasks = RELEVANT_KEYS_FOR_UPDATE_ALL_TASKS.some(
+        (k) => k in changes,
+      );
 
       this._taskRepeatCfgService.updateTaskRepeatCfg(
         exists((finalRepeatCfg as TaskRepeatCfg).id),
-        finalRepeatCfg,
+        changes,
         isRelevantChangesForUpdateAllTasks,
       );
       this.close();
