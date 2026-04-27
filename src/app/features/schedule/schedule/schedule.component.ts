@@ -11,7 +11,7 @@ import {
 import { fromEvent } from 'rxjs';
 import { select, Store } from '@ngrx/store';
 import { debounceTime, map, startWith } from 'rxjs/operators';
-import { formatDate } from '@angular/common';
+import { safeFormatDate } from '../../../util/safe-format-date';
 import { TaskService } from '../../tasks/task.service';
 import { LayoutService } from '../../../core-ui/layout/layout.service';
 import { MatIconButton } from '@angular/material/button';
@@ -152,14 +152,14 @@ export class ScheduleComponent {
 
     if (this.isMonthView()) {
       const mid = parseDbDateStr(days[Math.floor(days.length / 2)]);
-      return formatDate(mid, 'LLLL yyyy', locale) ?? '';
+      return safeFormatDate(mid, 'LLLL yyyy', locale);
     }
 
     const start = parseDbDateStr(days[0]);
     const end = parseDbDateStr(days[days.length - 1]);
     const weekNr = getWeekNumber(start); // ISO — default firstDayOfWeek=1
-    const startStr = formatDate(start, 'MMM d', locale) ?? '';
-    const endStr = formatDate(end, 'MMM d', locale) ?? '';
+    const startStr = safeFormatDate(start, 'MMM d', locale);
+    const endStr = safeFormatDate(end, 'MMM d', locale);
     const label = this._translate.instant(T.F.WORKLOG.CMP.WEEK_NR, { nr: weekNr });
     return `${label} · ${startStr} – ${endStr}`;
   });
