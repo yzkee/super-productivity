@@ -207,7 +207,7 @@ export class TaskShortcutService {
         checkKeyCombo(ev, keys.selectPreviousTask))
     ) {
       ev.preventDefault();
-      this._handleTaskShortcut(focusedTaskId, 'focusPrevious');
+      this._handleTaskShortcut(focusedTaskId, 'handleArrowUp');
       return true;
     }
 
@@ -217,7 +217,7 @@ export class TaskShortcutService {
         checkKeyCombo(ev, keys.selectNextTask))
     ) {
       ev.preventDefault();
-      this._handleTaskShortcut(focusedTaskId, 'focusNext');
+      this._handleTaskShortcut(focusedTaskId, 'handleArrowDown');
       return true;
     }
 
