@@ -276,7 +276,12 @@ PluginAPI.registerIssueProvider({
   ): Promise<PluginSearchResult[]> {
     const cfg = config as unknown as GithubConfig;
     const { owner, repo } = parseRepo(cfg);
-    const query = cfg.backlogQuery || 'sort:updated state:open assignee:@me';
+    // `assignee:@me` requires an authenticated request; without a token the
+    // GitHub Search API returns 422. Fall back to a token-less default so
+    // public-repo auto-import works without credentials.
+    const query =
+      cfg.backlogQuery ||
+      (cfg.token ? 'sort:updated state:open assignee:@me' : 'sort:updated state:open');
     const typeFilter = cfg.includePullRequests ? '' : ' is:issue';
     const q = encodeGithubQuery(`repo:${owner}/${repo}${typeFilter} ${query}`);
     const url = `${API_BASE}/search/issues?q=${q}&per_page=50&advanced_search=true`;
