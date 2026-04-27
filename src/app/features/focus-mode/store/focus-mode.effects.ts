@@ -137,8 +137,14 @@ export class FocusModeEffects {
             // Bug #6726 fix: Don't pass pausedTaskId — the user already chose a new task
             return of(actions.skipBreak({ pausedTaskId: undefined }));
           }
-          // If no session active, start a new one (only from Main screen)
+          // If no session active, start a new one (only from Main screen).
+          // Bug #7384 fix: respect isSkipPreparation. When off, leave the user on
+          // the preparation screen so they must click 'Start' (and see the rocket
+          // animation), matching the manual-start flow in focus-mode-main.component.
           if (timer.purpose === null && currentScreen === FocusScreen.Main) {
+            if (!cfg?.isSkipPreparation) {
+              return EMPTY;
+            }
             const strategy = this.strategyFactory.getStrategy(mode);
             const duration = strategy.initialSessionDuration;
             return of(
