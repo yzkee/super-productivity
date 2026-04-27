@@ -24,6 +24,7 @@ export enum ActionType {
   BOARDS_UPDATE = '[Boards] Update Board',
   BOARDS_UPDATE_PANEL_CFG = '[Boards] Update Panel Cfg',
   BOARDS_UPDATE_PANEL_TASK_IDS = '[Boards] Update Panel Cfg TaskIds',
+  BOARDS_SORT = '[Boards] Sort Boards',
 
   // GlobalConfig actions (C)
   GLOBAL_CONFIG_UPDATE_SECTION = '[Global Config] Update Global Config Section',

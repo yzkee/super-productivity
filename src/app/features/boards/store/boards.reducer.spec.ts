@@ -168,6 +168,39 @@ describe('deduplicatePanelIds', () => {
   });
 });
 
+describe('Boards Reducer - sortBoards', () => {
+  it('reorders boardCfgs to match the given id list', () => {
+    const state: BoardsState = {
+      boardCfgs: [
+        makeBoard({ id: 'b1', title: 'One' }),
+        makeBoard({ id: 'b2', title: 'Two' }),
+        makeBoard({ id: 'b3', title: 'Three' }),
+      ],
+    };
+
+    const result = boardsReducer(
+      state,
+      BoardsActions.sortBoards({ ids: ['b3', 'b1', 'b2'] }),
+    );
+
+    expect(result.boardCfgs.map((b) => b.id)).toEqual(['b3', 'b1', 'b2']);
+  });
+
+  it('appends boards missing from the id list to preserve them', () => {
+    const state: BoardsState = {
+      boardCfgs: [
+        makeBoard({ id: 'b1' }),
+        makeBoard({ id: 'b2' }),
+        makeBoard({ id: 'b3' }),
+      ],
+    };
+
+    const result = boardsReducer(state, BoardsActions.sortBoards({ ids: ['b3', 'b1'] }));
+
+    expect(result.boardCfgs.map((b) => b.id)).toEqual(['b3', 'b1', 'b2']);
+  });
+});
+
 describe('Boards Reducer - panel cfg sanitization', () => {
   it('migrates legacy sortByDue on loadAllData', () => {
     const stored: BoardsState = {

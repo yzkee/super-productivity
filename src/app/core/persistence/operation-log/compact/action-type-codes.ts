@@ -45,6 +45,7 @@ export const ACTION_TYPE_TO_CODE: Record<ActionType, string> = {
   [ActionType.BOARDS_UPDATE]: 'BU',
   [ActionType.BOARDS_UPDATE_PANEL_CFG]: 'BP',
   [ActionType.BOARDS_UPDATE_PANEL_TASK_IDS]: 'BT',
+  [ActionType.BOARDS_SORT]: 'BS',
 
   // GlobalConfig actions (C)
   [ActionType.GLOBAL_CONFIG_UPDATE_SECTION]: 'CU',

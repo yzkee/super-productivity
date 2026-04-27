@@ -121,6 +121,15 @@ export const boardsReducer = createReducer(
   //   return state;
   // }),
 
+  on(BoardsActions.sortBoards, (state, { ids }) => {
+    const byId = new Map(state.boardCfgs.map((b) => [b.id, b]));
+    const ordered = ids.map((id) => byId.get(id)).filter((b): b is BoardCfg => !!b);
+    const seen = new Set(ids);
+    // Preserve boards missing from `ids` (e.g. stale dispatch from another client).
+    const tail = state.boardCfgs.filter((b) => !seen.has(b.id));
+    return { ...state, boardCfgs: [...ordered, ...tail] };
+  }),
+
   on(BoardsActions.updatePanelCfgTaskIds, (state, { panelId, taskIds }) => {
     let panelCfgToUpdate;
     const boardCfg = state.boardCfgs.find((cfg) => {
