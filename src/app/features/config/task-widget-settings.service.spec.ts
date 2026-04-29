@@ -24,10 +24,7 @@ describe('TaskWidgetSettingsService', () => {
   });
 
   it('loads existing settings from localStorage', () => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ isEnabled: true, opacity: 70 }),
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ isEnabled: true, opacity: 70 }));
 
     const service = TestBed.inject(TaskWidgetSettingsService);
 
