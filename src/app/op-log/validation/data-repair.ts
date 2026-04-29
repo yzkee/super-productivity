@@ -125,6 +125,7 @@ export const dataRepair = (
   dataOut = _fixInvalidDueDateStrings(dataOut, summary);
   dataOut = _fixTaskRepeatMissingWeekday(dataOut, summary);
   dataOut = _fixTaskRepeatCfgInvalidQuickSetting(dataOut, summary);
+  dataOut = _stripLegacyMonthlyMode(dataOut, summary);
   dataOut = _createInboxProjectIfNecessary(dataOut, summary);
   dataOut = _fixOrphanedNotes(dataOut, summary);
   dataOut = _removeNonExistentProjectIdsFromTasks(dataOut, summary);
@@ -252,6 +253,7 @@ const _fixTaskRepeatCfgInvalidQuickSetting = (
       'MONTHLY_CURRENT_DATE',
       'MONTHLY_FIRST_DAY',
       'MONTHLY_LAST_DAY',
+      'MONTHLY_NTH_WEEKDAY',
     ];
     Object.keys(data.taskRepeatCfg.entities).forEach((key) => {
       const cfg = data.taskRepeatCfg.entities[key] as TaskRepeatCfgCopy;
@@ -268,6 +270,36 @@ const _fixTaskRepeatCfgInvalidQuickSetting = (
       }
     });
   }
+  return data;
+};
+
+// Issue #6040 follow-up: an earlier development build of the Nth-weekday
+// feature persisted a `monthlyMode` discriminator that has since been
+// dropped. Anchor presence is now the sole source of truth, but a cfg
+// stored as `{monthlyMode: 'DAY_OF_MONTH', monthlyWeekOfMonth: …, monthlyWeekday: …}`
+// would silently flip to NTH-weekday behavior on upgrade. Clear stale
+// anchors when the legacy mode said day-of-month, and strip the field.
+const _stripLegacyMonthlyMode = (
+  data: AppDataComplete,
+  summary: RepairSummary,
+): AppDataComplete => {
+  if (!data.taskRepeatCfg?.entities) {
+    return data;
+  }
+  Object.keys(data.taskRepeatCfg.entities).forEach((key) => {
+    const cfg = data.taskRepeatCfg.entities[key] as TaskRepeatCfgCopy & {
+      monthlyMode?: string;
+    };
+    if (!('monthlyMode' in cfg)) {
+      return;
+    }
+    if (cfg.monthlyMode === 'DAY_OF_MONTH') {
+      cfg.monthlyWeekOfMonth = undefined;
+      cfg.monthlyWeekday = undefined;
+    }
+    delete cfg.monthlyMode;
+    summary.entityStateFixed++;
+  });
   return data;
 };
 
