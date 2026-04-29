@@ -17,6 +17,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ShortcutService } from './core-ui/shortcut/shortcut.service';
 import { GlobalConfigService } from './features/config/global-config.service';
+import { TaskWidgetSettingsService } from './features/config/task-widget-settings.service';
 import { LayoutService } from './core-ui/layout/layout.service';
 import { SnackService } from './core/snack/snack.service';
 import { IS_ELECTRON } from './app.constants';
@@ -136,6 +137,10 @@ export class AppComponent implements OnDestroy, AfterViewInit {
   private _startupService = inject(StartupService);
   // Injected for side-effect: creates example tasks on first run
   private _exampleTasksService = inject(ExampleTasksService);
+  // Injected for side-effect: loads per-instance task widget settings from
+  // localStorage and pushes them to the Electron main process at app boot,
+  // before the user opens the (lazy-loaded) Settings page.
+  private _taskWidgetSettingsService = inject(TaskWidgetSettingsService);
   private _keyboardLayoutService = inject(KeyboardLayoutService);
   private _dataInitStateService = inject(DataInitStateService);
   private _materialIconsLoaderService = inject(MaterialIconsLoaderService);
