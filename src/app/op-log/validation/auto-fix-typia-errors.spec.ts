@@ -262,5 +262,55 @@ describe('autoFixTypiaErrors', () => {
       expect((result as any).task.entities['t1'].subTaskIds).toEqual([]);
       expect((result as any).task.entities['t1'].attachments).toEqual([]);
     });
+
+    it('should fall back to first available project when INBOX_PROJECT is missing', () => {
+      const mockData = createAppDataCompleteMock();
+      const errors = [
+        {
+          path: '$input.task.entities["t1"].projectId',
+          expected: 'string',
+          value: undefined,
+        },
+      ];
+      (mockData as any).task = {
+        ids: ['t1'],
+        entities: {
+          t1: { id: 't1' },
+        },
+      };
+      // Project state lacks INBOX_PROJECT but has another project
+      (mockData as any).project = {
+        ids: ['some-other-project'],
+        entities: {
+          // eslint-disable-next-line @typescript-eslint/naming-convention
+          'some-other-project': { id: 'some-other-project' },
+        },
+      };
+
+      const result = autoFixTypiaErrors(mockData, errors as any);
+
+      expect((result as any).task.entities['t1'].projectId).toBe('some-other-project');
+    });
+
+    it('should fix undefined task.projectId to INBOX_PROJECT id', () => {
+      const mockData = createAppDataCompleteMock();
+      const errors = [
+        {
+          path: '$input.task.entities["t1"].projectId',
+          expected: 'string',
+          value: undefined,
+        },
+      ];
+      (mockData as any).task = {
+        ids: ['t1'],
+        entities: {
+          t1: { id: 't1' },
+        },
+      };
+
+      const result = autoFixTypiaErrors(mockData, errors as any);
+
+      expect((result as any).task.entities['t1'].projectId).toBe('INBOX_PROJECT');
+    });
   });
 });

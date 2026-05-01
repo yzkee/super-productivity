@@ -20,7 +20,9 @@ import {
   TASK_FEATURE_NAME,
   taskAdapter,
 } from '../../../features/tasks/store/task.reducer';
-import { DEFAULT_TASK, Task } from '../../../features/tasks/task.model';
+import { Task } from '../../../features/tasks/task.model';
+import { INBOX_PROJECT } from '../../../features/project/project.const';
+import { RECREATE_FALLBACK } from '../../../op-log/core/recreate-fallback.const';
 import { OpLog } from '../../../core/log';
 import { appStateFeatureKey } from '../../app-state/app-state.reducer';
 import { getDbDateStr, isDBDateStr } from '../../../util/get-db-date-str';
@@ -554,25 +556,45 @@ export const lwwUpdateMetaReducer: MetaReducer = (
       // - Setting it to local time reflects when THIS client applied the winning state
       // - The original timestamp from the winning client is preserved in entityData but
       //   gets overwritten here because local display should show local application time
-      let entityToAdd: Record<string, unknown> = {
-        ...entityData,
-        modified: Date.now(),
-      };
-      if (entityType === 'TASK') {
-        const partialKeys: string[] = [];
-        if (entityData['title'] === undefined) partialKeys.push('title');
-        if (entityData['timeSpentOnDay'] === undefined)
-          partialKeys.push('timeSpentOnDay');
-        if (entityData['tagIds'] === undefined) partialKeys.push('tagIds');
-        if (entityData['subTaskIds'] === undefined) partialKeys.push('subTaskIds');
+      let entityToAdd: Record<string, unknown>;
+      const fallback = RECREATE_FALLBACK[entityType];
+      if (fallback) {
+        // null and undefined both count as "missing": producers that emit
+        // explicit `null` for a required field would otherwise slip past the
+        // warn AND have `null` overwrite the default in the spread below.
+        const partialKeys = fallback.requiredKeys.filter((k) => entityData[k] == null);
         if (partialKeys.length > 0) {
           OpLog.warn(
-            `lwwUpdateMetaReducer: TASK LWW Update payload is missing required fields ` +
-              `[${partialKeys.join(', ')}] for ${entityId} — backfilling from DEFAULT_TASK. ` +
-              `This indicates an upstream producer emitted a partial LWW Update.`,
+            `lwwUpdateMetaReducer: ${entityType} LWW Update payload missing required ` +
+              `fields [${partialKeys.join(', ')}] for ${entityId} — backfilling from ` +
+              `defaults. Likely cause: an upstream producer (e.g. ` +
+              `_convertToLWWUpdatesIfNeeded fallback) emitted a partial LWW Update, ` +
+              `or the local DELETE op carried only {id}.`,
           );
         }
-        entityToAdd = { ...DEFAULT_TASK, ...entityToAdd };
+        // Spread does not skip null/undefined-valued keys; strip them so they
+        // can't clobber a backfilled default.
+        const stripped: Record<string, unknown> = { modified: Date.now() };
+        for (const k of Object.keys(entityData)) {
+          if (entityData[k] != null) stripped[k] = entityData[k];
+        }
+        entityToAdd = { ...fallback.defaults, ...stripped };
+
+        // INBOX_PROJECT may legitimately be missing from state (corrupted
+        // import, partial migration). Mirror normalizeRestoredTask's guard at
+        // task-shared-lifecycle.reducer.ts:110 so the recreated task points
+        // at a project that actually exists.
+        if (entityType === 'TASK' && entityToAdd['projectId'] === INBOX_PROJECT.id) {
+          const projectEntities =
+            (state[PROJECT_FEATURE_NAME] as { entities?: Record<string, unknown> })
+              ?.entities ?? {};
+          if (!projectEntities[INBOX_PROJECT.id]) {
+            const firstProjectId = Object.keys(projectEntities)[0];
+            if (firstProjectId) entityToAdd['projectId'] = firstProjectId;
+          }
+        }
+      } else {
+        entityToAdd = { ...entityData, modified: Date.now() };
       }
       updatedFeatureState = (adapter as EntityAdapter<any>).addOne(
         entityToAdd as any,
