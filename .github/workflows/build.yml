@@ -112,7 +112,16 @@ jobs:
         run: npm run build
 
       - name: Install Snapcraft
-        uses: samuelmeuli/action-snapcraft@fceeb3c308e76f3487e72ef608618de625fb7fe8 # v3
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
+        with:
+          max_attempts: 3
+          timeout_minutes: 10
+          retry_wait_seconds: 30
+          command: |
+            if ! command -v snapcraft >/dev/null 2>&1; then
+              sudo snap install snapcraft --classic --channel stable
+            fi
+            snapcraft version
 
       - name: Build/Release Electron app
         uses: johannesjo/action-electron-builder@9ea9e2d991c97668843d57337848e3e2b1ffab3d # v1
