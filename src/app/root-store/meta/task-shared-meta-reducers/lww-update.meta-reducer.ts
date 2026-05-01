@@ -567,9 +567,9 @@ export const lwwUpdateMetaReducer: MetaReducer = (
           OpLog.warn(
             `lwwUpdateMetaReducer: ${entityType} LWW Update payload missing required ` +
               `fields [${partialKeys.join(', ')}] for ${entityId} — backfilling from ` +
-              `defaults. Likely cause: an upstream producer (e.g. ` +
-              `_convertToLWWUpdatesIfNeeded fallback) emitted a partial LWW Update, ` +
-              `or the local DELETE op carried only {id}.`,
+              `defaults. Likely cause: the local DELETE op carried only {id} ` +
+              `(or a similarly minimal payload), so _convertToLWWUpdatesIfNeeded ` +
+              `produced a partial merged entity on its happy path.`,
           );
         }
         // Spread does not skip null/undefined-valued keys; strip them so they
