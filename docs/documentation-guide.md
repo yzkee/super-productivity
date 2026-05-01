@@ -4,9 +4,7 @@ Rules and conventions for keeping Super Productivity's documentation in sync wit
 
 ## Why this matters
 
-The `docs/wiki/` directory is the manually curated, human-focused wiki that ships to the [GitHub Wiki](https://github.com/super-productivity/super-productivity/wiki) via CI. It is intentionally separate from the auto-generated [DeepWiki](https://deepwiki.com/super-productivity/super-productivity), which describes code mechanics. The wiki is what users read for context, intent, and how features fit together — so keeping it in sync with the code is part of the change, not a follow-up.
-
-See the README's "Documentation: Manual versus Automated" section for the broader rationale.
+The `docs/wiki/` directory is the manually curated, human-focused wiki that ships to the [GitHub Wiki](https://github.com/super-productivity/super-productivity/wiki) via CI. It is intentionally separate from the auto-generated [DeepWiki](https://deepwiki.com/super-productivity/super-productivity), which describes code mechanics. The wiki is what users read for context, intent, and how features fit together.
 
 ## When to update the wiki
 
@@ -27,15 +25,7 @@ If a change does not map to any of the above and is purely internal (refactor, t
 
 ## How to write wiki content
 
-**Read [`docs/wiki/0.00-Wiki-Structure-and-Organization.md`](wiki/0.00-Wiki-Structure-and-Organization.md) before editing.** It defines the four note categories (Quickstarts, How-To, Reference, Concepts), the numbering scheme, and the writing style for each. The wiki follows the [Diátaxis](https://diataxis.fr/) framework, and each category links out to specific writing guidelines.
-
-For Reference notes (`3.XX`) in particular:
-
-- **Do nothing but describe.** References explain accurately and comprehensively — they don't teach, persuade, or narrate.
-- **Be accurate.** Verify against the current code; do not copy stale claims forward.
-- **Provide examples** where they aid understanding without distracting from the description.
-- **Mirror the product's structure.** Documentation should help readers make sense of the product, not impose a foreign structure on it.
-- **Be consistent** in structure, language, terminology, and tone with the surrounding notes.
+**Read [`docs/wiki/0.00-Wiki-Structure-and-Organization.md`](wiki/0.00-Wiki-Structure-and-Organization.md) before editing.** It defines the four note categories (Quickstarts, How-To, Reference, Concepts), the numbering scheme, and the [Diátaxis](https://diataxis.fr/)-style writing guidance for each. Reference notes describe accurately, comprehensively, and consistently — nothing more.
 
 ## Default to Reference notes (`3.XX`)
 
@@ -53,9 +43,4 @@ Wiki notes are linted in CI before being synced to GitHub Wiki. See [`docs/wiki/
 
 ## Developer-facing docs
 
-The wiki is for end users. Developer-facing docs live at the top level of `docs/` and follow the same "update alongside the code" rule when their subject changes:
-
-- [`docs/styling-guide.md`](styling-guide.md) — design system, CSS variables, theme tokens.
-- [`docs/sync-and-op-log/`](sync-and-op-log/) — operation log, vector clocks, sync architecture.
-- [`docs/plugin-development.md`](plugin-development.md) — plugin authoring guide.
-- [`ARCHITECTURE-DECISIONS.md`](../ARCHITECTURE-DECISIONS.md) — load-bearing architectural decisions and their rationale.
+The wiki is for end users. Developer-facing docs (`docs/styling-guide.md`, `docs/sync-and-op-log/`, `docs/plugin-development.md`, `ARCHITECTURE-DECISIONS.md`) follow the same "update alongside the code" rule when their subject changes.
