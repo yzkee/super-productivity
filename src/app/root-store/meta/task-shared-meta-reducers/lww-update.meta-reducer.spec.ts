@@ -102,7 +102,6 @@ describe('lwwUpdateMetaReducer', () => {
       [PROJECT_FEATURE_NAME]: {
         ids: [INBOX_PROJECT.id, PROJECT_ID],
         entities: {
-          // eslint-disable-next-line @typescript-eslint/naming-convention
           [INBOX_PROJECT.id]: createMockProject({ id: INBOX_PROJECT.id }),
           [PROJECT_ID]: createMockProject(),
         },
@@ -411,9 +410,7 @@ describe('lwwUpdateMetaReducer', () => {
       reducer(state, action);
 
       const updatedState = mockReducer.calls.mostRecent().args[0] as Partial<RootState>;
-      const recreated = updatedState[TASK_FEATURE_NAME]?.entities[
-        'orphan-task'
-      ] as Task;
+      const recreated = updatedState[TASK_FEATURE_NAME]?.entities['orphan-task'] as Task;
 
       expect(recreated.projectId).toBe('some-other-project');
     });
@@ -532,7 +529,6 @@ describe('lwwUpdateMetaReducer', () => {
       const result = appDataValidators.task(taskState as never);
       if (!result.success) {
         // Surface the typia errors so any future regression is debuggable.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         fail(
           `TaskState failed Typia validation: ${JSON.stringify((result as any).errors)}`,
         );
