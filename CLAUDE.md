@@ -6,6 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 1. **ALWAYS** use `npm run checkFile <filepath>` on each `ts` or `scss` file you modify to ensure proper formatting and linting. Unless you want to lint and format multiple files, then use `npm run prettier` and `npm run lint` instead.
 2. When creating HTML templates, prefer plain HTML (`<table>`, `<div>`). Keep CSS, nesting, and classes to a minimum. Use Angular Material components where appropriate but sparingly. See **Styling & Design System** section below for CSS variable and design token rules.
+3. When you change user-facing functionality (a feature, a setting, a keyboard shortcut, a sync/issue integration, etc.), update `docs/wiki/` in the same change. See **Documentation Updates** section below.
 
 ## Project Overview
 
@@ -115,6 +116,10 @@ The app uses NgRx (Redux pattern) for state management. Key state slices:
 ## Styling & Design System
 
 **WHENEVER you are making styling changes, read and apply [`docs/styling-guide.md`](docs/styling-guide.md).** It contains the rules, CSS variables, and patterns that must be followed for a consistent design language.
+
+## Documentation Updates
+
+**WHENEVER you change user-facing functionality, read and apply [`docs/documentation-guide.md`](docs/documentation-guide.md).** It covers when a wiki update is required, which note (`3.XX` Reference is the default target) to edit, and the writing conventions to follow — including the required prerequisite [`docs/wiki/0.00-Wiki-Structure-and-Organization.md`](docs/wiki/0.00-Wiki-Structure-and-Organization.md). The same "update alongside the code" rule applies to developer-facing docs (`docs/styling-guide.md`, `docs/sync-and-op-log/`, `docs/plugin-development.md`, `ARCHITECTURE-DECISIONS.md`) when their subject changes.
 
 ## Important Development Notes
 
