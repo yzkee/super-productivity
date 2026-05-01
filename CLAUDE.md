@@ -44,12 +44,12 @@ For SuperSync E2E (docker-compose) and the full E2E reference, see [`e2e/CLAUDE.
 Touched on most state-related PRs. Read the linked source/doc for full reasoning before editing.
 
 1. **Effects use `inject(LOCAL_ACTIONS)`**, never `inject(Actions)` — effects must not run for remote sync ops. For archive-specific side effects on remote clients (writing/deleting from IndexedDB), use `ArchiveOperationHandler` (called by `OperationApplierService`). → `src/app/util/local-actions.token.ts`, `docs/sync-and-op-log/operation-log-architecture-diagrams.md` §8.
-2. **Action-based effects only.** Selector-based effects bypass `LOCAL_ACTIONS` filtering; if unavoidable, wrap with the `skipDuringSyncWindow()` operator (or guard with `HydrationStateService.isApplyingRemoteOps()`). → `src/app/features/tag/store/tag.effects.ts`.
-3. **Multi-entity changes use meta-reducers**, not effects — one reducer pass = one sync op = no partial state. → `src/app/root-store/meta/task-shared-meta-reducers/`.
+2. **Action-based effects only.** Selector-based effects fire on every store change (including hydration/sync replay) and bypass `LOCAL_ACTIONS` filtering; if unavoidable, wrap with the `skipDuringSyncWindow()` operator (or guard with `HydrationStateService.isApplyingRemoteOps()`). → `src/app/features/tag/store/tag.effects.ts`.
+3. **Multi-entity changes use meta-reducers**, not effects — one reducer pass = one sync op (e.g. deleting a tag also removes it from every task). → `src/app/root-store/meta/task-shared-meta-reducers/`.
 4. **Logical clock:** route "what day is this?" through `DateService` (`getLogicalTodayDate`, `isToday`, `todayStr`). Pure reducers/selectors take `startOfNextDayDiffMs` as an arg and call `isTodayWithOffset` for replay determinism. The raw `DateService.startOfNextDayDiff` is `private`; use `getStartOfNextDayDiffMs()` at service boundaries.
-5. **`TODAY_TAG` (`'TODAY'`) is virtual** — never add to `task.tagIds`. Membership comes from `task.dueWithTime` or `task.dueDay`. → `ARCHITECTURE-DECISIONS.md` Decision #2.
-6. **Bulk dispatches:** add `await new Promise(r => setTimeout(r, 0))` after the loop. → `OperationApplierService.applyOperations()`.
-7. **`SYNC_IMPORT` / `BACKUP_IMPORT`** replace state and intentionally drop concurrent ops. → `SyncImportFilterService`.
+5. **`TODAY_TAG` (`'TODAY'`) is virtual** — never add to `task.tagIds`; membership comes from `task.dueWithTime` or `task.dueDay`. `TODAY_TAG.taskIds` only stores ordering. → `ARCHITECTURE-DECISIONS.md` Decision #2.
+6. **Bulk dispatches:** add `await new Promise(r => setTimeout(r, 0))` after the loop — `store.dispatch()` is non-blocking, and without yielding, 50+ rapid dispatches lose state updates. → `OperationApplierService.applyOperations()`.
+7. **`SYNC_IMPORT` / `BACKUP_IMPORT`** replace state and intentionally drop concurrent ops (CONCURRENT or LESS_THAN by vector clock) — by design, not a bug. → `SyncImportFilterService`.
 8. **Vector clocks:** `MAX_VECTOR_CLOCK_SIZE = 20`. Server prunes after conflict detection, before storage. → `docs/sync-and-op-log/vector-clocks.md`.
 9. **Logging:** `Log.log({ id: task.id })`, never `Log.log(task)` or `Log.log(title)` — log history is exportable, never log user content.
 
