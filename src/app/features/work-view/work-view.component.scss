@@ -303,6 +303,8 @@ finish-day-btn,
     cursor: move;
     margin-right: var(--s);
     color: var(--text-color-secondary);
+    opacity: 0;
+    transition: opacity var(--transition-duration-m) ease;
   }
 
   // Style the action-slot menu trigger only — narrow scope avoids leaking
@@ -314,5 +316,24 @@ finish-day-btn,
     box-shadow: none;
     color: var(--text-color-secondary);
     border: none;
+    opacity: 0;
+    transition: opacity var(--transition-duration-m) ease;
+  }
+
+  // Reveal on hover/focus on devices with hover capability.
+  &:hover,
+  &:focus-within {
+    .drag-handle,
+    ::ng-deep > collapsible > .collapsible-header > button[mat-icon-button] {
+      opacity: 1;
+    }
+  }
+
+  // Touch-only devices have no hover — keep controls always visible.
+  :host-context(.isTouchOnly) & {
+    .drag-handle,
+    ::ng-deep > collapsible > .collapsible-header > button[mat-icon-button] {
+      opacity: 1;
+    }
   }
 }
