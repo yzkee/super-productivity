@@ -213,24 +213,26 @@ export class WorkViewComponent implements OnInit, OnDestroy {
       return { dict: {} as Record<string, TaskWithSubTasks[]>, noSection: tasks };
     }
 
-    // Build sectionId-by-taskId in O(m) where m = total taskIds across sections.
-    const sectionByTaskId = new Map<string, string>();
-    for (const s of sections) {
-      for (const tId of s.taskIds ?? []) sectionByTaskId.set(tId, s.id);
-    }
-
+    // section.taskIds is authoritative for in-section order — drag-drop
+    // reorders go through addTaskToSection's reducer. Walking sections
+    // first (rather than tasks first) lets us respect that order while
+    // staying defensive against stale ids and tasks that aren't yet in
+    // any section.
+    const taskById = new Map(tasks.map((t) => [t.id, t]));
     const dict: Record<string, TaskWithSubTasks[]> = {};
-    for (const s of sections) dict[s.id] = [];
-    const noSection: TaskWithSubTasks[] = [];
-
-    for (const task of tasks) {
-      const sId = sectionByTaskId.get(task.id);
-      if (sId) {
-        dict[sId].push(task);
-      } else {
-        noSection.push(task);
+    const inSection = new Set<string>();
+    for (const s of sections) {
+      const list: TaskWithSubTasks[] = [];
+      for (const tId of s.taskIds ?? []) {
+        const t = taskById.get(tId);
+        if (t) {
+          list.push(t);
+          inSection.add(tId);
+        }
       }
+      dict[s.id] = list;
     }
+    const noSection = tasks.filter((t) => !inSection.has(t.id));
 
     return { dict, noSection };
   });
