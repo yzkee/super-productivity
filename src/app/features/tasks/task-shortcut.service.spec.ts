@@ -280,24 +280,41 @@ describe('TaskShortcutService', () => {
      * after addSubtask's title-commit refocuses the host that was already
      * the implicit focus target). The shortcut handler must recover the
      * id from document.activeElement so keystrokes don't silently drop.
+     *
+     * Tests stub `document.activeElement` directly rather than calling
+     * `el.focus()` — headless Chrome only updates activeElement when the
+     * test iframe has window focus, which is not guaranteed inside a
+     * large suite (other tests can steal/drop focus).
      */
     let taskEl: HTMLElement;
+    let activeElementStubbed = false;
+
+    const stubActiveElement = (el: Element | null): void => {
+      Object.defineProperty(document, 'activeElement', {
+        configurable: true,
+        get: () => el,
+      });
+      activeElementStubbed = true;
+    };
 
     afterEach(() => {
+      if (activeElementStubbed) {
+        delete (document as unknown as { activeElement?: unknown }).activeElement;
+        activeElementStubbed = false;
+      }
       taskEl?.remove();
     });
 
-    const mountFocusedTaskEl = (taskId: string): HTMLElement => {
+    const createTaskEl = (taskId: string): HTMLElement => {
       const el = document.createElement('task');
       el.setAttribute('data-task-id', taskId);
-      el.setAttribute('tabindex', '1');
       document.body.appendChild(el);
-      el.focus();
       return el;
     };
 
     it('recovers focusedTaskId from document.activeElement and dispatches the shortcut', () => {
-      taskEl = mountFocusedTaskEl('recovered-task');
+      taskEl = createTaskEl('recovered-task');
+      stubActiveElement(taskEl);
 
       const mockTaskComponent = {
         task: () => ({ id: 'recovered-task' }),
@@ -318,7 +335,8 @@ describe('TaskShortcutService', () => {
 
     it('skips delegation when active element id does not match lastFocusedTaskComponent', () => {
       // active element is a different task than lastFocusedTaskComponent
-      taskEl = mountFocusedTaskEl('other-task');
+      taskEl = createTaskEl('other-task');
+      stubActiveElement(taskEl);
 
       const mockTaskComponent = {
         task: () => ({ id: 'stale-task' }),
@@ -340,6 +358,7 @@ describe('TaskShortcutService', () => {
 
     it('returns false when active element is outside any task', () => {
       // body is the active element (not inside a <task>)
+      stubActiveElement(document.body);
       mockTaskFocusService.focusedTaskId.set(null);
       mockTaskFocusService.lastFocusedTaskComponent.set(null);
 
@@ -353,13 +372,10 @@ describe('TaskShortcutService', () => {
     it('recovers when active element is a descendant of <task> (e.g. button inside)', () => {
       // Real-world shape: a focused button inside a task host. closest('task')
       // walks up to the host so recovery still resolves the id.
-      taskEl = document.createElement('task');
-      taskEl.setAttribute('data-task-id', 'host-with-child-focus');
-      taskEl.setAttribute('tabindex', '1');
+      taskEl = createTaskEl('host-with-child-focus');
       const innerBtn = document.createElement('button');
       taskEl.appendChild(innerBtn);
-      document.body.appendChild(taskEl);
-      innerBtn.focus();
+      stubActiveElement(innerBtn);
 
       const mockTaskComponent = {
         task: () => ({ id: 'host-with-child-focus' }),
