@@ -1,3 +1,4 @@
+- mount build dir to /project so snapcraft container finds sp.snap
 - update package-lock.json
 - unbreak task-shortcut recovery specs from layout-spec pollution
 - recover focusedTaskId when shortcut fires on a focused task
