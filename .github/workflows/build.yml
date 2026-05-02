@@ -124,6 +124,9 @@ jobs:
       # Uses Canonical's official snapcraft container instead of `sudo snap
       # install snapcraft --classic` on the runner, which has been a recurring
       # source of "unable to contact snap store" failures.
+      # The container runs snapcraft as a pebble service whose working-dir is
+      # hard-coded to /project, so docker's -w flag is ignored — mount the
+      # build dir at /project so `snapcraft upload sp.snap` resolves correctly.
       - #otherwise it would be executed twice
         if: false == startsWith(github.ref, 'refs/tags/v')
         uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
@@ -137,8 +140,7 @@ jobs:
           # "no such command 'snapcraft'".
           command: |
             docker run --rm \
-              -v "$PWD/.tmp/app-builds:/work" \
-              -w /work \
+              -v "$PWD/.tmp/app-builds:/project" \
               -e SNAPCRAFT_STORE_CREDENTIALS \
               -e SNAPCRAFT_HAS_TTY=true \
               ghcr.io/canonical/snapcraft:8_core24 \
