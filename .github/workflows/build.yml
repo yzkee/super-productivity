@@ -131,6 +131,10 @@ jobs:
           max_attempts: 3
           timeout_minutes: 15
           retry_wait_seconds: 60
+          # The snapcraft-rocks image's wrapper already runs `snapcraft "$@"`,
+          # so the docker CMD must NOT include a leading `snapcraft` word —
+          # that gets passed as the subcommand and snapcraft errors with
+          # "no such command 'snapcraft'".
           command: |
             docker run --rm \
               -v "$PWD/.tmp/app-builds:/work" \
@@ -138,7 +142,7 @@ jobs:
               -e SNAPCRAFT_STORE_CREDENTIALS \
               -e SNAPCRAFT_HAS_TTY=true \
               ghcr.io/canonical/snapcraft:8_core24 \
-              snapcraft upload sp.snap --release edge
+              upload sp.snap --release edge
         env:
           SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
       #      - run: snapcraft push .tmp/app-builds/sp.snap --release candidate
