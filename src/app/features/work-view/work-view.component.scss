@@ -248,7 +248,8 @@ finish-day-btn,
 :host ::ng-deep .collapsible-header {
   font-size: 16px;
   margin-top: 0;
-  padding: calc(var(--s) + var(--s-half)) var(--s);
+  min-height: var(--bar-height);
+  padding: 0 var(--s);
   justify-content: flex-start;
   border-bottom: 2px solid transparent;
 
