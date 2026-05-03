@@ -26,13 +26,22 @@ describe('ReminderModule iOS notification actions', () => {
   let taskServiceSpy: jasmine.SpyObj<TaskService>;
   let syncWrapperSpy: jasmine.SpyObj<SyncWrapperService>;
 
+  // setDeadline enforces mutual exclusivity, so a real task only carries one
+  // of deadlineDay / deadlineWithTime. The fixture mirrors the deadlineWithTime
+  // case; the deadlineDay-only variant is asserted in its own test below.
   const task = {
     id: 'task-1',
     title: 'Task 1',
     isDone: false,
     dueWithTime: 123,
-    deadlineDay: '2026-05-04',
     deadlineWithTime: 456,
+  } as Task;
+
+  const taskWithDeadlineDay = {
+    id: 'task-1',
+    title: 'Task 1',
+    isDone: false,
+    deadlineDay: '2026-05-04',
   } as Task;
 
   const handleIOSNotificationAction = (event: NotificationActionEvent): Promise<void> =>
@@ -107,7 +116,15 @@ describe('ReminderModule iOS notification actions', () => {
     module = TestBed.inject(ReminderModule);
   });
 
-  it('snoozes iOS deadline notification actions via setDeadline', async () => {
+  type SetDeadlinePayload = {
+    type: string;
+    taskId: string;
+    deadlineDay?: string;
+    deadlineWithTime?: number;
+    deadlineRemindAt: number;
+  };
+
+  it('snoozes iOS deadline notification actions via setDeadline (with-time)', async () => {
     spyOn(Date, 'now').and.returnValue(1_000);
 
     await handleIOSNotificationAction({
@@ -116,15 +133,35 @@ describe('ReminderModule iOS notification actions', () => {
       extra: { relatedId: 'task-1', reminderType: 'DEADLINE' },
     });
 
-    expect(storeSpy.dispatch).toHaveBeenCalledOnceWith(
-      jasmine.objectContaining({
-        type: TaskSharedActions.setDeadline.type,
-        taskId: 'task-1',
-        deadlineDay: '2026-05-04',
-        deadlineWithTime: 456,
-        deadlineRemindAt: 601_000,
-      }),
-    );
+    expect(storeSpy.dispatch).toHaveBeenCalledTimes(1);
+    const dispatched = storeSpy.dispatch.calls.mostRecent()
+      .args[0] as unknown as SetDeadlinePayload;
+    expect(dispatched.type).toBe(TaskSharedActions.setDeadline.type);
+    expect(dispatched.taskId).toBe('task-1');
+    expect(dispatched.deadlineWithTime).toBe(456);
+    expect(dispatched.deadlineRemindAt).toBe(601_000);
+    // Mutual exclusivity in the reducer — never forward deadlineDay alongside.
+    expect(dispatched.deadlineDay).toBeUndefined();
+  });
+
+  it('snoozes iOS deadline notification actions via setDeadline (day-only)', async () => {
+    spyOn(Date, 'now').and.returnValue(1_000);
+    taskServiceSpy.getByIdOnce$.and.returnValue(of(taskWithDeadlineDay));
+
+    await handleIOSNotificationAction({
+      actionId: NOTIFICATION_ACTION.SNOOZE_10M,
+      notificationId: 1,
+      extra: { relatedId: 'task-1', reminderType: 'DEADLINE' },
+    });
+
+    expect(storeSpy.dispatch).toHaveBeenCalledTimes(1);
+    const dispatched = storeSpy.dispatch.calls.mostRecent()
+      .args[0] as unknown as SetDeadlinePayload;
+    expect(dispatched.type).toBe(TaskSharedActions.setDeadline.type);
+    expect(dispatched.taskId).toBe('task-1');
+    expect(dispatched.deadlineDay).toBe('2026-05-04');
+    expect(dispatched.deadlineRemindAt).toBe(601_000);
+    expect(dispatched.deadlineWithTime).toBeUndefined();
   });
 
   it('keeps regular iOS task snooze behavior unchanged', async () => {

@@ -284,6 +284,11 @@ export class MobileNotificationEffects {
 
   /**
    * Schedule explicit deadline reminders on iOS.
+   *
+   * SYNC-SAFE: Same rationale as scheduleNotifications$ above — dispatch:false
+   * (no store mutations), idempotent native scheduling, and we deliberately want
+   * deadline reminders scheduled for synced tasks. Cancellations are driven by
+   * the selector diff against `_scheduledDeadlineIds`.
    */
   scheduleDeadlineNotifications$ =
     this._platformService.isNative &&

@@ -273,13 +273,17 @@ export class ReminderModule {
             : SNOOZE_1H_MS;
         const newRemindAt = Date.now() + snoozeMs;
         if (reminderType === 'DEADLINE') {
+          // setDeadline enforces mutual exclusivity between deadlineDay and
+          // deadlineWithTime — passing both would null the day. Forward only the
+          // more specific field (deadlineWithTime) when present.
           this._store.dispatch(
             TaskSharedActions.setDeadline({
               taskId,
-              ...(task.deadlineDay ? { deadlineDay: task.deadlineDay } : {}),
-              ...(task.deadlineWithTime
+              ...(typeof task.deadlineWithTime === 'number'
                 ? { deadlineWithTime: task.deadlineWithTime }
-                : {}),
+                : task.deadlineDay
+                  ? { deadlineDay: task.deadlineDay }
+                  : {}),
               deadlineRemindAt: newRemindAt,
             }),
           );
