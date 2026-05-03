@@ -26,6 +26,7 @@ import { Log } from '../../core/log';
 import { PanelContentService, PanelContentType } from '../panels/panel-content.service';
 import { BottomPanelStateService } from '../../core-ui/bottom-panel-state.service';
 import { IS_TOUCH_ONLY } from '../../util/is-touch-only';
+import { BodyClass } from '../../app.constants';
 
 export interface BottomPanelData {
   panelContent: PanelContentType;
@@ -125,7 +126,9 @@ export class BottomPanelContainerComponent implements AfterViewInit, OnDestroy {
 
   private _isKeyboardWatcherInitialized = false;
   private _originalHeight: string = '';
+  private _originalBottom: string = '';
   private _vvResizeTimer: number | null = null;
+  private _bodyClassObserver: MutationObserver | null = null;
 
   private readonly _boundOnPointerDown = this._onPointerDown.bind(this);
   private readonly _boundOnPointerMove = this._onPointerMove.bind(this);
@@ -436,17 +439,30 @@ export class BottomPanelContainerComponent implements AfterViewInit, OnDestroy {
     if ('visualViewport' in window && window.visualViewport) {
       window.visualViewport.addEventListener('resize', this._boundOnViewportResize);
     }
+
+    this._bodyClassObserver = new MutationObserver(() => this._onViewportResize());
+    this._bodyClassObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
   }
 
   private _removeKeyboardWatcher(): void {
     if (typeof window !== 'undefined' && window.visualViewport) {
       window.visualViewport.removeEventListener('resize', this._boundOnViewportResize);
     }
+    this._bodyClassObserver?.disconnect();
+    this._bodyClassObserver = null;
+    if (this._vvResizeTimer) {
+      window.clearTimeout(this._vvResizeTimer);
+      this._vvResizeTimer = null;
+    }
     if (this._originalHeight) {
       const container = this._getSheetContainer();
       if (container) {
         container.style.maxHeight = this._originalHeight;
         container.style.removeProperty('height');
+        container.style.bottom = this._originalBottom;
       }
     }
   }
@@ -467,14 +483,24 @@ export class BottomPanelContainerComponent implements AfterViewInit, OnDestroy {
   private _handleViewportResize(): void {
     if (typeof window === 'undefined') return;
 
-    const visualViewport = window.visualViewport;
-    if (!visualViewport) return;
-
     const windowHeight = window.innerHeight;
-    const viewportHeight = visualViewport.height;
-    const keyboardHeight = windowHeight - viewportHeight;
+    const viewportHeight = window.visualViewport?.height ?? windowHeight;
+    const rootStyle = getComputedStyle(document.documentElement);
+    const cssVisualViewportHeight = this._parseCssPx(
+      rootStyle.getPropertyValue('--visual-viewport-height'),
+    );
+    const cssKeyboardHeight = this._parseCssPx(
+      rootStyle.getPropertyValue('--keyboard-height'),
+    );
+    const cssKeyboardOverlayOffset = this._parseCssPx(
+      rootStyle.getPropertyValue('--keyboard-overlay-offset'),
+    );
+    const keyboardHeight = Math.max(windowHeight - viewportHeight, cssKeyboardHeight);
+    const isIOS = document.body.classList.contains(BodyClass.isIOS);
 
-    const isKeyboardVisible = keyboardHeight > KEYBOARD_DETECT_THRESHOLD;
+    const isKeyboardVisible =
+      document.body.classList.contains(BodyClass.isKeyboardVisible) ||
+      keyboardHeight > KEYBOARD_DETECT_THRESHOLD;
 
     const container = this._getSheetContainer();
     if (!container) return;
@@ -482,13 +508,23 @@ export class BottomPanelContainerComponent implements AfterViewInit, OnDestroy {
     if (isKeyboardVisible) {
       if (!this._originalHeight) {
         this._originalHeight = container.style.maxHeight || '';
+        this._originalBottom = container.style.bottom || '';
       }
 
+      const visibleHeight =
+        cssVisualViewportHeight > 0 ? cssVisualViewportHeight : viewportHeight;
       const safeHeight = Math.max(
         KEYBOARD_SAFE_HEIGHT_MIN,
-        viewportHeight * KEYBOARD_SAFE_HEIGHT_RATIO,
+        visibleHeight * KEYBOARD_SAFE_HEIGHT_RATIO,
       );
 
+      // CDK bottom sheets are fixed overlays outside the app shell, so they
+      // need their own keyboard offset on iOS where the WebView may not resize.
+      container.style.setProperty(
+        'bottom',
+        `${isIOS ? cssKeyboardOverlayOffset : 0}px`,
+        'important',
+      );
       container.style.setProperty('max-height', `${safeHeight}px`, 'important');
 
       if (container.offsetHeight > safeHeight) {
@@ -497,7 +533,17 @@ export class BottomPanelContainerComponent implements AfterViewInit, OnDestroy {
     } else {
       container.style.removeProperty('max-height');
       container.style.removeProperty('height');
+      container.style.removeProperty('bottom');
       this._originalHeight = '';
+      this._originalBottom = '';
     }
+  }
+
+  private _parseCssPx(value: string): number {
+    if (!value.trim().endsWith('px')) {
+      return 0;
+    }
+    const parsedValue = Number.parseFloat(value);
+    return Number.isFinite(parsedValue) ? parsedValue : 0;
   }
 }
