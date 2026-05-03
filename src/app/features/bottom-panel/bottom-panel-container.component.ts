@@ -67,6 +67,9 @@ const KEYBOARD_DETECT_THRESHOLD = 100;
 const KEYBOARD_SAFE_HEIGHT_MIN = 200;
 const KEYBOARD_SAFE_HEIGHT_RATIO = 0.85;
 const KEYBOARD_RESIZE_DEBOUNCE_MS = 100;
+const CSS_VAR_KEYBOARD_HEIGHT = '--keyboard-height';
+const CSS_VAR_KEYBOARD_OVERLAY_OFFSET = '--keyboard-overlay-offset';
+const CSS_VAR_VISUAL_VIEWPORT_HEIGHT = '--visual-viewport-height';
 
 @Component({
   selector: 'bottom-panel-container',
@@ -125,10 +128,13 @@ export class BottomPanelContainerComponent implements AfterViewInit, OnDestroy {
   private _cachedContainer: HTMLElement | null = null;
 
   private _isKeyboardWatcherInitialized = false;
-  private _originalHeight: string = '';
-  private _originalBottom: string = '';
   private _vvResizeTimer: number | null = null;
   private _bodyClassObserver: MutationObserver | null = null;
+  private _keyboardAdjustedStyles: {
+    height: string;
+    maxHeight: string;
+    bottom: string;
+  } | null = null;
 
   private readonly _boundOnPointerDown = this._onPointerDown.bind(this);
   private readonly _boundOnPointerMove = this._onPointerMove.bind(this);
@@ -457,14 +463,7 @@ export class BottomPanelContainerComponent implements AfterViewInit, OnDestroy {
       window.clearTimeout(this._vvResizeTimer);
       this._vvResizeTimer = null;
     }
-    if (this._originalHeight) {
-      const container = this._getSheetContainer();
-      if (container) {
-        container.style.maxHeight = this._originalHeight;
-        container.style.removeProperty('height');
-        container.style.bottom = this._originalBottom;
-      }
-    }
+    this._restoreKeyboardAdjustedStyles();
   }
 
   private _onViewportResize(): void {
@@ -487,13 +486,13 @@ export class BottomPanelContainerComponent implements AfterViewInit, OnDestroy {
     const viewportHeight = window.visualViewport?.height ?? windowHeight;
     const rootStyle = getComputedStyle(document.documentElement);
     const cssVisualViewportHeight = this._parseCssPx(
-      rootStyle.getPropertyValue('--visual-viewport-height'),
+      rootStyle.getPropertyValue(CSS_VAR_VISUAL_VIEWPORT_HEIGHT),
     );
     const cssKeyboardHeight = this._parseCssPx(
-      rootStyle.getPropertyValue('--keyboard-height'),
+      rootStyle.getPropertyValue(CSS_VAR_KEYBOARD_HEIGHT),
     );
     const cssKeyboardOverlayOffset = this._parseCssPx(
-      rootStyle.getPropertyValue('--keyboard-overlay-offset'),
+      rootStyle.getPropertyValue(CSS_VAR_KEYBOARD_OVERLAY_OFFSET),
     );
     const keyboardHeight = Math.max(windowHeight - viewportHeight, cssKeyboardHeight);
     const isIOS = document.body.classList.contains(BodyClass.isIOS);
@@ -506,10 +505,7 @@ export class BottomPanelContainerComponent implements AfterViewInit, OnDestroy {
     if (!container) return;
 
     if (isKeyboardVisible) {
-      if (!this._originalHeight) {
-        this._originalHeight = container.style.maxHeight || '';
-        this._originalBottom = container.style.bottom || '';
-      }
+      this._captureKeyboardAdjustedStyles(container);
 
       const visibleHeight =
         cssVisualViewportHeight > 0 ? cssVisualViewportHeight : viewportHeight;
@@ -531,12 +527,34 @@ export class BottomPanelContainerComponent implements AfterViewInit, OnDestroy {
         container.style.setProperty('height', `${safeHeight}px`, 'important');
       }
     } else {
-      container.style.removeProperty('max-height');
-      container.style.removeProperty('height');
-      container.style.removeProperty('bottom');
-      this._originalHeight = '';
-      this._originalBottom = '';
+      this._restoreKeyboardAdjustedStyles();
     }
+  }
+
+  private _captureKeyboardAdjustedStyles(container: HTMLElement): void {
+    if (this._keyboardAdjustedStyles) {
+      return;
+    }
+
+    this._keyboardAdjustedStyles = {
+      height: container.style.height,
+      maxHeight: container.style.maxHeight,
+      bottom: container.style.bottom,
+    };
+  }
+
+  private _restoreKeyboardAdjustedStyles(): void {
+    if (!this._keyboardAdjustedStyles) {
+      return;
+    }
+
+    const container = this._getSheetContainer();
+    if (container) {
+      container.style.height = this._keyboardAdjustedStyles.height;
+      container.style.maxHeight = this._keyboardAdjustedStyles.maxHeight;
+      container.style.bottom = this._keyboardAdjustedStyles.bottom;
+    }
+    this._keyboardAdjustedStyles = null;
   }
 
   private _parseCssPx(value: string): number {
