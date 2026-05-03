@@ -250,6 +250,7 @@ export class ReminderModule {
     event: NotificationActionEvent,
   ): Promise<void> {
     const taskId = event.extra?.['relatedId'] as string | undefined;
+    const reminderType = event.extra?.['reminderType'] as string | undefined;
     if (!taskId) {
       Log.warn('ReminderModule: No task ID in notification action', event);
       return;
@@ -271,14 +272,27 @@ export class ReminderModule {
             ? SNOOZE_10M_MS
             : SNOOZE_1H_MS;
         const newRemindAt = Date.now() + snoozeMs;
-        this._store.dispatch(
-          TaskSharedActions.reScheduleTaskWithTime({
-            task,
-            remindAt: newRemindAt,
-            dueWithTime: task.dueWithTime ?? newRemindAt,
-            isMoveToBacklog: false,
-          }),
-        );
+        if (reminderType === 'DEADLINE') {
+          this._store.dispatch(
+            TaskSharedActions.setDeadline({
+              taskId,
+              ...(task.deadlineDay ? { deadlineDay: task.deadlineDay } : {}),
+              ...(task.deadlineWithTime
+                ? { deadlineWithTime: task.deadlineWithTime }
+                : {}),
+              deadlineRemindAt: newRemindAt,
+            }),
+          );
+        } else {
+          this._store.dispatch(
+            TaskSharedActions.reScheduleTaskWithTime({
+              task,
+              remindAt: newRemindAt,
+              dueWithTime: task.dueWithTime ?? newRemindAt,
+              isMoveToBacklog: false,
+            }),
+          );
+        }
         Log.log('ReminderModule: Task snoozed via iOS notification', {
           taskId,
           snoozeMs,
@@ -288,7 +302,7 @@ export class ReminderModule {
       await this._handleDoneAction(taskId);
     } else {
       // Tap on notification body (actionId is 'tap' in Capacitor)
-      await this._handleTapAction(taskId);
+      await this._handleTapAction(taskId, reminderType);
     }
   }
 
@@ -319,7 +333,7 @@ export class ReminderModule {
   /**
    * Handle notification tap: sync, then navigate to task or show "already done".
    */
-  private async _handleTapAction(taskId: string): Promise<void> {
+  private async _handleTapAction(taskId: string, reminderType?: string): Promise<void> {
     Log.log('ReminderModule: Handling notification tap', { taskId });
     try {
       await this._syncWrapperService.sync();
@@ -336,7 +350,11 @@ export class ReminderModule {
       return;
     }
 
-    this._store.dispatch(TaskSharedActions.dismissReminderOnly({ id: taskId }));
+    if (reminderType === 'DEADLINE') {
+      this._store.dispatch(TaskSharedActions.clearDeadlineReminder({ taskId }));
+    } else if (reminderType !== 'DUE_DATE') {
+      this._store.dispatch(TaskSharedActions.dismissReminderOnly({ id: taskId }));
+    }
     try {
       this._taskService.focusTask(taskId);
     } catch (e) {
