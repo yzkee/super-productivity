@@ -71,6 +71,7 @@
   },
   "F": {
     "ATTACHMENT": {
+      "LOCAL_FILE_UNAVAILABLE": "This attachment is only available on the device where it was added.",
       "DIALOG_EDIT": {
         "ADD_ATTACHMENT": "Add Attachment",
         "EDIT_ATTACHMENT": "Edit Attachment",
