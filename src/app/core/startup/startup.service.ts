@@ -21,6 +21,12 @@ import { isOnline$ } from '../../util/is-online';
 import { LS } from '../persistence/storage-keys.const';
 import { getDbDateStr } from '../../util/get-db-date-str';
 import { DialogPleaseRateComponent } from '../../features/dialog-please-rate/dialog-please-rate.component';
+import {
+  applyRateDialogResult,
+  loadRateDialogState,
+  saveRateDialogState,
+  shouldShowRateDialog,
+} from '../../features/dialog-please-rate/rate-dialog-state';
 import { map, take } from 'rxjs/operators';
 import { combineLatest } from 'rxjs';
 import { Store } from '@ngrx/store';
@@ -365,17 +371,30 @@ export class StartupService {
   }
 
   private _handleAppStartRating(): void {
-    const appStarts = +(localStorage.getItem(LS.APP_START_COUNT) || 0);
     const lastStartDay = localStorage.getItem(LS.APP_START_COUNT_LAST_START_DAY);
     const todayStr = getDbDateStr();
-    if (appStarts === 32 || appStarts === 96) {
-      this._matDialog.open(DialogPleaseRateComponent);
-      localStorage.setItem(LS.APP_START_COUNT, (appStarts + 1).toString());
-    }
+    let appStarts = +(localStorage.getItem(LS.APP_START_COUNT) || 0);
     if (lastStartDay !== todayStr) {
-      localStorage.setItem(LS.APP_START_COUNT, (appStarts + 1).toString());
+      appStarts += 1;
+      localStorage.setItem(LS.APP_START_COUNT, appStarts.toString());
       localStorage.setItem(LS.APP_START_COUNT_LAST_START_DAY, todayStr);
     }
+
+    const state = loadRateDialogState();
+    if (!shouldShowRateDialog(state, appStarts)) {
+      return;
+    }
+    this._matDialog
+      .open(DialogPleaseRateComponent)
+      .afterClosed()
+      .subscribe((result) => {
+        const next = applyRateDialogResult(
+          loadRateDialogState(),
+          result ?? null,
+          appStarts,
+        );
+        saveRateDialogState(next);
+      });
   }
 
   private async _initPlugins(): Promise<void> {
