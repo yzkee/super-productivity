@@ -50,7 +50,15 @@ describe('StartupService', () => {
       Promise.resolve(),
     );
 
+    const globalConfig = {
+      misc: {
+        isConfirmBeforeExit: false,
+        defaultProjectId: null,
+        isShowProductivityTipLonger: false,
+      },
+    };
     const globalConfigServiceSpy = jasmine.createSpyObj('GlobalConfigService', [''], {
+      cfg$: of(globalConfig),
       cfg: signal({
         misc: {
           isConfirmBeforeExit: false,
@@ -166,6 +174,42 @@ describe('StartupService', () => {
       // Restore
       (window as any).BroadcastChannel = originalBroadcastChannel;
     }));
+
+    it('should transfer current settings to Electron when requested', () => {
+      const originalEaDescriptor = Object.getOwnPropertyDescriptor(window, 'ea');
+      const electronApi = {
+        sendAppSettingsToElectron: jasmine.createSpy('sendAppSettingsToElectron'),
+      } as unknown as typeof window.ea;
+
+      Object.defineProperty(window, 'ea', {
+        value: electronApi,
+        configurable: true,
+        writable: true,
+      });
+
+      try {
+        (
+          service as unknown as {
+            _sendCurrentSettingsToElectronAfterDataLoad: () => void;
+          }
+        )._sendCurrentSettingsToElectronAfterDataLoad();
+
+        expect(electronApi.sendAppSettingsToElectron).toHaveBeenCalledWith(
+          jasmine.objectContaining({
+            misc: jasmine.objectContaining({
+              isConfirmBeforeExit: false,
+              isShowProductivityTipLonger: false,
+            }),
+          }),
+        );
+      } finally {
+        if (originalEaDescriptor) {
+          Object.defineProperty(window, 'ea', originalEaDescriptor);
+        } else {
+          delete (window as Partial<Window>).ea;
+        }
+      }
+    });
   });
 
   describe('_handleAppStartRating (private, tested via init)', () => {

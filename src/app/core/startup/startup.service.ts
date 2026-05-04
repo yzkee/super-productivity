@@ -27,13 +27,12 @@ import {
   saveRateDialogState,
   shouldShowRateDialog,
 } from '../../features/dialog-please-rate/rate-dialog-state';
-import { map, take } from 'rxjs/operators';
+import { map, switchMap, take } from 'rxjs/operators';
 import { combineLatest } from 'rxjs';
 import { Store } from '@ngrx/store';
 import { selectSyncConfig } from '../../features/config/store/global-config.reducer';
 import { selectEnabledIssueProviders } from '../../features/issue/store/issue-provider.selectors';
 import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
-import { GlobalConfigState } from '../../features/config/global-config.model';
 import { IPC } from '../../../../electron/shared-with-frontend/ipc-events.const';
 import { IpcRendererEvent } from 'electron';
 import { environment } from '../../../environments/environment';
@@ -139,14 +138,14 @@ export class StartupService {
 
     if (IS_ELECTRON) {
       this._injector.get(LocalRestApiHandlerService).init();
+
+      window.ea.on(IPC.TRANSFER_SETTINGS_REQUESTED, () =>
+        this._sendCurrentSettingsToElectronAfterDataLoad(),
+      );
+      this._sendCurrentSettingsToElectronAfterDataLoad();
+
       window.ea.informAboutAppReady();
       this._uiHelperService.initElectron();
-
-      window.ea.on(IPC.TRANSFER_SETTINGS_REQUESTED, () => {
-        window.ea.sendAppSettingsToElectron(
-          this._globalConfigService.cfg() as GlobalConfigState,
-        );
-      });
     } else {
       // WEB VERSION
       window.addEventListener('beforeunload', (e) => {
@@ -168,6 +167,15 @@ export class StartupService {
         this._chromeExtensionInterfaceService.init();
       }
     }
+  }
+
+  private _sendCurrentSettingsToElectronAfterDataLoad(): void {
+    this._dataInitStateService.isAllDataLoadedInitially$
+      .pipe(
+        take(1),
+        switchMap(() => this._globalConfigService.cfg$.pipe(take(1))),
+      )
+      .subscribe((cfg) => window.ea.sendAppSettingsToElectron(cfg));
   }
 
   private async _initBackups(): Promise<void> {
