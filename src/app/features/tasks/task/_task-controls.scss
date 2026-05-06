@@ -338,7 +338,7 @@ done-toggle {
   height: 24px !important;
   margin-top: -1px !important;
   transform-origin: left top;
-  transition-property: all;
+  transition-property: opacity, transform, background, box-shadow;
   box-shadow: none;
   background: var(--bg-lighter) !important;
 
