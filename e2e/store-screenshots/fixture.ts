@@ -267,6 +267,24 @@ export const test = base.extend<ScreenshotFixtures>({
       await page.evaluate(() => location.reload());
       await page.waitForLoadState('domcontentloaded');
       await waitForAppReady(page);
+      // Suppress Material tooltips for the rest of the session (mirrors the
+      // web-mode addInitScript). Electron has no addInitScript hook on the
+      // first window, so inject after each navigation via page.on('load').
+      const injectTooltipSuppress = async (): Promise<void> => {
+        await page
+          .evaluate(() => {
+            const id = '__sp-screenshot-tooltip-suppress';
+            if (document.getElementById(id)) return;
+            const style = document.createElement('style');
+            style.id = id;
+            style.textContent =
+              'mat-tooltip-component,.mat-mdc-tooltip,.cdk-overlay-container .mat-mdc-tooltip,.cdk-overlay-container .mat-tooltip,.cdk-overlay-container [role="tooltip"]{visibility:hidden!important;opacity:0!important}';
+            document.head.appendChild(style);
+          })
+          .catch(() => undefined);
+      };
+      await injectTooltipSuppress();
+      page.on('load', () => void injectTooltipSuppress());
       page.on('pageerror', (err) => {
         console.error('[electron pageerror]', err.message);
       });
@@ -304,6 +322,30 @@ export const test = base.extend<ScreenshotFixtures>({
         /* noop */
       }
     }, theme);
+    // Suppress Material tooltips and CDK overlay tooltips for the duration of
+    // capture. Cursor lingering at the last click position would otherwise pop
+    // a tooltip into the screenshot. Setting visibility:hidden (not display)
+    // keeps Angular's overlay refs valid so the app doesn't trip on missing
+    // host elements.
+    await page.addInitScript(() => {
+      const style = document.createElement('style');
+      style.id = '__sp-screenshot-tooltip-suppress';
+      style.textContent = `
+        mat-tooltip-component,
+        .mat-mdc-tooltip,
+        .cdk-overlay-container .mat-mdc-tooltip,
+        .cdk-overlay-container .mat-tooltip,
+        .cdk-overlay-container [role="tooltip"] {
+          visibility: hidden !important;
+          opacity: 0 !important;
+        }
+      `;
+      const attach = (): void => {
+        if (!document.getElementById(style.id)) document.head.appendChild(style);
+      };
+      if (document.head) attach();
+      else document.addEventListener('DOMContentLoaded', attach, { once: true });
+    });
 
     page.on('pageerror', (err) => {
       console.error('[screenshot pageerror]', err.message);
@@ -334,6 +376,15 @@ export const test = base.extend<ScreenshotFixtures>({
       const dir = path.join(MASTER_DIR, viewport, locale, theme, scenario);
       fs.mkdirSync(dir, { recursive: true });
       const file = path.join(dir, `${name}.png`);
+      // Park the cursor at (0,0) so any Material tooltip from the last click
+      // dismisses (matTooltip hides on mouseleave). Also any cdk-overlay
+      // tooltip that's already open is force-removed via the screenshot CSS.
+      try {
+        await page.mouse.move(0, 0);
+        await page.waitForTimeout(120);
+      } catch {
+        /* electron pages with no mouse host shouldn't ever fail this */
+      }
       if (MODE === 'electron' && electronApp) {
         await captureWindowWithChrome(electronApp, file);
       } else {

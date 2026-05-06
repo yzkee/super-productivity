@@ -95,6 +95,13 @@ export type StoreRule = {
    * chrome (traffic-lights / GTK titlebar) only Electron can produce.
    */
   masterDir?: 'web' | 'electron';
+  /**
+   * Hard byte cap per file enforced by the store. When set, the post-processor
+   * re-encodes outputs above the cap as JPEG (quality stepped down from 90 to
+   * 60 until the file fits) and writes a `.jpg`. Currently only Snap caps
+   * each entry at 2 MB; everything else keeps the lossless PNG.
+   */
+  maxBytes?: number;
 };
 
 export const STORE_RULES: readonly StoreRule[] = [
@@ -113,8 +120,24 @@ export const STORE_RULES: readonly StoreRule[] = [
     localeLayout: 'per-locale-dir',
     maxCount: 10,
   },
-  // Snap technically caps at 5 — pick which to upload manually before submission.
-  { store: 'snap', source: 'desktopMaster', localeLayout: 'global' },
+  // Snap technically caps at 5 entries, ≤2 MB each — pick which to upload
+  // manually before submission. The 2 MB cap forces JPEG re-encode in the
+  // post-processor; everything else stays lossless PNG.
+  {
+    store: 'snap',
+    source: 'desktopMaster',
+    localeLayout: 'global',
+    maxBytes: 2 * 1024 * 1024,
+  },
+  // Flathub: metainfo.xml `<screenshot>` is single-gallery and sourced from the
+  // Electron pipeline so the captures include native GTK chrome (Linux X11
+  // host required — see README "Electron pipeline" section).
+  {
+    store: 'flathub',
+    source: 'desktopMaster',
+    localeLayout: 'global',
+    masterDir: 'electron',
+  },
   { store: 'web', source: 'desktopMaster', localeLayout: 'per-locale-dir' },
   {
     store: 'ios/iphone-69',

@@ -98,10 +98,10 @@ for (const locale of LOCALES) {
 
 - **MS Store** reserves bottom 1/4 for system-rendered captions → keep critical UI in top 3/4.
 - **Mac App Store** rejects letterboxed 16:9 in 16:10 frames — capture native 2880×1800.
-- **Snap** caps at 5 items, ≤2 MB each, single global gallery (no per-locale). Pipeline emits all desktops; **trim manually before Snap upload**.
+- **Snap** caps at 5 items, ≤2 MB each, single global gallery (no per-locale). Pipeline emits all desktops re-encoded as JPEG (mozjpeg, q90→q60 step-down) so each fits the cap; **trim manually to 5 before Snap upload**.
 - **Play / Apple** explicitly forbid / discourage device frames.
 - **Apple** requires only iPhone 6.9" (1290×2796) and iPad 13" (2064×2752); smaller sizes auto-derive.
-- **Flathub** requires native window chrome and forbids overlays — needs the Electron capture path (follow-up; not yet implemented).
+- **Flathub** requires native window chrome and forbids overlays — sourced from the Electron capture pipeline (single global gallery; run on a Linux X11/Wayland host via `npm run screenshots:capture:electron`).
 
 ## Electron pipeline (Mac App Store, Flathub)
 
@@ -130,6 +130,7 @@ The Mac App Store store rule has `masterDir: 'electron'` in `STORE_RULES`, so th
 - ✅ 13 scenarios (6 mobile + 7 desktop) covering planner, boards, schedule, focus, notes, custom theme
 - ✅ Electron-mode pipeline with OS-level chrome capture (`screencapture` / `grim` / `import`)
 - ✅ Mac App Store wired to source from `_master_electron/`
+- ✅ Flathub STORE_RULE (single-gallery, sourced from `_master_electron/`)
+- ✅ Snap JPEG re-encode under 2 MB cap (mozjpeg, automatic per-file)
+- ✅ Tooltip suppression + cursor parking so leftover Material tooltips don't bleed into captures
 - ⏳ Smoke-test the Electron pipeline on a real Mac (or Linux X11 for plumbing)
-- ⏳ Flathub-specific Electron capture (Linux X11/Wayland host) — currently the Linux Electron capture works but isn't wired into a `flathub` STORE_RULE
-- ⏳ Snap 2 MB compression (defer until any output exceeds the limit)

@@ -5,14 +5,16 @@
  * and writes per-store directory layouts to `dist/screenshots/`.
  *
  * Captures are made at each store's native pixel size (see playwright.store-screenshots.config.ts),
- * so this script is just rename + copy — no resizing or re-encoding. Adding a
- * compression step (e.g. for Snap's 2 MB cap) is a follow-up.
+ * so this is mostly rename + copy — no resizing. Stores with a per-file byte
+ * cap (`maxBytes` in STORE_RULES; currently Snap @ 2 MB) get re-encoded as
+ * JPEG until they fit; everything else stays lossless PNG.
  *
  * Run: npm run screenshots:build
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+import sharp from 'sharp';
 import {
   LOCALES,
   MASTER_DIR_ELECTRON,
@@ -70,12 +72,48 @@ const listScenariosForVariant = (
   return out;
 };
 
-const writeFastlanePath = (
+/**
+ * Copy `src` to `target`, then enforce `maxBytes` if set. PNGs that already
+ * fit go through unchanged. PNGs that exceed the cap are re-encoded as JPEG
+ * at stepped-down quality until they fit; the .png target is replaced with a
+ * .jpg sibling. Returns the actual path written.
+ */
+const writeWithCap = async (
+  src: string,
+  target: string,
+  maxBytes?: number,
+): Promise<string> => {
+  fs.copyFileSync(src, target);
+  if (!maxBytes) return target;
+  const initialSize = fs.statSync(target).size;
+  if (initialSize <= maxBytes) return target;
+
+  const jpgTarget = target.replace(/\.png$/i, '.jpg');
+  const buf = fs.readFileSync(src);
+  // Step down quality 90 → 60. If even q60 exceeds the cap (vanishingly rare
+  // on screenshots that are mostly UI), bail loudly so the operator notices.
+  for (const quality of [90, 85, 80, 75, 70, 65, 60]) {
+    const out = await sharp(buf)
+      .jpeg({ quality, mozjpeg: true, progressive: true, chromaSubsampling: '4:2:0' })
+      .toBuffer();
+    if (out.byteLength <= maxBytes) {
+      fs.writeFileSync(jpgTarget, out);
+      if (jpgTarget !== target) fs.rmSync(target);
+      return jpgTarget;
+    }
+  }
+  throw new Error(
+    `${path.basename(target)} still > ${maxBytes} bytes at JPEG quality 60 — capture too large`,
+  );
+};
+
+const writeFastlanePath = async (
   locale: string,
   bucket: NonNullable<StoreRule['fastlaneBucket']>,
   index: number,
   src: string,
-): string => {
+  maxBytes?: number,
+): Promise<string> => {
   const bucketDir = `${bucket}Screenshots`;
   const dir = path.join(
     OUT_DIR,
@@ -89,40 +127,41 @@ const writeFastlanePath = (
   );
   fs.mkdirSync(dir, { recursive: true });
   const target = path.join(dir, `${index + 1}.png`);
-  fs.copyFileSync(src, target);
-  return target;
+  return writeWithCap(src, target, maxBytes);
 };
 
-const writePerLocale = (
+const writePerLocale = async (
   store: string,
   locale: string,
   index: number,
   scenario: string,
   src: string,
-): string => {
+  maxBytes?: number,
+): Promise<string> => {
   const dir = path.join(OUT_DIR, store, locale);
   fs.mkdirSync(dir, { recursive: true });
   const num = `${index + 1}`.padStart(2, '0');
   const target = path.join(dir, `${num}-${cleanScenarioLabel(scenario)}.png`);
-  fs.copyFileSync(src, target);
-  return target;
+  return writeWithCap(src, target, maxBytes);
 };
 
-const writeGlobal = (
+const writeGlobal = async (
   store: string,
   index: number,
   scenario: string,
   src: string,
-): string => {
+  maxBytes?: number,
+): Promise<string> => {
   const dir = path.join(OUT_DIR, store);
   fs.mkdirSync(dir, { recursive: true });
   const num = `${index + 1}`.padStart(2, '0');
   const target = path.join(dir, `${num}-${cleanScenarioLabel(scenario)}.png`);
-  fs.copyFileSync(src, target);
-  return target;
+  return writeWithCap(src, target, maxBytes);
 };
 
-const buildOneRule = (rule: StoreRule): { written: number; skipped: number } => {
+const buildOneRule = async (
+  rule: StoreRule,
+): Promise<{ written: number; skipped: number }> => {
   let written = 0;
   let skipped = 0;
   const masterRoot = masterDirFor(rule.masterDir ?? 'web');
@@ -134,22 +173,23 @@ const buildOneRule = (rule: StoreRule): { written: number; skipped: number } => 
       continue;
     }
     const limited = rule.maxCount ? scenarios.slice(0, rule.maxCount) : scenarios;
-    limited.forEach((s, i) => {
+    for (let i = 0; i < limited.length; i += 1) {
+      const s = limited[i];
       if (rule.localeLayout === 'fastlane' && rule.fastlaneBucket) {
-        writeFastlanePath(locale, rule.fastlaneBucket, i, s.absPath);
+        await writeFastlanePath(locale, rule.fastlaneBucket, i, s.absPath, rule.maxBytes);
       } else if (rule.localeLayout === 'global') {
-        if (locale !== LOCALES[0]) return; // Snap is single-gallery
-        writeGlobal(rule.store, i, s.scenario, s.absPath);
+        if (locale !== LOCALES[0]) continue; // Snap / Flathub are single-gallery
+        await writeGlobal(rule.store, i, s.scenario, s.absPath, rule.maxBytes);
       } else {
-        writePerLocale(rule.store, locale, i, s.scenario, s.absPath);
+        await writePerLocale(rule.store, locale, i, s.scenario, s.absPath, rule.maxBytes);
       }
       written += 1;
-    });
+    }
   }
   return { written, skipped };
 };
 
-const main = (): void => {
+const main = async (): Promise<void> => {
   if (!fs.existsSync(MASTER_DIR_WEB) && !fs.existsSync(MASTER_DIR_ELECTRON)) {
     console.error('No master captures found.');
     console.error(
@@ -163,7 +203,7 @@ const main = (): void => {
 
   let total = 0;
   for (const rule of STORE_RULES) {
-    const res = buildOneRule(rule);
+    const res = await buildOneRule(rule);
     total += res.written;
     const tag = rule.fastlaneBucket ? `${rule.store}/${rule.fastlaneBucket}` : rule.store;
     const src = `${rule.masterDir ?? 'web'}:${rule.source}`;
@@ -177,4 +217,7 @@ const main = (): void => {
   console.log(`Output: ${OUT_DIR}`);
 };
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
