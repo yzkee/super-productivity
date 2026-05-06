@@ -76,6 +76,7 @@
     "screenshots:capture:mobile": "npx playwright test --config e2e/playwright.store-screenshots.config.ts --project=iphone69 --project=ipad13 --project=androidPhone --project=android7Tablet --project=android10Tablet",
     "screenshots:build": "TS_NODE_COMPILER_OPTIONS='{\"module\":\"commonjs\",\"moduleResolution\":\"node\"}' npx ts-node --transpile-only e2e/store-screenshots/build-store-assets.ts",
     "screenshots:capture:electron": "npm run electron:build && SCREENSHOT_MODE=electron npx playwright test --config e2e/playwright.store-screenshots.electron.config.ts",
+    "screenshots:electron": "npm run screenshots:capture:electron && npm run screenshots:build",
     "electron": "NODE_ENV=PROD electron .",
     "electron:build": "node ./tools/build-wayland-idle-helper.js && tsc -p electron/tsconfig.electron.json && node electron/scripts/bundle-preload.js",
     "electron:verify-asar": "node tools/verify-electron-requires.js .tmp/app-builds/linux-unpacked/resources/app.asar",

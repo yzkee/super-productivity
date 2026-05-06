@@ -76,53 +76,96 @@ type ScreenshotFixtures = {
 };
 
 /**
+ * Module-level latch so the noisy permission warning fires once per run, not
+ * once per scene. Reset via `resetChromeFallbackWarning()` if useful in tests.
+ */
+let osChromeCaptureWarned = false;
+
+/**
  * Capture the focused Electron window's full screen-space rect, including
  * native OS chrome (titlebar, traffic-lights / GTK decoration, shadow).
  * `BrowserWindow.getBounds()` returns the OUTER frame in points (macOS) or
  * pixels (Linux). The matching OS tool produces output at native resolution:
  *   - macOS Retina @2x: 1440×900 points → 2880×1800 px PNG
  *   - Linux X11/Wayland: bounds == pixels → 1:1
+ *
+ * If the OS-level capture fails (commonly on macOS when the terminal lacks
+ * Screen Recording permission, error: "could not create image from rect"),
+ * we fall back to `page.screenshot()` so the rest of the single-session run
+ * still produces output. The fallback PNG won't include traffic-lights /
+ * native chrome, but every other scene downstream of the failure is salvaged.
  */
 const captureWindowWithChrome = async (
   electronApp: ElectronApplication,
+  page: Page,
   outPath: string,
 ): Promise<void> => {
-  const b = await electronApp.evaluate(({ BrowserWindow }) => {
-    const w = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
-    if (!w) throw new Error('No Electron window to capture');
-    w.show();
-    w.focus();
-    return w.getBounds();
-  });
+  try {
+    const b = await electronApp.evaluate(({ BrowserWindow }) => {
+      const w = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+      if (!w) throw new Error('No Electron window to capture');
+      w.show();
+      w.focus();
+      return w.getBounds();
+    });
 
-  // Sanity-check bounds — Electron's typings say number, but we shell out so
-  // the values cross an IPC boundary. Reject anything non-finite up front
-  // rather than letting it drift into the OS tool's command line.
-  for (const v of [b.x, b.y, b.width, b.height]) {
-    if (typeof v !== 'number' || !Number.isFinite(v)) {
-      throw new Error(`Non-finite window bound: ${JSON.stringify(b)}`);
+    // Sanity-check bounds — Electron's typings say number, but we shell out so
+    // the values cross an IPC boundary. Reject anything non-finite up front
+    // rather than letting it drift into the OS tool's command line.
+    for (const v of [b.x, b.y, b.width, b.height]) {
+      if (typeof v !== 'number' || !Number.isFinite(v)) {
+        throw new Error(`Non-finite window bound: ${JSON.stringify(b)}`);
+      }
     }
+
+    // Beat for focus + paint to settle before the OS-level capture fires.
+    await new Promise((r) => setTimeout(r, 300));
+
+    const isWayland =
+      process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
+    const [bin, args] =
+      process.platform === 'darwin'
+        ? [
+            'screencapture',
+            ['-R', `${b.x},${b.y},${b.width},${b.height}`, '-t', 'png', outPath],
+          ]
+        : isWayland
+          ? ['grim', ['-g', `${b.x},${b.y} ${b.width}x${b.height}`, outPath]]
+          : [
+              'import',
+              [
+                '-window',
+                'root',
+                '-crop',
+                `${b.width}x${b.height}+${b.x}+${b.y}`,
+                outPath,
+              ],
+            ];
+    // execFile bypasses the shell — no quoting concerns, no metachar escapes.
+    await run(bin, args, { env: { ...process.env, ...SANDBOX_HOME_OVERRIDES } });
+  } catch (err) {
+    if (!osChromeCaptureWarned) {
+      osChromeCaptureWarned = true;
+      const msg = (err as Error).message ?? String(err);
+      const hint =
+        process.platform === 'darwin'
+          ? ' On macOS, grant Screen Recording permission to your terminal ' +
+            '(System Settings → Privacy & Security → Screen & System Audio Recording).'
+          : '';
+      console.warn(
+        `[screenshot] OS-level window capture failed: ${msg.split('\n')[0]}\n` +
+          `[screenshot] Falling back to renderer-only page.screenshot() for the ` +
+          `rest of this run — captures will not include native window chrome.${hint}`,
+      );
+    }
+    await page.screenshot({
+      path: outPath,
+      type: 'png',
+      fullPage: false,
+      animations: 'disabled',
+      caret: 'hide',
+    });
   }
-
-  // Beat for focus + paint to settle before the OS-level capture fires.
-  await new Promise((r) => setTimeout(r, 300));
-
-  const isWayland =
-    process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
-  const [bin, args] =
-    process.platform === 'darwin'
-      ? [
-          'screencapture',
-          ['-R', `${b.x},${b.y},${b.width},${b.height}`, '-t', 'png', outPath],
-        ]
-      : isWayland
-        ? ['grim', ['-g', `${b.x},${b.y} ${b.width}x${b.height}`, outPath]]
-        : [
-            'import',
-            ['-window', 'root', '-crop', `${b.width}x${b.height}+${b.x}+${b.y}`, outPath],
-          ];
-  // execFile bypasses the shell — no quoting concerns, no metachar escapes.
-  await run(bin, args, { env: { ...process.env, ...SANDBOX_HOME_OVERRIDES } });
 };
 
 const ONBOARDING_INIT = (): void => {
@@ -162,6 +205,11 @@ export const test = base.extend<ScreenshotFixtures>({
     );
     fs.mkdirSync(userDataDir, { recursive: true });
 
+    // NODE_ENV is intentionally NOT set to 'DEV': start-app.js binds
+    // `isShowDevTools = IS_DEV`, and electron/debug.ts auto-opens DevTools on
+    // every `dom-ready` (so reloads between scenarios re-open them too).
+    // Loading the dev server is governed by --custom-url, not IS_DEV, so we
+    // can safely run with IS_DEV=false and keep the same URL.
     const electronApp = await _electron.launch({
       args: [
         ELECTRON_MAIN,
@@ -170,7 +218,11 @@ export const test = base.extend<ScreenshotFixtures>({
         '--disable-dev-shm-usage',
         '--no-sandbox',
       ],
-      env: { ...process.env, NODE_ENV: 'DEV', ...SANDBOX_HOME_OVERRIDES },
+      env: {
+        ...process.env,
+        NODE_ENV: 'PROD',
+        ...SANDBOX_HOME_OVERRIDES,
+      },
       timeout: 60_000,
     });
 
@@ -197,7 +249,7 @@ export const test = base.extend<ScreenshotFixtures>({
     }
   },
 
-  page: async ({ browser, baseURL, theme, electronApp }, use, testInfo) => {
+  page: async ({ browser, baseURL, theme, locale, electronApp }, use, testInfo) => {
     // ─── electron mode ────────────────────────────────────────────────
     if (MODE === 'electron' && electronApp) {
       const page = await electronApp.firstWindow();
@@ -285,6 +337,18 @@ export const test = base.extend<ScreenshotFixtures>({
       };
       await injectTooltipSuppress();
       page.on('load', () => void injectTooltipSuppress());
+      // Stamp the initial locale on window so screenshotMaster can route
+      // captures into the correct `<locale>/` subdir even when applyLocale
+      // hasn't run yet. Re-applied on every load so reloads don't lose it.
+      const stampLocale = async (): Promise<void> => {
+        await page
+          .evaluate((l) => {
+            (window as unknown as { __spCurrentLocale?: string }).__spCurrentLocale = l;
+          }, locale)
+          .catch(() => undefined);
+      };
+      await stampLocale();
+      page.on('load', () => void stampLocale());
       page.on('pageerror', (err) => {
         console.error('[electron pageerror]', err.message);
       });
@@ -322,6 +386,13 @@ export const test = base.extend<ScreenshotFixtures>({
         /* noop */
       }
     }, theme);
+    // Stamp the initial locale on `window.__spCurrentLocale` so
+    // screenshotMaster can route captures into the right `<locale>/` dir.
+    // Updated by `helpers.applyLocale()` when scenes flip languages.
+    await page.addInitScript((initialLocale) => {
+      (window as unknown as { __spCurrentLocale?: string }).__spCurrentLocale =
+        initialLocale;
+    }, locale);
     // Suppress Material tooltips and CDK overlay tooltips for the duration of
     // capture. Cursor lingering at the last click position would otherwise pop
     // a tooltip into the screenshot. Setting visibility:hidden (not display)
@@ -373,7 +444,22 @@ export const test = base.extend<ScreenshotFixtures>({
   screenshotMaster: async ({ page, electronApp, locale, theme }, use, testInfo) => {
     const viewport = testInfo.project.name as ViewportName;
     const fn = async (scenario: string, name: string): Promise<void> => {
-      const dir = path.join(MASTER_DIR, viewport, locale, theme, scenario);
+      // Read live theme + locale from the page so one test can span multiple
+      // (locale × theme) variants. helpers.applyTheme flips DARK_MODE in
+      // localStorage; helpers.applyLocale stamps the current locale on
+      // `window.__spCurrentLocale` (set initially in fixture init scripts).
+      // Both fall back to the test.use() values if the lookup fails.
+      const live = await page
+        .evaluate(() => ({
+          theme: localStorage.getItem('DARK_MODE'),
+          locale: (window as unknown as { __spCurrentLocale?: string }).__spCurrentLocale,
+        }))
+        .catch(() => ({ theme: null as string | null, locale: undefined }));
+      const currentTheme =
+        live.theme === 'light' || live.theme === 'dark' ? live.theme : theme;
+      const currentLocale =
+        typeof live.locale === 'string' && live.locale ? live.locale : locale;
+      const dir = path.join(MASTER_DIR, viewport, currentLocale, currentTheme, scenario);
       fs.mkdirSync(dir, { recursive: true });
       const file = path.join(dir, `${name}.png`);
       // Park the cursor at (0,0) so any Material tooltip from the last click
@@ -386,7 +472,7 @@ export const test = base.extend<ScreenshotFixtures>({
         /* electron pages with no mouse host shouldn't ever fail this */
       }
       if (MODE === 'electron' && electronApp) {
-        await captureWindowWithChrome(electronApp, file);
+        await captureWindowWithChrome(electronApp, page, file);
       } else {
         await page.screenshot({
           path: file,

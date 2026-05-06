@@ -52,12 +52,42 @@ export type ViewportName = keyof typeof VIEWPORTS;
 
 export const VIEWPORT_NAMES = Object.keys(VIEWPORTS) as ViewportName[];
 
-/** Mobile viewports — drives the side-nav-collapsed flag in the fixture. */
+/**
+ * Mobile viewports — drives the side-nav-collapsed flag in the fixture.
+ * Includes tablets too: at any of these widths we want a tighter sidenav
+ * (icons-only) so content gets the room. Spec routing is a separate axis
+ * (see PHONE_VIEWPORTS / TABLET_VIEWPORTS below).
+ */
 export const MOBILE_VIEWPORTS = [
   'iphone69',
   'ipad13',
   'androidPhone',
   'android7Tablet',
+  'android10Tablet',
+] as const satisfies readonly ViewportName[];
+
+/**
+ * "Phone-class": viewports < 768 CSS px wide where SP renders its mobile
+ * layout (bottom-nav, no side panels). These run `scenarios/mobile/`.
+ *
+ * Note that `android7Tablet` is 600 CSS wide in portrait — below the 768
+ * mobile-breakpoint — so it really is phone-class for layout purposes.
+ */
+export const PHONE_VIEWPORTS = [
+  'iphone69',
+  'androidPhone',
+  'android7Tablet',
+] as const satisfies readonly ViewportName[];
+
+/**
+ * "Tablet-class": viewports ≥ 768 CSS px wide where SP renders the desktop
+ * layout (sidenav, panels) but the canvas is taller-than-wide (iPad portrait)
+ * or narrower than the desktopMaster (Android 10" landscape). Routing these
+ * to the desktop spec would push side panels off-screen; routing them to the
+ * mobile spec wastes the canvas. They run `scenarios/tablet/` instead.
+ */
+export const TABLET_VIEWPORTS = [
+  'ipad13',
   'android10Tablet',
 ] as const satisfies readonly ViewportName[];
 
@@ -115,7 +145,9 @@ export const STORE_RULES: readonly StoreRule[] = [
     masterDir: 'electron',
   },
   {
-    store: 'msstore',
+    // Folder is `microsoft-store` (not `msstore`) so it isn't mistaken for
+    // "Mac Store" when browsing the dist/ tree alongside `macappstore/`.
+    store: 'microsoft-store',
     source: 'desktopMaster',
     localeLayout: 'per-locale-dir',
     maxCount: 10,

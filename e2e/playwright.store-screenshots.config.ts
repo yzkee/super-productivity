@@ -1,6 +1,10 @@
 import { defineConfig } from '@playwright/test';
 import path from 'path';
-import { VIEWPORTS, type ViewportSpec } from './store-screenshots/matrix';
+import {
+  TABLET_VIEWPORTS,
+  VIEWPORTS,
+  type ViewportSpec,
+} from './store-screenshots/matrix';
 
 /**
  * Separate Playwright config for the screenshot pipeline. Each viewport in the
@@ -53,11 +57,16 @@ export default defineConfig({
   projects: (Object.entries(VIEWPORTS) as [string, ViewportSpec][]).map(([name, vp]) => {
     const dpr = vp.deviceScaleFactor ?? 1;
     const isMobile = vp.isMobile ?? false;
+    const isTablet = (TABLET_VIEWPORTS as readonly string[]).includes(name);
     return {
       name,
-      testMatch: isMobile
-        ? /scenarios\/mobile\/.+\.spec\.ts$/
-        : /scenarios\/desktop\/.+\.spec\.ts$/,
+      // Three-way split: tablets get their own spec because they render the
+      // desktop layout but on a narrower / taller canvas than desktopMaster.
+      testMatch: isTablet
+        ? /scenarios\/tablet\/.+\.spec\.ts$/
+        : isMobile
+          ? /scenarios\/mobile\/.+\.spec\.ts$/
+          : /scenarios\/desktop\/.+\.spec\.ts$/,
       use: {
         viewport: { width: vp.width / dpr, height: vp.height / dpr },
         deviceScaleFactor: dpr,

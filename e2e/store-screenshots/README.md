@@ -9,9 +9,11 @@ Reproducible app-store screenshots driven by Playwright + a single seed dataset.
 npm run screenshots
 
 # Or split:
-npm run screenshots:capture          # full matrix
+npm run screenshots:capture          # full web matrix → .tmp/screenshots/_master/
 npm run screenshots:capture:desktop  # desktopMaster only
 npm run screenshots:capture:mobile   # iPhone/iPad/Android viewports only
+npm run screenshots:capture:electron # Electron build → .tmp/screenshots/_master_electron/
+npm run screenshots:electron         # capture:electron + build (lands in dist/)
 npm run screenshots:build            # rebuild dist/ layout from existing masters
 
 # One group while iterating (pattern matches `desktop dark|light|catppuccin` etc.)
@@ -27,6 +29,7 @@ npx playwright test --config e2e/playwright.store-screenshots.config.ts \
 | `SCREENSHOT_BASE_DATE=2026-05-06T09:30:00` | Pin the "today" anchor used by the seed builder. Default is a Wednesday well clear of midnight in CI timezones. |
 | `SP_SCREENSHOT_BG_DARK_URL` / `SP_SCREENSHOT_BG_LIGHT_URL` | Override the default Unsplash backgrounds (e.g. point to a vendored asset for offline / privacy-sensitive runs). |
 | `SP_SCREENSHOT_BG_DISABLE=1` | Drop background images entirely. |
+| `SP_SCREENSHOT_BG_OVERLAY_OPACITY=80` | Drives the per-context "Darken/lighten background image for better contrast" slider (0–99). Default 80 for screenshots vs. 20 in the app. |
 
 Master captures land in `.tmp/screenshots/_master/<viewport>/<locale>/<theme>/<scenario>/<name>.png`.
 Per-store assets land in `dist/screenshots/<store>/<locale>/NN-name.png` (and the F-Droid `fastlane/...` layout).
@@ -49,7 +52,7 @@ Per-store assets land in `dist/screenshots/<store>/<locale>/NN-name.png` (and th
 | desktop-06 | desktop | light | Schedule (light variant) |
 | desktop-07 | desktop | catppuccin-mocha | Today list with custom theme |
 
-Specs at `scenarios/<platform>/NN-name.spec.ts`. Each spec calls `onlyOn(testInfo, '<platform>')` to skip when running under the wrong viewport class. Each spec runs once per locale (en + de).
+Specs are platform-grouped: `scenarios/desktop/all.spec.ts` and `scenarios/mobile/all.spec.ts` each capture every dark+light slot in a single session, flipping `DARK_MODE` between groups via `applyTheme()` (Playwright `addInitScript` is append-only, so a later script wins on each reload). The catppuccin slot stays in its own spec because changing `customTheme` requires a different seed file. Each spec runs once per locale (en + de).
 
 ## Files
 
@@ -58,11 +61,12 @@ Specs at `scenarios/<platform>/NN-name.spec.ts`. Each spec calls `onlyOn(testInf
 | `matrix.ts` | Locales, themes, viewports, mobile/desktop classification, store rules |
 | `seed/seed.template.json` | Curated dataset with date offsets and `@@PLANNER_OFFSET_+N` placeholders |
 | `seed/build-seed.ts` | Materializes offsets to absolute dates, injects `locale` + `customTheme` |
-| `fixture.ts` | Pins clock, applies dark-mode, imports seed via UI flow, exposes `screenshotMaster` |
-| `helpers.ts` | `onlyOn`, `gotoAndSettle`, `openNotesPanel`, `openSchedulePanel` |
-| `scenarios/mobile/*.spec.ts` | 6 mobile slots |
-| `scenarios/desktop/*.spec.ts` | 7 desktop slots |
-| `build-store-assets.ts` | Renames + copies masters into per-store directory layouts |
+| `fixture.ts` | Pins clock, applies dark-mode, imports seed via UI flow, exposes `screenshotMaster` (which reads live `DARK_MODE` so light/dark scenes land in the right directory) |
+| `helpers.ts` | `gotoAndSettle`, `openNotesPanel`, `openSchedulePanel`, `resetView`, `applyTheme` |
+| `scenarios/desktop/all.spec.ts` | 6 desktop slots (dark + light, single session) |
+| `scenarios/desktop/catppuccin.spec.ts` | desktop-07 (different seed → standalone) |
+| `scenarios/mobile/all.spec.ts` | 6 mobile slots (dark + light, single session) |
+| `build-store-assets.ts` | Renames + copies masters into per-store directory layouts; JPEG re-encode for `maxBytes`-capped stores (Snap) |
 | `../playwright.store-screenshots.config.ts` | Separate Playwright config; one project per viewport |
 
 ## How it works
@@ -108,9 +112,12 @@ for (const locale of LOCALES) {
 Web Chromium captures don't look "native" on macOS — wrong fonts, wrong scrollbars, no traffic-lights. Flathub explicitly *requires* native window chrome. So there's a parallel pipeline that runs the actual SP Electron build via Playwright's `_electron` API and captures via OS-level region tools (`screencapture` on macOS, `grim`/`import` on Linux).
 
 ```bash
-# Run the Electron-mode pipeline. Builds Electron first, then captures.
-# Outputs land in .tmp/screenshots/_master_electron/.
+# Capture only — masters land in .tmp/screenshots/_master_electron/.
 npm run screenshots:capture:electron
+
+# Capture + build — masters under .tmp/, deliverables under dist/screenshots/
+# (macappstore/, flathub/). Mirrors `npm run screenshots` for the web pipeline.
+npm run screenshots:electron
 ```
 
 Same scenarios, same fixture file — `store-screenshots/fixture.ts` branches on the `SCREENSHOT_MODE` env var (the npm script sets it). Each desktop spec runs unchanged in either mode.

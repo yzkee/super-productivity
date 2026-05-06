@@ -145,7 +145,7 @@
     "globalConfig": {
       "misc": {
         "isConfirmBeforeExit": false,
-        "isConfirmBeforeExitWithoutFinishDay": true,
+        "isConfirmBeforeExitWithoutFinishDay": false,
         "isNotifyWhenTimeEstimateExceeded": false,
         "isAutMarkParentAsDone": true,
         "isAutoStartNextTask": true,
@@ -289,7 +289,7 @@
           "timeEstimate": 1800000,
           "isDone": false,
           "notes": "",
-          "tagIds": ["tag-deep-work", "EM_IMPORTANT"],
+          "tagIds": ["tag-deep-work"],
           "created": 0,
           "attachments": [],
           "dueWithTimeOffsetMs": 18000000,
@@ -380,7 +380,7 @@
           "timeEstimate": 900000,
           "isDone": false,
           "notes": "",
-          "tagIds": ["tag-calls", "EM_URGENT", "EM_IMPORTANT"],
+          "tagIds": ["tag-calls"],
           "created": 0,
           "attachments": [],
           "dueDayOffset": 0,
@@ -395,7 +395,7 @@
           "timeEstimate": 1800000,
           "isDone": false,
           "notes": "Compare prices on Friday.",
-          "tagIds": ["tag-waiting"],
+          "tagIds": [],
           "created": 0,
           "attachments": [],
           "dueDayOffset": 4,
@@ -425,7 +425,7 @@
           "timeEstimate": 5400000,
           "isDone": false,
           "notes": "",
-          "tagIds": ["EM_IMPORTANT"],
+          "tagIds": [],
           "created": 0,
           "attachments": [],
           "projectId": "work"
@@ -453,7 +453,7 @@
           "timeEstimate": 2700000,
           "isDone": false,
           "notes": "",
-          "tagIds": ["tag-deep-work", "EM_URGENT"],
+          "tagIds": ["tag-deep-work"],
           "created": 0,
           "attachments": [],
           "dueDayOffset": 0,
@@ -501,8 +501,7 @@
         "EM_IMPORTANT",
         "tag-home",
         "tag-deep-work",
-        "tag-calls",
-        "tag-waiting"
+        "tag-calls"
       ],
       "entities": {
         "TODAY": {
@@ -529,7 +528,7 @@
             "backgroundImageDark": "",
             "backgroundImageLight": null,
             "backgroundOverlayOpacity": 20,
-            "isDisableBackgroundTint": true
+            "isDisableBackgroundTint": false
           },
           "workStart": {},
           "workEnd": {},
@@ -554,7 +553,7 @@
           "color": null,
           "created": 0,
           "theme": {
-            "primary": "#c618e1",
+            "primary": "#ef5350",
             "accent": "#ff4081",
             "warn": "#e91e63",
             "isAutoContrast": true,
@@ -584,7 +583,7 @@
           "color": null,
           "created": 0,
           "theme": {
-            "primary": "#e11826",
+            "primary": "#ffa726",
             "accent": "#ff4081",
             "warn": "#e91e63",
             "isAutoContrast": true,
@@ -608,7 +607,7 @@
         },
         "tag-home": {
           "id": "tag-home",
-          "title": "@home",
+          "title": "home",
           "taskIds": ["t-yoga"],
           "icon": "home",
           "created": 0,
@@ -635,7 +634,7 @@
         },
         "tag-deep-work": {
           "id": "tag-deep-work",
-          "title": "@deep-work",
+          "title": "deep work",
           "taskIds": [
             "t-design-review",
             "t-pr-review",
@@ -645,7 +644,7 @@
           "icon": "psychology",
           "created": 0,
           "theme": {
-            "primary": "#5c6bc0",
+            "primary": "#546e7a",
             "accent": "#ffab40",
             "warn": "#ef5350",
             "isAutoContrast": true
@@ -667,40 +666,13 @@
         },
         "tag-calls": {
           "id": "tag-calls",
-          "title": "@calls",
+          "title": "calls",
           "taskIds": ["t-call-mom", "t-team-1on1"],
           "icon": "call",
           "created": 0,
           "theme": {
             "primary": "#ec407a",
             "accent": "#ffeb3b",
-            "warn": "#ef5350",
-            "isAutoContrast": true
-          },
-          "workStart": {},
-          "workEnd": {},
-          "breakNr": {},
-          "breakTime": {},
-          "advancedCfg": {
-            "worklogExportSettings": {
-              "cols": ["DATE", "START", "END", "TIME_CLOCK", "TITLES_INCLUDING_SUB"],
-              "roundWorkTimeTo": null,
-              "roundStartTimeTo": null,
-              "roundEndTimeTo": null,
-              "groupBy": "DATE",
-              "separateTasksBy": ""
-            }
-          }
-        },
-        "tag-waiting": {
-          "id": "tag-waiting",
-          "title": "@waiting",
-          "taskIds": ["t-book-flight"],
-          "icon": "hourglass_empty",
-          "created": 0,
-          "theme": {
-            "primary": "#8d6e63",
-            "accent": "#ffd54f",
             "warn": "#ef5350",
             "isAutoContrast": true
           },
