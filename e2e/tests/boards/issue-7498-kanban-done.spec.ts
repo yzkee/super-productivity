@@ -10,6 +10,7 @@ test.describe('Boards #7498 — Kanban', () => {
   test('task with In Progress tag lands in DONE after done-toggle', async ({
     page,
     workViewPage,
+    taskPage,
     testPrefix,
   }) => {
     await workViewPage.waitForTaskList();
@@ -28,10 +29,12 @@ test.describe('Boards #7498 — Kanban', () => {
 
     // On a fresh profile the Kanban panels reference KANBAN_IN_PROGRESS which
     // doesn't exist yet — the board renders a "Create Tag" prompt instead of
-    // the columns. Click it and wait for the panels to appear.
-    const createTagsBtn = page.locator('button', { hasText: /create tags?/i });
-    await createTagsBtn.waitFor({ state: 'visible', timeout: 10000 });
-    await createTagsBtn.click();
+    // the columns. Match the singular Kanban label exactly so we don't also
+    // pick up the Eisenhower tab's "Create Tags" button when both tab bodies
+    // are momentarily in the DOM during the mat-tab transition.
+    const createTagBtn = page.getByRole('button', { name: 'Create Tag', exact: true });
+    await createTagBtn.waitFor({ state: 'visible', timeout: 10000 });
+    await createTagBtn.click();
 
     const inProgressPanel = page
       .locator('board-panel')
@@ -48,7 +51,6 @@ test.describe('Boards #7498 — Kanban', () => {
     await inlineInput.waitFor({ state: 'visible', timeout: 5000 });
     await inlineInput.fill(taskName);
     await page.keyboard.press('Enter');
-    await page.keyboard.press('Escape');
 
     const inProgressTask = inProgressPanel
       .locator('planner-task')
@@ -56,19 +58,17 @@ test.describe('Boards #7498 — Kanban', () => {
       .first();
     await expect(inProgressTask).toBeVisible({ timeout: 10000 });
 
-    // Click the done-toggle (circle) on the task.
-    await inProgressTask.hover();
-    await inProgressTask.locator('done-toggle').click();
-    await page.waitForTimeout(500);
+    await taskPage.markTaskAsDone(inProgressTask);
 
     // The task should land in the DONE column. Pre-fix it would have been
-    // filtered out by `excludedTagIds: [IN_PROGRESS_TAG.id]`.
+    // filtered out by `excludedTagIds: [IN_PROGRESS_TAG.id]`. Playwright auto-
+    // retries until the state settles after the toggle animation.
     const donePanel = page
       .locator('board-panel')
       .filter({ has: page.locator('header .title', { hasText: /^done$/i }) })
       .first();
     await expect(
       donePanel.locator('planner-task').filter({ hasText: taskName }).first(),
-    ).toBeVisible({ timeout: 5000 });
+    ).toBeVisible();
   });
 });

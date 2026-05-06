@@ -8,15 +8,18 @@ import { expect, test } from '../../fixtures/test.fixture';
  * original quadrant.
  */
 test.describe('Boards #7498', () => {
-  test('Eisenhower: task stays visible after done-toggle', async ({
+  test('Eisenhower: task stays in its quadrant after done-toggle', async ({
     page,
     workViewPage,
+    taskPage,
+    testPrefix,
   }) => {
     await workViewPage.waitForTaskList();
 
     // Plain task with no tags lands in the NOT_URGENT_AND_NOT_IMPORTANT
     // quadrant (excluded: [Important, Urgent], included: []).
-    await workViewPage.addTask('repro7498 task');
+    const taskName = `${testPrefix}repro7498-eisenhower`;
+    await workViewPage.addTask(taskName);
 
     await page.goto('/#/boards');
     await page.waitForLoadState('networkidle');
@@ -35,24 +38,24 @@ test.describe('Boards #7498', () => {
       await createTagsBtn.click();
     }
 
-    const task = page
-      .locator('board-panel planner-task')
-      .filter({ hasText: 'repro7498 task' })
+    const notUrgentNotImportantPanel = page
+      .locator('board-panel')
+      .filter({
+        has: page.locator('header .title', { hasText: /not urgent.*not important/i }),
+      })
       .first();
-    await expect(task).toBeVisible({ timeout: 10000 });
+    await expect(notUrgentNotImportantPanel).toBeVisible({ timeout: 10000 });
 
-    await task.hover();
-    await task.locator('done-toggle').click();
+    const task = notUrgentNotImportantPanel
+      .locator('planner-task')
+      .filter({ hasText: taskName })
+      .first();
+    await expect(task).toBeVisible();
 
-    // Wait past the 200ms done-animation delay used in toggleDoneWithAnimation.
-    await page.waitForTimeout(500);
+    await taskPage.markTaskAsDone(task);
 
-    // Fixed behavior: the task remains visible somewhere on the board.
-    await expect(
-      page
-        .locator('board-panel planner-task')
-        .filter({ hasText: 'repro7498 task' })
-        .first(),
-    ).toBeVisible();
+    // Fixed behavior: the task is still in its original quadrant — Playwright
+    // auto-retries the assertion until the toggle's 200ms animation settles.
+    await expect(task).toBeVisible();
   });
 });
