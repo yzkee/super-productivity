@@ -323,6 +323,122 @@ describe('GlobalConfigReducer', () => {
         expect(result.sync.isEnabled).toBe(true);
       });
     });
+
+    describe('focusMode migration: isSyncSessionWithTracking → autoStartFocusOnPlay', () => {
+      // Real persisted JSON never carries `autoStartFocusOnPlay` (it didn't
+      // exist pre-rework). Constructing the fixture as an Object.assign so the
+      // key is genuinely absent — using `{ autoStartFocusOnPlay: undefined }`
+      // would mask the regression this test exists to prevent.
+      const legacyFocusMode = (overrides: object): object => {
+        const base = { ...initialGlobalConfigState.focusMode } as Record<string, unknown>;
+        delete base.autoStartFocusOnPlay;
+        return Object.assign(base, overrides);
+      };
+
+      it('should backfill autoStartFocusOnPlay=true from legacy isSyncSessionWithTracking=true (real persisted shape)', () => {
+        const legacyConfig = {
+          ...initialGlobalConfigState,
+          focusMode: legacyFocusMode({ isSyncSessionWithTracking: true }),
+        };
+        // Sanity check: the fixture must NOT carry autoStartFocusOnPlay,
+        // otherwise the test wouldn't exercise the regression.
+        expect(
+          Object.prototype.hasOwnProperty.call(
+            legacyConfig.focusMode,
+            'autoStartFocusOnPlay',
+          ),
+        ).toBe(false);
+
+        const result = globalConfigReducer(
+          initialGlobalConfigState,
+          loadAllData({
+            appDataComplete: { globalConfig: legacyConfig } as unknown as AppDataComplete,
+          }),
+        );
+
+        expect(result.focusMode.autoStartFocusOnPlay).toBe(true);
+        expect('isSyncSessionWithTracking' in (result.focusMode as object)).toBe(false);
+      });
+
+      it('should leave autoStartFocusOnPlay=false when legacy isSyncSessionWithTracking=false', () => {
+        const legacyConfig = {
+          ...initialGlobalConfigState,
+          focusMode: legacyFocusMode({ isSyncSessionWithTracking: false }),
+        };
+
+        const result = globalConfigReducer(
+          initialGlobalConfigState,
+          loadAllData({
+            appDataComplete: { globalConfig: legacyConfig } as unknown as AppDataComplete,
+          }),
+        );
+
+        expect(result.focusMode.autoStartFocusOnPlay).toBe(false);
+        expect('isSyncSessionWithTracking' in (result.focusMode as object)).toBe(false);
+      });
+
+      it('should not overwrite an explicit autoStartFocusOnPlay value', () => {
+        const legacyConfig = {
+          ...initialGlobalConfigState,
+          focusMode: legacyFocusMode({
+            isSyncSessionWithTracking: true,
+            autoStartFocusOnPlay: false,
+          }),
+        };
+
+        const result = globalConfigReducer(
+          initialGlobalConfigState,
+          loadAllData({
+            appDataComplete: { globalConfig: legacyConfig } as unknown as AppDataComplete,
+          }),
+        );
+
+        expect(result.focusMode.autoStartFocusOnPlay).toBe(false);
+      });
+
+      it('should leave fresh configs (no legacy key) untouched', () => {
+        const freshConfig = {
+          ...initialGlobalConfigState,
+          focusMode: {
+            ...initialGlobalConfigState.focusMode,
+            autoStartFocusOnPlay: true,
+          },
+        };
+
+        const result = globalConfigReducer(
+          initialGlobalConfigState,
+          loadAllData({
+            appDataComplete: { globalConfig: freshConfig } as unknown as AppDataComplete,
+          }),
+        );
+
+        expect(result.focusMode.autoStartFocusOnPlay).toBe(true);
+      });
+
+      it('should not be tricked by a polluted prototype carrying isSyncSessionWithTracking', () => {
+        // Defensive: `in` on a plain object can match prototype keys. We use
+        // hasOwnProperty.call to avoid that — verify here.
+        const focusMode: Record<string, unknown> = Object.create({
+          isSyncSessionWithTracking: true,
+        });
+        focusMode.isSkipPreparation = false;
+
+        const legacyConfig = {
+          ...initialGlobalConfigState,
+          focusMode,
+        };
+
+        const result = globalConfigReducer(
+          initialGlobalConfigState,
+          loadAllData({
+            appDataComplete: { globalConfig: legacyConfig } as unknown as AppDataComplete,
+          }),
+        );
+
+        // Migration must NOT have backfilled — the prototype key is not "owned".
+        expect(result.focusMode.autoStartFocusOnPlay).toBe(false);
+      });
+    });
   });
 
   describe('Selectors', () => {
