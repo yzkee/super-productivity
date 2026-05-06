@@ -241,12 +241,15 @@ export const test = base.extend<ScreenshotFixtures>({
       // when given a relative path — keeps shared helpers (ImportPage,
       // gotoAndSettle) working unchanged in both modes.
       const origGoto = page.goto.bind(page);
-      const baseURL = 'http://localhost:4242';
+      const electronBaseURL = 'http://localhost:4242';
       (page as unknown as { goto: typeof origGoto }).goto = ((
         url: string,
         opts?: Parameters<typeof origGoto>[1],
       ) =>
-        origGoto(url.startsWith('http') ? url : baseURL + url, opts)) as typeof origGoto;
+        origGoto(
+          url.startsWith('http') ? url : electronBaseURL + url,
+          opts,
+        )) as typeof origGoto;
       await page.evaluate(
         ({ darkMode }) => {
           try {
@@ -265,7 +268,6 @@ export const test = base.extend<ScreenshotFixtures>({
       await page.waitForLoadState('domcontentloaded');
       await waitForAppReady(page);
       page.on('pageerror', (err) => {
-        // eslint-disable-next-line no-console
         console.error('[electron pageerror]', err.message);
       });
       await use(page);
@@ -304,7 +306,6 @@ export const test = base.extend<ScreenshotFixtures>({
     }, theme);
 
     page.on('pageerror', (err) => {
-      // eslint-disable-next-line no-console
       console.error('[screenshot pageerror]', err.message);
     });
 
