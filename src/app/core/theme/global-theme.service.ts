@@ -488,8 +488,9 @@ export class GlobalThemeService {
    * Adds/removes CSS classes when keyboard shows/hides.
    */
   private _initIOSKeyboardHandling(): void {
-    // Show the native iOS accessory bar ("Done" button) above the keyboard
-    Keyboard.setAccessoryBarVisible({ isVisible: true });
+    // Hide the native iOS accessory bar (prev/next/Done) — no multi-field forms
+    // benefit from it, and Done is redundant with the system dismiss gesture.
+    Keyboard.setAccessoryBarVisible({ isVisible: false });
     this._updateIOSKeyboardViewportVars();
 
     if (window.visualViewport) {
