@@ -17,6 +17,11 @@ export class HiddenCalendarProvidersService {
     saveToRealLs(LS.HIDDEN_CALENDAR_PROVIDER_IDS, this.hiddenProviderIds());
   }
 
+  setHidden(ids: string[]): void {
+    this.hiddenProviderIds.set(ids);
+    saveToRealLs(LS.HIDDEN_CALENDAR_PROVIDER_IDS, ids);
+  }
+
   private _loadFromStorage(): string[] {
     try {
       const stored = loadFromRealLs(LS.HIDDEN_CALENDAR_PROVIDER_IDS);

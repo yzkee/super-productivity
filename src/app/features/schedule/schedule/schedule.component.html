@@ -67,17 +67,17 @@
   <div class="title">{{ headerTitle() }}</div>
 </div>
 
-@if (enabledCalendarProviders().length > 1) {
+@if (showCalFilterBar()) {
   <mat-chip-listbox
     class="cal-filter-bar"
     [multiple]="true"
     [attr.aria-label]="T.F.SCHEDULE.CALENDAR_VISIBILITY | translate"
+    (change)="onCalProvidersChange($event)"
   >
     @for (provider of enabledCalendarProviders(); track provider.id) {
       <mat-chip-option
         [value]="provider.id"
         [selected]="!hiddenCalendarProviderIds().includes(provider.id)"
-        (selectionChange)="onCalProviderSelectionChange($event, provider.id)"
         [matTooltip]="calProviderLabel(provider)"
       >
         @if (provider.color) {

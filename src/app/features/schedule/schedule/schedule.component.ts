@@ -18,8 +18,8 @@ import {
 import { IssueProvider } from '../../issue/issue.model';
 import {
   MatChipListbox,
+  MatChipListboxChange,
   MatChipOption,
-  MatChipSelectionChange,
 } from '@angular/material/chips';
 import { debounceTime, map, startWith } from 'rxjs/operators';
 import { safeFormatDate } from '../../../util/safe-format-date';
@@ -86,17 +86,26 @@ export class ScheduleComponent {
       .pipe(map((ps) => ps.filter((p) => p.isEnabled))),
     { initialValue: [] },
   );
+  // Show the bar with multiple providers, OR with a single provider that is
+  // currently hidden — otherwise the user has no UI to re-enable the only
+  // calendar after, e.g., deleting all but one provider in settings.
+  readonly showCalFilterBar = computed(() => {
+    const providers = this.enabledCalendarProviders();
+    if (providers.length > 1) return true;
+    const hidden = this.hiddenCalendarProviderIds();
+    return providers.some((p) => hidden.includes(p.id));
+  });
   readonly calProviderLabel = (p: IssueProvider): string => getIssueProviderTooltip(p);
   readonly calProviderInitials = (p: IssueProvider): string =>
     getIssueProviderInitials(p) ??
     getIssueProviderTooltip(p).substring(0, 2).toUpperCase();
 
-  // Triggered by user interaction with the mat-chip-option. The isUserInput
-  // guard prevents the loop where setting [selected] programmatically
-  // (after the toggle updates hiddenProviderIds) re-fires the handler.
-  onCalProviderSelectionChange(ev: MatChipSelectionChange, providerId: string): void {
-    if (!ev.isUserInput) return;
-    this._hiddenCalendarProviders.toggle(providerId);
+  onCalProvidersChange(ev: MatChipListboxChange): void {
+    const visible = new Set<string>((ev.value as string[]) ?? []);
+    const hidden = this.enabledCalendarProviders()
+      .map((p) => p.id)
+      .filter((id) => !visible.has(id));
+    this._hiddenCalendarProviders.setHidden(hidden);
   }
 
   private _currentTimeViewMode = computed(() => this.layoutService.selectedTimeView());

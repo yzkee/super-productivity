@@ -47,6 +47,26 @@ describe('HiddenCalendarProvidersService', () => {
     });
   });
 
+  describe('setHidden()', () => {
+    it('should replace the entire hidden list', () => {
+      service.toggle('provider-A');
+      service.setHidden(['provider-B', 'provider-C']);
+      expect(service.hiddenProviderIds()).toEqual(['provider-B', 'provider-C']);
+    });
+
+    it('should clear the list when called with an empty array', () => {
+      service.toggle('provider-A');
+      service.setHidden([]);
+      expect(service.hiddenProviderIds()).toEqual([]);
+    });
+
+    it('should persist the new list to localStorage', () => {
+      service.setHidden(['provider-X']);
+      const stored = JSON.parse(localStorage.getItem(LS.HIDDEN_CALENDAR_PROVIDER_IDS)!);
+      expect(stored).toEqual(['provider-X']);
+    });
+  });
+
   describe('initialization', () => {
     it('should start with an empty list when localStorage has nothing', () => {
       expect(service.hiddenProviderIds()).toEqual([]);
