@@ -39,8 +39,10 @@ body.isDarkTheme {
   /* Use main bg instead of lighter grays */
   --bg-lighter: var(--bg);
   --bg-lightest: var(--bg);
-  --schedule-event-bg: transparent;
-  --schedule-event-bg-in-side-panel: transparent;
+
+  /* Schedule events: solid main bg so things behind don't show through */
+  --schedule-event-bg: var(--bg);
+  --schedule-event-bg-in-side-panel: var(--bg);
 
   /* Selected task: flat with border */
   --task-c-selected-bg: transparent;

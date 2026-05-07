@@ -65,6 +65,12 @@ export const AVAILABLE_CUSTOM_THEMES: CustomTheme[] = [
     requiredMode: 'dark',
   },
   {
+    id: 'lines',
+    name: 'Lines',
+    url: 'assets/themes/lines.css',
+    requiredMode: 'system',
+  },
+  {
     id: 'nord-polar-night',
     name: 'Nord Polar Night',
     url: 'assets/themes/nord-polar-night.css',
