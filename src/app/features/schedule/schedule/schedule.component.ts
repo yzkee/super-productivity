@@ -332,6 +332,47 @@ export class ScheduleComponent {
     this._selectedDate.set(null); // Resets to "today" mode
   }
 
+  // Tracks whether the scroll-wrapper has been scrolled horizontally. Used
+  // by schedule-week so the sticky time column gets a background only once
+  // day-content is actually sliding under it.
+  isHScrolled = signal(false);
+
+  onScrollWrapperScroll(event: Event): void {
+    const el = event.target as HTMLElement;
+    this.isHScrolled.set(el.scrollLeft > 0);
+  }
+
+  // Scroll a target element into view inside the scroll-wrapper, but pull
+  // horizontally back by the sticky time column's width (+ a bit extra) so
+  // the target doesn't end up sitting under the time column.
+  private _scrollIntoViewWithTimeColumnOffset(elementId: string): void {
+    const element = document.getElementById(elementId);
+    const scrollContainer = element?.closest('.scroll-wrapper') as HTMLElement | null;
+    if (!element || !scrollContainer) return;
+
+    const timeCol = scrollContainer.querySelector(
+      'schedule-week .time-column-bg, schedule-week .filler',
+    );
+    const timeColWidth = timeCol?.getBoundingClientRect().width ?? 48;
+    const EXTRA_PX = 12;
+
+    const elRect = element.getBoundingClientRect();
+    const containerRect = scrollContainer.getBoundingClientRect();
+    const targetTop = scrollContainer.scrollTop + elRect.top - containerRect.top;
+    const targetLeft =
+      scrollContainer.scrollLeft +
+      elRect.left -
+      containerRect.left -
+      timeColWidth -
+      EXTRA_PX;
+
+    scrollContainer.scrollTo({
+      top: Math.max(0, targetTop),
+      left: Math.max(0, targetLeft),
+      behavior: 'instant',
+    });
+  }
+
   selectTimeView(view: 'week' | 'month'): void {
     this.layoutService.selectedTimeView.set(view);
     localStorage.setItem(LS.SELECTED_TIME_VIEW, view);
@@ -348,12 +389,7 @@ export class ScheduleComponent {
     effect(() => {
       if (this.isMonthView() === false) {
         // scroll to work start whenever view is switched to work-week
-        setTimeout(() => {
-          const element = document.getElementById('work-start');
-          if (element) {
-            element.scrollIntoView({ behavior: 'instant', block: 'start' });
-          }
-        }); // Small delay to ensure DOM is fully rendered
+        setTimeout(() => this._scrollIntoViewWithTimeColumnOffset('work-start'));
       }
     });
   }
