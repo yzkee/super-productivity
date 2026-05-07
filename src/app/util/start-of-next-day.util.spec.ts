@@ -22,6 +22,16 @@ describe('start-of-next-day util', () => {
     it('returns 0 for invalid inputs', () => {
       expect(parseStartOfNextDayTimeToMinutes('foo:bar')).toBe(0);
     });
+
+    it('clamps minute component to 59 so it does not roll into the hour', () => {
+      const fiveHoursInMinutes = 5 * 60;
+      expect(parseStartOfNextDayTimeToMinutes('05:99')).toBe(fiveHoursInMinutes + 59);
+    });
+
+    it('returns 0 for non-finite numeric inputs', () => {
+      expect(parseStartOfNextDayTimeToMinutes(NaN)).toBe(0);
+      expect(parseStartOfNextDayTimeToMinutes(Infinity)).toBe(0);
+    });
   });
 
   describe('clampStartOfNextDayMinutes()', () => {
@@ -47,6 +57,20 @@ describe('start-of-next-day util', () => {
     it('clamps minutes above 59 and returns the hour', () => {
       expect(getStartOfNextDayHourFromTimeString('23:70')).toBe(23);
     });
+
+    it('does not roll overflow minutes into the next hour', () => {
+      expect(getStartOfNextDayHourFromTimeString('05:99')).toBe(5);
+    });
+
+    it('returns undefined for non-string runtime inputs', () => {
+      expect(
+        getStartOfNextDayHourFromTimeString(null as unknown as string),
+      ).toBeUndefined();
+      expect(
+        getStartOfNextDayHourFromTimeString(undefined as unknown as string),
+      ).toBeUndefined();
+      expect(getStartOfNextDayHourFromTimeString(0 as unknown as string)).toBeUndefined();
+    });
   });
 
   describe('getStartOfNextDayDiffMs()', () => {
@@ -68,6 +92,20 @@ describe('start-of-next-day util', () => {
     it('returns 0 for malformed or empty time strings', () => {
       expect(getStartOfNextDayDiffMs('', undefined)).toBe(0);
       expect(getStartOfNextDayDiffMs('bad', undefined)).toBe(0);
+    });
+
+    it('treats overflow minutes as the same hour rather than rolling forward', () => {
+      // 5h 59m, not 6h 39m
+      const fiveHoursInMinutes = 5 * 60;
+      const expectedMinutes = fiveHoursInMinutes + 59;
+      expect(getStartOfNextDayDiffMs('05:99', undefined)).toBe(
+        expectedMinutes * 60 * 1000,
+      );
+    });
+
+    it('returns 0 for non-finite legacy numeric values', () => {
+      expect(getStartOfNextDayDiffMs(undefined, NaN)).toBe(0);
+      expect(getStartOfNextDayDiffMs(undefined, Infinity)).toBe(0);
     });
   });
 });
