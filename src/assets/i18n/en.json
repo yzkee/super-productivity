@@ -245,7 +245,14 @@
     },
     "FINISH_DAY_BEFORE_EXIT": {
       "C": {
-        "FINISH_DAY_BEFORE_EXIT": "There are {{nr}} completed tasks in your Today list not yet moved to the archive. Are you sure you want to quit without finishing your day?"
+        "DONT_QUIT": "Don't quit",
+        "FINISH_DAY": "Finish Day",
+        "QUIT": "Quit",
+        "TITLE": "Finish your day before quitting?",
+        "UNARCHIVED_TASKS": {
+          "ONE": "1 completed task in your Today list hasn't been moved to the archive yet.",
+          "OTHER": "{{nr}} completed tasks in your Today list haven't been moved to the archive yet."
+        }
       }
     },
     "FOCUS_MODE": {
