@@ -28,6 +28,13 @@ export const AVAILABLE_CUSTOM_THEMES: CustomTheme[] = [
     url: 'assets/themes/arc.css',
     requiredMode: 'dark',
   },
+  // Carbon — temporarily disabled, re-enable to expose in the theme picker.
+  // {
+  //   id: 'carbon',
+  //   name: 'Carbon',
+  //   url: 'assets/themes/carbon.css',
+  //   requiredMode: 'dark',
+  // },
   {
     id: 'catppuccin-mocha',
     name: 'Catppuccin Mocha',
@@ -81,6 +88,12 @@ export const AVAILABLE_CUSTOM_THEMES: CustomTheme[] = [
     name: 'Rainbow',
     url: 'assets/themes/rainbow.css',
     requiredMode: 'system',
+  },
+  {
+    id: 'velvet',
+    name: 'Velvet',
+    url: 'assets/themes/velvet.css',
+    requiredMode: 'dark',
   },
 ];
 

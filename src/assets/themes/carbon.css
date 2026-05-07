@@ -1,0 +1,272 @@
+/**
+ * Carbon — flat dark theme for Super Productivity.
+ * Cool near-black surfaces, hairline 1px borders, no shadows, no glow.
+ * Inspired by Linear's clean, technical aesthetic.
+ */
+
+* {
+  box-shadow: none !important;
+}
+
+:root {
+  --transition-fast: 120ms ease-in-out;
+  --transition-normal: 200ms ease-in-out;
+}
+
+body.isDarkTheme {
+  /* ===============================
+   * CARBON PALETTE
+   * ===============================*/
+
+  --carbon-bg: #08090a;
+  --carbon-surface: #101113;
+  --carbon-surface-2: #15171a;
+  --carbon-surface-3: #1c1f24;
+  --carbon-border: rgba(255, 255, 255, 0.06);
+  --carbon-border-strong: rgba(255, 255, 255, 0.1);
+  --carbon-fg: #e6e6e6;
+  --carbon-fg-muted: #8a8f98;
+  --carbon-indigo: #5e6ad2;
+  --carbon-indigo-hover: #7170ff;
+
+  /* ===============================
+   * BACKGROUNDS
+   * ===============================*/
+
+  --bg: var(--carbon-bg);
+  --bg-darker: #050506;
+  --bg-slightly-lighter: #0e0f11;
+  --bg-lighter: var(--carbon-surface);
+  --bg-lightest: var(--carbon-surface-2);
+  --bg-super-light: var(--carbon-surface-3);
+
+  --card-bg: var(--carbon-surface);
+  --sidenav-bg: #0c0d0f;
+  --selected-task-bg-color: var(--carbon-surface-2);
+  --banner-bg: var(--carbon-surface);
+
+  --task-c-bg: var(--carbon-surface);
+  --task-c-selected-bg: var(--carbon-surface-2);
+  --sub-task-c-bg: #0d0e10;
+  --sub-task-c-bg-done: #0a0b0c;
+  --task-c-bg-done: #0a0b0c;
+  --task-c-current-bg: var(--carbon-surface-3);
+  --task-c-drag-drop-bg: var(--carbon-surface-3);
+  --sub-task-c-bg-in-selected: var(--carbon-surface);
+
+  --standard-note-bg: var(--carbon-surface);
+  --standard-note-bg-hovered: var(--carbon-surface-2);
+
+  /* ===============================
+   * TEXT
+   * ===============================*/
+
+  --text-color: var(--carbon-fg);
+  --text-color-less-intense: rgba(230, 230, 230, 0.85);
+  --text-color-muted: var(--carbon-fg-muted);
+  --text-color-more-intense: #f7f8f8;
+  --text-color-most-intense: #ffffff;
+
+  --standard-note-fg: var(--carbon-fg);
+  --task-detail-value-color: rgba(230, 230, 230, 0.7);
+
+  /* ===============================
+   * BORDERS — hairline
+   * ===============================*/
+
+  --extra-border-color: var(--carbon-border);
+  --separator-color: var(--carbon-border);
+  --divider-color: var(--carbon-border);
+  --chip-outline-color: var(--carbon-border-strong);
+
+  /* ===============================
+   * ACCENT — Linear indigo
+   * ===============================*/
+
+  --palette-accent-500: var(--carbon-indigo);
+  --c-accent: var(--carbon-indigo);
+  --palette-accent-100: #d6daf5;
+  --palette-accent-200: #b9c1ee;
+  --palette-accent-300: #9ca7e6;
+  --palette-accent-400: #7e8dde;
+  --palette-accent-600: #4d57b8;
+  --palette-accent-700: #3d4699;
+  --palette-accent-800: #2e367a;
+  --palette-accent-900: #1f255b;
+
+  /* ===============================
+   * UI
+   * ===============================*/
+
+  --scrollbar-thumb: #2a2d33;
+  --scrollbar-thumb-hover: #3a3e46;
+  --scrollbar-track: var(--carbon-bg);
+
+  --close-btn-bg: var(--carbon-surface-3);
+  --close-btn-border: transparent;
+
+  --select-hover-bg: rgba(94, 106, 210, 0.1);
+  --options-border-color: rgba(94, 106, 210, 0.2);
+
+  --attachment-bg: var(--carbon-surface);
+  --attachment-border: var(--carbon-border);
+  --attachment-control-bg: rgba(0, 0, 0, 0.5);
+  --attachment-control-border: transparent;
+  --attachment-control-hover-bg: rgba(0, 0, 0, 0.8);
+
+  --grid-color: rgba(255, 255, 255, 0.04);
+  --progress-bg: rgba(255, 255, 255, 0.08);
+
+  --improvement-text: #f7f8f8;
+  --improvement-border: rgba(94, 106, 210, 0.3);
+  --improvement-button-text: #ffffff;
+
+  /* No shadows */
+  --shadow-key-umbra-opacity: 0;
+  --shadow-key-penumbra-opacity: 0;
+  --shadow-ambient-shadow-opacity: 0;
+  --task-current-shadow: none;
+  --task-selected-shadow: none;
+  --whiteframe-shadow-1dp: none;
+  --whiteframe-shadow-2dp: none;
+  --whiteframe-shadow-3dp: none;
+  --card-shadow: none;
+  --task-shadow: none;
+  --task-shadow-sub-task: none;
+
+  --hover-controls-border: 1px solid var(--carbon-border);
+  --hover-controls-border-opacity: 1;
+
+  --hover-bg-opacity: 0.04;
+  --focus-bg-opacity: 0.06;
+  --pressed-bg-opacity: 0.1;
+  --disabled-opacity: 0.38;
+
+  /* Tight radii — Linear is squarer than most */
+  --card-border-radius: 6px;
+  --task-border-radius: 6px;
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Sidenav — subtle, dense */
+  --sidenav-item-active-bg: rgba(94, 106, 210, 0.1);
+  --sidenav-active-text: var(--carbon-indigo-hover);
+  --sidenav-hover-bg: rgba(255, 255, 255, 0.04);
+}
+
+/* Linear's signature compressed typography */
+body.isDarkTheme h1,
+body.isDarkTheme h2,
+body.isDarkTheme h3,
+body.isDarkTheme .mat-h1,
+body.isDarkTheme .mat-h2,
+body.isDarkTheme .mat-h3 {
+  letter-spacing: -0.012em;
+  font-weight: 600;
+}
+
+/* 2px indigo accent stripe on active sidenav item — Linear hallmark */
+body.isDarkTheme magic-side-nav nav-item button.active::before,
+body.isDarkTheme magic-side-nav nav-item button[routerlinkactive='active']::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--carbon-indigo);
+  border-radius: 0 2px 2px 0;
+}
+
+body.isDarkTheme magic-side-nav nav-item {
+  position: relative;
+}
+
+/* Squarer Material inputs/buttons */
+body.isDarkTheme .mat-mdc-button,
+body.isDarkTheme .mat-mdc-raised-button,
+body.isDarkTheme .mat-mdc-outlined-button {
+  --mdc-filled-button-container-shape: 4px;
+  --mdc-outlined-button-container-shape: 4px;
+  --mdc-protected-button-container-shape: 4px;
+  --mdc-text-button-container-shape: 4px;
+}
+
+/* Hairline divider on sidenav right edge */
+body.isDarkTheme magic-side-nav {
+  border-right: 1px solid var(--carbon-border);
+}
+
+body::before,
+body .first-line:hover .hover-controls::before {
+  display: none !important;
+}
+
+body,
+body.isDarkTheme {
+  background-color: var(--bg);
+  color: var(--text-color);
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
+}
+
+body .page-wrapper,
+body.isDarkTheme .page-wrapper {
+  color: var(--text-color);
+}
+
+a,
+body a[href],
+body.isDarkTheme a[href] {
+  color: var(--c-accent);
+  text-decoration: none;
+  transition: opacity var(--transition-fast);
+}
+
+a:hover,
+body a[href]:hover,
+body.isDarkTheme a[href]:hover {
+  color: var(--carbon-indigo-hover);
+  opacity: 1;
+}
+
+/* Crisp 1px hairline on cards & dialogs (Linear's signature) */
+body.isDarkTheme .mat-mdc-card,
+body.isDarkTheme .mat-mdc-dialog-surface,
+body.isDarkTheme .mat-mdc-menu-panel {
+  background: var(--carbon-surface) !important;
+  border: 1px solid var(--carbon-border);
+}
+
+body.isDarkTheme task .box,
+body.isDarkTheme planner-task,
+body.isDarkTheme note .note {
+  border: 1px solid var(--carbon-border);
+}
+
+body.isDarkTheme task.isSelected .box,
+body.isDarkTheme task.isCurrent .box {
+  border-color: var(--carbon-border-strong);
+}
+
+/* Subtle hover */
+.task-c:hover,
+.sub-task-c:hover {
+  background-color: var(--task-c-selected-bg);
+  transition: background-color var(--transition-fast);
+}
+
+*:focus-visible {
+  outline: 1px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+body.isDarkTheme {
+  --mat-theme-surface: var(--carbon-surface);
+  --mat-theme-on-surface: var(--text-color);
+  --mat-theme-background: var(--bg);
+  --mat-theme-primary: var(--carbon-indigo);
+}
