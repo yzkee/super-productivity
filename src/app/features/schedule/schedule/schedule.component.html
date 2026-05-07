@@ -5,8 +5,8 @@
       class="week-month-btn"
       [class.active]="!isMonthView()"
       (click)="selectTimeView('week')"
-      matTooltip="View Week"
-      aria-label="View Week"
+      [matTooltip]="T.F.SCHEDULE.VIEW_WEEK | translate"
+      [attr.aria-label]="T.F.SCHEDULE.VIEW_WEEK | translate"
     >
       <mat-icon>view_week</mat-icon>
     </button>
@@ -15,8 +15,8 @@
       class="week-month-btn"
       [class.active]="isMonthView()"
       (click)="selectTimeView('month')"
-      matTooltip="View Month"
-      aria-label="View Month"
+      [matTooltip]="T.F.SCHEDULE.VIEW_MONTH | translate"
+      [attr.aria-label]="T.F.SCHEDULE.VIEW_MONTH | translate"
     >
       <mat-icon>calendar_month</mat-icon>
     </button>
@@ -27,8 +27,14 @@
       mat-icon-button
       (click)="goToPreviousPeriod()"
       [disabled]="isViewingToday()"
-      [attr.aria-label]="isMonthView() ? 'Go to previous month' : 'Go to previous week'"
-      [matTooltip]="isMonthView() ? 'Previous Month' : 'Previous Week'"
+      [attr.aria-label]="
+        (isMonthView() ? T.F.SCHEDULE.PREVIOUS_MONTH : T.F.SCHEDULE.PREVIOUS_WEEK)
+          | translate
+      "
+      [matTooltip]="
+        (isMonthView() ? T.F.SCHEDULE.PREVIOUS_MONTH : T.F.SCHEDULE.PREVIOUS_WEEK)
+          | translate
+      "
     >
       <mat-icon>chevron_left</mat-icon>
     </button>
@@ -47,8 +53,12 @@
     <button
       mat-icon-button
       (click)="goToNextPeriod()"
-      [attr.aria-label]="isMonthView() ? 'Go to next month' : 'Go to next week'"
-      [matTooltip]="isMonthView() ? 'Next Month' : 'Next Week'"
+      [attr.aria-label]="
+        (isMonthView() ? T.F.SCHEDULE.NEXT_MONTH : T.F.SCHEDULE.NEXT_WEEK) | translate
+      "
+      [matTooltip]="
+        (isMonthView() ? T.F.SCHEDULE.NEXT_MONTH : T.F.SCHEDULE.NEXT_WEEK) | translate
+      "
     >
       <mat-icon>chevron_right</mat-icon>
     </button>
@@ -56,6 +66,30 @@
 
   <div class="title">{{ headerTitle() }}</div>
 </div>
+
+@if (enabledCalendarProviders().length >= 1) {
+  <mat-chip-listbox
+    class="cal-filter-bar"
+    [multiple]="true"
+    [attr.aria-label]="T.F.SCHEDULE.CALENDAR_VISIBILITY | translate"
+  >
+    @for (provider of enabledCalendarProviders(); track provider.id) {
+      <mat-chip-option
+        [selected]="!hiddenCalendarProviderIds().includes(provider.id)"
+        (click)="toggleCalendarProvider(provider.id)"
+        [matTooltip]="calProviderLabel(provider)"
+      >
+        @if (provider.color) {
+          <span
+            class="cal-color-dot"
+            [style.background]="provider.color"
+          ></span>
+        }
+        {{ calProviderInitials(provider) }}
+      </mat-chip-option>
+    }
+  </mat-chip-listbox>
+}
 
 <div
   class="scroll-wrapper"

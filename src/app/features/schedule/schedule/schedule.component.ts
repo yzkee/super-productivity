@@ -1,6 +1,5 @@
 /* eslint-disable */
 import {
-  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   computed,
@@ -10,6 +9,14 @@ import {
 } from '@angular/core';
 import { fromEvent } from 'rxjs';
 import { select, Store } from '@ngrx/store';
+import { selectCalendarProviders } from '../../issue/store/issue-provider.selectors';
+import { HiddenCalendarProvidersService } from '../../calendar-integration/hidden-calendar-providers.service';
+import {
+  getIssueProviderInitials,
+  getIssueProviderTooltip,
+} from '../../issue/mapping-helper/get-issue-provider-tooltip';
+import { IssueProvider } from '../../issue/issue.model';
+import { MatChipListbox, MatChipOption } from '@angular/material/chips';
 import { debounceTime, map, startWith } from 'rxjs/operators';
 import { safeFormatDate } from '../../../util/safe-format-date';
 import { TaskService } from '../../tasks/task.service';
@@ -44,6 +51,8 @@ import { parseDbDateStr } from '../../../util/parse-db-date-str';
     MatIcon,
     MatTooltip,
     TranslatePipe,
+    MatChipListbox,
+    MatChipOption,
   ],
   templateUrl: './schedule.component.html',
   styleUrls: ['./schedule.component.scss'],
@@ -64,6 +73,23 @@ export class ScheduleComponent {
   private _globalConfigService = inject(GlobalConfigService);
   private _dateTimeFormatService = inject(DateTimeFormatService);
   private _translate = inject(TranslateService);
+  private _hiddenCalendarProviders = inject(HiddenCalendarProvidersService);
+
+  readonly hiddenCalendarProviderIds = this._hiddenCalendarProviders.hiddenProviderIds;
+  readonly enabledCalendarProviders = toSignal(
+    this._store
+      .select(selectCalendarProviders)
+      .pipe(map((ps) => ps.filter((p) => p.isEnabled))),
+    { initialValue: [] },
+  );
+  readonly calProviderLabel = (p: IssueProvider): string => getIssueProviderTooltip(p);
+  readonly calProviderInitials = (p: IssueProvider): string =>
+    getIssueProviderInitials(p) ??
+    getIssueProviderTooltip(p).substring(0, 2).toUpperCase();
+
+  toggleCalendarProvider(providerId: string): void {
+    this._hiddenCalendarProviders.toggle(providerId);
+  }
 
   private _currentTimeViewMode = computed(() => this.layoutService.selectedTimeView());
   isMonthView = computed(() => this._currentTimeViewMode() === 'month');
@@ -174,12 +200,10 @@ export class ScheduleComponent {
   private _contextNow = computed(() => {
     const selectedDate = this._selectedDate();
     if (selectedDate === null) {
-      // Viewing today - use actual current time
       return Date.now();
     }
 
     // Viewing a different date - use that date's midnight as reference
-    // This ensures display calculations (work hours, etc.) are correct for the viewed date
     const contextDate = new Date(selectedDate);
     contextDate.setHours(0, 0, 0, 0);
     return contextDate.getTime();
@@ -189,7 +213,7 @@ export class ScheduleComponent {
     return this.scheduleService.createScheduleDaysWithContext({
       daysToShow: this.daysToShow(),
       contextNow: this._contextNow(),
-      realNow: Date.now(), // Always use actual current time for "current week" calculation
+      realNow: Date.now(),
       currentTaskId: this.taskService.currentTaskId() ?? null,
     });
   });

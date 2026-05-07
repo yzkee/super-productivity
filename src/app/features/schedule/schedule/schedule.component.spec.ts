@@ -22,7 +22,6 @@ describe('ScheduleComponent', () => {
   let mockMatDialog: jasmine.SpyObj<MatDialog>;
   let mockGlobalTrackingIntervalService: jasmine.SpyObj<GlobalTrackingIntervalService>;
   let mockGlobalConfigService: jasmine.SpyObj<GlobalConfigService>;
-
   beforeEach(async () => {
     // Create mock services
     mockTaskService = jasmine.createSpyObj('TaskService', ['currentTaskId']);
@@ -82,7 +81,7 @@ describe('ScheduleComponent', () => {
     await TestBed.configureTestingModule({
       imports: [ScheduleComponent, TranslateModule.forRoot()],
       providers: [
-        provideMockStore({ initialState: {} }),
+        provideMockStore({ initialState: { issueProvider: { ids: [], entities: {} } } }),
         { provide: TaskService, useValue: mockTaskService },
         { provide: LayoutService, useValue: mockLayoutService },
         { provide: ScheduleService, useValue: mockScheduleService },
