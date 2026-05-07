@@ -10,16 +10,7 @@
  */
 import { test } from '../../fixture';
 import { LOCALES, type Locale } from '../../matrix';
-import {
-  applyLocale,
-  applyTheme,
-  applyTimeTrackingEnabled,
-  gotoAndSettle,
-  resetView,
-  setPlannerCalendarExpanded,
-  showMarketingOverlay,
-} from '../../helpers';
-import { MARKETING_HEADLINE, MARKETING_SUBLINE } from '../../marketing-copy';
+import { applyLocale, applyTheme, gotoAndSettle, resetView } from '../../helpers';
 import type { Page } from '@playwright/test';
 
 const captureDarkScenes = async (
@@ -32,11 +23,14 @@ const captureDarkScenes = async (
   await shoot('mobile-01-planner', 'planner');
   await resetView(page);
 
-  // 02 — Planner with calendar nav expanded (multi-week day picker)
+  // 02 — Planner expanded (calendar nav header click)
   await gotoAndSettle(page, '/#/planner');
   await page.locator('planner, planner-day').first().waitFor({ state: 'visible' });
-  await page.locator('planner-calendar-nav').waitFor({ state: 'visible' });
-  await setPlannerCalendarExpanded(page, true);
+  const navHeader = page
+    .locator('planner-calendar-nav .header, planner-calendar-nav button')
+    .first();
+  await navHeader.click({ trial: false }).catch(() => undefined);
+  await page.waitForTimeout(400);
   await shoot('mobile-02-planner-expanded', 'planner-expanded');
   await resetView(page);
 
@@ -66,11 +60,14 @@ const captureLightScenes = async (
   page: Page,
   shoot: (scenario: string, name: string) => Promise<void>,
 ): Promise<void> => {
-  // 04 — Planner with calendar nav expanded (light variant)
+  // 04 — Planner expanded (light variant)
   await gotoAndSettle(page, '/#/planner');
   await page.locator('planner, planner-day').first().waitFor({ state: 'visible' });
-  await page.locator('planner-calendar-nav').waitFor({ state: 'visible' });
-  await setPlannerCalendarExpanded(page, true);
+  const navHeader = page
+    .locator('planner-calendar-nav .header, planner-calendar-nav button')
+    .first();
+  await navHeader.click({ trial: false }).catch(() => undefined);
+  await page.waitForTimeout(400);
   await shoot('mobile-04-planner-expanded-light', 'planner-expanded-light');
 };
 
@@ -81,20 +78,7 @@ test.describe('@screenshot mobile all', () => {
     seededPage,
     screenshotMaster,
   }) => {
-    // 12 captures × ~15–20s each on a mobile viewport overruns the 180s default.
-    test.setTimeout(8 * 60 * 1000);
     const page = seededPage;
-
-    // Mobile rows look cleaner without the per-task play button column.
-    await applyTimeTrackingEnabled(page, false);
-
-    // 00 — Cover/hero. Today list with a marketing caption strip overlaid.
-    await applyTheme(page, 'dark');
-    await gotoAndSettle(page, '/#/tag/TODAY/tasks');
-    await page.locator('task').first().waitFor({ state: 'visible' });
-    await showMarketingOverlay(page, MARKETING_HEADLINE, MARKETING_SUBLINE);
-    await screenshotMaster('mobile-00-hero', 'hero');
-    await resetView(page);
 
     for (let i = 0; i < LOCALES.length; i += 1) {
       const lng = LOCALES[i] as Locale;
