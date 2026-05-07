@@ -105,6 +105,13 @@ export const BUILT_IN_THEMES: CustomTheme[] = [
     requiredMode: 'dark',
   },
   {
+    id: 'lines',
+    name: 'Lines',
+    kind: 'builtin',
+    url: 'assets/themes/lines.css',
+    requiredMode: 'system',
+  },
+  {
     id: 'nord-polar-night',
     name: 'Nord Polar Night',
     kind: 'builtin',
@@ -124,6 +131,13 @@ export const BUILT_IN_THEMES: CustomTheme[] = [
     kind: 'builtin',
     url: 'assets/themes/rainbow.css',
     requiredMode: 'system',
+  },
+  {
+    id: 'velvet',
+    name: 'Velvet',
+    kind: 'builtin',
+    url: 'assets/themes/velvet.css',
+    requiredMode: 'dark',
   },
 ];
 
