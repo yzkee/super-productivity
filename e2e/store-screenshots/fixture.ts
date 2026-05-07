@@ -249,7 +249,11 @@ export const test = base.extend<ScreenshotFixtures>({
     }
   },
 
-  page: async ({ browser, baseURL, theme, locale, electronApp }, use, testInfo) => {
+  page: async (
+    { browser, baseURL, theme, locale, customTheme, electronApp },
+    use,
+    testInfo,
+  ) => {
     // ─── electron mode ────────────────────────────────────────────────
     if (MODE === 'electron' && electronApp) {
       const page = await electronApp.firstWindow();
@@ -303,18 +307,21 @@ export const test = base.extend<ScreenshotFixtures>({
           opts,
         )) as typeof origGoto;
       await page.evaluate(
-        ({ darkMode }) => {
+        ({ darkMode, customThemeId }) => {
           try {
             localStorage.setItem('DARK_MODE', darkMode);
             localStorage.setItem('SUP_ONBOARDING_PRESET_DONE', 'true');
             localStorage.setItem('SUP_ONBOARDING_HINTS_DONE', 'true');
             localStorage.setItem('SUP_IS_SHOW_TOUR', 'true');
             localStorage.setItem('SUP_EXAMPLE_TASKS_CREATED', 'true');
+            if (customThemeId) {
+              localStorage.setItem('CUSTOM_THEME', `builtin:${customThemeId}`);
+            }
           } catch {
             /* localStorage may be unavailable until renderer ready */
           }
         },
-        { darkMode: theme },
+        { darkMode: theme, customThemeId: customTheme },
       );
       await page.evaluate(() => location.reload());
       await page.waitForLoadState('domcontentloaded');
@@ -386,6 +393,18 @@ export const test = base.extend<ScreenshotFixtures>({
         /* noop */
       }
     }, theme);
+    // Mirror the DARK_MODE init script for the custom-theme picker. The
+    // CustomThemeService reads LS.CUSTOM_THEME at construction; for E2E
+    // screenshots we point it at a built-in theme by id (e.g. 'dracula').
+    if (customTheme) {
+      await page.addInitScript((id) => {
+        try {
+          localStorage.setItem('CUSTOM_THEME', `builtin:${id}`);
+        } catch {
+          /* noop */
+        }
+      }, customTheme);
+    }
     // Stamp the initial locale on `window.__spCurrentLocale` so
     // screenshotMaster can route captures into the right `<locale>/` dir.
     // Updated by `helpers.applyLocale()` when scenes flip languages.
