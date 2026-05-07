@@ -16,9 +16,9 @@ npm run screenshots:capture:electron # Electron build → .tmp/screenshots/_mast
 npm run screenshots:electron         # capture:electron + build (lands in dist/)
 npm run screenshots:build            # rebuild dist/ layout from existing masters
 
-# One group while iterating (pattern matches `desktop dark|light|catppuccin` etc.)
+# One group while iterating
 npx playwright test --config e2e/playwright.store-screenshots.config.ts \
-  --project=desktopMaster --grep "desktop dark \(en\)"
+  --project=desktopMaster --grep "desktop all"
 ```
 
 ## Environment overrides
@@ -38,6 +38,9 @@ Per-store assets land in `dist/screenshots/<store>/<locale>/NN-name.png` (and th
 
 | Slot | Platform | Theme | What it shows |
 | ---- | -------- | ----- | ------------- |
+| mobile-00 | mobile | dark | Cover/hero — Today list with marketing caption overlay |
+| desktop-00 | desktop | dark | Cover/hero — Today list with marketing caption overlay |
+| tablet-00 | tablet | dark | Cover/hero — Today list with marketing caption overlay |
 | mobile-01 | mobile | dark | Planner |
 | mobile-02 | mobile | dark | Planner with calendar nav expanded |
 | mobile-03 | mobile | dark | Eisenhower matrix board |
@@ -50,9 +53,10 @@ Per-store assets land in `dist/screenshots/<store>/<locale>/NN-name.png` (and th
 | desktop-04 | desktop | light | Project (Work) + notes panel populated |
 | desktop-05 | desktop | dark | Focus mode |
 | desktop-06 | desktop | light | Schedule (light variant) |
-| desktop-07 | desktop | catppuccin-mocha | Today list with custom theme |
+| desktop-07 | desktop | dark | Project (Work) view, no wallpaper — regular palette reads cleanly |
+| desktop-08 | desktop | dark | Planner |
 
-Specs are platform-grouped: `scenarios/desktop/all.spec.ts` and `scenarios/mobile/all.spec.ts` each capture every dark+light slot in a single session, flipping `DARK_MODE` between groups via `applyTheme()` (Playwright `addInitScript` is append-only, so a later script wins on each reload). The catppuccin slot stays in its own spec because changing `customTheme` requires a different seed file. Each spec runs once per locale (en + de).
+Specs are platform-grouped: `scenarios/desktop/all.spec.ts` and `scenarios/mobile/all.spec.ts` each capture every slot in a single session, flipping `DARK_MODE` between groups via `applyTheme()` (Playwright `addInitScript` is append-only, so a later script wins on each reload). Each spec runs once per locale (en + de).
 
 ## Files
 
@@ -62,11 +66,12 @@ Specs are platform-grouped: `scenarios/desktop/all.spec.ts` and `scenarios/mobil
 | `seed/seed.template.json` | Curated dataset with date offsets and `@@PLANNER_OFFSET_+N` placeholders |
 | `seed/build-seed.ts` | Materializes offsets to absolute dates, injects `locale` + `customTheme` |
 | `fixture.ts` | Pins clock, applies dark-mode, imports seed via UI flow, exposes `screenshotMaster` (which reads live `DARK_MODE` so light/dark scenes land in the right directory) |
-| `helpers.ts` | `gotoAndSettle`, `openNotesPanel`, `openSchedulePanel`, `resetView`, `applyTheme` |
-| `scenarios/desktop/all.spec.ts` | 6 desktop slots (dark + light, single session) |
-| `scenarios/desktop/catppuccin.spec.ts` | desktop-07 (different seed → standalone) |
-| `scenarios/mobile/all.spec.ts` | 6 mobile slots (dark + light, single session) |
-| `build-store-assets.ts` | Renames + copies masters into per-store directory layouts; JPEG re-encode for `maxBytes`-capped stores (Snap) |
+| `helpers.ts` | `gotoAndSettle`, `openNotesPanel`, `openSchedulePanel`, `resetView`, `applyTheme`, `applyLocale`, `applyTimeTrackingEnabled`, `applySideNavCollapsed`, `setPlannerCalendarExpanded`, `showMarketingOverlay` |
+| `marketing-copy.ts` | Headline + subline shown on the slot-00 hero overlay |
+| `scenarios/desktop/all.spec.ts` | 9 desktop slots: hero + 8 scenes |
+| `scenarios/mobile/all.spec.ts` | 7 mobile slots: hero + 6 scenes |
+| `scenarios/tablet/all.spec.ts` | 6 tablet slots: hero + 5 scenes |
+| `build-store-assets.ts` | Renames + copies masters into per-store layouts; JPEG re-encode for `maxBytes`-capped stores (Snap); emits `_preview.html` contact sheet |
 | `../playwright.store-screenshots.config.ts` | Separate Playwright config; one project per viewport |
 
 ## How it works
@@ -134,7 +139,8 @@ The Mac App Store store rule has `masterDir: 'electron'` in `STORE_RULES`, so th
 ## Status
 
 - ✅ Foundation: matrix, seed builder, fixture (web + electron modes), helpers, post-processor
-- ✅ 13 scenarios (6 mobile + 7 desktop) covering planner, boards, schedule, focus, notes, custom theme
+- ✅ 22 scenarios (3 hero + 6 mobile + 8 desktop + 5 tablet) covering planner, boards, schedule, focus, notes, project view
+- ✅ Per-build `_preview.html` contact sheet under `dist/screenshots/` for one-click QA
 - ✅ Electron-mode pipeline with OS-level chrome capture (`screencapture` / `grim` / `import`)
 - ✅ Mac App Store wired to source from `_master_electron/`
 - ✅ Flathub STORE_RULE (single-gallery, sourced from `_master_electron/`)

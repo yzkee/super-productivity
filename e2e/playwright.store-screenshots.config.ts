@@ -19,6 +19,7 @@ import {
  */
 export default defineConfig({
   testDir: path.join(__dirname, 'store-screenshots', 'scenarios'),
+  globalTeardown: path.join(__dirname, 'store-screenshots', 'print-output-path.ts'),
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   // Screenshots aren't flaky like e2e tests — failures should be investigated, not retried.
