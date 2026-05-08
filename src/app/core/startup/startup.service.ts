@@ -139,6 +139,14 @@ export class StartupService {
       this._initOfflineBanner();
 
       const miscCfg = this._globalConfigService.misc();
+
+      // One-time migration for users syncing from a device that still
+      // wrote the theme into `globalConfig.misc.customTheme`. Brief flash
+      // of default → preferred is acceptable and only happens once.
+      if (miscCfg?.customTheme) {
+        await this._customThemeService.migrateLegacyCustomTheme(miscCfg.customTheme);
+      }
+
       if (miscCfg?.isShowProductivityTipLonger && !this._isTourLikelyToBeShown()) {
         if (w.productivityTips && w.randomIndex !== undefined) {
           this._snackService.open({

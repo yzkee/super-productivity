@@ -363,7 +363,9 @@ export class ScheduleComponent {
     const timeCol = scrollContainer.querySelector(
       'schedule-week .time-column-bg, schedule-week .filler',
     );
-    const timeColWidth = timeCol?.getBoundingClientRect().width ?? 48;
+    // `.filler` is `display:none` in side-panel mode, so a 0-width hit
+    // here means we matched the hidden one — fall back to the default.
+    const timeColWidth = timeCol?.getBoundingClientRect().width || 48;
     const EXTRA_PX = 12;
 
     const elRect = element.getBoundingClientRect();

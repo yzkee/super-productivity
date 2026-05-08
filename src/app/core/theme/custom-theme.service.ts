@@ -187,6 +187,19 @@ export class CustomThemeService {
   }
 
   /**
+   * Bridge for users syncing from a pre-`LS.CUSTOM_THEME` device, where the
+   * picker value lived in `globalConfig.misc.customTheme`. If LS already has
+   * a value the user already chose on this device — leave it alone. Only
+   * migrates known built-in IDs; user themes never lived in legacy config.
+   */
+  async migrateLegacyCustomTheme(legacyId: string | undefined): Promise<void> {
+    if (localStorage.getItem(LS.CUSTOM_THEME)) return;
+    if (!legacyId || legacyId === 'default') return;
+    if (!BUILT_IN_THEMES.some((t) => t.id === legacyId)) return;
+    await this.setActiveTheme({ kind: 'builtin', id: legacyId });
+  }
+
+  /**
    * Uninstall a user theme. Deletes from IDB; if it was the active theme,
    * resets the picker to the default. Returns whether a fallback occurred
    * so callers can surface a "reverted to default" toast.
@@ -230,8 +243,7 @@ export class CustomThemeService {
     if (!stored) {
       Log.err({ themeId: ref.id, kind: ref.kind, reason: 'theme not found in storage' });
       // Active theme reset on missing data so the picker doesn't get stuck.
-      this._activeRef.set(DEFAULT_REF);
-      localStorage.setItem(LS.CUSTOM_THEME, serializeRef(DEFAULT_REF));
+      await this.setActiveTheme(DEFAULT_REF);
       return;
     }
     // Re-validate cached CSS — a previous client may have stored bytes the
@@ -241,8 +253,7 @@ export class CustomThemeService {
     const validation = validateThemeCss(stored.css);
     if (!validation.isValid) {
       Log.err({ themeId: ref.id, reason: 'cached-css-failed-validation' });
-      this._activeRef.set(DEFAULT_REF);
-      localStorage.setItem(LS.CUSTOM_THEME, serializeRef(DEFAULT_REF));
+      await this.setActiveTheme(DEFAULT_REF);
       return;
     }
     const style = this._document.createElement('style');

@@ -4,6 +4,7 @@
       mat-icon-button
       class="week-month-btn"
       [class.active]="!isMonthView()"
+      [attr.aria-pressed]="!isMonthView()"
       (click)="selectTimeView('week')"
       [matTooltip]="T.F.SCHEDULE.VIEW_WEEK | translate"
       [attr.aria-label]="T.F.SCHEDULE.VIEW_WEEK | translate"
@@ -14,6 +15,7 @@
       mat-icon-button
       class="week-month-btn"
       [class.active]="isMonthView()"
+      [attr.aria-pressed]="isMonthView()"
       (click)="selectTimeView('month')"
       [matTooltip]="T.F.SCHEDULE.VIEW_MONTH | translate"
       [attr.aria-label]="T.F.SCHEDULE.VIEW_MONTH | translate"
