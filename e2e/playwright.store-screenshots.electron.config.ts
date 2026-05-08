@@ -16,6 +16,7 @@ import { VIEWPORTS, type ViewportSpec } from './store-screenshots/matrix';
  */
 export default defineConfig({
   testDir: path.join(__dirname, 'store-screenshots', 'scenarios', 'desktop'),
+  globalTeardown: path.join(__dirname, 'store-screenshots', 'print-output-path.ts'),
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
