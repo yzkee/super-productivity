@@ -143,8 +143,17 @@ export class StartupService {
       // One-time migration for users syncing from a device that still
       // wrote the theme into `globalConfig.misc.customTheme`. Brief flash
       // of default → preferred is acceptable and only happens once.
+      // Wrapped because a failure here must not skip the productivity-tip
+      // snack and `_initPlugins` further down in this deferred-init body.
       if (miscCfg?.customTheme) {
-        await this._customThemeService.migrateLegacyCustomTheme(miscCfg.customTheme);
+        try {
+          await this._customThemeService.migrateLegacyCustomTheme(miscCfg.customTheme);
+        } catch (err) {
+          Log.err({
+            stage: 'migrate-legacy-custom-theme',
+            error: (err as Error).message,
+          });
+        }
       }
 
       if (miscCfg?.isShowProductivityTipLonger && !this._isTourLikelyToBeShown()) {

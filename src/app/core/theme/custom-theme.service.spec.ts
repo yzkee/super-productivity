@@ -193,4 +193,39 @@ describe('CustomThemeService', () => {
       await expectAsync(service.removeUserTheme('mine')).toBeRejectedWithError('boom');
     });
   });
+
+  describe('migrateLegacyCustomTheme', () => {
+    it('is a no-op when LS is already populated', async () => {
+      localStorage.setItem(LS.CUSTOM_THEME, 'builtin:arc');
+      const service = buildService();
+      await service.migrateLegacyCustomTheme('dracula');
+      expect(localStorage.getItem(LS.CUSTOM_THEME)).toBe('builtin:arc');
+      expect(service.activeRef()).toEqual({ kind: 'builtin', id: 'arc' });
+    });
+
+    it('is a no-op for missing/default/empty legacy ids', async () => {
+      const service = buildService();
+      await service.migrateLegacyCustomTheme(undefined);
+      await service.migrateLegacyCustomTheme('');
+      await service.migrateLegacyCustomTheme('default');
+      expect(localStorage.getItem(LS.CUSTOM_THEME)).toBeNull();
+    });
+
+    it('is a no-op for unknown legacy ids (allowlist enforced)', async () => {
+      const service = buildService();
+      await service.migrateLegacyCustomTheme('not-a-real-theme');
+      expect(localStorage.getItem(LS.CUSTOM_THEME)).toBeNull();
+      expect(service.activeRef()).toEqual({ kind: 'builtin', id: 'default' });
+    });
+
+    it('promotes a known built-in id into LS and applies the theme', async () => {
+      const service = buildService();
+      await service.migrateLegacyCustomTheme('dracula');
+      expect(localStorage.getItem(LS.CUSTOM_THEME)).toBe('builtin:dracula');
+      expect(service.activeRef()).toEqual({ kind: 'builtin', id: 'dracula' });
+      const el = document.getElementById(STYLESHEET_ID);
+      expect(el?.tagName).toBe('LINK');
+      expect((el as HTMLLinkElement).href).toContain('assets/themes/dracula.css');
+    });
+  });
 });
