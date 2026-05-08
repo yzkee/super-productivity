@@ -41,7 +41,6 @@ export default defineConfig({
         '--disable-setuid-sandbox',
         '--disable-extensions',
         '--disable-gpu',
-        '--disable-software-rasterizer',
         '--disable-background-timer-throttling',
         '--disable-backgrounding-occluded-windows',
         '--disable-renderer-backgrounding',

@@ -22,6 +22,44 @@
     </button>
   </div>
 
+  @if (showCalFilterBtn()) {
+    <button
+      mat-icon-button
+      [matMenuTriggerFor]="calFilterMenu"
+      [matTooltip]="T.F.SCHEDULE.CALENDAR_VISIBILITY | translate"
+      [attr.aria-label]="T.F.SCHEDULE.CALENDAR_VISIBILITY | translate"
+    >
+      <mat-icon>event_note</mat-icon>
+    </button>
+    <mat-menu #calFilterMenu="matMenu">
+      <ng-template matMenuContent>
+        <div (click)="$event.stopPropagation()">
+          @for (provider of enabledCalendarProviders(); track provider.id) {
+            <button
+              mat-menu-item
+              role="menuitemcheckbox"
+              [attr.aria-checked]="!hiddenCalendarProviderIds().includes(provider.id)"
+              (click)="toggleCalProvider(provider.id)"
+            >
+              @if (hiddenCalendarProviderIds().includes(provider.id)) {
+                <mat-icon>check_box_outline_blank</mat-icon>
+              } @else {
+                <mat-icon>check_box</mat-icon>
+              }
+              @if (provider.color) {
+                <span
+                  class="cal-color-dot"
+                  [style.background]="provider.color"
+                ></span>
+              }
+              {{ calProviderLabel(provider) }}
+            </button>
+          }
+        </div>
+      </ng-template>
+    </mat-menu>
+  }
+
   <div class="date-nav-group">
     <button
       mat-icon-button
@@ -66,31 +104,6 @@
 
   <div class="title">{{ headerTitle() }}</div>
 </div>
-
-@if (showCalFilterBar()) {
-  <mat-chip-listbox
-    class="cal-filter-bar"
-    [multiple]="true"
-    [attr.aria-label]="T.F.SCHEDULE.CALENDAR_VISIBILITY | translate"
-    (change)="onCalProvidersChange($event)"
-  >
-    @for (provider of enabledCalendarProviders(); track provider.id) {
-      <mat-chip-option
-        [value]="provider.id"
-        [selected]="!hiddenCalendarProviderIds().includes(provider.id)"
-        [matTooltip]="calProviderLabel(provider)"
-      >
-        @if (provider.color) {
-          <span
-            class="cal-color-dot"
-            [style.background]="provider.color"
-          ></span>
-        }
-        {{ calProviderInitials(provider) }}
-      </mat-chip-option>
-    }
-  </mat-chip-listbox>
-}
 
 <div
   class="scroll-wrapper"

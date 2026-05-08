@@ -1940,6 +1940,7 @@
         "TOTAL_TIME": "Time spent total:",
         "VIEW_TASK_DETAILS": "View task details",
         "WEEK_NR": "Week {{nr}}",
+        "WEEK_NR_SHORT": "W{{nr}}",
         "WORKED": "Worked"
       },
       "D_CONFIRM_RESTORE": "Are you sure you want to move the task <strong>\"{{title}}\"</strong> into your Today task list?",
