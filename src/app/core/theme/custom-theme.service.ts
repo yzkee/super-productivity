@@ -119,6 +119,13 @@ export const BUILT_IN_THEMES: CustomTheme[] = [
     requiredMode: 'system',
   },
   {
+    id: 'liquid-glass',
+    name: 'Liquid Glass (macOS)',
+    kind: 'builtin',
+    url: 'assets/themes/liquid-glass.css',
+    requiredMode: 'system',
+  },
+  {
     id: 'nord-polar-night',
     name: 'Nord Polar Night',
     kind: 'builtin',
