@@ -32,10 +32,30 @@ body.isDarkTheme {
   --velvet-surface-2: #221f22;
   --velvet-surface-3: #2a272a;
   --velvet-surface-4: #322f32;
-  --velvet-border: rgba(255, 255, 255, 0.04);
-  --velvet-border-strong: rgba(255, 255, 255, 0.1);
+  --velvet-border: var(--velvet-fill-2);
+  --velvet-border-strong: var(--velvet-fill-5);
   --velvet-fg: #e6e6e6;
   --velvet-fg-muted: #7a7779;
+
+  /* Fill scale — white-alpha overlays for tiles, hovers, borders, chips.
+     Repeated rgba(255,255,255,*) literals throughout this file map to one of
+     these stops; use the comment trailing each callsite to convey intent. */
+  --velvet-fill-1: rgba(255, 255, 255, 0.02);
+  --velvet-fill-2: rgba(255, 255, 255, 0.04);
+  --velvet-fill-3: rgba(255, 255, 255, 0.06);
+  --velvet-fill-4: rgba(255, 255, 255, 0.08);
+  --velvet-fill-5: rgba(255, 255, 255, 0.1);
+  --velvet-fill-6: rgba(255, 255, 255, 0.14);
+
+  /* Pane scale — frosted-glass surfaces (sidenav, dialogs, tooltips, …).
+     Single canonical warm-black with stepped alpha so every translucent panel
+     reads as the same material at different transparencies. */
+  --velvet-pane-rgb: 30, 27, 29;
+  --velvet-pane-1: rgba(var(--velvet-pane-rgb), 0.55);
+  --velvet-pane-2: rgba(var(--velvet-pane-rgb), 0.65);
+  --velvet-pane-3: rgba(var(--velvet-pane-rgb), 0.78);
+  --velvet-pane-4: rgba(var(--velvet-pane-rgb), 0.88);
+  --velvet-pane-5: rgba(var(--velvet-pane-rgb), 0.94);
 
   /* ===============================
    * BACKGROUNDS
@@ -84,7 +104,7 @@ body.isDarkTheme {
 
   --extra-border-color: var(--velvet-border);
   --separator-color: var(--velvet-border);
-  --divider-color: rgba(255, 255, 255, 0.06);
+  --divider-color: var(--velvet-fill-3);
   --chip-outline-color: var(--velvet-border-strong);
 
   /* ===============================
@@ -115,8 +135,8 @@ body.isDarkTheme {
   --attachment-control-border: transparent;
   --attachment-control-hover-bg: rgba(0, 0, 0, 0.75);
 
-  --grid-color: rgba(255, 255, 255, 0.05);
-  --progress-bg: rgba(255, 255, 255, 0.1);
+  --grid-color: var(--velvet-fill-2);
+  --progress-bg: var(--velvet-fill-5);
 
   --improvement-text: #f5f5f5;
   --improvement-border: color-mix(in srgb, var(--c-primary) 32%, transparent);
@@ -147,22 +167,25 @@ body.isDarkTheme {
   --radius-lg: 14px;
 
   /* Sidenav — neutral pill, matching the actual Raycast aesthetic. */
-  --sidenav-item-active-bg: rgba(255, 255, 255, 0.07);
+  --sidenav-item-active-bg: var(--velvet-fill-3);
   --sidenav-active-text: #ffffff;
-  --sidenav-hover-bg: rgba(255, 255, 255, 0.035);
+  --sidenav-hover-bg: var(--velvet-fill-2); /* was 0.035, rounded up */
   --sidenav-text: rgba(255, 255, 255, 0.78);
   --sidenav-text-secondary: rgba(255, 255, 255, 0.55);
 
   /* Task detail panel surfaces — match the side panel's frosted feel */
-  --task-detail-bg: rgba(255, 255, 255, 0.04);
-  --task-detail-bg-hover: rgba(255, 255, 255, 0.07);
+  --task-detail-bg: var(--velvet-fill-2);
+  --task-detail-bg-hover: var(--velvet-fill-3);
   --task-detail-shadow: none;
   --task-detail-value-color: rgba(237, 237, 237, 0.85);
 
-  /* Schedule events: match the translucent task-row aesthetic so they don't
-     read as a different visual language from planner-task. */
-  --schedule-event-bg: rgba(255, 255, 255, 0.04);
-  --schedule-event-bg-in-side-panel: rgba(255, 255, 255, 0.04);
+  /* Schedule events read as cards, not list rows — they have borders, a
+     project-color left edge, and distinct shapes — so they sit a few stops
+     above the task-row default. Side-panel variant stays one stop lower
+     so events nested inside the side panel don't compete with its own
+     frosted surface. */
+  --schedule-event-bg: var(--velvet-fill-5);
+  --schedule-event-bg-in-side-panel: var(--velvet-fill-3);
 
   /* Tighter vertical rhythm — Raycast list rows sit closer together than
      SP's defaults. Cuts ~3px between every task row. */
@@ -187,18 +210,18 @@ body.isDarkTheme task .sub-tasks task .inner-wrapper > .box {
    use a translucent .box override. Force the same translucent styling
    here so both list types share a single visual language. */
 body.isDarkTheme planner-task {
-  background: rgba(255, 255, 255, 0.02) !important;
+  background: var(--velvet-fill-1) !important;
 }
 
 body.isDarkTheme planner-task:hover {
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--velvet-fill-2) !important;
 }
 
 body.isDarkTheme planner-task.isSelected {
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.1) 0%,
-    rgba(255, 255, 255, 0.05) 100%
+    var(--velvet-fill-5) 0%,
+    var(--velvet-fill-2) 100%
   ) !important;
 }
 
@@ -253,9 +276,9 @@ body.isDarkTheme .keyboard-key {
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom-color: rgba(255, 255, 255, 0.04);
+  background: var(--velvet-fill-5);
+  border: 1px solid var(--velvet-fill-4);
+  border-bottom-color: var(--velvet-fill-2);
   border-radius: 4px;
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   font-size: 11px;
@@ -263,7 +286,7 @@ body.isDarkTheme .keyboard-key {
   color: var(--velvet-fg);
   box-shadow:
     0 1px 0 rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    inset 0 1px 0 var(--velvet-fill-4);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.2);
 }
 
@@ -272,34 +295,34 @@ body.isDarkTheme .mat-mdc-dialog-surface,
 body.isDarkTheme .mat-mdc-menu-panel,
 body.isDarkTheme .cdk-overlay-pane .mat-mdc-autocomplete-panel,
 body.isDarkTheme .mat-mdc-card {
-  background: rgba(31, 31, 31, 0.78) !important;
+  background: var(--velvet-pane-3) !important;
   backdrop-filter: var(--velvet-frost);
   -webkit-backdrop-filter: var(--velvet-frost);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--velvet-fill-3);
   box-shadow:
     0 16px 48px rgba(0, 0, 0, 0.55),
     0 2px 8px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    inset 0 1px 0 var(--velvet-fill-2);
 }
 
 /* Pill-shaped global add-task bar — Raycast command-bar */
 body.isDarkTheme add-task-bar.global .add-task-container {
   border-radius: 14px !important;
-  background: rgba(31, 28, 30, 0.92) !important;
+  background: var(--velvet-pane-5) !important;
   backdrop-filter: var(--velvet-frost-strong);
   -webkit-backdrop-filter: var(--velvet-frost-strong);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--velvet-fill-4);
   box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.65),
     0 6px 16px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    inset 0 1px 0 var(--velvet-fill-2);
 }
 
 /* Form fields: dark, rounded, with coral focus glow — Raycast input feel */
 body.isDarkTheme input.mat-mdc-input-element,
 body.isDarkTheme textarea.mat-mdc-input-element,
 body.isDarkTheme .mdc-text-field--filled:not(.mdc-text-field--disabled) {
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--velvet-fill-2) !important;
   border-radius: 8px !important;
   transition:
     background 120ms ease-out,
@@ -333,6 +356,8 @@ body.isDarkTheme button[mat-raised-button][color='primary'] {
     color-mix(in srgb, var(--c-primary) 70%, black) 100%
   ) !important;
   color: #ffffff !important;
+  /* Rest/hover top-inset alphas (0.12 → 0.16) are a tuned pair off the fill
+     scale; tokenizing them collapses the +0.04 hover lift, so left inline. */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.12) inset,
     0 2px 6px color-mix(in srgb, var(--c-primary) 32%, transparent) !important;
@@ -422,7 +447,7 @@ body.isDarkTheme nav-folder > .folder-title {
 
 /* Banner: warm-tinted, frosted */
 body.isDarkTheme banner .content-wrapper {
-  background: rgba(38, 35, 37, 0.85) !important;
+  background: var(--velvet-pane-4) !important;
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
   border-radius: 8px;
@@ -452,13 +477,13 @@ body.isDarkTheme .app-container {
   background-color: transparent !important;
   background-image:
     radial-gradient(
-      ellipse 80% 60% at 10% -10%,
-      color-mix(in srgb, var(--c-primary) 10%, transparent) 0%,
-      transparent 55%
+      ellipse 95% 70% at 10% -10%,
+      color-mix(in srgb, var(--c-primary) 16%, transparent) 0%,
+      transparent 65%
     ),
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--c-primary) 4%, transparent) 0%,
+      color-mix(in srgb, var(--c-primary) 7%, transparent) 0%,
       transparent 100%
     ) !important;
   background-attachment: fixed !important;
@@ -506,10 +531,10 @@ body.isDarkTheme .bg-image {
    so the host's bg shows through uniformly — otherwise the inner solid bg
    covers up the host's translucency and produces inconsistent edges. */
 body.isDarkTheme magic-side-nav {
-  background: rgba(15, 12, 14, 0.65) !important;
+  background: var(--velvet-pane-2) !important;
   backdrop-filter: var(--velvet-frost-deep);
   -webkit-backdrop-filter: var(--velvet-frost-deep);
-  border-right: 1px solid rgba(255, 255, 255, 0.04);
+  border-right: 1px solid var(--velvet-fill-2);
 }
 
 /* When a wallpaper is set, .bg-image is already heavily blurred (24px), and
@@ -542,7 +567,7 @@ body.isDarkTheme ::-webkit-scrollbar-track {
 }
 
 body.isDarkTheme ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--velvet-fill-5);
   border-radius: 4px;
   border: 2px solid transparent;
   background-clip: padding-box;
@@ -557,10 +582,10 @@ body.isDarkTheme ::-webkit-scrollbar-thumb:hover {
    the actual sliding side panel (.side) gets the Raycast frosted-glass
    treatment when open — distinct from the main content area. */
 body.isDarkTheme right-panel .side {
-  background: rgba(24, 21, 23, 0.72) !important;
+  background: var(--velvet-pane-3) !important;
   backdrop-filter: var(--velvet-frost-strong);
   -webkit-backdrop-filter: var(--velvet-frost-strong);
-  border-left: 1px solid rgba(255, 255, 255, 0.06) !important;
+  border-left: 1px solid var(--velvet-fill-3) !important;
   box-shadow: -16px 0 48px rgba(0, 0, 0, 0.3);
 }
 
@@ -574,10 +599,10 @@ body.isDarkTheme right-panel .resize-handle:active {
 
 /* Edge close-handle: frosted bg with coral icon on hover */
 body.isDarkTheme right-panel .edge-close-handle {
-  background: rgba(38, 35, 37, 0.85) !important;
+  background: var(--velvet-pane-4) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--velvet-fill-3);
   border-right: none;
   transition:
     background-color 130ms ease-out,
@@ -595,7 +620,7 @@ body.isDarkTheme right-panel .edge-close-handle:hover mat-icon {
 /* Default task: very subtle bg — Raycast list rows are mostly transparent
    over the gradient, only revealing a bg on hover or selection. */
 body.isDarkTheme task .box {
-  background: rgba(255, 255, 255, 0.02) !important;
+  background: var(--velvet-fill-1) !important;
   transition:
     background-color 100ms ease-out,
     border-color 100ms ease-out !important;
@@ -604,7 +629,7 @@ body.isDarkTheme task .box {
 /* Hover: subtle neutral pill, matches Raycast list rows on hover */
 body.isDarkTheme task:hover .box,
 body.isDarkTheme task .box:hover {
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--velvet-fill-2) !important;
 }
 
 /* Selected: subtle neutral white-alpha gradient pill, like Raycast's
@@ -612,9 +637,18 @@ body.isDarkTheme task .box:hover {
 body.isDarkTheme task.isSelected .box {
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.1) 0%,
-    rgba(255, 255, 255, 0.05) 100%
+    var(--velvet-fill-5) 0%,
+    var(--velvet-fill-2) 100%
   ) !important;
+}
+
+/* Task hover-controls share the schedule-event surface (fill-5) so the swing-
+   in panel reads as the same translucent material as the row it attaches to,
+   instead of an opaque warm-black patch (the default --task-c-bg). Override
+   spans every state since the controls aren't differentiating task state —
+   they just need to look like an interactive surface. */
+body.isDarkTheme .first-line:hover task-hover-controls {
+  background: var(--velvet-fill-5) !important;
 }
 
 /* Currently-running task — leave the original component styling alone
@@ -644,7 +678,7 @@ body.isDarkTheme task:focus-visible .box {
 
 body.isDarkTheme note .note,
 body.isDarkTheme .standard-note {
-  background: rgba(36, 36, 38, 0.55) !important;
+  background: var(--velvet-pane-1) !important;
   backdrop-filter: blur(12px) saturate(140%);
   -webkit-backdrop-filter: blur(12px) saturate(140%);
 }
@@ -663,15 +697,15 @@ body.isDarkTheme .mat-mdc-menu-panel::before {
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 30%);
+  background: linear-gradient(180deg, var(--velvet-fill-2) 0%, transparent 30%);
 }
 
 /* Task detail panel items — frosted-glass tiles with rounded corners
    and a coral accent on focus, matching the side panel's aesthetic. */
 body.isDarkTheme task-detail-item .input-item,
 body.isDarkTheme task-detail-item .mat-expansion-panel {
-  background: rgba(255, 255, 255, 0.04) !important;
-  border: 1px solid rgba(255, 255, 255, 0.04) !important;
+  background: var(--velvet-fill-2) !important;
+  border: 1px solid var(--velvet-fill-2) !important;
   border-radius: 10px !important;
   margin: 6px 8px !important;
   backdrop-filter: var(--velvet-frost-tile);
@@ -684,20 +718,20 @@ body.isDarkTheme task-detail-item .mat-expansion-panel {
 body.isDarkTheme task-detail-item .input-item:hover,
 body.isDarkTheme task-detail-item .mat-expansion-panel:hover,
 body.isDarkTheme task-detail-item .mat-expansion-panel-header:not(.mat-expanded):hover {
-  background: rgba(255, 255, 255, 0.07) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: var(--velvet-fill-3) !important;
+  border-color: var(--velvet-fill-4) !important;
 }
 
 /* Expanded panel uses the same neutral hover bg, just held — no coral.
    Real Raycast doesn't tint expanded sections with the brand color. */
 body.isDarkTheme task-detail-item .mat-expansion-panel.mat-expanded {
-  background: rgba(255, 255, 255, 0.05) !important;
-  border-color: rgba(255, 255, 255, 0.06) !important;
+  background: var(--velvet-fill-2) !important;
+  border-color: var(--velvet-fill-3) !important;
 }
 
 body.isDarkTheme task-detail-item .input-item.isFocused {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: var(--velvet-fill-3) !important;
+  border-color: var(--velvet-fill-4) !important;
 }
 
 /* Component CSS adds an accent border on :focus via:
@@ -715,9 +749,9 @@ body.isDarkTheme task-detail-item:focus .mat-expansion-panel {
 body.isDarkTheme task-detail-item .markdown-wrapper,
 body.isDarkTheme task-detail-item .markdown-parsed,
 body.isDarkTheme task-detail-item .markdown-unparsed {
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--velvet-fill-2) !important;
   border-radius: 10px !important;
-  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid var(--velvet-fill-2) !important;
 }
 
 /* Material chips (tags / labels) — pill shape with subtle border, like
@@ -725,8 +759,8 @@ body.isDarkTheme task-detail-item .markdown-unparsed {
 body.isDarkTheme mat-chip,
 body.isDarkTheme .mat-mdc-chip,
 body.isDarkTheme .mat-mdc-standard-chip {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+  background: var(--velvet-fill-3) !important;
+  border: 1px solid var(--velvet-fill-3) !important;
   border-radius: 999px !important;
   font-weight: 500 !important;
   letter-spacing: -0.005em;
@@ -735,8 +769,8 @@ body.isDarkTheme .mat-mdc-standard-chip {
 
 body.isDarkTheme mat-chip:hover,
 body.isDarkTheme .mat-mdc-chip:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
+  background: var(--velvet-fill-5) !important;
+  border-color: var(--velvet-fill-6) !important;
 }
 
 /* Done-toggle (the round task-completion checkbox): coral-ringed when
@@ -781,22 +815,22 @@ body.isDarkTheme main-header .current-work-context-title {
 /* Subtasks: indented but visually consistent — same hover/select states as
    parent tasks but slightly subtler. */
 body.isDarkTheme task .sub-tasks task::after {
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--velvet-fill-2) !important;
 }
 
 body.isDarkTheme task .sub-tasks task .box {
-  background: rgba(255, 255, 255, 0.015) !important;
+  background: var(--velvet-fill-1) !important; /* was 0.015, rounded up */
 }
 
 body.isDarkTheme task .sub-tasks task:hover .box {
-  background: rgba(255, 255, 255, 0.04) !important;
+  background: var(--velvet-fill-2) !important;
 }
 
 body.isDarkTheme task .sub-tasks task.isSelected .box {
   background: linear-gradient(
     180deg,
-    rgba(255, 255, 255, 0.08) 0%,
-    rgba(255, 255, 255, 0.04) 100%
+    var(--velvet-fill-4) 0%,
+    var(--velvet-fill-2) 100%
   ) !important;
 }
 
@@ -875,11 +909,11 @@ body.isDarkTheme .mat-mdc-slide-toggle.mat-mdc-slide-toggle-checked {
 /* Tooltips: dark frosted, like Raycast's tooltips */
 body.isDarkTheme .mat-mdc-tooltip,
 body.isDarkTheme .mdc-tooltip__surface {
-  background: rgba(31, 28, 30, 0.92) !important;
+  background: var(--velvet-pane-5) !important;
   backdrop-filter: var(--velvet-frost-tooltip);
   -webkit-backdrop-filter: var(--velvet-frost-tooltip);
   color: var(--velvet-fg) !important;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--velvet-fill-3);
   border-radius: 6px !important;
   font-size: 12px !important;
   font-weight: 500 !important;
@@ -891,10 +925,10 @@ body.isDarkTheme .mdc-tooltip__surface {
    "in-flight" — no accent tint. */
 body.isDarkTheme task.isDragReady:not(.cdk-drag-placeholder) .box,
 body.isDarkTheme .cdk-drag-preview {
-  background: rgba(40, 36, 38, 0.95) !important;
+  background: var(--velvet-pane-5) !important;
   box-shadow:
     0 12px 32px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.08) !important;
+    0 0 0 1px var(--velvet-fill-4) !important;
 }
 
 body.isDarkTheme {
