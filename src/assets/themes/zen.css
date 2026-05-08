@@ -255,3 +255,14 @@ body .week-month-btn:not(.active) {
 app-root.isWorkViewScrolled task.isCurrent .box {
   background: var(--bg) !important;
 }
+
+/* Banner: zen normally hides chrome; give it a neutral elevated bg so it
+   reads as distinct from the page without re-introducing primary color. */
+body banner .content-wrapper {
+  background: rgba(0, 0, 0, 0.06) !important;
+  box-shadow: none !important;
+}
+
+body.isDarkTheme banner .content-wrapper {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
