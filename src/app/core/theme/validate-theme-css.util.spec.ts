@@ -1,5 +1,27 @@
 import { MAX_THEME_CSS_SIZE, validateThemeCss } from './validate-theme-css.util';
 
+/**
+ * A CSS string that satisfies all required + recommended tokens in
+ * THEME_CONTRACT — used to keep individual test cases focused on the bit
+ * they're testing instead of restating every required token in every test.
+ */
+const completeContractCss = `
+body {
+  --surface-1: #fff;
+  --surface-2: #fff;
+  --surface-0: #eee;
+  --surface-3: #fff;
+  --surface-4: #fff;
+  --ink: #000;
+  --ink-on-channel: 0,0,0;
+  --ink-strong: #000;
+  --ink-muted: rgba(0,0,0,0.6);
+  --separator: #ccc;
+  --divider: rgba(0,0,0,0.12);
+  --scrim: rgba(0,0,0,0.6);
+}
+`;
+
 describe('validateThemeCss', () => {
   it('accepts CSS without any url() or @import', () => {
     const result = validateThemeCss(':root { --bg: #111; }');
@@ -239,5 +261,102 @@ describe('validateThemeCss', () => {
       'a { background: image-set(linear-gradient(red, blue) 1x); }',
     );
     expect(result.isValid).toBe(true);
+  });
+
+  // --- THEME_CONTRACT presence-only warning tests ---
+
+  it('warns when a required primitive is missing entirely', () => {
+    const css = `body { --surface-1: #fff; --surface-2: #fff; --ink: #000; }`;
+    // `--ink-on-channel` is missing — required tier.
+    const result = validateThemeCss(css);
+    expect(result.isValid).toBe(true);
+    expect(result.warnings?.some((w) => w.token === '--ink-on-channel')).toBe(true);
+  });
+
+  it('does NOT warn when a token is declared anywhere — presence-only semantics', () => {
+    // Declared at :root (mode-inconsistent at runtime, but the v1 validator
+    // is presence-only and does not parse selectors). This test locks in
+    // that behavior so the contract doc and the validator stay in sync.
+    const css = completeContractCss.replace('body {', ':root {');
+    const result = validateThemeCss(css);
+    expect(result.isValid).toBe(true);
+    expect(result.warnings).toBeUndefined();
+  });
+
+  it('warns when only recommended tokens are missing', () => {
+    // Has all four required tokens; missing all recommended ones (e.g. --surface-0).
+    const css = `body {
+      --surface-1: #fff;
+      --surface-2: #fff;
+      --ink: #000;
+      --ink-on-channel: 0,0,0;
+    }`;
+    const result = validateThemeCss(css);
+    expect(result.isValid).toBe(true);
+    // None of the four required tokens are missing.
+    expect(
+      result.warnings?.some((w) =>
+        ['--surface-1', '--surface-2', '--ink', '--ink-on-channel'].includes(w.token),
+      ),
+    ).toBe(false);
+    // At least one recommended token (e.g. --surface-0) is missing.
+    expect(result.warnings?.some((w) => w.token === '--surface-0')).toBe(true);
+  });
+
+  it('omits warnings entirely when CSS is invalid', () => {
+    // Validator rejects the URL → no token warnings should be appended on top.
+    const result = validateThemeCss('a { background: url(http://evil/x); }');
+    expect(result.isValid).toBe(false);
+    expect(result.warnings).toBeUndefined();
+  });
+
+  it('flags commented-out token declarations as missing', () => {
+    // Comment-stripper collapses comments to whitespace before the contract
+    // scan runs, so `/* --surface-1: #fff; */` is invisible to the regex.
+    const css = `body {
+      /* --surface-1: #fff; */
+      --surface-2: #fff;
+      --ink: #000;
+      --ink-on-channel: 0,0,0;
+    }`;
+    const result = validateThemeCss(css);
+    expect(result.isValid).toBe(true);
+    expect(result.warnings?.some((w) => w.token === '--surface-1')).toBe(true);
+  });
+
+  it('recognizes escape-encoded token names after decode', () => {
+    // `\69` is `i`, `\6e` is `n`. Trailing space (or another non-hex char)
+    // terminates the hex run so `\69 ` decodes to `i`. Result: `--\69 nk`
+    // becomes `--ink` BEFORE the contract scan runs (decode-then-strip
+    // pipeline). Confirms the scan reuses the already-decoded `stripped`
+    // value rather than re-running decode.
+    const css = `body {
+      --surface-1: #fff;
+      --surface-2: #fff;
+      --\\69 nk: #000;
+      --ink-on-channel: 0,0,0;
+    }`;
+    const result = validateThemeCss(css);
+    expect(result.isValid).toBe(true);
+    expect(result.warnings?.some((w) => w.token === '--ink')).toBe(false);
+  });
+
+  it('does not treat `--token:` inside string literals as a declaration', () => {
+    // Strings stay intact through comment-stripping (the URL classifier needs
+    // them) but the contract scanner must look past them — otherwise a
+    // `content: "--surface-1:"` declaration would silently suppress the
+    // missing-token warning. Same for url-token contents (using `#fragment`
+    // form so the URL classifier accepts the path).
+    const css = `body {
+      content: "--surface-1: nope";
+      background: url(#--ink:foo);
+      --surface-2: #fff;
+      --ink-on-channel: 0,0,0;
+    }`;
+    const result = validateThemeCss(css);
+    expect(result.isValid).toBe(true);
+    expect(result.warnings?.some((w) => w.token === '--surface-1')).toBe(true);
+    expect(result.warnings?.some((w) => w.token === '--ink')).toBe(true);
+    expect(result.warnings?.some((w) => w.token === '--surface-2')).toBe(false);
   });
 });

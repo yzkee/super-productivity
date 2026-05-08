@@ -137,6 +137,22 @@ describe('CustomThemeService', () => {
     expect(userEntry?.kind).toBe('user');
   });
 
+  it('carries StoredTheme.warnings onto the listed CustomTheme entry', () => {
+    themesSignal.set([
+      {
+        id: 'spartan',
+        name: 'Spartan',
+        css: ':root { --bg: #111; }',
+        uploadDate: 1,
+        warnings: [{ token: '--ink' }],
+      },
+    ]);
+    const service = buildService();
+    const userEntry = service.themes().find((t) => t.id === 'spartan');
+    expect(userEntry?.warnings?.length).toBe(1);
+    expect(userEntry?.warnings?.[0].token).toBe('--ink');
+  });
+
   it('applyActiveTheme loads whatever activeRef currently points at', async () => {
     localStorage.setItem(LS.CUSTOM_THEME, 'builtin:dracula');
     const service = buildService();

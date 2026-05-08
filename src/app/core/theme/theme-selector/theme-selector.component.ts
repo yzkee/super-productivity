@@ -243,6 +243,19 @@ export class ThemeSelectorComponent {
     try {
       const stored = await this._themeStorage.installFromFile(file);
       await this.customThemeService.setActiveTheme({ kind: 'user', id: stored.id });
+      // Surface contract warnings (presence-only) as a non-blocking snackbar.
+      // SnackService translates `msg` and interpolates `translateParams` —
+      // no need to inject TranslateService here.
+      const warnings = stored.warnings ?? [];
+      if (warnings.length > 0) {
+        const head = warnings.slice(0, 5).map((w) => w.token);
+        const more = warnings.length > 5 ? ` (+${warnings.length - 5} more)` : '';
+        this._snackService.open({
+          type: 'CUSTOM',
+          msg: T.GCF.MISC.THEME_INSTALLED_WITH_WARNINGS,
+          translateParams: { tokens: head.join(', ') + more },
+        });
+      }
     } catch {
       // Log a coarse signal — the error message originates from validator
       // output that may echo user-controlled CSS bytes, and the filename can

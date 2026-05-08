@@ -4,6 +4,7 @@ import { Log } from '../log';
 import { LS } from '../persistence/storage-keys.const';
 import { ThemeStorageService } from './theme-storage.service';
 import { validateThemeCss } from './validate-theme-css.util';
+import { ThemeCssWarning } from './theme-contract.const';
 
 /**
  * A theme entry surfaced in the picker.
@@ -21,6 +22,12 @@ export interface CustomTheme {
   /** Empty for the default theme; an asset URL for built-ins; absent for user themes. */
   url?: string;
   requiredMode?: 'dark' | 'light' | 'system';
+  /**
+   * Non-blocking warnings carried over from the validator (user themes only).
+   * Built-ins ship with a complete contract and never set this. The picker
+   * may surface warnings the first time a theme is installed.
+   */
+  warnings?: ThemeCssWarning[];
 }
 
 /** Reference to a theme stored as `kind:id` in `LS.CUSTOM_THEME`. */
@@ -162,6 +169,7 @@ export class CustomThemeService {
         name: t.name,
         kind: 'user',
         requiredMode: 'system',
+        warnings: t.warnings,
       }),
     ),
   ]);

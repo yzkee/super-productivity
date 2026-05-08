@@ -1,3 +1,7 @@
+import { THEME_CONTRACT, ThemeCssWarning } from './theme-contract.const';
+
+export type { ThemeCssWarning } from './theme-contract.const';
+
 /** Hard cap on theme CSS payloads. Themes ≥ 500 KB almost always indicate
  *  bundled assets we don't support yet, or copy/paste pollution. */
 export const MAX_THEME_CSS_SIZE = 500 * 1024;
@@ -5,6 +9,13 @@ export const MAX_THEME_CSS_SIZE = 500 * 1024;
 export interface ThemeCssValidationResult {
   isValid: boolean;
   errors: string[];
+  /**
+   * Non-blocking warnings — populated only when `errors` is empty (we don't
+   * pile warnings on top of an already-rejected payload). Currently only
+   * presence checks against `THEME_CONTRACT`; selector-aware checks are a
+   * tracked follow-up.
+   */
+  warnings?: ThemeCssWarning[];
 }
 
 /**
@@ -121,7 +132,126 @@ export const validateThemeCss = (css: string): ThemeCssValidationResult => {
   }
   scan(/@import\s+(?:"([^"]*)"|'([^']*)')/gi, '@import');
 
-  return { isValid: errors.length === 0, errors };
+  if (errors.length > 0) {
+    return { isValid: false, errors };
+  }
+
+  // Presence-only scan against THEME_CONTRACT. Reuses the already-decoded,
+  // comment-stripped `stripped` value — no re-decode, no re-strip.
+  const warnings = scanThemeContract(stripped);
+  return warnings.length > 0
+    ? { isValid: true, errors, warnings }
+    : { isValid: true, errors };
+};
+
+/**
+ * Walk `THEME_CONTRACT` and emit a warning for every token that does not
+ * appear as a CSS custom-property declaration anywhere in the (already-decoded,
+ * comment-stripped) input.
+ *
+ * Single-pass: one regex enumerates every `--foo:` declaration in the input,
+ * then the contract is checked via `Set.has()`. Beats per-token regex compile
+ * + scan for large CSS payloads.
+ *
+ * Strings (`"..."` / `'...'`) and url-token contents (`url(...)`) are blanked
+ * out before the scan — without that, `body { content: "--surface-1:" }`
+ * would suppress the `--surface-1` warning despite the token never being
+ * declared. Comment stripping happens upstream (`stripCssComments` runs
+ * before this), but strings stay intact there because the URL classifier
+ * needs to see them.
+ *
+ * Detection is presence-only: it does NOT parse selectors, so a theme that
+ * declares `--surface-1` at `:root` (rather than `body` / `body.isDarkTheme`)
+ * will pass even though it's mode-inconsistent. Selector-aware validation
+ * is a tracked follow-up.
+ */
+const DECLARATION_PATTERN = /(?:^|[^\w-])(--[\w-]+)\s*:/gm;
+
+export const scanThemeContract = (stripped: string): ThemeCssWarning[] => {
+  const scanView = blankStringAndUrlContents(stripped);
+  const declared = new Set<string>();
+  for (const m of scanView.matchAll(DECLARATION_PATTERN)) {
+    declared.add(m[1]);
+  }
+  const warnings: ThemeCssWarning[] = [];
+  for (const spec of THEME_CONTRACT) {
+    if (!declared.has(spec.name)) {
+      warnings.push({ token: spec.name });
+    }
+  }
+  return warnings;
+};
+
+/**
+ * Replace string-literal and url-token CONTENTS with spaces, leaving the
+ * delimiters (`"`, `'`, `url(`, `)`) and surrounding structure intact.
+ *
+ * Used by `scanThemeContract` to avoid matching `--token:` sequences that
+ * appear inside string values or unquoted url-token args. Length-preserving
+ * so any future error reporting can reuse source indices.
+ *
+ * Operates on already-decoded, comment-stripped CSS. Quotes that close the
+ * same kind that opened are honored; backslash-escaped chars inside strings
+ * are skipped so `"\""` stays a single string.
+ */
+const blankStringAndUrlContents = (css: string): string => {
+  const out: string[] = [];
+  let i = 0;
+  let inString: '"' | "'" | null = null;
+  let inUrl = false;
+  while (i < css.length) {
+    const ch = css[i];
+    if (inString) {
+      if (ch === '\\' && i + 1 < css.length) {
+        out.push('  ');
+        i += 2;
+        continue;
+      }
+      if (ch === inString) {
+        out.push(ch);
+        inString = null;
+      } else {
+        out.push(' ');
+      }
+      i++;
+      continue;
+    }
+    if (inUrl) {
+      if (ch === ')') {
+        out.push(ch);
+        inUrl = false;
+      } else if (ch === '"' || ch === "'") {
+        out.push(ch);
+        inUrl = false;
+        inString = ch;
+      } else {
+        out.push(' ');
+      }
+      i++;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      inString = ch;
+      out.push(ch);
+      i++;
+      continue;
+    }
+    if (
+      (ch === 'u' || ch === 'U') &&
+      i + 3 < css.length &&
+      (css[i + 1] === 'r' || css[i + 1] === 'R') &&
+      (css[i + 2] === 'l' || css[i + 2] === 'L') &&
+      css[i + 3] === '('
+    ) {
+      out.push(css.slice(i, i + 4));
+      i += 4;
+      inUrl = true;
+      continue;
+    }
+    out.push(ch);
+    i++;
+  }
+  return out.join('');
 };
 
 type StripCssResult = { ok: true; css: string } | { ok: false; error: string };

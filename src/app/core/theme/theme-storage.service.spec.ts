@@ -104,4 +104,18 @@ describe('ThemeStorageService', () => {
     expect(stored.id).toBe('my-awesome-theme');
     expect(stored.name).toBe('My Awesome Theme');
   });
+
+  it('round-trips contract warnings through the IDB record', async () => {
+    // CSS that's valid (no remote URLs) but missing required tokens — the
+    // validator should attach warnings and the storage layer should preserve
+    // them across the IDB round-trip.
+    const file = makeFile('spartan.css', ':root { --bg: #111; }');
+    const stored = await service.installFromFile(file);
+    expect(stored.warnings).toBeDefined();
+    expect(stored.warnings?.some((w) => w.token === '--surface-1')).toBe(true);
+
+    const fetched = await service.getTheme(stored.id);
+    expect(fetched?.warnings).toBeDefined();
+    expect(fetched?.warnings?.length).toBe(stored.warnings?.length);
+  });
 });

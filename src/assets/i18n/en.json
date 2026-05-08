@@ -2301,6 +2301,7 @@
       "THEME_EXPERIMENTAL": "Theme (experimental)",
       "THEME_INSTALL_BUTTON": "Install theme…",
       "THEME_INSTALL_TOOLTIP": "Upload a CSS theme file. Themes only change visuals — never run code — but they can still affect how your data is rendered. Only install themes from sources you trust.",
+      "THEME_INSTALLED_WITH_WARNINGS": "Theme installed. Missing tokens: {{tokens}}",
       "THEME_INVALID_CSS_FILE": "Could not install theme: invalid or unsafe CSS file.",
       "THEME_REMOVE_BUTTON": "Remove theme",
       "THEME_REMOVED_TOAST": "Theme removed; reverted to Default.",

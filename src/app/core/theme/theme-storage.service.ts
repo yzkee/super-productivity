@@ -2,6 +2,7 @@ import { Injectable, signal, Signal } from '@angular/core';
 import { DBSchema, IDBPDatabase, openDB } from 'idb';
 import { Log } from '../log';
 import { MAX_THEME_CSS_SIZE, validateThemeCss } from './validate-theme-css.util';
+import { ThemeCssWarning } from './theme-contract.const';
 
 /**
  * A user-installed CSS theme.
@@ -11,12 +12,17 @@ import { MAX_THEME_CSS_SIZE, validateThemeCss } from './validate-theme-css.util'
  *
  * `name` is the prettified id (title-cased). Authors who want a fancy
  * display name can rename the file before installing.
+ *
+ * `warnings` is a snapshot of the validator's contract-presence findings at
+ * install time — preserved across the IDB round-trip so the picker can
+ * surface them without re-running validation.
  */
 export interface StoredTheme {
   id: string;
   name: string;
   css: string;
   uploadDate: number;
+  warnings?: ThemeCssWarning[];
 }
 
 const DB_NAME = 'SUPThemes';
@@ -90,6 +96,9 @@ export class ThemeStorageService {
       name: prettifyId(id),
       css,
       uploadDate: Date.now(),
+      ...(validation.warnings && validation.warnings.length > 0
+        ? { warnings: validation.warnings }
+        : {}),
     };
 
     const db = await this._ensureDb();
