@@ -2389,6 +2389,38 @@ describe('OperationLogSyncService', () => {
       expect(result.kind).toBe('cancelled');
     });
 
+    it('should flush pending writes before checking incoming SYNC_IMPORT conflicts', async () => {
+      const incomingSyncImport = createIncomingSyncImport();
+      const events: string[] = [];
+
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [incomingSyncImport],
+        success: true,
+        failedFileCount: 0,
+        latestServerSeq: 42,
+      });
+      writeFlushServiceSpy.flushPendingWrites.and.callFake(async () => {
+        events.push('flush');
+      });
+      opLogStoreSpy.getUnsynced.and.callFake(async () => {
+        events.push('getUnsynced');
+        return [];
+      });
+
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      const result = await service.downloadRemoteOps(mockProvider);
+
+      expect(events.slice(0, 2)).toEqual(['flush', 'getUnsynced']);
+      expect(remoteOpsProcessingServiceSpy.processRemoteOps).toHaveBeenCalledWith([
+        incomingSyncImport,
+      ]);
+      expect(result.kind).toBe('ops_processed');
+    });
+
     it('should process incoming SYNC_IMPORT when pending ops are config-only', async () => {
       const incomingSyncImport = createIncomingSyncImport();
 
@@ -2555,6 +2587,38 @@ describe('OperationLogSyncService', () => {
       expect(remoteOpsProcessingServiceSpy.processRemoteOps).toHaveBeenCalledWith([
         piggybackedSyncImport,
       ]);
+      expect(result.kind).toBe('completed');
+    });
+
+    it('should not flush again before checking piggybacked SYNC_IMPORT conflicts', async () => {
+      const piggybackedSyncImport: Operation = {
+        id: 'import-1',
+        clientId: 'client-B',
+        actionType: ActionType.LOAD_ALL_DATA,
+        opType: OpType.SyncImport,
+        entityType: 'ALL',
+        payload: {},
+        vectorClock: { clientB: 5 },
+        timestamp: Date.now(),
+        schemaVersion: 1,
+      };
+
+      uploadServiceSpy.uploadPendingOps.and.resolveTo({
+        uploadedCount: 1,
+        piggybackedOps: [piggybackedSyncImport],
+        rejectedCount: 0,
+        rejectedOps: [],
+      });
+      opLogStoreSpy.getUnsynced.and.resolveTo([]);
+
+      const mockProvider = {
+        isReady: () => Promise.resolve(true),
+      } as any;
+
+      const result = await service.uploadPendingOps(mockProvider);
+
+      expect(writeFlushServiceSpy.flushPendingWrites).toHaveBeenCalledTimes(1);
+      expect(opLogStoreSpy.getUnsynced).toHaveBeenCalled();
       expect(result.kind).toBe('completed');
     });
 
