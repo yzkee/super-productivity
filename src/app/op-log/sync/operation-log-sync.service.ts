@@ -1,6 +1,5 @@
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { TranslateService } from '@ngx-translate/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { FULL_STATE_OP_TYPES } from '../core/operation.types';
 import { OpLog } from '../../core/log';
@@ -25,7 +24,6 @@ import {
   RejectionHandlingResult,
 } from './rejected-ops-handler.service';
 import { SyncHydrationService } from '../persistence/sync-hydration.service';
-import { SyncImportConflictDialogService } from './sync-import-conflict-dialog.service';
 import {
   SyncImportConflictData,
   SyncImportConflictResolution,
@@ -34,20 +32,9 @@ import { SyncImportConflictGateService } from './sync-import-conflict-gate.servi
 import { SyncProviderManager } from '../sync-providers/provider-manager.service';
 import { getDefaultMainModelData } from '../model/model-config';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
-import { StateSnapshotService } from '../backup/state-snapshot.service';
-import { INBOX_PROJECT } from '../../features/project/project.const';
-import { SYSTEM_TAG_IDS } from '../../features/tag/tag.const';
-import { confirmDialog } from '../../util/native-dialogs';
 import { compareVectorClocks, isVectorClockEmpty } from '../../core/util/vector-clock';
-
-/**
- * Type guard for NgRx entity state (has an `ids` array).
- */
-const isEntityState = (obj: unknown): obj is { ids: string[] } =>
-  typeof obj === 'object' &&
-  obj !== null &&
-  'ids' in obj &&
-  Array.isArray((obj as { ids: unknown }).ids);
+import { SyncLocalStateService } from './sync-local-state.service';
+import { SyncImportConflictCoordinatorService } from './sync-import-conflict-coordinator.service';
 
 /**
  * Orchestrates synchronization of the Operation Log with remote storage.
@@ -121,18 +108,17 @@ export class OperationLogSyncService {
   private uploadService = inject(OperationLogUploadService);
   private downloadService = inject(OperationLogDownloadService);
   private snackService = inject(SnackService);
-  private translateService = inject(TranslateService);
   private superSyncStatusService = inject(SuperSyncStatusService);
   private serverMigrationService = inject(ServerMigrationService);
   private writeFlushService = inject(OperationWriteFlushService);
-  private stateSnapshotService = inject(StateSnapshotService);
 
   // Extracted services
   private remoteOpsProcessingService = inject(RemoteOpsProcessingService);
   private rejectedOpsHandlerService = inject(RejectedOpsHandlerService);
   private syncHydrationService = inject(SyncHydrationService);
-  private syncImportConflictDialogService = inject(SyncImportConflictDialogService);
   private syncImportConflictGateService = inject(SyncImportConflictGateService);
+  private syncLocalStateService = inject(SyncLocalStateService);
+  private syncImportConflictCoordinator = inject(SyncImportConflictCoordinatorService);
   private providerManager = inject(SyncProviderManager);
 
   /**
@@ -143,56 +129,7 @@ export class OperationLogSyncService {
    * @returns true if this is a fresh client with no history
    */
   async isWhollyFreshClient(): Promise<boolean> {
-    const snapshot = await this.opLogStore.loadStateCache();
-    const lastSeq = await this.opLogStore.getLastSeq();
-
-    // Fresh client: no snapshot AND no operations in the log
-    return !snapshot && lastSeq === 0;
-  }
-
-  /**
-   * Checks if the NgRx store has meaningful user data (tasks, projects, tags, notes).
-   * This detects data that existed before the operation-log feature was added.
-   *
-   * @returns true if user has created any tasks, projects (besides INBOX), tags (besides system tags), or notes
-   */
-  private _hasMeaningfulStoreData(): boolean {
-    const snapshot = this.stateSnapshotService.getStateSnapshot();
-
-    if (!snapshot) {
-      OpLog.warn(
-        'OperationLogSyncService._hasMeaningfulStoreData: Unable to get state snapshot',
-      );
-      return false; // Assume no data rather than blocking sync
-    }
-
-    // Check for tasks (any tasks = meaningful data)
-    if (isEntityState(snapshot.task) && snapshot.task.ids.length > 0) {
-      return true;
-    }
-
-    // Check for projects (beyond the default INBOX project)
-    if (
-      isEntityState(snapshot.project) &&
-      snapshot.project.ids.some((id) => id !== INBOX_PROJECT.id)
-    ) {
-      return true;
-    }
-
-    // Check for tags (beyond system tags like TODAY, URGENT, IMPORTANT, IN_PROGRESS)
-    if (
-      isEntityState(snapshot.tag) &&
-      snapshot.tag.ids.some((id) => !SYSTEM_TAG_IDS.has(id))
-    ) {
-      return true;
-    }
-
-    // Check for notes
-    if (isEntityState(snapshot.note) && snapshot.note.ids.length > 0) {
-      return true;
-    }
-
-    return false;
+    return this.syncLocalStateService.isWhollyFreshClient();
   }
 
   /**
@@ -502,7 +439,7 @@ export class OperationLogSyncService {
         // store is full of real data that would be overwritten by old Dropbox state.
         const hasMeaningfulUserData =
           this.syncImportConflictGateService.hasMeaningfulPendingOps(unsyncedOps) ||
-          this._hasMeaningfulStoreData();
+          this.syncLocalStateService.hasMeaningfulStoreData();
 
         if (hasMeaningfulUserData) {
           // Client has meaningful user data - show conflict dialog
@@ -532,7 +469,7 @@ export class OperationLogSyncService {
 
         // CRITICAL FIX: Even if op-log is empty, check if NgRx store has meaningful data.
         // This catches data that existed before the operation-log feature was added.
-        if (isFreshClient && this._hasMeaningfulStoreData()) {
+        if (isFreshClient && this.syncLocalStateService.hasMeaningfulStoreData()) {
           OpLog.warn(
             'OperationLogSyncService: Fresh client detected with meaningful local data in store. ' +
               'Throwing LocalDataConflictError for conflict resolution dialog.',
@@ -551,7 +488,7 @@ export class OperationLogSyncService {
             'OperationLogSyncService: Fresh client detected. Requesting confirmation before accepting snapshot.',
           );
 
-          const confirmed = this._showFreshClientSyncConfirmation(1); // Show as "1 snapshot"
+          const confirmed = this.syncLocalStateService.confirmFreshClientSync(1); // Show as "1 snapshot"
           if (!confirmed) {
             OpLog.normal(
               'OperationLogSyncService: User cancelled fresh client sync. Snapshot not applied.',
@@ -621,7 +558,7 @@ export class OperationLogSyncService {
       const isEmptyServer = result.latestServerSeq === 0;
       if (isEmptyServer) {
         const isFresh = await this.isWhollyFreshClient();
-        if (isFresh && this._hasMeaningfulStoreData()) {
+        if (isFresh && this.syncLocalStateService.hasMeaningfulStoreData()) {
           OpLog.warn(
             'OperationLogSyncService: Pre-op-log client with meaningful local data on empty server. ' +
               'Creating SYNC_IMPORT via server migration to seed the server.',
@@ -656,7 +593,7 @@ export class OperationLogSyncService {
     // check if there's meaningful local data that would be overwritten.
     const isFreshClient = await this.isWhollyFreshClient();
     if (isFreshClient && result.newOps.length > 0) {
-      if (this._hasMeaningfulStoreData()) {
+      if (this.syncLocalStateService.hasMeaningfulStoreData()) {
         // Local data exists — throw conflict error so the full conflict dialog is shown,
         // letting the user choose between keeping local data or using remote data.
         OpLog.warn(
@@ -669,7 +606,9 @@ export class OperationLogSyncService {
         `OperationLogSyncService: Fresh client detected. Requesting confirmation before accepting ${result.newOps.length} remote ops.`,
       );
 
-      const confirmed = this._showFreshClientSyncConfirmation(result.newOps.length);
+      const confirmed = this.syncLocalStateService.confirmFreshClientSync(
+        result.newOps.length,
+      );
       if (!confirmed) {
         OpLog.normal(
           'OperationLogSyncService: User cancelled fresh client sync. Remote data not applied.',
@@ -840,42 +779,14 @@ export class OperationLogSyncService {
     dialogData: SyncImportConflictData,
     logPrefix: string,
   ): Promise<SyncImportConflictResolution> {
-    const resolution =
-      await this.syncImportConflictDialogService.showConflictDialog(dialogData);
-
-    switch (resolution) {
-      case 'USE_LOCAL':
-        OpLog.normal(`${logPrefix}: User chose USE_LOCAL. Force uploading local state.`);
-        await this.forceUploadLocalState(syncProvider);
-        return 'USE_LOCAL';
-      case 'USE_REMOTE':
-        OpLog.normal(
-          `${logPrefix}: User chose USE_REMOTE. Force downloading remote state.`,
-        );
-        // Validation failure (if any) is on the session-validation latch.
-        await this.forceDownloadRemoteState(syncProvider);
-        return 'USE_REMOTE';
-      case 'CANCEL':
-      default:
-        OpLog.normal(`${logPrefix}: User cancelled SYNC_IMPORT conflict resolution.`);
-        return 'CANCEL';
-    }
-  }
-
-  /**
-   * Shows a confirmation dialog for fresh client sync.
-   * Uses synchronous window.confirm() to prevent race conditions where
-   * pending operations could be added during an async dialog.
-   */
-  private _showFreshClientSyncConfirmation(opCount: number): boolean {
-    const title = this.translateService.instant(T.F.SYNC.D_FRESH_CLIENT_CONFIRM.TITLE);
-    const message = this.translateService.instant(
-      T.F.SYNC.D_FRESH_CLIENT_CONFIRM.MESSAGE,
+    return this.syncImportConflictCoordinator.handleSyncImportConflict(
+      dialogData,
+      logPrefix,
       {
-        count: opCount,
+        useLocal: () => this.forceUploadLocalState(syncProvider),
+        useRemote: () => this.forceDownloadRemoteState(syncProvider),
       },
     );
-    return confirmDialog(`${title}\n\n${message}`);
   }
 
   /**
@@ -888,33 +799,7 @@ export class OperationLogSyncService {
    * @param syncProvider - The sync provider to upload to
    */
   async forceUploadLocalState(syncProvider: OperationSyncCapable): Promise<void> {
-    OpLog.warn(
-      'OperationLogSyncService: Force uploading local state - creating SYNC_IMPORT to override remote.',
-    );
-
-    // Create SYNC_IMPORT with current local state
-    // Pass skipServerEmptyCheck=true because we're forcing upload even if server has data
-    await this.serverMigrationService.handleServerMigration(syncProvider, {
-      skipServerEmptyCheck: true,
-      syncImportReason: 'FORCE_UPLOAD',
-    });
-
-    // Upload the SYNC_IMPORT (and any pending ops)
-    // Skip piggybacked ops processing and server migration check because:
-    // 1. SYNC_IMPORT supersedes all previous ops anyway
-    // 2. Piggybacked ops may be encrypted with a different key (e.g., after password change)
-    //    which would cause DecryptError
-    // 3. Server migration check downloads ops which would fail with DecryptError if password changed
-    //
-    // Use isCleanSlate=true to ensure server deletes ALL existing data before accepting
-    // the new SYNC_IMPORT. This is critical for recovery scenarios like decrypt errors
-    // where the server may have data encrypted with a different password.
-    await this.uploadService.uploadPendingOps(syncProvider, {
-      skipPiggybackProcessing: true,
-      isCleanSlate: true,
-    });
-
-    OpLog.normal('OperationLogSyncService: Force upload complete.');
+    await this.syncImportConflictCoordinator.forceUploadLocalState(syncProvider);
   }
 
   /**
