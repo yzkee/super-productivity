@@ -439,7 +439,7 @@ export class OperationLogSyncService {
     // When downloading from seq 0 on file-based providers (Dropbox, WebDAV, LocalFile),
     // we receive the complete application state in snapshotState. This must be hydrated
     // directly instead of processing incremental ops (which are already reflected in the state).
-    if (result.snapshotState) {
+    if (result.providerMode === 'fileSnapshotOps' && result.snapshotState) {
       // Issue #7339: a file-based snapshot whose vector clock is dominated by the
       // local clock contains nothing the local client doesn't already have. Hydrating
       // would discard local-only ops and a conflict dialog has nothing to resolve.
@@ -955,6 +955,13 @@ export class OperationLogSyncService {
       forceFromSeq0: true,
     });
 
+    if (!result.success) {
+      throw new Error(
+        'Download failed - partial or no data received. ' +
+          `failedFileCount=${result.failedFileCount}`,
+      );
+    }
+
     // Reset the vector clock to the remote snapshot's clock.
     // This removes entries from rejected local ops that would otherwise
     // pollute the causal history and cause incorrect conflict detection.
@@ -969,7 +976,7 @@ export class OperationLogSyncService {
     // When downloading from seq 0 on file-based providers, we may receive a
     // snapshotState instead of incremental ops. This happens when the remote
     // has a SYNC_IMPORT (full state snapshot) with empty recentOps.
-    if (result.snapshotState) {
+    if (result.providerMode === 'fileSnapshotOps' && result.snapshotState) {
       OpLog.normal(
         'OperationLogSyncService: Force download received snapshotState. Hydrating...',
       );
