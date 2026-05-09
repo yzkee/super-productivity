@@ -496,6 +496,7 @@ body.isDarkTheme {
 // per mode (inverted, mode-only) or collapsing to a primitive would drift
 // values past the screenshot-acceptance bar. See migration table for each.
 
+/* stylelint-disable-next-line no-duplicate-selectors -- layered token file: Cat B follows Layer 1 primitives on the same selector */
 body {
   // Background colors (Cat B)
   --bg-drag-col: rgb(242, 242, 242);
@@ -577,6 +578,7 @@ body {
   --sun-yellow: #ffc107;
 }
 
+/* stylelint-disable-next-line no-duplicate-selectors -- layered token file: Cat B follows Layer 1 primitives on the same selector */
 body.isDarkTheme {
   // Background colors (Cat B)
   --bg-slightly-lighter: var(--dark4);

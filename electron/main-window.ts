@@ -102,8 +102,14 @@ export const createWindow = async ({
   const isUseCustomWindowTitleBar = IS_GNOME_DESKTOP
     ? false
     : userPrefersCustomWindowTitleBar;
-  const titleBarStyle: BrowserWindowConstructorOptions['titleBarStyle'] =
-    isUseCustomWindowTitleBar || IS_MAC ? 'hidden' : 'default';
+  // On macOS use 'hiddenInset' so AppKit positions the traffic lights at the
+  // standard inset other native apps use (Notes, Mail, VS Code) instead of
+  // crowding the top-left corner. Other platforms keep the existing logic.
+  const titleBarStyle: BrowserWindowConstructorOptions['titleBarStyle'] = IS_MAC
+    ? 'hiddenInset'
+    : isUseCustomWindowTitleBar
+      ? 'hidden'
+      : 'default';
   // Determine initial symbol color based on system theme preference
   const initialSymbolColor = nativeTheme.shouldUseDarkColors ? '#fff' : '#000';
   const titleBarOverlay: BrowserWindowConstructorOptions['titleBarOverlay'] =
