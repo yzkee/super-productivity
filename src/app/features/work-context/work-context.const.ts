@@ -16,6 +16,8 @@ export const WORKLOG_EXPORT_DEFAULTS: WorklogExportSettings = {
 export const DEFAULT_PROJECT_COLOR = '#29a1aa';
 export const DEFAULT_TAG_COLOR = '#a05db1';
 export const DEFAULT_TODAY_TAG_COLOR = '#6495ED';
+export const DEFAULT_BACKGROUND_IMAGE_BLUR = 0;
+export const MAX_BACKGROUND_IMAGE_BLUR = 20;
 
 export const WORK_CONTEXT_DEFAULT_THEME: WorkContextThemeCfg = {
   isAutoContrast: true,
@@ -30,6 +32,7 @@ export const WORK_CONTEXT_DEFAULT_THEME: WorkContextThemeCfg = {
   backgroundImageDark: null,
   backgroundImageLight: null,
   backgroundOverlayOpacity: 20,
+  backgroundImageBlur: DEFAULT_BACKGROUND_IMAGE_BLUR,
 };
 
 export const WORK_CONTEXT_DEFAULT_COMMON: WorkContextCommon = {
@@ -72,6 +75,17 @@ export const hasAllBackgroundImages = (model: unknown): boolean =>
   model !== null &&
   _isBackgroundImageSet((model as WorkContextThemeCfg).backgroundImageDark) &&
   _isBackgroundImageSet((model as WorkContextThemeCfg).backgroundImageLight);
+
+export const normalizeBackgroundImageBlur = (value: unknown): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_BACKGROUND_IMAGE_BLUR;
+  }
+
+  return Math.min(
+    MAX_BACKGROUND_IMAGE_BLUR,
+    Math.max(DEFAULT_BACKGROUND_IMAGE_BLUR, value),
+  );
+};
 
 export const WORK_CONTEXT_THEME_CONFIG_FORM_CONFIG: ConfigFormSection<WorkContextThemeCfg> =
   {
@@ -183,6 +197,24 @@ export const WORK_CONTEXT_THEME_CONFIG_FORM_CONFIG: ConfigFormSection<WorkContex
           max: 99,
           required: false,
           displayWith: (value: number): string => `${value}%`,
+        },
+        expressions: {
+          hide: (field: FormlyFieldConfig): boolean => {
+            return !hasAnyBackgroundImage(field.model);
+          },
+        },
+      },
+      {
+        key: 'backgroundImageBlur',
+        type: 'slider',
+        props: {
+          label: T.F.PROJECT.FORM_THEME.L_BACKGROUND_IMAGE_BLUR,
+          description: T.F.PROJECT.FORM_THEME.D_BACKGROUND_IMAGE_BLUR,
+          type: 'number',
+          min: 0,
+          max: MAX_BACKGROUND_IMAGE_BLUR,
+          required: false,
+          displayWith: (value: number): string => `${value}px`,
         },
         expressions: {
           hide: (field: FormlyFieldConfig): boolean => {

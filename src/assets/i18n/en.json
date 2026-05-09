@@ -892,8 +892,10 @@
         "TITLE": "Basic Settings"
       },
       "FORM_THEME": {
+        "D_BACKGROUND_IMAGE_BLUR": "Adjust this value to blur the background image. The default is 0px.",
         "D_BACKGROUND_OVERLAY_OPACITY": "Adjust this value to make the background more or less transparent. The default is 20%.",
         "HELP": "Theme settings for your project.",
+        "L_BACKGROUND_IMAGE_BLUR": "Blur background image",
         "L_BACKGROUND_IMAGE_DARK": "Background Image URL (Dark Theme)",
         "L_BACKGROUND_IMAGE_LIGHT": "Background Image URL (Light Theme)",
         "L_BACKGROUND_OVERLAY_OPACITY": "Darken/lighten background image for better contrast",
