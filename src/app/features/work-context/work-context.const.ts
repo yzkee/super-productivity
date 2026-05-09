@@ -58,6 +58,21 @@ export const HUES = [
   { value: '900', label: '900' },
 ];
 
+const _isBackgroundImageSet = (value: unknown): boolean =>
+  typeof value === 'string' && value.trim().length > 0;
+
+export const hasAnyBackgroundImage = (model: unknown): boolean =>
+  typeof model === 'object' &&
+  model !== null &&
+  (_isBackgroundImageSet((model as WorkContextThemeCfg).backgroundImageDark) ||
+    _isBackgroundImageSet((model as WorkContextThemeCfg).backgroundImageLight));
+
+export const hasAllBackgroundImages = (model: unknown): boolean =>
+  typeof model === 'object' &&
+  model !== null &&
+  _isBackgroundImageSet((model as WorkContextThemeCfg).backgroundImageDark) &&
+  _isBackgroundImageSet((model as WorkContextThemeCfg).backgroundImageLight);
+
 export const WORK_CONTEXT_THEME_CONFIG_FORM_CONFIG: ConfigFormSection<WorkContextThemeCfg> =
   {
     title: T.F.PROJECT.FORM_THEME.TITLE,
@@ -135,8 +150,7 @@ export const WORK_CONTEXT_THEME_CONFIG_FORM_CONFIG: ConfigFormSection<WorkContex
         key: 'isDisableBackgroundTint',
         type: 'checkbox',
         expressions: {
-          hide: (fCfg: FormlyFieldConfig) =>
-            fCfg.model.backgroundImageDark || fCfg.model.backgroundImageLight,
+          hide: (fCfg: FormlyFieldConfig) => hasAllBackgroundImages(fCfg.model),
         },
         templateOptions: {
           label: T.F.PROJECT.FORM_THEME.L_IS_DISABLE_BACKGROUND_TINT,
@@ -172,12 +186,7 @@ export const WORK_CONTEXT_THEME_CONFIG_FORM_CONFIG: ConfigFormSection<WorkContex
         },
         expressions: {
           hide: (field: FormlyFieldConfig): boolean => {
-            const isDarkTheme = document.body.classList.contains('isDarkTheme');
-            // hide the setting if the active theme has no background image.
-            // avoids unnecessary rendering when changing opacity would have no effect.
-            return isDarkTheme
-              ? !field.model.backgroundImageDark
-              : !field.model.backgroundImageLight;
+            return !hasAnyBackgroundImage(field.model);
           },
         },
       },
