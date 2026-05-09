@@ -40,11 +40,17 @@
   --lg-radius-md: var(--radius-xl);
   --lg-radius-lg: 22px;
 
-  /* Tier A blur — subtle vibrancy with mild saturate so the
+  /* Tier A blur — subtle vibrancy with mild saturation so the
    * wallpaper color picks up through cards and tasks. */
   --lg-blur-vibrancy: 18px;
   --lg-saturate-vibrancy: 140%;
-  /* Tier B blur — full Liquid Glass material */
+  /* Sidebar sits between window glass and overlay chrome. It should
+   * feel translucent, but not as liquid or loud as dialogs/menus. */
+  --lg-blur-sidebar: 30px;
+  --lg-saturate-sidebar: 150%;
+  --lg-blur-mobile-nav: 34px;
+  --lg-saturate-mobile-nav: 150%;
+  /* Tier B blur — full Liquid Glass material for overlays/chrome. */
   --lg-blur-chrome: 24px;
   --lg-blur-overlay: 50px;
   --lg-saturate: 180%;
@@ -73,6 +79,7 @@ body {
   --surface-2: #ffffff;
   --surface-3: #ffffff;
   --surface-4: #ffffff;
+  --lg-solid-utility-bg: var(--surface-2);
   --ink-strong: rgb(0, 0, 0);
   --ink: rgb(28, 28, 30);
   --ink-muted: rgba(60, 60, 67, 0.62);
@@ -153,7 +160,7 @@ body {
   --task-c-current-bg: color-mix(
     in srgb,
     var(--palette-primary-500) 18%,
-    var(--surface-2)
+    var(--lg-solid-utility-bg)
   );
   --task-c-drag-drop-bg: rgba(0, 122, 255, 0.14);
   --sub-task-c-bg-in-selected: rgba(255, 255, 255, 0.78);
@@ -187,8 +194,15 @@ body {
     inset 1px 1px 1px 0 rgba(255, 255, 255, 0.32),
     inset -1px -1px 1px 0 rgba(255, 255, 255, 0.18);
 
+  /* Quieter row rim for repeated surfaces like task lists. Full
+   * dual-corner highlights on every row read busy; selected/current
+   * rows and larger cards keep the stronger --lg-rim-dual treatment. */
+  --lg-rim-quiet:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.24), inset 0 -0.5px 0 rgba(0, 0, 0, 0.04);
+
   /* Tier B fill — heavily translucent, the wallpaper shows through */
   --lg-overlay-bg: rgba(255, 255, 255, 0.36);
+  --lg-mobile-nav-bg: rgba(255, 255, 255, 0.5);
   --lg-overlay-rim: rgba(255, 255, 255, 0.7);
 
   /* Don't overwrite --palette-accent-500 / --c-accent — the user picks
@@ -202,12 +216,9 @@ body {
   --c-warning: #ff9f0a;
   --c-error: #ff3b30;
 
-  /* All glass surfaces use the dual inset rim (CodePen technique).
-   * This replaces both the diagonal ::after gradient AND the
-   * single top-shine inset — bright at top-left and bottom-right
-   * gives a pillowy wet-glass feel without the dark-bottom
-   * stripe that conflicted with hairlines. */
-  --task-shadow: var(--lg-rim-dual), 0 1px 3px rgba(60, 60, 67, 0.06);
+  /* Repeated rows stay quiet; selected/current rows and larger cards
+   * use the stronger dual inset rim so elevation still has hierarchy. */
+  --task-shadow: var(--lg-rim-quiet), 0 1px 2px rgba(60, 60, 67, 0.05);
   /* Sub-tasks sit on the parent task's surface, not the wallpaper,
    * so they don't need a rim / hairline of their own — the parent
    * already carries the perimeter. The slight --sub-task-c-bg alpha
@@ -258,6 +269,7 @@ body.isDarkTheme {
   --surface-2: #1a1c22;
   --surface-3: #242831;
   --surface-4: #2c303a;
+  --lg-solid-utility-bg: var(--surface-3);
   --ink-strong: rgb(255, 255, 255);
   --ink: rgb(245, 245, 247);
   --ink-muted: rgba(235, 235, 245, 0.55);
@@ -309,25 +321,23 @@ body.isDarkTheme {
   --text-color-more-intense: rgba(255, 255, 255, 1);
   --text-color-most-intense: rgba(255, 255, 255, 1);
 
-  /* Dark mode bumps tasks / sub-tasks to full opacity. White-on-deep
-   * surfaces lose contrast fast under translucency — solid fills give
-   * planner-tasks and the task list a firm boundary against the
-   * wallpaper, while keeping the soft glass material on cards / nav. */
-  --task-c-bg: rgb(32, 34, 42);
-  --task-c-selected-bg: rgb(72, 78, 94);
-  --selected-task-bg-color: rgb(72, 78, 94);
-  --sub-task-c-bg: rgb(26, 28, 34);
-  --sub-task-c-bg-done: rgb(20, 22, 28);
-  --task-c-bg-done: rgb(22, 24, 30);
+  /* Dark task rows keep a high-alpha fill: enough translucency to
+   * avoid slabby blocks, but still readable over wallpaper/content. */
+  --task-c-bg: rgba(32, 34, 42, 0.94);
+  --task-c-selected-bg: rgba(72, 78, 94, 0.96);
+  --selected-task-bg-color: rgba(72, 78, 94, 0.96);
+  --sub-task-c-bg: rgba(26, 28, 34, 0.92);
+  --sub-task-c-bg-done: rgba(20, 22, 28, 0.88);
+  --task-c-bg-done: rgba(22, 24, 30, 0.9);
   /* See light-mode rationale — sticky current task needs an opaque
    * fill so scrolling tasks underneath don't bleed through. */
   --task-c-current-bg: color-mix(
     in srgb,
     var(--palette-primary-500) 28%,
-    var(--surface-2)
+    var(--lg-solid-utility-bg)
   );
   --task-c-drag-drop-bg: rgba(10, 132, 255, 0.16);
-  --sub-task-c-bg-in-selected: rgb(56, 58, 68);
+  --sub-task-c-bg-in-selected: rgba(56, 58, 68, 0.94);
   --task-detail-bg: rgb(40, 42, 50);
   --task-detail-bg-hover: rgb(60, 62, 70);
 
@@ -357,7 +367,11 @@ body.isDarkTheme {
     inset 1px 1px 1px 0 rgba(255, 255, 255, 0.1),
     inset -1px -1px 1px 0 rgba(255, 255, 255, 0.04);
 
+  --lg-rim-quiet:
+    inset 0 0.5px 0 rgba(255, 255, 255, 0.06), inset 0 -0.5px 0 rgba(0, 0, 0, 0.24);
+
   --lg-overlay-bg: rgba(40, 42, 50, 0.42);
+  --lg-mobile-nav-bg: rgba(40, 42, 50, 0.56);
   --lg-overlay-rim: rgba(255, 255, 255, 0.32);
 
   /* See light-mode rationale — accent stays from the user's picker. */
@@ -372,7 +386,7 @@ body.isDarkTheme {
    * for boundary definition. Skipped on --task-current-shadow,
    * which already carries a blue 0.5px ring. */
   --task-shadow:
-    var(--lg-rim-dual), 0 1px 3px rgba(0, 0, 0, 0.32),
+    var(--lg-rim-quiet), 0 1px 2px rgba(0, 0, 0, 0.28),
     0 0 0 0.5px rgba(255, 255, 255, 0.05);
   /* See light-mode rationale: sub-tasks inherit the parent's
    * perimeter and don't need their own edge treatment. */
@@ -432,76 +446,48 @@ body::before {
 /* ---------------------------------------------------------
  * User-selected wallpaper (.bg-image)
  *
- * Without these overrides the theme has two seams when a
- * wallpaper is set:
- *  1. `.main-content`'s backdrop-filter only covers the area
- *     right of the floating side nav, so the wallpaper shows
- *     sharp in the 8px margin strip around the sidenav and
- *     appears unblurred behind the nav itself.
- *  2. `.bg-overlay` is a flat white/black scrim layered above
- *     `.bg-image` and below the app — it adds a milky wash that
- *     fights the translucent glass surfaces.
+ * `.bg-overlay` is a flat white/black scrim layered above
+ * `.bg-image` and below the app. It adds a milky wash that fights
+ * the translucent glass surfaces, so Liquid Glass neutralizes it.
  *
- * Fix:
- *  - Blur `.bg-image` directly so every region of the screen
- *    sees the wallpaper out of focus (no seam at the sidenav).
- *  - Neutralize `.bg-overlay` — translucent glass surfaces
- *    already provide enough contrast over the blurred wallpaper.
+ * Wallpaper blur is controlled by the user background image blur
+ * setting, not by this theme.
  * --------------------------------------------------------- */
-
-body.hasBgImage .bg-image {
-  filter: blur(24px) saturate(1.2);
-  /* Blur softens the edges, leaving a transparent halo at the
-   * viewport edge — scale up slightly so the blurred image still
-   * covers edge to edge. */
-  transform: scale(1.06);
-}
 
 body.hasBgImage .bg-overlay {
   display: none !important;
 }
 
-/* The source-blur on `.bg-image` is now the ONE blur for the
- * whole page. Drop the per-region `backdrop-filter`s on the
- * main content and side nav so we don't re-blur the already
- * blurred wallpaper at different strengths (18px on
- * `.main-content`, 50px on the nav) — that mismatch produced
- * a visible seam where the two regions met. */
-body.hasBgImage .main-content,
-body.hasBgImage magic-side-nav .nav-sidenav,
-body.hasBgImage side-nav,
-body.hasBgImage better-drawer-container .side {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
 /* Schedule weekday / week-column headers — bind to a solid surface
  * so the axis label band reads as a firm divider, not as glass.
- * Defaults: `.week-header` uses --bg-lighter (still translucent in
- * this theme) and `.weekday-header` uses --bg (transparent) — both
- * left the headers see-through against the wallpaper / scroll
- * content. `:not(.isInPanel)` preserves the deliberate transparent
- * style the panel-embedded variant uses. */
-.week-header:not(.isInPanel),
+ * Scope `.week-header` to schedule-week: worklog uses the same class
+ * for plain "Week N" headings and should remain unboxed. */
+schedule-week .week-header:not(.isInPanel),
 .weekday-header {
-  background: var(--surface-2) !important;
+  background: var(--lg-solid-utility-bg) !important;
+}
+
+worklog .week-header {
+  background: transparent !important;
+}
+
+/* The add-task bar is an input command surface, not decorative glass.
+ * Keep it solid so typed text and suggestions don't float over busy
+ * wallpaper/content. */
+add-task-bar .add-task-container,
+.mat-mdc-autocomplete-panel.add-task-bar-panel {
+  background-color: var(--lg-solid-utility-bg) !important;
 }
 
 /* Task time-badge / repeat-date-badge sits as a small pill on top
  * of the schedule / alarm icon. Defaults bind it to --card-bg
  * (light) / --bg-lighter (dark), both translucent in this theme —
  * so the icon underneath was bleeding through. Pin to a solid
- * surface in both modes. Surface-4 in dark sits slightly brighter
- * than the task fill so the badge reads as a raised label rather
+ * utility surface so the badge reads as a raised label rather
  * than a recessed hole. */
 .time-badge,
 .repeat-date-badge {
-  background: var(--surface-2) !important;
-}
-
-body.isDarkTheme .time-badge,
-body.isDarkTheme .repeat-date-badge {
-  background: var(--surface-4) !important;
+  background: var(--lg-solid-utility-bg) !important;
 }
 
 /* Respect the "disable colored background tint" setting —
@@ -597,12 +583,12 @@ body.isDisableBackgroundTint.isDarkTheme {
 }
 
 /* ---------------------------------------------------------
- * Side nav as Tier B floating glass.
+ * Side nav as floating glass.
  *
- * Apple's Tahoe sidebar is heavily translucent (you can
- * clearly see the wallpaper through it). Plus we float it
- * inward from the screen edges to give the all-corners-rounded,
- * elevated context-menu look the user wanted.
+ * Apple's Tahoe sidebar is translucent, but calmer than menus
+ * and dialogs. We float it inward from the screen edges to give
+ * the all-corners-rounded, elevated context-menu look the user
+ * wanted.
  * --------------------------------------------------------- */
 
 /* Filter on the inner .nav-sidenav, not the host. Host
@@ -612,8 +598,9 @@ body.isDisableBackgroundTint.isDarkTheme {
 magic-side-nav .nav-sidenav,
 side-nav,
 better-drawer-container .side {
-  backdrop-filter: blur(var(--lg-blur-overlay)) saturate(var(--lg-saturate));
-  -webkit-backdrop-filter: blur(var(--lg-blur-overlay)) saturate(var(--lg-saturate));
+  backdrop-filter: blur(var(--lg-blur-sidebar)) saturate(var(--lg-saturate-sidebar));
+  -webkit-backdrop-filter: blur(var(--lg-blur-sidebar))
+    saturate(var(--lg-saturate-sidebar));
 }
 
 /* Hide the scrollbar entirely on the sidenav.
@@ -704,11 +691,11 @@ body.isMac.isElectron magic-side-nav .nav-list {
 }
 
 /* ---------------------------------------------------------
- * Mobile bottom nav — Tier B floating glass, iOS-style.
+ * Mobile bottom nav — calm floating glass, iOS-style.
  *
  * Floats inset from screen edges with rounded corners,
- * heavy translucency, and a bright rim. Sits above the
- * home indicator via safe-area-aware bottom inset. */
+ * medium translucency, and a bright rim. It is persistent
+ * navigation, so keep it quieter than dialogs/menus. */
 
 .mobile-bottom-nav {
   left: 8px !important;
@@ -716,9 +703,10 @@ body.isMac.isElectron magic-side-nav .nav-list {
   bottom: max(8px, env(safe-area-inset-bottom)) !important;
   border-top: none !important;
   border-radius: var(--lg-radius-lg);
-  background: var(--lg-overlay-bg) !important;
-  backdrop-filter: blur(var(--lg-blur-overlay)) saturate(var(--lg-saturate));
-  -webkit-backdrop-filter: blur(var(--lg-blur-overlay)) saturate(var(--lg-saturate));
+  background: var(--lg-mobile-nav-bg) !important;
+  backdrop-filter: blur(var(--lg-blur-mobile-nav)) saturate(var(--lg-saturate-mobile-nav));
+  -webkit-backdrop-filter: blur(var(--lg-blur-mobile-nav))
+    saturate(var(--lg-saturate-mobile-nav));
   box-shadow:
     inset 0 1.5px 0 var(--lg-overlay-rim),
     inset 0 -1px 0 var(--lg-rim-bottom),
@@ -779,7 +767,6 @@ body.isDarkTheme .bottom-panel-sheet .mat-bottom-sheet-container {
  * pure blur. Opening a dialog/sheet/menu blurs the app
  * behind it without dimming or tinting. */
 
-.backdrop,
 .nav-backdrop-mobile,
 .cdk-overlay-backdrop,
 .cdk-overlay-dark-backdrop,
@@ -788,6 +775,18 @@ body.isDarkTheme .bottom-panel-sheet .mat-bottom-sheet-container {
   background-color: transparent !important;
   backdrop-filter: blur(10px) saturate(120%);
   -webkit-backdrop-filter: blur(10px) saturate(120%);
+}
+
+/* Global add-task bar backdrop — command palette feel. Keep only
+ * a small focus blur so the solid input remains the clear focal point. */
+add-task-bar.global + .backdrop {
+  background-color: rgba(0, 0, 0, 0.03) !important;
+  backdrop-filter: blur(3px) saturate(105%);
+  -webkit-backdrop-filter: blur(3px) saturate(105%);
+}
+
+body.isDarkTheme add-task-bar.global + .backdrop {
+  background-color: rgba(0, 0, 0, 0.12) !important;
 }
 
 /* ---------------------------------------------------------
@@ -840,16 +839,17 @@ task .box {
   border-radius: var(--lg-radius-md);
 }
 
-/* Glass surfaces get their dual inset rim via the
- * --task-shadow / --card-shadow / --banner-shadow tokens
- * (see :root and body.isDarkTheme above). The diagonal
- * gradient ::after is not used anymore — it created a dark
- * bottom-right stripe that conflicted with hairlines. */
+/* Larger/elevated glass surfaces get their dual inset rim via
+ * --card-shadow / --banner-shadow / selected-current task tokens
+ * (see :root and body.isDarkTheme above). Normal task rows use
+ * --lg-rim-quiet through --task-shadow to keep dense lists calm.
+ * The diagonal gradient ::after is not used anymore — it created
+ * a dark bottom-right stripe that conflicted with hairlines. */
 
 /* Notes and schedule events don't go through our shadow
  * tokens (note uses --whiteframe-shadow-3dp, schedule-event
- * uses --whiteframe-shadow-6dp). Apply the dual rim directly
- * via box-shadow. */
+ * uses --whiteframe-shadow-6dp). Apply the quieter row shadow
+ * directly so dense content stays calm. */
 note,
 schedule-event {
   box-shadow: var(--task-shadow) !important;
@@ -877,17 +877,25 @@ task.isCurrent.isCurrent .box {
   background: var(--task-c-current-bg) !important;
 }
 
-/* Drag state — opaque surface. The default --bg-lighter /
+/* Drag state — opaque utility surface. The default --bg-lighter /
  * --bg-lightest tokens that the task component and CDK overlay
  * use are translucent in this theme, so a dragged card reads as
- * see-through against the wallpaper. Lift to --surface-2 (the
- * solid card primitive) so the in-flight state looks like a real
- * lifted card. Covers the floating preview clone, the source
- * task, and the corresponding planner/schedule equivalents. */
+ * see-through against the wallpaper. Covers the floating preview
+ * clone, the source task, and the planner/schedule equivalents. */
 .cdk-drag-preview,
 task.isDragReady:not(.cdk-drag-placeholder),
 planner-task.isDragReady:not(.cdk-drag-placeholder) {
-  background: var(--surface-2) !important;
+  background: var(--lg-solid-utility-bg) !important;
+}
+
+/* Smooth material state changes. The base task styles only animate
+ * transform + shadow, so selected/current fills snap between glass
+ * recipes. Keep selected task left/right transitions untouched. */
+task:not(.isSelected) .box,
+planner-task {
+  transition-property: transform, box-shadow, background, background-color !important;
+  transition-duration: var(--transition-duration-s) !important;
+  transition-timing-function: var(--lg-ease) !important;
 }
 
 /* ---------------------------------------------------------
