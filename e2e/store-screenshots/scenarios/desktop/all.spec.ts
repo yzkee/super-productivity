@@ -22,6 +22,7 @@ import {
   openNotesPanel,
   openSchedulePanel,
   resetView,
+  scrollScheduleUp,
   showMarketingOverlay,
 } from '../../helpers';
 import { MARKETING_HEADLINE, MARKETING_SUBLINE } from '../../marketing-copy';
@@ -55,6 +56,7 @@ const captureDarkScenes = async (
   // 03 — Schedule
   await gotoAndSettle(page, '/#/schedule');
   await page.locator('schedule, schedule-week').first().waitFor({ state: 'visible' });
+  await scrollScheduleUp(page);
   await shoot('desktop-03-schedule-dark', 'schedule-dark');
   await resetView(page);
 
@@ -112,7 +114,19 @@ const captureLightScenes = async (
   // 06 — Schedule (light variant)
   await gotoAndSettle(page, '/#/schedule');
   await page.locator('schedule, schedule-week').first().waitFor({ state: 'visible' });
+  await scrollScheduleUp(page);
   await shoot('desktop-06-schedule-light', 'schedule-light');
+  await resetView(page);
+
+  // 02 — Eisenhower board (light variant). Distinct scenario name from the
+  // dark slot so both land in the master tree without overwriting.
+  await gotoAndSettle(page, '/#/boards');
+  await page.locator('boards').first().waitFor({ state: 'visible' });
+  await page
+    .locator('board-panel, .panel, mat-card')
+    .first()
+    .waitFor({ state: 'visible' });
+  await shoot('desktop-02-eisenhower-light', 'eisenhower-light');
 };
 
 test.describe('@screenshot desktop all', () => {

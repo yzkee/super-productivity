@@ -101,6 +101,80 @@ const captureWindowWithChrome = async (
   outPath: string,
 ): Promise<void> => {
   try {
+    // Beat for focus + paint to settle before the OS-level capture fires.
+    const settleAndCapture = async (bin: string, args: string[]): Promise<void> => {
+      await new Promise((r) => setTimeout(r, 300));
+      console.log(`[screenshot] ${path.basename(outPath)} → ${bin} ${args.join(' ')}`);
+      try {
+        // execFile bypasses the shell — no quoting concerns, no metachar escapes.
+        await run(bin, args, { env: { ...process.env, ...SANDBOX_HOME_OVERRIDES } });
+      } catch (err) {
+        // execFile throws { message, code, stdout, stderr }; surface stderr
+        // because the default Error message just says "Command failed: …" and
+        // hides the actual cause (e.g. "could not create image from rect"
+        // for missing Screen Recording permission).
+        const e = err as { stderr?: string; stdout?: string; message?: string };
+        const stderr = (e.stderr ?? '').toString().trim();
+        const stdout = (e.stdout ?? '').toString().trim();
+        const tail = [stderr && `stderr: ${stderr}`, stdout && `stdout: ${stdout}`]
+          .filter(Boolean)
+          .join('; ');
+        throw new Error(
+          tail
+            ? `${e.message ?? 'capture failed'} (${tail})`
+            : (e.message ?? String(err)),
+        );
+      }
+    };
+
+    if (process.platform === 'darwin') {
+      // Capture by CGWindowID rather than by screen rect:
+      //   - Survives small displays that clamp the window below the
+      //     configured outer height (e.g. setBounds 1280×800 ends up as
+      //     1280×780 because menu bar + dock leave only 780pt usable).
+      //   - Captures the full window including the hiddenInset titlebar
+      //     where the traffic lights sit, regardless of where the window
+      //     ended up on screen or whether part of it is clipped by the
+      //     screen edge.
+      // Resolve the window id from the main process via desktopCapturer:
+      // its source.id is "window:CGWindowID:0" on macOS, and we match by
+      // exact window title to find OUR window among all open windows.
+      const windowId = await electronApp.evaluate(
+        async ({ BrowserWindow, desktopCapturer }) => {
+          const w = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+          if (!w) throw new Error('No Electron window to capture');
+          w.show();
+          w.focus();
+          const targetTitle = w.getTitle();
+          const sources = await desktopCapturer.getSources({ types: ['window'] });
+          const match = sources.find((s) => s.name === targetTitle);
+          if (!match) {
+            const names = sources.map((s) => s.name).join(', ');
+            throw new Error(
+              `No window source matched title "${targetTitle}". Open windows: ${names}`,
+            );
+          }
+          const parts = match.id.split(':');
+          const id = Number.parseInt(parts[1] ?? '', 10);
+          if (!Number.isFinite(id)) {
+            throw new Error(`Invalid CGWindowID parsed from "${match.id}"`);
+          }
+          return id;
+        },
+      );
+      await settleAndCapture('screencapture', [
+        '-l',
+        String(windowId),
+        '-t',
+        'png',
+        outPath,
+      ]);
+      return;
+    }
+
+    // ─── Linux: still capture by screen rect (no per-window equivalent
+    //      that's guaranteed to be on PATH). Output dims will match the
+    //      window outer bounds. ─────────────────────────────────────────
     const b = await electronApp.evaluate(({ BrowserWindow }) => {
       const w = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
       if (!w) throw new Error('No Electron window to capture');
@@ -109,54 +183,59 @@ const captureWindowWithChrome = async (
       return w.getBounds();
     });
 
-    // Sanity-check bounds — Electron's typings say number, but we shell out so
-    // the values cross an IPC boundary. Reject anything non-finite up front
-    // rather than letting it drift into the OS tool's command line.
     for (const v of [b.x, b.y, b.width, b.height]) {
       if (typeof v !== 'number' || !Number.isFinite(v)) {
         throw new Error(`Non-finite window bound: ${JSON.stringify(b)}`);
       }
     }
 
-    // Beat for focus + paint to settle before the OS-level capture fires.
-    await new Promise((r) => setTimeout(r, 300));
-
     const isWayland =
       process.env.XDG_SESSION_TYPE === 'wayland' || !!process.env.WAYLAND_DISPLAY;
-    const [bin, args] =
-      process.platform === 'darwin'
-        ? [
-            'screencapture',
-            ['-R', `${b.x},${b.y},${b.width},${b.height}`, '-t', 'png', outPath],
-          ]
-        : isWayland
-          ? ['grim', ['-g', `${b.x},${b.y} ${b.width}x${b.height}`, outPath]]
-          : [
-              'import',
-              [
-                '-window',
-                'root',
-                '-crop',
-                `${b.width}x${b.height}+${b.x}+${b.y}`,
-                outPath,
-              ],
-            ];
-    // execFile bypasses the shell — no quoting concerns, no metachar escapes.
-    await run(bin, args, { env: { ...process.env, ...SANDBOX_HOME_OVERRIDES } });
+    const [bin, args] = isWayland
+      ? ['grim', ['-g', `${b.x},${b.y} ${b.width}x${b.height}`, outPath]]
+      : [
+          'import',
+          ['-window', 'root', '-crop', `${b.width}x${b.height}+${b.x}+${b.y}`, outPath],
+        ];
+    await settleAndCapture(bin, args);
   } catch (err) {
+    const msg = (err as Error).message ?? String(err);
     if (!osChromeCaptureWarned) {
       osChromeCaptureWarned = true;
-      const msg = (err as Error).message ?? String(err);
       const hint =
         process.platform === 'darwin'
-          ? ' On macOS, grant Screen Recording permission to your terminal ' +
-            '(System Settings → Privacy & Security → Screen & System Audio Recording).'
-          : '';
+          ? '\n  ↳ macOS: System Settings → Privacy & Security → Screen & System ' +
+            'Audio Recording → enable for the terminal you launched this from, ' +
+            'then quit and relaunch the terminal.'
+          : process.platform === 'linux'
+            ? '\n  ↳ Linux: ensure `grim` (Wayland) or ImageMagick `import` (X11) ' +
+              'is installed and on PATH.'
+            : '';
       console.warn(
-        `[screenshot] OS-level window capture failed: ${msg.split('\n')[0]}\n` +
-          `[screenshot] Falling back to renderer-only page.screenshot() for the ` +
-          `rest of this run — captures will not include native window chrome.${hint}`,
+        '\n' +
+          '════════════════════════════════════════════════════════════════════\n' +
+          '⚠  OS-LEVEL SCREEN CAPTURE FAILED — RENDERER FALLBACK ACTIVE\n' +
+          '════════════════════════════════════════════════════════════════════\n' +
+          `  ${msg.split('\n')[0]}\n` +
+          '  Captures will NOT include native window chrome (titlebar,\n' +
+          '  traffic-lights). The Mac App Store / Flathub deliverables from\n' +
+          '  this run are therefore NOT submission-ready.' +
+          hint +
+          '\n' +
+          '════════════════════════════════════════════════════════════════════\n',
       );
+      // Marker so the globalTeardown can re-surface this at the end of the
+      // run — the warning above scrolls off in long runs and the user
+      // notices the missing chrome only when reviewing the PNGs.
+      try {
+        fs.mkdirSync(MASTER_DIR, { recursive: true });
+        fs.writeFileSync(
+          path.join(MASTER_DIR, '.os-capture-failed'),
+          `${new Date().toISOString()}\n${msg}\n`,
+        );
+      } catch {
+        /* marker is best-effort */
+      }
     }
     await page.screenshot({
       path: outPath,
@@ -178,7 +257,10 @@ const ONBOARDING_INIT = (): void => {
 export const test = base.extend<ScreenshotFixtures>({
   locale: ['en', { option: true }] as never,
   theme: ['light', { option: true }] as never,
-  customTheme: [undefined, { option: true }] as never,
+  customTheme: [
+    process.env.SCREENSHOT_CUSTOM_THEME?.trim() || undefined,
+    { option: true },
+  ] as never,
 
   seedFile: async ({ locale, customTheme }, use) => {
     const file = writeSeedFile(SCREENSHOT_BASE_DATE, SEED_DIR, {
@@ -210,17 +292,28 @@ export const test = base.extend<ScreenshotFixtures>({
     // every `dom-ready` (so reloads between scenarios re-open them too).
     // Loading the dev server is governed by --custom-url, not IS_DEV, so we
     // can safely run with IS_DEV=false and keep the same URL.
+    // `--no-sandbox` and `--disable-dev-shm-usage` are Linux/CI helper
+    // flags. On macOS they're not needed, and `--no-sandbox` in particular
+    // appears to suppress the hiddenInset traffic-lights when Electron is
+    // launched as a child process (the same binary launched via `npm start`
+    // shows them fine). Only pass them on Linux.
+    const isMac = process.platform === 'darwin';
     const electronApp = await _electron.launch({
       args: [
         ELECTRON_MAIN,
         `--custom-url=http://localhost:4242/`,
         `--user-data-dir=${userDataDir}`,
-        '--disable-dev-shm-usage',
-        '--no-sandbox',
+        ...(isMac ? [] : ['--disable-dev-shm-usage', '--no-sandbox']),
       ],
       env: {
         ...process.env,
         NODE_ENV: 'PROD',
+        // Tells main-window.ts to set `enableLargerThanScreen: true` so the
+        // configured 1280×800 outer bounds aren't silently clamped to fit
+        // available screen area below menu bar + dock. Without this, on
+        // laptop displays setBounds(800) ends up as 780 and the captured
+        // PNG fails Mac App Store dimension validation.
+        SP_SCREENSHOT_MODE: '1',
         ...SANDBOX_HOME_OVERRIDES,
       },
       timeout: 60_000,
@@ -272,24 +365,41 @@ export const test = base.extend<ScreenshotFixtures>({
         width: 1440,
         height: 900,
       }) as { width: number; height: number };
-      await electronApp
+      const achieved = await electronApp
         .evaluate(
           ({ BrowserWindow }, size) => {
             try {
               const w =
                 BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
-              if (!w) return;
+              if (!w) return null;
               w.setBounds({ x: 0, y: 0, width: size.w, height: size.h });
               if (w.webContents.isDevToolsOpened()) {
                 w.webContents.closeDevTools();
               }
+              // Report what setBounds actually achieved vs. requested. On
+              // macOS the OS may push y below the menu bar / shrink to fit
+              // the screen; the result tells us whether 1280×800 stuck.
+              return {
+                bounds: w.getBounds(),
+                contentBounds: w.getContentBounds(),
+              };
             } catch {
               /* swallow — bounds/devtools are nice-to-have, not critical */
+              return null;
             }
           },
           { w: targetSize.width, h: targetSize.height },
         )
-        .catch(() => undefined);
+        .catch(() => null);
+      if (achieved) {
+        const b = achieved.bounds;
+        const c = achieved.contentBounds;
+        console.log(
+          `[screenshot] setBounds requested=${targetSize.width}x${targetSize.height} → ` +
+            `outer=${b.x},${b.y} ${b.width}x${b.height}; ` +
+            `content=${c.x},${c.y} ${c.width}x${c.height}`,
+        );
+      }
       await page.waitForTimeout(400);
 
       // Electron pages have no Playwright-level baseURL, so `page.goto('/#/x')`

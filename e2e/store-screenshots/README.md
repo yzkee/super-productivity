@@ -131,7 +131,7 @@ The OS-level capture grabs the full window rect including titlebar, shadow, and 
 
 Per-OS tooling (must be on PATH):
 
-- **macOS** — `screencapture` (built-in)
+- **macOS** — `screencapture` (built-in). **Requires Screen Recording permission** for the terminal you launch the run from: System Settings → Privacy & Security → Screen & System Audio Recording → enable for your terminal app, then quit and relaunch the terminal. Without permission `screencapture` errors with "could not create image from rect" and the fixture silently falls back to `page.screenshot()`, which produces PNGs with no traffic-lights — the captures are NOT submission-ready. The fallback prints a banner at first failure and a summary at end-of-run to make this loud.
 - **Linux X11** — ImageMagick (`apt install imagemagick`, ships `import`)
 - **Linux Wayland** — `grim` (`apt install grim`, wlroots-based compositors only)
 
