@@ -278,17 +278,14 @@ test.describe('@supersync Time Tracking Advanced Sync', () => {
       await waitForAppReady(clientB.page);
       await waitForTask(clientB.page, taskName);
 
-      const taskA = getTaskElement(clientA, taskName);
-      const taskB = getTaskElement(clientB, taskName);
+      const timeA = await waitForTaskTimeSpent(clientA, taskName, 10000);
+      const timeB = await waitForTaskTimeSpent(clientB, taskName, 10000);
 
-      const timeA = await taskA.locator('.time-wrapper .time-val').first().textContent();
-      const timeB = await taskB.locator('.time-wrapper .time-val').first().textContent();
-
-      console.log(`[Concurrent Time Test] Client A final time: ${timeA}`);
-      console.log(`[Concurrent Time Test] Client B final time: ${timeB}`);
+      console.log(`[Concurrent Time Test] Client A final time: ${timeA}ms`);
+      console.log(`[Concurrent Time Test] Client B final time: ${timeB}ms`);
 
       // Times should match (LWW resolution)
-      expect(timeA?.trim()).toBe(timeB?.trim());
+      expect(timeA).toBe(timeB);
 
       console.log('[Concurrent Time Test] Time tracking resolved consistently');
     } finally {
