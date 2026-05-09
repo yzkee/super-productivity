@@ -105,6 +105,17 @@ describe('response-validators', () => {
       expect(validated.latestSnapshotSeq).toBe(120);
     });
 
+    it('should strip file-based snapshotState from passthrough fields', () => {
+      const validated = validateOpDownloadResponse({
+        ops: [],
+        hasMore: false,
+        latestSeq: 1,
+        snapshotState: { task: { ids: ['task-1'] } },
+      });
+
+      expect('snapshotState' in validated).toBeFalse();
+    });
+
     it('should throw if not an object', () => {
       expect(() => validateOpDownloadResponse(undefined)).toThrow();
     });

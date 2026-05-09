@@ -8,7 +8,7 @@ import {
 } from '@sp/shared-schema';
 import {
   OpUploadResponse,
-  OpDownloadResponse,
+  SuperSyncOpDownloadResponse,
   SnapshotUploadResponse,
   RestorePointsResponse,
   RestoreSnapshotResponse,
@@ -26,6 +26,13 @@ type SafeParseResult<T> =
 
 type SafeParseSchema<T> = {
   safeParse: (data: unknown) => SafeParseResult<T>;
+};
+
+type ParsedSuperSyncOpDownloadResponse = Omit<
+  SuperSyncOpDownloadResponse,
+  'snapshotState'
+> & {
+  snapshotState?: unknown;
 };
 
 const formatIssuePath = (path: readonly PropertyKey[]): string =>
@@ -64,12 +71,23 @@ export const validateOpUploadResponse = (data: unknown): OpUploadResponse =>
  * Validates OpDownloadResponse from server.
  * Throws InvalidDataSPError if the response structure is invalid.
  */
-export const validateOpDownloadResponse = (data: unknown): OpDownloadResponse =>
-  parseResponse(
+export const validateOpDownloadResponse = (
+  data: unknown,
+): SuperSyncOpDownloadResponse => {
+  const response = parseResponse(
     SuperSyncDownloadOpsResponseSchema,
     data,
     'OpDownloadResponse',
-  ) as unknown as OpDownloadResponse;
+  ) as unknown as ParsedSuperSyncOpDownloadResponse;
+
+  if ('snapshotState' in response) {
+    const responseWithoutSnapshotState = { ...response };
+    delete responseWithoutSnapshotState.snapshotState;
+    return responseWithoutSnapshotState as SuperSyncOpDownloadResponse;
+  }
+
+  return response as SuperSyncOpDownloadResponse;
+};
 
 /**
  * Validates SnapshotUploadResponse from server.
