@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
-import { OperationLogEntry, OpType, FULL_STATE_OP_TYPES } from '../core/operation.types';
+import { FULL_STATE_OP_TYPES } from '../core/operation.types';
 import { OpLog } from '../../core/log';
 import {
   OperationSyncCapable,
@@ -30,6 +30,7 @@ import {
   SyncImportConflictData,
   SyncImportConflictResolution,
 } from './dialog-sync-import-conflict/dialog-sync-import-conflict.component';
+import { SyncImportConflictGateService } from './sync-import-conflict-gate.service';
 import { SyncProviderManager } from '../sync-providers/provider-manager.service';
 import { getDefaultMainModelData } from '../model/model-config';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
@@ -131,6 +132,7 @@ export class OperationLogSyncService {
   private rejectedOpsHandlerService = inject(RejectedOpsHandlerService);
   private syncHydrationService = inject(SyncHydrationService);
   private syncImportConflictDialogService = inject(SyncImportConflictDialogService);
+  private syncImportConflictGateService = inject(SyncImportConflictGateService);
   private providerManager = inject(SyncProviderManager);
 
   /**
@@ -191,26 +193,6 @@ export class OperationLogSyncService {
     }
 
     return false;
-  }
-
-  /**
-   * Checks if any of the given ops represent meaningful user data.
-   * Meaningful = TASK/PROJECT/TAG/NOTE creates/updates/deletes, or full-state ops.
-   * Config-only ops (e.g., GLOBAL_CONFIG updates) are NOT meaningful.
-   */
-  private _hasMeaningfulPendingOps(ops: OperationLogEntry[]): boolean {
-    const USER_ENTITY_TYPES = ['TASK', 'PROJECT', 'TAG', 'NOTE'];
-    return ops.some((entry) => {
-      if (FULL_STATE_OP_TYPES.has(entry.op.opType as OpType)) {
-        return true;
-      }
-      return (
-        USER_ENTITY_TYPES.includes(entry.op.entityType) &&
-        (entry.op.opType === OpType.Create ||
-          entry.op.opType === OpType.Update ||
-          entry.op.opType === OpType.Delete)
-      );
-    });
   }
 
   /**
@@ -291,12 +273,12 @@ export class OperationLogSyncService {
       // Check for piggybacked SYNC_IMPORT — mirrors the download path check (lines 552-604).
       // Without this, a SYNC_IMPORT from another client arriving as a piggybacked op
       // would silently replace local state via processRemoteOps().
-      const piggybackedFullStateOp = result.piggybackedOps.find((op) =>
-        FULL_STATE_OP_TYPES.has(op.opType),
-      );
-      if (piggybackedFullStateOp) {
-        const pendingOps = await this.opLogStore.getUnsynced();
-        const hasMeaningfulPending = this._hasMeaningfulPendingOps(pendingOps);
+      const piggybackedConflict =
+        await this.syncImportConflictGateService.checkIncomingFullStateConflict(
+          result.piggybackedOps,
+        );
+      if (piggybackedConflict.fullStateOp) {
+        const { fullStateOp, pendingOps, dialogData } = piggybackedConflict;
 
         // Existing synced store data is not a conflict here. Prompt only when
         // local pending user changes would be discarded; otherwise an old client
@@ -304,20 +286,15 @@ export class OperationLogSyncService {
         // (PASSWORD_CHANGED SYNC_IMPORTs without pending ops also fall through
         // to silent acceptance via this gate — the data is identical, only the
         // encryption changed.)
-        if (hasMeaningfulPending) {
+        if (dialogData) {
           OpLog.warn(
-            `OperationLogSyncService: Piggybacked ${piggybackedFullStateOp.opType} from client ${piggybackedFullStateOp.clientId} ` +
+            `OperationLogSyncService: Piggybacked ${fullStateOp.opType} from client ${fullStateOp.clientId} ` +
               `with ${pendingOps.length} pending local ops. Showing conflict dialog.`,
           );
 
           const conflictResult = await this._handleSyncImportConflict(
             syncProvider,
-            {
-              filteredOpCount: pendingOps.length,
-              localImportTimestamp: piggybackedFullStateOp.timestamp ?? Date.now(),
-              syncImportReason: piggybackedFullStateOp.syncImportReason,
-              scenario: 'INCOMING_IMPORT',
-            },
+            dialogData,
             'OperationLogSyncService (piggybacked full-state op)',
           );
           if (conflictResult === 'CANCEL') {
@@ -337,8 +314,8 @@ export class OperationLogSyncService {
           };
         } else {
           OpLog.normal(
-            `OperationLogSyncService: Accepting piggybacked ${piggybackedFullStateOp.opType} from client ` +
-              `${piggybackedFullStateOp.clientId} without conflict dialog; ` +
+            `OperationLogSyncService: Accepting piggybacked ${fullStateOp.opType} from client ` +
+              `${fullStateOp.clientId} without conflict dialog; ` +
               `${pendingOps.length} pending op(s), no meaningful pending user changes.`,
           );
         }
@@ -524,7 +501,8 @@ export class OperationLogSyncService {
         // SuperSync→Dropbox, only has a config-change op (not "meaningful"), but the
         // store is full of real data that would be overwritten by old Dropbox state.
         const hasMeaningfulUserData =
-          this._hasMeaningfulPendingOps(unsyncedOps) || this._hasMeaningfulStoreData();
+          this.syncImportConflictGateService.hasMeaningfulPendingOps(unsyncedOps) ||
+          this._hasMeaningfulStoreData();
 
         if (hasMeaningfulUserData) {
           // Client has meaningful user data - show conflict dialog
@@ -719,39 +697,35 @@ export class OperationLogSyncService {
     // - USE_REMOTE: discard local ops, apply the remote SYNC_IMPORT
     // - USE_LOCAL: force upload local state (overriding remote)
     // ─────────────────────────────────────────────────────────────────────────
-    const incomingFullStateOp = result.newOps.find((op) =>
-      FULL_STATE_OP_TYPES.has(op.opType),
-    );
-    if (incomingFullStateOp) {
-      // Flush in-flight captured ops before reading pending state. Without this,
-      // an op enqueued in OperationCaptureService but not yet drained to
-      // IndexedDB would be invisible to getUnsynced(), the gate would silently
-      // accept the import, and SyncImportFilterService would then discard the
-      // just-landed op as CONCURRENT.
-      await this.writeFlushService.flushPendingWrites();
-      const pendingLocalOps = await this.opLogStore.getUnsynced();
-      const hasMeaningfulPending = this._hasMeaningfulPendingOps(pendingLocalOps);
-
+    // Flush in-flight captured ops before reading pending state. Without this,
+    // an op enqueued in OperationCaptureService but not yet drained to
+    // IndexedDB would be invisible to getUnsynced(), the gate would silently
+    // accept the import, and SyncImportFilterService would then discard the
+    // just-landed op as CONCURRENT.
+    const incomingConflict =
+      await this.syncImportConflictGateService.checkIncomingFullStateConflict(
+        result.newOps,
+        {
+          flushPendingWrites: true,
+        },
+      );
+    if (incomingConflict.fullStateOp) {
+      const { fullStateOp, pendingOps, dialogData } = incomingConflict;
       // Existing synced store data is not a conflict here. Prompt only when
       // local pending user changes would be discarded; otherwise an old client
       // can accidentally force-upload stale state over the remote import.
       // (PASSWORD_CHANGED SYNC_IMPORTs without pending ops also fall through
       // to silent acceptance via this gate — the data is identical, only the
       // encryption changed.)
-      if (hasMeaningfulPending) {
+      if (dialogData) {
         OpLog.warn(
-          `OperationLogSyncService: Incoming ${incomingFullStateOp.opType} from client ${incomingFullStateOp.clientId} ` +
-            `with ${pendingLocalOps.length} pending local ops. Showing conflict dialog.`,
+          `OperationLogSyncService: Incoming ${fullStateOp.opType} from client ${fullStateOp.clientId} ` +
+            `with ${pendingOps.length} pending local ops. Showing conflict dialog.`,
         );
 
         const conflictResult = await this._handleSyncImportConflict(
           syncProvider,
-          {
-            filteredOpCount: pendingLocalOps.length,
-            localImportTimestamp: incomingFullStateOp.timestamp ?? Date.now(),
-            syncImportReason: incomingFullStateOp.syncImportReason,
-            scenario: 'INCOMING_IMPORT',
-          },
+          dialogData,
           'OperationLogSyncService (incoming full-state op)',
         );
         if (conflictResult === 'CANCEL') {
@@ -762,9 +736,9 @@ export class OperationLogSyncService {
         return { kind: 'no_new_ops' };
       } else {
         OpLog.normal(
-          `OperationLogSyncService: Accepting incoming ${incomingFullStateOp.opType} from client ` +
-            `${incomingFullStateOp.clientId} without conflict dialog; ` +
-            `${pendingLocalOps.length} pending op(s), no meaningful pending user changes.`,
+          `OperationLogSyncService: Accepting incoming ${fullStateOp.opType} from client ` +
+            `${fullStateOp.clientId} without conflict dialog; ` +
+            `${pendingOps.length} pending op(s), no meaningful pending user changes.`,
         );
       }
     }
