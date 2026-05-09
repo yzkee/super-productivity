@@ -488,6 +488,7 @@
         "LOAD_OPTIONS": "Load Options",
         "LOAD_OPTIONS_FAILED": "Failed to load options",
         "LOADING_OPTIONS": "Loading options...",
+        "OAUTH_UNAVAILABLE_WEB": "Available in the desktop and mobile apps. Synced settings stay saved, but live data cannot be loaded in the web app.",
         "OPTIONS_LOADED": "Options loaded",
         "RELOAD_OPTIONS": "Reload Options",
         "SETUP_TITLE": "Setup {{title}} Config",
