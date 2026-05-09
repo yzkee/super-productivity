@@ -229,6 +229,11 @@ export interface OpDownloadResponse {
   hasMore: boolean;
   latestSeq: number;
   /**
+   * Server sequence of the latest full-state operation (SYNC_IMPORT, BACKUP_IMPORT, REPAIR).
+   * Fresh clients can use this to understand where the effective state starts.
+   */
+  latestSnapshotSeq?: number;
+  /**
    * Whether a gap was detected in the operation sequence.
    * This can happen when:
    * - The server was reset and client has stale lastServerSeq
