@@ -414,6 +414,7 @@ body.isDarkTheme {
   --right-panel-bg: transparent;
   --bottom-nav-height: 44px;
   --bottom-nav-bg: var(--sidenav-bg-mobile);
+  --bottom-nav-shadow: var(--whiteframe-shadow-2dp);
   --bottom-panel-handle: rgba(var(--ink-on-channel), 0.4);
   --bottom-panel-handle-active: rgba(var(--ink-on-channel), 0.6);
 
@@ -526,6 +527,7 @@ body {
   --standard-note-bg-hovered: var(--standard-note-bg);
 
   // Task colors (Cat B)
+  --task-c-current-bg: color-mix(in srgb, var(--c-accent) 10%, var(--surface-2));
   --task-c-selected-bg: var(--selected-task-bg-color);
   --sub-task-c-bg: var(--task-c-bg);
   --sub-task-c-bg-done: var(--task-c-bg);
@@ -606,6 +608,7 @@ body.isDarkTheme {
   --standard-note-bg-hovered: var(--dark24);
 
   // Task colors (Cat B)
+  --task-c-current-bg: color-mix(in srgb, var(--c-accent) 18%, var(--surface-3));
   --task-c-selected-bg: var(--dark6);
   --sub-task-c-bg: var(--dark4-5);
   --sub-task-c-bg-done: var(--dark2);
