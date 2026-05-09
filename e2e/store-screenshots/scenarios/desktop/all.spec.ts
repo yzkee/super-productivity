@@ -6,10 +6,10 @@
  * re-import the seed between variants.
  *
  * Order:
- *   en × dark   (slots 01, 02, 03, 05)
- *   en × light  (slots 04, 06)
- *   de × dark   (slots 01, 02, 03, 05)
- *   de × light  (slots 04, 06)
+ *   en × dark   (slots 01, 02, 03, 05, 08, 10)
+ *   en × light  (slots 04, 06, 09)
+ *   de × dark   (slots 01, 02, 03, 05, 08, 10)
+ *   de × light  (slots 04, 06, 09)
  *   en × dark   (slot 07 — project view, no wallpaper)
  */
 import { test } from '../../fixture';
@@ -19,8 +19,10 @@ import {
   applySideNavCollapsed,
   applyTheme,
   gotoAndSettle,
+  openIssueProviderPanel,
   openNotesPanel,
   openSchedulePanel,
+  openTaskDetailPanel,
   resetView,
   scrollScheduleUp,
   showMarketingOverlay,
@@ -94,6 +96,20 @@ const captureDarkScenes = async (
   await gotoAndSettle(page, '/#/planner');
   await page.locator('planner, planner-day').first().waitFor({ state: 'visible' });
   await shoot('desktop-08-planner', 'planner');
+  await resetView(page);
+
+  // 10 — Task detail panel for a task with subtasks, schedule, estimate, and
+  // notes. Project route keeps the background clean while the right panel
+  // shows the richer task model.
+  await applySideNavCollapsed(page, true);
+  await gotoAndSettle(page, '/#/project/work/tasks');
+  await page.locator('task').filter({ hasText: 'Draft Q3 planning outline' }).waitFor({
+    state: 'visible',
+  });
+  await openTaskDetailPanel(page, 't-quarterly-plan');
+  await page.waitForTimeout(500);
+  await shoot('desktop-10-task-detail-panel', 'task-detail-panel');
+  await applySideNavCollapsed(page, false);
 };
 
 const captureLightScenes = async (
@@ -108,6 +124,19 @@ const captureLightScenes = async (
   await openNotesPanel(page);
   await page.waitForTimeout(500);
   await shoot('desktop-04-list-with-notes', 'list-with-notes');
+  await applySideNavCollapsed(page, false);
+  await resetView(page);
+
+  // 09 — Project (Work) + issue provider panel. Side nav collapsed so the
+  // provider setup grid remains readable beside the task list.
+  await applySideNavCollapsed(page, true);
+  await gotoAndSettle(page, '/#/project/work/tasks');
+  await page.locator('task').first().waitFor({ state: 'visible' });
+  await openIssueProviderPanel(page);
+  await page.locator('issue-panel').first().waitFor({ state: 'visible' });
+  await page.locator('issue-provider-setup-overview').waitFor({ state: 'visible' });
+  await page.waitForTimeout(500);
+  await shoot('desktop-09-issue-provider-panel', 'issue-provider-panel');
   await applySideNavCollapsed(page, false);
   await resetView(page);
 

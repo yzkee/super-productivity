@@ -28,6 +28,27 @@ export const openSchedulePanel = async (page: Page): Promise<void> => {
   await btn.click();
 };
 
+/** Toggle the issue provider panel via the e2e-tagged header button. */
+export const openIssueProviderPanel = async (page: Page): Promise<void> => {
+  const btn = page.locator('.e2e-toggle-issue-provider-panel').first();
+  await btn.waitFor({ state: 'visible', timeout: 10_000 });
+  await btn.click();
+};
+
+/** Open the right-hand task detail panel for a known seeded task id. */
+export const openTaskDetailPanel = async (page: Page, taskId: string): Promise<void> => {
+  await dispatchInPage(page, {
+    type: '[Task] SetSelectedTask',
+    id: taskId,
+    taskDetailTargetPanel: 'Default',
+    isSkipToggle: true,
+  });
+  await page.locator('right-panel-content task-detail-panel').waitFor({
+    state: 'visible',
+    timeout: 10_000,
+  });
+};
+
 /**
  * Nudge the schedule's scroll container up by `pxUp` pixels so the
  * captured frame shows a bit of context before work-start (default
