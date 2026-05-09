@@ -34,6 +34,8 @@ import { SyncImportConflictDialogService } from './sync-import-conflict-dialog.s
 import { StateSnapshotService } from '../backup/state-snapshot.service';
 import { INBOX_PROJECT } from '../../features/project/project.const';
 import { TODAY_TAG, SYSTEM_TAG_IDS } from '../../features/tag/tag.const';
+import { SyncImportConflictCoordinatorService } from './sync-import-conflict-coordinator.service';
+import { ForceRemoteStateCoordinatorService } from './force-remote-state-coordinator.service';
 
 describe('OperationLogSyncService', () => {
   let service: OperationLogSyncService;
@@ -46,6 +48,8 @@ describe('OperationLogSyncService', () => {
   let superSyncStatusServiceSpy: jasmine.SpyObj<SuperSyncStatusService>;
   let stateSnapshotServiceSpy: jasmine.SpyObj<StateSnapshotService>;
   let syncImportConflictDialogServiceSpy: jasmine.SpyObj<SyncImportConflictDialogService>;
+  let syncImportConflictCoordinator: SyncImportConflictCoordinatorService;
+  let forceRemoteStateCoordinator: ForceRemoteStateCoordinatorService;
 
   beforeEach(() => {
     snackServiceSpy = jasmine.createSpyObj('SnackService', ['open']);
@@ -221,6 +225,8 @@ describe('OperationLogSyncService', () => {
     });
 
     service = TestBed.inject(OperationLogSyncService);
+    syncImportConflictCoordinator = TestBed.inject(SyncImportConflictCoordinatorService);
+    forceRemoteStateCoordinator = TestBed.inject(ForceRemoteStateCoordinatorService);
     // Default: not a fresh client
     opLogStoreSpy.loadStateCache.and.resolveTo({
       state: {},
@@ -2817,7 +2823,10 @@ describe('OperationLogSyncService', () => {
 
       syncImportConflictDialogServiceSpy.showConflictDialog.and.resolveTo('USE_LOCAL');
 
-      const forceUploadSpy = spyOn(service, 'forceUploadLocalState').and.resolveTo();
+      const forceUploadSpy = spyOn(
+        syncImportConflictCoordinator,
+        'forceUploadLocalState',
+      ).and.resolveTo();
 
       const mockProvider = {
         isReady: () => Promise.resolve(true),
@@ -2876,7 +2885,10 @@ describe('OperationLogSyncService', () => {
 
       syncImportConflictDialogServiceSpy.showConflictDialog.and.resolveTo('USE_REMOTE');
 
-      const forceDownloadSpy = spyOn(service, 'forceDownloadRemoteState').and.resolveTo();
+      const forceDownloadSpy = spyOn(
+        forceRemoteStateCoordinator,
+        'forceDownloadRemoteState',
+      ).and.resolveTo();
 
       const mockProvider = {
         isReady: () => Promise.resolve(true),
