@@ -98,14 +98,10 @@ export const TABLET_VIEWPORTS = [
 
 import * as path from 'path';
 const repoRoot = path.resolve(__dirname, '..', '..');
+export const SCREENSHOTS_OUT_DIR = path.join(repoRoot, 'dist', 'screenshots');
 /** Roots that hold raw scenario captures, separated by capture pipeline. */
-export const MASTER_DIR_WEB = path.join(repoRoot, '.tmp', 'screenshots', '_master');
-export const MASTER_DIR_ELECTRON = path.join(
-  repoRoot,
-  '.tmp',
-  'screenshots',
-  '_master_electron',
-);
+export const MASTER_DIR_WEB = path.join(SCREENSHOTS_OUT_DIR, '_master');
+export const MASTER_DIR_ELECTRON = path.join(SCREENSHOTS_OUT_DIR, '_master_electron');
 
 /**
  * Per-store derivation rules used by `build-store-assets.ts`. Each rule maps

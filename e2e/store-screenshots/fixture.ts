@@ -2,12 +2,12 @@
  * Screenshot test fixture — works in two modes selected by env var:
  *
  *   SCREENSHOT_MODE=web       (default) — Playwright Chromium context
- *                               Outputs to .tmp/screenshots/_master/
+ *                               Outputs to dist/screenshots/_master/
  *   SCREENSHOT_MODE=electron  — Real Electron build via Playwright `_electron`
- *                               Outputs to .tmp/screenshots/_master_electron/
- *                               Captures via OS-level region tool
- *                               (screencapture / grim / import) so the PNG
- *                               includes the native window chrome.
+ *                               Outputs to dist/screenshots/_master_electron/
+ *                               Captures macOS via renderer + deterministic
+ *                               traffic-light overlay, Linux via OS-level
+ *                               region tool (grim / import) for GTK chrome.
  *
  * Same `seededPage` / `screenshotMaster` API in both modes, so scenarios
  * import from a single fixture file regardless of mode.
@@ -34,6 +34,7 @@ import {
   type Theme,
   type ViewportName,
 } from './matrix';
+import { compositeMacTrafficLights } from './composite-mac-chrome';
 import { writeSeedFile } from './seed/build-seed';
 
 const run = promisify(execFile);
@@ -82,24 +83,40 @@ type ScreenshotFixtures = {
 let osChromeCaptureWarned = false;
 
 /**
- * Capture the focused Electron window's full screen-space rect, including
- * native OS chrome (titlebar, traffic-lights / GTK decoration, shadow).
- * `BrowserWindow.getBounds()` returns the OUTER frame in points (macOS) or
- * pixels (Linux). The matching OS tool produces output at native resolution:
- *   - macOS Retina @2x: 1440×900 points → 2880×1800 px PNG
- *   - Linux X11/Wayland: bounds == pixels → 1:1
+ * Capture the focused Electron window.
  *
- * If the OS-level capture fails (commonly on macOS when the terminal lacks
- * Screen Recording permission, error: "could not create image from rect"),
- * we fall back to `page.screenshot()` so the rest of the single-session run
- * still produces output. The fallback PNG won't include traffic-lights /
- * native chrome, but every other scene downstream of the failure is salvaged.
+ * macOS: use renderer capture and add hiddenInset traffic lights
+ * deterministically. Playwright's `_electron.launch` does not always get the
+ * same AppKit treatment as a LaunchServices-started `.app`, and OS-level
+ * capture can miss the button overlay even when the content is correct.
+ *
+ * Linux: capture the full screen-space rect, including native GTK decoration.
+ *
+ * On Linux, `BrowserWindow.getBounds()` returns the outer frame in pixels, and
+ * the matching OS tool produces 1:1 output.
+ *
+ * If the Linux OS-level capture fails, we fall back to `page.screenshot()` so
+ * the rest of the single-session run still produces output. The fallback PNG
+ * won't include native GTK chrome, but every other scene downstream of the
+ * failure is salvaged.
  */
 const captureWindowWithChrome = async (
   electronApp: ElectronApplication,
   page: Page,
   outPath: string,
 ): Promise<void> => {
+  if (process.platform === 'darwin') {
+    await page.screenshot({
+      path: outPath,
+      type: 'png',
+      fullPage: false,
+      animations: 'disabled',
+      caret: 'hide',
+    });
+    await compositeMacTrafficLights(outPath);
+    return;
+  }
+
   try {
     // Beat for focus + paint to settle before the OS-level capture fires.
     const settleAndCapture = async (bin: string, args: string[]): Promise<void> => {
@@ -111,8 +128,7 @@ const captureWindowWithChrome = async (
       } catch (err) {
         // execFile throws { message, code, stdout, stderr }; surface stderr
         // because the default Error message just says "Command failed: …" and
-        // hides the actual cause (e.g. "could not create image from rect"
-        // for missing Screen Recording permission).
+        // hides the actual cause from the OS capture tool.
         const e = err as { stderr?: string; stdout?: string; message?: string };
         const stderr = (e.stderr ?? '').toString().trim();
         const stdout = (e.stdout ?? '').toString().trim();
@@ -127,52 +143,7 @@ const captureWindowWithChrome = async (
       }
     };
 
-    if (process.platform === 'darwin') {
-      // Capture by CGWindowID rather than by screen rect:
-      //   - Survives small displays that clamp the window below the
-      //     configured outer height (e.g. setBounds 1280×800 ends up as
-      //     1280×780 because menu bar + dock leave only 780pt usable).
-      //   - Captures the full window including the hiddenInset titlebar
-      //     where the traffic lights sit, regardless of where the window
-      //     ended up on screen or whether part of it is clipped by the
-      //     screen edge.
-      // Resolve the window id from the main process via desktopCapturer:
-      // its source.id is "window:CGWindowID:0" on macOS, and we match by
-      // exact window title to find OUR window among all open windows.
-      const windowId = await electronApp.evaluate(
-        async ({ BrowserWindow, desktopCapturer }) => {
-          const w = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
-          if (!w) throw new Error('No Electron window to capture');
-          w.show();
-          w.focus();
-          const targetTitle = w.getTitle();
-          const sources = await desktopCapturer.getSources({ types: ['window'] });
-          const match = sources.find((s) => s.name === targetTitle);
-          if (!match) {
-            const names = sources.map((s) => s.name).join(', ');
-            throw new Error(
-              `No window source matched title "${targetTitle}". Open windows: ${names}`,
-            );
-          }
-          const parts = match.id.split(':');
-          const id = Number.parseInt(parts[1] ?? '', 10);
-          if (!Number.isFinite(id)) {
-            throw new Error(`Invalid CGWindowID parsed from "${match.id}"`);
-          }
-          return id;
-        },
-      );
-      await settleAndCapture('screencapture', [
-        '-l',
-        String(windowId),
-        '-t',
-        'png',
-        outPath,
-      ]);
-      return;
-    }
-
-    // ─── Linux: still capture by screen rect (no per-window equivalent
+    // ─── Linux: capture by screen rect (no per-window equivalent
     //      that's guaranteed to be on PATH). Output dims will match the
     //      window outer bounds. ─────────────────────────────────────────
     const b = await electronApp.evaluate(({ BrowserWindow }) => {
@@ -203,23 +174,18 @@ const captureWindowWithChrome = async (
     if (!osChromeCaptureWarned) {
       osChromeCaptureWarned = true;
       const hint =
-        process.platform === 'darwin'
-          ? '\n  ↳ macOS: System Settings → Privacy & Security → Screen & System ' +
-            'Audio Recording → enable for the terminal you launched this from, ' +
-            'then quit and relaunch the terminal.'
-          : process.platform === 'linux'
-            ? '\n  ↳ Linux: ensure `grim` (Wayland) or ImageMagick `import` (X11) ' +
-              'is installed and on PATH.'
-            : '';
+        process.platform === 'linux'
+          ? '\n  ↳ Linux: ensure `grim` (Wayland) or ImageMagick `import` (X11) ' +
+            'is installed and on PATH.'
+          : '';
       console.warn(
         '\n' +
           '════════════════════════════════════════════════════════════════════\n' +
           '⚠  OS-LEVEL SCREEN CAPTURE FAILED — RENDERER FALLBACK ACTIVE\n' +
           '════════════════════════════════════════════════════════════════════\n' +
           `  ${msg.split('\n')[0]}\n` +
-          '  Captures will NOT include native window chrome (titlebar,\n' +
-          '  traffic-lights). The Mac App Store / Flathub deliverables from\n' +
-          '  this run are therefore NOT submission-ready.' +
+          '  Captures will NOT include native GTK window chrome. The Flathub\n' +
+          '  deliverables from this run are therefore NOT submission-ready.' +
           hint +
           '\n' +
           '════════════════════════════════════════════════════════════════════\n',
@@ -298,11 +264,14 @@ export const test = base.extend<ScreenshotFixtures>({
     // launched as a child process (the same binary launched via `npm start`
     // shows them fine). Only pass them on Linux.
     const isMac = process.platform === 'darwin';
+    const deviceScaleFactor =
+      (testInfo.project.use as { deviceScaleFactor?: number }).deviceScaleFactor ?? 1;
     const electronApp = await _electron.launch({
       args: [
         ELECTRON_MAIN,
         `--custom-url=http://localhost:4242/`,
         `--user-data-dir=${userDataDir}`,
+        ...(isMac ? [`--force-device-scale-factor=${deviceScaleFactor}`] : []),
         ...(isMac ? [] : ['--disable-dev-shm-usage', '--no-sandbox']),
       ],
       env: {

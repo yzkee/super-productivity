@@ -12,26 +12,22 @@ const printOutputPath = (): void => {
 
   // Re-surface the OS-capture-failed warning at end-of-run. The first-time
   // banner from the fixture scrolls off during long runs, so a final summary
-  // ensures the user notices that the captures lack native window chrome.
+  // ensures the user notices that Linux captures lack native GTK chrome.
   const marker = path.join(dir, '.os-capture-failed');
   if (fs.existsSync(marker)) {
     const hint =
-      process.platform === 'darwin'
-        ? '  ↳ macOS: System Settings → Privacy & Security → Screen & System\n' +
-          '    Audio Recording → enable for the terminal you launched this from,\n' +
-          '    then quit and relaunch the terminal.\n'
-        : process.platform === 'linux'
-          ? '  ↳ Linux: install `grim` (Wayland) or ImageMagick `import` (X11).\n'
-          : '';
+      process.platform === 'linux'
+        ? '  ↳ Linux: install `grim` (Wayland) or ImageMagick `import` (X11).\n'
+        : '';
     console.warn(
       '\n' +
         '════════════════════════════════════════════════════════════════════\n' +
-        '⚠  THIS RUN USED THE RENDERER FALLBACK — NO NATIVE WINDOW CHROME\n' +
+        '⚠  THIS RUN USED THE RENDERER FALLBACK — NO NATIVE GTK CHROME\n' +
         '════════════════════════════════════════════════════════════════════\n' +
         '  At least one capture fell back to page.screenshot() because the\n' +
         '  OS-level capture tool failed. The resulting PNGs do NOT contain\n' +
-        '  the macOS traffic-lights / GTK titlebar — the Mac App Store and\n' +
-        '  Flathub deliverables from this run are NOT submission-ready.\n' +
+        '  the GTK titlebar — the Flathub deliverables from this run are NOT\n' +
+        '  submission-ready.\n' +
         hint +
         '════════════════════════════════════════════════════════════════════\n',
     );
