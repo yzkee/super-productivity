@@ -33,6 +33,7 @@ npx playwright test --config e2e/playwright.store-screenshots.config.ts \
 
 Master captures land in `dist/screenshots/_master/<viewport>/<locale>/<theme>/<scenario>/<name>.png`.
 Per-store assets land in `dist/screenshots/<store>/<locale>/NN-name.png` (and the F-Droid `fastlane/...` layout).
+Web and Microsoft Store share the generic desktop output at `dist/screenshots/desktop/<locale>/`.
 
 ## Scenario lineup
 
@@ -55,31 +56,33 @@ Per-store assets land in `dist/screenshots/<store>/<locale>/NN-name.png` (and th
 | desktop-06 | desktop  | light | Schedule (light variant)                                          |
 | desktop-07 | desktop  | dark  | Project (Work) view, no wallpaper — regular palette reads cleanly |
 | desktop-08 | desktop  | dark  | Planner                                                           |
+| desktop-09 | desktop  | light | Project (Work) + issue provider panel open                        |
+| desktop-10 | desktop  | dark  | Project (Work) + task detail panel open                           |
 
 Specs are platform-grouped: `scenarios/desktop/all.spec.ts` and `scenarios/mobile/all.spec.ts` each capture every slot in a single session, flipping `DARK_MODE` between groups via `applyTheme()` (Playwright `addInitScript` is append-only, so a later script wins on each reload). Each spec runs once per locale (en + de).
 
 ## Files
 
-| Path                                        | Purpose                                                                                                                                                                                                     |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `matrix.ts`                                 | Locales, themes, viewports, mobile/desktop classification, store rules                                                                                                                                      |
-| `seed/seed.template.json`                   | Curated dataset with date offsets and `@@PLANNER_OFFSET_+N` placeholders                                                                                                                                    |
-| `seed/build-seed.ts`                        | Materializes offsets to absolute dates, injects `locale` + `customTheme`                                                                                                                                    |
-| `fixture.ts`                                | Pins clock, applies dark-mode, imports seed via UI flow, exposes `screenshotMaster` (which reads live `DARK_MODE` so light/dark scenes land in the right directory)                                         |
-| `helpers.ts`                                | `gotoAndSettle`, `openNotesPanel`, `openSchedulePanel`, `resetView`, `applyTheme`, `applyLocale`, `applyTimeTrackingEnabled`, `applySideNavCollapsed`, `setPlannerCalendarExpanded`, `showMarketingOverlay` |
-| `marketing-copy.ts`                         | Headline + subline shown on the slot-00 hero overlay                                                                                                                                                        |
-| `scenarios/desktop/all.spec.ts`             | 9 desktop slots: hero + 8 scenes                                                                                                                                                                            |
-| `scenarios/mobile/all.spec.ts`              | 7 mobile slots: hero + 6 scenes                                                                                                                                                                             |
-| `scenarios/tablet/all.spec.ts`              | 6 tablet slots: hero + 5 scenes                                                                                                                                                                             |
-| `build-store-assets.ts`                     | Renames + copies masters into per-store layouts; JPEG re-encode for `maxBytes`-capped stores (Snap); emits `_preview.html` contact sheet                                                                    |
-| `../playwright.store-screenshots.config.ts` | Separate Playwright config; one project per viewport                                                                                                                                                        |
+| Path                                        | Purpose                                                                                                                                                                                  |
+| ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `matrix.ts`                                 | Locales, themes, viewports, mobile/desktop classification, store rules, shared desktop output                                                                                            |
+| `seed/seed.template.json`                   | Curated dataset with date offsets and `@@PLANNER_OFFSET_+N` placeholders                                                                                                                 |
+| `seed/build-seed.ts`                        | Materializes offsets to absolute dates, injects `locale` + `customTheme`                                                                                                                 |
+| `fixture.ts`                                | Pins clock, applies dark-mode, imports seed via UI flow, exposes `screenshotMaster` (which reads live `DARK_MODE` so light/dark scenes land in the right directory)                      |
+| `helpers.ts`                                | `gotoAndSettle`, panel open helpers, `resetView`, `applyTheme`, `applyLocale`, `applyTimeTrackingEnabled`, `applySideNavCollapsed`, `setPlannerCalendarExpanded`, `showMarketingOverlay` |
+| `marketing-copy.ts`                         | Headline + subline shown on the slot-00 hero overlay                                                                                                                                     |
+| `scenarios/desktop/all.spec.ts`             | 12 desktop captures: hero + 11 scenes / light variants                                                                                                                                   |
+| `scenarios/mobile/all.spec.ts`              | 7 mobile slots: hero + 6 scenes                                                                                                                                                          |
+| `scenarios/tablet/all.spec.ts`              | 6 tablet slots: hero + 5 scenes                                                                                                                                                          |
+| `build-store-assets.ts`                     | Renames + copies masters into shared/per-store layouts; JPEG re-encode for `maxBytes`-capped stores (Snap); emits `_preview.html` contact sheet                                          |
+| `../playwright.store-screenshots.config.ts` | Separate Playwright config; one project per viewport                                                                                                                                     |
 
 ## How it works
 
 1. **Per-test seed file** is materialized to `.tmp/screenshot-seeds/seed-<date>-<locale>[-<customTheme>].json`.
 2. **Fixture** boots the app with `page.clock.install({ time: SCREENSHOT_BASE_DATE })`, sets `localStorage.DARK_MODE`, pins browser context to `en-US` (so `ImportPage`'s English text matchers always work), then imports the seed via `BackupService.importCompleteBackup`. Locale flows through `globalConfig.localization.lng` → `applyLanguageFromState$` effect. Custom themes flow through `globalConfig.misc.customTheme`.
 3. **Each scenario spec** drives the app to a state and calls `screenshotMaster(scenario, name)`. The Playwright project name (e.g. `desktopMaster`) determines the viewport.
-4. **Post-processor** copies masters into per-store layouts. No resizing — captures are already at native size for each store.
+4. **Post-processor** copies masters into shared/per-store layouts. No resizing — captures are already at native size for each store.
 
 ## Adding a scenario
 
@@ -105,9 +108,9 @@ for (const locale of LOCALES) {
 
 ## Per-store gotchas
 
-- **MS Store** reserves bottom 1/4 for system-rendered captions → keep critical UI in top 3/4.
+- **Web / MS Store** share `dist/screenshots/desktop/<locale>/`; MS Store reserves bottom 1/4 for system-rendered captions and accepts up to 10 screenshots, so pick at most 10 from the shared desktop set before upload.
 - **Mac App Store** rejects letterboxed 16:9 in 16:10 frames — capture native 2880×1800.
-- **Snap** caps at 5 items, ≤2 MB each, single global gallery (no per-locale). Pipeline emits all desktops re-encoded as JPEG (mozjpeg, q90→q60 step-down) so each fits the cap; **trim manually to 5 before Snap upload**.
+- **Snap** uses the same desktop master content but stays separate because it caps at 5 items, ≤2 MB each, single global gallery (no per-locale). Pipeline emits all desktops re-encoded as JPEG (mozjpeg, q90→q60 step-down) so each fits the cap; **trim manually to 5 before Snap upload**.
 - **Play / Apple** explicitly forbid / discourage device frames.
 - **Apple** requires only iPhone 6.9" (1290×2796) and iPad 13" (2064×2752); smaller sizes auto-derive.
 - **Flathub** requires native window chrome and forbids overlays — sourced from the Electron capture pipeline (single global gallery; run on a Linux X11/Wayland host via `npm run screenshots:capture:electron`).
@@ -142,7 +145,7 @@ The Mac App Store store rule has `masterDir: 'electron'` in `STORE_RULES`, so th
 ## Status
 
 - ✅ Foundation: matrix, seed builder, fixture (web + electron modes), helpers, post-processor
-- ✅ 22 scenarios (3 hero + 6 mobile + 8 desktop + 5 tablet) covering planner, boards, schedule, focus, notes, project view
+- ✅ 26 captures covering planner, boards, schedule, focus, notes, project view, task details, and issue provider setup
 - ✅ Per-build `_preview.html` contact sheet under `dist/screenshots/` for one-click QA
 - ✅ Electron-mode pipeline with macOS traffic-light compositing and Linux OS chrome capture (`grim` / `import`)
 - ✅ Mac App Store wired to source from `_master_electron/`

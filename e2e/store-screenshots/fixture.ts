@@ -541,6 +541,19 @@ export const test = base.extend<ScreenshotFixtures>({
 
   screenshotMaster: async ({ page, electronApp, locale, theme }, use, testInfo) => {
     const viewport = testInfo.project.name as ViewportName;
+    const showSyncReadyState = async (): Promise<void> => {
+      await page.evaluate(() => {
+        const syncBtn = document.querySelector('.sync-btn');
+        if (!syncBtn || syncBtn.querySelector('.__sp-sync-ready-check')) return;
+
+        const icon = document.createElement('span');
+        icon.className =
+          'mat-icon notranslate material-icons mat-ligature-font mat-icon-no-color sync-state-ico __sp-sync-ready-check';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.textContent = 'check';
+        syncBtn.appendChild(icon);
+      });
+    };
     const fn = async (scenario: string, name: string): Promise<void> => {
       // Read live theme + locale from the page so one test can span multiple
       // (locale × theme) variants. helpers.applyTheme flips DARK_MODE in
@@ -564,6 +577,7 @@ export const test = base.extend<ScreenshotFixtures>({
       // dismisses (matTooltip hides on mouseleave). Also any cdk-overlay
       // tooltip that's already open is force-removed via the screenshot CSS.
       try {
+        await showSyncReadyState();
         await page.mouse.move(0, 0);
         await page.waitForTimeout(120);
       } catch {
