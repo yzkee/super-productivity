@@ -234,11 +234,11 @@ V1 explicitly defers:
 
 V1 storage capability matrix:
 
-| Platform | V1 persistent local secret store | Notes |
-| --- | --- | --- |
-| Electron desktop | Yes, `indexedDbProfile` | Local-isolation tier only; not OS-backed at-rest protection |
-| Browser/PWA | No | Use session-only or unavailable mode in V1 |
-| Android/iOS Capacitor | No | Use session-only or unavailable mode until native storage/backup rules are implemented |
+| Platform              | V1 persistent local secret store | Notes                                                                                  |
+| --------------------- | -------------------------------- | -------------------------------------------------------------------------------------- |
+| Electron desktop      | Yes, `indexedDbProfile`          | Local-isolation tier only; not OS-backed at-rest protection                            |
+| Browser/PWA           | No                               | Use session-only or unavailable mode in V1                                             |
+| Android/iOS Capacitor | No                               | Use session-only or unavailable mode until native storage/backup rules are implemented |
 
 V1 does not improve local at-rest protection for persisted Electron profile
 data. Its main win is removing raw integration secrets from synced state, op-log
@@ -397,7 +397,11 @@ export interface LocalSecretStoreCapabilities {
 
 export interface LocalSecretStore {
   capabilities(): Promise<LocalSecretStoreCapabilities>;
-  set(input: SecretRefInput, value: string, context: SecretAccessContext): Promise<SecretRef>;
+  set(
+    input: SecretRefInput,
+    value: string,
+    context: SecretAccessContext,
+  ): Promise<SecretRef>;
   useSecret<T>(
     ref: SecretRef,
     context: SecretAccessContext,
@@ -884,18 +888,18 @@ Only after device-local storage and compatibility gates are stable:
 
 ## Error Handling
 
-| Scenario | Handling |
-| --- | --- |
-| V1 device-local entry missing | Show "credential missing on this device" and offer reauth/re-enter |
-| V1 local profile store unavailable | Mark affected integration missing/read-only on this device; do not write raw fallback state |
-| V1 corrupted local entry | Do not delete the `SecretRef` automatically; offer reconnect/replace and diagnostic export without the secret |
-| Migration fails mid-way | Keep the legacy value only in its original legacy source for retry; do not re-persist it through NgRx, op-log, backup, or synced state |
-| Secret lookup fails during sync | Stop sync and ask for credential; do not overwrite or disable config |
-| Older client still syncing | Keep affected providers read-only or unmigrated until compatibility gate is satisfied |
-| Post-V1 portable vault locked | Show "credential locked" and offer the existing sync E2EE unlock, vault passphrase, recovery key, or device-pairing flow |
-| Post-V1 OS-backed storage unavailable | Use session-only storage or explicit passphrase-protected/degraded mode |
-| Post-V1 Linux `basic_text` backend | Do not silently persist secrets; require explicit plaintext-equivalent consent or passphrase/session-only alternative |
-| Post-V1 sync E2EE key rotation cannot rewrap vault | Keep old wrapper during grace period; if unavailable, require old unlock material or integration reauth |
+| Scenario                                           | Handling                                                                                                                               |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| V1 device-local entry missing                      | Show "credential missing on this device" and offer reauth/re-enter                                                                     |
+| V1 local profile store unavailable                 | Mark affected integration missing/read-only on this device; do not write raw fallback state                                            |
+| V1 corrupted local entry                           | Do not delete the `SecretRef` automatically; offer reconnect/replace and diagnostic export without the secret                          |
+| Migration fails mid-way                            | Keep the legacy value only in its original legacy source for retry; do not re-persist it through NgRx, op-log, backup, or synced state |
+| Secret lookup fails during sync                    | Stop sync and ask for credential; do not overwrite or disable config                                                                   |
+| Older client still syncing                         | Keep affected providers read-only or unmigrated until compatibility gate is satisfied                                                  |
+| Post-V1 portable vault locked                      | Show "credential locked" and offer the existing sync E2EE unlock, vault passphrase, recovery key, or device-pairing flow               |
+| Post-V1 OS-backed storage unavailable              | Use session-only storage or explicit passphrase-protected/degraded mode                                                                |
+| Post-V1 Linux `basic_text` backend                 | Do not silently persist secrets; require explicit plaintext-equivalent consent or passphrase/session-only alternative                  |
+| Post-V1 sync E2EE key rotation cannot rewrap vault | Keep old wrapper during grace period; if unavailable, require old unlock material or integration reauth                                |
 
 ## Backup and Restore Rules
 

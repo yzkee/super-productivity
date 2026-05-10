@@ -13,7 +13,6 @@ test.describe('Default task reminder option', () => {
   // text precisely and not collide with substrings like the "...never run code..."
   // tooltip on the theme upload button in the General tab.
   const changedOptionText = 'Never';
-
   const expandConfigSection = async (section: Locator): Promise<void> => {
     const collapsible = section.locator('collapsible').first();
     await collapsible.waitFor({ state: 'visible', timeout: 10000 });
