@@ -1,12 +1,32 @@
+import { TestBed } from '@angular/core/testing';
 import { FileBasedSyncTestHarness } from '../helpers/file-based-sync-test-harness';
 import { FILE_BASED_SYNC_CONSTANTS } from '../../../sync-providers/file-based/file-based-sync.types';
 import { SyncOperation } from '../../../sync-providers/provider.interface';
 import { UploadRevToMatchMismatchAPIError } from '../../../core/errors/sync-errors';
+import { SyncProviderId } from '../../../sync-providers/provider.const';
+import {
+  ActionType,
+  Operation,
+  OperationLogEntry,
+  OpType,
+} from '../../../core/operation.types';
+import { OperationLogStoreService } from '../../../persistence/operation-log-store.service';
+import { SyncImportFilterService } from '../../../sync/sync-import-filter.service';
 
 describe('File-Based Sync Integration - Edge Cases', () => {
   let harness: FileBasedSyncTestHarness;
+  let opLogStoreSpy: jasmine.SpyObj<OperationLogStoreService>;
 
   beforeEach(() => {
+    opLogStoreSpy = jasmine.createSpyObj<OperationLogStoreService>(
+      'OperationLogStoreService',
+      ['getLatestFullStateOpEntry'],
+    );
+    opLogStoreSpy.getLatestFullStateOpEntry.and.resolveTo(undefined);
+    TestBed.configureTestingModule({
+      providers: [{ provide: OperationLogStoreService, useValue: opLogStoreSpy }],
+    });
+
     harness = FileBasedSyncTestHarness.create({});
   });
 
@@ -395,6 +415,73 @@ describe('File-Based Sync Integration - Edge Cases', () => {
       // receivedAt should be set during download
       expect(download.ops[0].receivedAt).toBeDefined();
       expect(download.ops[0].receivedAt).toBeLessThanOrEqual(afterDownload);
+    });
+  });
+
+  describe('WebDAV Import Reset Filtering', () => {
+    it('should filter stale ops returned by WebDAV sync-data after a synced import', async () => {
+      const staleClientA = harness.createClient('A_jfjc');
+      const staleClientB = harness.createClient('B_z7PQ');
+      const importClient = harness.createClient('B_kc2U');
+
+      expect(harness.getProvider().id).toBe(SyncProviderId.WebDAV);
+
+      const staleOps = [
+        staleClientA.createOp(
+          'Task',
+          'task-repeat-instance',
+          'UPD',
+          'TaskActionTypes.UPDATE_TASK',
+          { id: 'task-repeat-instance', title: 'stale task update' },
+        ),
+        staleClientB.createOp(
+          'TaskRepeatCfg',
+          'repeat-cfg',
+          'UPD',
+          'TaskRepeatCfgActionTypes.UPDATE_TASK_REPEAT_CFG',
+          { id: 'repeat-cfg' },
+        ),
+      ];
+      await staleClientA.uploadOps([staleOps[0]]);
+      await staleClientB.uploadOps([staleOps[1]]);
+
+      const download = await importClient.downloadOps(0);
+      expect(download.ops.map(({ op }) => op.id)).toEqual(
+        jasmine.arrayContaining(staleOps.map(({ id }) => id)),
+      );
+
+      const syncedImportOp: Operation = {
+        id: '019dea96-94e3-7f82-9f0e-b78d7576a667',
+        clientId: importClient.clientId,
+        actionType: '[SP_ALL] Load(import) all data' as ActionType,
+        opType: OpType.SyncImport,
+        entityType: 'ALL',
+        entityId: '*',
+        payload: {},
+        vectorClock: { [importClient.clientId]: 42 },
+        timestamp: Date.now(),
+        schemaVersion: 1,
+      };
+      const storedImportEntry: OperationLogEntry = {
+        seq: 1,
+        op: syncedImportOp,
+        appliedAt: syncedImportOp.timestamp,
+        source: 'local',
+        syncedAt: syncedImportOp.timestamp + 1,
+      };
+      opLogStoreSpy.getLatestFullStateOpEntry.and.resolveTo(storedImportEntry);
+
+      const filter = TestBed.inject(SyncImportFilterService);
+      const result = await filter.filterOpsInvalidatedBySyncImport(
+        download.ops.map(({ op }) => op as Operation),
+      );
+
+      expect(result.validOps).toEqual([]);
+      expect(result.invalidatedOps.map(({ clientId }) => clientId)).toEqual(
+        jasmine.arrayContaining(['A_jfjc', 'B_z7PQ']),
+      );
+      expect(result.filteringImport).toBe(syncedImportOp);
+      expect(result.isLocalUnsyncedImport).toBe(false);
     });
   });
 });

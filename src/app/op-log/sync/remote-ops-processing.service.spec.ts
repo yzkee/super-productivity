@@ -62,6 +62,7 @@ describe('RemoteOpsProcessingService', () => {
       'getUnsyncedByEntity',
       'getOpsAfterSeq',
       'getLatestFullStateOp',
+      'getLatestFullStateOpEntry',
       'getOpById',
       'markRejected',
       'clearFullStateOps',
@@ -73,6 +74,7 @@ describe('RemoteOpsProcessingService', () => {
     // override these per-test to assert the captured snapshot.
     opLogStoreSpy.getVectorClock.and.resolveTo(null);
     opLogStoreSpy.getUnsynced.and.resolveTo([]);
+    opLogStoreSpy.getLatestFullStateOpEntry.and.resolveTo(undefined);
     // By default, appendBatchSkipDuplicates writes all ops (no duplicates)
     opLogStoreSpy.appendBatchSkipDuplicates.and.callFake((ops: any[]) =>
       Promise.resolve({
@@ -843,6 +845,98 @@ describe('RemoteOpsProcessingService', () => {
         expect(result.filteringImport).toBeDefined();
         expect(result.filteringImport!.id).toBe(syncImportOp.id);
         expect(result.localWinOpsCreated).toBe(0);
+      });
+
+      it('should filter #7549 stragglers before they can trigger LWW local-win reuploads', async () => {
+        const storedSyncedImport = createFullOp({
+          id: '019dea96-94e3-7f82-9f0e-b78d7576a667',
+          actionType: '[SP_ALL] Load(import) all data' as ActionType,
+          opType: OpType.SyncImport,
+          entityType: 'ALL',
+          entityId: 'import-1',
+          clientId: 'B_kc2U',
+          vectorClock: { ['B_kc2U']: 42 },
+        });
+
+        opLogStoreSpy.getLatestFullStateOpEntry.and.resolveTo({
+          seq: 1,
+          op: storedSyncedImport,
+          source: 'local',
+          syncedAt: Date.now(),
+          appliedAt: Date.now(),
+        });
+
+        const realSyncImportFilterService = TestBed.runInInjectionContext(
+          () => new SyncImportFilterService(),
+        );
+        syncImportFilterServiceSpy.filterOpsInvalidatedBySyncImport.and.callFake((ops) =>
+          realSyncImportFilterService.filterOpsInvalidatedBySyncImport(ops),
+        );
+
+        // These pending local ops would produce CONCURRENT conflicts if the stale
+        // remote ops below leaked past the import filter.
+        opLogStoreSpy.getUnsyncedByEntity.and.resolveTo(
+          new Map([
+            [
+              'TASK:task-repeat-instance',
+              [
+                createFullOp({
+                  id: 'local-task-op',
+                  entityId: 'task-repeat-instance',
+                  clientId: 'B_kc2U',
+                  vectorClock: { ['B_kc2U']: 43 },
+                }),
+              ],
+            ],
+            [
+              'TASK_REPEAT_CFG:repeat-cfg',
+              [
+                createFullOp({
+                  id: 'local-repeat-cfg-op',
+                  entityType: 'TASK_REPEAT_CFG',
+                  entityId: 'repeat-cfg',
+                  clientId: 'B_kc2U',
+                  vectorClock: { ['B_kc2U']: 44 },
+                }),
+              ],
+            ],
+          ]),
+        );
+        vectorClockServiceSpy.getEntityFrontier.and.resolveTo(new Map());
+        vectorClockServiceSpy.getSnapshotVectorClock.and.resolveTo({});
+        conflictResolutionServiceSpy.autoResolveConflictsLWW.and.resolveTo({
+          localWinOpsCreated: 57,
+        });
+        spyOn(service, 'detectConflicts').and.callThrough();
+
+        const remoteStragglers: Operation[] = [
+          createFullOp({
+            id: '019e03fa-9438-7d3f-9f7f-cd2e2010f230',
+            entityId: 'task-repeat-instance',
+            clientId: 'A_jfjc',
+            vectorClock: { ['A_jfjc']: 240 },
+          }),
+          createFullOp({
+            id: '019e03ba-433b-73f7-ad2e-577913108d4f',
+            entityType: 'TASK_REPEAT_CFG',
+            entityId: 'repeat-cfg',
+            clientId: 'B_z7PQ',
+            vectorClock: { ['B_z7PQ']: 12 },
+          }),
+        ];
+
+        const result = await service.processRemoteOps(remoteStragglers);
+
+        expect(result.localWinOpsCreated).toBe(0);
+        expect(result.allOpsFilteredBySyncImport).toBeTrue();
+        expect(result.filteredOpCount).toBe(2);
+        expect(result.filteringImport?.id).toBe(storedSyncedImport.id);
+        expect(result.isLocalUnsyncedImport).toBeFalse();
+        expect(service.detectConflicts).not.toHaveBeenCalled();
+        expect(
+          conflictResolutionServiceSpy.autoResolveConflictsLWW,
+        ).not.toHaveBeenCalled();
+        expect(opLogStoreSpy.appendBatchSkipDuplicates).not.toHaveBeenCalled();
       });
 
       it('should return allOpsFilteredBySyncImport=false when some ops pass filter', async () => {
