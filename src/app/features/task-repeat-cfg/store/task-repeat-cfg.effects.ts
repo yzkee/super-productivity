@@ -197,10 +197,18 @@ export class TaskRepeatCfgEffects {
           // planner days and TODAY_TAG removal
         } else {
           // TODAY FIRST OCCURRENCE:
-          // Update dueDay if it differs
+          // Keep the stable occurrence identity aligned even if the task was
+          // originally created before it became repeatable.
           const currentDueDay = task.dueDay || getDbDateStr(task.created);
+          const update: Partial<TaskCopy> = {};
+          if (firstOccurrence && getDbDateStr(task.created) !== firstOccurrenceStr) {
+            update.created = firstOccurrence.getTime();
+          }
           if (currentDueDay !== firstOccurrenceStr) {
-            this._taskService.update(task.id, { dueDay: firstOccurrenceStr });
+            update.dueDay = firstOccurrenceStr;
+          }
+          if (Object.keys(update).length > 0) {
+            this._taskService.update(task.id, update);
           }
         }
 
@@ -530,37 +538,69 @@ export class TaskRepeatCfgEffects {
     ),
   );
 
-  // Update startDate when a task with repeatOnComplete is marked as done
+  // Update repeat cfg state when the latest recurring task is completed
   updateStartDateOnComplete$ = createEffect(() =>
     this._localActions$.pipe(
       ofType(TaskSharedActions.updateTask),
       filter((a) => a.task.changes.isDone === true),
       switchMap(({ task }) =>
-        this._taskService
-          .getByIdOnce$(task.id as string)
-          .pipe(map((fullTask) => fullTask)),
+        this._taskService.getByIdOnce$(task.id as string).pipe(
+          switchMap((fullTask) => {
+            if (fullTask) {
+              return rxOf(fullTask);
+            }
+            return from(this._taskArchiveService.load()).pipe(
+              map((archive) => archive.entities[task.id as string]),
+            );
+          }),
+        ),
       ),
-      filter((task) => !!task?.repeatCfgId),
+      filter((task): task is Task => !!task?.repeatCfgId),
       switchMap((task) =>
         this._taskRepeatCfgService.getTaskRepeatCfgById$(task.repeatCfgId as string).pipe(
           take(1),
           map((cfg) => ({ task, cfg })),
         ),
       ),
-      filter(({ cfg }) => !!cfg && cfg.repeatFromCompletionDate === true),
-      filter(({ task, cfg }) => this._isLatestInstance(task, cfg)),
-      map(({ cfg }) => {
+      filter(
+        ({ cfg }) =>
+          !!cfg &&
+          (cfg.repeatFromCompletionDate === true || cfg.waitForCompletion === true),
+      ),
+      concatMap(({ task, cfg }) => {
         const today = this._dateService.todayStr();
-        return updateTaskRepeatCfg({
-          taskRepeatCfg: {
-            id: cfg.id as string,
-            changes: {
-              startDate: today,
-              lastTaskCreationDay: today,
-            },
-          },
-        });
+        const isLatestInstance = this._isLatestInstance(task, cfg);
+
+        // For repeatFromCompletionDate, update both startDate AND lastTaskCreationDay
+        // because getEffectiveRepeatStartDate() prioritizes lastTaskCreationDay when set.
+        // Without updating lastTaskCreationDay, the recurrence stays anchored to the old date.
+        if (cfg.repeatFromCompletionDate && isLatestInstance) {
+          return rxOf([
+            updateTaskRepeatCfg({
+              taskRepeatCfg: {
+                id: cfg.id as string,
+                changes: {
+                  startDate: today,
+                  lastTaskCreationDay: today,
+                },
+              },
+            }),
+          ]);
+        }
+
+        // For waitForCompletion, probe creation after any repeat instance is
+        // completed. The service checks whether any live or archived instance
+        // still blocks the gate, so completing an older final blocker can
+        // materialize the next due task immediately.
+        if (cfg.waitForCompletion) {
+          return from(
+            this._taskRepeatCfgService._getActionsForTaskRepeatCfg(cfg, Date.now()),
+          ).pipe(map((nextTaskActions) => nextTaskActions));
+        }
+
+        return rxOf([]);
       }),
+      mergeMap((actions) => actions),
     ),
   );
 
@@ -792,12 +832,17 @@ export class TaskRepeatCfgEffects {
     if (!lastCreationDay) {
       return true;
     }
-    // Only allow repeat-from-completion to advance configs when the finished task
-    // represents the most recently generated instance. Completing an archived/old
-    // copy previously skipped ahead incorrectly.
-    const taskDay =
-      task.dueDay ||
-      (task.dueWithTime ? getDbDateStr(task.dueWithTime) : getDbDateStr(task.created));
-    return taskDay === lastCreationDay;
+    // Use the stable task.created date (set to noon on the repeat occurrence day)
+    // as the primary identity. Some existing converted repeat tasks predate this
+    // invariant, so allow due date matching only when created is older than the
+    // repeat cursor. That keeps rescheduled current instances working without
+    // regressing legacy repeat-from-completion configs.
+    const createdDay = getDbDateStr(task.created);
+    if (createdDay === lastCreationDay) {
+      return true;
+    }
+    const dueDay =
+      task.dueDay || (task.dueWithTime ? getDbDateStr(task.dueWithTime) : undefined);
+    return !!dueDay && dueDay === lastCreationDay && createdDay < lastCreationDay;
   }
 }

@@ -92,6 +92,7 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
     const taskRepeatCfgServiceSpy = jasmine.createSpyObj('TaskRepeatCfgService', [
       'updateTaskRepeatCfg',
       'getTaskRepeatCfgById$',
+      '_getActionsForTaskRepeatCfg',
     ]);
 
     const matDialogSpy = jasmine.createSpyObj('MatDialog', ['open']);
@@ -329,6 +330,44 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
 
       // Verify that update was NOT called (same date)
       expect(taskService.update).not.toHaveBeenCalled();
+    });
+
+    it('should update task created when first occurrence is today but task was created earlier', () => {
+      const today = new Date();
+      const todayStr = getDbDateStr(today);
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const taskCreatedYesterday: TaskWithSubTasks = {
+        ...mockTask,
+        subTasks: [],
+        dueDay: todayStr,
+        created: yesterday.getTime(),
+      };
+
+      const dailyRepeatCfg: TaskRepeatCfgCopy = {
+        ...mockRepeatCfg,
+        repeatCycle: 'DAILY',
+        repeatEvery: 1,
+        startDate: todayStr,
+      };
+
+      const firstOccurrence = getFirstRepeatOccurrence(dailyRepeatCfg as any)!;
+      const action = addTaskRepeatCfgToTask({
+        taskRepeatCfg: dailyRepeatCfg,
+        taskId: 'parent-task-id',
+      });
+
+      actions$ = of(action);
+      taskService.getByIdWithSubTaskData$.and.returnValue(of(taskCreatedYesterday));
+
+      spyOn(effects as any, '_updateRegularTaskInstance');
+
+      effects.updateTaskAfterMakingItRepeatable$.subscribe().unsubscribe();
+
+      expect(taskService.update).toHaveBeenCalledWith('parent-task-id', {
+        created: firstOccurrence.getTime(),
+      });
     });
 
     it('should dispatch planTaskForDay and update created for daily repeat with future start date (#6433)', (done) => {
@@ -957,6 +996,135 @@ describe('TaskRepeatCfgEffects - Repeatable Subtasks', () => {
         );
 
         expectObservable(effects.updateStartDateOnComplete$).toBe('--');
+      });
+    });
+
+    it('should support legacy latest instance identified by dueDay when created predates cursor', () => {
+      testScheduler.run(({ hot, expectObservable }) => {
+        const today = getDbDateStr();
+        const action = TaskSharedActions.updateTask({
+          task: { id: 'parent-task-id', changes: { isDone: true } },
+        });
+        const legacyTask: Task = {
+          ...mockTask,
+          created: dateStrToUtcDate('2020-01-01').getTime(),
+          dueDay: today,
+        };
+
+        actions$ = hot('-a', { a: action });
+        taskService.getByIdOnce$.and.returnValue(of(legacyTask));
+        taskRepeatCfgService.getTaskRepeatCfgById$.and.returnValue(
+          of({
+            ...mockRepeatCfg,
+            repeatFromCompletionDate: true,
+            lastTaskCreationDay: today,
+          }),
+        );
+
+        const expectedAction = updateTaskRepeatCfg({
+          taskRepeatCfg: {
+            id: 'repeat-cfg-id',
+            changes: { startDate: today, lastTaskCreationDay: today },
+          },
+        });
+
+        expectObservable(effects.updateStartDateOnComplete$).toBe('-a', {
+          a: expectedAction,
+        });
+      });
+    });
+
+    it('should trigger waitForCompletion creation path for archived latest instance', (done) => {
+      const today = getDbDateStr();
+      const action = TaskSharedActions.updateTask({
+        task: { id: 'parent-task-id', changes: { isDone: true } },
+      });
+      const archivedTask: Task = {
+        ...mockTask,
+        created: dateStrToUtcDate(today).getTime(),
+        dueDay: today,
+      };
+      const repeatCfg: TaskRepeatCfgCopy = {
+        ...mockRepeatCfg,
+        repeatFromCompletionDate: false,
+        waitForCompletion: true,
+        lastTaskCreationDay: today,
+      };
+      const expectedAction = updateTaskRepeatCfg({
+        taskRepeatCfg: {
+          id: 'repeat-cfg-id',
+          changes: { lastTaskCreationDay: today },
+        },
+      });
+
+      actions$ = of(action);
+      taskService.getByIdOnce$.and.returnValue(of(undefined as unknown as Task));
+      taskArchiveService.load.and.returnValue(
+        Promise.resolve({
+          ids: ['parent-task-id'],
+          entities: {
+            [archivedTask.id]: archivedTask,
+          },
+        } as any),
+      );
+      taskRepeatCfgService.getTaskRepeatCfgById$.and.returnValue(of(repeatCfg));
+      taskRepeatCfgService._getActionsForTaskRepeatCfg.and.returnValue(
+        Promise.resolve([expectedAction]),
+      );
+
+      effects.updateStartDateOnComplete$.subscribe({
+        next: (result) => {
+          expect(result).toEqual(expectedAction);
+          expect(taskRepeatCfgService._getActionsForTaskRepeatCfg).toHaveBeenCalledWith(
+            repeatCfg,
+            jasmine.any(Number),
+          );
+          done();
+        },
+        error: done.fail,
+      });
+    });
+
+    it('should probe waitForCompletion creation path when completing a non-latest blocker', (done) => {
+      const today = getDbDateStr();
+      const action = TaskSharedActions.updateTask({
+        task: { id: 'parent-task-id', changes: { isDone: true } },
+      });
+      const oldTask: Task = {
+        ...mockTask,
+        created: dateStrToUtcDate('2020-01-01').getTime(),
+        dueDay: '2020-01-01',
+      };
+      const repeatCfg: TaskRepeatCfgCopy = {
+        ...mockRepeatCfg,
+        repeatFromCompletionDate: false,
+        waitForCompletion: true,
+        lastTaskCreationDay: today,
+      };
+      const expectedAction = updateTaskRepeatCfg({
+        taskRepeatCfg: {
+          id: 'repeat-cfg-id',
+          changes: { lastTaskCreationDay: today },
+        },
+      });
+
+      actions$ = of(action);
+      taskService.getByIdOnce$.and.returnValue(of(oldTask));
+      taskRepeatCfgService.getTaskRepeatCfgById$.and.returnValue(of(repeatCfg));
+      taskRepeatCfgService._getActionsForTaskRepeatCfg.and.returnValue(
+        Promise.resolve([expectedAction]),
+      );
+
+      effects.updateStartDateOnComplete$.subscribe({
+        next: (result) => {
+          expect(result).toEqual(expectedAction);
+          expect(taskRepeatCfgService._getActionsForTaskRepeatCfg).toHaveBeenCalledWith(
+            repeatCfg,
+            jasmine.any(Number),
+          );
+          done();
+        },
+        error: done.fail,
       });
     });
   });

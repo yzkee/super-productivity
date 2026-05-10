@@ -1843,6 +1843,8 @@
         "THURSDAY": "Thursday",
         "TITLE": "Task title",
         "TUESDAY": "Tuesday",
+        "WAIT_FOR_COMPLETION": "Only create next task after completion",
+        "WAIT_FOR_COMPLETION_DESCRIPTION": "Prevents multiple pending recurring tasks from piling up. The next instance will only be created once the current task is completed",
         "WEDNESDAY": "Wednesday",
         "WEEK_OF_MONTH": "Week of month",
         "WEEKDAY": "Weekday"
