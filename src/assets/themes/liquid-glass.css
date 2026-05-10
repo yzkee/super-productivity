@@ -93,26 +93,25 @@ body {
   --focus-ring: var(--lg-accent);
 
   /* Three-radial wallpaper tinted by the user's primary colour.
-   * Top-left and bottom-right carry the bulk of the wash; the
-   * smaller top-right radial breaks up the symmetry and adds
-   * depth without introducing a competing hue. */
+   * Fixed pixel positions keep the generated wallpaper stable
+   * when the app moves between displays or the window is resized. */
   --lg-wallpaper:
     radial-gradient(
-      ellipse 1400px 900px at 18% -10%,
+      ellipse 1400px 900px at 260px -90px,
       color-mix(in srgb, var(--palette-primary-500) 32%, transparent),
       transparent 70%
     ),
     radial-gradient(
-      ellipse 1100px 800px at 92% 108%,
+      ellipse 1100px 800px at 1325px 972px,
       color-mix(in srgb, var(--palette-primary-500) 22%, transparent),
       transparent 70%
     ),
     radial-gradient(
-      ellipse 900px 700px at 95% 10%,
+      ellipse 900px 700px at 1368px 90px,
       color-mix(in srgb, var(--palette-primary-500) 12%, transparent),
       transparent 65%
     ),
-    linear-gradient(180deg, #fafbff 0%, #f3f5fa 100%);
+    linear-gradient(180deg, #fafbff 0px, #f3f5fa 900px);
 
   --bg: transparent;
   --bg-darker: rgba(255, 255, 255, 0.55);
@@ -281,21 +280,21 @@ body.isDarkTheme {
 
   --lg-wallpaper:
     radial-gradient(
-      ellipse 1400px 900px at 18% -10%,
+      ellipse 1400px 900px at 260px -90px,
       color-mix(in srgb, var(--palette-primary-500) 22%, transparent),
       transparent 70%
     ),
     radial-gradient(
-      ellipse 1100px 800px at 92% 108%,
+      ellipse 1100px 800px at 1325px 972px,
       color-mix(in srgb, var(--palette-primary-500) 14%, transparent),
       transparent 70%
     ),
     radial-gradient(
-      ellipse 900px 700px at 95% 10%,
+      ellipse 900px 700px at 1368px 90px,
       color-mix(in srgb, var(--palette-primary-500) 8%, transparent),
       transparent 65%
     ),
-    linear-gradient(180deg, #0a0d18 0%, #07090f 100%);
+    linear-gradient(180deg, #0a0d18 0px, #07090f 900px);
 
   --bg: transparent;
   --bg-darker: rgba(20, 22, 28, 0.6);
@@ -494,7 +493,7 @@ add-task-bar .add-task-container,
  * drop the primary-color radials, keep only the soft
  * neutral base gradient. */
 body.isDisableBackgroundTint {
-  --lg-wallpaper: linear-gradient(180deg, #fafbff 0%, #f3f5fa 100%);
+  --lg-wallpaper: linear-gradient(180deg, #fafbff 0px, #f3f5fa 900px);
 }
 
 body.isDisableBackgroundTint.isDarkTheme {
@@ -507,62 +506,16 @@ body.isDisableBackgroundTint.isDarkTheme {
    * dark rather than a charcoal mid-grey. */
   --lg-wallpaper:
     radial-gradient(
-      ellipse 1400px 900px at 18% -10%,
+      ellipse 1400px 900px at 260px -90px,
       rgba(255, 255, 255, 0.03),
       transparent 70%
     ),
     radial-gradient(
-      ellipse 1100px 800px at 92% 108%,
+      ellipse 1100px 800px at 1325px 972px,
       rgba(255, 255, 255, 0.018),
       transparent 70%
     ),
-    linear-gradient(180deg, #0d0d0f 0%, #08080a 100%);
-}
-
-/* Small mobile — desktop radial sizes (1400×900 / 1100×800) are
- * 3–4× a phone viewport and flood the screen with primary tint.
- * Shrink to viewport-relative ellipses with lower alpha so the
- * tint reads as a gentle wash instead of a wall of color. */
-@media (max-width: 900px) {
-  body {
-    --lg-wallpaper:
-      radial-gradient(
-        ellipse 80vw 50vh at 18% -10%,
-        color-mix(in srgb, var(--palette-primary-500) 20%, transparent),
-        transparent 65%
-      ),
-      radial-gradient(
-        ellipse 70vw 45vh at 92% 108%,
-        color-mix(in srgb, var(--palette-primary-500) 12%, transparent),
-        transparent 65%
-      ),
-      radial-gradient(
-        ellipse 60vw 40vh at 95% 10%,
-        color-mix(in srgb, var(--palette-primary-500) 7%, transparent),
-        transparent 60%
-      ),
-      linear-gradient(180deg, #fafbff 0%, #f3f5fa 100%);
-  }
-
-  body.isDarkTheme {
-    --lg-wallpaper:
-      radial-gradient(
-        ellipse 80vw 50vh at 18% -10%,
-        color-mix(in srgb, var(--palette-primary-500) 12%, transparent),
-        transparent 65%
-      ),
-      radial-gradient(
-        ellipse 70vw 45vh at 92% 108%,
-        color-mix(in srgb, var(--palette-primary-500) 8%, transparent),
-        transparent 65%
-      ),
-      radial-gradient(
-        ellipse 60vw 40vh at 95% 10%,
-        color-mix(in srgb, var(--palette-primary-500) 5%, transparent),
-        transparent 60%
-      ),
-      linear-gradient(180deg, #0a0d18 0%, #07090f 100%);
-  }
+    linear-gradient(180deg, #0d0d0f 0px, #08080a 900px);
 }
 
 /* ---------------------------------------------------------
@@ -1130,7 +1083,7 @@ body.isDarkTheme.isNoTouchOnly ::-webkit-scrollbar-thumb {
 
 @media (prefers-reduced-transparency: reduce) {
   body {
-    background: linear-gradient(180deg, #eef2f8 0%, #e6ecf4 100%) !important;
+    background: linear-gradient(180deg, #eef2f8 0px, #e6ecf4 900px) !important;
     --card-bg: #ffffff;
     --sidenav-bg: #f5f7fa;
     --task-c-bg: #ffffff;
@@ -1142,7 +1095,7 @@ body.isDarkTheme.isNoTouchOnly ::-webkit-scrollbar-thumb {
     --schedule-event-bg: #ffffff;
   }
   body.isDarkTheme {
-    background: linear-gradient(180deg, #0d1018 0%, #0a0c12 100%) !important;
+    background: linear-gradient(180deg, #0d1018 0px, #0a0c12 900px) !important;
     --card-bg: #1a1c22;
     --sidenav-bg: #14161c;
     --task-c-bg: #1a1c22;
