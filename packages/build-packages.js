@@ -46,6 +46,15 @@ async function getPlugins() {
     skipCopy: true,
   });
 
+  // Build sync-core after shared-schema to keep package build order stable.
+  // sync-core must not import shared-schema; the sync core stays domain-agnostic.
+  plugins.push({
+    name: 'sync-core',
+    path: 'packages/sync-core',
+    buildCommand: 'npm run build',
+    skipCopy: true,
+  });
+
   // Add plugin-api as it's a dependency for plugins
   plugins.push({
     name: 'plugin-api',

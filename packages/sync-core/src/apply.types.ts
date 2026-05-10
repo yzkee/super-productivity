@@ -1,12 +1,19 @@
-// App-narrowed apply types. The lib's @sp/sync-core ships generic versions; the
-// app uses its own Operation type so callers see the SP-narrowed entityType /
-// actionType unions and the syncImportReason field.
+import { Operation } from './operation.types';
 
-import type { Operation } from '../operation.types';
-
+/**
+ * Result of applying a batch of operations.
+ *
+ * Allows callers to handle partial success scenarios where some operations
+ * were applied before an error occurred.
+ */
 export interface ApplyOperationsResult {
   /** Operations that were successfully applied. */
   appliedOps: Operation[];
+
+  /**
+   * If an error occurred, this contains the failed operation and the error.
+   * Operations after this one in the batch were NOT applied.
+   */
   failedOp?: {
     op: Operation;
     error: Error;
