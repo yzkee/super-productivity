@@ -220,7 +220,19 @@
             mat-icon-button
             [matTooltip]="T.F.FOCUS_MODE.POMODORO_SETTINGS | translate"
             (click)="openPomodoroSettings()"
-            class="pomodoro-settings-btn"
+            class="mode-settings-btn"
+          >
+            <mat-icon>settings</mat-icon>
+          </button>
+        }
+
+        <!-- Flowtime settings cog (Preparation + Flowtime mode) -->
+        @if (isShowFlowtimeSettings()) {
+          <button
+            mat-icon-button
+            [matTooltip]="T.F.FOCUS_MODE.FLOWTIME_SETTINGS | translate"
+            (click)="openFlowtimeSettings()"
+            class="mode-settings-btn"
           >
             <mat-icon>settings</mat-icon>
           </button>

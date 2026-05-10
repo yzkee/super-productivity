@@ -407,6 +407,40 @@ export class FocusModeEffects {
     ),
   );
 
+  // Effect 3b: Offer Flowtime breaks when user explicitly ends their session
+  // Triggers on endFlowtimeSession — NOT pauseFocusSession (which is fired by
+  // sync-stop, idle, and the regular pause button)
+  offerFlowtimeBreakOnSessionEnd$ = createEffect(() =>
+    this.actions$.pipe(
+      ofType(actions.endFlowtimeSession),
+      withLatestFrom(
+        this.store.select(selectors.selectMode),
+        this.store.select(selectors.selectTimer),
+      ),
+      filter(([_action, mode, timer]) => {
+        if (mode !== FocusModeMode.Flowtime) return false;
+        if (timer.purpose !== 'work') return false;
+        return true;
+      }),
+      switchMap(([action, mode, timer]) => {
+        const strategy = this.strategyFactory.getStrategy(mode);
+        const breakInfo = strategy.getBreakDuration(timer.elapsed);
+
+        if (!strategy.shouldStartBreakAfterSession || !breakInfo) {
+          return [actions.completeFocusSession({ isManual: true })];
+        }
+
+        return [
+          actions.offerFlowtimeBreak({
+            duration: breakInfo.duration,
+            isLongBreak: breakInfo.isLong,
+            pausedTaskId: action.pausedTaskId,
+          }),
+        ];
+      }),
+    ),
+  );
+
   // Effect 4: Notification side effect (non-dispatching)
   notifyOnSessionComplete$ = createEffect(
     () =>
@@ -617,7 +651,9 @@ export class FocusModeEffects {
   logFocusSession$ = createEffect(
     () =>
       this.actions$.pipe(
-        ofType(actions.completeFocusSession),
+        // Flowtime sessions are logged when the break is offered, even if the
+        // user declines the break and never starts it.
+        ofType(actions.completeFocusSession, actions.offerFlowtimeBreak),
         withLatestFrom(this.store.select(selectors.selectLastSessionDuration)),
         tap(([, duration]) => {
           if (duration > 0) {

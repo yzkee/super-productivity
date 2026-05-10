@@ -27,10 +27,7 @@
   max-width: 600px;
 }
 
-// Pomodoro settings cog — lives inside the clock face during prep (Pomodoro
-// mode only), centered at the bottom. Fades in on hover like the other
-// in-circle controls.
-.pomodoro-settings-btn {
+.mode-settings-btn {
   position: absolute;
   bottom: calc(var(--clock-face-size) * 0.05);
   left: 50%;

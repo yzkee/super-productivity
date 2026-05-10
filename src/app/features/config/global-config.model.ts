@@ -115,6 +115,19 @@ export type PomodoroConfig = Readonly<{
   cyclesBeforeLongerBreak?: number | null;
 }>;
 
+export type FlowtimeBreakRule = Readonly<{
+  minDuration: number; // in milliseconds
+  maxDuration: number | null; // in milliseconds, or null for no upper bound
+  breakDuration: number; // in milliseconds
+}>;
+
+export type FlowtimeConfig = Readonly<{
+  isBreakEnabled?: boolean | null;
+  breakMode?: 'ratio' | 'rule' | null; // ratio-based or rule-based break calculation
+  breakPercentage?: number | null; // percentage of work time (for ratio mode)
+  breakRules?: FlowtimeBreakRule[] | null; // rules for rule-based breaks
+}>;
+
 // NOTE: needs to be writable due to how we use it
 // export type DropboxSyncConfig = object;
 
@@ -279,6 +292,7 @@ export type GlobalConfigState = Readonly<{
   idle: IdleConfig;
   takeABreak: TakeABreakConfig;
   pomodoro: PomodoroConfig;
+  flowtime: FlowtimeConfig;
   keyboard: KeyboardConfig;
   localBackup: LocalBackupConfig;
   sound: SoundConfig;
@@ -310,6 +324,7 @@ export type GlobalSectionConfig =
   | MiscConfig
   | TasksConfig
   | PomodoroConfig
+  | FlowtimeConfig
   | KeyboardConfig
   | ScheduleConfig
   | ReminderConfig

@@ -99,6 +99,12 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     autoStartFocusOnPlay: false,
     isManualBreakStart: false,
   },
+  flowtime: {
+    isBreakEnabled: false,
+    breakMode: 'ratio',
+    breakPercentage: 20,
+    breakRules: [],
+  },
   clipboardImages: {
     imagePath: null,
   },

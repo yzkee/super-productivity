@@ -22,6 +22,7 @@ import {
   adjustRemainingTime,
   completeFocusSession,
   completeTask,
+  endFlowtimeSession,
   focusModeLoaded,
   pauseFocusSession,
   resetCycles,
@@ -68,6 +69,7 @@ import { FocusModeStorageService } from '../focus-mode-storage.service';
 import { ANI_STANDARD_TIMING } from '../../../ui/animations/animation.const';
 import { FocusModeTaskSelectorComponent } from '../focus-mode-task-selector/focus-mode-task-selector.component';
 import { DialogPomodoroSettingsComponent } from '../dialog-pomodoro-settings/dialog-pomodoro-settings.component';
+import { DialogFlowtimeSettingsComponent } from '../dialog-flowtime-settings/dialog-flowtime-settings.component';
 
 @Component({
   selector: 'focus-mode-main',
@@ -169,6 +171,9 @@ export class FocusModeMainComponent {
   isShowModeSelector = computed(() => this._isPreparation());
   isShowPomodoroSettings = computed(
     () => this._isPreparation() && this.mode() === FocusModeMode.Pomodoro,
+  );
+  isShowFlowtimeSettings = computed(
+    () => this._isPreparation() && this.mode() === FocusModeMode.Flowtime,
   );
   isShowSimpleCounters = computed(() => this._isInProgress());
   isShowPauseButton = computed(() => this._isInProgress());
@@ -348,6 +353,14 @@ export class FocusModeMainComponent {
   }
 
   completeFocusSession(): void {
+    if (this.mode() === FocusModeMode.Flowtime) {
+      // Flowtime uses a dedicated action because the end of a session must
+      // trigger a break offer effect based on elapsed time, rather than
+      // immediately resetting the timer and UI state
+      const currentTaskId = this.taskService.currentTaskId();
+      this._store.dispatch(endFlowtimeSession({ pausedTaskId: currentTaskId }));
+      return;
+    }
     this._store.dispatch(completeFocusSession({ isManual: true }));
   }
 
@@ -417,6 +430,10 @@ export class FocusModeMainComponent {
 
   openPomodoroSettings(): void {
     this._matDialog.open(DialogPomodoroSettingsComponent);
+  }
+
+  openFlowtimeSettings(): void {
+    this._matDialog.open(DialogFlowtimeSettingsComponent);
   }
 
   onDurationChange(duration: number): void {

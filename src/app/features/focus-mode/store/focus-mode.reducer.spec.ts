@@ -252,6 +252,26 @@ describe('FocusModeReducer', () => {
       expect(result.timer.isRunning).toBe(true);
     });
 
+    it('should not unpause a BreakOffer state', () => {
+      const pausedBreakOfferState = {
+        ...initialState,
+        timer: {
+          isRunning: false,
+          startedAt: null,
+          elapsed: 0,
+          duration: 300000,
+          purpose: 'break' as const,
+        },
+        mainState: FocusMainUIState.BreakOffer,
+        currentScreen: FocusScreen.Break,
+      };
+
+      const action = a.unPauseFocusSession();
+      const result = focusModeReducer(pausedBreakOfferState, action);
+
+      expect(result).toBe(pausedBreakOfferState);
+    });
+
     it('should not unpause sessions with no purpose (idle)', () => {
       const idleState = {
         ...initialState,
@@ -318,6 +338,43 @@ describe('FocusModeReducer', () => {
   });
 
   describe('break actions', () => {
+    it('endFlowtimeSession should be a no-op when timer.purpose !== work', () => {
+      const state = {
+        ...initialState,
+        timer: { ...initialState.timer, purpose: 'break' as const, isRunning: true },
+      };
+      const action = a.endFlowtimeSession({ pausedTaskId: null });
+      const result = focusModeReducer(state, action);
+      expect(result).toBe(state);
+    });
+
+    it('endFlowtimeSession should pause timer but preserve state', () => {
+      const state = {
+        ...initialState,
+        timer: { ...initialState.timer, purpose: 'work' as const, isRunning: true },
+      };
+      const action = a.endFlowtimeSession({ pausedTaskId: 'task-abc' });
+      const result = focusModeReducer(state, action);
+      expect(result.timer.isRunning).toBe(false);
+      expect(result.pausedTaskId).toBe('task-abc');
+      expect(result.currentScreen).toBe(initialState.currentScreen);
+    });
+
+    it('offerFlowtimeBreak should switch currentScreen to Break and set break timer', () => {
+      const action = a.offerFlowtimeBreak({
+        duration: 5000,
+        isLongBreak: false,
+      });
+      const result = focusModeReducer(initialState, action);
+
+      expect(result.currentScreen).toBe(FocusScreen.Break);
+      expect(result.mainState).toBe(FocusMainUIState.BreakOffer);
+      expect(result.timer.isRunning).toBe(false);
+      expect(result.timer.elapsed).toBe(0);
+      expect(result.timer.purpose).toBe('break');
+      expect(result.timer.duration).toBe(5000);
+    });
+
     it('should start break with default duration', () => {
       const action = a.startBreak({});
       const result = focusModeReducer(initialState, action);
