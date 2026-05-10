@@ -36,6 +36,7 @@ import { NotIcalResponseError } from '../schedule/ical/is-likely-ical';
 import 'ical.js';
 import { loadIcalModule } from '../schedule/ical/ical-lazy-loader';
 import { CalendarIntegrationEvent } from './calendar-integration.model';
+import { HiddenCalendarEventsService } from './hidden-calendar-events.service';
 
 describe('CalendarIntegrationService', () => {
   let service: CalendarIntegrationService;
@@ -146,6 +147,7 @@ END:VCALENDAR`;
       }));
 
       it('should emit cached data from localStorage if available', fakeAsync(() => {
+        const cachedProvider = createMockProvider({ id: 'provider-1' });
         const cachedData = [
           {
             items: [
@@ -161,6 +163,8 @@ END:VCALENDAR`;
           },
         ];
         localStorage.setItem('SUP_CAL_EVENTS_CACHE', JSON.stringify(cachedData));
+        store.overrideSelector(selectCalendarProviders, [cachedProvider]);
+        store.refreshState();
 
         // Create new service instance to pick up cached data
         const newService = TestBed.inject(CalendarIntegrationService);
@@ -179,6 +183,7 @@ END:VCALENDAR`;
 
       it('should filter out events older than one week from cache', fakeAsync(() => {
         const ONE_WEEK = 60 * 60 * 1000 * 24 * 7;
+        const cachedProvider = createMockProvider({ id: 'provider-1' });
         const cachedData = [
           {
             items: [
@@ -210,6 +215,8 @@ END:VCALENDAR`;
           },
         ];
         localStorage.setItem('SUP_CAL_EVENTS_CACHE', JSON.stringify(cachedData));
+        store.overrideSelector(selectCalendarProviders, [cachedProvider]);
+        store.refreshState();
 
         const newService = TestBed.inject(CalendarIntegrationService);
 
@@ -224,6 +231,314 @@ END:VCALENDAR`;
         expect((emittedValue as any[])[0].items.length).toBe(2);
         expect((emittedValue as any[])[0].items[0].id).toBe('recent-past-event');
         expect((emittedValue as any[])[0].items[1].id).toBe('future-event');
+        discardPeriodicTasks();
+      }));
+    });
+
+    describe('regex filter in initial cached emission', () => {
+      it('should resolve provider config per-event so mixed-provider cache entries are filtered correctly', fakeAsync(() => {
+        const providerA: IssueProviderCalendar = createMockProvider({
+          id: 'provider-a',
+          filterExcludeRegex: 'Lunch',
+        });
+        const providerB: IssueProviderCalendar = createMockProvider({
+          id: 'provider-b',
+          filterExcludeRegex: null,
+        });
+
+        // A single cache entry whose items belong to different providers —
+        // this can happen because _groupCachedEventsByProvider() groups by calProviderId
+        // while the cache itself stores flat ScheduleCalendarMapEntry arrays.
+        const cachedData = [
+          {
+            items: [
+              {
+                id: 'event-a-lunch',
+                calProviderId: 'provider-a',
+                issueProviderKey: 'ICAL',
+                title: 'Lunch',
+                start: Date.now() + 60000,
+                duration: 3600000,
+              },
+              {
+                id: 'event-a-standup',
+                calProviderId: 'provider-a',
+                issueProviderKey: 'ICAL',
+                title: 'Standup',
+                start: Date.now() + 120000,
+                duration: 1800000,
+              },
+              {
+                id: 'event-b-lunch',
+                calProviderId: 'provider-b',
+                issueProviderKey: 'ICAL',
+                title: 'Lunch',
+                start: Date.now() + 180000,
+                duration: 3600000,
+              },
+            ],
+          },
+        ];
+        localStorage.setItem('SUP_CAL_EVENTS_CACHE', JSON.stringify(cachedData));
+
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+          imports: [HttpClientTestingModule],
+          providers: [
+            CalendarIntegrationService,
+            provideMockStore({
+              selectors: [
+                { selector: selectCalendarProviders, value: [providerA, providerB] },
+                { selector: selectEnabledIssueProviders, value: [] },
+                { selector: selectAllCalendarTaskEventIds, value: [] },
+              ],
+            }),
+            { provide: SnackService, useValue: mockSnackService },
+          ],
+        });
+
+        const freshService = TestBed.inject(CalendarIntegrationService);
+
+        let emittedValue: any;
+        const sub = freshService.calendarEvents$.pipe(take(1)).subscribe((val) => {
+          emittedValue = val;
+        });
+
+        tick(0);
+
+        const allItems = emittedValue?.flatMap((e: any) => e.items ?? []) ?? [];
+        const ids = allItems.map((i: any) => i.id);
+
+        // Provider A has filterExcludeRegex='Lunch' → 'event-a-lunch' must be gone
+        expect(ids).not.toContain('event-a-lunch');
+        // Provider A standup is not excluded
+        expect(ids).toContain('event-a-standup');
+        // Provider B has no filter → its 'Lunch' event must survive
+        expect(ids).toContain('event-b-lunch');
+
+        sub.unsubscribe();
+        discardPeriodicTasks();
+      }));
+
+      it('should filter out task-imported, skipped, and hidden events from initial cached emission', fakeAsync(() => {
+        const provider = createMockProvider({ id: 'provider-x' });
+        const cachedData = [
+          {
+            items: [
+              {
+                id: 'event-task',
+                calProviderId: 'provider-x',
+                issueProviderKey: 'ICAL',
+                title: 'Already a Task',
+                start: Date.now() + 60000,
+                duration: 3600000,
+              },
+              {
+                id: 'event-skipped',
+                calProviderId: 'provider-x',
+                issueProviderKey: 'ICAL',
+                title: 'Skipped Event',
+                start: Date.now() + 120000,
+                duration: 1800000,
+              },
+              {
+                id: 'event-hidden',
+                calProviderId: 'provider-x',
+                issueProviderKey: 'ICAL',
+                title: 'Hidden Event',
+                start: Date.now() + 180000,
+                duration: 3600000,
+              },
+              {
+                id: 'event-visible',
+                calProviderId: 'provider-x',
+                issueProviderKey: 'ICAL',
+                title: 'Visible Event',
+                start: Date.now() + 240000,
+                duration: 1800000,
+              },
+            ],
+          },
+        ];
+        localStorage.setItem('SUP_CAL_EVENTS_CACHE', JSON.stringify(cachedData));
+
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+          imports: [HttpClientTestingModule],
+          providers: [
+            CalendarIntegrationService,
+            provideMockStore({
+              selectors: [
+                { selector: selectCalendarProviders, value: [provider] },
+                { selector: selectEnabledIssueProviders, value: [] },
+                { selector: selectAllCalendarTaskEventIds, value: ['event-task'] },
+              ],
+            }),
+            { provide: SnackService, useValue: mockSnackService },
+          ],
+        });
+
+        const freshService = TestBed.inject(CalendarIntegrationService);
+
+        // Seed skipped and hidden IDs before subscribing
+        freshService.skippedEventIds$.next(['event-skipped']);
+        const hiddenEventsService = TestBed.inject(HiddenCalendarEventsService);
+        hiddenEventsService.hiddenEventIds$.next(['event-hidden']);
+
+        let emittedValue: any;
+        const sub = freshService.calendarEvents$.pipe(take(1)).subscribe((val) => {
+          emittedValue = val;
+        });
+
+        tick(0);
+
+        const allItems = emittedValue?.flatMap((e: any) => e.items ?? []) ?? [];
+        const ids = allItems.map((i: any) => i.id);
+
+        expect(ids).not.toContain('event-task');
+        expect(ids).not.toContain('event-skipped');
+        expect(ids).not.toContain('event-hidden');
+        expect(ids).toContain('event-visible');
+
+        sub.unsubscribe();
+        discardPeriodicTasks();
+      }));
+
+      it('should reapply regex filters to cached events immediately when provider config changes', fakeAsync(() => {
+        const provider = createMockProvider({ id: 'provider-x' });
+        const cachedData = [
+          {
+            items: [
+              {
+                id: 'event-lunch',
+                calProviderId: 'provider-x',
+                issueProviderKey: 'ICAL',
+                title: 'Lunch',
+                start: Date.now() + 60000,
+                duration: 3600000,
+              },
+              {
+                id: 'event-standup',
+                calProviderId: 'provider-x',
+                issueProviderKey: 'ICAL',
+                title: 'Standup',
+                start: Date.now() + 120000,
+                duration: 1800000,
+              },
+            ],
+          },
+        ];
+        localStorage.setItem('SUP_CAL_EVENTS_CACHE', JSON.stringify(cachedData));
+
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+          imports: [HttpClientTestingModule],
+          providers: [
+            CalendarIntegrationService,
+            provideMockStore({
+              selectors: [
+                { selector: selectCalendarProviders, value: [provider] },
+                { selector: selectEnabledIssueProviders, value: [] },
+                { selector: selectAllCalendarTaskEventIds, value: [] },
+              ],
+            }),
+            { provide: SnackService, useValue: mockSnackService },
+          ],
+        });
+
+        const freshService = TestBed.inject(CalendarIntegrationService);
+        const freshStore = TestBed.inject(MockStore);
+        const freshHttpMock = TestBed.inject(HttpTestingController);
+        const emissions: string[][] = [];
+        const sub = freshService.calendarEvents$.subscribe((entries) => {
+          emissions.push(entries.flatMap((entry) => entry.items.map((item) => item.id)));
+        });
+
+        tick(0);
+        expect(emissions[0]).toContain('event-lunch');
+        expect(emissions[0]).toContain('event-standup');
+
+        freshStore.overrideSelector(selectCalendarProviders, [
+          createMockProvider({
+            id: 'provider-x',
+            filterExcludeRegex: 'Lunch',
+          }),
+        ]);
+        freshStore.refreshState();
+        tick(0);
+
+        expect(emissions[emissions.length - 1]).not.toContain('event-lunch');
+        expect(emissions[emissions.length - 1]).toContain('event-standup');
+
+        freshHttpMock
+          .match(provider.icalUrl)
+          .filter((req) => !req.cancelled)
+          .forEach((req) => req.flush(MOCK_ICAL_DATA));
+        sub.unsubscribe();
+        discardPeriodicTasks();
+      }));
+
+      it('should filter cached events for disabled or removed providers', fakeAsync(() => {
+        const activeProvider = createMockProvider({
+          id: 'active-provider',
+          icalUrl: 'https://active.example.com/calendar.ics',
+        });
+        const cachedData = [
+          {
+            items: [
+              {
+                id: 'active-event',
+                calProviderId: 'active-provider',
+                issueProviderKey: 'ICAL',
+                title: 'Active Event',
+                start: Date.now() + 60000,
+                duration: 3600000,
+              },
+              {
+                id: 'removed-event',
+                calProviderId: 'removed-provider',
+                issueProviderKey: 'ICAL',
+                title: 'Removed Event',
+                start: Date.now() + 120000,
+                duration: 1800000,
+              },
+            ],
+          },
+        ];
+        localStorage.setItem('SUP_CAL_EVENTS_CACHE', JSON.stringify(cachedData));
+
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+          imports: [HttpClientTestingModule],
+          providers: [
+            CalendarIntegrationService,
+            provideMockStore({
+              selectors: [
+                { selector: selectCalendarProviders, value: [activeProvider] },
+                { selector: selectEnabledIssueProviders, value: [] },
+                { selector: selectAllCalendarTaskEventIds, value: [] },
+              ],
+            }),
+            { provide: SnackService, useValue: mockSnackService },
+          ],
+        });
+
+        const freshService = TestBed.inject(CalendarIntegrationService);
+
+        let emittedValue: any;
+        const sub = freshService.calendarEvents$.pipe(take(1)).subscribe((val) => {
+          emittedValue = val;
+        });
+
+        tick(0);
+
+        const allItems = emittedValue?.flatMap((e: any) => e.items ?? []) ?? [];
+        const ids = allItems.map((i: any) => i.id);
+
+        expect(ids).toContain('active-event');
+        expect(ids).not.toContain('removed-event');
+
+        sub.unsubscribe();
         discardPeriodicTasks();
       }));
     });
@@ -1565,6 +1880,7 @@ END:VCALENDAR`;
 
     it('should handle events at exactly current time', fakeAsync(() => {
       const now = Date.now();
+      const cachedProvider = createMockProvider({ id: 'provider-1' });
       const cachedData = [
         {
           items: [
@@ -1588,7 +1904,7 @@ END:VCALENDAR`;
           CalendarIntegrationService,
           provideMockStore({
             selectors: [
-              { selector: selectCalendarProviders, value: [] },
+              { selector: selectCalendarProviders, value: [cachedProvider] },
               { selector: selectEnabledIssueProviders, value: [] },
               { selector: selectAllCalendarTaskEventIds, value: [] },
             ],
