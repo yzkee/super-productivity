@@ -1,7 +1,12 @@
 package com.superproductivity.superproductivity.webview
 
+import com.superproductivity.superproductivity.R
+import com.superproductivity.superproductivity.webview.WebViewCompatibilityChecker.BlockScreenAction
 import com.superproductivity.superproductivity.webview.WebViewCompatibilityChecker.Status
+import com.superproductivity.superproductivity.webview.WebViewCompatibilityChecker.VersionSource
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WebViewCompatibilityCheckerTest {
@@ -164,6 +169,239 @@ class WebViewCompatibilityCheckerTest {
                 userOverride = true,
             ),
         )
+    }
+
+    // source handling --------------------------------------------------------
+
+    @Test
+    fun `sourceFromName parses known source names`() {
+        assertEquals(
+            VersionSource.INIT_FAILURE,
+            WebViewCompatibilityChecker.sourceFromName("INIT_FAILURE"),
+        )
+        assertEquals(
+            VersionSource.USER_AGENT,
+            WebViewCompatibilityChecker.sourceFromName("USER_AGENT"),
+        )
+    }
+
+    @Test
+    fun `sourceFromName falls back to UNKNOWN for missing or invalid source names`() {
+        assertEquals(VersionSource.UNKNOWN, WebViewCompatibilityChecker.sourceFromName(null))
+        assertEquals(VersionSource.UNKNOWN, WebViewCompatibilityChecker.sourceFromName(""))
+        assertEquals(VersionSource.UNKNOWN, WebViewCompatibilityChecker.sourceFromName("not-a-source"))
+    }
+
+    @Test
+    fun `canBypassBlock only disables override for WebView init failures`() {
+        assertEquals(false, WebViewCompatibilityChecker.canBypassBlock(VersionSource.INIT_FAILURE))
+        assertEquals(true, WebViewCompatibilityChecker.canBypassBlock(VersionSource.USER_AGENT))
+        assertEquals(true, WebViewCompatibilityChecker.canBypassBlock(VersionSource.PACKAGE))
+        assertEquals(true, WebViewCompatibilityChecker.canBypassBlock(VersionSource.UNKNOWN))
+    }
+
+    @Test
+    fun `shouldPreferCurrentProviderPackage trusts healthy current provider over stale user agent`() {
+        assertTrue(
+            WebViewCompatibilityChecker.shouldPreferCurrentProviderPackage(
+                packageMajor = WebViewCompatibilityChecker.MIN_CHROMIUM_VERSION,
+                providerPackageIsCurrent = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `shouldPreferCurrentProviderPackage keeps user agent path for fallback or old provider package`() {
+        assertFalse(
+            WebViewCompatibilityChecker.shouldPreferCurrentProviderPackage(
+                packageMajor = WebViewCompatibilityChecker.MIN_CHROMIUM_VERSION,
+                providerPackageIsCurrent = false,
+            ),
+        )
+        assertFalse(
+            WebViewCompatibilityChecker.shouldPreferCurrentProviderPackage(
+                packageMajor = WebViewCompatibilityChecker.MIN_CHROMIUM_VERSION - 1,
+                providerPackageIsCurrent = true,
+            ),
+        )
+        assertFalse(
+            WebViewCompatibilityChecker.shouldPreferCurrentProviderPackage(
+                packageMajor = null,
+                providerPackageIsCurrent = true,
+            ),
+        )
+    }
+
+    @Test
+    fun `blockScreenConfig uses init-failure copy and gated settings action when provider details exist`() {
+        val config = WebViewCompatibilityChecker.blockScreenConfig(
+            source = VersionSource.INIT_FAILURE,
+            hasProviderDetails = true,
+        )
+
+        assertEquals(R.string.webview_init_failure_message, config.titleResId)
+        assertEquals(R.string.webview_init_failure_details_with_provider, config.detailsIntroResId)
+        assertEquals(BlockScreenAction.OPEN_WEBVIEW_SETTINGS_WITH_WARNING, config.action)
+        assertFalse(config.showTryAnyway)
+        assertTrue(config.showSource)
+    }
+
+    @Test
+    fun `blockScreenConfig avoids provider claim when init failure has no provider details`() {
+        val config = WebViewCompatibilityChecker.blockScreenConfig(
+            source = VersionSource.INIT_FAILURE,
+            hasProviderDetails = false,
+        )
+
+        assertEquals(R.string.webview_init_failure_details_without_provider, config.detailsIntroResId)
+        assertFalse(config.showTryAnyway)
+    }
+
+    @Test
+    fun `blockScreenConfig keeps version blocks bypassable and hides unknown source`() {
+        val config = WebViewCompatibilityChecker.blockScreenConfig(
+            source = VersionSource.UNKNOWN,
+            hasProviderDetails = false,
+        )
+
+        assertEquals(R.string.webview_block_message, config.titleResId)
+        assertEquals(null, config.detailsIntroResId)
+        assertEquals(BlockScreenAction.UPDATE_WEBVIEW, config.action)
+        assertTrue(config.showTryAnyway)
+        assertFalse(config.showSource)
+    }
+
+    // Intent helper data ------------------------------------------------------
+
+    @Test
+    fun `webViewUpdatePageUrl uses current provider package when available`() {
+        assertEquals(
+            "https://play.google.com/store/apps/details?id=com.android.chrome",
+            WebViewCompatibilityChecker.webViewUpdatePageUrl("com.android.chrome"),
+        )
+    }
+
+    @Test
+    fun `webViewUpdatePageUrl falls back to Android System WebView package`() {
+        assertEquals(
+            "https://play.google.com/store/apps/details?id=com.google.android.webview",
+            WebViewCompatibilityChecker.webViewUpdatePageUrl(null),
+        )
+        assertEquals(
+            "https://play.google.com/store/apps/details?id=com.google.android.webview",
+            WebViewCompatibilityChecker.webViewUpdatePageUrl(""),
+        )
+    }
+
+    @Test
+    fun `webViewProviderDetailsUri targets provider app details`() {
+        assertEquals(
+            "package:com.android.chrome",
+            WebViewCompatibilityChecker.webViewProviderDetailsUri("com.android.chrome"),
+        )
+    }
+
+    // WebView init failure classification ------------------------------------
+
+    @Test
+    fun `isLikelyWebViewInitFailure detects WebView stack frames`() {
+        val error = RuntimeException("Factory failed").apply {
+            stackTrace = arrayOf(
+                StackTraceElement("android.webkit.WebViewFactory", "getProvider", "WebViewFactory.java", 1),
+            )
+        }
+
+        assertTrue(WebViewCompatibilityChecker.isLikelyWebViewInitFailure(error))
+    }
+
+    @Test
+    fun `isLikelyWebViewInitFailure detects WebView native library load errors`() {
+        assertTrue(
+            WebViewCompatibilityChecker.isLikelyWebViewInitFailure(
+                UnsatisfiedLinkError("dlopen failed: libwebviewchromium.so missing"),
+            ),
+        )
+    }
+
+    @Test
+    fun `isLikelyWebViewInitFailure detects missing WebView package failures`() {
+        assertTrue(
+            WebViewCompatibilityChecker.isLikelyWebViewInitFailure(
+                RuntimeException("android.webkit.WebViewFactory\$MissingWebViewPackageException"),
+            ),
+        )
+    }
+
+    @Test
+    fun `isLikelyWebViewInitFailure rejects unrelated runtime failures`() {
+        val error = IllegalStateException("Plugin config file missing").apply {
+            stackTrace = arrayOf(
+                StackTraceElement("com.getcapacitor.PluginManager", "load", "PluginManager.java", 1),
+            )
+        }
+
+        assertFalse(WebViewCompatibilityChecker.isLikelyWebViewInitFailure(error))
+    }
+
+    @Test
+    fun `isLikelyWebViewInitFailure rejects unrelated message-only WebView references`() {
+        val error = IllegalStateException("loadWebView failed while reading plugin config").apply {
+            stackTrace = arrayOf(
+                StackTraceElement("com.getcapacitor.PluginManager", "load", "PluginManager.java", 1),
+            )
+        }
+
+        assertFalse(WebViewCompatibilityChecker.isLikelyWebViewInitFailure(error))
+    }
+
+    @Test
+    fun `isLikelyWebViewInitFailure rejects Capacitor loadWebView frames`() {
+        val error = IllegalStateException("Plugin config file missing").apply {
+            stackTrace = arrayOf(
+                StackTraceElement("com.getcapacitor.Bridge", "loadWebView", "Bridge.java", 1),
+            )
+        }
+
+        assertFalse(WebViewCompatibilityChecker.isLikelyWebViewInitFailure(error))
+    }
+
+    @Test
+    fun `isLikelyWebViewInitFailure rejects app webview package frames`() {
+        val error = IllegalStateException("App WebView setup failed").apply {
+            stackTrace = arrayOf(
+                StackTraceElement(
+                    "com.superproductivity.superproductivity.webview.WebHelper",
+                    "setupView",
+                    "WebHelper.kt",
+                    1,
+                ),
+            )
+        }
+
+        assertFalse(WebViewCompatibilityChecker.isLikelyWebViewInitFailure(error))
+    }
+
+    @Test
+    fun `isLikelyWebViewInitFailure rejects fatal VM errors even with WebView frames`() {
+        val error = OutOfMemoryError("out of memory").apply {
+            stackTrace = arrayOf(
+                StackTraceElement("android.webkit.WebViewFactory", "getProvider", "WebViewFactory.java", 1),
+            )
+        }
+
+        assertFalse(WebViewCompatibilityChecker.isLikelyWebViewInitFailure(error))
+    }
+
+    @Test
+    fun `isLikelyWebViewInitFailure rejects wrapped fatal VM errors`() {
+        val cause = StackOverflowError("stack overflow").apply {
+            stackTrace = arrayOf(
+                StackTraceElement("android.webkit.WebViewFactory", "getProvider", "WebViewFactory.java", 1),
+            )
+        }
+        val error = RuntimeException("WebView factory failed", cause)
+
+        assertFalse(WebViewCompatibilityChecker.isLikelyWebViewInitFailure(error))
     }
 
     // parseMajorVersion ------------------------------------------------------
