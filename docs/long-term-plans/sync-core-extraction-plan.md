@@ -767,6 +767,8 @@ Download-side planning is also limited to pure decisions:
   full-state upload and when the app should query synced-op history.
 - `planDownloadedDataEncryptionState()` derives the "server has only
   unencrypted data" flag.
+- `planSnapshotHydration()` decides when a file-based snapshot can be skipped
+  because the local vector clock already equals or dominates the snapshot clock.
 
 Provider pagination, snapshot handling, decryption, clock drift warnings,
 IndexedDB reads, and result assembly remain app-side.
