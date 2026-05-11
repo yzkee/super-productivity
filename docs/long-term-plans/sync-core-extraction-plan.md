@@ -760,6 +760,17 @@ The package also owns small upload-planning helpers used by
 Provider calls, encryption/decryption, snapshot upload, error handling, app
 logging, and persistence remain app-side.
 
+Download-side planning is also limited to pure decisions:
+
+- `planDownloadGapReset()` allows one gap reset per download session.
+- `planDownloadFullStateUpload()` decides when an empty remote needs a
+  full-state upload and when the app should query synced-op history.
+- `planDownloadedDataEncryptionState()` derives the "server has only
+  unencrypted data" flag.
+
+Provider pagination, snapshot handling, decryption, clock drift warnings,
+IndexedDB reads, and result assembly remain app-side.
+
 ### Candidate Moves
 
 - Upload batching/retry logic from `OperationLogUploadService` if provider and
