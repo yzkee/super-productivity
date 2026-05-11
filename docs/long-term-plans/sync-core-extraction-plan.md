@@ -124,6 +124,11 @@ Current extraction state and remaining immediate debt:
   `@sp/shared-schema` re-exporting it for existing client/server imports.
 - `SyncLogger` exists, but movable app code still mostly calls `OpLog` directly.
 - `@sp/sync-core` has a Vitest package test runner and vector-clock tests.
+- Generic gzip/base64 compression helpers now live in
+  `packages/sync-core/src/compression.ts`. The app-facing
+  `src/app/op-log/encryption/compression-handler.ts` shim preserves
+  `CompressError` / `DecompressError` wrapping and the default `OpLog` logger
+  adapter.
 - PR 3b has generic conflict helpers in
   `packages/sync-core/src/conflict-resolution.ts`: deep equality, identical
   conflict detection, conflict-resolution suggestion, entity frontier
@@ -148,9 +153,9 @@ Suggested next order:
 2. Continue targeted `SyncLogger` routing for files as they become movable.
 3. Treat the PR 3b pure conflict-resolution and sync-import slices as complete
    for this round.
-4. Continue logger/config cleanup before moving compression helpers or app
-   error classes; prefix parsing/formatting and generic error-message
-   extraction now have package-side helpers with app-owned diagnostics.
+4. Continue logger/config cleanup before moving app error classes; prefix
+   parsing/formatting, generic error-message extraction, and generic
+   compression helpers now have package-side helpers with app-owned diagnostics.
 5. Defer port/orchestration work until the remaining pure/config boundaries are
    settled.
 
@@ -417,8 +422,10 @@ Initial candidate-file audit:
 - `op-log/encryption/encrypt-and-compress-handler.service.ts`: safe prefix and
   flag metadata now goes through `SyncLogger`.
 - `op-log/encryption/compression-handler.ts`: routes failures through
-  `toSyncLogError()` and preserves only safe counts such as input length. It
-  remains app-side until compression errors are split from app diagnostics.
+  `SyncLogger` and preserves only safe counts such as input length. The generic
+  stream/base64 implementation now lives in `@sp/sync-core`; the app file is a
+  compatibility shim that keeps SP error classes and the default `OpLog`
+  adapter app-side.
 - `op-log/core/errors/sync-errors.ts`: not move-ready. Several constructors log
   validation params, raw samples, or additional objects. Generic
   `extractErrorMessage()` now lives in the package, but error classes with
@@ -588,6 +595,10 @@ inputs and the logger port.
 - `SyncImportFilterService` still owns full-state op detection, latest import
   selection from current batch/local store, IndexedDB access, local unsynced
   import detection, and all `OpLog` messages.
+- Generic gzip/base64 compression helpers live in `@sp/sync-core` with
+  package-level Vitest coverage. The app shim keeps `CompressError`,
+  `DecompressError`, truncated-file recovery wording, and `OpLog` adapter
+  defaults app-side.
 
 ### What Moves
 
@@ -598,7 +609,9 @@ inputs and the logger port.
   and `operation-log-sync.service.ts`.
 - Pure operation payload validation from `op-log/validation/`, as long as it
   does not import app schemas or NgRx selectors.
-- Encryption/compression utilities once `OpLog` is removed.
+- Remaining encryption utilities once their app diagnostics and runtime
+  dependencies are split. Generic compression is already package-side behind the
+  `SyncLogger` port and host error factories.
 - `sync-errors.ts` and `sync-file-prefix.ts` if they are generic after
   logger/config cleanup.
 
