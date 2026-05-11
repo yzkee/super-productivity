@@ -1,13 +1,11 @@
 # `@sp/sync-core` Extraction Plan
 
 > **Status: In progress - PR 1, PR 2 guardrails/logger adapter work, PR 3a
-> vector-clock ownership, full-state op classification config, and the PR 3b
-> pure helper slices are present on this branch. PR 4a port contracts have
-> started with the app-side replay/operation-store services explicitly satisfying
-> sync-core interfaces and adapter contract specs covering the initial ports.
-> PR 4b has started with the remote-apply crash-safety coordinator moved behind
-> ports. Remaining cleanup is PR text alignment plus targeted future
-> `SyncLogger` routing for files as they move.**
+> vector-clock ownership, full-state op classification config, PR 3b pure
+> helper slices, PR 4a port contracts, and the current PR 4b small
+> orchestration/planning helper set are present on this branch. Remaining
+> cleanup is targeted future `SyncLogger` routing for files as they move plus
+> deciding whether PR 4c should extract any part of `OperationApplierService`.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -155,11 +153,16 @@ Current extraction state and remaining immediate debt:
   privacy-aware `SyncLogger` adapter with safe metadata only. The error classes
   still stay app-side because their recovery wording, provider diagnostics, and
   `additionalLog` UI/reporting behavior are SP-specific.
-- PR 4a has started with `packages/sync-core/src/ports.ts`. The package now
+- PR 4a is present with `packages/sync-core/src/ports.ts`. The package now
   exports minimal contracts for operation application, action dispatch,
   remote-apply windows, deferred local action flushing, archive side effects,
   and operation-store persistence. The existing Angular services satisfy those
-  contracts app-side; no orchestrator has moved yet.
+  contracts app-side.
+- PR 4b's current small helper set is present: remote-apply crash-safety
+  ordering, upload last-server-sequence planning, full-state snapshot upload
+  follow-up partitioning, download gap/full-state/encryption planning, and
+  file-snapshot hydration skip planning. Provider calls, encryption/decryption,
+  IndexedDB reads, UI, diagnostics, and result assembly remain app-side.
 
 Suggested next order:
 
@@ -167,11 +170,13 @@ Suggested next order:
 2. Continue targeted `SyncLogger` routing for files as they become movable.
 3. Treat the PR 3b pure conflict-resolution and sync-import slices as complete
    for this round.
-4. Continue logger/config cleanup before moving app error classes; prefix
+4. Treat the current PR 4a/4b port and small-helper slices as complete for this
+   round; only revisit `OperationApplierService` under PR 4c after more
+   verification.
+5. Continue logger/config cleanup before moving app error classes; prefix
    parsing/formatting, generic error-message extraction, and generic
    compression helpers now have package-side helpers with app-owned diagnostics.
-5. Defer port/orchestration work until the remaining pure/config boundaries are
-   settled.
+6. Defer provider extraction until core boundaries and PR 4c are settled.
 
 ## PR 1 - Thin First Slice (#7546)
 
@@ -330,14 +335,14 @@ Already present:
   `npm run lint:file -- packages/sync-core/src/__boundary-check__.ts` failed on
   `no-restricted-imports`, proving the boundary rule is active.
 
-Still needed before PR 2 is complete:
+Remaining PR 2 follow-up:
 
 - Keep the compatibility `ENTITY_CONFIGS` singleton until the port-contract PR,
   unless a small consumer migration is deliberately included as proof.
 - Continue routing only files being moved or made movable through `SyncLogger`;
   do not do a broad `OpLog` refactor.
-- Update PR text so it does not describe entity-registry types and logger port as
-  future-only work.
+- Keep external PR text aligned with this document if the branch is split for
+  review.
 
 ### Boundary Enforcement
 
@@ -656,8 +661,9 @@ inputs and the logger port.
 Introduce orchestration ports without moving the orchestrators yet. This reduces
 the risk of the later service moves.
 
-Status: started on this branch. `@sp/sync-core` exports the first minimal port
-contracts, and these app services now explicitly satisfy them:
+Status: implemented for the current branch slice. `@sp/sync-core` exports the
+first minimal port contracts, and these app services now explicitly satisfy
+them:
 
 - `OperationApplierService` implements `OperationApplyPort<Operation>` and uses
   `ActionDispatchPort<SyncActionLike>` for its NgRx dispatch seam.
@@ -730,7 +736,7 @@ service remains app-side.
 Move only orchestration code whose dependencies are already represented by ports
 and whose behavior can be tested without Angular.
 
-Status: started on this branch. `@sp/sync-core` now exports
+Status: implemented for the current branch slice. `@sp/sync-core` now exports
 `applyRemoteOperations()` plus the narrow `RemoteOperationApplyStorePort`.
 `RemoteOpsProcessingService.applyNonConflictingOps()` delegates the generic
 remote-apply crash-safety ordering to that coordinator:
@@ -899,8 +905,8 @@ This is now a final audit rather than the first boundary rule.
 | **2**  | Boundary lint, registry types, privacy-aware logger port   | Medium      | Groundwork present; finish follow-ups  |
 | **3a** | Vector-clock ownership and package test harness            | Medium      | Present on branch                      |
 | **3b** | Pure algorithmic core                                      | Medium      | No Angular/NgRx/IndexedDB              |
-| **4a** | Port contracts only                                        | Medium      | Keeps orchestrators app-side           |
-| **4b** | Move small orchestration units behind ports                | High        | Incremental state-machine extraction   |
+| **4a** | Port contracts only                                        | Medium      | Current slice present                  |
+| **4b** | Move small orchestration units behind ports                | High        | Current slice present                  |
 | **4c** | Revisit `OperationApplierService` extraction               | High        | Extract only if the boundary is proven |
 | **5**  | Lift providers into `@sp/sync-providers`                   | Medium-High | Provider deps stay out of core         |
 | **6**  | Final boundary hardening and architecture note             | Low         | Audit and lock down                    |
