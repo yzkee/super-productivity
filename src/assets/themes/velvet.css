@@ -427,9 +427,7 @@ body.isDarkTheme task-detail-item .mat-expansion-panel:focus-visible,
 body.isDarkTheme task-detail-item .input-item:focus-within,
 body.isDarkTheme task-detail-item .mat-expansion-panel:focus-within,
 body.isDarkTheme task:focus-visible,
-body.isDarkTheme task:focus,
-body.isDarkTheme planner-task:focus-visible,
-body.isDarkTheme planner-task:focus {
+body.isDarkTheme task:focus {
   outline: none !important;
 }
 
@@ -666,15 +664,6 @@ body.isDarkTheme task .inner-wrapper {
 /* (No row separators — testing whether the bg/hover state alone is enough
    to read as a list, which is how Raycast typically renders list rows
    without explicit dividers.) */
-
-/* Suppress the default rectangular focus border on .box. The state cues now
-   come from the bg + leading-edge inset shadow defined further up; both are
-   declared above this rule so the cascade lands correctly for non-:focus
-   states. (Plain :focus still suppressed so it doesn't double-up.) */
-body.isDarkTheme task:focus .box,
-body.isDarkTheme task:focus-visible .box {
-  border-color: transparent !important;
-}
 
 body.isDarkTheme note .note,
 body.isDarkTheme .standard-note {
