@@ -7,7 +7,8 @@
  * Captures are made at each store's native pixel size (see playwright.store-screenshots.config.ts),
  * so this is mostly rename + copy — no resizing. Stores with a per-file byte
  * cap (`maxBytes` in STORE_RULES; currently Snap @ 2 MB) get re-encoded as
- * JPEG until they fit; everything else stays lossless PNG.
+ * JPEG until they fit; everything else stays lossless PNG. Store rules can also
+ * filter/reorder scenarios and apply store-specific framing (Flathub).
  *
  * Run: npm run screenshots:build
  */
@@ -31,10 +32,69 @@ const masterDirFor = (which: 'web' | 'electron'): string =>
   which === 'electron' ? MASTER_DIR_ELECTRON : MASTER_DIR_WEB;
 
 type ScenarioFile = { scenario: string; file: string; theme: string; absPath: string };
+type WriteOptions = {
+  maxBytes?: number;
+  frame?: StoreRule['frame'];
+};
+
+const FLATHUB_WINDOW_FRAME = {
+  padding: 48,
+  radius: 16,
+  shadowBlur: 24,
+  shadowOffsetY: 12,
+  shadowOpacity: 0.35,
+} as const;
 
 /** Strip leading `(mobile|desktop)-NN-` so output names don't double up on the index. */
 const cleanScenarioLabel = (scenario: string): string =>
   scenario.replace(/^(?:(?:mobile|desktop)-)?\d+-/, '');
+
+const labelForScenario = (rule: StoreRule, scenario: string): string =>
+  rule.scenarioLabels?.find((entry) => entry.scenario === scenario)?.label ??
+  cleanScenarioLabel(scenario);
+
+const applyScenarioOrder = (
+  scenarios: ScenarioFile[],
+  order?: readonly string[],
+  store?: string,
+): ScenarioFile[] => {
+  if (!order) return scenarios;
+
+  const byScenario = new Map<string, ScenarioFile>();
+  for (const scenario of scenarios) byScenario.set(scenario.scenario, scenario);
+
+  return order.map((scenario) => {
+    const match = byScenario.get(scenario);
+    if (!match) {
+      const tag = store ? `${store}: ` : '';
+      throw new Error(`${tag}missing ordered screenshot scenario "${scenario}"`);
+    }
+    return match;
+  });
+};
+
+const storeFilter = (): Set<string> | null => {
+  const raw = process.env.SP_SCREENSHOTS_STORE;
+  if (!raw) return null;
+  const stores = raw
+    .split(',')
+    .map((store) => store.trim())
+    .filter(Boolean);
+  return stores.length ? new Set(stores) : null;
+};
+
+const filterStoreRules = (rules: readonly StoreRule[]): StoreRule[] => {
+  const filter = storeFilter();
+  if (!filter) return [...rules];
+
+  const out = rules.filter((rule) => filter.has(rule.store));
+  if (out.length === 0) {
+    throw new Error(
+      `SP_SCREENSHOTS_STORE matched no store rules: ${[...filter].join(', ')}`,
+    );
+  }
+  return out;
+};
 
 /**
  * Each scenario locks one theme. List all (theme × scenario) captures present
@@ -74,8 +134,73 @@ const listScenariosForVariant = (
   return out;
 };
 
+const transparentBg = { r: 0, g: 0, b: 0, alpha: 0 } as const;
+
+const roundedRectSvg = (
+  width: number,
+  height: number,
+  radius: number,
+  fill: string,
+  extraAttrs = '',
+): Buffer =>
+  Buffer.from(
+    `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><rect width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="${fill}" ${extraAttrs}/></svg>`,
+  );
+
+const frameFlathubWindow = async (src: string): Promise<Buffer> => {
+  const metadata = await sharp(src).metadata();
+  const width = metadata.width;
+  const height = metadata.height;
+  if (!width || !height) {
+    throw new Error(`Could not read screenshot dimensions for ${src}`);
+  }
+
+  const { padding, radius, shadowBlur, shadowOffsetY, shadowOpacity } =
+    FLATHUB_WINDOW_FRAME;
+  const framePadding = padding * 2;
+  const frameWidth = width + framePadding;
+  const frameHeight = height + framePadding;
+  const windowMask = roundedRectSvg(width, height, radius, '#fff');
+  const shadowShape = roundedRectSvg(
+    width,
+    height,
+    radius,
+    '#000',
+    `fill-opacity="${shadowOpacity}"`,
+  );
+
+  const roundedWindow = await sharp(src)
+    .ensureAlpha()
+    .composite([{ input: windowMask, blend: 'dest-in' }])
+    .png()
+    .toBuffer();
+
+  const shadow = await sharp({
+    create: {
+      width: frameWidth,
+      height: frameHeight,
+      channels: 4,
+      background: transparentBg,
+    },
+  })
+    .composite([{ input: shadowShape, left: padding, top: padding + shadowOffsetY }])
+    .blur(shadowBlur)
+    .png()
+    .toBuffer();
+
+  return sharp(shadow)
+    .composite([{ input: roundedWindow, left: padding, top: padding }])
+    .png()
+    .toBuffer();
+};
+
+const renderSource = async (src: string, frame?: StoreRule['frame']): Promise<Buffer> => {
+  if (frame === 'flathub-window') return frameFlathubWindow(src);
+  return fs.readFileSync(src);
+};
+
 /**
- * Copy `src` to `target`, then enforce `maxBytes` if set. PNGs that already
+ * Render `src` to `target`, then enforce `maxBytes` if set. PNGs that already
  * fit go through unchanged. PNGs that exceed the cap are re-encoded as JPEG
  * at stepped-down quality until they fit; the .png target is replaced with a
  * .jpg sibling. Returns the actual path written.
@@ -83,29 +208,30 @@ const listScenariosForVariant = (
 const writeWithCap = async (
   src: string,
   target: string,
-  maxBytes?: number,
+  opts: WriteOptions = {},
 ): Promise<string> => {
-  fs.copyFileSync(src, target);
-  if (!maxBytes) return target;
-  const initialSize = fs.statSync(target).size;
-  if (initialSize <= maxBytes) return target;
+  const buf = await renderSource(src, opts.frame);
+  fs.writeFileSync(target, buf);
+  if (!opts.maxBytes) return target;
+  if (buf.byteLength <= opts.maxBytes) return target;
 
   const jpgTarget = target.replace(/\.png$/i, '.jpg');
-  const buf = fs.readFileSync(src);
   // Step down quality 90 → 60. If even q60 exceeds the cap (vanishingly rare
   // on screenshots that are mostly UI), bail loudly so the operator notices.
   for (const quality of [90, 85, 80, 75, 70, 65, 60]) {
     const out = await sharp(buf)
       .jpeg({ quality, mozjpeg: true, progressive: true, chromaSubsampling: '4:2:0' })
       .toBuffer();
-    if (out.byteLength <= maxBytes) {
+    if (out.byteLength <= opts.maxBytes) {
       fs.writeFileSync(jpgTarget, out);
       if (jpgTarget !== target) fs.rmSync(target);
       return jpgTarget;
     }
   }
   throw new Error(
-    `${path.basename(target)} still > ${maxBytes} bytes at JPEG quality 60 — capture too large`,
+    `${path.basename(target)} still > ${
+      opts.maxBytes
+    } bytes at JPEG quality 60 — capture too large`,
   );
 };
 
@@ -114,7 +240,7 @@ const writeFastlanePath = async (
   bucket: NonNullable<StoreRule['fastlaneBucket']>,
   index: number,
   src: string,
-  maxBytes?: number,
+  opts: WriteOptions = {},
 ): Promise<string> => {
   const bucketDir = `${bucket}Screenshots`;
   const dir = path.join(
@@ -129,36 +255,36 @@ const writeFastlanePath = async (
   );
   fs.mkdirSync(dir, { recursive: true });
   const target = path.join(dir, `${index + 1}.png`);
-  return writeWithCap(src, target, maxBytes);
+  return writeWithCap(src, target, opts);
 };
 
 const writePerLocale = async (
   store: string,
   locale: string,
   index: number,
-  scenario: string,
+  label: string,
   src: string,
-  maxBytes?: number,
+  opts: WriteOptions = {},
 ): Promise<string> => {
   const dir = path.join(OUT_DIR, store, locale);
   fs.mkdirSync(dir, { recursive: true });
   const num = `${index + 1}`.padStart(2, '0');
-  const target = path.join(dir, `${num}-${cleanScenarioLabel(scenario)}.png`);
-  return writeWithCap(src, target, maxBytes);
+  const target = path.join(dir, `${num}-${label}.png`);
+  return writeWithCap(src, target, opts);
 };
 
 const writeGlobal = async (
   store: string,
   index: number,
-  scenario: string,
+  label: string,
   src: string,
-  maxBytes?: number,
+  opts: WriteOptions = {},
 ): Promise<string> => {
   const dir = path.join(OUT_DIR, store);
   fs.mkdirSync(dir, { recursive: true });
   const num = `${index + 1}`.padStart(2, '0');
-  const target = path.join(dir, `${num}-${cleanScenarioLabel(scenario)}.png`);
-  return writeWithCap(src, target, maxBytes);
+  const target = path.join(dir, `${num}-${label}.png`);
+  return writeWithCap(src, target, opts);
 };
 
 const buildOneRule = async (
@@ -169,21 +295,29 @@ const buildOneRule = async (
   const masterRoot = masterDirFor(rule.masterDir ?? 'web');
 
   for (const locale of LOCALES) {
-    const scenarios = listScenariosForVariant(rule.source, locale, masterRoot);
+    const scenarios = applyScenarioOrder(
+      listScenariosForVariant(rule.source, locale, masterRoot),
+      rule.scenarioOrder,
+      rule.store,
+    );
     if (scenarios.length === 0) {
       skipped += 1;
       continue;
     }
     const limited = rule.maxCount ? scenarios.slice(0, rule.maxCount) : scenarios;
+    const writeOptions: WriteOptions = {};
+    if (rule.maxBytes) writeOptions.maxBytes = rule.maxBytes;
+    if (rule.frame) writeOptions.frame = rule.frame;
     for (let i = 0; i < limited.length; i += 1) {
       const s = limited[i];
+      const label = labelForScenario(rule, s.scenario);
       if (rule.localeLayout === 'fastlane' && rule.fastlaneBucket) {
-        await writeFastlanePath(locale, rule.fastlaneBucket, i, s.absPath, rule.maxBytes);
+        await writeFastlanePath(locale, rule.fastlaneBucket, i, s.absPath, writeOptions);
       } else if (rule.localeLayout === 'global') {
         if (locale !== LOCALES[0]) continue; // Snap / Flathub are single-gallery
-        await writeGlobal(rule.store, i, s.scenario, s.absPath, rule.maxBytes);
+        await writeGlobal(rule.store, i, label, s.absPath, writeOptions);
       } else {
-        await writePerLocale(rule.store, locale, i, s.scenario, s.absPath, rule.maxBytes);
+        await writePerLocale(rule.store, locale, i, label, s.absPath, writeOptions);
       }
       written += 1;
     }
@@ -203,6 +337,17 @@ const cleanDerivedOutput = (): void => {
   }
 };
 
+const cleanSelectedOutput = (rules: readonly StoreRule[]): void => {
+  fs.mkdirSync(OUT_DIR, { recursive: true });
+  const targets = new Set<string>();
+  for (const rule of rules) {
+    targets.add(rule.localeLayout === 'fastlane' ? 'fdroid' : rule.store);
+  }
+  for (const target of targets) {
+    fs.rmSync(path.join(OUT_DIR, target), { recursive: true, force: true });
+  }
+};
+
 const main = async (): Promise<void> => {
   if (!fs.existsSync(MASTER_DIR_WEB) && !fs.existsSync(MASTER_DIR_ELECTRON)) {
     console.error('No master captures found.');
@@ -212,10 +357,12 @@ const main = async (): Promise<void> => {
     process.exit(1);
   }
 
-  cleanDerivedOutput();
+  const rules = filterStoreRules(STORE_RULES);
+  if (storeFilter()) cleanSelectedOutput(rules);
+  else cleanDerivedOutput();
 
   let total = 0;
-  for (const rule of STORE_RULES) {
+  for (const rule of rules) {
     const res = await buildOneRule(rule);
     total += res.written;
     const tag = rule.fastlaneBucket ? `${rule.store}/${rule.fastlaneBucket}` : rule.store;

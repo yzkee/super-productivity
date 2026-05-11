@@ -133,6 +133,12 @@ export type StoreRule = {
    * each entry at 2 MB; everything else keeps the lossless PNG.
    */
   maxBytes?: number;
+  /** Optional explicit gallery order/filter for stores with tighter curation. */
+  scenarioOrder?: readonly string[];
+  /** Optional output filename labels for raw scenario ids. */
+  scenarioLabels?: readonly { scenario: string; label: string }[];
+  /** Optional post-processing frame applied before writing the store output. */
+  frame?: 'flathub-window';
 };
 
 export const STORE_RULES: readonly StoreRule[] = [
@@ -158,13 +164,28 @@ export const STORE_RULES: readonly StoreRule[] = [
     maxBytes: 2 * 1024 * 1024,
   },
   // Flathub: metainfo.xml `<screenshot>` is single-gallery and sourced from the
-  // Electron pipeline so the captures include native GTK chrome (Linux X11
-  // host required — see README "Electron pipeline" section).
+  // Electron pipeline so the captures include native GTK chrome. Keep the
+  // gallery concise: no marketing hero, no duplicate light/dark variants.
   {
     store: 'flathub',
     source: 'desktopMaster',
     localeLayout: 'global',
     masterDir: 'electron',
+    scenarioOrder: [
+      'desktop-01-list-with-schedule',
+      'desktop-08-planner',
+      'desktop-02-eisenhower',
+      'desktop-03-schedule-dark',
+      'desktop-04-list-with-notes',
+      'desktop-05-focus-mode',
+      'desktop-07-project-dark',
+      'desktop-10-task-detail-panel',
+    ],
+    scenarioLabels: [
+      { scenario: 'desktop-03-schedule-dark', label: 'schedule' },
+      { scenario: 'desktop-07-project-dark', label: 'project' },
+    ],
+    frame: 'flathub-window',
   },
   {
     store: 'ios/iphone-69',
