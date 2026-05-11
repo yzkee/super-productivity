@@ -9,7 +9,6 @@ import android.content.IntentFilter
 import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
-import android.util.AndroidRuntimeException
 import android.util.Log
 import android.view.View
 import android.view.WindowManager
@@ -74,7 +73,12 @@ class FullscreenActivity : AppCompatActivity() {
         Log.v("TW", "FullScreenActivity: onCreate")
         super.onCreate(savedInstanceState)
 
-        val compatibility = WebViewCompatibilityChecker.evaluate(this)
+        val compatibility = try {
+            WebViewCompatibilityChecker.evaluate(this)
+        } catch (e: Throwable) {
+            showWebViewInitFailureOrThrow("WebView compatibility check failed", e)
+            return
+        }
         if (compatibility.isBlocked) {
             WebViewBlockActivity.present(this, compatibility)
             finish()
@@ -97,19 +101,10 @@ class FullscreenActivity : AppCompatActivity() {
         }
 
         if (!initWebView()) {
-            // Reuse the already-computed compatibility info so the block screen
-            // keeps the detected WebView provider/version (useful when a user
-            // on a buggy beta channel needs to identify which package to swap),
-            // but tag the source as INIT_FAILURE so the screen does not falsely
-            // blame the version-detection path for a factory-init crash.
-            WebViewBlockActivity.present(
-                this,
-                compatibility.copy(
-                    status = WebViewCompatibilityChecker.Status.BLOCK,
-                    source = WebViewCompatibilityChecker.VersionSource.INIT_FAILURE,
-                ),
+            showWebViewInitFailure(
+                message = "Failed to instantiate WebView",
+                compatibility = compatibility,
             )
-            finish()
             return
         }
 
@@ -207,130 +202,160 @@ class FullscreenActivity : AppCompatActivity() {
     private fun initWebView(): Boolean {
         try {
             webView = WebHelper().instanceView(this)
-        } catch (e: AndroidRuntimeException) {
-            // WebViewFactory.getProvider throws AndroidRuntimeException (incl.
-            // MissingWebViewPackageException) when the system WebView package
-            // is broken, missing, or a buggy beta channel fails factory init.
-            Log.e("SP-WebView", "Failed to instantiate WebView", e)
-            return false
-        } catch (e: IllegalStateException) {
-            // WebChromium factory can throw IllegalStateException mid-init on
-            // certain devices (e.g. "Already registered a list of actions").
-            Log.e("SP-WebView", "Failed to instantiate WebView", e)
-            return false
-        }
-        if (BuildConfig.DEBUG) {
-            Toast.makeText(this, "DEBUG: $appUrl", Toast.LENGTH_SHORT).show()
+            if (BuildConfig.DEBUG) {
+                Toast.makeText(this, "DEBUG: $appUrl", Toast.LENGTH_SHORT).show()
 //            webView.clearCache(true)
 //            webView.clearHistory()
-            WebView.setWebContentsDebuggingEnabled(true); // necessary to enable chrome://inspect of webviews on physical remote Android devices, but not for AVD emulator, as the latter automatically enables debug build features
-        }
-        printWebViewVersion(webView)
-
-        webView.loadUrl(appUrl)
-        supportActionBar?.hide()
-        javaScriptInterface = JavaScriptInterface(this, webView)
-        webView.addJavascriptInterface(javaScriptInterface, WINDOW_INTERFACE_PROPERTY)
-        if (BuildConfig.FLAVOR.equals("fdroid")) {
-            webView.addJavascriptInterface(javaScriptInterface, WINDOW_PROPERTY_F_DROID)
-            // not ready in time, that's why we create a second JS interface just to fill the prop
-            // callJavaScriptFunction("window.$WINDOW_PROPERTY_F_DROID=true")
-        }
-
-        val swController = ServiceWorkerController.getInstance()
-        swController.setServiceWorkerClient(@RequiresApi(Build.VERSION_CODES.N)
-        object : ServiceWorkerClient() {
-            override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? {
-                return webViewRequestHandler.interceptWebRequest(request)
+                WebView.setWebContentsDebuggingEnabled(true); // necessary to enable chrome://inspect of webviews on physical remote Android devices, but not for AVD emulator, as the latter automatically enables debug build features
             }
-        })
+            printWebViewVersion(webView)
 
-        webView.webViewClient = object : WebViewClient() {
-            @Deprecated("Deprecated in Java")
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
-                return webViewRequestHandler.handleUrlLoading(view, url)
+            webView.loadUrl(appUrl)
+            supportActionBar?.hide()
+            javaScriptInterface = JavaScriptInterface(this, webView)
+            webView.addJavascriptInterface(javaScriptInterface, WINDOW_INTERFACE_PROPERTY)
+            if (BuildConfig.FLAVOR.equals("fdroid")) {
+                webView.addJavascriptInterface(javaScriptInterface, WINDOW_PROPERTY_F_DROID)
+                // not ready in time, that's why we create a second JS interface just to fill the prop
+                // callJavaScriptFunction("window.$WINDOW_PROPERTY_F_DROID=true")
             }
 
-            override fun shouldInterceptRequest(
-                view: WebView?,
-                request: WebResourceRequest?
-            ): WebResourceResponse? {
-                return webViewRequestHandler.interceptWebRequest(request)
-            }
-        }
+            val swController = ServiceWorkerController.getInstance()
+            swController.setServiceWorkerClient(@RequiresApi(Build.VERSION_CODES.N)
+            object : ServiceWorkerClient() {
+                override fun shouldInterceptRequest(request: WebResourceRequest): WebResourceResponse? {
+                    return webViewRequestHandler.interceptWebRequest(request)
+                }
+            })
 
-        webView.webChromeClient = object : WebChromeClient() {
-            override fun onJsAlert(
-                view: WebView,
-                url: String,
-                message: String,
-                result: JsResult
-            ): Boolean {
-                Log.v("TW", "onJsAlert")
-                if (isFinishing || isDestroyed) {
-                    result.cancel()
+            webView.webViewClient = object : WebViewClient() {
+                @Deprecated("Deprecated in Java")
+                override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean {
+                    return webViewRequestHandler.handleUrlLoading(view, url)
+                }
+
+                override fun shouldInterceptRequest(
+                    view: WebView?,
+                    request: WebResourceRequest?
+                ): WebResourceResponse? {
+                    return webViewRequestHandler.interceptWebRequest(request)
+                }
+            }
+
+            webView.webChromeClient = object : WebChromeClient() {
+                override fun onJsAlert(
+                    view: WebView,
+                    url: String,
+                    message: String,
+                    result: JsResult
+                ): Boolean {
+                    Log.v("TW", "onJsAlert")
+                    if (isFinishing || isDestroyed) {
+                        result.cancel()
+                        return true
+                    }
+                    var handled = false
+                    try {
+                        AlertDialog.Builder(this@FullscreenActivity)
+                            .setMessage(message)
+                            .setNeutralButton(android.R.string.ok) { _, _ ->
+                                handled = true
+                                result.confirm()
+                            }
+                            .setOnDismissListener { if (!handled) result.cancel() }
+                            .create()
+                            .show()
+                    } catch (e: WindowManager.BadTokenException) {
+                        // Activity window token invalid between isFinishing check
+                        // and show() (e.g. onDestroy scheduled by the system).
+                        Log.w("TW", "onJsAlert: window token invalid", e)
+                        if (!handled) result.cancel()
+                    } catch (e: IllegalStateException) {
+                        Log.w("TW", "onJsAlert: illegal state", e)
+                        if (!handled) result.cancel()
+                    }
                     return true
                 }
-                var handled = false
-                try {
-                    AlertDialog.Builder(this@FullscreenActivity)
-                        .setMessage(message)
-                        .setNeutralButton(android.R.string.ok) { _, _ ->
-                            handled = true
-                            result.confirm()
-                        }
-                        .setOnDismissListener { if (!handled) result.cancel() }
-                        .create()
-                        .show()
-                } catch (e: WindowManager.BadTokenException) {
-                    // Activity window token invalid between isFinishing check
-                    // and show() (e.g. onDestroy scheduled by the system).
-                    Log.w("TW", "onJsAlert: window token invalid", e)
-                    if (!handled) result.cancel()
-                } catch (e: IllegalStateException) {
-                    Log.w("TW", "onJsAlert: illegal state", e)
-                    if (!handled) result.cancel()
-                }
-                return true
-            }
 
-            override fun onJsConfirm(
-                view: WebView,
-                url: String,
-                message: String,
-                result: JsResult
-            ): Boolean {
-                if (isFinishing || isDestroyed) {
-                    result.cancel()
+                override fun onJsConfirm(
+                    view: WebView,
+                    url: String,
+                    message: String,
+                    result: JsResult
+                ): Boolean {
+                    if (isFinishing || isDestroyed) {
+                        result.cancel()
+                        return true
+                    }
+                    var handled = false
+                    try {
+                        AlertDialog.Builder(this@FullscreenActivity)
+                            .setMessage(message)
+                            .setPositiveButton(android.R.string.ok) { _, _ ->
+                                handled = true
+                                result.confirm()
+                            }
+                            .setNegativeButton(android.R.string.cancel) { _, _ ->
+                                handled = true
+                                result.cancel()
+                            }
+                            .setOnDismissListener { if (!handled) result.cancel() }
+                            .create()
+                            .show()
+                    } catch (e: WindowManager.BadTokenException) {
+                        Log.w("TW", "onJsConfirm: window token invalid", e)
+                        if (!handled) result.cancel()
+                    } catch (e: IllegalStateException) {
+                        Log.w("TW", "onJsConfirm: illegal state", e)
+                        if (!handled) result.cancel()
+                    }
                     return true
                 }
-                var handled = false
-                try {
-                    AlertDialog.Builder(this@FullscreenActivity)
-                        .setMessage(message)
-                        .setPositiveButton(android.R.string.ok) { _, _ ->
-                            handled = true
-                            result.confirm()
-                        }
-                        .setNegativeButton(android.R.string.cancel) { _, _ ->
-                            handled = true
-                            result.cancel()
-                        }
-                        .setOnDismissListener { if (!handled) result.cancel() }
-                        .create()
-                        .show()
-                } catch (e: WindowManager.BadTokenException) {
-                    Log.w("TW", "onJsConfirm: window token invalid", e)
-                    if (!handled) result.cancel()
-                } catch (e: IllegalStateException) {
-                    Log.w("TW", "onJsConfirm: illegal state", e)
-                    if (!handled) result.cancel()
-                }
-                return true
             }
+        } catch (e: Throwable) {
+            if (!WebViewCompatibilityChecker.isLikelyWebViewInitFailure(e)) {
+                throw e
+            }
+            Log.e("SP-WebView", "Failed to initialize WebView", e)
+            return false
         }
         return true
     }
+
+    private fun showWebViewInitFailureOrThrow(message: String, error: Throwable) {
+        if (!WebViewCompatibilityChecker.isLikelyWebViewInitFailure(error)) {
+            throw error
+        }
+        showWebViewInitFailure(message, error)
+    }
+
+    private fun showWebViewInitFailure(
+        message: String,
+        error: Throwable? = null,
+        compatibility: WebViewCompatibilityChecker.Result? = null,
+    ) {
+        if (error == null) {
+            Log.e("SP-WebView", "$message - finishing activity")
+        } else {
+            Log.e("SP-WebView", "$message - finishing activity", error)
+        }
+        WebViewBlockActivity.present(this, webViewInitFailureResult(compatibility))
+        finish()
+    }
+
+    private fun webViewInitFailureResult(
+        compatibility: WebViewCompatibilityChecker.Result? = null,
+    ): WebViewCompatibilityChecker.Result =
+        (compatibility ?: WebViewCompatibilityChecker.Result(
+            status = WebViewCompatibilityChecker.Status.BLOCK,
+            majorVersion = null,
+            providerPackage = null,
+            providerVersionName = null,
+            source = WebViewCompatibilityChecker.VersionSource.INIT_FAILURE,
+        )).copy(
+            status = WebViewCompatibilityChecker.Status.BLOCK,
+            source = WebViewCompatibilityChecker.VersionSource.INIT_FAILURE,
+        )
 
 
     private fun callJSInterfaceFunctionIfExists(fnName: String, objectPath: String, fnParam: String = "") {

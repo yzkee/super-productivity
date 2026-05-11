@@ -75,7 +75,12 @@ class CapacitorMainActivity : BridgeActivity() {
     }
 
     override fun load() {
-        val result = WebViewCompatibilityChecker.evaluate(this)
+        val result = try {
+            WebViewCompatibilityChecker.evaluate(this)
+        } catch (e: Throwable) {
+            showWebViewInitFailureOrThrow("WebView compatibility check failed", e)
+            return
+        }
         webViewCompatibility = result
         if (result.isBlocked) {
             webViewBlocked = true
@@ -83,7 +88,11 @@ class CapacitorMainActivity : BridgeActivity() {
             finish()
             return
         }
-        super.load()
+        try {
+            super.load()
+        } catch (e: Throwable) {
+            showWebViewInitFailureOrThrow("BridgeActivity.load() failed to initialize WebView", e)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -92,78 +101,73 @@ class CapacitorMainActivity : BridgeActivity() {
         registerPlugin(WebDavHttpPlugin::class.java)
         registerPlugin(NavigationBarPlugin::class.java)
 
-        super.onCreate(savedInstanceState)
+        try {
+            super.onCreate(savedInstanceState)
+        } catch (e: Throwable) {
+            showWebViewInitFailureOrThrow("BridgeActivity.onCreate() failed to initialize WebView", e)
+            return
+        }
         if (webViewBlocked) {
             return
         }
 
         val webView = bridge?.webView
         if (webView == null) {
-            Log.e("CapacitorMainActivity", "Bridge or WebView is null after onCreate — finishing activity")
-            // Force BLOCK with INIT_FAILURE source so the user-facing screen
-            // distinguishes "version too old" from "WebView refused to init".
-            // Preserve any earlier-detected version info if available.
-            val result = (webViewCompatibility ?: WebViewCompatibilityChecker.Result(
-                status = WebViewCompatibilityChecker.Status.BLOCK,
-                majorVersion = null,
-                providerPackage = null,
-                providerVersionName = null,
-                source = WebViewCompatibilityChecker.VersionSource.INIT_FAILURE,
-            )).copy(
-                status = WebViewCompatibilityChecker.Status.BLOCK,
-                source = WebViewCompatibilityChecker.VersionSource.INIT_FAILURE,
-            )
-            WebViewBlockActivity.present(this, result)
-            finish()
+            showWebViewInitFailure("Bridge or WebView is null after onCreate")
             return
         }
 
-        printWebViewVersion(webView)
+        try {
+            printWebViewVersion(webView)
 
-        // DEBUG ONLY
-        if (BuildConfig.DEBUG) {
-            Handler(Looper.getMainLooper()).postDelayed({
-                val debugToast = Toast.makeText(this, "DEBUG", Toast.LENGTH_SHORT)
-                debugToast.show()
-                Handler(Looper.getMainLooper()).postDelayed({ debugToast.cancel() }, 100)
-            }, 10_000)
-            WebView.setWebContentsDebuggingEnabled(true)
-        }
+            // DEBUG ONLY
+            if (BuildConfig.DEBUG) {
+                Handler(Looper.getMainLooper()).postDelayed({
+                    val debugToast = Toast.makeText(this, "DEBUG", Toast.LENGTH_SHORT)
+                    debugToast.show()
+                    Handler(Looper.getMainLooper()).postDelayed({ debugToast.cancel() }, 100)
+                }, 10_000)
+                WebView.setWebContentsDebuggingEnabled(true)
+            }
 
-        webViewCompatibility?.let {
-            if (it.status == WebViewCompatibilityChecker.Status.WARN) {
-                Log.w(
-                    "SP-WebView",
-                    "WebView version ${it.majorVersion ?: "unknown"} below recommended ${WebViewCompatibilityChecker.RECOMMENDED_CHROMIUM_VERSION}",
+            webViewCompatibility?.let {
+                if (it.status == WebViewCompatibilityChecker.Status.WARN) {
+                    Log.w(
+                        "SP-WebView",
+                        "WebView version ${it.majorVersion ?: "unknown"} below recommended ${WebViewCompatibilityChecker.RECOMMENDED_CHROMIUM_VERSION}",
+                    )
+                }
+            }
+
+            // Hide the action bar
+            supportActionBar?.hide()
+
+            // Initialize JavaScriptInterface
+            javaScriptInterface = JavaScriptInterface(this, webView)
+
+            // Initialize WebView
+            WebHelper().setupView(webView, false)
+
+            // Inject JavaScriptInterface into Capacitor's WebView
+            webView.addJavascriptInterface(
+                javaScriptInterface,
+                WINDOW_INTERFACE_PROPERTY
+            )
+            if (BuildConfig.FLAVOR.equals("fdroid")) {
+                webView.addJavascriptInterface(
+                    javaScriptInterface,
+                    WINDOW_PROPERTY_F_DROID
                 )
             }
+        } catch (e: Throwable) {
+            showWebViewInitFailureOrThrow("WebView setup failed", e)
+            return
         }
 
-        // We made it past the pre-flight version check and the WebView is alive.
+        // We made it past the pre-flight version check and the WebView setup.
         // Persist the detected version so a transient mis-read on a later launch
         // can't lock the user out, and clear any prior user override if healthy.
         WebViewCompatibilityChecker.recordSuccessfulLoad(this, webViewCompatibility?.majorVersion)
-
-        // Hide the action bar
-        supportActionBar?.hide()
-
-        // Initialize JavaScriptInterface
-        javaScriptInterface = JavaScriptInterface(this, webView)
-
-        // Initialize WebView
-        WebHelper().setupView(webView, false)
-
-        // Inject JavaScriptInterface into Capacitor's WebView
-        webView.addJavascriptInterface(
-            javaScriptInterface,
-            WINDOW_INTERFACE_PROPERTY
-        )
-        if (BuildConfig.FLAVOR.equals("fdroid")) {
-            webView.addJavascriptInterface(
-                javaScriptInterface,
-                WINDOW_PROPERTY_F_DROID
-            )
-        }
 
 
         // Register OnBackPressedCallback to handle back button press
@@ -221,6 +225,36 @@ class CapacitorMainActivity : BridgeActivity() {
         // Handle initial intent (cold start)
         handleIntent(intent)
     }
+
+    private fun showWebViewInitFailureOrThrow(message: String, error: Throwable) {
+        if (!WebViewCompatibilityChecker.isLikelyWebViewInitFailure(error)) {
+            throw error
+        }
+        showWebViewInitFailure(message, error)
+    }
+
+    private fun showWebViewInitFailure(message: String, error: Throwable? = null) {
+        if (error == null) {
+            Log.e("CapacitorMainActivity", "$message - finishing activity")
+        } else {
+            Log.e("CapacitorMainActivity", "$message - finishing activity", error)
+        }
+        webViewBlocked = true
+        WebViewBlockActivity.present(this, webViewInitFailureResult())
+        finish()
+    }
+
+    private fun webViewInitFailureResult(): WebViewCompatibilityChecker.Result =
+        (webViewCompatibility ?: WebViewCompatibilityChecker.Result(
+            status = WebViewCompatibilityChecker.Status.BLOCK,
+            majorVersion = null,
+            providerPackage = null,
+            providerVersionName = null,
+            source = WebViewCompatibilityChecker.VersionSource.INIT_FAILURE,
+        )).copy(
+            status = WebViewCompatibilityChecker.Status.BLOCK,
+            source = WebViewCompatibilityChecker.VersionSource.INIT_FAILURE,
+        )
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
