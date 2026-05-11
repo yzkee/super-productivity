@@ -1,8 +1,11 @@
 package com.superproductivity.superproductivity
 
 import android.app.AlertDialog
+import android.content.BroadcastReceiver
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
@@ -22,14 +25,17 @@ import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.anggrayudi.storage.SimpleStorageHelper
 import com.superproductivity.superproductivity.app.LaunchDecider
+import com.superproductivity.superproductivity.service.ForegroundServiceFailure
 import com.superproductivity.superproductivity.util.printWebViewVersion
 import com.superproductivity.superproductivity.webview.JavaScriptInterface
 import com.superproductivity.superproductivity.webview.WebHelper
 import com.superproductivity.superproductivity.webview.WebViewBlockActivity
 import com.superproductivity.superproductivity.webview.WebViewCompatibilityChecker
 import com.superproductivity.superproductivity.webview.WebViewRequestHandler
+import org.json.JSONObject
 
 
 /**
@@ -40,12 +46,28 @@ class FullscreenActivity : AppCompatActivity() {
     private lateinit var javaScriptInterface: JavaScriptInterface
     private lateinit var webView: WebView
     private lateinit var wvContainer: FrameLayout
+    private var isForegroundServiceFailureReceiverRegistered = false
     private var webViewRequestHandler = WebViewRequestHandler(this, BuildConfig.ONLINE_SERVICE_HOST)
     val storageHelper =
         SimpleStorageHelper(this) // for scoped storage permission management on Android 10+
     val appUrl =
 //        if (BuildConfig.DEBUG) "https://test-app.super-productivity.com" else "https://app.super-productivity.com"
         "${BuildConfig.ONLINE_SERVICE_PROTOCOL}://${BuildConfig.ONLINE_SERVICE_HOST}"
+
+    private val foregroundServiceFailureReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != ForegroundServiceFailure.ACTION) {
+                return
+            }
+            val service = intent.getStringExtra(ForegroundServiceFailure.EXTRA_SERVICE) ?: return
+            val reason = intent.getStringExtra(ForegroundServiceFailure.EXTRA_REASON) ?: return
+            callJSInterfaceFunctionIfExists(
+                "next",
+                "onForegroundServiceStartFailed$",
+                "{service:${JSONObject.quote(service)},reason:${JSONObject.quote(reason)}}"
+            )
+        }
+    }
 
     @Suppress("ReplaceCallWithBinaryOperator")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -109,6 +131,11 @@ class FullscreenActivity : AppCompatActivity() {
         setContentView(R.layout.activity_fullscreen)
         wvContainer = findViewById(R.id.webview_container)
         wvContainer.addView(webView)
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+            foregroundServiceFailureReceiver,
+            IntentFilter(ForegroundServiceFailure.ACTION)
+        )
+        isForegroundServiceFailureReceiverRegistered = true
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState)
         } else {
@@ -330,6 +357,12 @@ class FullscreenActivity : AppCompatActivity() {
         // Ensure wvContainer is initialized before removing the view
         if (::wvContainer.isInitialized) {
             wvContainer.removeView(webView)
+        }
+        if (isForegroundServiceFailureReceiverRegistered) {
+            LocalBroadcastManager.getInstance(this).unregisterReceiver(
+                foregroundServiceFailureReceiver
+            )
+            isForegroundServiceFailureReceiverRegistered = false
         }
         super.onDestroy()
     }

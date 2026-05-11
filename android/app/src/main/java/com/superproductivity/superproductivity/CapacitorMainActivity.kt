@@ -20,6 +20,7 @@ import com.superproductivity.superproductivity.plugins.NavigationBarPlugin
 import com.superproductivity.superproductivity.plugins.SafBridgePlugin
 import com.superproductivity.superproductivity.service.BackgroundSyncCredentialStore
 import com.superproductivity.superproductivity.service.FocusModeForegroundService
+import com.superproductivity.superproductivity.service.ForegroundServiceFailure
 import com.superproductivity.superproductivity.service.SyncReminderScheduler
 import com.superproductivity.superproductivity.service.TrackingForegroundService
 import com.superproductivity.superproductivity.util.printWebViewVersion
@@ -42,6 +43,8 @@ class CapacitorMainActivity : BridgeActivity() {
     private var pendingShareIntent: JSONObject? = null
     private var isFrontendReady = false
     private var startupOverlayManager: StartupOverlayManager? = null
+    private var isTimerCompleteReceiverRegistered = false
+    private var isForegroundServiceFailureReceiverRegistered = false
 
     private val storageHelper =
         SimpleStorageHelper(this) // for scoped storage permission management on Android 10+
@@ -53,6 +56,21 @@ class CapacitorMainActivity : BridgeActivity() {
                 Log.d("SP_FOCUS", "Timer complete broadcast received, isBreak=$isBreak")
                 callJSInterfaceFunctionIfExists("next", "onFocusModeTimerComplete$", isBreak.toString())
             }
+        }
+    }
+
+    private val foregroundServiceFailureReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != ForegroundServiceFailure.ACTION) {
+                return
+            }
+            val service = intent.getStringExtra(ForegroundServiceFailure.EXTRA_SERVICE) ?: return
+            val reason = intent.getStringExtra(ForegroundServiceFailure.EXTRA_REASON) ?: return
+            callJSInterfaceFunctionIfExists(
+                "next",
+                "onForegroundServiceStartFailed$",
+                "{service:${JSONObject.quote(service)},reason:${JSONObject.quote(reason)}}"
+            )
         }
     }
 
@@ -181,6 +199,12 @@ class CapacitorMainActivity : BridgeActivity() {
             timerCompleteReceiver,
             IntentFilter(FocusModeForegroundService.ACTION_TIMER_COMPLETE)
         )
+        isTimerCompleteReceiverRegistered = true
+        LocalBroadcastManager.getInstance(this).registerReceiver(
+            foregroundServiceFailureReceiver,
+            IntentFilter(ForegroundServiceFailure.ACTION)
+        )
+        isForegroundServiceFailureReceiverRegistered = true
 
         // Show startup overlay for quick task entry while Angular loads.
         // Only on fresh cold start — not on config-change recreation.
@@ -363,8 +387,17 @@ class CapacitorMainActivity : BridgeActivity() {
     override fun onDestroy() {
         startupOverlayManager?.dismiss()
         startupOverlayManager = null
+        if (isTimerCompleteReceiverRegistered) {
+            LocalBroadcastManager.getInstance(this).unregisterReceiver(timerCompleteReceiver)
+            isTimerCompleteReceiverRegistered = false
+        }
+        if (isForegroundServiceFailureReceiverRegistered) {
+            LocalBroadcastManager.getInstance(this).unregisterReceiver(
+                foregroundServiceFailureReceiver
+            )
+            isForegroundServiceFailureReceiverRegistered = false
+        }
         super.onDestroy()
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(timerCompleteReceiver)
     }
 
     companion object {

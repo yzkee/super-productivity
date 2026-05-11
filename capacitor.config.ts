@@ -13,13 +13,28 @@ const config: CapacitorConfig = {
       smallIcon: 'ic_stat_sp',
     },
     Keyboard: {
-      // Default: resize body (Android)
+      // Used by iOS native keyboard handling. Android uses JavaScriptInterface
+      // for keyboard visibility and excludes the native Keyboard plugin below.
       resize: 'body',
       resizeOnFullScreen: true,
     },
   },
   android: {
     adjustMarginsForEdgeToEdge: 'auto',
+    // Android keyboard visibility is handled by JavaScriptInterface. Keeping
+    // @capacitor/keyboard Android-side registers an unused insets callback
+    // that can crash in Keyboard$1.onEnd on some devices.
+    includePlugins: [
+      '@capacitor/browser',
+      '@capacitor/status-bar',
+      'capacitor-plugin-safe-area',
+      '@capacitor/app',
+      '@capacitor/filesystem',
+      '@capacitor/local-notifications',
+      '@capacitor/share',
+      '@capawesome/capacitor-android-dark-mode-support',
+      '@capawesome/capacitor-background-task',
+    ],
   },
   ios: {
     // Content inset for safe areas (notch, home indicator)
