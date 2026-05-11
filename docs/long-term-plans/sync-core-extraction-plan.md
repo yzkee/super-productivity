@@ -747,6 +747,19 @@ The Angular service still owns app diagnostics, validation/session latching,
 snack notifications, conflict detection, NgRx dispatch construction, and the
 IndexedDB implementation.
 
+The package also owns small upload-planning helpers used by
+`OperationLogUploadService`:
+
+- `planRegularOpsAfterFullStateUpload()` partitions regular ops into
+  already-covered-by-snapshot vs still-needs-upload buckets after a full-state
+  snapshot upload.
+- `planUploadLastServerSeqUpdate()` keeps last-server-sequence persistence
+  monotonic while preserving the "has more piggyback" follow-up download
+  behavior.
+
+Provider calls, encryption/decryption, snapshot upload, error handling, app
+logging, and persistence remain app-side.
+
 ### Candidate Moves
 
 - Upload batching/retry logic from `OperationLogUploadService` if provider and
