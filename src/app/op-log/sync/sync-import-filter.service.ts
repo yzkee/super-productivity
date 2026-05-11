@@ -1,12 +1,9 @@
 import { inject, Injectable } from '@angular/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { Operation, OpType } from '../core/operation.types';
-import {
-  compareVectorClocks,
-  VectorClockComparison,
-  vectorClockToString,
-} from '../../core/util/vector-clock';
+import { vectorClockToString } from '../../core/util/vector-clock';
 import { OpLog } from '../../core/log';
+import { classifyOpAgainstSyncImport } from '@sp/sync-core';
 
 /**
  * Service responsible for filtering operations invalidated by SYNC_IMPORT, BACKUP_IMPORT, or REPAIR operations.
@@ -173,7 +170,7 @@ export class SyncImportFilterService {
       // - CONCURRENT + proven post-import counter knowledge → KEEP
       // - CONCURRENT (all other cases) → FILTER
       // - LESS_THAN: Op is dominated by import → FILTER
-      const comparison = compareVectorClocks(op.vectorClock, importClockForComparison);
+      const decision = classifyOpAgainstSyncImport(op, latestImport);
 
       // DIAGNOSTIC LOGGING: Log vector clock comparison details
       // This helps debug issues where ops are incorrectly filtered as CONCURRENT
@@ -181,20 +178,13 @@ export class SyncImportFilterService {
         `SyncImportFilterService: Comparing op ${op.id} (${op.actionType}) from client ${op.clientId}\n` +
           `  Op vectorClock:     ${vectorClockToString(op.vectorClock)}\n` +
           `  Import vectorClock: ${vectorClockToString(importClockForComparison)}` +
-          `\n  Comparison result:  ${comparison}`,
+          `\n  Comparison result:  ${decision.comparison}`,
       );
 
-      if (
-        comparison === VectorClockComparison.GREATER_THAN ||
-        comparison === VectorClockComparison.EQUAL
-      ) {
+      if (decision.reason === 'greater-than' || decision.reason === 'equal') {
         // Op was created by a client that had knowledge of the import
         validOps.push(op);
-      } else if (
-        comparison === VectorClockComparison.CONCURRENT &&
-        op.clientId === latestImport.clientId &&
-        (op.vectorClock[op.clientId] ?? 0) > (importClockForComparison[op.clientId] ?? 0)
-      ) {
+      } else if (decision.reason === 'same-client-post-import') {
         // Op is from the SAME client that created the import, with a higher counter.
         // A client can't create ops concurrent with its own import — all post-import
         // ops from the import client necessarily have causal knowledge of the import.
@@ -207,13 +197,7 @@ export class SyncImportFilterService {
             `  Client ${op.clientId} counter: op=${op.vectorClock[op.clientId]} > import=${importClockForComparison[op.clientId]} (post-import op).`,
         );
         validOps.push(op);
-      } else if (
-        comparison === VectorClockComparison.CONCURRENT &&
-        op.clientId !== latestImport.clientId &&
-        (op.vectorClock[latestImport.clientId] ?? 0) >=
-          (importClockForComparison[latestImport.clientId] ?? 0) &&
-        (importClockForComparison[latestImport.clientId] ?? 0) > 0
-      ) {
+      } else if (decision.reason === 'knows-import-counter') {
         // Op was created by a DIFFERENT client with knowledge of the import.
         // The SYNC_IMPORT incremented the importing client's counter, so any op whose
         // clock includes that counter value (or higher) must have received the import
@@ -240,7 +224,7 @@ export class SyncImportFilterService {
         // CONCURRENT or LESS_THAN: Op was created without knowledge of import
         // Filter it to ensure clean slate semantics
         OpLog.warn(
-          `SyncImportFilterService: FILTERING op ${op.id} (${op.actionType}) as ${comparison}\n` +
+          `SyncImportFilterService: FILTERING op ${op.id} (${op.actionType}) as ${decision.comparison}\n` +
             `  Op vectorClock:     ${vectorClockToString(op.vectorClock)}\n` +
             `  Import vectorClock: ${vectorClockToString(importClockForComparison)}` +
             `\n  Import client:      ${latestImport.clientId}\n` +

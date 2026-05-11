@@ -25,6 +25,16 @@ export {
 } from './vector-clock';
 export type { VectorClockComparison } from './vector-clock';
 
+// Full-state import clean-slate vector-clock decisions.
+export { classifyOpAgainstSyncImport } from './sync-import-filter';
+export type {
+  SyncImportFilterClockSource,
+  SyncImportFilterDecision,
+  SyncImportFilterDecisionReason,
+  SyncImportFilterInvalidateReason,
+  SyncImportFilterKeepReason,
+} from './sync-import-filter';
+
 // LWW (Last-Writer-Wins) update action-type helpers — factory parameterized by
 // the host application's entity-type list, so the lib stays domain-agnostic.
 export { createLwwUpdateActionTypeHelpers } from './lww-update-action-types';
@@ -32,6 +42,36 @@ export type { LwwUpdateActionTypeHelpers } from './lww-update-action-types';
 
 // Apply-operation result and option types.
 export type { ApplyOperationsResult, ApplyOperationsOptions } from './apply.types';
+
+// Conflict-resolution helpers.
+export {
+  adjustForClockCorruption,
+  buildEntityFrontier,
+  convertLocalDeleteRemoteUpdatesToLww,
+  deepEqual,
+  extractEntityFromPayload,
+  extractUpdateChanges,
+  isIdenticalConflict,
+  partitionLwwResolutions,
+  planLwwConflictResolutions,
+  suggestConflictResolution,
+} from './conflict-resolution';
+export type {
+  ClockCorruptionAdjustmentOptions,
+  ConflictResolutionSuggestion,
+  DeepEqualOptions,
+  EntityConflictLike,
+  EntityFrontierContext,
+  LocalDeleteRemoteUpdateConversionOptions,
+  LwwConflictResolutionPlan,
+  LwwConflictResolutionPlanningOptions,
+  LwwConflictResolutionReason,
+  LwwConflictResolutionWinner,
+  LwwLocalWinOperationKind,
+  LwwResolutionPartitionOptions,
+  LwwResolutionPartitions,
+  LwwResolvedConflict,
+} from './conflict-resolution';
 
 // Entity-registry contracts.
 export {
