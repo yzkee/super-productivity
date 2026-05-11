@@ -16,7 +16,12 @@ module.exports = tseslint.config(
       'src/assets/bundled-plugins/**/*',
       'src/app/config/env.generated.ts',
       '.tmp/**/*',
-      'packages/**/*',
+      'packages/plugin-api/**/*',
+      'packages/plugin-dev/**/*',
+      'packages/shared-schema/**/*',
+      'packages/super-sync-server/**/*',
+      'packages/vite-plugin/**/*',
+      'packages/*/dist/**/*',
     ],
   },
   // TypeScript files
@@ -114,6 +119,52 @@ module.exports = tseslint.config(
       // @typescript-eslint/ban-types replaced by specific rules in v8
       '@typescript-eslint/no-unsafe-function-type': 'error',
       '@typescript-eslint/no-wrapper-object-types': 'error',
+    },
+  },
+  {
+    files: ['packages/sync-core/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@sp/shared-schema',
+              message:
+                '@sp/sync-core must stay domain-agnostic; shared-schema is SP-specific.',
+            },
+          ],
+          patterns: [
+            {
+              group: [
+                '@angular/*',
+                '@ngrx/*',
+                '@sp/shared-schema/*',
+                '../shared-schema/*',
+                '../shared-schema/**',
+                '../../shared-schema/*',
+                '../../shared-schema/**',
+                '**/shared-schema/*',
+                '**/shared-schema/**',
+                'src/app/*',
+                'src/app/**',
+                '**/src/app/*',
+                '**/src/app/**',
+              ],
+              message:
+                '@sp/sync-core must not import Angular, NgRx, app code, or SP-specific schema packages.',
+            },
+          ],
+        },
+      ],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'ImportExpression',
+          message:
+            '@sp/sync-core must not use dynamic imports; they bypass package-boundary checks.',
+        },
+      ],
     },
   },
   // NgRx effects files - require hydration guards on selector-based effects

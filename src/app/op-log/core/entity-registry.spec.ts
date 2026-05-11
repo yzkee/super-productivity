@@ -124,6 +124,14 @@ describe('entity-registry', () => {
           'function',
           `${entityType} adapter missing getSelectors`,
         );
+        expect(typeof adapter?.addOne).toBe(
+          'function',
+          `${entityType} adapter missing addOne`,
+        );
+        expect(typeof adapter?.updateOne).toBe(
+          'function',
+          `${entityType} adapter missing updateOne`,
+        );
       }
     });
 

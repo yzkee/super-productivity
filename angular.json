@@ -253,7 +253,8 @@
               "src/**/*.ts",
               "src/**/*.html",
               "e2e/**/*.ts",
-              "electron/**/*.ts"
+              "electron/**/*.ts",
+              "packages/sync-core/**/*.ts"
             ]
           }
         }
