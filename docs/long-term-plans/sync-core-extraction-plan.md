@@ -1,9 +1,9 @@
 # `@sp/sync-core` Extraction Plan
 
-> **Status: In progress - PR 1, PR 2 guardrails/logger adapter work, and PR 3a
-> vector-clock ownership are present on this branch. Remaining PR 2 cleanup is
-> PR text alignment plus targeted future `SyncLogger` routing for files as they
-> move; PR 3b can start with pure algorithmic moves.**
+> **Status: In progress - PR 1, PR 2 guardrails/logger adapter work, PR 3a
+> vector-clock ownership, and the PR 3b pure helper slices are present on this
+> branch. Remaining PR 2 cleanup is PR text alignment plus targeted future
+> `SyncLogger` routing for files as they move.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -109,21 +109,43 @@ groundwork:
   injection token. Existing helper functions still read the app-side
   `ENTITY_CONFIGS` singleton for compatibility.
 
-Remaining immediate debt before PR 3b / further algorithm extraction:
+Current extraction state and remaining immediate debt:
 
 - `FULL_STATE_OP_TYPES` still lives in `@sp/sync-core` as compatibility debt.
 - Vector-clock compare/merge/prune now lives in `@sp/sync-core`, with
   `@sp/shared-schema` re-exporting it for existing client/server imports.
 - `SyncLogger` exists, but movable app code still mostly calls `OpLog` directly.
 - `@sp/sync-core` has a Vitest package test runner and vector-clock tests.
+- PR 3b has generic conflict helpers in
+  `packages/sync-core/src/conflict-resolution.ts`: deep equality, identical
+  conflict detection, conflict-resolution suggestion, entity frontier
+  construction, clock-corruption comparison adjustment, pure LWW conflict
+  resolution planning, and local-DELETE-loses-to-remote-UPDATE payload
+  extraction/merge helpers. It also owns pure LWW resolution partitioning:
+  local/remote winner counts, remote-winner ops after host processing,
+  local-winner remote ops, rejected-op id buckets, local-win op collection, and
+  remote-winner affected entity-key calculation. The Angular
+  `ConflictResolutionService` delegates to these helpers while keeping app
+  orchestration, IndexedDB/apply flow, entity lookup, NgRx, dev-error wiring,
+  app action-type ownership, fallback logging, and operation creation app-side.
+- PR 3b also has the pure full-state import vector-clock decision helper in
+  `packages/sync-core/src/sync-import-filter.ts`. The Angular
+  `SyncImportFilterService` still owns full-state operation classification,
+  latest import lookup from batch/store, IndexedDB access, conflict-dialog
+  signaling, and logging.
 
 Suggested next order:
 
 1. Finish PR 2 documentation and verification.
 2. Add the app-side `SyncLogger` adapter before moving `OpLog`-using files.
-3. Make full-state operation classification configurable or explicitly mark
+3. Treat the PR 3b pure conflict-resolution and sync-import slices as complete
+   for this round.
+4. Make full-state operation classification configurable or explicitly mark
    those op types as host-defined compatibility strings.
-4. Start PR 3b with pure algorithmic moves only after the logger adapter exists.
+5. Clean up logger/config dependencies before moving compression, prefix, or
+   error helpers.
+6. Defer port/orchestration work until the remaining pure/config boundaries are
+   settled.
 
 ## PR 1 - Thin First Slice (#7546)
 
@@ -514,6 +536,31 @@ contracts until those are separately decoupled.
 
 Move framework-agnostic, stateless sync algorithms. These should only need typed
 inputs and the logger port.
+
+### Current State
+
+- `deepEqual`, `isIdenticalConflict`, `suggestConflictResolution`,
+  `buildEntityFrontier`, `adjustForClockCorruption`, and
+  `planLwwConflictResolutions` live in `@sp/sync-core` with package-level
+  Vitest coverage.
+- `classifyOpAgainstSyncImport` lives in `@sp/sync-core` and owns only the
+  vector-clock keep/invalidate decision for an op against the latest full-state
+  import. It returns the raw comparison plus a reason so app logging stays
+  unchanged.
+- Local DELETE losing to remote UPDATE conversion now delegates to
+  `extractEntityFromPayload`, `extractUpdateChanges`, and
+  `convertLocalDeleteRemoteUpdatesToLww` in `@sp/sync-core`. The app supplies
+  payload-key resolution, LWW action-type conversion, singleton-id handling,
+  and fallback warning logging.
+- `ConflictResolutionService` keeps compatibility wrappers/call sites and
+  passes the app `SyncLogger` adapter into package helpers. It also supplies
+  the app-owned archive action predicate to LWW planning and creates
+  archive/local-win operations app-side.
+- Pure remote/local operation partitioning now lives in `@sp/sync-core`;
+  NgRx state lookup and operation creation stay in the app.
+- `SyncImportFilterService` still owns full-state op detection, latest import
+  selection from current batch/local store, IndexedDB access, local unsynced
+  import detection, and all `OpLog` messages.
 
 ### What Moves
 
