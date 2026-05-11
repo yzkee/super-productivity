@@ -7,7 +7,8 @@ Playwright-driven generation of the marketing gif/video for the landing page and
 ```bash
 npm run video         # tight default (~17s) → dist/video/reel*.{mp4,webm,gif}
 npm run video:full    # full variant (~21s) → dist/video/reel-full*.{...}
-npm run video:ms-store # 16:9 Store trailer → dist/video/reel-ms-store.mp4 + thumbnail
+npx cross-env MS_STORE_AUDIO_SOURCE=path/to/audio.ext npm run video:ms-store
+                      # 16:9 Store trailer → dist/video/reel-ms-store.mp4 + thumbnail
 
 # under the hood
 npm run video:capture # Playwright records to .tmp/video/recordings/<variant>/
@@ -23,14 +24,14 @@ Variant recordings are isolated under `.tmp/video/recordings/<variant>/` (`defau
 
 ## Files
 
-| File                                 | Responsibility                                                                                                                                                                                                                              |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `playwright.store-video.config.ts`   | Single chromium project, `video: 'off'` at project level (the fixture handles `recordVideo` itself because `browser.newContext()` doesn't inherit `use.video`).                                                                             |
+| File                                 | Responsibility                                                                                                                                                                                                                                                   |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `playwright.store-video.config.ts`   | Single chromium project, `video: 'off'` at project level (the fixture handles `recordVideo` itself because `browser.newContext()` doesn't inherit `use.video`).                                                                                                  |
 | `store-video/fixture.ts`             | Custom context with `recordVideo` enabled at 1024×1024 / DPR 2, or 1920×1080 / DPR 1 for `REEL_VARIANT=ms-store`. Reuses the screenshot pipeline's seed builder. Init scripts handle: cursor highlight ring, dialog/snack/tooltip/mention suppression, app zoom. |
-| `store-video/overlays.ts`            | DOM-injected overlay primitives: `showOverlay`, `showCaption`, `showIntegrationsCard`, `showEndCard`, `cutToScene`, `fadeTransition`, `loopBoundary`, `attachDragGhost`, `smoothMouseMove`. Plus inline brand SVGs in the `LOGOS` constant. |
-| `store-video/scenarios/reel.spec.ts` | Six-beat choreography. `REEL_VARIANT=full` triggers the optional "No account. No tracking." beat and relaxes hold timings.                                                                                                                  |
-| `store-video/build-video.ts`         | Picks the most recent `.webm` under `.tmp/video/recordings/`, applies the trim sidecar (cuts the seed-import lead-in), produces mp4/webm/gif via ffmpeg, optionally `gifsicle`-optimizes. For `ms-store`, produces a 1920×1080 H.264/AAC MP4 and PNG thumbnail. |
-| `store-video/open-video.ts`          | Opens an autoplay browser preview after `npm run video`. Prefers mp4, respects `REEL_VARIANT`, seeks slightly past the black first frame for preview only, and skips auto-open in CI.                                                       |
+| `store-video/overlays.ts`            | DOM-injected overlay primitives: `showOverlay`, `showCaption`, `showIntegrationsCard`, `showEndCard`, `cutToScene`, `fadeTransition`, `loopBoundary`, `attachDragGhost`, `smoothMouseMove`. Plus inline brand SVGs in the `LOGOS` constant.                      |
+| `store-video/scenarios/reel.spec.ts` | Six-beat choreography. `REEL_VARIANT=full` triggers the optional "No account. No tracking." beat and relaxes hold timings.                                                                                                                                       |
+| `store-video/build-video.ts`         | Picks the most recent `.webm` under `.tmp/video/recordings/`, applies the trim sidecar (cuts the seed-import lead-in), produces mp4/webm/gif via ffmpeg, optionally `gifsicle`-optimizes. For `ms-store`, produces a 1920×1080 H.264/AAC MP4 and PNG thumbnail.  |
+| `store-video/open-video.ts`          | Opens an autoplay browser preview after `npm run video`. Prefers mp4, respects `REEL_VARIANT`, seeks slightly past the black first frame for preview only, and skips auto-open in CI.                                                                            |
 
 ## Beat structure (current)
 
@@ -103,9 +104,12 @@ The main reel uses two transition styles:
 
 This variant follows Microsoft Partner Center's app trailer requirements: MP4/MOV, 1920×1080 video, PNG thumbnail at 1920×1080, title under 255 chars, and no age-rating bumper inside the trailer. The build validates the generated MP4/PNG with `ffprobe` and fails on wrong size, codec, profile, scan type, color tags, missing audio, or an over-2GB file.
 
+Required Store env vars:
+
+- `MS_STORE_AUDIO_SOURCE=path/to/audio.ext` loops a real audio bed under the trailer. Silent generated AAC probes far below Partner Center's 384 kbps stereo requirement, so Store builds fail unless this is set.
+
 Optional Store env vars:
 
-- `MS_STORE_AUDIO_SOURCE=path/to/audio.ext` loops a real audio bed under the trailer. Without it, the trailer gets silent AAC-LC stereo; ffmpeg's native AAC encoder reports very low probed bitrate for pure silence even with a 384 kbps encoder target, so the build prints a warning.
 - `MS_STORE_THUMBNAIL_AT_SECONDS=2.4` chooses a different thumbnail frame from the finished MP4.
 
 **Build script picks most-recent webm.** No need to clean `.tmp/video/recordings/` between runs. Old webms accumulate but only the most recent `.mtime` is built into outputs.

@@ -42,7 +42,9 @@ const MS_STORE_HEIGHT = 1080;
 const MS_STORE_GOP = Math.round(OUTPUT_FPS / 2);
 const MS_STORE_VIDEO_BITRATE = 50_000_000;
 const MS_STORE_MAX_BYTES = 2 * 1024 * 1024 * 1024;
-const MS_STORE_AUDIO_BITRATE_WARNING_THRESHOLD = 320_000;
+const MS_STORE_AUDIO_BITRATE_TARGET = 384_000;
+const MS_STORE_AUDIO_BITRATE_HARD_MIN = 128_000;
+const MS_STORE_AUDIO_BITRATE_WARNING_THRESHOLD = MS_STORE_AUDIO_BITRATE_TARGET * 0.9;
 
 type TrimSidecar = {
   offsetMs?: unknown;
@@ -248,7 +250,10 @@ const msStoreThumbnailFilter = (): string =>
 const msStoreAudioInputArgs = (): string[] => {
   const audioSource = process.env.MS_STORE_AUDIO_SOURCE;
   if (!audioSource) {
-    return ['-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000'];
+    throw new Error(
+      'MS_STORE_AUDIO_SOURCE is required for REEL_VARIANT=ms-store. ' +
+        'Partner Center requires AAC-LC stereo audio at 48 kHz / 384 kbps, and silent generated audio probes below that bitrate.',
+    );
   }
 
   const resolved = path.resolve(REPO_ROOT, audioSource);
@@ -408,15 +413,19 @@ const validateMsStoreOutputs = (mp4: string, thumbnail: string): void => {
     if (audio.channel_layout !== 'stereo') {
       failures.push(`audio channel layout is ${audio.channel_layout}`);
     }
-    if (
-      !process.env.MS_STORE_AUDIO_SOURCE &&
-      audioBitRate != null &&
-      audioBitRate < MS_STORE_AUDIO_BITRATE_WARNING_THRESHOLD
-    ) {
+    if (audioBitRate == null) {
+      warnings.push('audio bitrate is unavailable from ffprobe');
+    } else if (audioBitRate < MS_STORE_AUDIO_BITRATE_HARD_MIN) {
+      failures.push(
+        `audio bitrate is ${(audioBitRate / 1000).toFixed(1)} kbps, expected about ${(
+          MS_STORE_AUDIO_BITRATE_TARGET / 1000
+        ).toFixed(0)} kbps`,
+      );
+    } else if (audioBitRate < MS_STORE_AUDIO_BITRATE_WARNING_THRESHOLD) {
       warnings.push(
-        `silent AAC stream probes at ${(audioBitRate / 1000).toFixed(
-          1,
-        )} kbps despite the 384 kbps encoder target; set MS_STORE_AUDIO_SOURCE to a real audio bed if Partner Center rejects silent audio metadata.`,
+        `audio bitrate probes at ${(audioBitRate / 1000).toFixed(1)} kbps despite the ${(
+          MS_STORE_AUDIO_BITRATE_TARGET / 1000
+        ).toFixed(0)} kbps encoder target`,
       );
     }
   }
