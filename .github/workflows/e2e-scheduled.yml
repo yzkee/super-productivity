@@ -14,6 +14,7 @@ on:
       - 'e2e/tests/**'
       - 'docker-compose.yaml'
       - 'docker-compose.supersync.yaml'
+      - 'packages/sync-core/**'
       - 'packages/super-sync-server/**'
       - 'packages/shared-schema/**'
 
