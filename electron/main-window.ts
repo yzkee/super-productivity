@@ -223,6 +223,7 @@ export const createWindow = async ({
   });
 
   mainWindowState.manage(mainWin);
+  setWasMaximizedBeforeHide(mainWin.isMaximized());
 
   // Fix for #7276: electron-window-state saves state in its `closed` handler,
   // which calls win.isMaximized() on an already-hidden window (tray/shortcut
