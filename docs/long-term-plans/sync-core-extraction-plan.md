@@ -104,6 +104,7 @@ groundwork:
   `packages/sync-core/**/*.ts`.
 - The package currently exports operation primitives, apply types, LWW helper
   factory, full-state op-type helper factory, entity-key helpers,
+  host-configured sync-file prefix helpers, generic error-message helpers,
   `SyncStateCorruptedError`, entity-registry contracts, and the privacy-aware
   logger port.
 - The app registry now has `buildEntityRegistry()` and an `ENTITY_REGISTRY`
@@ -147,8 +148,9 @@ Suggested next order:
 2. Continue targeted `SyncLogger` routing for files as they become movable.
 3. Treat the PR 3b pure conflict-resolution and sync-import slices as complete
    for this round.
-4. Clean up logger/config dependencies before moving compression, prefix, or
-   error helpers.
+4. Continue logger/config cleanup before moving compression helpers or app
+   error classes; prefix parsing/formatting and generic error-message
+   extraction now have package-side helpers with app-owned diagnostics.
 5. Defer port/orchestration work until the remaining pure/config boundaries are
    settled.
 
@@ -284,6 +286,14 @@ Already present:
   entity IDs are still an SP replay convention.
 - `packages/sync-core/src/sync-logger.ts` defines `SyncLogger`,
   `NOOP_SYNC_LOGGER`, `SyncLogMeta`, `SyncLogError`, and `toSyncLogError()`.
+- `packages/sync-core/src/sync-file-prefix.ts` defines
+  `createSyncFilePrefixHelpers()`. The app shim supplies
+  `REMOTE_FILE_CONTENT_PREFIX` and `InvalidFilePrefixError`, keeping SP storage
+  constants and diagnostics app-side while moving the generic parsing/formatting
+  logic behind a config boundary.
+- `packages/sync-core/src/error.util.ts` defines `extractErrorMessage()` for
+  generic thrown-value message extraction. The app error module re-exports it
+  for compatibility while keeping SP/provider-specific error classes app-side.
 - `src/app/op-log/core/sync-logger.adapter.ts` wires `SyncLogger` to `OpLog`
   via the app-side `SYNC_LOGGER` injection token and the
   `OP_LOG_SYNC_LOGGER` direct adapter.
@@ -410,11 +420,13 @@ Initial candidate-file audit:
   `toSyncLogError()` and preserves only safe counts such as input length. It
   remains app-side until compression errors are split from app diagnostics.
 - `op-log/core/errors/sync-errors.ts`: not move-ready. Several constructors log
-  validation params, raw samples, or additional objects; split generic error
-  classes from app-specific diagnostics before routing through `SyncLogger`.
-- `op-log/util/sync-file-prefix.ts`: generic logic, but still depends on
-  app-side provider constants and app error classes. Move only after prefix and
-  error construction become package inputs.
+  validation params, raw samples, or additional objects. Generic
+  `extractErrorMessage()` now lives in the package, but error classes with
+  app-specific diagnostics stay app-side until their logging can be split or
+  routed safely through `SyncLogger`.
+- `op-log/util/sync-file-prefix.ts`: now delegates to the package helper with
+  app-supplied prefix and error construction. The app-facing shim should remain
+  until consumers are deliberately switched to injected/configured helpers.
 
 ### What This Unlocks
 
