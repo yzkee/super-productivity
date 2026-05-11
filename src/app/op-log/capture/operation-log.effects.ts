@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { createEffect } from '@ngrx/effects';
+import type { DeferredLocalActionsPort } from '@sp/sync-core';
 import { ALL_ACTIONS } from '../../util/local-actions.token';
 import { concatMap, filter } from 'rxjs/operators';
 import { LockService } from '../sync/lock.service';
@@ -39,7 +40,7 @@ import { SuperSyncStatusService } from '../sync/super-sync-status.service';
  * are not re-logged.
  */
 @Injectable()
-export class OperationLogEffects {
+export class OperationLogEffects implements DeferredLocalActionsPort {
   private compactionFailures = 0;
   /** Circuit breaker: prevents recursive quota exceeded handling */
   private isHandlingQuotaExceeded = false;

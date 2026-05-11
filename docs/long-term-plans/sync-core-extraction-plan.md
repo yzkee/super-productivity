@@ -2,8 +2,10 @@
 
 > **Status: In progress - PR 1, PR 2 guardrails/logger adapter work, PR 3a
 > vector-clock ownership, full-state op classification config, and the PR 3b
-> pure helper slices are present on this branch. Remaining cleanup is PR text
-> alignment plus targeted future `SyncLogger` routing for files as they move.**
+> pure helper slices are present on this branch. PR 4a port contracts have
+> started with the app-side replay/operation-store services explicitly satisfying
+> sync-core interfaces. Remaining cleanup is PR text alignment plus targeted
+> future `SyncLogger` routing for files as they move.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -151,6 +153,11 @@ Current extraction state and remaining immediate debt:
   privacy-aware `SyncLogger` adapter with safe metadata only. The error classes
   still stay app-side because their recovery wording, provider diagnostics, and
   `additionalLog` UI/reporting behavior are SP-specific.
+- PR 4a has started with `packages/sync-core/src/ports.ts`. The package now
+  exports minimal contracts for operation application, action dispatch,
+  remote-apply windows, deferred local action flushing, archive side effects,
+  and operation-store persistence. The existing Angular services satisfy those
+  contracts app-side; no orchestrator has moved yet.
 
 Suggested next order:
 
@@ -646,6 +653,20 @@ inputs and the logger port.
 
 Introduce orchestration ports without moving the orchestrators yet. This reduces
 the risk of the later service moves.
+
+Status: started on this branch. `@sp/sync-core` exports the first minimal port
+contracts, and these app services now explicitly satisfy them:
+
+- `OperationApplierService` implements `OperationApplyPort<Operation>` and uses
+  `ActionDispatchPort<SyncActionLike>` for its NgRx dispatch seam.
+- `HydrationStateService` implements `RemoteApplyWindowPort`.
+- `OperationLogEffects` implements `DeferredLocalActionsPort`.
+- `ArchiveOperationHandler` implements `ArchiveSideEffectPort<PersistentAction>`.
+- `OperationLogStoreService` implements
+  `OperationStorePort<Operation, OperationLogEntry>`.
+
+This is contract-only: NgRx dispatch, hydration windows, archive IndexedDB
+handling, and deferred local action processing remain app-side.
 
 ### Ports
 

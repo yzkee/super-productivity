@@ -1,5 +1,10 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
+import type {
+  ActionDispatchPort,
+  OperationApplyPort,
+  SyncActionLike,
+} from '@sp/sync-core';
 import { Operation } from '../core/operation.types';
 import { convertOpToAction } from './operation-converter.util';
 import { OpLog } from '../../core/log';
@@ -38,8 +43,8 @@ export type {
 @Injectable({
   providedIn: 'root',
 })
-export class OperationApplierService {
-  private store = inject(Store);
+export class OperationApplierService implements OperationApplyPort<Operation> {
+  private store: ActionDispatchPort<SyncActionLike> = inject(Store);
   private archiveOperationHandler = inject(ArchiveOperationHandler);
   private hydrationState = inject(HydrationStateService);
   // Use Injector to avoid circular dependency: OperationLogEffects depends on services
