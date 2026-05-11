@@ -23,7 +23,7 @@ import { ScheduleEventComponent } from '../schedule-event/schedule-event.compone
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MatIcon } from '@angular/material/icon';
 import { T } from '../../../t.const';
-import { dragDelayForTouch, isTouchActive } from '../../../util/input-intent';
+import { isTouchActive } from '../../../util/input-intent';
 import { MatTooltip } from '@angular/material/tooltip';
 import { DateTimeFormatService } from '../../../core/date-time-format/date-time-format.service';
 import { LocaleDatePipe } from 'src/app/ui/pipes/locale-date.pipe';
@@ -42,6 +42,13 @@ const MIN_ROW_HEIGHT_PX = 5;
 const MAX_ROW_HEIGHT_PX = 24;
 const ROW_HEIGHT_STEP_PX = 1;
 const MOBILE_ROW_HEIGHT_FACTOR = DEFAULT_MOBILE_ROW_HEIGHT_PX / DEFAULT_ROW_HEIGHT_PX;
+const TOUCH_DRAG_START_DELAY_MS = 75;
+
+interface ScheduleTaskDataLike {
+  id?: string;
+  plannedForDay?: string;
+  dueDay?: string | null;
+}
 
 @Component({
   selector: 'schedule-week',
@@ -98,10 +105,10 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
 
   FH = FH;
   protected readonly isTouchActive = isTouchActive;
-  dragDelayForTouch = dragDelayForTouch;
   SVEType: typeof SVEType = SVEType;
   T: typeof T = T;
   protected readonly isDraggableSE = isDraggableSE;
+  protected readonly touchDragStartDelayMs = TOUCH_DRAG_START_DELAY_MS;
 
   rowsByNr = Array.from({ length: D_HOURS * FH }, (_, index) => index).filter(
     (_, index) => index % FH === 0,
@@ -129,6 +136,49 @@ export class ScheduleWeekComponent implements OnInit, AfterViewInit, OnDestroy {
 
   safeEvents = computed(() => this.events() || []);
   safeBeyondBudget = computed(() => this.beyondBudget() || []);
+  beyondBudgetStats = computed(() => {
+    const beyondBudget = this.safeBeyondBudget();
+    const visibleEvents = this.safeEvents();
+    return (this.daysToShow() || []).map((day, index) => {
+      const beyondBudgetDay = beyondBudget[index] || [];
+      const taskIds = new Set<string>();
+
+      visibleEvents.forEach((event) => {
+        if (!event.isBeyondBudget || getEventDay(event) !== day) {
+          return;
+        }
+        const taskId = getEventTaskId(event);
+        if (!taskId) {
+          return;
+        }
+        taskIds.add(taskId);
+      });
+
+      beyondBudgetDay.forEach((event) => {
+        const taskId = getEventTaskId(event);
+        if (!taskId) {
+          return;
+        }
+        taskIds.add(taskId);
+      });
+
+      return {
+        count: taskIds.size,
+      };
+    });
+  });
+  beyondBudgetTooltips = computed(() =>
+    this.beyondBudgetStats().map((stats) =>
+      this._translateService.instant(
+        stats.count === 1
+          ? T.F.SCHEDULE.EXCESS_TASKS_DAY_TOOLTIP_ONE
+          : T.F.SCHEDULE.EXCESS_TASKS_DAY_TOOLTIP,
+        {
+          count: stats.count,
+        },
+      ),
+    ),
+  );
 
   // Split projections (RepeatProjectionSplit, SplitTaskContinued, …) share the
   // task/repeat-cfg id across segments. Combine day + start hour so each visual
@@ -415,4 +465,19 @@ const readStoredScheduleRowHeight = (): number => {
   return Number.isFinite(parsedValue)
     ? clampScheduleRowHeight(parsedValue)
     : DEFAULT_ROW_HEIGHT_PX;
+};
+
+const getEventTaskData = (event: ScheduleEvent): ScheduleTaskDataLike | null =>
+  typeof event.data === 'object' && event.data !== null
+    ? (event.data as ScheduleTaskDataLike)
+    : null;
+
+const getEventTaskId = (event: ScheduleEvent): string | null => {
+  const data = getEventTaskData(event);
+  return typeof data?.id === 'string' ? data.id : event.id;
+};
+
+const getEventDay = (event: ScheduleEvent): string | null => {
+  const data = getEventTaskData(event);
+  return event.plannedForDay ?? data?.plannedForDay ?? data?.dueDay ?? null;
 };

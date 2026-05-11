@@ -267,6 +267,7 @@ export class ScheduleComponent {
 
   events = computed(() => this._eventsAndBeyondBudget().eventsFlat);
   beyondBudget = computed(() => this._eventsAndBeyondBudget().beyondBudgetDays);
+  monthEvents = computed(() => this.events().concat(...this.beyondBudget()));
 
   currentTimeRow = computed(() => {
     // Only show current time indicator when viewing today

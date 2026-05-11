@@ -1022,6 +1022,9 @@
         "TITLE": "Schedule"
       },
       "END": "Work End",
+      "EXCESS_TASK_TOOLTIP": "This task does not fully fit this day.",
+      "EXCESS_TASKS_DAY_TOOLTIP": "{{count}} tasks do not fit into the available time",
+      "EXCESS_TASKS_DAY_TOOLTIP_ONE": "1 task does not fit into the available time",
       "INSERT_BEFORE": "Before",
       "LUNCH_BREAK": "Lunch Break",
       "MONTH": "Month",

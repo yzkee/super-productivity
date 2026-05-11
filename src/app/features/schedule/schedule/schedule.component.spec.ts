@@ -14,6 +14,8 @@ import { HiddenCalendarProvidersService } from '../../calendar-integration/hidde
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { SCHEDULE_CONSTANTS } from '../schedule.constants';
 import { GlobalConfigService } from '../../config/global-config.service';
+import { ScheduleDay } from '../schedule.model';
+import { CalendarEventActionsService } from '../../calendar-integration/calendar-event-actions.service';
 
 describe('ScheduleComponent', () => {
   let component: ScheduleComponent;
@@ -24,6 +26,7 @@ describe('ScheduleComponent', () => {
   let mockMatDialog: jasmine.SpyObj<MatDialog>;
   let mockGlobalTrackingIntervalService: jasmine.SpyObj<GlobalTrackingIntervalService>;
   let mockGlobalConfigService: jasmine.SpyObj<GlobalConfigService>;
+  let mockCalendarEventActionsService: jasmine.SpyObj<CalendarEventActionsService>;
   beforeEach(async () => {
     // Create mock services
     mockTaskService = jasmine.createSpyObj('TaskService', ['currentTaskId']);
@@ -66,6 +69,18 @@ describe('ScheduleComponent', () => {
     (mockScheduleService as any).scheduleRefreshTick = signal(0);
 
     mockMatDialog = jasmine.createSpyObj('MatDialog', ['open']);
+    mockCalendarEventActionsService = jasmine.createSpyObj(
+      'CalendarEventActionsService',
+      [
+        'hasEventUrl',
+        'isPluginEvent',
+        'openEventLink',
+        'reschedule',
+        'createAsTask',
+        'hideForever',
+        'deleteEvent',
+      ],
+    );
 
     mockGlobalTrackingIntervalService = jasmine.createSpyObj(
       'GlobalTrackingIntervalService',
@@ -88,6 +103,10 @@ describe('ScheduleComponent', () => {
         { provide: LayoutService, useValue: mockLayoutService },
         { provide: ScheduleService, useValue: mockScheduleService },
         { provide: MatDialog, useValue: mockMatDialog },
+        {
+          provide: CalendarEventActionsService,
+          useValue: mockCalendarEventActionsService,
+        },
         {
           provide: GlobalTrackingIntervalService,
           useValue: mockGlobalTrackingIntervalService,
@@ -520,6 +539,36 @@ describe('ScheduleComponent', () => {
       expect(callArgs.realNow).toBeDefined();
       // contextNow should be different from realNow when viewing future
       expect(callArgs.contextNow).not.toBe(callArgs.realNow);
+    });
+  });
+
+  describe('monthEvents computed', () => {
+    it('should include beyond-budget task events for the month view', () => {
+      const beyondBudgetTask = {
+        id: 'beyond-budget-task',
+        title: 'Beyond budget task',
+        timeEstimate: 30 * 60 * 1000,
+        timeSpent: 0,
+        subTaskIds: [],
+        dueDay: '2026-01-20',
+      } as unknown as ScheduleDay['beyondBudgetTasks'][number];
+      const scheduleDays: ScheduleDay[] = [
+        {
+          dayDate: '2026-01-20',
+          entries: [],
+          beyondBudgetTasks: [beyondBudgetTask],
+          isToday: true,
+        },
+      ];
+      mockScheduleService.createScheduleDaysWithContext.and.returnValue(scheduleDays);
+      component['_selectedDate'].set(new Date(2026, 0, 20));
+
+      const result = component.monthEvents();
+
+      expect(result.map((event) => event.id)).toContain('beyond-budget-task');
+      expect(
+        result.find((event) => event.id === 'beyond-budget-task')?.plannedForDay,
+      ).toBe('2026-01-20');
     });
   });
 

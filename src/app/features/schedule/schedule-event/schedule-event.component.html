@@ -153,6 +153,10 @@
 @if (isResizable()) {
   <div
     class="resize-handle"
+    [matTooltipPosition]="'above'"
+    [matTooltip]="beyondBudgetTooltip"
+    [matTooltipDisabled]="!se().isBeyondBudget"
+    [attr.aria-label]="se().isBeyondBudget ? beyondBudgetTooltip : null"
     (mousedown)="onResizeStart($event)"
     (touchstart)="onResizeStart($event)"
   >

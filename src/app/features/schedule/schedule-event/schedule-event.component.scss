@@ -137,6 +137,32 @@
     );
   }
 
+  &.is-beyond-budget {
+    border-bottom: calc(var(--s-quarter) + 1px) solid var(--c-warn);
+
+    &::after {
+      content: '!';
+      position: absolute;
+      bottom: calc(-1 * var(--s-half));
+      left: 50%;
+      z-index: 4;
+      transform: translateX(-50%);
+      display: grid;
+      place-items: center;
+      width: var(--s2);
+      height: var(--s2);
+      box-sizing: border-box;
+      border: 1px solid var(--c-warn);
+      border-radius: 50%;
+      background: var(--schedule-event-bg);
+      color: var(--c-warn);
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1;
+      pointer-events: none;
+    }
+  }
+
   &.ScheduledRepeatProjection .ico {
     color: var(--c-primary);
   }
@@ -230,6 +256,13 @@
 .calendar-menu-anchor {
   position: absolute;
   pointer-events: auto;
+}
+
+:host(.month-schedule-event).is-beyond-budget::after {
+  bottom: calc(-1 * var(--s-quarter));
+  width: calc(var(--s2) - var(--s-quarter));
+  height: calc(var(--s2) - var(--s-quarter));
+  font-size: 10px;
 }
 
 .ico-wrapper {
@@ -469,6 +502,10 @@
 
 :host:hover .resize-handle {
   opacity: 0.7;
+}
+
+:host.is-beyond-budget .resize-grip {
+  display: none;
 }
 
 :host.is-resizing {
