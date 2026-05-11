@@ -1,6 +1,7 @@
 import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { Action, Store } from '@ngrx/store';
+import type { DeferredLocalActionsPort } from '@sp/sync-core';
 import { Observable, of } from 'rxjs';
 import { OperationLogEffects } from './operation-log.effects';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
@@ -543,6 +544,22 @@ describe('OperationLogEffects', () => {
      * are buffered by the meta-reducer. This method processes them after
      * sync completes with fresh vector clocks.
      */
+
+    it('should expose deferred action flushing through DeferredLocalActionsPort', async () => {
+      const port: DeferredLocalActionsPort = effects;
+      const action = createPersistentAction(ActionType.TASK_SHARED_UPDATE);
+      bufferDeferredAction(action);
+
+      await port.processDeferredActions();
+
+      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          actionType: ActionType.TASK_SHARED_UPDATE,
+          clientId: 'testClient',
+        }),
+        'local',
+      );
+    });
 
     it('should do nothing when no deferred actions are buffered', async () => {
       await effects.processDeferredActions();

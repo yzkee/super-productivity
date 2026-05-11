@@ -4,8 +4,9 @@
 > vector-clock ownership, full-state op classification config, and the PR 3b
 > pure helper slices are present on this branch. PR 4a port contracts have
 > started with the app-side replay/operation-store services explicitly satisfying
-> sync-core interfaces. Remaining cleanup is PR text alignment plus targeted
-> future `SyncLogger` routing for files as they move.**
+> sync-core interfaces and adapter contract specs covering the initial ports.
+> Remaining cleanup is PR text alignment plus targeted future `SyncLogger`
+> routing for files as they move.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -667,6 +668,20 @@ contracts, and these app services now explicitly satisfy them:
 
 This is contract-only: NgRx dispatch, hydration windows, archive IndexedDB
 handling, and deferred local action processing remain app-side.
+
+App-side adapter specs now exercise the first port set through the sync-core
+types:
+
+- `OperationApplyPort` and `ActionDispatchPort` coverage in
+  `operation-applier.service.spec.ts`, including action/meta identity, bulk
+  operation reference preservation, dispatch-yield-before-archive ordering,
+  remote cooldown/end-window/deferred flush ordering, and local hydration
+  close-window/deferred flush behavior.
+- `RemoteApplyWindowPort` coverage in `hydration-state.service.spec.ts`.
+- `ArchiveSideEffectPort` coverage in
+  `archive-operation-handler.service.spec.ts`.
+- `DeferredLocalActionsPort` coverage in `operation-log.effects.spec.ts`.
+- `OperationStorePort` coverage in `operation-log-store.service.spec.ts`.
 
 ### Ports
 
