@@ -1,4 +1,5 @@
 import { OpLog } from '../../core/log';
+import type { SyncLogger } from '@sp/sync-core';
 import { JsonParseError } from '../core/errors/sync-errors';
 import { EncryptAndCompressHandlerService } from './encrypt-and-compress-handler.service';
 import { getErrorTxt } from '../../util/get-error-text';
@@ -15,6 +16,38 @@ describe('EncryptAndCompressHandlerService', () => {
     spyOn(OpLog, 'err').and.stub();
     spyOn(OpLog, 'normal').and.stub();
     spyOn(OpLog, 'log').and.stub();
+  });
+
+  it('uses the injected sync logger for safe metadata', async () => {
+    const logger = jasmine.createSpyObj<SyncLogger>('SyncLogger', [
+      'log',
+      'error',
+      'err',
+      'normal',
+      'verbose',
+      'info',
+      'warn',
+      'critical',
+      'debug',
+    ]);
+    const serviceWithLogger = new EncryptAndCompressHandlerService(logger);
+
+    await serviceWithLogger.compressAndEncrypt({
+      data: { id: 'test-id' },
+      modelVersion: 1,
+      isCompress: false,
+      isEncrypt: false,
+    });
+
+    expect(logger.normal).toHaveBeenCalledWith(
+      'EncryptAndCompressHandlerService.compressAndEncrypt()',
+      {
+        prefix: 'pf_1__',
+        modelVersion: 1,
+        isCompress: false,
+        isEncrypt: false,
+      },
+    );
   });
 
   describe('decompressAndDecrypt', () => {

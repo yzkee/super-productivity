@@ -1,8 +1,9 @@
 # `@sp/sync-core` Extraction Plan
 
-> **Status: In progress - PR 1, the first PR 2 guardrails, and PR 3a
-> vector-clock ownership are present on this branch. Finish the PR 2 logger
-> adapter follow-up before starting PR 3b.**
+> **Status: In progress - PR 1, PR 2 guardrails/logger adapter work, and PR 3a
+> vector-clock ownership are present on this branch. Remaining PR 2 cleanup is
+> PR text alignment plus targeted future `SyncLogger` routing for files as they
+> move; PR 3b can start with pure algorithmic moves.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -248,16 +249,23 @@ Already present:
   entity IDs are still an SP replay convention.
 - `packages/sync-core/src/sync-logger.ts` defines `SyncLogger`,
   `NOOP_SYNC_LOGGER`, `SyncLogMeta`, `SyncLogError`, and `toSyncLogError()`.
+- `src/app/op-log/core/sync-logger.adapter.ts` wires `SyncLogger` to `OpLog`
+  via the app-side `SYNC_LOGGER` injection token and the
+  `OP_LOG_SYNC_LOGGER` direct adapter.
+- `EncryptAndCompressHandlerService` now accepts a `SyncLogger` constructor
+  argument and uses the app adapter by default, proving the direct-constructor
+  path for package-level classes without changing sync behavior.
+- A deliberate bad-import check was run with a temporary
+  `packages/sync-core/src/__boundary-check__.ts` importing `@angular/core`;
+  `npm run lint:file -- packages/sync-core/src/__boundary-check__.ts` failed on
+  `no-restricted-imports`, proving the boundary rule is active.
 
 Still needed before PR 2 is complete:
 
-- Run and document the deliberate bad-import lint check for the package boundary.
-- Decide whether app services should start injecting `ENTITY_REGISTRY` now or
-  keep the compatibility singleton until the port-contract PR.
-- Add app-side `SyncLogger` adapter wiring before moving files that currently
-  import `OpLog`.
-- Audit existing `OpLog` calls in candidate movable files for unsafe payloads
-  before routing them through the new logger port.
+- Keep the compatibility `ENTITY_CONFIGS` singleton until the port-contract PR,
+  unless a small consumer migration is deliberately included as proof.
+- Continue routing only files being moved or made movable through `SyncLogger`;
+  do not do a broad `OpLog` refactor.
 - Update PR text so it does not describe entity-registry types and logger port as
   future-only work.
 
@@ -271,8 +279,9 @@ Still needed before PR 2 is complete:
   - `src/app/*` and relative app imports such as `../../src/app/*`
 - Keep package exceptions explicit for packages that cannot yet be linted.
 - Add the same rule for `packages/sync-providers/**` once that package exists.
-- Before closing PR 2, prove the rule by temporarily adding a bad import under
-  `packages/sync-core/src/`, running `npm run lint`, and reverting the bad import.
+- The rule was proved with a temporary `@angular/core` import under
+  `packages/sync-core/src/`; scoped lint failed as expected with
+  `no-restricted-imports`, and the file was removed.
 
 ### Entity Registry Types
 
@@ -349,11 +358,26 @@ acceptable.
 
 App-side follow-up:
 
-- Add an app adapter that satisfies `SyncLogger` and forwards to `OpLog`.
-- Prefer an Angular injection token for Angular services and direct constructor
-  arguments for package-level pure functions/classes.
+- The app adapter lives in `src/app/op-log/core/sync-logger.adapter.ts` and
+  satisfies `SyncLogger` by forwarding only the safe port arguments to `OpLog`.
+- Angular services should inject `SYNC_LOGGER`; package-level pure functions and
+  classes should receive a `SyncLogger` constructor/function argument.
 - Convert only files being moved or made movable; a broad `OpLog` refactor is
   unnecessary and risks changing log behavior.
+
+Initial candidate-file audit:
+
+- `op-log/encryption/encrypt-and-compress-handler.service.ts`: safe prefix and
+  flag metadata now goes through `SyncLogger`.
+- `op-log/encryption/compression-handler.ts`: still logs raw errors directly;
+  before moving, route failures through `toSyncLogError()` and preserve only
+  safe counts such as compressed input length.
+- `op-log/core/errors/sync-errors.ts`: not move-ready. Several constructors log
+  validation params, raw samples, or additional objects; split generic error
+  classes from app-specific diagnostics before routing through `SyncLogger`.
+- `op-log/util/sync-file-prefix.ts`: generic logic, but still depends on
+  app-side provider constants and app error classes. Move only after prefix and
+  error construction become package inputs.
 
 ### What This Unlocks
 

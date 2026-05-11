@@ -2,7 +2,8 @@ import {
   extractSyncFileStateFromPrefix,
   getSyncFilePrefix,
 } from '../util/sync-file-prefix';
-import { OpLog } from '../../core/log';
+import type { SyncLogger } from '@sp/sync-core';
+import { OP_LOG_SYNC_LOGGER } from '../core/sync-logger.adapter';
 import {
   deriveKeyFromPassword,
   encryptWithDerivedKey,
@@ -24,6 +25,8 @@ import { EncryptAndCompressCfg } from '../core/types/sync.types';
 export class EncryptAndCompressHandlerService {
   private static readonly L = 'EncryptAndCompressHandlerService';
   private static readonly SALT_LENGTH = 16;
+
+  constructor(private readonly _logger: SyncLogger = OP_LOG_SYNC_LOGGER) {}
 
   async compressAndEncryptData<T>(
     cfg: EncryptAndCompressCfg,
@@ -72,7 +75,7 @@ export class EncryptAndCompressHandlerService {
       isEncrypt,
       modelVersion,
     });
-    OpLog.normal(
+    this._logger.normal(
       `${EncryptAndCompressHandlerService.L}.${this.compressAndEncrypt.name}()`,
       {
         prefix,
@@ -110,7 +113,7 @@ export class EncryptAndCompressHandlerService {
   }> {
     const { isCompressed, isEncrypted, modelVersion, cleanDataStr } =
       extractSyncFileStateFromPrefix(dataStr);
-    OpLog.normal(
+    this._logger.normal(
       `${EncryptAndCompressHandlerService.L}.${this.decompressAndDecrypt.name}()`,
       { isCompressed, isEncrypted, modelVersion },
     );
