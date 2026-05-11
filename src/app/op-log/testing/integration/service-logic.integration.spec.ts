@@ -583,14 +583,14 @@ describe('Service Logic Integration', () => {
      * 4. Client B comes online and uploads its ops to server
      * 5. Client A downloads B's ops
      *
-     * Expected: B's ops should be KEPT because the import has no knowledge of
-     * client-b at all (independent timeline). The import was created in complete
-     * ignorance of client-b, so it can't claim to supersede client-b's ops.
+     * Expected: B's ops should be filtered because they lack causal knowledge of
+     * the import. SYNC_IMPORT is a clean-slate operation, so CONCURRENT ops without
+     * proof that they saw the import are discarded.
      *
-     * This test verifies the unknown-client exception works correctly at the
-     * integration level (through the full sync service flow).
+     * This test verifies the clean-slate filtering works correctly at the
+     * integration level through the full sync service flow.
      */
-    it('should keep CONCURRENT ops from unknown client after SYNC_IMPORT', async (): Promise<void> => {
+    it('should filter CONCURRENT ops from unknown client after SYNC_IMPORT', async (): Promise<void> => {
       // 1. Store already has a SYNC_IMPORT from a previous sync (Client A imported)
       const importOp: Operation = {
         id: 'import-op-1',
@@ -649,12 +649,9 @@ describe('Service Logic Integration', () => {
       // 4. Download and process remote ops
       await syncService.downloadRemoteOps(mockProvider);
 
-      // 5. EXPECTED: Both ops should be KEPT - import has no knowledge of client-b
-      // (independent timeline, unknown client exception)
-      expect(applierSpy.applyOperations.calls.count()).toBeGreaterThan(0);
-      const appliedOps = applierSpy.applyOperations.calls.mostRecent().args[0];
-      expect(appliedOps.find((op: Operation) => op.id === 'offline-op-1')).toBeDefined();
-      expect(appliedOps.find((op: Operation) => op.id === 'offline-op-2')).toBeDefined();
+      // 5. EXPECTED: Both ops should be filtered - neither proves knowledge of
+      // the clean-slate import.
+      expect(applierSpy.applyOperations).not.toHaveBeenCalled();
     });
 
     /**
@@ -721,8 +718,8 @@ describe('Service Logic Integration', () => {
      * Even if client B's clock is ahead (ops have future timestamps), vector clocks
      * correctly identify that B had no knowledge of the import.
      *
-     * Note: The import clock includes client-b so the unknown-client exception
-     * does not apply — this tests filtering of a KNOWN client's CONCURRENT ops.
+     * Note: The import clock includes client-b, making this an explicit known
+     * stale-client case.
      */
     it('should filter offline ops even when client clock was ahead (clock drift)', async (): Promise<void> => {
       // 1. Store has SYNC_IMPORT (import knows about client-b from prior communication)
