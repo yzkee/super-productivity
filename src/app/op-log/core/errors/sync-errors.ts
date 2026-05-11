@@ -1,8 +1,11 @@
 import { IValidation } from 'typia';
-import type { SyncFilePrefixInvalidPrefixDetails } from '@sp/sync-core';
-import { extractErrorMessage as extractGenericErrorMessage } from '@sp/sync-core';
-import { OpLog } from '../../../core/log';
+import type { SyncFilePrefixInvalidPrefixDetails, SyncLogMeta } from '@sp/sync-core';
+import {
+  extractErrorMessage as extractGenericErrorMessage,
+  toSyncLogError,
+} from '@sp/sync-core';
 import { FILE_BASED_SYNC_CONSTANTS } from '../../sync-providers/file-based/file-based-sync.types';
+import { OP_LOG_SYNC_LOGGER } from '../sync-logger.adapter';
 
 export const extractErrorMessage = (err: unknown): string | null => {
   const message = extractGenericErrorMessage(err);
@@ -12,19 +15,86 @@ export const extractErrorMessage = (err: unknown): string | null => {
   return message;
 };
 
-/**
- * Sanitizes data for logging by redacting sensitive information.
- * Removes tokens, passwords, secrets, and authorization headers.
- */
-const sanitizeForLogging = (data: unknown): unknown => {
-  if (typeof data !== 'string') return data;
-  return data
-    .replace(
-      /("(access_?token|refresh_?token|password|secret|authorization)":\s*")[^"]+"/gi,
-      '$1[REDACTED]"',
-    )
-    .replace(/(Bearer\s+)[^\s"]+/gi, '$1[REDACTED]')
-    .substring(0, 1000);
+const isSafePrimitive = (
+  value: unknown,
+): value is string | number | boolean | null | undefined =>
+  value === null ||
+  value === undefined ||
+  typeof value === 'string' ||
+  typeof value === 'number' ||
+  typeof value === 'boolean';
+
+const getValueType = (value: unknown): string => {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'array';
+  if (value instanceof Error) return value.name || 'Error';
+  return typeof value;
+};
+
+const getPrimitiveKeySummary = (value: unknown): string | undefined => {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    return undefined;
+  }
+
+  try {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record)
+      .filter((key) => isSafePrimitive(record[key]))
+      .slice(0, 10);
+    return keys.length > 0 ? keys.join(',') : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+const getValidationErrors = (
+  validationResult?: IValidation<unknown>,
+): IValidation.IError[] | undefined => {
+  if (
+    validationResult &&
+    typeof validationResult === 'object' &&
+    'errors' in validationResult &&
+    Array.isArray(validationResult.errors)
+  ) {
+    return validationResult.errors as IValidation.IError[];
+  }
+  return undefined;
+};
+
+const getValidationErrorPathSummary = (
+  validationResult?: IValidation<unknown>,
+): string | undefined => {
+  const errors = getValidationErrors(validationResult);
+  if (!errors) return undefined;
+
+  const pathSummary = errors
+    .slice(0, 3)
+    .map((error) => error.path)
+    .filter(Boolean)
+    .join(', ');
+  return pathSummary || undefined;
+};
+
+const buildAdditionalLogMeta = (
+  errorName: string,
+  additional: unknown[],
+  extractedMessage: string | null,
+): SyncLogMeta => {
+  const firstAdditional = additional[0];
+  const firstAdditionalError = toSyncLogError(firstAdditional);
+  const firstAdditionalKeys = getPrimitiveKeySummary(firstAdditional);
+
+  return {
+    errorName,
+    additionalCount: additional.length,
+    firstAdditionalType: getValueType(firstAdditional),
+    hasExtractedMessage: extractedMessage !== null,
+    firstAdditionalKeys,
+    firstAdditionalErrorName:
+      firstAdditional instanceof Error ? firstAdditionalError.name : undefined,
+    firstAdditionalErrorCode:
+      firstAdditional instanceof Error ? firstAdditionalError.code : undefined,
+  };
 };
 
 class AdditionalLogErrorBase<T = unknown[]> extends Error {
@@ -33,20 +103,23 @@ class AdditionalLogErrorBase<T = unknown[]> extends Error {
   constructor(...additional: unknown[]) {
     // Extract meaningful message from first argument, fall back to class name
     const extractedMessage = extractErrorMessage(additional[0]);
-    // Use hardcoded class name pattern to avoid minification issues
     super(extractedMessage ?? 'Unknown error');
+
+    const errorName = new.target.name;
 
     if (additional.length > 0) {
       try {
-        // Sanitize before logging to avoid exposing tokens and user content in logs
-        const sanitized = additional.map(sanitizeForLogging);
-        OpLog.log(this.name + ' additional error log: ' + JSON.stringify(sanitized));
+        const firstAdditionalKeys = getPrimitiveKeySummary(additional[0]);
+        const keySuffix = firstAdditionalKeys ? ` (${firstAdditionalKeys})` : '';
+        OP_LOG_SYNC_LOGGER.log(`${errorName} additional error metadata${keySuffix}`, {
+          ...buildAdditionalLogMeta(errorName, additional, extractedMessage),
+        });
       } catch (e) {
-        OpLog.log(
-          this.name +
-            ' additional error log not stringifiable: ' +
-            (e instanceof Error ? e.message : 'unknown'),
-        );
+        OP_LOG_SYNC_LOGGER.log(`${errorName} additional error metadata unavailable`, {
+          errorName,
+          additionalCount: additional.length,
+          loggingErrorName: toSyncLogError(e).name,
+        });
       }
     }
     this.additionalLog = additional as T;
@@ -389,11 +462,10 @@ export class JsonParseError extends Error {
       this.dataSample = `...${dataStr.substring(start, end)}...`;
     }
 
-    OpLog.err('JsonParseError:', {
-      message: this.message,
+    OP_LOG_SYNC_LOGGER.err('JsonParseError', toSyncLogError(originalError), {
       position: this.position,
-      dataSample: this.dataSample,
-      originalError,
+      dataLength: dataStr?.length,
+      hasDataSample: this.dataSample !== undefined,
     });
   }
 }
@@ -454,24 +526,30 @@ export class ModelValidationError extends Error {
     e?: unknown;
   }) {
     super('ModelValidationError');
-    OpLog.log(`ModelValidationError for model ${params.id}:`, params);
+    OP_LOG_SYNC_LOGGER.log('ModelValidationError', {
+      id: params.id,
+      hasValidationResult: params.validationResult !== undefined,
+      validationErrorCount: getValidationErrors(params.validationResult)?.length,
+      validationPathSummary: getValidationErrorPathSummary(params.validationResult),
+      hasAdditionalError: params.e !== undefined,
+      additionalErrorName:
+        params.e !== undefined ? toSyncLogError(params.e).name : undefined,
+    });
 
     if (params.validationResult) {
-      OpLog.log('validation result: ', params.validationResult);
-
       try {
-        if ('errors' in params.validationResult) {
-          const str = JSON.stringify(params.validationResult.errors);
-          OpLog.log('validation errors: ' + str);
+        const errors = getValidationErrors(params.validationResult);
+        if (errors) {
+          const str = JSON.stringify(errors);
           this.additionalLog = `Model: ${params.id}, Errors: ${str.substring(0, 400)}`;
         }
       } catch (e) {
-        OpLog.err('Error stringifying validation errors:', e);
+        OP_LOG_SYNC_LOGGER.err(
+          'Error stringifying validation errors',
+          toSyncLogError(e),
+          { id: params.id },
+        );
       }
-    }
-
-    if (params.e) {
-      OpLog.log('Additional error:', params.e);
     }
   }
 }
@@ -483,24 +561,26 @@ export class DataValidationFailedError extends Error {
   constructor(validationResult: IValidation<unknown>) {
     const errorSummary = DataValidationFailedError._buildErrorSummary(validationResult);
     super(errorSummary);
-    OpLog.log('validation result: ', validationResult);
+    OP_LOG_SYNC_LOGGER.log('DataValidationFailedError', {
+      validationErrorCount: getValidationErrors(validationResult)?.length,
+      validationPathSummary: getValidationErrorPathSummary(validationResult),
+    });
 
     try {
-      if ('errors' in validationResult) {
-        const str = JSON.stringify(validationResult.errors);
-        OpLog.log('validation errors_: ' + str);
+      const errors = getValidationErrors(validationResult);
+      if (errors) {
+        const str = JSON.stringify(errors);
         this.additionalLog = str.substring(0, 400);
       }
-      OpLog.log('validation result_: ' + JSON.stringify(validationResult));
     } catch (e) {
-      OpLog.err('Failed to stringify validation errors:', e);
+      OP_LOG_SYNC_LOGGER.err('Failed to stringify validation errors', toSyncLogError(e));
     }
   }
 
   private static _buildErrorSummary(validationResult: IValidation<unknown>): string {
     try {
-      if ('errors' in validationResult && Array.isArray(validationResult.errors)) {
-        const errors = validationResult.errors as IValidation.IError[];
+      const errors = getValidationErrors(validationResult);
+      if (errors) {
         const paths = errors
           .slice(0, 3)
           .map((e) => e.path)

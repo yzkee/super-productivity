@@ -146,6 +146,11 @@ Current extraction state and remaining immediate debt:
   `SyncImportFilterService` still owns full-state operation classification,
   latest import lookup from batch/store, IndexedDB access, conflict-dialog
   signaling, and logging.
+- `sync-errors.ts` now routes constructor diagnostics for additional-log
+  errors, JSON parse failures, and validation failures through the
+  privacy-aware `SyncLogger` adapter with safe metadata only. The error classes
+  still stay app-side because their recovery wording, provider diagnostics, and
+  `additionalLog` UI/reporting behavior are SP-specific.
 
 Suggested next order:
 
@@ -299,6 +304,10 @@ Already present:
 - `packages/sync-core/src/error.util.ts` defines `extractErrorMessage()` for
   generic thrown-value message extraction. The app error module re-exports it
   for compatibility while keeping SP/provider-specific error classes app-side.
+- `src/app/op-log/core/errors/sync-errors.ts` now sends constructor diagnostics
+  through `SyncLogger` instead of direct raw `OpLog` calls. Logs retain IDs,
+  counts, paths, error names, and key summaries, but not validation payloads,
+  raw provider responses, JSON samples, or wrapped error messages.
 - `src/app/op-log/core/sync-logger.adapter.ts` wires `SyncLogger` to `OpLog`
   via the app-side `SYNC_LOGGER` injection token and the
   `OP_LOG_SYNC_LOGGER` direct adapter.
@@ -426,11 +435,11 @@ Initial candidate-file audit:
   stream/base64 implementation now lives in `@sp/sync-core`; the app file is a
   compatibility shim that keeps SP error classes and the default `OpLog`
   adapter app-side.
-- `op-log/core/errors/sync-errors.ts`: not move-ready. Several constructors log
-  validation params, raw samples, or additional objects. Generic
-  `extractErrorMessage()` now lives in the package, but error classes with
-  app-specific diagnostics stay app-side until their logging can be split or
-  routed safely through `SyncLogger`.
+- `op-log/core/errors/sync-errors.ts`: constructor diagnostics now route through
+  `SyncLogger` with safe metadata only. Generic `extractErrorMessage()` lives in
+  the package, but the error classes remain app-side because recovery messages,
+  provider diagnostics, and `additionalLog` UI/reporting behavior are still
+  SP-specific.
 - `op-log/util/sync-file-prefix.ts`: now delegates to the package helper with
   app-supplied prefix and error construction. The app-facing shim should remain
   until consumers are deliberately switched to injected/configured helpers.
