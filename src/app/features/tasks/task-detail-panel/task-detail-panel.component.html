@@ -137,16 +137,6 @@
           }
         </div>
       }
-      @if (task().dueWithTime || task().dueDay) {
-        <button
-          mat-icon-button
-          class="quick-chip"
-          (click)="unscheduleTask($event)"
-          [matTooltip]="T.F.TASK.CMP.UNSCHEDULE_TASK | translate"
-        >
-          <mat-icon>event_busy</mat-icon>
-        </button>
-      }
     </ng-container>
   </task-detail-item>
   <task-detail-item

@@ -498,11 +498,6 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
     });
   }
 
-  unscheduleTask(ev: Event): void {
-    ev.stopPropagation();
-    this._store.dispatch(TaskSharedActions.unscheduleTask({ id: this.task().id }));
-  }
-
   removeDeadline(ev: Event): void {
     ev.stopPropagation();
     this._store.dispatch(TaskSharedActions.removeDeadline({ taskId: this.task().id }));
