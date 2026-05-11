@@ -1,6 +1,8 @@
 # `@sp/sync-core` Extraction Plan
 
-> **Status: In progress - PR 1 is under review in #7546**
+> **Status: In progress - PR 1, the first PR 2 guardrails, and PR 3a
+> vector-clock ownership are present on this branch. Finish the PR 2 logger
+> adapter follow-up before starting PR 3b.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -87,6 +89,40 @@ first slice:
 7. **Keep provider extraction separate.** Do not let `@sp/sync-core` learn
    provider IDs, file prefixes, OAuth behavior, credential storage, or bundled
    provider lists.
+
+## Current Branch Snapshot
+
+The branch already contains the first package boundary and part of the PR 2
+groundwork:
+
+- `packages/sync-core/` exists and is exposed through the `@sp/sync-core` path
+  alias.
+- `npm run sync-core:build` runs the package build, and `prepare` builds
+  `sync-core`, `shared-schema`, then `plugin-api`.
+- `eslint.config.js` applies `no-restricted-imports` and a dynamic-import ban to
+  `packages/sync-core/**/*.ts`.
+- The package currently exports operation primitives, apply types, LWW helper
+  factory, entity-key helpers, `SyncStateCorruptedError`, entity-registry
+  contracts, and the privacy-aware logger port.
+- The app registry now has `buildEntityRegistry()` and an `ENTITY_REGISTRY`
+  injection token. Existing helper functions still read the app-side
+  `ENTITY_CONFIGS` singleton for compatibility.
+
+Remaining immediate debt before PR 3b / further algorithm extraction:
+
+- `FULL_STATE_OP_TYPES` still lives in `@sp/sync-core` as compatibility debt.
+- Vector-clock compare/merge/prune now lives in `@sp/sync-core`, with
+  `@sp/shared-schema` re-exporting it for existing client/server imports.
+- `SyncLogger` exists, but movable app code still mostly calls `OpLog` directly.
+- `@sp/sync-core` has a Vitest package test runner and vector-clock tests.
+
+Suggested next order:
+
+1. Finish PR 2 documentation and verification.
+2. Add the app-side `SyncLogger` adapter before moving `OpLog`-using files.
+3. Make full-state operation classification configurable or explicitly mark
+   those op types as host-defined compatibility strings.
+4. Start PR 3b with pure algorithmic moves only after the logger adapter exists.
 
 ## PR 1 - Thin First Slice (#7546)
 
@@ -197,16 +233,46 @@ immediately after the package exists.
 3. **Logger port.** Define a privacy-aware `SyncLogger` interface in
    `@sp/sync-core` so moveable files can drop direct `OpLog` imports.
 
+### Current State
+
+Already present:
+
+- `eslint.config.js` has a `packages/sync-core/**/*.ts` override that rejects
+  Angular, NgRx, `src/app`, `@sp/shared-schema`, relative `shared-schema`
+  imports, and dynamic imports.
+- `packages/sync-core/src/entity-registry.types.ts` defines structural
+  `EntityConfig` / `EntityRegistry` contracts and helper predicates.
+- `src/app/op-log/core/entity-registry.ts` builds the SP registry app-side,
+  re-exports the core contracts, and provides `ENTITY_REGISTRY`.
+- `SINGLETON_ENTITY_ID` remains app-side, which is correct while singleton
+  entity IDs are still an SP replay convention.
+- `packages/sync-core/src/sync-logger.ts` defines `SyncLogger`,
+  `NOOP_SYNC_LOGGER`, `SyncLogMeta`, `SyncLogError`, and `toSyncLogError()`.
+
+Still needed before PR 2 is complete:
+
+- Run and document the deliberate bad-import lint check for the package boundary.
+- Decide whether app services should start injecting `ENTITY_REGISTRY` now or
+  keep the compatibility singleton until the port-contract PR.
+- Add app-side `SyncLogger` adapter wiring before moving files that currently
+  import `OpLog`.
+- Audit existing `OpLog` calls in candidate movable files for unsafe payloads
+  before routing them through the new logger port.
+- Update PR text so it does not describe entity-registry types and logger port as
+  future-only work.
+
 ### Boundary Enforcement
 
-- Update `eslint.config.js` so `packages/sync-core/**` is linted.
-- Add `no-restricted-imports` for:
+- `eslint.config.js` already lints `packages/sync-core/**`.
+- The package override already has `no-restricted-imports` for:
   - `@angular/*`
   - `@ngrx/*`
   - `@sp/shared-schema`
   - `src/app/*` and relative app imports such as `../../src/app/*`
 - Keep package exceptions explicit for packages that cannot yet be linted.
 - Add the same rule for `packages/sync-providers/**` once that package exists.
+- Before closing PR 2, prove the rule by temporarily adding a bad import under
+  `packages/sync-core/src/`, running `npm run lint`, and reverting the bad import.
 
 ### Entity Registry Types
 
@@ -232,12 +298,15 @@ Guidelines:
 - Keep `SINGLETON_ENTITY_ID` generic if it remains engine-relevant; otherwise
   keep it in the app.
 
-App-side changes:
+App-side state:
 
-- Replace the hardcoded exported registry with `buildEntityRegistry()` in
-  `src/app/op-log/core/entity-registry.ts`.
-- Provide an `ENTITY_REGISTRY` injection token in app code for services that
-  should stop importing the registry singleton directly.
+- `src/app/op-log/core/entity-registry.ts` already exposes
+  `buildEntityRegistry()`.
+- `ENTITY_REGISTRY` already exists as an app injection token.
+- `ENTITY_CONFIGS` and helper functions still read a singleton registry for
+  compatibility. Keep that until services are deliberately ported to injected
+  registry dependencies, or migrate one low-risk consumer in PR 2 to prove the
+  token works.
 - Keep all feature reducer/selector imports in the app.
 
 ### Logger Port
@@ -247,10 +316,15 @@ Define `SyncLogger` in the lib:
 ```ts
 export type SyncLogMeta = Record<string, string | number | boolean | null | undefined>;
 
+export interface SyncLogError {
+  name: string;
+  code?: string | number;
+}
+
 export interface SyncLogger {
   log(message: string, meta?: SyncLogMeta): void;
-  error(message: string, error?: unknown, meta?: SyncLogMeta): void;
-  err(message: string, error?: unknown, meta?: SyncLogMeta): void;
+  error(message: string, error?: SyncLogError, meta?: SyncLogMeta): void;
+  err(message: string, error?: SyncLogError, meta?: SyncLogMeta): void;
   normal(message: string, meta?: SyncLogMeta): void;
   verbose(message: string, meta?: SyncLogMeta): void;
   info(message: string, meta?: SyncLogMeta): void;
@@ -260,7 +334,9 @@ export interface SyncLogger {
 }
 ```
 
-Also provide a `NOOP_SYNC_LOGGER` for tests and package defaults.
+Also provide `NOOP_SYNC_LOGGER` for tests and package defaults, plus
+`toSyncLogError(error: unknown)` so adapters can preserve safe error identity
+without passing arbitrary error objects into exportable logs.
 
 Keep both `error()` and `err()` initially because current movable code uses both
 `OpLog` spellings. If a follow-up PR normalizes calls to one spelling, do that
@@ -270,6 +346,14 @@ Privacy rule: logger metadata must not include full entities, operation payloads
 task titles, note text, raw provider responses, credentials, or encryption
 material. IDs, counts, op IDs, action strings, entity types, and error names are
 acceptable.
+
+App-side follow-up:
+
+- Add an app adapter that satisfies `SyncLogger` and forwards to `OpLog`.
+- Prefer an Angular injection token for Angular services and direct constructor
+  arguments for package-level pure functions/classes.
+- Convert only files being moved or made movable; a broad `OpLog` refactor is
+  unnecessary and risks changing log behavior.
 
 ### What This Unlocks
 
@@ -284,6 +368,7 @@ dependency on app logging:
 
 - `npm run lint` proves package boundary rules are active.
 - Add and revert one deliberately-bad package import to prove the rule fails.
+- `npm run sync-core:build` proves the new exported contracts build.
 - `npm test` for registry-related specs.
 - App boot + sync round-trip.
 - Manual log export flow: sync/encryption events still appear and do not expose
@@ -295,6 +380,8 @@ dependency on app logging:
 
 Do this before moving more algorithms. Vector-clock parity is load-bearing for
 sync correctness.
+
+Status: implemented on this branch.
 
 ### Goals
 
@@ -323,6 +410,54 @@ If that dependency direction is awkward, create a tiny leaf package such as
 it. Do not make `@sp/sync-core` depend on `@sp/shared-schema`; the important
 constraint is one implementation, not two copies.
 
+### Current Locations
+
+- Generic compare/merge/prune and `MAX_VECTOR_CLOCK_SIZE` live in
+  `packages/sync-core/src/vector-clock.ts`.
+- `packages/shared-schema/src/vector-clock.ts` is a compatibility re-export from
+  `@sp/sync-core`.
+- The client wrapper lives in `src/app/core/util/vector-clock.ts`; it adds
+  null/undefined handling, sanitization, logging, and pruning notifications.
+- Server sanitization and sync types live in
+  `packages/super-sync-server/src/sync/sync.types.ts`; server conflict detection
+  and storage pruning consume the shared algorithms.
+- Existing vector-clock package tests live in
+  `packages/sync-core/tests/vector-clock.spec.ts`. `shared-schema` keeps its
+  existing compatibility coverage through the re-export.
+
+PR 3a moved the algorithms and tests in one commit set to avoid client/server
+drift.
+
+### Test Harness
+
+Implemented using the same Vitest shape as `packages/shared-schema`:
+
+- `packages/sync-core/vitest.config.ts` with Node environment and
+  `tests/**/*.spec.ts`.
+- `test` and `test:watch` scripts in `packages/sync-core/package.json`.
+- `vitest` as a `packages/sync-core` dev dependency.
+- Root `sync-core:test` next to
+  `sync-core:build`.
+- `packages/shared-schema/tests/vector-clock.spec.ts` ported to
+  `packages/sync-core/tests/vector-clock.spec.ts`.
+
+### Server Build Fallout
+
+Because `@sp/shared-schema` now depends on `@sp/sync-core`, all places that
+currently copy, install, build, or pack only `shared-schema` must include
+`sync-core` first:
+
+- `packages/shared-schema/package.json` depends on `@sp/sync-core`.
+- `package.json` and `packages/build-packages.js` build `sync-core` before
+  `shared-schema`.
+- `packages/super-sync-server/Dockerfile`.
+- `packages/super-sync-server/Dockerfile.test`.
+- Any CI workflow that installs only `packages/shared-schema` and
+  `packages/super-sync-server`.
+
+Keep `@sp/shared-schema` available to the server for schema/version/entity-type
+contracts until those are separately decoupled.
+
 ### Migration Notes
 
 - Preserve client null/undefined wrapper behavior exactly.
@@ -334,9 +469,20 @@ constraint is one implementation, not two copies.
 
 ### Verification
 
-- Port `src/app/core/util/vector-clock.spec.ts` into package tests where possible.
-- Keep app wrapper specs for integration behavior and import compatibility.
-- Run package tests, app op-log specs, and boundary grep.
+- `npm run sync-core:build`.
+- `npm run sync-core:test` once the root script exists.
+- `cd packages/shared-schema && npm test` if shared-schema keeps re-exporting or
+  wrapping the moved algorithms.
+- `cd packages/super-sync-server && npm test` for server parity.
+- `npm run test:file src/app/core/util/vector-clock.spec.ts` for client wrapper
+  behavior.
+- Docker verification for the changed server image paths:
+  `docker build -f packages/super-sync-server/Dockerfile.test .` at minimum, and
+  `docker build -f packages/super-sync-server/Dockerfile .` before merge when
+  image-build time is acceptable.
+- Keep app wrapper specs for null/undefined handling, logging, sanitization, and
+  import compatibility.
+- Boundary grep stays empty for `packages/sync-core/src/`.
 
 ---
 
@@ -549,9 +695,9 @@ This is now a final audit rather than the first boundary rule.
 
 | PR     | Scope                                                      | Risk        | Notes                                  |
 | ------ | ---------------------------------------------------------- | ----------- | -------------------------------------- |
-| **1**  | Stand up `@sp/sync-core` with generic primitives and stubs | Low         | Current PR #7546                       |
-| **2**  | Boundary lint, registry types, privacy-aware logger port   | Medium      | Moves guardrails earlier               |
-| **3a** | Vector-clock ownership and package test harness            | Medium      | Prevents algorithm drift               |
+| **1**  | Stand up `@sp/sync-core` with generic primitives and stubs | Low         | Present on branch                      |
+| **2**  | Boundary lint, registry types, privacy-aware logger port   | Medium      | Groundwork present; finish follow-ups  |
+| **3a** | Vector-clock ownership and package test harness            | Medium      | Present on branch                      |
 | **3b** | Pure algorithmic core                                      | Medium      | No Angular/NgRx/IndexedDB              |
 | **4a** | Port contracts only                                        | Medium      | Keeps orchestrators app-side           |
 | **4b** | Move small orchestration units behind ports                | High        | Incremental state-machine extraction   |
