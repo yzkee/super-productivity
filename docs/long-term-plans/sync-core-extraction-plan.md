@@ -1,9 +1,9 @@
 # `@sp/sync-core` Extraction Plan
 
 > **Status: In progress - PR 1, PR 2 guardrails/logger adapter work, PR 3a
-> vector-clock ownership, and the PR 3b pure helper slices are present on this
-> branch. Remaining PR 2 cleanup is PR text alignment plus targeted future
-> `SyncLogger` routing for files as they move.**
+> vector-clock ownership, full-state op classification config, and the PR 3b
+> pure helper slices are present on this branch. Remaining cleanup is PR text
+> alignment plus targeted future `SyncLogger` routing for files as they move.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -103,15 +103,22 @@ groundwork:
 - `eslint.config.js` applies `no-restricted-imports` and a dynamic-import ban to
   `packages/sync-core/**/*.ts`.
 - The package currently exports operation primitives, apply types, LWW helper
-  factory, entity-key helpers, `SyncStateCorruptedError`, entity-registry
-  contracts, and the privacy-aware logger port.
+  factory, full-state op-type helper factory, entity-key helpers,
+  `SyncStateCorruptedError`, entity-registry contracts, and the privacy-aware
+  logger port.
 - The app registry now has `buildEntityRegistry()` and an `ENTITY_REGISTRY`
   injection token. Existing helper functions still read the app-side
   `ENTITY_CONFIGS` singleton for compatibility.
 
 Current extraction state and remaining immediate debt:
 
-- `FULL_STATE_OP_TYPES` still lives in `@sp/sync-core` as compatibility debt.
+- Full-state operation classification is now host-configured via
+  `createFullStateOpTypeHelpers()`. The SP-facing
+  `src/app/op-log/core/operation.types.ts` shim instantiates its own
+  `FULL_STATE_OP_TYPES` and `isFullStateOpType`; the package root keeps
+  deprecated SP compatibility exports for existing consumers. `OpType.SyncImport`,
+  `OpType.BackupImport`, and `OpType.Repair` remain in `@sp/sync-core` only as
+  host-defined compatibility strings.
 - Vector-clock compare/merge/prune now lives in `@sp/sync-core`, with
   `@sp/shared-schema` re-exporting it for existing client/server imports.
 - `SyncLogger` exists, but movable app code still mostly calls `OpLog` directly.
@@ -137,14 +144,12 @@ Current extraction state and remaining immediate debt:
 Suggested next order:
 
 1. Finish PR 2 documentation and verification.
-2. Add the app-side `SyncLogger` adapter before moving `OpLog`-using files.
+2. Continue targeted `SyncLogger` routing for files as they become movable.
 3. Treat the PR 3b pure conflict-resolution and sync-import slices as complete
    for this round.
-4. Make full-state operation classification configurable or explicitly mark
-   those op types as host-defined compatibility strings.
-5. Clean up logger/config dependencies before moving compression, prefix, or
+4. Clean up logger/config dependencies before moving compression, prefix, or
    error helpers.
-6. Defer port/orchestration work until the remaining pure/config boundaries are
+5. Defer port/orchestration work until the remaining pure/config boundaries are
    settled.
 
 ## PR 1 - Thin First Slice (#7546)
@@ -176,8 +181,15 @@ Source: `packages/sync-core/src/`. All exports come through `index.ts`.
 - `OperationLogEntry`, `EntityConflict`, `ConflictResult`, `EntityChange`,
   `MultiEntityPayload`.
 - `VectorClock = Record<string, number>`.
-- `FULL_STATE_OP_TYPES`, `isFullStateOpType`, `isMultiEntityPayload`,
-  `extractActionPayload`.
+- `isMultiEntityPayload`, `extractActionPayload`.
+
+**Full-state op-type helper factory** (`full-state-op-types.ts`):
+
+- `createFullStateOpTypeHelpers<TOpType>(fullStateOpTypes)` returns the
+  host-owned `FULL_STATE_OP_TYPES` set and `isFullStateOpType` predicate.
+- The package keeps deprecated SP compatibility exports for
+  `FULL_STATE_OP_TYPES` / `isFullStateOpType`, but reusable hosts should
+  instantiate their own helper instead of using those defaults.
 
 **LWW factory** (`lww-update-action-types.ts`):
 
@@ -202,7 +214,8 @@ Each previously-public symbol path keeps working via thin shims:
 
 - `src/app/op-log/core/operation.types.ts` re-exports generic symbols and
   redeclares SP-narrowed `Operation`, `OperationLogEntry`, `EntityChange`,
-  `EntityConflict`, `ConflictResult`, and `MultiEntityPayload`.
+  `EntityConflict`, `ConflictResult`, and `MultiEntityPayload`. It also
+  instantiates `createFullStateOpTypeHelpers()` with SP's full-state op strings.
 - `src/app/op-log/core/types/apply.types.ts` redeclares app-narrowed apply
   result/options types.
 - `src/app/op-log/core/lww-update-action-types.ts` instantiates the LWW helper
@@ -222,8 +235,8 @@ Each previously-public symbol path keeps working via thin shims:
 - Fix comments that imply `sync-core` depends on `shared-schema`. The build may
   run after `shared-schema`, but the package dependency direction must remain
   absent.
-- Decide whether `FULL_STATE_OP_TYPES` is acceptable compatibility debt for PR 1
-  or whether it should already become app-configurable.
+- Resolved in follow-up: `FULL_STATE_OP_TYPES` is now app-configured via
+  `createFullStateOpTypeHelpers()`.
 
 ### Verification
 
@@ -277,6 +290,8 @@ Already present:
 - `EncryptAndCompressHandlerService` now accepts a `SyncLogger` constructor
   argument and uses the app adapter by default, proving the direct-constructor
   path for package-level classes without changing sync behavior.
+- `op-log/encryption/compression-handler.ts` now routes compression failures
+  through `SyncLogger` + `toSyncLogError()` and logs only safe length metadata.
 - A deliberate bad-import check was run with a temporary
   `packages/sync-core/src/__boundary-check__.ts` importing `@angular/core`;
   `npm run lint:file -- packages/sync-core/src/__boundary-check__.ts` failed on
@@ -391,9 +406,9 @@ Initial candidate-file audit:
 
 - `op-log/encryption/encrypt-and-compress-handler.service.ts`: safe prefix and
   flag metadata now goes through `SyncLogger`.
-- `op-log/encryption/compression-handler.ts`: still logs raw errors directly;
-  before moving, route failures through `toSyncLogError()` and preserve only
-  safe counts such as compressed input length.
+- `op-log/encryption/compression-handler.ts`: routes failures through
+  `toSyncLogError()` and preserves only safe counts such as input length. It
+  remains app-side until compression errors are split from app diagnostics.
 - `op-log/core/errors/sync-errors.ts`: not move-ready. Several constructors log
   validation params, raw samples, or additional objects; split generic error
   classes from app-specific diagnostics before routing through `SyncLogger`.

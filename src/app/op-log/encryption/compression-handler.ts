@@ -1,5 +1,11 @@
-import { CompressError, DecompressError } from '../core/errors/sync-errors';
-import { OpLog } from '../../core/log';
+import type { SyncLogMeta, SyncLogger } from '@sp/sync-core';
+import { toSyncLogError } from '@sp/sync-core';
+import {
+  CompressError,
+  DecompressError,
+  extractErrorMessage,
+} from '../core/errors/sync-errors';
+import { OP_LOG_SYNC_LOGGER } from '../core/sync-logger.adapter';
 
 /**
  * Reads all bytes from a ReadableStream without using the Response constructor,
@@ -29,12 +35,43 @@ const readAllBytes = async (
   return result;
 };
 
+const logCompressionError = (
+  logger: SyncLogger,
+  message: string,
+  error: unknown,
+  meta: SyncLogMeta,
+): void => {
+  try {
+    logger.err(message, toSyncLogError(error), meta);
+  } catch {
+    // Logging is best-effort and must not mask the original compression error.
+  }
+};
+
+const toSafeErrorForWrapper = (error: unknown): Error => {
+  const syncLogError = toSyncLogError(error);
+  const safeError = new Error(extractErrorMessage(error) ?? syncLogError.name);
+  safeError.name = syncLogError.name;
+
+  if (syncLogError.code !== undefined) {
+    Object.defineProperty(safeError, 'code', {
+      value: syncLogError.code,
+      enumerable: false,
+    });
+  }
+
+  return safeError;
+};
+
 /**
  * Compresses a string using gzip and returns the raw bytes.
  * Use this for binary transmission (e.g., HTTP with Content-Encoding: gzip).
  */
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
-export async function compressWithGzip(input: string): Promise<Uint8Array> {
+export async function compressWithGzip(
+  input: string,
+  logger: SyncLogger = OP_LOG_SYNC_LOGGER,
+): Promise<Uint8Array> {
   try {
     const stream = new CompressionStream('gzip');
     const writer = stream.writable.getWriter();
@@ -47,8 +84,10 @@ export async function compressWithGzip(input: string): Promise<Uint8Array> {
     const [, compressed] = await Promise.all([writePromise, readPromise]);
     return compressed;
   } catch (error) {
-    OpLog.err(error);
-    throw new CompressError(error);
+    logCompressionError(logger, '[compression-handler] gzip compression failed', error, {
+      inputLength: input.length,
+    });
+    throw new CompressError(toSafeErrorForWrapper(error));
   }
 }
 
@@ -57,7 +96,10 @@ export async function compressWithGzip(input: string): Promise<Uint8Array> {
  * Use this for JSON payloads where binary data needs string encoding.
  */
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
-export async function compressWithGzipToString(input: string): Promise<string> {
+export async function compressWithGzipToString(
+  input: string,
+  logger: SyncLogger = OP_LOG_SYNC_LOGGER,
+): Promise<string> {
   try {
     const stream = new CompressionStream('gzip');
     const writer = stream.writable.getWriter();
@@ -79,8 +121,15 @@ export async function compressWithGzipToString(input: string): Promise<string> {
       reader.readAsDataURL(new Blob([compressed as unknown as BlobPart]));
     });
   } catch (error) {
-    OpLog.err(error);
-    throw new CompressError(error);
+    logCompressionError(
+      logger,
+      '[compression-handler] gzip string compression failed',
+      error,
+      {
+        inputLength: input.length,
+      },
+    );
+    throw new CompressError(toSafeErrorForWrapper(error));
   }
 }
 
@@ -108,6 +157,7 @@ const sanitizeBase64 = (input: string): string => {
 // eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 export async function decompressGzipFromString(
   compressedBase64: string,
+  logger: SyncLogger = OP_LOG_SYNC_LOGGER,
 ): Promise<string> {
   try {
     const sanitized = sanitizeBase64(compressedBase64);
@@ -128,10 +178,15 @@ export async function decompressGzipFromString(
     const decoded = new TextDecoder().decode(decompressed);
     return decoded;
   } catch (error) {
-    OpLog.err(error);
-    if (compressedBase64) {
-      OpLog.err('base64 input length:', compressedBase64.length);
-    }
-    throw new DecompressError(error);
+    logCompressionError(
+      logger,
+      '[compression-handler] gzip decompression failed',
+      error,
+      {
+        inputLength: compressedBase64.length,
+        sanitizedInputLength: sanitizeBase64(compressedBase64).length,
+      },
+    );
+    throw new DecompressError(toSafeErrorForWrapper(error));
   }
 }
