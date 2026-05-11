@@ -7,6 +7,7 @@ import { DroidLog } from '../../../core/log';
 import { androidInterface } from '../android-interface';
 import { TaskService } from '../../tasks/task.service';
 import { TaskAttachmentService } from '../../tasks/task-attachment/task-attachment.service';
+import { T } from '../../../t.const';
 
 // TODO send message to electron when current task changes here
 
@@ -36,6 +37,28 @@ export class AndroidEffects {
             this._snackService.open({
               type: 'SUCCESS',
               msg: 'Task created from share',
+            });
+          }),
+        ),
+      { dispatch: false },
+    );
+
+  showForegroundServiceFailure$ =
+    IS_ANDROID_WEB_VIEW &&
+    createEffect(
+      () =>
+        androidInterface.onForegroundServiceStartFailed$.pipe(
+          tap((failure) => {
+            DroidLog.warn('Foreground service notification failed', failure);
+            this._snackService.open({
+              type: 'WARNING',
+              msg:
+                failure.service === 'focusMode'
+                  ? T.F.ANDROID.FOREGROUND_SERVICE_START_FAILED_FOCUS
+                  : T.F.ANDROID.FOREGROUND_SERVICE_START_FAILED_TRACKING,
+              actionStr: T.F.ANDROID.OPEN_NOTIFICATION_SETTINGS,
+              actionFn: () => androidInterface.openAppNotificationSettings?.(),
+              config: { duration: 10000 },
             });
           }),
         ),

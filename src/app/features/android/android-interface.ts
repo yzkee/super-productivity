@@ -44,6 +44,7 @@ export interface AndroidInterface {
   stopTrackingService?(): void;
   updateTrackingService?(timeSpentMs: number): void;
   getTrackingElapsed?(): string;
+  openAppNotificationSettings?(): void;
 
   // Foreground service methods for focus mode timer
   startFocusModeService?(
@@ -118,6 +119,7 @@ export interface AndroidInterface {
 
   // Focus mode timer completion (native service detected timer reached 0)
   onFocusModeTimerComplete$: Subject<boolean>; // boolean indicates isBreak
+  onForegroundServiceStartFailed$: ReplaySubject<ForegroundServiceStartFailure>;
 
   // Reminder notification action callbacks
   onReminderTap$: ReplaySubject<string>; // emits taskId
@@ -129,6 +131,11 @@ export interface AndroidInterface {
   setSuperSyncCredentials?(baseUrl: string, accessToken: string): void;
   clearSuperSyncCredentials?(): void;
 }
+
+export type ForegroundServiceStartFailure = {
+  service: 'tracking' | 'focusMode';
+  reason: 'startNotAllowed' | 'promotionFailed';
+};
 
 // setInterval(() => {
 //   androidInterface.updatePermanentNotification?.(new Date().toString(), '', -1);
@@ -150,6 +157,7 @@ if (IS_ANDROID_WEB_VIEW) {
   androidInterface.onFocusSkip$ = new Subject();
   androidInterface.onFocusComplete$ = new Subject();
   androidInterface.onFocusModeTimerComplete$ = new Subject();
+  androidInterface.onForegroundServiceStartFailed$ = new ReplaySubject(3);
   androidInterface.onReminderTap$ = new ReplaySubject(5);
   androidInterface.onReminderDone$ = new ReplaySubject(20);
   androidInterface.onReminderSnooze$ = new ReplaySubject(20);
