@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import type { OperationStorePort } from '@sp/sync-core';
+import type { OperationStorePort, RemoteOperationApplyStorePort } from '@sp/sync-core';
 import { DBSchema, IDBPDatabase, openDB } from 'idb';
 import {
   Operation,
@@ -171,10 +171,11 @@ interface OpLogDB extends DBSchema {
 @Injectable({
   providedIn: 'root',
 })
-export class OperationLogStoreService implements OperationStorePort<
-  Operation,
-  OperationLogEntry
-> {
+export class OperationLogStoreService
+  implements
+    OperationStorePort<Operation, OperationLogEntry>,
+    RemoteOperationApplyStorePort<Operation>
+{
   private clientIdProvider: ClientIdProvider = inject(CLIENT_ID_PROVIDER);
   private _db?: IDBPDatabase<OpLogDB>;
   private _initPromise?: Promise<void>;

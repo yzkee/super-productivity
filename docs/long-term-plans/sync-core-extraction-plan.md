@@ -5,8 +5,9 @@
 > pure helper slices are present on this branch. PR 4a port contracts have
 > started with the app-side replay/operation-store services explicitly satisfying
 > sync-core interfaces and adapter contract specs covering the initial ports.
-> Remaining cleanup is PR text alignment plus targeted future `SyncLogger`
-> routing for files as they move.**
+> PR 4b has started with the remote-apply crash-safety coordinator moved behind
+> ports. Remaining cleanup is PR text alignment plus targeted future
+> `SyncLogger` routing for files as they move.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -728,6 +729,23 @@ service remains app-side.
 
 Move only orchestration code whose dependencies are already represented by ports
 and whose behavior can be tested without Angular.
+
+Status: started on this branch. `@sp/sync-core` now exports
+`applyRemoteOperations()` plus the narrow `RemoteOperationApplyStorePort`.
+`RemoteOpsProcessingService.applyNonConflictingOps()` delegates the generic
+remote-apply crash-safety ordering to that coordinator:
+
+1. append incoming remote ops as pending while atomically skipping duplicates;
+2. apply only newly appended ops through `OperationApplyPort`;
+3. mark applied seqs;
+4. merge applied remote vector clocks;
+5. clear older full-state ops after a newer applied full-state op lands;
+6. mark the failed op and remaining unapplied ops as failed on partial apply
+   errors.
+
+The Angular service still owns app diagnostics, validation/session latching,
+snack notifications, conflict detection, NgRx dispatch construction, and the
+IndexedDB implementation.
 
 ### Candidate Moves
 
