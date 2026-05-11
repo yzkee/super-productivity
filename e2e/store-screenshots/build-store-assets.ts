@@ -295,15 +295,12 @@ const buildOneRule = async (
   const masterRoot = masterDirFor(rule.masterDir ?? 'web');
 
   for (const locale of LOCALES) {
-    const scenarios = applyScenarioOrder(
-      listScenariosForVariant(rule.source, locale, masterRoot),
-      rule.scenarioOrder,
-      rule.store,
-    );
-    if (scenarios.length === 0) {
+    const sourceScenarios = listScenariosForVariant(rule.source, locale, masterRoot);
+    if (sourceScenarios.length === 0) {
       skipped += 1;
       continue;
     }
+    const scenarios = applyScenarioOrder(sourceScenarios, rule.scenarioOrder, rule.store);
     const limited = rule.maxCount ? scenarios.slice(0, rule.maxCount) : scenarios;
     const writeOptions: WriteOptions = {};
     if (rule.maxBytes) writeOptions.maxBytes = rule.maxBytes;
