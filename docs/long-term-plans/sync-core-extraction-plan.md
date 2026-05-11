@@ -308,6 +308,9 @@ Already present:
   re-exports the core contracts, and provides `ENTITY_REGISTRY`.
 - `SINGLETON_ENTITY_ID` remains app-side, which is correct while singleton
   entity IDs are still an SP replay convention.
+- `ConflictResolutionService` now uses the injected `ENTITY_REGISTRY`, proving
+  the DI-based registry path while keeping compatibility helpers available for
+  non-DI consumers.
 - `packages/sync-core/src/sync-logger.ts` defines `SyncLogger`,
   `NOOP_SYNC_LOGGER`, `SyncLogMeta`, `SyncLogError`, and `toSyncLogError()`.
 - `packages/sync-core/src/sync-file-prefix.ts` defines
@@ -337,8 +340,8 @@ Already present:
 
 Remaining PR 2 follow-up:
 
-- Keep the compatibility `ENTITY_CONFIGS` singleton until the port-contract PR,
-  unless a small consumer migration is deliberately included as proof.
+- Keep the compatibility `ENTITY_CONFIGS` singleton until remaining non-DI
+  consumers have been deliberately migrated.
 - Continue routing only files being moved or made movable through `SyncLogger`;
   do not do a broad `OpLog` refactor.
 - Keep external PR text aligned with this document if the branch is split for
@@ -454,6 +457,10 @@ Initial candidate-file audit:
   the package, but the error classes remain app-side because recovery messages,
   provider diagnostics, and `additionalLog` UI/reporting behavior are still
   SP-specific.
+- `op-log/validation/validate-operation-payload.ts`: validation warnings now
+  route through `SyncLogger` with sanitized operation metadata plus payload
+  type/count summaries only; raw payload values and raw payload keys stay out of
+  exportable logs.
 - `op-log/util/sync-file-prefix.ts`: now delegates to the package helper with
   app-supplied prefix and error construction. The app-facing shim should remain
   until consumers are deliberately switched to injected/configured helpers.
