@@ -7,14 +7,17 @@ Playwright-driven generation of the marketing gif/video for the landing page and
 ```bash
 npm run video         # tight default (~17s) → dist/video/reel*.{mp4,webm,gif}
 npm run video:full    # full variant (~21s) → dist/video/reel-full*.{...}
+npm run video:ms-store # 16:9 Store trailer → dist/video/reel-ms-store.mp4 + thumbnail
 
 # under the hood
-npm run video:capture # Playwright records to .tmp/video/recordings/
+npm run video:capture # Playwright records to .tmp/video/recordings/<variant>/
 npm run video:build   # ffmpeg → dist/video/, picks the most recent webm
 npm run video:open    # opens an autoplay browser preview, skips in CI
 ```
 
-`REEL_VARIANT=<name>` switches the spec branch and adds a filename suffix so multiple variants coexist in `dist/video/`. `full` is the only one wired up so far; add more by branching on `isFull`-style flags in the spec.
+`REEL_VARIANT=<name>` switches the spec branch and adds a filename suffix so multiple variants coexist in `dist/video/`. `full` uses the longer choreography. `ms-store` reuses the tight choreography but captures at 1920×1080 and builds only the Microsoft Store trailer assets.
+
+Variant recordings are isolated under `.tmp/video/recordings/<variant>/` (`default`, `full`, `ms-store`, …) so `video:build` can't accidentally reuse a recording from a different aspect ratio.
 
 `gifsicle` is optional — the build script falls back to ffmpeg's gif if it's missing. With it installed, you also get `reel-optimized.gif` (~30% smaller).
 
@@ -23,10 +26,10 @@ npm run video:open    # opens an autoplay browser preview, skips in CI
 | File                                 | Responsibility                                                                                                                                                                                                                              |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `playwright.store-video.config.ts`   | Single chromium project, `video: 'off'` at project level (the fixture handles `recordVideo` itself because `browser.newContext()` doesn't inherit `use.video`).                                                                             |
-| `store-video/fixture.ts`             | Custom context with `recordVideo` enabled at 1024×1024 / DPR 2. Reuses the screenshot pipeline's seed builder. Init scripts handle: cursor highlight ring, dialog/snack/tooltip/mention suppression, app zoom.                              |
+| `store-video/fixture.ts`             | Custom context with `recordVideo` enabled at 1024×1024 / DPR 2, or 1920×1080 / DPR 1 for `REEL_VARIANT=ms-store`. Reuses the screenshot pipeline's seed builder. Init scripts handle: cursor highlight ring, dialog/snack/tooltip/mention suppression, app zoom. |
 | `store-video/overlays.ts`            | DOM-injected overlay primitives: `showOverlay`, `showCaption`, `showIntegrationsCard`, `showEndCard`, `cutToScene`, `fadeTransition`, `loopBoundary`, `attachDragGhost`, `smoothMouseMove`. Plus inline brand SVGs in the `LOGOS` constant. |
 | `store-video/scenarios/reel.spec.ts` | Six-beat choreography. `REEL_VARIANT=full` triggers the optional "No account. No tracking." beat and relaxes hold timings.                                                                                                                  |
-| `store-video/build-video.ts`         | Picks the most recent `.webm` under `.tmp/video/recordings/`, applies the trim sidecar (cuts the seed-import lead-in), produces mp4/webm/gif via ffmpeg, optionally `gifsicle`-optimizes.                                                   |
+| `store-video/build-video.ts`         | Picks the most recent `.webm` under `.tmp/video/recordings/`, applies the trim sidecar (cuts the seed-import lead-in), produces mp4/webm/gif via ffmpeg, optionally `gifsicle`-optimizes. For `ms-store`, produces a 1920×1080 H.264/AAC MP4 and PNG thumbnail. |
 | `store-video/open-video.ts`          | Opens an autoplay browser preview after `npm run video`. Prefers mp4, respects `REEL_VARIANT`, seeks slightly past the black first frame for preview only, and skips auto-open in CI.                                                       |
 
 ## Beat structure (current)
@@ -93,6 +96,18 @@ The main reel uses two transition styles:
 
 **Output cadence.** Playwright's recorder emits 25fps webm in this pipeline. `build-video.ts` keeps MP4, WebM, and GIF at 25fps to avoid duplicate/drop-frame judder during fades and cursor movement.
 
+**Microsoft Store variant.** `npm run video:ms-store` sets `REEL_VARIANT=ms-store`, records at 1920×1080, and emits:
+
+- `dist/video/reel-ms-store.mp4` — H.264 High Profile, yuv420p, 50 Mbps target, BT.709 color tags, closed GOP, 2 B-frames, fast-start MP4, plus AAC-LC stereo at 48 kHz with a 384 kbps encoder target.
+- `dist/video/reel-ms-store-thumbnail.png` — 1920×1080 PNG frame from 1.2s into the finished trailer.
+
+This variant follows Microsoft Partner Center's app trailer requirements: MP4/MOV, 1920×1080 video, PNG thumbnail at 1920×1080, title under 255 chars, and no age-rating bumper inside the trailer. The build validates the generated MP4/PNG with `ffprobe` and fails on wrong size, codec, profile, scan type, color tags, missing audio, or an over-2GB file.
+
+Optional Store env vars:
+
+- `MS_STORE_AUDIO_SOURCE=path/to/audio.ext` loops a real audio bed under the trailer. Without it, the trailer gets silent AAC-LC stereo; ffmpeg's native AAC encoder reports very low probed bitrate for pure silence even with a 384 kbps encoder target, so the build prints a warning.
+- `MS_STORE_THUMBNAIL_AT_SECONDS=2.4` chooses a different thumbnail frame from the finished MP4.
+
 **Build script picks most-recent webm.** No need to clean `.tmp/video/recordings/` between runs. Old webms accumulate but only the most recent `.mtime` is built into outputs.
 
 **Variant filename suffix.** `build-video.ts` reads `process.env.REEL_VARIANT` and appends `-${variant}` to all output filenames when set. `npm run video:full` works because env vars propagate through `npm run`.
@@ -111,7 +126,7 @@ The main reel uses two transition styles:
 ## Open polish ideas (not yet shipped)
 
 - **Theme + locale matrix.** Fixture supports both via `test.use({ theme, locale })`. Add Playwright projects per variant; matrix run produces `reel-en-dark.gif`, `reel-en-light.gif`, etc. Mirrors the screenshot pipeline pattern.
-- **Aspect ratio variants.** 16:9 (1920×1080) for landing-page hero, 9:16 (1080×1920) for mobile social. Different `VIDEO_SIZE` per matrix entry.
+- **Aspect ratio variants.** 9:16 (1080×1920) for mobile social. Different `VIDEO_SIZE` per matrix entry.
 - **5-second social cut.** `npm run video:short` produces beats {1, 3, 5}. Trivial extension of the variant flag.
 - **Drop-slot highlight.** Brief CSS pulse on the schedule slot the dragged task lands in — gives beat 2 a closing punctuation.
 - **Brand-color flash on logo entrance.** Currently logos are flat brand colors. Could flash bright then settle.

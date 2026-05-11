@@ -4,8 +4,10 @@
  * with `recordVideo` enabled, since `browser.newContext()` does not inherit
  * the project's `use.video` setting.
  *
- * Recording lands in `.tmp/video/recordings/<random>.webm` after the page
- * closes; `build-video.ts` picks the most recent one.
+ * Recording lands in a variant directory such as
+ * `.tmp/video/recordings/default/<random>.webm` or
+ * `.tmp/video/recordings/ms-store/<random>.webm` after the page closes;
+ * `build-video.ts` picks the most recent one for the same variant.
  *
  * Trim handling: the recording necessarily includes ~16s of seed-import
  * navigation before the choreographed beats begin. The fixture timestamps the
@@ -30,16 +32,42 @@ import { waitForAppReady } from '../utils/waits';
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SEED_DIR = path.join(REPO_ROOT, '.tmp', 'video-seeds');
-const RECORDING_DIR = path.join(REPO_ROOT, '.tmp', 'video', 'recordings');
+const VARIANT = process.env.REEL_VARIANT ?? '';
+const RECORDINGS_DIR = path.join(REPO_ROOT, '.tmp', 'video', 'recordings');
+const variantDirName = (VARIANT || 'default').replace(/[^a-z0-9_-]+/gi, '-');
+const RECORDING_DIR = path.join(RECORDINGS_DIR, variantDirName);
 const TRIM_SIDECAR_PATH = path.join(RECORDING_DIR, '_latest-trim.json');
 
+type VideoProfile = {
+  size: { width: number; height: number };
+  deviceScaleFactor: number;
+};
+
+const getVideoProfile = (): VideoProfile => {
+  if (process.env.REEL_VARIANT === 'ms-store') {
+    return {
+      // Microsoft Store trailers must be exactly 1920x1080. Keep the backing
+      // surface at 1x here; 2x would render a 3840x2160 page before recording.
+      size: { width: 1920, height: 1080 },
+      deviceScaleFactor: 1,
+    };
+  }
+
+  return {
+    // Square 1024x1024 plays well on social embeds and matches the rhythm of
+    // the GitHub README. DPR 2 renders the page at 2x physical pixels, then
+    // Playwright downsamples into 1024x1024 for sharper text on the gif.
+    size: { width: 1024, height: 1024 },
+    deviceScaleFactor: 2,
+  };
+};
+
 // Viewport == recording size, otherwise Playwright pads the smaller axis with
-// gray. Square 1024×1024 plays well on social embeds and matches the rhythm
-// of the GitHub README. deviceScaleFactor 2 renders the page at 2× physical
-// pixels (2048×2048) which Playwright then downsamples into 1024×1024 —
-// sharp text on the gif. Cost: ~2× CPU/memory during capture.
-const VIDEO_SIZE = { width: 1024, height: 1024 } as const;
-const DEVICE_SCALE_FACTOR = 2;
+// gray. The profile is selected by REEL_VARIANT so the choreography can be
+// reused for square README assets and 16:9 Store trailers.
+const VIDEO_PROFILE = getVideoProfile();
+const VIDEO_SIZE = VIDEO_PROFILE.size;
+const DEVICE_SCALE_FACTOR = VIDEO_PROFILE.deviceScaleFactor;
 
 type VideoFixtures = {
   locale: Locale;
@@ -199,14 +227,12 @@ export const test = base.extend<VideoFixtures>({
           visibility: hidden !important;
           opacity: 0 !important;
         }
-        /* Hide every Material dialog that would modal over the reel —
-           reminders, scheduling confirmation, anything else. The reel
-           doesn't legitimately need any modal, and per-selector :has()
-           rules kept missing variants. Targeting the dialog container
-           class catches them all. focus-mode-overlay is its own element,
-           not a mat-dialog, so it's unaffected. */
-        .cdk-overlay-pane:has(.mat-mdc-dialog-container),
-        .cdk-overlay-pane:has(mat-dialog-container) {
+        /* Hide Material dialogs that would modal over the actual reel, but
+           keep the import encryption warning actionable during the trimmed
+           pre-roll seed import. focus-mode-overlay is its own element, not a
+           mat-dialog, so it's unaffected. */
+        .cdk-overlay-pane:has(.mat-mdc-dialog-container):not(:has(dialog-import-encryption-warning)),
+        .cdk-overlay-pane:has(mat-dialog-container):not(:has(dialog-import-encryption-warning)) {
           display: none !important;
         }
         /* Hide every Material snack bar — beat 1's task-add and beat 4's
@@ -292,7 +318,16 @@ export const test = base.extend<VideoFixtures>({
       fs.mkdirSync(RECORDING_DIR, { recursive: true });
       fs.writeFileSync(
         TRIM_SIDECAR_PATH,
-        JSON.stringify({ offsetMs, recordedAtMs: beatsMs }, null, 2),
+        JSON.stringify(
+          {
+            offsetMs,
+            recordedAtMs: beatsMs,
+            variant: VARIANT || 'default',
+            recordingSize: VIDEO_SIZE,
+          },
+          null,
+          2,
+        ),
       );
     } catch (err) {
       console.warn(`[video] failed to write trim sidecar: ${(err as Error).message}`);
