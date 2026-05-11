@@ -14,17 +14,25 @@ import type {
 } from '@sp/sync-core';
 import type { EntityType as SharedEntityType } from '@sp/shared-schema';
 import { ENTITY_TYPES } from '@sp/shared-schema';
+import {
+  createFullStateOpTypeHelpers,
+  isMultiEntityPayload as libIsMultiEntityPayload,
+  OpType,
+} from '@sp/sync-core';
 import { ActionType } from './action-types.enum';
 
-export {
-  OpType,
-  FULL_STATE_OP_TYPES,
-  isFullStateOpType,
-  extractActionPayload,
-} from '@sp/sync-core';
-import { isMultiEntityPayload as libIsMultiEntityPayload } from '@sp/sync-core';
+export { OpType, extractActionPayload } from '@sp/sync-core';
 export type { VectorClock };
 export { ENTITY_TYPES, ActionType };
+
+const fullStateOpTypeHelpers = createFullStateOpTypeHelpers<OpType>([
+  OpType.SyncImport,
+  OpType.BackupImport,
+  OpType.Repair,
+]);
+
+export const FULL_STATE_OP_TYPES = fullStateOpTypeHelpers.FULL_STATE_OP_TYPES;
+export const isFullStateOpType = fullStateOpTypeHelpers.isFullStateOpType;
 
 /**
  * Entity type — Super Productivity's domain set, sourced from `@sp/shared-schema`

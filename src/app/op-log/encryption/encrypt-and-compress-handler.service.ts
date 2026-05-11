@@ -86,7 +86,7 @@ export class EncryptAndCompressHandlerService {
     );
     let dataStr = JSON.stringify(data);
     if (isCompress) {
-      dataStr = await compressWithGzipToString(dataStr);
+      dataStr = await compressWithGzipToString(dataStr, this._logger);
     }
     if (isEncrypt) {
       if (!encryptKey || encryptKey.length === 0) {
@@ -152,7 +152,7 @@ export class EncryptAndCompressHandlerService {
     }
 
     if (isCompressed) {
-      outStr = await decompressGzipFromString(outStr);
+      outStr = await decompressGzipFromString(outStr, this._logger);
     }
 
     let parsedData: T;
