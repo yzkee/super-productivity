@@ -502,6 +502,16 @@ describe('ScheduleService', () => {
       const result = service.getEventDayStr(event);
       expect(result).toBe('2026-03-01');
     });
+
+    it('should return event plannedForDay for planned task entries when task data lacks it', () => {
+      const event = createMockEvent(SVEType.TaskPlannedForDay, '2026-05-07', {
+        id: 'task-1',
+        title: 'Due day task',
+        dueDay: '2026-05-07',
+      } as unknown as ScheduleEvent['data']);
+      const result = service.getEventDayStr(event);
+      expect(result).toBe('2026-05-07');
+    });
   });
 
   describe('getEventsForDay', () => {

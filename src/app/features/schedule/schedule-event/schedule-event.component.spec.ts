@@ -34,7 +34,7 @@ const makeTaskScheduleEvent = (): ScheduleEvent => ({
   style: '',
   startHours: 10,
   timeLeftInHours: 1,
-  data: { id: 'task-1', title: 'Task' } as any,
+  data: { id: 'task-1', title: 'Task', timeEstimate: 3600000 } as any,
 });
 
 describe('ScheduleEventComponent – isReferenceCalendar', () => {
@@ -122,6 +122,28 @@ describe('ScheduleEventComponent – isReferenceCalendar', () => {
         // calMenuTrigger is undefined when MatMenuTrigger is not resolved – openMenu was never called
         expect(trigger).toBeUndefined();
       }
+    });
+  });
+
+  describe('resize handle', () => {
+    it('should hide resizing when resize is disabled', () => {
+      fixture.componentRef.setInput('event', makeTaskScheduleEvent());
+      fixture.detectChanges();
+
+      expect(component.isResizable()).toBe(true);
+
+      fixture.componentRef.setInput('isResizeDisabled', true);
+      fixture.detectChanges();
+
+      expect(component.isResizable()).toBe(false);
+    });
+
+    it('should hide resizing for drag previews', () => {
+      fixture.componentRef.setInput('event', makeTaskScheduleEvent());
+      fixture.componentRef.setInput('isDragPreview', true);
+      fixture.detectChanges();
+
+      expect(component.isResizable()).toBe(false);
     });
   });
 });

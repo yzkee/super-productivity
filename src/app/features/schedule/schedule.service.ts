@@ -196,6 +196,12 @@ export class ScheduleService {
       return this._dateService.todayStr(ev.data.start);
     }
 
+    // Task view entries can carry the resolved day on the event itself, e.g. when
+    // excess tasks are mapped from dueDay without mutating the task data.
+    if (isTaskEventWithPlannedForDay(ev)) {
+      return ev.plannedForDay;
+    }
+
     // Tasks with plannedForDay (TaskPlannedForDay, SplitTaskPlannedForDay, SplitTask, Task)
     if (isTaskWithPlannedForDay(ev)) {
       return ev.data.plannedForDay;
@@ -300,6 +306,16 @@ const isTaskWithPlannedForDay = (
   ev.data != null &&
   'plannedForDay' in ev.data &&
   typeof ev.data.plannedForDay === 'string';
+
+const isTaskEventWithPlannedForDay = (
+  ev: ScheduleEvent,
+): ev is ScheduleEvent & { plannedForDay: string } =>
+  (ev.type === SVEType.TaskPlannedForDay ||
+    ev.type === SVEType.SplitTaskPlannedForDay ||
+    ev.type === SVEType.SplitTask ||
+    ev.type === SVEType.ScheduledTask ||
+    ev.type === SVEType.Task) &&
+  typeof ev.plannedForDay === 'string';
 
 const isScheduledTaskWithRemindAt = (
   ev: ScheduleEvent,
