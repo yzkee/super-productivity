@@ -39,6 +39,7 @@ export type {
   NativeHttpRequestConfig,
   NativeHttpResponse,
 } from './http/native-http-retry';
+export { isRetryableUploadError } from './http/retryable-upload-error';
 export { errorMeta, urlPathOnly } from './log/error-meta';
 export type { ProviderPlatformInfo } from './platform/provider-platform-info';
 export type { WebFetchFactory } from './platform/web-fetch-factory';
