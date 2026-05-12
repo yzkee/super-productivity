@@ -93,9 +93,7 @@ describe('passesCalendarEventRegexFilter', () => {
 
     it('should not let an oversized include be bypassed by also-oversized exclude', () => {
       const oversized = 'a'.repeat(CALENDAR_REGEX_FILTER_MAX_LENGTH + 1);
-      expect(passesCalendarEventRegexFilter(baseEvent, oversized, oversized)).toBe(
-        false,
-      );
+      expect(passesCalendarEventRegexFilter(baseEvent, oversized, oversized)).toBe(false);
     });
   });
 
