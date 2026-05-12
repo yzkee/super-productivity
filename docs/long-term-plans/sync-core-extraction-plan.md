@@ -1018,29 +1018,82 @@ providers, and app wiring each live in their own package.
 - `src/app/op-log/sync-providers/file-based/dropbox/generate-pkce-codes.ts`
   remains as a compatibility re-export for existing Dropbox call sites.
 
+### Current Fourth Slice
+
+- Provider-owned native HTTP retry helpers moved into `@sp/sync-providers`:
+  `executeNativeRequestWithRetry`, `isTransientNetworkError`, and the
+  `NativeHttpExecutor` / `NativeHttpRequestConfig` / `NativeHttpResponse`
+  contracts.
+- The package version is platform-agnostic: callers inject a
+  `NativeHttpExecutor` (CapacitorHttp on Android, fetch on web/Electron, a
+  test double in unit tests) and an optional `SyncLogger` from
+  `@sp/sync-core`. Retry policy (2 attempts, 1s/2s backoff, transient
+  network errors only) is preserved.
+- Retry log entries flow as safe `SyncLogMeta` primitives (url, attempt,
+  errorName, errorCode) rather than raw error objects, aligning with the
+  package's privacy-aware logger contract.
+- `src/app/op-log/sync-providers/native-http-retry.ts` remains as the
+  app-side adapter that wires `CapacitorHttp` and `OP_LOG_SYNC_LOGGER`
+  through to the package helper so existing Dropbox and SuperSync callers
+  keep working unchanged.
+- The full Dropbox and WebDAV provider moves were deferred from this
+  slice because their dependency surface (provider error classes,
+  per-platform fetch hacks, `tryCatchInlineAsync`, Capacitor plugin
+  registration, OAuth glue) needs additional package ports that should
+  be designed and reviewed in their own slice. Updated plan below.
+
 ### Remaining Slice Plan
 
-Finish PR 5 in three larger slices rather than one-provider-at-a-time moves:
+Finish PR 5 in four slices rather than three:
 
-1. **HTTP file providers slice**
-   - Move shared provider HTTP/native-fetch retry helpers that are needed by
-     HTTP-backed providers, behind package-owned ports where platform behavior
-     is app-provided.
-   - Move Dropbox provider implementation and keep OAuth routing, app
-     credentials, `SyncProviderId`, and config UI as app-side shims/adapters.
-   - Move WebDAV and Nextcloud implementation together, including XML parsing,
-     constants, models, and API helpers.
-   - Keep LocalFile untouched in this slice except for shared contracts it
-     already consumes.
-2. **SuperSync integration slice**
+1. **Dropbox provider slice** (next)
+   - Move provider-specific error classes (`AuthFailSPError`,
+     `RemoteFileNotFoundAPIError`, `HttpNotOkAPIError`,
+     `MissingCredentialsSPError`, `NoRevAPIError`, `InvalidDataSPError`,
+     `EmptyRemoteBodySPError`, `MissingRefreshTokenAPIError`,
+     `TooManyRequestsAPIError`, `UploadRevToMatchMismatchAPIError`,
+     `PotentialCorsError`, `RemoteFileChangedUnexpectedly`) into the
+     package. Drop the `AdditionalLogErrorBase` constructor-time logging
+     side effect; rely on catch-site logging. The app's `sync-errors.ts`
+     re-exports the moved classes so consumer call sites stay unchanged.
+   - Introduce a `ProviderPlatformInfo` port for `isNativePlatform` /
+     `isIosNative` flags so provider code stops importing
+     `@capacitor/core` directly. Same applies to the iOS
+     `CapacitorWebFetch` lookup — wrap as a `WebFetchProvider` port.
+   - Move `tryCatchInlineAsync` into the package (small util, no
+     dependencies). Move the `DropboxFileMetadata` shape (already
+     duplicated under `imex/sync/dropbox/`).
+   - Move `dropbox.ts`, `dropbox-api.ts`, `dropbox-api.spec.ts`,
+     `dropbox-auth-helper.spec.ts`, `generate-pkce-codes.spec.ts`
+     into `packages/sync-providers/src/file-based/dropbox/`. Convert
+     Jasmine specs to Vitest. Replace `SyncProviderId.Dropbox` with a
+     `PROVIDER_ID_DROPBOX = 'Dropbox'` constant inside the package.
+   - Leave thin app-side shims that re-export the moved Dropbox class
+     wired with the app's logger + platform + credential-store
+     instances so `sync-providers.factory.ts` keeps working.
+2. **WebDAV + Nextcloud slice**
+   - Reuse the same error-class, platform-info, and HTTP-port surface
+     introduced for Dropbox.
+   - Move `webdav-base-provider.ts`, `webdav-api.ts`,
+     `webdav-xml-parser.ts`, `webdav.const.ts`, `webdav.model.ts`,
+     `webdav.ts`, `nextcloud.ts`, `nextcloud.model.ts` and their
+     specs into the package.
+   - `webdav-http-adapter.ts` currently calls a Capacitor-registered
+     `WebDavHttp` plugin for native platforms. Keep the Capacitor
+     plugin registration app-side and inject a
+     `WebDavNativeHttpExecutor` port that resolves to the registered
+     plugin on Android/iOS or to `fetch` on web/Electron.
+   - Move `md5HashSync` (or replace with `hash-wasm` already in the
+     package) since WebDAV uses content hashing for revs.
+3. **SuperSync integration slice**
    - Move SuperSync provider implementation behind the same package boundary,
-     reusing the HTTP/native-fetch ports introduced by the file-provider slice.
+     reusing the HTTP/native-fetch ports introduced by the file-provider slices.
    - Move only provider implementation code; keep app state selectors,
      provider lists, config UI, and Angular credential-store implementation in
      `src/app`.
    - Tighten provider factory/registry shims enough that app call sites keep
      working while package providers no longer import app-owned IDs.
-3. **LocalFile final slice**
+4. **LocalFile final slice**
    - Move LocalFile provider implementation last.
    - Put Electron/local-file APIs behind an app-provided file port and keep the
      Electron bridge implementation app-side.
