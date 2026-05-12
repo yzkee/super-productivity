@@ -156,8 +156,9 @@ Current extraction state and remaining immediate debt:
 - PR 4a is present with `packages/sync-core/src/ports.ts`. The package now
   exports minimal contracts for operation application, action dispatch,
   remote-apply windows, deferred local action flushing, archive side effects,
-  and operation-store persistence. The existing Angular services satisfy those
-  contracts app-side.
+  operation-store persistence, conflict UI, and sync configuration. The existing
+  Angular services satisfy these contracts app-side. Conflict UI and sync config
+  adapters remain app-side and are not used by package orchestration yet.
 - PR 4b's current small helper set is present: remote-apply crash-safety
   ordering, upload last-server-sequence planning, full-state snapshot upload
   follow-up partitioning, download gap/full-state/encryption planning, and
@@ -461,6 +462,21 @@ Initial candidate-file audit:
   route through `SyncLogger` with sanitized operation metadata plus payload
   type/count summaries only; raw payload values and raw payload keys stay out of
   exportable logs.
+- `op-log/validation/auto-fix-typia-errors.ts`: Typia repair attempts and
+  applied fixes now route through `SyncLogger` with path/type/count metadata
+  only; raw invalid values, defaults, and full Typia error objects stay out of
+  exportable logs.
+- `op-log/validation/repair-menu-tree.ts`: menu-tree repair logs now use
+  `SyncLogger` metadata for removed references/invalid nodes; raw node objects
+  and folder names stay out of exportable logs.
+- `op-log/validation/validation-fn.ts`: schema validation failures now route
+  through `SyncLogger` with counts, paths, expected types, and data shape
+  summaries only; raw validation result data and invalid values stay out of
+  exportable logs.
+- `op-log/validation/is-related-model-data-valid.ts` and the invalid-date
+  repair branch in `data-repair.ts`: cross-model validation and date repair
+  diagnostics now keep raw app state, titles, and corrupted date strings out of
+  exportable logs.
 - `op-log/util/sync-file-prefix.ts`: now delegates to the package helper with
   app-supplied prefix and error construction. The app-facing shim should remain
   until consumers are deliberately switched to injected/configured helpers.
@@ -669,8 +685,8 @@ Introduce orchestration ports without moving the orchestrators yet. This reduces
 the risk of the later service moves.
 
 Status: implemented for the current branch slice. `@sp/sync-core` exports the
-first minimal port contracts, and these app services now explicitly satisfy
-them:
+first minimal replay/storage port contracts, and these app services now
+explicitly satisfy them:
 
 - `OperationApplierService` implements `OperationApplyPort<Operation>` and uses
   `ActionDispatchPort<SyncActionLike>` for its NgRx dispatch seam.
@@ -679,6 +695,18 @@ them:
 - `ArchiveOperationHandler` implements `ArchiveSideEffectPort<PersistentAction>`.
 - `OperationLogStoreService` implements
   `OperationStorePort<Operation, OperationLogEntry>`.
+
+`ConflictUiPort` and `SyncConfigPort` are also exported and satisfied by
+app-side services:
+
+- `SyncImportConflictDialogService` implements
+  `ConflictUiPort<SyncImportConflictResolution>` for the sync-import conflict
+  dialog while keeping its app-specific `SyncImportConflictData` API.
+- `GlobalConfigService` implements `SyncConfigPort` by exposing the current
+  `selectSyncConfig` snapshot without leaking NgRx selectors into
+  `@sp/sync-core`.
+
+These adapters are intentionally not used by package orchestration yet.
 
 This is contract-only: NgRx dispatch, hydration windows, archive IndexedDB
 handling, and deferred local action processing remain app-side.
