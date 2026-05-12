@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import { toSyncLogError, type SyncLogMeta } from '@sp/sync-core';
 import { DropboxFileMetadata } from './dropbox.model';
+import { errorMeta, urlPathOnly } from '../../log/error-meta';
 import {
   AuthFailSPError,
   HttpNotOkAPIError,
@@ -84,24 +84,6 @@ const NATIVE_REQUEST_READ_TIMEOUT = 120000;
 const NATIVE_AUTH_READ_TIMEOUT = 30000;
 
 const DROPBOX_OAUTH_TOKEN_URL = 'https://api.dropboxapi.com/oauth2/token' as const;
-
-const urlPathOnly = (url: string): string => {
-  try {
-    const u = new URL(url);
-    return `${u.host}${u.pathname}`;
-  } catch {
-    return url;
-  }
-};
-
-const errorMeta = (e: unknown, extra: SyncLogMeta = {}): SyncLogMeta => {
-  const { name, code } = toSyncLogError(e);
-  return {
-    errorName: name,
-    ...(code !== undefined ? { errorCode: code } : {}),
-    ...extra,
-  };
-};
 
 /**
  * API class for Dropbox integration
