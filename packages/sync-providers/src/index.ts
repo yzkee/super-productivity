@@ -34,10 +34,21 @@ export {
   isTransientNetworkError,
 } from './http/native-http-retry';
 export type {
+  ExecuteNativeRequestOptions,
   NativeHttpExecutor,
   NativeHttpRequestConfig,
   NativeHttpResponse,
 } from './http/native-http-retry';
+export type { ProviderPlatformInfo } from './platform/provider-platform-info';
+export type { WebFetchFactory } from './platform/web-fetch-factory';
+export {
+  Dropbox,
+  PROVIDER_ID_DROPBOX,
+  type DropboxCfg,
+  type DropboxDeps,
+  type DropboxPrivateCfg,
+} from './file-based/dropbox/dropbox';
+export type { DropboxFileMetadata } from './file-based/dropbox/dropbox.model';
 export {
   isFileSyncProvider,
   type FileDownloadResponse,

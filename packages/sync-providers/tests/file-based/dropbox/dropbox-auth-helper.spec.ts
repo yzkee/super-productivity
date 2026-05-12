@@ -1,6 +1,58 @@
-import { Dropbox } from './dropbox';
-import { DropboxApi } from './dropbox-api';
-import { generateCodeChallenge } from '../../../../util/pkce.util';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  Dropbox,
+  type DropboxCfg,
+  type DropboxDeps,
+  type DropboxPrivateCfg,
+  generateCodeChallenge,
+  type NativeHttpExecutor,
+  PROVIDER_ID_DROPBOX,
+  type SyncCredentialStorePort,
+} from '../../../src';
+import { DropboxApi } from '../../../src/file-based/dropbox/dropbox-api';
+import type { SyncLogger } from '@sp/sync-core';
+
+type DropboxCredentialStore = SyncCredentialStorePort<
+  typeof PROVIDER_ID_DROPBOX,
+  DropboxPrivateCfg
+>;
+
+const noopLogger = (): SyncLogger => ({
+  log: vi.fn(),
+  error: vi.fn(),
+  err: vi.fn(),
+  normal: vi.fn(),
+  verbose: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  critical: vi.fn(),
+  debug: vi.fn(),
+});
+
+const createCredentialStore = (): DropboxCredentialStore => ({
+  load: vi.fn().mockResolvedValue(null),
+  setComplete: vi.fn(),
+  updatePartial: vi.fn(),
+  upsertPartial: vi.fn(),
+  clear: vi.fn(),
+});
+
+const makeDropbox = (overrides: Partial<DropboxDeps> = {}): Dropbox => {
+  const cfg: DropboxCfg = { appKey: 'test-key', basePath: '/' };
+  const deps: DropboxDeps = {
+    logger: noopLogger(),
+    platformInfo: {
+      isNativePlatform: false,
+      isAndroidWebView: false,
+      isIosNative: false,
+    },
+    webFetch: () => vi.fn() as unknown as typeof fetch,
+    credentialStore: createCredentialStore(),
+    nativeHttpExecutor: vi.fn<NativeHttpExecutor>(),
+    ...overrides,
+  };
+  return new Dropbox(cfg, deps);
+};
 
 /**
  * PKCE auth-helper lifecycle (issue #7139).
@@ -15,8 +67,12 @@ import { generateCodeChallenge } from '../../../../util/pkce.util';
  * exchange succeeds (or credentials are explicitly cleared).
  */
 describe('Dropbox.getAuthHelper — PKCE lifecycle (issue #7139)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('returned authUrl carries a code_challenge derived from the returned codeVerifier', async () => {
-    const dropbox = new Dropbox({ appKey: 'test-key', basePath: '/' });
+    const dropbox = makeDropbox();
 
     const helper = await dropbox.getAuthHelper();
     const authUrl = helper.authUrl as string;
@@ -29,7 +85,7 @@ describe('Dropbox.getAuthHelper — PKCE lifecycle (issue #7139)', () => {
   });
 
   it('reuses the same codeVerifier across consecutive calls so a stale-but-original auth code still exchanges', async () => {
-    const dropbox = new Dropbox({ appKey: 'test-key', basePath: '/' });
+    const dropbox = makeDropbox();
 
     const first = await dropbox.getAuthHelper();
     const second = await dropbox.getAuthHelper();
@@ -39,7 +95,7 @@ describe('Dropbox.getAuthHelper — PKCE lifecycle (issue #7139)', () => {
   });
 
   it('serializes concurrent getAuthHelper calls onto a single PKCE generation', async () => {
-    const dropbox = new Dropbox({ appKey: 'test-key', basePath: '/' });
+    const dropbox = makeDropbox();
 
     const [first, second] = await Promise.all([
       dropbox.getAuthHelper(),
@@ -50,9 +106,9 @@ describe('Dropbox.getAuthHelper — PKCE lifecycle (issue #7139)', () => {
   });
 
   it('regenerates the codeVerifier after a successful exchange', async () => {
-    const dropbox = new Dropbox({ appKey: 'test-key', basePath: '/' });
+    const dropbox = makeDropbox();
     const api = (dropbox as unknown as { _api: DropboxApi })._api;
-    spyOn(api, 'getTokensFromAuthCode').and.resolveTo({
+    vi.spyOn(api, 'getTokensFromAuthCode').mockResolvedValue({
       accessToken: 'a',
       refreshToken: 'r',
       expiresAt: 0,
@@ -66,8 +122,9 @@ describe('Dropbox.getAuthHelper — PKCE lifecycle (issue #7139)', () => {
   });
 
   it('does not poison the cache when PKCE generation rejects', async () => {
-    const dropbox = new Dropbox({ appKey: 'test-key', basePath: '/' });
+    const dropbox = makeDropbox();
     const originalSubtle = (globalThis.crypto as Crypto).subtle;
+
     Object.defineProperty(globalThis.crypto, 'subtle', {
       configurable: true,
       get: () => {
@@ -76,7 +133,7 @@ describe('Dropbox.getAuthHelper — PKCE lifecycle (issue #7139)', () => {
     });
 
     try {
-      await expectAsync(dropbox.getAuthHelper()).toBeRejected();
+      await expect(dropbox.getAuthHelper()).rejects.toBeDefined();
     } finally {
       Object.defineProperty(globalThis.crypto, 'subtle', {
         configurable: true,
@@ -89,7 +146,18 @@ describe('Dropbox.getAuthHelper — PKCE lifecycle (issue #7139)', () => {
   });
 
   it('regenerates the codeVerifier after clearAuthCredentials()', async () => {
-    const dropbox = new Dropbox({ appKey: 'test-key', basePath: '/' });
+    const credentialStore = createCredentialStore();
+    let stored: DropboxPrivateCfg | null = null;
+    (credentialStore.load as ReturnType<typeof vi.fn>).mockImplementation(
+      async () => stored,
+    );
+    (credentialStore.setComplete as ReturnType<typeof vi.fn>).mockImplementation(
+      async (cfg: DropboxPrivateCfg) => {
+        stored = cfg;
+      },
+    );
+
+    const dropbox = makeDropbox({ credentialStore });
 
     const first = await dropbox.getAuthHelper();
     await dropbox.clearAuthCredentials();
