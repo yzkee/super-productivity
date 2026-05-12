@@ -1,6 +1,6 @@
 import { Injectable, inject, Signal } from '@angular/core';
 import { select, Store } from '@ngrx/store';
-import type { SyncConfigPort } from '@sp/sync-core';
+import type { SyncConfigPort, SyncConfigSnapshot } from '@sp/sync-core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { updateGlobalConfigSection } from './store/global-config.actions';
 import { firstValueFrom, Observable } from 'rxjs';
@@ -196,7 +196,25 @@ export class GlobalConfigService implements SyncConfigPort<
     );
   }
 
-  getSyncConfig(): Promise<SyncConfig> {
-    return firstValueFrom(this.sync$);
+  async getSyncConfig(): Promise<
+    SyncConfigSnapshot<NonNullable<SyncConfig['syncProvider']>>
+  > {
+    const {
+      isEnabled,
+      syncProvider,
+      isEncryptionEnabled,
+      isCompressionEnabled,
+      isManualSyncOnly,
+      syncInterval,
+    } = await firstValueFrom(this.sync$);
+
+    return {
+      isEnabled,
+      syncProvider,
+      isEncryptionEnabled,
+      isCompressionEnabled,
+      isManualSyncOnly,
+      syncInterval,
+    };
   }
 }

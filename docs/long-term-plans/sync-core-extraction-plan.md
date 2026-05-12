@@ -473,6 +473,10 @@ Initial candidate-file audit:
   through `SyncLogger` with counts, paths, expected types, and data shape
   summaries only; raw validation result data and invalid values stay out of
   exportable logs.
+- `op-log/validation/is-related-model-data-valid.ts` and the invalid-date
+  repair branch in `data-repair.ts`: cross-model validation and date repair
+  diagnostics now keep raw app state, titles, and corrupted date strings out of
+  exportable logs.
 - `op-log/util/sync-file-prefix.ts`: now delegates to the package helper with
   app-supplied prefix and error construction. The app-facing shim should remain
   until consumers are deliberately switched to injected/configured helpers.
