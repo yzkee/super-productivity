@@ -1,6 +1,15 @@
-import { DOMParser } from '@xmldom/xmldom';
 import type { SyncLogger } from '@sp/sync-core';
 import { RemoteFileNotFoundAPIError } from '../../errors';
+
+// Runtime DOMParser: browsers (and Capacitor WebViews on Android/iOS)
+// supply this global. The package's vitest env (Node) polyfills it via
+// `@xmldom/xmldom` in `tests/setup-dom-parser.ts` — that dep stays in
+// `devDependencies` so it does not ship to host bundles.
+declare const DOMParser: {
+  new (): {
+    parseFromString(text: string, mimeType: string): XmlNodeLike;
+  };
+};
 
 export interface FileMeta {
   filename: string;
@@ -13,11 +22,11 @@ export interface FileMeta {
   path: string; // Full path/href from response
 }
 
-// Minimal structural typing of the @xmldom/xmldom node API we use, kept
-// here so the parser does not depend on DOM-global types. Uses NS-aware
-// lookups so namespace prefixes (e.g. `<D:response>` vs `<response>`) do
-// not affect matching — required for portability between browser DOMParser
-// and `@xmldom/xmldom` (used in the package's Node test env).
+// Minimal structural typing of the parser node API we use. Browser
+// DOMParser, Capacitor WebViews, and `@xmldom/xmldom` (test polyfill)
+// all expose this surface. Uses NS-aware lookups so namespace prefixes
+// (e.g. `<D:response>` vs `<response>`) do not affect matching — required
+// because `@xmldom/xmldom`'s `getElementsByTagName` is prefix-strict.
 interface XmlNodeLike {
   readonly textContent: string | null;
   getElementsByTagNameNS(namespaceURI: string, localName: string): XmlNodeCollection;
@@ -135,10 +144,7 @@ export class WebdavXmlParser {
 
     try {
       const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(
-        xmlText,
-        'text/xml',
-      ) as unknown as XmlNodeLike;
+      const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
 
       const parserErr = firstChild(xmlDoc, 'parsererror');
       if (parserErr) {

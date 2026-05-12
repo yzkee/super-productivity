@@ -20,7 +20,6 @@
   },
   "dependencies": {
     "@sp/sync-core": "*",
-    "@xmldom/xmldom": "^0.8.12",
     "hash-wasm": "^4.12.0"
   },
   "scripts": {
@@ -30,6 +29,7 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@xmldom/xmldom": "^0.8.12",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
     "vitest": "^3.2.4"
