@@ -58,6 +58,18 @@ describe('isRetryableUploadError', () => {
       expect(isRetryableUploadError('Internal server error')).toBe(true);
     });
 
+    it('rate-limit errors', () => {
+      expect(isRetryableUploadError('HTTP 429 Too Many Requests')).toBe(true);
+      expect(isRetryableUploadError('Rate limit exceeded, retry in 5 minutes')).toBe(
+        true,
+      );
+      expect(
+        isRetryableUploadError(
+          'HTTP 429 Too Many Requests \u2014 Too Many Requests \u2014 retry in 5 minutes',
+        ),
+      ).toBe(true);
+    });
+
     it('HTTP 5xx status codes', () => {
       expect(isRetryableUploadError('HTTP 500 Internal Server Error')).toBe(true);
       expect(isRetryableUploadError('Error 502 Bad Gateway')).toBe(true);
