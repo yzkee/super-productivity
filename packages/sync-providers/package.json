@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@sp/sync-core": "*",
+    "@xmldom/xmldom": "^0.8.12",
     "hash-wasm": "^4.12.0"
   },
   "scripts": {

@@ -1,7 +1,5 @@
-import { WebdavPrivateCfg } from './webdav.model';
-import { SyncLog } from '../../../../core/log';
-import { FileMeta, WebdavXmlParser } from './webdav-xml-parser';
-import { WebDavHttpAdapter, WebDavHttpResponse } from './webdav-http-adapter';
+import type { SyncLogger } from '@sp/sync-core';
+import { md5 as md5HashWasm } from 'hash-wasm';
 import {
   EmptyRemoteBodySPError,
   HttpNotOkAPIError,
@@ -9,23 +7,35 @@ import {
   MissingCredentialsSPError,
   RemoteFileChangedUnexpectedly,
   RemoteFileNotFoundAPIError,
-} from '../../../core/errors/sync-errors';
+} from '../../errors';
+import { errorMeta } from '../../log/error-meta';
 import { WebDavHttpHeader, WebDavHttpMethod, WebDavHttpStatus } from './webdav.const';
-import { md5HashSync } from '../../../../util/md5-hash';
+import type { WebDavHttpAdapter, WebDavHttpResponse } from './webdav-http-adapter';
+import { FileMeta, WebdavXmlParser } from './webdav-xml-parser';
+import type { WebdavPrivateCfg } from './webdav.model';
+
+export interface WebdavApiDeps {
+  logger: SyncLogger;
+  /**
+   * App-supplied factory for the current WebDAV cfg. Throws when
+   * credentials are missing — the caller catches and converts to
+   * `MissingCredentialsSPError`.
+   */
+  getCfg: () => Promise<WebdavPrivateCfg>;
+  httpAdapter: WebDavHttpAdapter;
+}
 
 export class WebdavApi {
   private static readonly L = 'WebdavApi';
-  private xmlParser: WebdavXmlParser;
-  private httpAdapter: WebDavHttpAdapter;
-  private directoryCreationQueue = new Map<string, Promise<void>>();
+  private readonly xmlParser: WebdavXmlParser;
+  private readonly directoryCreationQueue = new Map<string, Promise<void>>();
 
-  constructor(private _getCfgOrError: () => Promise<WebdavPrivateCfg>) {
-    this.xmlParser = new WebdavXmlParser();
-    this.httpAdapter = new WebDavHttpAdapter();
+  constructor(private readonly _deps: WebdavApiDeps) {
+    this.xmlParser = new WebdavXmlParser(_deps.logger);
   }
 
-  private _computeContentHash(data: string): string {
-    return md5HashSync(data);
+  private async _computeContentHash(data: string): Promise<string> {
+    return md5HashWasm(data);
   }
 
   // ==============================
@@ -33,7 +43,7 @@ export class WebdavApi {
   // ==============================
 
   async listFiles(dirPath: string): Promise<string[]> {
-    const cfg = await this._getCfgOrError();
+    const cfg = await this._deps.getCfg();
     const fullPath = this._buildFullPath(cfg.baseUrl, dirPath);
 
     try {
@@ -61,16 +71,11 @@ export class WebdavApi {
       } else if (response.status === WebDavHttpStatus.NOT_FOUND) {
         return []; // Directory not found, return empty list
       }
-      // Create a fake Response object for the error
-      // Ensure status is valid (200-599) for Response constructor
       const safeStatus =
         response.status >= 200 && response.status <= 599 ? response.status : 500;
-      const errorResponse = new Response(response.data, {
-        status: safeStatus,
-      });
-      throw new HttpNotOkAPIError(errorResponse); // Other errors
+      const errorResponse = new Response(response.data, { status: safeStatus });
+      throw new HttpNotOkAPIError(errorResponse);
     } catch (e) {
-      SyncLog.error(`${WebdavApi.L}.listFiles() error for path: ${dirPath}`, e);
       // Handle "Not Found" error specifically to return empty array
       if (
         e instanceof HttpNotOkAPIError &&
@@ -78,6 +83,10 @@ export class WebdavApi {
       ) {
         return [];
       }
+      this._deps.logger.critical(
+        `${WebdavApi.L}.listFiles() error`,
+        errorMeta(e, { dirPath }),
+      );
       throw e;
     }
   }
@@ -87,7 +96,7 @@ export class WebdavApi {
    * Used for testConnection() and listFiles(), not for revision tracking.
    */
   async getFileMeta(path: string): Promise<FileMeta> {
-    const cfg = await this._getCfgOrError();
+    const cfg = await this._deps.getCfg();
     const fullPath = this._buildFullPath(cfg.baseUrl, path);
 
     try {
@@ -108,18 +117,18 @@ export class WebdavApi {
         }
       }
     } catch (e) {
-      SyncLog.error(`${WebdavApi.L}.getFileMeta() error`, { path, error: e });
+      this._deps.logger.critical(
+        `${WebdavApi.L}.getFileMeta() error`,
+        errorMeta(e, { path }),
+      );
       throw e;
     }
 
     throw new RemoteFileNotFoundAPIError(path);
   }
 
-  async download({ path }: { path: string }): Promise<{
-    rev: string;
-    dataStr: string;
-  }> {
-    const cfg = await this._getCfgOrError();
+  async download({ path }: { path: string }): Promise<{ rev: string; dataStr: string }> {
+    const cfg = await this._deps.getCfg();
     const fullPath = this._buildFullPath(cfg.baseUrl, path);
 
     try {
@@ -143,12 +152,16 @@ export class WebdavApi {
         'file content',
       );
 
+      const hash = await this._computeContentHash(response.data);
       return {
-        rev: this._computeContentHash(response.data),
+        rev: hash,
         dataStr: response.data,
       };
     } catch (e) {
-      SyncLog.error(`${WebdavApi.L}.download() error`, { path, error: e });
+      this._deps.logger.critical(
+        `${WebdavApi.L}.download() error`,
+        errorMeta(e, { path }),
+      );
       throw e;
     }
   }
@@ -165,15 +178,13 @@ export class WebdavApi {
     isForceOverwrite?: boolean;
   }): Promise<{ rev: string }> {
     // Guard against empty upload data — prevents overwriting remote file with zero bytes.
-    // This can happen when the Capacitor bridge drops the payload on Android.
-    // Symmetric with the download guard at the download() method.
     if (!data || data.trim().length === 0) {
       throw new InvalidDataSPError(
         `Refusing to upload empty data to ${path}. This would overwrite the remote file with zero bytes.`,
       );
     }
 
-    const cfg = await this._getCfgOrError();
+    const cfg = await this._deps.getCfg();
     const fullPath = this._buildFullPath(cfg.baseUrl, path);
 
     try {
@@ -184,7 +195,7 @@ export class WebdavApi {
             url: fullPath,
             method: WebDavHttpMethod.GET,
           });
-          const currentHash = this._computeContentHash(currentResponse.data);
+          const currentHash = await this._computeContentHash(currentResponse.data);
           if (currentHash !== expectedRev) {
             throw new RemoteFileChangedUnexpectedly(
               `File ${path} was modified on remote (expected rev: ${expectedRev}, got: ${currentHash})`,
@@ -219,9 +230,9 @@ export class WebdavApi {
             // 409 Conflict — parent directory doesn't exist
             uploadError.response.status === WebDavHttpStatus.CONFLICT)
         ) {
-          SyncLog.debug(
-            `${WebdavApi.L}.upload() got 404/409 for ${fullPath}. ` +
-              `Attempting to create parent directory...`,
+          this._deps.logger.normal(
+            `${WebdavApi.L}.upload() got 404/409 — creating parent directory`,
+            { path },
           );
 
           // Try to create parent directory
@@ -241,10 +252,10 @@ export class WebdavApi {
               retryError.response &&
               retryError.response.status === WebDavHttpStatus.CONFLICT
             ) {
-              SyncLog.err(
-                `${WebdavApi.L}.upload() 409 Conflict persists for ${fullPath} after creating parent directory. ` +
-                  `Verify your syncFolderPath is relative to the WebDAV server root, ` +
-                  `not your server's internal directory path.`,
+              this._deps.logger.critical(
+                `${WebdavApi.L}.upload() 409 Conflict persists after creating parent. ` +
+                  `Verify syncFolderPath is relative to the WebDAV server root.`,
+                { path },
               );
             }
             throw retryError;
@@ -254,11 +265,11 @@ export class WebdavApi {
         }
       }
 
-      const expectedHash = this._computeContentHash(data);
+      const expectedHash = await this._computeContentHash(data);
       const verifiedHash = await this._verifyUpload(path, fullPath, expectedHash);
       return { rev: verifiedHash };
     } catch (e) {
-      SyncLog.error(`${WebdavApi.L}.upload() error`, { path, error: e });
+      this._deps.logger.critical(`${WebdavApi.L}.upload() error`, errorMeta(e, { path }));
       throw e;
     }
   }
@@ -302,7 +313,7 @@ export class WebdavApi {
       'file content',
     );
 
-    const remoteHash = this._computeContentHash(remoteResponse.data);
+    const remoteHash = await this._computeContentHash(remoteResponse.data);
     if (remoteHash !== expectedHash) {
       throw new RemoteFileChangedUnexpectedly(
         `Upload verification of ${path} failed: remote content hash differs ` +
@@ -315,7 +326,7 @@ export class WebdavApi {
   }
 
   async remove(path: string): Promise<void> {
-    const cfg = await this._getCfgOrError();
+    const cfg = await this._deps.getCfg();
     const fullPath = this._buildFullPath(cfg.baseUrl, path);
 
     try {
@@ -323,22 +334,31 @@ export class WebdavApi {
         url: fullPath,
         method: WebDavHttpMethod.DELETE,
       });
-
-      SyncLog.verbose(`${WebdavApi.L}.remove() success for ${path}`);
+      this._deps.logger.normal(`${WebdavApi.L}.remove() success`, { path });
     } catch (e) {
-      SyncLog.error(`${WebdavApi.L}.remove() error`, { path, error: e });
+      this._deps.logger.critical(`${WebdavApi.L}.remove() error`, errorMeta(e, { path }));
       throw e;
     }
   }
 
+  /**
+   * Try a PROPFIND against the configured sync folder to verify the cfg
+   * works end-to-end. Returns a normalized result that the dialog surfaces
+   * directly to the user.
+   *
+   * The privacy invariant lives in the logger call below (structured
+   * `errorMeta`, no raw error object). The returned `fullUrl` / `error`
+   * are intentionally human-readable — the user is testing their own
+   * server config and needs the original URL + a meaningful failure
+   * message in the snackbar. Callers must NOT route this return value
+   * through `OpLog` / exportable logs.
+   */
   async testConnection(
     cfg: WebdavPrivateCfg,
   ): Promise<{ success: boolean; error?: string; fullUrl: string }> {
     const fullPath = this._buildFullPath(cfg.baseUrl, cfg.syncFolderPath || '/');
-    SyncLog.verbose(`${WebdavApi.L}.testConnection() testing ${fullPath}`);
 
     try {
-      // Build authorization header
       const auth = btoa(`${cfg.userName}:${cfg.password}`);
       const headers = {
         [WebDavHttpHeader.AUTHORIZATION]: `Basic ${auth}`,
@@ -346,8 +366,7 @@ export class WebdavApi {
         [WebDavHttpHeader.DEPTH]: '0',
       };
 
-      // Try PROPFIND on the sync folder path
-      const response = await this.httpAdapter.request({
+      const response = await this._deps.httpAdapter.request({
         url: fullPath,
         method: WebDavHttpMethod.PROPFIND,
         headers,
@@ -358,7 +377,6 @@ export class WebdavApi {
         response.status === WebDavHttpStatus.MULTI_STATUS ||
         response.status === WebDavHttpStatus.OK
       ) {
-        SyncLog.verbose(`${WebdavApi.L}.testConnection() success for ${fullPath}`);
         return { success: true, fullUrl: fullPath };
       }
 
@@ -368,9 +386,9 @@ export class WebdavApi {
         fullUrl: fullPath,
       };
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
-      SyncLog.warn(`${WebdavApi.L}.testConnection() failed for ${fullPath}`, e);
-      return { success: false, error: errorMessage, fullUrl: fullPath };
+      this._deps.logger.critical(`${WebdavApi.L}.testConnection() failed`, errorMeta(e));
+      const errMsg = e instanceof Error ? e.message : 'Unknown error occurred';
+      return { success: false, error: errMsg, fullUrl: fullPath };
     }
   }
 
@@ -385,9 +403,8 @@ export class WebdavApi {
     body?: string | null;
     headers?: Record<string, string>;
   }): Promise<WebDavHttpResponse> {
-    const cfg = await this._getCfgOrError();
+    const cfg = await this._deps.getCfg();
 
-    // Build authorization header
     let authHeaderVal;
     if (cfg.accessToken) {
       authHeaderVal = `Bearer ${cfg.accessToken}`;
@@ -401,7 +418,7 @@ export class WebdavApi {
       ...headers,
     };
 
-    return await this.httpAdapter.request({
+    return this._deps.httpAdapter.request({
       url,
       method,
       headers: allHeaders,
@@ -421,9 +438,6 @@ export class WebdavApi {
     // Check if we're already creating this directory
     const existingPromise = this.directoryCreationQueue.get(parentPath);
     if (existingPromise) {
-      SyncLog.verbose(
-        `${WebdavApi.L}._ensureParentDirectory() waiting for existing creation of ${parentPath}`,
-      );
       await existingPromise;
       return;
     }
@@ -440,14 +454,12 @@ export class WebdavApi {
     }
   }
 
-  private async _createDirectory(path: string): Promise<void> {
+  private async _createDirectory(fullPath: string): Promise<void> {
     try {
-      // Try to create directory
       await this._makeRequest({
-        url: path,
+        url: fullPath,
         method: WebDavHttpMethod.MKCOL,
       });
-      SyncLog.verbose(`${WebdavApi.L}._createDirectory() created ${path}`);
     } catch (e) {
       // Check if error is due to directory already existing (405 Method Not Allowed or 409 Conflict)
       if (
@@ -458,15 +470,16 @@ export class WebdavApi {
           e.response.status === WebDavHttpStatus.MOVED_PERMANENTLY || // Moved permanently - directory exists
           e.response.status === WebDavHttpStatus.OK) // OK - directory exists
       ) {
-        SyncLog.verbose(
-          `${WebdavApi.L}._createDirectory() directory likely exists: ${path} (status: ${e.response.status})`,
-        );
-      } else {
-        // Re-throw unexpected errors (e.g. 403 Permission Denied) so the caller
-        // sees the real cause instead of a confusing follow-up error.
-        SyncLog.warn(`${WebdavApi.L}._createDirectory() unexpected error for ${path}`, e);
-        throw e;
+        // Expected when the directory already exists. No-op.
+        return;
       }
+      // Re-throw unexpected errors (e.g. 403 Permission Denied) so the caller
+      // sees the real cause instead of a confusing follow-up error.
+      this._deps.logger.critical(
+        `${WebdavApi.L}._createDirectory() unexpected error`,
+        errorMeta(e),
+      );
+      throw e;
     }
   }
 
@@ -478,11 +491,11 @@ export class WebdavApi {
       );
     }
 
-    // Validate path to prevent directory traversal attacks
+    // Validate path to prevent directory traversal attacks. Use a generic
+    // "Invalid path" so the message does not echo a user-derived path
+    // segment into logs.
     if (path.includes('..') || path.includes('//')) {
-      throw new Error(
-        `Invalid path: ${path}. Path cannot contain '..' or '//' sequences`,
-      );
+      throw new InvalidDataSPError("Invalid sync path: contains '..' or '//' sequences.");
     }
 
     try {
@@ -493,7 +506,7 @@ export class WebdavApi {
       let url: URL;
       try {
         url = new URL(baseUrl);
-      } catch (e) {
+      } catch {
         // Try to fix the base URL if it failed (likely due to spaces)
         // We manually replace spaces to avoid messing up existing encoded characters (like %2F)
         // which can happen with decodeURI/encodeURI roundtrips.
@@ -510,7 +523,7 @@ export class WebdavApi {
       // while preserving already encoded sequences.
       url.pathname = `${base}/${append}`;
       return url.href;
-    } catch (e) {
+    } catch {
       // Fallback for invalid Base URL (e.g. no protocol)
       // Encode path/base segments while avoiding double-encoding
       const cleanBase = baseUrl.replace(/\/$/, '');

@@ -34,9 +34,9 @@ export interface LocalFileSyncPicker {
 const _createProviders = async (): Promise<SyncProviderBase<SyncProviderId>[]> => {
   const [
     { createDropboxProvider },
-    { Webdav },
+    { createWebdavProvider },
     { SuperSyncProvider },
-    { NextcloudProvider },
+    { createNextcloudProvider },
   ] = await Promise.all([
     import('./file-based/dropbox/dropbox'),
     import('./file-based/webdav/webdav'),
@@ -44,20 +44,16 @@ const _createProviders = async (): Promise<SyncProviderBase<SyncProviderId>[]> =
     import('./file-based/webdav/nextcloud'),
   ]);
 
+  const extraPath = environment.production ? undefined : `/DEV`;
+
   const providers: SyncProviderBase<SyncProviderId>[] = [
     createDropboxProvider({
       appKey: DROPBOX_APP_KEY,
       basePath: environment.production ? `/` : `/DEV/`,
     }) as SyncProviderBase<SyncProviderId>,
-    new Webdav(
-      environment.production ? undefined : `/DEV`,
-    ) as SyncProviderBase<SyncProviderId>,
-    new SuperSyncProvider(
-      environment.production ? undefined : `/DEV`,
-    ) as SyncProviderBase<SyncProviderId>,
-    new NextcloudProvider(
-      environment.production ? undefined : `/DEV`,
-    ) as SyncProviderBase<SyncProviderId>,
+    createWebdavProvider(extraPath) as SyncProviderBase<SyncProviderId>,
+    new SuperSyncProvider(extraPath) as SyncProviderBase<SyncProviderId>,
+    createNextcloudProvider(extraPath) as SyncProviderBase<SyncProviderId>,
   ];
 
   if (IS_ELECTRON) {

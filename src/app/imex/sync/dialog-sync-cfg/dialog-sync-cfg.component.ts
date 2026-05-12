@@ -41,10 +41,17 @@ import { GlobalConfigService } from '../../../features/config/global-config.serv
 import { isOnline } from '../../../util/is-online';
 import { SnackService } from '../../../core/snack/snack.service';
 import { DialogRestorePointComponent } from '../dialog-restore-point/dialog-restore-point.component';
-import { WebdavApi } from '../../../op-log/sync-providers/file-based/webdav/webdav-api';
-import { WebdavPrivateCfg } from '../../../op-log/sync-providers/file-based/webdav/webdav.model';
-import { NextcloudPrivateCfg } from '../../../op-log/sync-providers/file-based/webdav/nextcloud.model';
-import { NextcloudProvider } from '../../../op-log/sync-providers/file-based/webdav/nextcloud';
+import {
+  NextcloudProvider,
+  WebDavHttpAdapter,
+  WebdavApi,
+  type NextcloudPrivateCfg,
+  type WebdavPrivateCfg,
+} from '@sp/sync-providers';
+import { APP_PROVIDER_PLATFORM_INFO } from '../../../op-log/sync-providers/platform/app-provider-platform-info';
+import { APP_WEB_FETCH } from '../../../op-log/sync-providers/platform/app-web-fetch';
+import { APP_WEBDAV_NATIVE_HTTP } from '../../../op-log/sync-providers/file-based/webdav/capacitor-webdav-http/app-webdav-native-http';
+import { OP_LOG_SYNC_LOGGER } from '../../../op-log/core/sync-logger.adapter';
 
 @Component({
   selector: 'dialog-sync-cfg',
@@ -245,7 +252,17 @@ export class DialogSyncCfgComponent implements AfterViewInit {
     }
 
     try {
-      const api = new WebdavApi(async () => webDavCfg);
+      const httpAdapter = new WebDavHttpAdapter({
+        logger: OP_LOG_SYNC_LOGGER,
+        platformInfo: APP_PROVIDER_PLATFORM_INFO,
+        webFetch: APP_WEB_FETCH,
+        nativeHttp: APP_WEBDAV_NATIVE_HTTP,
+      });
+      const api = new WebdavApi({
+        logger: OP_LOG_SYNC_LOGGER,
+        getCfg: async () => webDavCfg,
+        httpAdapter,
+      });
       const result = await api.testConnection(webDavCfg);
       if (result.success) {
         this._snackService.open({

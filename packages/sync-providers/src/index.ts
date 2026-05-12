@@ -51,6 +51,24 @@ export {
 } from './file-based/dropbox/dropbox';
 export type { DropboxFileMetadata } from './file-based/dropbox/dropbox.model';
 export {
+  PROVIDER_ID_NEXTCLOUD,
+  PROVIDER_ID_WEBDAV,
+  WebdavBaseProvider,
+  type WebdavBaseDeps,
+  type WebdavProviderId,
+} from './file-based/webdav/webdav-base-provider';
+export { Webdav, type WebdavDeps } from './file-based/webdav/webdav';
+export { NextcloudProvider, type NextcloudDeps } from './file-based/webdav/nextcloud';
+export type { WebdavPrivateCfg } from './file-based/webdav/webdav.model';
+export type { NextcloudPrivateCfg } from './file-based/webdav/nextcloud.model';
+export {
+  WebDavHttpAdapter,
+  type WebDavHttpAdapterDeps,
+  type WebDavHttpRequest,
+  type WebDavHttpResponse,
+} from './file-based/webdav/webdav-http-adapter';
+export { WebdavApi, type WebdavApiDeps } from './file-based/webdav/webdav-api';
+export {
   isFileSyncProvider,
   type FileDownloadResponse,
   type FileRevResponse,
