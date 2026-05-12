@@ -14,6 +14,16 @@ export type {
   PkceSha256,
 } from './pkce';
 export {
+  executeNativeRequestWithRetry,
+  isTransientNetworkError,
+} from './http/native-http-retry';
+export type {
+  ExecuteNativeRequestOptions,
+  NativeHttpExecutor,
+  NativeHttpRequestConfig,
+  NativeHttpResponse,
+} from './http/native-http-retry';
+export {
   isFileSyncProvider,
   type FileDownloadResponse,
   type FileRevResponse,
