@@ -1131,57 +1131,177 @@ Heads-up for the next slice: `errorMeta(e, extra)` and
 `packages/sync-providers/src/log/` module before WebDAV duplicates
 them.
 
+### Current Sixth Slice
+
+Shipped as two commits (one helper-promotion PR plus the bulk move) behind
+a shared design doc (`docs/plans/2026-05-12-pr5-webdav-slice.md`) with
+multi-review consensus, followed by tightening commits that fold
+post-review findings:
+
+- **PR 6a — shared log helpers.** Promoted `errorMeta(e, extra)` and
+  `urlPathOnly(url)` from `dropbox-api.ts:88-104` into
+  `packages/sync-providers/src/log/error-meta.ts` so WebDAV could adopt
+  them without copy-paste. Exported from the package barrel. Dropbox
+  imports updated. No behavior change.
+- **PR 6b — WebDAV + Nextcloud provider proper.** `webdav-base-provider.ts`,
+  `webdav-api.ts`, `webdav-xml-parser.ts`, `webdav-http-adapter.ts`,
+  `webdav.const.ts`, `webdav.model.ts`, `webdav.ts`, `nextcloud.ts`, and
+  `nextcloud.model.ts` (plus their co-located specs) moved into
+  `packages/sync-providers/src/file-based/webdav/`. Specs converted from
+  Jasmine to Vitest. `SyncProviderId.WebDAV` / `SyncProviderId.Nextcloud`
+  replaced inside the package with `PROVIDER_ID_WEBDAV` /
+  `PROVIDER_ID_NEXTCLOUD` constants, with type-level `AssertWebdavId` /
+  `AssertNextcloudId` bridges in the app-side shims (mirroring the
+  Dropbox pattern).
+- **Port reuse, not duplication.** Multi-review consensus rejected the
+  initially-proposed `WebDavNativeHttpExecutor` port. The existing
+  `NativeHttpExecutor` already supports arbitrary methods (`PROPFIND`,
+  `MKCOL`, `MOVE`, …), `responseType: 'text'`, and `maxRetries: 0`. App-side
+  wires `APP_WEBDAV_NATIVE_HTTP: NativeHttpExecutor` adapter pointing at
+  the existing `WebDavHttp` Capacitor plugin registration in
+  `capacitor-webdav-http/`. The inline `registerPlugin` duplication in
+  `webdav-http-adapter.ts:13-31` was dropped — the subfolder
+  registration with `web: () => import('./web')` fallback is canonical.
+- **Factory shape mirrors Dropbox.** App-side `webdav.ts` / `nextcloud.ts`
+  collapsed to `createWebdavProvider(extraPath?: string)` /
+  `createNextcloudProvider(extraPath?: string)` factory functions that
+  compose `deps` internally from app singletons
+  (`APP_PROVIDER_PLATFORM_INFO`, `APP_WEB_FETCH`, `OP_LOG_SYNC_LOGGER`,
+  `SyncCredentialStore`, `APP_WEBDAV_NATIVE_HTTP`). External callers
+  pass app-level config (`extraPath`), not the internal deps bag.
+- **Nextcloud generic widened.** `WebdavBaseProvider`'s generic narrowed
+  to `T extends typeof PROVIDER_ID_WEBDAV` widened to `T extends typeof
+PROVIDER_ID_WEBDAV | typeof PROVIDER_ID_NEXTCLOUD`. Four
+  `as unknown as SyncProviderId.WebDAV` double-casts deleted.
+- **`md5HashSync` migrated to `hash-wasm` async.** `WebdavApi._computeContentHash`
+  became `async`; ripple touched ~5 spec call sites. `spark-md5` no
+  longer appears in the package surface. App-side `local-file-sync-base.ts:178`
+  still uses `md5HashPromise` / `spark-md5` — out of scope until the
+  LocalFile slice.
+- **CORS heuristic tightened.** `webdav-http-adapter.ts:180-219` collapsed
+  to a ~3-line check (`error instanceof TypeError &&
+error.message.includes('cors')`). Ambiguous-error log path that
+  leaked the raw URL via `error.message` replaced with structured
+  `toSyncLogError(error)` + `urlPathOnly(options.url)` meta. ~40 lines
+  deleted, one privacy leak closed. A follow-up commit
+  (`refactor(sync-providers): broaden WebDAV CORS heuristic for real
+browsers`, W2) restored "Failed to fetch" / "NetworkError" /
+  "Load failed" pattern coverage that browsers other than Firefox use
+  for CORS rejections — still gated on `TypeError` and through the
+  same structured-log surface.
+- **`testWebdavConnection` helper extraction.** Test-connection path
+  (`webdav-api.ts:355-380`) moved into a standalone
+  `packages/sync-providers/src/file-based/webdav/test-connection.ts`
+  helper so the adapter and api shims could drop from the package
+  barrel. App-side `WebDAV` provider, config UI, and connection-test
+  command call the helper directly.
+- **No-retry behavior preserved.** Multi-review consensus rejected the
+  Gemini-only recommendation to add a 2-attempt / 1s+2s retry policy
+  with 423-Locked handling. WebDAV's stateful methods (LOCK/UNLOCK)
+  and conditional writes (412 Precondition Failed) have semantics that
+  differ from Dropbox's idempotent file API; preserving the existing
+  no-retry behavior keeps the slice scope a refactor. Trivially
+  addable later as a per-call-site `maxRetries` argument on the
+  reused `NativeHttpExecutor` port.
+- **Spec count delta.** Package spec count went from 103 (post PR 5b) to 177. PR 6b added 53 webdav specs (Jasmine → Vitest one-to-one move).
+  Two follow-up commits added 13 namespace/server-format specs (the
+  `getElementsByTagNameNS('*', name)` PROPFIND parsing path,
+  `:href` variants, server-format compatibility — `restore WebDAV
+parser namespace + server-format specs`, W4) and 7 CORS specs
+  (`broaden WebDAV CORS heuristic for real browsers`, W2). Plus one
+  refactor moving `@xmldom/xmldom` to `devDependencies` and adopting
+  the global `DOMParser` at runtime (`@xmldom/xmldom to devDeps +
+global DOMParser`, W3) so xmldom does not ship in the package bundle
+  (`grep -c xmldom dist/index.mjs` returns 0).
+- **Privacy sweep.** Applied the same A1/A3/B3.x audit as Dropbox plus
+  three sites the security reviewer surfaced. `webdav-api.ts:73, 111,
+151, 261, 329, 372` and `webdav-base-provider.ts:83, 109, 124, 130`
+  all moved from `SyncLog.critical(..., e)` to `errorMeta(e)` plus
+  curated `SyncLogMeta`. Full-URL `_buildFullPath` results scrubbed
+  via `urlPathOnly` at every error-construction and log site.
+  `testConnection`'s raw `e.message` return narrowed via
+  `toSyncLogError(e).message`. `_buildFullPath`'s generic
+  `Error('Invalid path: ${path}')` replaced with `InvalidDataSPError`
+  with scrubbed path. PROPFIND multistatus bodies no longer fed into
+  `HttpNotOkAPIError`'s second arg. Package boundary invariant
+  documented: response headers are not logged or attached to errors.
+- **Bundle size.** Package CJS now 75.77 KB / ESM 73.23 KB / DTS
+  37.13 KB. Up from ~55 KB pre-slice. The single barrel is still fine;
+  tiered split (`@sp/sync-providers/dropbox`, `/webdav`, …) deferred to
+  PR 7 polish.
+- **Architectural deferral.** `getElementsByTagNameNS('*', name)`
+  subtree walk in `webdav-xml-parser.ts` is O(n) per call; for typical
+  PROPFIND sizes (10-100 files) it's <50 ms but the performance
+  reviewer flagged a one-pass `childNodes` scan as cheaper. Tracked
+  for SuperSync slice / follow-up; not touched this slice.
+
 ### Remaining Slice Plan
 
-Finish PR 5 in three slices:
+Finish PR 5 in two more slices:
 
-1. **WebDAV + Nextcloud slice** (next)
-   - Reuse the error-class, platform-info, and `WebFetchFactory`
-     ports introduced for Dropbox. Promote the shared
-     `errorMeta` / `urlPathOnly` helpers from `dropbox-api.ts` into
-     `packages/sync-providers/src/log/` before WebDAV adopts them.
-   - Move `webdav-base-provider.ts`, `webdav-api.ts`,
-     `webdav-xml-parser.ts`, `webdav.const.ts`, `webdav.model.ts`,
-     `webdav.ts`, `nextcloud.ts`, `nextcloud.model.ts` and their
-     specs into `packages/sync-providers/src/file-based/webdav/`.
-     Convert Jasmine specs to Vitest. Replace `SyncProviderId.WebDAV`
-     / `SyncProviderId.Nextcloud` with `PROVIDER_ID_WEBDAV` /
-     `PROVIDER_ID_NEXTCLOUD` constants inside the package.
-   - `webdav-http-adapter.ts` currently calls a Capacitor-registered
-     `WebDavHttp` plugin (`capacitor-webdav-http/`) for native
-     platforms. Keep the Capacitor plugin registration app-side and
-     inject a `WebDavNativeHttpExecutor` port that resolves to the
-     registered plugin on Android/iOS or to `fetch` on web/Electron.
-     The port shape differs from `NativeHttpExecutor` (WebDAV needs
-     XML/streaming responses and `PROPFIND` verbs) — design and
-     multi-review the port in a brief doc before moving code.
-   - Move `md5HashSync` (or replace with `hash-wasm` already in the
-     package) since WebDAV uses content hashing for revs.
-   - Apply the same A1/A3/B3.x privacy sweep as the Dropbox slice:
-     find all `SyncLog.critical(..., e)` raw-error logs, find `path`
-     / `url` arguments that include the user `basePath`, and audit
-     for error constructors that accept raw response headers or
-     bodies. The WebDAV equivalent of B3.1
-     (`TooManyRequestsAPIError` header leak) is already fixed by
-     PR 5a's type-narrowing.
-   - Leave thin app-side shims (factory functions
-     `createWebdavProvider` / `createNextcloudProvider`) wired with
-     the app's logger + platform + credential-store + native HTTP
-     executor instances so `sync-providers.factory.ts` keeps working.
-2. **SuperSync integration slice**
-   - Move SuperSync provider implementation behind the same package boundary,
-     reusing the HTTP/native-fetch ports introduced by the file-provider slices.
-   - Move only provider implementation code; keep app state selectors,
-     provider lists, config UI, and Angular credential-store implementation in
-     `src/app`.
-   - Tighten provider factory/registry shims enough that app call sites keep
-     working while package providers no longer import app-owned IDs.
-3. **LocalFile final slice**
+1. **SuperSync integration slice** (next)
+   - Move SuperSync provider implementation
+     (`super-sync.ts`, `super-sync.model.ts`) and its co-located spec
+     into `packages/sync-providers/src/super-sync/`. Convert the spec
+     from Jasmine to Vitest. Replace `SyncProviderId.SuperSync` reads
+     inside the package with a `PROVIDER_ID_SUPER_SYNC` constant; the
+     app composes the bridge via the same `AssertSuperSyncId`
+     conditional-type pattern used for Dropbox / WebDAV.
+   - Reuse the ports introduced in slices 5-6: `SyncLogger`,
+     `ProviderPlatformInfo`, `NativeHttpExecutor`, `SyncCredentialStorePort`,
+     `WebFetchFactory`. SuperSync only needs `WebFetchFactory` if its
+     web path migrates off direct `window.fetch`; otherwise it can keep
+     using `fetch` directly (Dropbox uses `WebFetchFactory` because of
+     iOS Capacitor's async fetch-patching).
+   - `response-validators.ts` stays app-side because it imports
+     `@sp/shared-schema` (banned in the package boundary). The package
+     `SuperSyncProvider` accepts a `responseValidators` dep port; the
+     app supplies the implementation that calls
+     `@sp/shared-schema`-backed `safeParse`. The validators' co-located
+     spec also stays app-side.
+   - `localStorage`-backed `getLastServerSeq` / `setLastServerSeq` and
+     the `_cachedServerSeqKey` hash logic need a small storage port
+     (mostly to make Vitest's Node test runner happy without
+     `localStorage` polyfills).
+   - SuperSync currently uses the app-side broad-pattern
+     `isTransientNetworkError` at `src/app/op-log/sync/sync-error-utils.ts:96`
+     — distinct from the package's native-error-code-aware version at
+     `packages/sync-providers/src/http/native-http-retry.ts:136`.
+     Promote the broad-pattern version into the package (e.g.
+     `isTransientErrorMessage`) so both call sites have a stable home,
+     or inject as a predicate port. `operation-log-upload.service.ts:166`
+     also uses the broad-pattern version and must keep working after.
+   - Compression: SuperSync currently imports
+     `compressWithGzip` / `compressWithGzipToString` from
+     `src/app/op-log/encryption/compression-handler.ts`, which is a
+     thin shim around `@sp/sync-core`'s implementations that wraps
+     errors in app-side `CompressError` / `DecompressError`. In the
+     package, import from `@sp/sync-core` directly — SuperSync's catch
+     paths handle generic `Error` fine.
+   - Apply the same A1/A3/B3.x privacy sweep as Dropbox/WebDAV.
+     Particular sites: `_doNativeFetch:646-648` and `_doWebFetch:582`
+     both embed the raw response body into the thrown `Error.message`;
+     scrub via `urlPathOnly` or use a fixed "HTTP `<status>`
+     `<statusText>`" form. `_handleNativeRequestError` already extracts
+     a string error message — verify no native runtimes embed the
+     full URL in `TypeError.message` analogous to Firefox's WebDAV
+     leak.
+   - Leave a thin app-side factory shim
+     (`createSuperSyncProvider(extraPath?: string)`) wired with app
+     singletons through `sync-providers.factory.ts`. The four other
+     SuperSync-named app services (`super-sync-status.service`,
+     `super-sync-websocket.service`, `super-sync-restore.service`,
+     `supersync-encryption-toggle.service`) stay app-side.
+2. **LocalFile final slice**
    - Move LocalFile provider implementation last.
    - Put Electron/local-file APIs behind an app-provided file port and keep the
      Electron bridge implementation app-side.
    - Keep Android/browser LocalFile behavior covered by app shims while the
      package owns only platform-neutral provider logic.
+   - Migrate `md5HashPromise` / `spark-md5` usage in
+     `local-file-sync-base.ts:178` to `hash-wasm` (already a package
+     runtime dep), mirroring the WebDAV slice's `md5HashSync`
+     migration.
 
 ### Verification
 
