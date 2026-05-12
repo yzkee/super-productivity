@@ -208,9 +208,10 @@ Suggested next order:
 3. Treat the current PR 4a/4b/4c port, small-helper, and replay-coordinator
    slices as complete for this round; keep the Angular `OperationApplierService`
    shell app-side unless a later port proves another small extraction safe.
-4. Continue PR 5 by moving implementation slices behind the new provider
-   contracts. Provider-specific `SyncLog`/`OpLog` routing should be handled as
-   provider files move behind provider-package ports.
+4. Finish PR 5 in three larger implementation slices behind the new provider
+   contracts: HTTP file providers first, SuperSync integration second, and
+   LocalFile last. Provider-specific `SyncLog`/`OpLog` routing should be
+   handled as provider files move behind provider-package ports.
 
 ## PR 1 - Thin First Slice (#7546)
 
@@ -1016,6 +1017,35 @@ providers, and app wiring each live in their own package.
   `hash-wasm` fallback needed when `crypto.subtle` is unavailable.
 - `src/app/op-log/sync-providers/file-based/dropbox/generate-pkce-codes.ts`
   remains as a compatibility re-export for existing Dropbox call sites.
+
+### Remaining Slice Plan
+
+Finish PR 5 in three larger slices rather than one-provider-at-a-time moves:
+
+1. **HTTP file providers slice**
+   - Move shared provider HTTP/native-fetch retry helpers that are needed by
+     HTTP-backed providers, behind package-owned ports where platform behavior
+     is app-provided.
+   - Move Dropbox provider implementation and keep OAuth routing, app
+     credentials, `SyncProviderId`, and config UI as app-side shims/adapters.
+   - Move WebDAV and Nextcloud implementation together, including XML parsing,
+     constants, models, and API helpers.
+   - Keep LocalFile untouched in this slice except for shared contracts it
+     already consumes.
+2. **SuperSync integration slice**
+   - Move SuperSync provider implementation behind the same package boundary,
+     reusing the HTTP/native-fetch ports introduced by the file-provider slice.
+   - Move only provider implementation code; keep app state selectors,
+     provider lists, config UI, and Angular credential-store implementation in
+     `src/app`.
+   - Tighten provider factory/registry shims enough that app call sites keep
+     working while package providers no longer import app-owned IDs.
+3. **LocalFile final slice**
+   - Move LocalFile provider implementation last.
+   - Put Electron/local-file APIs behind an app-provided file port and keep the
+     Electron bridge implementation app-side.
+   - Keep Android/browser LocalFile behavior covered by app shims while the
+     package owns only platform-neutral provider logic.
 
 ### Verification
 
