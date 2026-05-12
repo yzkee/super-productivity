@@ -24,11 +24,30 @@ Slice Plan" item 1 for surrounding context.
 ## Multi-review consensus (2026-05-12)
 
 Four Claude reviewers (security/privacy, architecture, alternatives,
-simplicity) ran in parallel against the original design. Codex, Copilot,
-and Gemini CLIs were attempted but failed for environment reasons
-(Codex / Copilot blocked by harness sandbox, Gemini quota+workspace
-limits); results below reflect Claude-only consensus. The Dropbox
-slice's multi-review history is the comparable Claude-only precedent.
+simplicity) ran in parallel against the original design. Codex and
+Copilot were attempted but failed for environment reasons (Codex
+blocked by harness sandbox, Copilot blocked by auto-mode classifier on
+`--deny-tool` flags). Gemini eventually completed after a workspace-
+sandbox retry and quota throttling; its report broadly agrees with the
+Claude consensus on every decision below, with two dissents noted in
+the "Gemini dissent" subsection at the end.
+
+### Gemini dissent (not adopted)
+
+- **Open question 1.** Gemini recommended **keeping** the dedicated
+  `WebDavNativeHttpExecutor` port "for naming consistency" with
+  `NativeHttpExecutor`. Rejected: the architecture and simplicity
+  reviewers verified by code reading that the existing port already
+  supports the WebDAV use case end-to-end (arbitrary `method` strings,
+  `responseType: 'text'`, `maxRetries: 0`). Naming consistency is a
+  weak argument against actual port duplication.
+- **Open question 6.** Gemini recommended adding a **2-attempt /
+  1s+2s retry policy with explicit `423 Locked` handling**. Rejected:
+  alternatives and simplicity reviewers both flagged this as a
+  behavior change in a move slice. The current adapter has zero
+  retries today; preserving that until empirically motivated keeps the
+  slice scope a refactor. Under open-question-1's port-reuse decision,
+  per-call-site `maxRetries` is trivially available later if needed.
 
 ### Decisions revised after review
 
@@ -69,7 +88,7 @@ slice's multi-review history is the comparable Claude-only precedent.
   and being overly broad ("Failed to fetch" matches every offline
   state, not just CORS). Combined approach: collapse the heuristic
   to a ~3-line check (`error instanceof TypeError &&
-  error.message.includes('cors')`), and replace the ambiguous-error
+error.message.includes('cors')`), and replace the ambiguous-error
   log with structured `toSyncLogError(error)` plus
   `urlPathOnly(options.url)` meta. Net result: ~40 lines deleted,
   one privacy leak closed.
@@ -142,7 +161,7 @@ privacy-sweep checklist undercounted:
 
 - **URL/basePath leak via `_buildFullPath` results passed to error
   paths.** At least four call sites (`webdav-http-adapter.ts:118, 162,
-  173`, the catch-all log meta at `:117-121`) pass the full URL — must
+173`, the catch-all log meta at `:117-121`) pass the full URL — must
   scrub via `urlPathOnly` (PR 6a helper) at every error-construction
   and log call site. Ordering note: PR 6a must land first so the
   helper exists.
