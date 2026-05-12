@@ -8,7 +8,11 @@ import { GlobalTrackingIntervalService } from '../../../core/global-tracking-int
 import { SyncWrapperService } from '../../../imex/sync/sync-wrapper.service';
 import { AddTasksForTomorrowService } from '../../add-tasks-for-tomorrow/add-tasks-for-tomorrow.service';
 import { SyncTriggerService } from '../../../imex/sync/sync-trigger.service';
-import { selectOverdueTasksOnToday, selectTasksDueForDay } from './task.selectors';
+import {
+  selectOverdueTasksOnToday,
+  selectTasksDueForDay,
+  selectTasksWithDueTimeForRange,
+} from './task.selectors';
 import { selectTodayTaskIds } from '../../work-context/store/work-context.selectors';
 import { DEFAULT_TASK, Task, TaskWithDueDay } from '../task.model';
 import { getDbDateStr } from '../../../util/get-db-date-str';
@@ -131,6 +135,8 @@ describe('TaskDueEffects', () => {
             { selector: selectTodayTagTaskIds, value: [] },
             { selector: selectTodayStr, value: todayStr },
             { selector: selectStartOfNextDayDiffMs, value: startOfNextDayDiffMs },
+            { selector: selectTasksDueForDay, value: [] },
+            { selector: selectTasksWithDueTimeForRange, value: [] },
           ],
         }),
         {
