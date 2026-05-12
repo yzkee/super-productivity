@@ -30,6 +30,9 @@ import {
 
 const LAST_SERVER_SEQ_KEY_PREFIX = 'super_sync_last_server_seq_';
 
+/** Versioned prefix for the deterministic ops-upload `requestId`. */
+const OPS_UPLOAD_REQUEST_ID_PREFIX = 'ops-v1';
+
 /** 75s allows the server's 60s database timeout plus network/parse buffer. */
 const SUPERSYNC_REQUEST_TIMEOUT_MS = 75000;
 
@@ -121,6 +124,77 @@ export class SuperSyncProvider
     }
   }
 
+  /**
+   * Deterministic upload-batch identifier for server-side idempotency.
+   * Lets the SuperSync server recognize a retried upload (e.g. after a
+   * network drop between server commit and client receipt) and return
+   * the cached result instead of rejecting as duplicate ops.
+   *
+   * The id is derived from `clientId` + a stable hash of the ops
+   * batch. Reordering nested object keys or repeating the exact same
+   * batch yields the same id; changing any op's payload (or batch
+   * size) yields a different id.
+   */
+  private _createOpsUploadRequestId(ops: SyncOperation[], clientId: string): string {
+    const opIds = ops.map((op) => op.id).join('|');
+    let opsFingerprint = opIds;
+    try {
+      opsFingerprint = this._stableJsonStringify(ops);
+    } catch {
+      opsFingerprint = opIds;
+    }
+    const firstOpId = this._compactRequestIdPart(ops[0]?.id ?? 'empty');
+    const lastOp = ops.length > 0 ? ops[ops.length - 1] : undefined;
+    const lastOpId = this._compactRequestIdPart(lastOp?.id ?? 'empty');
+    const hash = this._hashRequestIdInput(`${clientId}|${opsFingerprint}`);
+    return `${OPS_UPLOAD_REQUEST_ID_PREFIX}-${ops.length}-${firstOpId}-${lastOpId}-${hash}`;
+  }
+
+  private _compactRequestIdPart(id: string): string {
+    return id.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 8) || 'x';
+  }
+
+  /**
+   * Two-way FNV-1a-like hash (32-bit FNV + a second mixing pass) so
+   * the resulting hex is wide enough for batch identification. Pure
+   * function, no Web Crypto dependency.
+   */
+  private _hashRequestIdInput(input: string): string {
+    let hashA = 0x811c9dc5;
+    let hashB = 0x9e3779b9;
+
+    for (let i = 0; i < input.length; i++) {
+      const code = input.charCodeAt(i);
+      hashA = Math.imul(hashA ^ code, 16777619);
+      hashB = Math.imul(hashB + code, 2246822519) ^ (hashB >>> 13);
+    }
+
+    return `${(hashA >>> 0).toString(36)}${(hashB >>> 0).toString(36)}`;
+  }
+
+  private _stableJsonStringify(value: unknown): string {
+    return JSON.stringify(this._toStableJsonValue(value)) ?? 'undefined';
+  }
+
+  private _toStableJsonValue(value: unknown): unknown {
+    if (Array.isArray(value)) {
+      return value.map((item) => this._toStableJsonValue(item));
+    }
+
+    if (value !== null && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.keys(value as Record<string, unknown>)
+          .sort()
+          .map((key) => [
+            key,
+            this._toStableJsonValue((value as Record<string, unknown>)[key]),
+          ]),
+      );
+    }
+
+    return value;
+  }
+
   // === Operation Sync Implementation ===
 
   async uploadOps(
@@ -138,6 +212,7 @@ export class SuperSyncProvider
       ops,
       clientId,
       lastKnownServerSeq,
+      requestId: this._createOpsUploadRequestId(ops, clientId),
     });
 
     if (this.isNativePlatform) {

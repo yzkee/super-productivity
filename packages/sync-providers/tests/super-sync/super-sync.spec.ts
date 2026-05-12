@@ -409,6 +409,65 @@ describe('SuperSyncProvider', () => {
       const body = JSON.parse(bodyJson);
       expect(body.ops).toEqual(ops);
       expect(body.clientId).toBe('client-1');
+      expect(body.requestId).toMatch(/^ops-v1-/);
+      expect(body.requestId.length).toBeLessThanOrEqual(64);
+    });
+
+    it('uses a stable requestId across retries and key-reordering, distinct for content/batch changes', async () => {
+      const { provider, cfgStore, fetchMock } = buildProvider();
+      cfgStore.load.mockResolvedValue(testConfig);
+      fetchMock.mockResolvedValue(okResponse({ results: [], latestSeq: 5 }));
+
+      const firstOp = createMockOperation({
+        id: 'op-123',
+        payload: { top: 'value', nested: { a: 1, b: 2 } },
+        vectorClock: { client1: 1, client2: 2 },
+      });
+      const secondOp = createMockOperation({ id: 'op-456', entityId: 'task-2' });
+      const ops = [firstOp, secondOp];
+
+      // Call 0: original batch
+      await provider.uploadOps(ops, 'client-1', 2);
+      // Call 1: same batch, retried with different lastKnownServerSeq
+      await provider.uploadOps(ops, 'client-1', 4);
+      // Call 2: same batch with nested keys reordered (stable JSON)
+      await provider.uploadOps(
+        [
+          {
+            ...firstOp,
+            payload: { nested: { b: 2, a: 1 }, top: 'value' },
+            vectorClock: { client2: 2, client1: 1 },
+          },
+          secondOp,
+        ],
+        'client-1',
+        4,
+      );
+      // Call 3: same batch but first op's payload content changed
+      await provider.uploadOps(
+        [{ ...firstOp, payload: { title: 'Changed Task' } }, secondOp],
+        'client-1',
+        4,
+      );
+      // Call 4: extended batch (extra op appended)
+      await provider.uploadOps(
+        [...ops, createMockOperation({ id: 'op-789', entityId: 'task-3' })],
+        'client-1',
+        4,
+      );
+
+      const bodies = await Promise.all(
+        [0, 1, 2, 3, 4].map(async (i) => {
+          const [, options] = fetchMock.mock.calls[i] as [string, RequestInit];
+          return JSON.parse(await decompressGzip(options.body as Blob));
+        }),
+      );
+
+      expect(bodies[1].requestId).toBe(bodies[0].requestId);
+      expect(bodies[2].requestId).toBe(bodies[0].requestId);
+      expect(bodies[3].requestId).not.toBe(bodies[0].requestId);
+      expect(bodies[4].requestId).not.toBe(bodies[0].requestId);
+      expect(bodies[0].requestId.length).toBeLessThanOrEqual(64);
     });
 
     it('includes lastKnownServerSeq when provided', async () => {
