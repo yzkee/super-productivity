@@ -163,7 +163,7 @@ export class WebDavHttpAdapter {
     }
 
     if (status === WebDavHttpStatus.TOO_MANY_REQUESTS) {
-      throw new TooManyRequestsAPIError();
+      throw new TooManyRequestsAPIError({ status });
     }
 
     if (status < 200 || status >= 300) {

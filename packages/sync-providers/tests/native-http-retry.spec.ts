@@ -346,6 +346,25 @@ describe('executeNativeRequestWithRetry', () => {
     });
   });
 
+  it('does not retry when maxRetries is 0', async () => {
+    const transientError = Object.assign(new Error('connection lost'), {
+      code: 'NSURLErrorDomain',
+    });
+    const executor = vi.fn<NativeHttpExecutor>().mockRejectedValue(transientError);
+    const { delays, delay } = collectDelays();
+
+    await expect(
+      executeNativeRequestWithRetry(baseConfig, {
+        executor,
+        label: 'Test',
+        delay,
+        maxRetries: 0,
+      }),
+    ).rejects.toBe(transientError);
+    expect(executor).toHaveBeenCalledTimes(1);
+    expect(delays).toEqual([]);
+  });
+
   it('runs with a default noop logger when none is provided', async () => {
     const transientError = Object.assign(new Error('timeout'), {
       code: 'SocketTimeoutException',

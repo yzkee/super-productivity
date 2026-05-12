@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 
-import { stringify } from 'query-string';
-import { CapacitorHttp, Capacitor, HttpResponse } from '@capacitor/core';
-import { DropboxFileMetadata } from '../../../../imex/sync/dropbox/dropbox.model';
+import { toSyncLogError, type SyncLogMeta } from '@sp/sync-core';
+import { DropboxFileMetadata } from './dropbox.model';
 import {
   AuthFailSPError,
   HttpNotOkAPIError,
@@ -13,14 +12,12 @@ import {
   RemoteFileNotFoundAPIError,
   TooManyRequestsAPIError,
   UploadRevToMatchMismatchAPIError,
-} from '../../../core/errors/sync-errors';
-import { SyncLog } from '../../../../core/log';
-import { SyncProviderServiceInterface } from '../../provider.interface';
-import { SyncProviderId } from '../../provider.const';
-import { tryCatchInlineAsync } from '../../../../util/try-catch-inline';
-import { IS_ANDROID_WEB_VIEW } from '../../../../util/is-android-web-view';
-import { IS_IOS_NATIVE } from '../../../../util/is-native-platform';
-import { executeNativeRequestWithRetry } from '../../native-http-retry';
+} from '../../errors';
+import { executeNativeRequestWithRetry } from '../../http/native-http-retry';
+import type { NativeHttpResponse } from '../../http/native-http-retry';
+import type { DropboxDeps, DropboxPrivateCfg } from './dropbox';
+import { PROVIDER_ID_DROPBOX } from './dropbox';
+import type { SyncCredentialStorePort } from '../../credential-store-port';
 
 interface DropboxApiOptions {
   method: HttpMethod;
@@ -30,6 +27,12 @@ interface DropboxApiOptions {
   params?: Record<string, string>;
   accessToken?: string;
   isSkipTokenRefresh?: boolean;
+  /**
+   * Relative path before the `basePath` prefix is applied. Threaded
+   * through to error objects so we never include the user-configured
+   * basePath in privacy-sensitive logs / errors (B3.2).
+   */
+  targetPath?: string;
 }
 
 interface TokenResponse {
@@ -82,34 +85,40 @@ const NATIVE_AUTH_READ_TIMEOUT = 30000;
 
 const DROPBOX_OAUTH_TOKEN_URL = 'https://api.dropboxapi.com/oauth2/token' as const;
 
+const urlPathOnly = (url: string): string => {
+  try {
+    const u = new URL(url);
+    return `${u.host}${u.pathname}`;
+  } catch {
+    return url;
+  }
+};
+
+const errorMeta = (e: unknown, extra: SyncLogMeta = {}): SyncLogMeta => {
+  const { name, code } = toSyncLogError(e);
+  return {
+    errorName: name,
+    ...(code !== undefined ? { errorCode: code } : {}),
+    ...extra,
+  };
+};
+
 /**
  * API class for Dropbox integration
  */
 export class DropboxApi {
   private static readonly L = 'DropboxApi';
 
+  private readonly _credentialStore: SyncCredentialStorePort<
+    typeof PROVIDER_ID_DROPBOX,
+    DropboxPrivateCfg
+  >;
+
   constructor(
     private _appKey: string,
-    private _parent: SyncProviderServiceInterface<SyncProviderId.Dropbox>,
-  ) {}
-
-  protected get isNativePlatform(): boolean {
-    return Capacitor.isNativePlatform() || IS_ANDROID_WEB_VIEW;
-  }
-
-  /**
-   * Fetch that bypasses Capacitor's native HTTP interceptor on iOS.
-   *
-   * When CapacitorHttp is enabled, Capacitor patches window.fetch to route
-   * through URLSession.shared, which causes -1005 errors on iOS.
-   * CapacitorWebFetch is the original unpatched fetch stored by Capacitor's
-   * native-bridge.js — it goes through WKWebView's networking stack instead.
-   * Falls back to regular fetch on web/Electron where CapacitorWebFetch doesn't exist.
-   */
-  private _fetch(url: string, init?: RequestInit): Promise<Response> {
-    const fetchFn = (globalThis as Record<string, unknown>)
-      .CapacitorWebFetch as typeof fetch;
-    return (fetchFn || fetch)(url, init);
+    private _deps: DropboxDeps,
+  ) {
+    this._credentialStore = _deps.credentialStore;
   }
 
   // ==============================
@@ -119,14 +128,15 @@ export class DropboxApi {
   /**
    * List folder contents
    */
-  async listFiles(path: string): Promise<string[]> {
-    SyncLog.normal(`${DropboxApi.L}.listFiles() for path: ${path}`);
+  async listFiles(path: string, targetPath: string = path): Promise<string[]> {
+    this._deps.logger.normal(`${DropboxApi.L}.listFiles()`, { targetPath });
     try {
       const response = await this._request({
         method: 'POST',
         url: 'https://api.dropboxapi.com/2/files/list_folder',
         headers: { 'Content-Type': 'application/json' },
         data: { path },
+        targetPath,
       });
       const result = (await response.json()) as DropboxListFolderResult;
       if (!result || !result.entries) {
@@ -136,8 +146,11 @@ export class DropboxApi {
         .filter((entry) => entry['.tag'] === 'file') // Only return files
         .map((entry) => entry.path_lower); // Return full path in lower case
     } catch (e) {
-      SyncLog.critical(`${DropboxApi.L}.listFiles() error for path: ${path}`, e);
-      this._checkCommonErrors(e, path);
+      this._deps.logger.critical(
+        `${DropboxApi.L}.listFiles() error`,
+        errorMeta(e, { targetPath }),
+      );
+      this._checkCommonErrors(e, targetPath);
       throw e;
     }
   }
@@ -145,7 +158,11 @@ export class DropboxApi {
   /**
    * Retrieve metadata for a file or folder
    */
-  async getMetaData(path: string, localRev: string | null): Promise<DropboxFileMetadata> {
+  async getMetaData(
+    path: string,
+    localRev: string | null,
+    targetPath: string = path,
+  ): Promise<DropboxFileMetadata> {
     try {
       const response = await this._request({
         method: 'POST',
@@ -157,11 +174,15 @@ export class DropboxApi {
           // ...(localRev ? { 'If-None-Match': localRev } : {}),
         },
         data: { path },
+        targetPath,
       });
-      return response.json();
+      return (await response.json()) as DropboxFileMetadata;
     } catch (e) {
-      SyncLog.critical(`${DropboxApi.L}.getMetaData() error for path: ${path}`, e);
-      this._checkCommonErrors(e, path);
+      this._deps.logger.critical(
+        `${DropboxApi.L}.getMetaData() error`,
+        errorMeta(e, { targetPath }),
+      );
+      this._checkCommonErrors(e, targetPath);
       throw e;
     }
   }
@@ -175,8 +196,10 @@ export class DropboxApi {
    */
   async download<T>({
     path,
+    targetPath = path,
   }: {
     path: string;
+    targetPath?: string;
   }): Promise<{ meta: DropboxFileMetadata; data: T }> {
     try {
       const response = await this._request({
@@ -187,6 +210,7 @@ export class DropboxApi {
           'Content-Type': 'application/octet-stream',
           // Don't send If-None-Match - always download full content
         },
+        targetPath,
       });
 
       const apiResult = response.headers.get('dropbox-api-result');
@@ -203,8 +227,11 @@ export class DropboxApi {
 
       return { meta, data: data as unknown as T };
     } catch (e) {
-      SyncLog.critical(`${DropboxApi.L}.download() error for path: ${path}`, e);
-      this._checkCommonErrors(e, path);
+      this._deps.logger.critical(
+        `${DropboxApi.L}.download() error`,
+        errorMeta(e, { targetPath }),
+      );
+      this._checkCommonErrors(e, targetPath);
       throw e;
     }
   }
@@ -217,11 +244,13 @@ export class DropboxApi {
     revToMatch,
     data,
     isForceOverwrite = false,
+    targetPath = path,
   }: {
     path: string;
     revToMatch?: string | null;
     data: string | Record<string, unknown>;
     isForceOverwrite?: boolean;
+    targetPath?: string;
   }): Promise<DropboxFileMetadata> {
     const args: { mode: DropboxWriteMode; path: string; mute: boolean } = {
       mode: { '.tag': 'overwrite' },
@@ -245,10 +274,15 @@ export class DropboxApi {
           'Content-Type': 'application/octet-stream',
           'Dropbox-API-Arg': JSON.stringify(args),
         },
+        targetPath,
       });
 
       // with 429 response (Too many request) json is already parsed (sometimes?)
-      const result = await tryCatchInlineAsync(() => response.json(), response);
+      // Defensive fallback preserves the old `tryCatchInlineAsync` swallow
+      // semantics without the indirection.
+      const result = (await response
+        .json()
+        .catch(() => ({}) as DropboxFileMetadata)) as DropboxFileMetadata;
 
       if (!result.rev) {
         throw new NoRevAPIError();
@@ -256,8 +290,11 @@ export class DropboxApi {
 
       return result;
     } catch (e) {
-      SyncLog.critical(`${DropboxApi.L}.upload() error for path: ${path}`, e);
-      this._checkCommonErrors(e, path);
+      this._deps.logger.critical(
+        `${DropboxApi.L}.upload() error`,
+        errorMeta(e, { targetPath }),
+      );
+      this._checkCommonErrors(e, targetPath);
       throw e;
     }
   }
@@ -265,18 +302,22 @@ export class DropboxApi {
   /**
    * Delete a file from Dropbox
    */
-  async remove(path: string): Promise<unknown> {
+  async remove(path: string, targetPath: string = path): Promise<unknown> {
     try {
       const response = await this._request({
         method: 'POST',
         url: 'https://api.dropboxapi.com/2/files/delete_v2',
         headers: { 'Content-Type': 'application/json' },
         data: { path },
+        targetPath,
       });
       return response.json();
     } catch (e) {
-      SyncLog.critical(`${DropboxApi.L}.remove() error for path: ${path}`, e);
-      this._checkCommonErrors(e, path);
+      this._deps.logger.critical(
+        `${DropboxApi.L}.remove() error`,
+        errorMeta(e, { targetPath }),
+      );
+      this._checkCommonErrors(e, targetPath);
       throw e;
     }
   }
@@ -298,7 +339,7 @@ export class DropboxApi {
       });
       return response.json();
     } catch (e) {
-      SyncLog.critical(`${DropboxApi.L}.checkUser() error`, e);
+      this._deps.logger.critical(`${DropboxApi.L}.checkUser() error`, errorMeta(e));
       this._checkCommonErrors(e, 'check/user');
       throw e;
     }
@@ -308,27 +349,32 @@ export class DropboxApi {
    * Refresh access token using refresh token
    */
   async updateAccessTokenFromRefreshTokenIfAvailable(): Promise<void> {
-    SyncLog.normal(`${DropboxApi.L}.updateAccessTokenFromRefreshTokenIfAvailable()`);
+    this._deps.logger.normal(
+      `${DropboxApi.L}.updateAccessTokenFromRefreshTokenIfAvailable()`,
+    );
 
-    const privateCfg = await this._parent.privateCfg.load();
+    const privateCfg = await this._credentialStore.load();
     const refreshToken = privateCfg?.refreshToken;
 
     if (!refreshToken) {
-      SyncLog.critical('Dropbox: No refresh token available');
+      this._deps.logger.critical('Dropbox: No refresh token available');
       await this._clearTokensIfPresent(privateCfg);
       throw new MissingRefreshTokenAPIError();
     }
 
-    const bodyParams = stringify({
+    const bodyParams = new URLSearchParams({
       refresh_token: refreshToken,
       grant_type: 'refresh_token',
       client_id: this._appKey,
-    });
+    }).toString();
 
     try {
       let data: TokenResponse;
 
-      if (this.isNativePlatform && !IS_IOS_NATIVE) {
+      if (
+        this._deps.platformInfo.isNativePlatform &&
+        !this._deps.platformInfo.isIosNative
+      ) {
         // Use CapacitorHttp on native platforms (except iOS), with retry for transient errors
         const response = await executeNativeRequestWithRetry(
           {
@@ -341,7 +387,11 @@ export class DropboxApi {
             responseType: 'json',
             readTimeout: NATIVE_AUTH_READ_TIMEOUT,
           },
-          DropboxApi.L,
+          {
+            executor: this._deps.nativeHttpExecutor,
+            logger: this._deps.logger,
+            label: DropboxApi.L,
+          },
         );
 
         if (response.status < 200 || response.status >= 300) {
@@ -361,7 +411,7 @@ export class DropboxApi {
         data = response.data as TokenResponse;
       } else {
         // Use fetch on web/Electron/iOS
-        const response = await this._fetch(DROPBOX_OAUTH_TOKEN_URL, {
+        const response = await this._deps.webFetch()(DROPBOX_OAUTH_TOKEN_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
@@ -384,18 +434,18 @@ export class DropboxApi {
         data = (await response.json()) as TokenResponse;
       }
 
-      SyncLog.normal('Dropbox: Refresh access token Response', {
+      this._deps.logger.normal('Dropbox: Refresh access token Response', {
         hasAccessToken: !!data.access_token,
         hasRefreshToken: !!data.refresh_token,
         expiresIn: data.expires_in,
       });
 
-      await this._parent.privateCfg.updatePartial({
+      await this._credentialStore.updatePartial({
         accessToken: data.access_token,
         refreshToken: data.refresh_token || privateCfg?.refreshToken,
       });
     } catch (e) {
-      SyncLog.critical('Failed to refresh Dropbox access token', e);
+      this._deps.logger.critical('Failed to refresh Dropbox access token', errorMeta(e));
       throw e;
     }
   }
@@ -406,8 +456,8 @@ export class DropboxApi {
     if (!privateCfg) {
       return;
     }
-    await this._parent.privateCfg.setComplete({
-      ...privateCfg,
+    await this._credentialStore.setComplete({
+      ...(privateCfg as DropboxPrivateCfg),
       accessToken: '',
       refreshToken: '',
     });
@@ -440,20 +490,33 @@ export class DropboxApi {
 
       let data: TokenResponse;
 
-      if (this.isNativePlatform && !IS_IOS_NATIVE) {
-        // No retry wrapper here: this is a one-time user-initiated auth code exchange.
-        // If it fails, the user retries the OAuth flow manually.
-        const response = await CapacitorHttp.request({
-          url: DROPBOX_OAUTH_TOKEN_URL,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      if (
+        this._deps.platformInfo.isNativePlatform &&
+        !this._deps.platformInfo.isIosNative
+      ) {
+        // One-time user-initiated auth code exchange: no retry. If it fails,
+        // the user retries the OAuth flow manually. Going through the package
+        // retry helper with maxRetries: 0 keeps a single executor invocation
+        // path (consistency with refresh) without changing semantics.
+        const response = await executeNativeRequestWithRetry(
+          {
+            url: DROPBOX_OAUTH_TOKEN_URL,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            },
+            data: new URLSearchParams(bodyParams).toString(),
+            responseType: 'json',
+            connectTimeout: 30000,
+            readTimeout: NATIVE_AUTH_READ_TIMEOUT,
           },
-          data: stringify(bodyParams),
-          responseType: 'json',
-          connectTimeout: 30000,
-          readTimeout: NATIVE_AUTH_READ_TIMEOUT,
-        });
+          {
+            executor: this._deps.nativeHttpExecutor,
+            logger: this._deps.logger,
+            label: DropboxApi.L,
+            maxRetries: 0,
+          },
+        );
 
         if (response.status < 200 || response.status >= 300) {
           const bodyStr = JSON.stringify(response.data);
@@ -466,12 +529,12 @@ export class DropboxApi {
         data = response.data as TokenResponse;
       } else {
         // Use fetch on web/Electron/iOS
-        const response = await this._fetch(DROPBOX_OAUTH_TOKEN_URL, {
+        const response = await this._deps.webFetch()(DROPBOX_OAUTH_TOKEN_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
           },
-          body: stringify(bodyParams),
+          body: new URLSearchParams(bodyParams),
         });
 
         if (!response.ok) {
@@ -503,7 +566,12 @@ export class DropboxApi {
         expiresAt: +data.expires_in * 1000 + Date.now(),
       };
     } catch (e) {
-      SyncLog.critical(`${DropboxApi.L}.getTokensFromAuthCode() error`, e);
+      // Raw `e` may contain the auth code or verifier from a rejection — only
+      // a sanitized identity is safe to log.
+      this._deps.logger.critical(
+        `${DropboxApi.L}.getTokensFromAuthCode() error`,
+        errorMeta(e),
+      );
       throw e;
     }
   }
@@ -525,11 +593,12 @@ export class DropboxApi {
       params,
       accessToken,
       isSkipTokenRefresh = false,
+      targetPath,
     } = options;
 
     let token = accessToken;
     if (!token) {
-      const privateCfg = await this._parent.privateCfg.load();
+      const privateCfg = await this._credentialStore.load();
       if (!privateCfg?.accessToken) {
         throw new MissingCredentialsSPError('Dropbox no token');
       }
@@ -538,7 +607,9 @@ export class DropboxApi {
 
     // Add query params if needed
     const requestUrl =
-      params && Object.keys(params).length ? `${url}?${stringify(params)}` : url;
+      params && Object.keys(params).length
+        ? `${url}?${new URLSearchParams(params)}`
+        : url;
 
     // Prepare request headers
     const requestHeaders: Record<string, string> = {
@@ -563,14 +634,25 @@ export class DropboxApi {
     }
 
     try {
-      SyncLog.log(`${DropboxApi.L}._requestNative() ${method} ${requestUrl}`);
-
-      const capacitorResponse = await this._executeNativeRequestWithRetry({
-        url: requestUrl,
+      this._deps.logger.log(`${DropboxApi.L}._requestNative()`, {
         method,
-        headers: requestHeaders,
-        data: requestData,
+        url: urlPathOnly(requestUrl),
       });
+
+      const capacitorResponse = await executeNativeRequestWithRetry(
+        {
+          url: requestUrl,
+          method,
+          headers: requestHeaders,
+          data: requestData,
+          readTimeout: NATIVE_REQUEST_READ_TIMEOUT,
+        },
+        {
+          executor: this._deps.nativeHttpExecutor,
+          logger: this._deps.logger,
+          label: DropboxApi.L,
+        },
+      );
 
       // Handle token refresh
       if (capacitorResponse.status === 401 && !isSkipTokenRefresh) {
@@ -586,11 +668,7 @@ export class DropboxApi {
 
       // Handle errors
       if (!response.ok) {
-        const path = headers['Dropbox-API-Arg']
-          ? JSON.parse(headers['Dropbox-API-Arg']).path
-          : 'unknown';
-
-        await this._handleErrorResponse(response, requestHeaders, path, () =>
+        await this._handleErrorResponse(response, targetPath ?? 'unknown', () =>
           this._requestNative({
             ...options,
             isSkipTokenRefresh: true,
@@ -600,8 +678,11 @@ export class DropboxApi {
 
       return response;
     } catch (e) {
-      SyncLog.critical(`${DropboxApi.L}._requestNative() error for ${url}`, e);
-      this._checkCommonErrors(e, url);
+      this._deps.logger.critical(
+        `${DropboxApi.L}._requestNative() error`,
+        errorMeta(e, { url: urlPathOnly(url) }),
+      );
+      this._checkCommonErrors(e, targetPath ?? url);
       throw e;
     }
   }
@@ -610,8 +691,8 @@ export class DropboxApi {
    * Convert CapacitorHttp response to a fetch-like Response object.
    * This ensures compatibility with existing code that expects fetch Response.
    */
-  private _convertCapacitorResponse(capacitorResponse: HttpResponse): Response {
-    let responseData = capacitorResponse.data;
+  private _convertCapacitorResponse(capacitorResponse: NativeHttpResponse): Response {
+    let responseData: unknown = capacitorResponse.data;
 
     // Ensure data is a string
     if (responseData === null || responseData === undefined) {
@@ -632,7 +713,7 @@ export class DropboxApi {
       });
     }
 
-    return new Response(responseData, {
+    return new Response(responseData as string, {
       status: capacitorResponse.status,
       headers,
     });
@@ -646,7 +727,10 @@ export class DropboxApi {
     // iOS uses fetch (via CapacitorWebFetch) to bypass Capacitor's URLSession.shared,
     // which causes persistent -1005 "The network connection was lost" errors.
     // See: docs/long-term-plans/ios-dropbox-sync-reliability.md
-    if (this.isNativePlatform && !IS_IOS_NATIVE) {
+    if (
+      this._deps.platformInfo.isNativePlatform &&
+      !this._deps.platformInfo.isIosNative
+    ) {
       return this._requestNative(options);
     }
     const {
@@ -657,11 +741,12 @@ export class DropboxApi {
       params,
       accessToken,
       isSkipTokenRefresh = false,
+      targetPath,
     } = options;
 
     let token = accessToken;
     if (!token) {
-      const privateCfg = await this._parent.privateCfg.load();
+      const privateCfg = await this._credentialStore.load();
       if (!privateCfg?.accessToken) {
         throw new MissingCredentialsSPError('Dropbox no token');
       }
@@ -670,7 +755,9 @@ export class DropboxApi {
 
     // Add query params if needed
     const requestUrl =
-      params && Object.keys(params).length ? `${url}?${stringify(params)}` : url;
+      params && Object.keys(params).length
+        ? `${url}?${new URLSearchParams(params)}`
+        : url;
 
     // Prepare request options
     const requestHeaders: Record<string, string> = {
@@ -699,7 +786,7 @@ export class DropboxApi {
     }
 
     try {
-      const response = await this._fetch(requestUrl, requestOptions);
+      const response = await this._deps.webFetch()(requestUrl, requestOptions);
 
       // Handle token refresh
       if (response.status === 401 && !isSkipTokenRefresh) {
@@ -712,11 +799,7 @@ export class DropboxApi {
 
       // Handle errors
       if (!response.ok) {
-        const path = headers['Dropbox-API-Arg']
-          ? JSON.parse(headers['Dropbox-API-Arg']).path
-          : 'unknown';
-
-        await this._handleErrorResponse(response, requestHeaders, path, () =>
+        await this._handleErrorResponse(response, targetPath ?? 'unknown', () =>
           this._request({
             ...options,
             isSkipTokenRefresh: true,
@@ -726,57 +809,69 @@ export class DropboxApi {
 
       return response;
     } catch (e) {
-      SyncLog.critical(`${DropboxApi.L}._request() error for ${url}`, e);
-      this._checkCommonErrors(e, url);
+      this._deps.logger.critical(
+        `${DropboxApi.L}._request() error`,
+        errorMeta(e, { url: urlPathOnly(url) }),
+      );
+      this._checkCommonErrors(e, targetPath ?? url);
       throw e;
     }
   }
 
   /**
-   * Handle error responses from the API
+   * Handle error responses from the API.
+   *
+   * `targetPath` is the relative path before basePath was applied — we
+   * never let basePath bleed into errors visible at catch sites (B3.2).
    */
   private async _handleErrorResponse(
     response: Response,
-    headers: Record<string, string>,
-    path: string,
+    targetPath: string,
     originalRequestExecutor: () => Promise<unknown>,
   ): Promise<never> {
     let responseData: DropboxErrorResponse = {};
     try {
-      responseData = await response.json();
+      responseData = (await response.json()) as DropboxErrorResponse;
     } catch (e) {
       // Ignore JSON parse errors for non-JSON responses
     }
 
-    // Handle rate limiting
+    // Handle rate limiting. Pass primitives only — never the raw
+    // `headers` (contains the bearer token) or `responseData` (B3.1).
     if (responseData.error_summary?.includes('too_many_write_operations')) {
       const retryAfter = responseData.error?.retry_after;
       if (retryAfter) {
-        return this._handleRateLimit(retryAfter, path, originalRequestExecutor);
+        return this._handleRateLimit(retryAfter, targetPath, originalRequestExecutor);
       }
-      throw new TooManyRequestsAPIError({ response, headers, responseData });
+      throw new TooManyRequestsAPIError({
+        status: response.status,
+        path: targetPath,
+      });
     }
 
     // Handle specific error cases
     if (responseData.error_summary?.includes('path/not_found/')) {
-      throw new RemoteFileNotFoundAPIError(path, responseData);
+      throw new RemoteFileNotFoundAPIError(targetPath, responseData);
     }
 
     // Handle conflict errors (rev mismatch or file exists with 'add' mode)
     if (responseData.error_summary?.includes('path/conflict/')) {
       throw new UploadRevToMatchMismatchAPIError(
-        `Dropbox upload conflict for ${path}: ${responseData.error_summary}`,
+        `Dropbox upload conflict for ${targetPath}: ${responseData.error_summary}`,
       );
     }
 
     if (response.status === 401) {
+      // Drop raw responseData per B3.3 — `error_summary` is opaque but
+      // can occasionally include account hints. Catch sites use
+      // toSyncLogError(e) for a sanitized summary.
       if (
         responseData.error_summary?.includes('expired_access_token') ||
         responseData.error_summary?.includes('invalid_access_token')
       ) {
-        throw new AuthFailSPError('Dropbox token expired or invalid', '', responseData);
+        throw new AuthFailSPError('Dropbox token expired or invalid', targetPath);
       }
-      throw new AuthFailSPError(`Dropbox ${response.status}`, '', responseData);
+      throw new AuthFailSPError(`Dropbox ${response.status}`, targetPath);
     }
 
     if (!response.ok) {
@@ -799,14 +894,17 @@ export class DropboxApi {
    */
   private _handleRateLimit(
     retryAfter: number,
-    path: string,
+    targetPath: string,
     originalRequestExecutor: () => Promise<unknown>,
   ): Promise<never> {
     const EXTRA_WAIT = 1;
     return new Promise((resolve, reject) => {
       setTimeout(
         () => {
-          SyncLog.normal(`Too many requests ${path}, retrying in ${retryAfter}s...`);
+          this._deps.logger.normal(`Too many requests, retrying`, {
+            targetPath,
+            retryAfter,
+          });
           originalRequestExecutor()
             .then(resolve as (value: unknown) => void)
             .catch(reject);
@@ -814,28 +912,6 @@ export class DropboxApi {
         (retryAfter + EXTRA_WAIT) * 1000,
       );
     });
-  }
-
-  /**
-   * Execute a CapacitorHttp request with retry logic for transient network errors.
-   * Delegates to the shared retry utility.
-   */
-  private async _executeNativeRequestWithRetry(config: {
-    url: string;
-    method: HttpMethod;
-    headers: Record<string, string>;
-    data: string | undefined;
-  }): Promise<HttpResponse> {
-    return executeNativeRequestWithRetry(
-      {
-        url: config.url,
-        method: config.method,
-        headers: config.headers,
-        data: config.data,
-        readTimeout: NATIVE_REQUEST_READ_TIMEOUT,
-      },
-      DropboxApi.L,
-    );
   }
 
   /**

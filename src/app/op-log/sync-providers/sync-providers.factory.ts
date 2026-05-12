@@ -32,16 +32,20 @@ export interface LocalFileSyncPicker {
 }
 
 const _createProviders = async (): Promise<SyncProviderBase<SyncProviderId>[]> => {
-  const [{ Dropbox }, { Webdav }, { SuperSyncProvider }, { NextcloudProvider }] =
-    await Promise.all([
-      import('./file-based/dropbox/dropbox'),
-      import('./file-based/webdav/webdav'),
-      import('./super-sync/super-sync'),
-      import('./file-based/webdav/nextcloud'),
-    ]);
+  const [
+    { createDropboxProvider },
+    { Webdav },
+    { SuperSyncProvider },
+    { NextcloudProvider },
+  ] = await Promise.all([
+    import('./file-based/dropbox/dropbox'),
+    import('./file-based/webdav/webdav'),
+    import('./super-sync/super-sync'),
+    import('./file-based/webdav/nextcloud'),
+  ]);
 
   const providers: SyncProviderBase<SyncProviderId>[] = [
-    new Dropbox({
+    createDropboxProvider({
       appKey: DROPBOX_APP_KEY,
       basePath: environment.production ? `/` : `/DEV/`,
     }) as SyncProviderBase<SyncProviderId>,
