@@ -2,10 +2,7 @@ import type { SyncLogger } from '@sp/sync-core';
 import type { ProviderPlatformInfo } from '../../platform/provider-platform-info';
 import type { WebFetchFactory } from '../../platform/web-fetch-factory';
 import type { SyncCredentialStorePort } from '../../credential-store-port';
-import type {
-  NativeHttpExecutor,
-  NativeHttpResponse,
-} from '../../http/native-http-retry';
+import type { NativeHttpExecutor } from '../../http/native-http-retry';
 import type { FileSyncProvider, SyncProviderAuthHelper } from '../../provider.types';
 import {
   AuthFailSPError,
@@ -27,10 +24,6 @@ const DROPBOX_AUTH_URL = 'https://www.dropbox.com/oauth2/authorize' as const;
 const PATH_NOT_FOUND_ERROR = 'path/not_found' as const;
 const EXPIRED_TOKEN_ERROR = 'expired_access_token' as const;
 const INVALID_TOKEN_ERROR = 'invalid_access_token' as const;
-
-// Allow `NativeHttpResponse` to satisfy export consumers reaching for the
-// type from the dropbox barrel without a separate import.
-export type { NativeHttpResponse };
 
 export interface DropboxCfg {
   appKey: string;

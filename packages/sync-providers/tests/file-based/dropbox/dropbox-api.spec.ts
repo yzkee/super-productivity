@@ -526,7 +526,10 @@ describe('DropboxApi', () => {
 
       const fetchCall = fetchSpy.mock.calls[fetchSpy.mock.calls.length - 1];
       expect(fetchCall[0]).toBe('https://api.dropboxapi.com/oauth2/token');
-      const body = (fetchCall[1] as RequestInit).body as string;
+      // fetch accepts URLSearchParams directly; stringify before asserting.
+      const rawBody = (fetchCall[1] as RequestInit).body;
+      const body =
+        rawBody instanceof URLSearchParams ? rawBody.toString() : String(rawBody);
       expect(body).toContain('code=test-auth-code');
       expect(body).toContain('code_verifier=test-code-verifier');
       expect(body).toContain('grant_type=authorization_code');

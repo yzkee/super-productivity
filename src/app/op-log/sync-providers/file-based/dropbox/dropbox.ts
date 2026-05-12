@@ -13,9 +13,13 @@ import { APP_PROVIDER_PLATFORM_INFO } from '../../platform/app-provider-platform
 import { APP_WEB_FETCH } from '../../platform/app-web-fetch';
 
 // Type-level bridge — fails to compile if the enum's runtime value drifts
-// away from the package's string literal. (The reverse direction needs a
-// cast because TS string enums are nominal, so we only assert that side.)
-const _idCheck: typeof PROVIDER_ID_DROPBOX = SyncProviderId.Dropbox;
+// away from the package's string literal, or if either side is renamed.
+// TS string enums are nominal, so only this direction is checkable; the
+// reverse needs a cast. The const is elided by the bundler at runtime.
+type AssertDropboxId = SyncProviderId.Dropbox extends typeof PROVIDER_ID_DROPBOX
+  ? true
+  : never;
+const _idCheck: AssertDropboxId = true;
 void _idCheck;
 
 export type { DropboxCfg, DropboxPrivateCfg } from '@sp/sync-providers';
@@ -31,7 +35,7 @@ export const createDropboxProvider = (cfg: DropboxCfg): PackageDropbox => {
     webFetch: APP_WEB_FETCH,
     credentialStore: new SyncCredentialStore(
       SyncProviderId.Dropbox,
-    ) as unknown as DropboxDeps['credentialStore'],
+    ) as DropboxDeps['credentialStore'],
     nativeHttpExecutor: (httpCfg) =>
       CapacitorHttp.request(httpCfg) as unknown as Promise<NativeHttpResponse>,
   };

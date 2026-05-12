@@ -14,23 +14,10 @@ import {
   UploadRevToMatchMismatchAPIError,
 } from '../../errors';
 import { executeNativeRequestWithRetry } from '../../http/native-http-retry';
-import type {
-  NativeHttpResponse,
-  NativeHttpRequestConfig,
-} from '../../http/native-http-retry';
+import type { NativeHttpResponse } from '../../http/native-http-retry';
 import type { DropboxDeps, DropboxPrivateCfg } from './dropbox';
 import { PROVIDER_ID_DROPBOX } from './dropbox';
 import type { SyncCredentialStorePort } from '../../credential-store-port';
-
-/**
- * URL-encoded form-data stringifier (replaces `query-string.stringify`).
- * Sorted keys are unnecessary; encoding follows
- * `application/x-www-form-urlencoded` per WHATWG / RFC 3986.
- */
-const encodeFormBody = (params: Record<string, string>): string =>
-  Object.entries(params)
-    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
-    .join('&');
 
 interface DropboxApiOptions {
   method: HttpMethod;
@@ -375,11 +362,11 @@ export class DropboxApi {
       throw new MissingRefreshTokenAPIError();
     }
 
-    const bodyParams = encodeFormBody({
+    const bodyParams = new URLSearchParams({
       refresh_token: refreshToken,
       grant_type: 'refresh_token',
       client_id: this._appKey,
-    });
+    }).toString();
 
     try {
       let data: TokenResponse;
@@ -518,7 +505,7 @@ export class DropboxApi {
             headers: {
               'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
             },
-            data: encodeFormBody(bodyParams),
+            data: new URLSearchParams(bodyParams).toString(),
             responseType: 'json',
             connectTimeout: 30000,
             readTimeout: NATIVE_AUTH_READ_TIMEOUT,
@@ -547,7 +534,7 @@ export class DropboxApi {
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
           },
-          body: encodeFormBody(bodyParams),
+          body: new URLSearchParams(bodyParams),
         });
 
         if (!response.ok) {
@@ -620,7 +607,9 @@ export class DropboxApi {
 
     // Add query params if needed
     const requestUrl =
-      params && Object.keys(params).length ? `${url}?${encodeFormBody(params)}` : url;
+      params && Object.keys(params).length
+        ? `${url}?${new URLSearchParams(params)}`
+        : url;
 
     // Prepare request headers
     const requestHeaders: Record<string, string> = {
@@ -650,12 +639,20 @@ export class DropboxApi {
         url: urlPathOnly(requestUrl),
       });
 
-      const capacitorResponse = await this._executeNativeRequestWithRetry({
-        url: requestUrl,
-        method,
-        headers: requestHeaders,
-        data: requestData,
-      });
+      const capacitorResponse = await executeNativeRequestWithRetry(
+        {
+          url: requestUrl,
+          method,
+          headers: requestHeaders,
+          data: requestData,
+          readTimeout: NATIVE_REQUEST_READ_TIMEOUT,
+        },
+        {
+          executor: this._deps.nativeHttpExecutor,
+          logger: this._deps.logger,
+          label: DropboxApi.L,
+        },
+      );
 
       // Handle token refresh
       if (capacitorResponse.status === 401 && !isSkipTokenRefresh) {
@@ -758,7 +755,9 @@ export class DropboxApi {
 
     // Add query params if needed
     const requestUrl =
-      params && Object.keys(params).length ? `${url}?${encodeFormBody(params)}` : url;
+      params && Object.keys(params).length
+        ? `${url}?${new URLSearchParams(params)}`
+        : url;
 
     // Prepare request options
     const requestHeaders: Record<string, string> = {
@@ -912,30 +911,6 @@ export class DropboxApi {
         },
         (retryAfter + EXTRA_WAIT) * 1000,
       );
-    });
-  }
-
-  /**
-   * Execute a CapacitorHttp request with retry logic for transient network errors.
-   * Delegates to the shared retry utility.
-   */
-  private async _executeNativeRequestWithRetry(config: {
-    url: string;
-    method: HttpMethod;
-    headers: Record<string, string>;
-    data: string | undefined;
-  }): Promise<NativeHttpResponse> {
-    const reqCfg: NativeHttpRequestConfig = {
-      url: config.url,
-      method: config.method,
-      headers: config.headers,
-      data: config.data,
-      readTimeout: NATIVE_REQUEST_READ_TIMEOUT,
-    };
-    return executeNativeRequestWithRetry(reqCfg, {
-      executor: this._deps.nativeHttpExecutor,
-      logger: this._deps.logger,
-      label: DropboxApi.L,
     });
   }
 
