@@ -3,9 +3,10 @@
 > **Status: In progress - PR 1, PR 2 guardrails/logger adapter work, PR 3a
 > vector-clock ownership, full-state op classification config, PR 3b pure
 > helper slices, PR 4a port contracts, and the current PR 4b small
-> orchestration/planning helper set are present on this branch. Remaining
-> cleanup is targeted future `SyncLogger` routing for files as they move plus
-> deciding whether PR 4c should extract any part of `OperationApplierService`.**
+> orchestration/planning helper set are present on this branch. PR 4c now has
+> the narrow operation replay coordinator extracted while the Angular shell
+> stays app-side. Remaining cleanup is targeted future `SyncLogger` routing for
+> files as they move plus provider/package boundary work.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -164,20 +165,32 @@ Current extraction state and remaining immediate debt:
   follow-up partitioning, download gap/full-state/encryption planning, and
   file-snapshot hydration skip planning. Provider calls, encryption/decryption,
   IndexedDB reads, UI, diagnostics, and result assembly remain app-side.
+- PR 4c is present with `replayOperationBatch()` in `@sp/sync-core`. It owns
+  only the strict replay ordering around remote-apply windows, bulk dispatch,
+  the required event-loop yield, archive side-effect processing, post-sync
+  cooldown, and deferred local-action flushing. The Angular
+  `OperationApplierService` still owns NgRx action construction,
+  operation-to-action conversion, archive predicates, `remoteArchiveDataApplied`,
+  `Injector` usage, and diagnostics.
+- Pre-P5 readiness cleanup is complete for this branch: movable core code no
+  longer depends on `OpLog`, generic prefix/error/compression helpers are
+  package-side with app-owned diagnostics, sync-core source comments were
+  rechecked for SP entity examples, and the core boundary grep was rerun with no
+  forbidden source imports.
 
 Suggested next order:
 
-1. Finish PR 2 documentation and verification.
-2. Continue targeted `SyncLogger` routing for files as they become movable.
-3. Treat the PR 3b pure conflict-resolution and sync-import slices as complete
+1. Treat PR 2 documentation/verification and the targeted `SyncLogger` routing
+   needed before provider extraction as complete for this branch. Continue
+   logger routing only when additional files actually move.
+2. Treat the PR 3b pure conflict-resolution and sync-import slices as complete
    for this round.
-4. Treat the current PR 4a/4b port and small-helper slices as complete for this
-   round; only revisit `OperationApplierService` under PR 4c after more
-   verification.
-5. Continue logger/config cleanup before moving app error classes; prefix
-   parsing/formatting, generic error-message extraction, and generic
-   compression helpers now have package-side helpers with app-owned diagnostics.
-6. Defer provider extraction until core boundaries and PR 4c are settled.
+3. Treat the current PR 4a/4b/4c port, small-helper, and replay-coordinator
+   slices as complete for this round; keep the Angular `OperationApplierService`
+   shell app-side unless a later port proves another small extraction safe.
+4. Start PR 5 provider extraction after this branch is merged. Provider-specific
+   `SyncLog`/`OpLog` routing should be handled inside PR 5 as provider files
+   move behind provider-package ports.
 
 ## PR 1 - Thin First Slice (#7546)
 
@@ -846,6 +859,28 @@ IndexedDB reads, and result assembly remain app-side.
 Only after 4a/4b are stable, decide whether any part of
 `OperationApplierService` belongs in `@sp/sync-core`.
 
+Status: implemented for the current branch slice. The extracted part is the
+narrow `replayOperationBatch()` coordinator in `packages/sync-core/src/replay-coordinator.ts`.
+It is intentionally generic and calls host-supplied ports/callbacks in a strict
+order:
+
+1. open the remote-apply window;
+2. dispatch the host-created bulk replay action;
+3. yield after dispatch so host reducers finish before side effects;
+4. run remote archive side effects after dispatch when configured;
+5. yield around archive side effects to preserve UI responsiveness;
+6. start post-sync cooldown before ending the remote-apply window;
+7. end the remote-apply window and flush deferred local actions.
+
+Package-level Vitest coverage now asserts dispatch-yield ordering, local
+hydration behavior, archive failure reporting, archive notification timing,
+cooldown failure handling, and empty-batch no-op behavior.
+
+The Angular `OperationApplierService` delegates to this coordinator but keeps
+all app-specific work app-side: `bulkApplyOperations`, `convertOpToAction`,
+`isArchiveAffectingAction`, `remoteArchiveDataApplied`, `Injector` access to
+`OperationLogEffects`, and `OpLog` diagnostics.
+
 Acceptable extraction:
 
 - a small generic replay coordinator that calls ports in a strict order;
@@ -867,6 +902,27 @@ Hard requirements from `CLAUDE.md`:
 - bulk dispatch must yield after the dispatch;
 - remote archive side effects must still run;
 - deferred local actions must be processed after remote apply finishes.
+
+---
+
+## Pre-P5 Readiness Check
+
+Status: complete for this branch.
+
+- No remaining pre-P5 `SyncLogger` routing is needed in core: files already made
+  movable either live in `@sp/sync-core` without app logging, accept a
+  `SyncLogger` port, or stay app-side because their diagnostics/recovery
+  behavior is still SP-specific.
+- `sync-file-prefix`, generic error-message extraction, and gzip/base64
+  compression helpers are package-side behind host-owned configuration/error
+  factories.
+- `OperationApplierService` logging remains app-side intentionally; the moved
+  replay coordinator has no logging dependency.
+- Provider-specific logging and credential diagnostics remain in
+  `src/app/op-log/sync-providers/` and should be handled during PR 5 when those
+  files move to `@sp/sync-providers`.
+- Boundary verification was rerun for `packages/sync-core/src` and found no
+  forbidden Angular, NgRx, `src/app`, or `@sp/shared-schema` imports.
 
 ---
 
@@ -934,17 +990,17 @@ This is now a final audit rather than the first boundary rule.
 
 ## Summary Timeline
 
-| PR     | Scope                                                      | Risk        | Notes                                  |
-| ------ | ---------------------------------------------------------- | ----------- | -------------------------------------- |
-| **1**  | Stand up `@sp/sync-core` with generic primitives and stubs | Low         | Present on branch                      |
-| **2**  | Boundary lint, registry types, privacy-aware logger port   | Medium      | Groundwork present; finish follow-ups  |
-| **3a** | Vector-clock ownership and package test harness            | Medium      | Present on branch                      |
-| **3b** | Pure algorithmic core                                      | Medium      | No Angular/NgRx/IndexedDB              |
-| **4a** | Port contracts only                                        | Medium      | Current slice present                  |
-| **4b** | Move small orchestration units behind ports                | High        | Current slice present                  |
-| **4c** | Revisit `OperationApplierService` extraction               | High        | Extract only if the boundary is proven |
-| **5**  | Lift providers into `@sp/sync-providers`                   | Medium-High | Provider deps stay out of core         |
-| **6**  | Final boundary hardening and architecture note             | Low         | Audit and lock down                    |
+| PR     | Scope                                                      | Risk        | Notes                                 |
+| ------ | ---------------------------------------------------------- | ----------- | ------------------------------------- |
+| **1**  | Stand up `@sp/sync-core` with generic primitives and stubs | Low         | Present on branch                     |
+| **2**  | Boundary lint, registry types, privacy-aware logger port   | Medium      | Groundwork present; finish follow-ups |
+| **3a** | Vector-clock ownership and package test harness            | Medium      | Present on branch                     |
+| **3b** | Pure algorithmic core                                      | Medium      | No Angular/NgRx/IndexedDB             |
+| **4a** | Port contracts only                                        | Medium      | Current slice present                 |
+| **4b** | Move small orchestration units behind ports                | High        | Current slice present                 |
+| **4c** | Revisit `OperationApplierService` extraction               | High        | Narrow replay coordinator present     |
+| **5**  | Lift providers into `@sp/sync-providers`                   | Medium-High | Provider deps stay out of core        |
+| **6**  | Final boundary hardening and architecture note             | Low         | Audit and lock down                   |
 
 After the final PR, `@sp/sync-core` should be the domain-agnostic sync engine
 and abstractions, `@sp/sync-providers` should contain bundled provider
