@@ -1078,6 +1078,45 @@ This is now a final audit rather than the first boundary rule.
 
 ---
 
+## PR 7 - Optional Polish (Post-Provider Lift)
+
+Non-blocking cleanups surfaced during the PR 5 provider lift. None of these
+change behaviour or boundaries — they remove duplication, tighten tests, and
+retire deprecated aliases once consumers have migrated.
+
+### Candidates
+
+- **Consolidate PKCE helpers.** `packages/sync-providers/src/pkce.ts` currently
+  duplicates `src/app/util/pkce.util.ts`. The package needs to stand alone, so
+  the duplication is intentional during the scaffold, but the remaining
+  consumers (`src/app/plugins/oauth/plugin-oauth.service.ts`,
+  `src/app/plugins/oauth/pkce.util.spec.ts`,
+  `src/app/op-log/sync-providers/file-based/dropbox/dropbox-auth-helper.spec.ts`)
+  should migrate onto `@sp/sync-providers` so `src/app/util/pkce.util.ts` can be
+  deleted. Drift between the two implementations is the risk this resolves.
+- **Drop the dead `_length` arg in `generatePKCECodes`.** Pre-existing from the
+  original helper; the parameter is unused. Either remove it (single call site)
+  or document why it is kept for API compatibility.
+- **Tighten the PKCE verifier-length assertion.** `tests/pkce.spec.ts` bounds
+  the verifier with `toBeLessThanOrEqual(128)`, but a 32-byte random buffer
+  always encodes to exactly 43 base64url chars. Replace with an exact length
+  check so the test actually constrains the output.
+- **Retire `SyncProviderServiceInterface` alias.** Marked `@deprecated` in
+  `src/app/op-log/sync-providers/provider.interface.ts`. Sweep callers to
+  `SyncProviderBase` / `FileSyncProvider` and remove the alias.
+- **Trim duplicate ESLint pattern depths.** The `packages/sync-providers/**`
+  block in `eslint.config.js` lists `../sync-core/**`, `../../sync-core/**`, and
+  `**/sync-core/**` (plus shared-schema equivalents). The `**/...` form already
+  covers the relative variants; collapse for readability.
+
+### Verification
+
+- `npm run lint`, `npm test`, `npm run packages:test`.
+- Grep for `pkce.util` and `SyncProviderServiceInterface` after the cleanup —
+  both should return zero hits outside of `packages/sync-providers`.
+
+---
+
 ## Summary Timeline
 
 | PR     | Scope                                                      | Risk        | Notes                                 |
@@ -1091,6 +1130,7 @@ This is now a final audit rather than the first boundary rule.
 | **4c** | Revisit `OperationApplierService` extraction               | High        | Narrow replay coordinator present     |
 | **5**  | Lift providers into `@sp/sync-providers`                   | Medium-High | Provider deps stay out of core        |
 | **6**  | Final boundary hardening and architecture note             | Low         | Audit and lock down                   |
+| **7**  | Optional polish: dedupe PKCE, retire deprecated aliases    | Low         | Non-blocking cleanup                  |
 
 After the final PR, `@sp/sync-core` should be the domain-agnostic sync engine
 and abstractions, `@sp/sync-providers` should contain bundled provider
