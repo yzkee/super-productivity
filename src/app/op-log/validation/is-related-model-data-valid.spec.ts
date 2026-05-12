@@ -102,6 +102,41 @@ describe('isRelatedModelDataValid', () => {
     ).not.toContain(privateProjectTitle);
   });
 
+  it('should not log raw invalid menu tree node kinds', () => {
+    const privateNodeKind = 'Private Invalid Node Kind';
+    const data: any = {
+      project: { ids: [], entities: {} },
+      tag: { ids: [], entities: {} },
+      task: { ids: [], entities: {} },
+      taskRepeatCfg: { ids: [], entities: {} },
+      archiveYoung: { task: { ids: [], entities: {} } },
+      archiveOld: { task: { ids: [], entities: {} } },
+      note: { ids: [], entities: {}, todayOrder: [] },
+      issueProvider: { ids: [], entities: {} },
+      reminders: [],
+      menuTree: {
+        projectTree: [{ id: 'tree-node-id', k: privateNodeKind }],
+        tagTree: [],
+      },
+    };
+
+    const result = isRelatedModelDataValid(data as AppDataComplete);
+
+    expect(result).toBe(false);
+    expect(OP_LOG_SYNC_LOGGER.log).toHaveBeenCalledWith(
+      '[is-related-model-data-valid] Validity error info',
+      jasmine.objectContaining({
+        error: 'Invalid node kind in projectTree',
+        treeType: 'projectTree',
+        id: 'tree-node-id',
+        nodeKind: 'unknown',
+      }),
+    );
+    expect(
+      JSON.stringify((OP_LOG_SYNC_LOGGER.log as jasmine.Spy).calls.allArgs()),
+    ).not.toContain(privateNodeKind);
+  });
+
   it('should fail validation when task has non-existent repeatCfgId', () => {
     const dataWithOrphanedRepeatCfgId: any = {
       project: {
