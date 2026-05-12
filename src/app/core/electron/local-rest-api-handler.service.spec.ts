@@ -395,10 +395,12 @@ describe('LocalRestApiHandlerService', () => {
       });
 
       it('should filter TODAY virtual tag by due fields', async () => {
-        dateServiceMock.isToday.and.callFake((value: number | Date) => value === 12345);
+        // Noon UTC on 2026-05-12 — resolves to 2026-05-12 in both Europe/Berlin
+        // (UTC+2 DST) and America/Los_Angeles (UTC-7 DST) test timezones.
+        const dueTimeToday = new Date('2026-05-12T12:00:00Z').getTime();
         const tasks = [
           createMockTask('due-day', { dueDay: '2026-05-12' }),
-          createMockTask('due-time', { dueWithTime: 12345 }),
+          createMockTask('due-time', { dueWithTime: dueTimeToday }),
           createMockTask('normal-tag', { tagIds: [TODAY_TAG.id] }),
           createMockTask('tomorrow', { dueDay: '2026-05-13' }),
         ];
