@@ -86,16 +86,18 @@ describe('passesCalendarEventRegexFilter', () => {
     });
 
     it('should still apply a regex exactly at the limit', () => {
-      const padded = 'Meeting'.padEnd(CALENDAR_REGEX_FILTER_MAX_LENGTH, '.');
+      // 256-char pattern that still matches 'Team Meeting' via alternation. A
+      // naive `'Meeting'.padEnd(256, '.')` fails because `.` matches any char,
+      // requiring a 256+ char title.
+      const padded =
+        'Meeting|' + 'a'.repeat(CALENDAR_REGEX_FILTER_MAX_LENGTH - 'Meeting|'.length);
       expect(padded.length).toBe(CALENDAR_REGEX_FILTER_MAX_LENGTH);
       expect(passesCalendarEventRegexFilter(baseEvent, padded, null)).toBe(true);
     });
 
     it('should not let an oversized include be bypassed by also-oversized exclude', () => {
       const oversized = 'a'.repeat(CALENDAR_REGEX_FILTER_MAX_LENGTH + 1);
-      expect(passesCalendarEventRegexFilter(baseEvent, oversized, oversized)).toBe(
-        false,
-      );
+      expect(passesCalendarEventRegexFilter(baseEvent, oversized, oversized)).toBe(false);
     });
   });
 

@@ -6,6 +6,8 @@ import { TaskArchiveService } from '../../features/archive/task-archive.service'
 import { ProjectService } from '../../features/project/project.service';
 import { TagService } from '../../features/tag/tag.service';
 import { Task, TaskWithSubTasks, TaskArchive } from '../../features/tasks/task.model';
+import { DateService } from '../date/date.service';
+import { TODAY_TAG } from '../../features/tag/tag.const';
 import {
   LocalRestApiRequestPayload,
   LocalRestApiResponsePayload,
@@ -17,6 +19,7 @@ describe('LocalRestApiHandlerService', () => {
   let taskArchiveServiceMock: jasmine.SpyObj<TaskArchiveService>;
   let projectServiceMock: jasmine.SpyObj<ProjectService>;
   let tagServiceMock: jasmine.SpyObj<TagService>;
+  let dateServiceMock: jasmine.SpyObj<DateService>;
   let requestHandler: ((payload: LocalRestApiRequestPayload) => void) | null = null;
   let responsePromiseResolve: ((response: LocalRestApiResponsePayload) => void) | null =
     null;
@@ -83,6 +86,17 @@ describe('LocalRestApiHandlerService', () => {
     return responsePromise;
   };
 
+  const expectTaskIds = (
+    response: LocalRestApiResponsePayload,
+    expectedIds: string[],
+  ): void => {
+    expect(response.body.ok).toBe(true);
+    if (!response.body.ok) {
+      throw new Error(`Expected success response, got ${response.body.error.code}`);
+    }
+    expect((response.body.data as Task[]).map((task) => task.id)).toEqual(expectedIds);
+  };
+
   beforeEach(() => {
     requestHandler = null;
     responsePromiseResolve = null;
@@ -137,6 +151,14 @@ describe('LocalRestApiHandlerService', () => {
       },
     );
 
+    dateServiceMock = jasmine.createSpyObj<DateService>(
+      'DateService',
+      ['todayStr', 'getStartOfNextDayDiffMs'],
+      {},
+    );
+    dateServiceMock.todayStr.and.returnValue('2026-05-12');
+    dateServiceMock.getStartOfNextDayDiffMs.and.returnValue(0);
+
     TestBed.configureTestingModule({
       providers: [
         LocalRestApiHandlerService,
@@ -144,6 +166,7 @@ describe('LocalRestApiHandlerService', () => {
         { provide: TaskArchiveService, useValue: taskArchiveServiceMock },
         { provide: ProjectService, useValue: projectServiceMock },
         { provide: TagService, useValue: tagServiceMock },
+        { provide: DateService, useValue: dateServiceMock },
       ],
     });
 
@@ -200,6 +223,7 @@ describe('LocalRestApiHandlerService', () => {
 
         expect(response.body.ok).toBe(true);
         expect(response.status).toBe(200);
+        expectTaskIds(response, ['task-1', 'task-2']);
       });
 
       it('should filter tasks by query', async () => {
@@ -213,7 +237,7 @@ describe('LocalRestApiHandlerService', () => {
           createRequest('GET', '/tasks', { query: { query: 'milk' } }),
         );
 
-        expect(response.body.ok).toBe(true);
+        expectTaskIds(response, ['task-1']);
       });
 
       it('should filter tasks by projectId', async () => {
@@ -227,7 +251,7 @@ describe('LocalRestApiHandlerService', () => {
           createRequest('GET', '/tasks', { query: { projectId: 'project-1' } }),
         );
 
-        expect(response.body.ok).toBe(true);
+        expectTaskIds(response, ['task-1']);
       });
 
       it('should filter tasks by tagId', async () => {
@@ -241,7 +265,133 @@ describe('LocalRestApiHandlerService', () => {
           createRequest('GET', '/tasks', { query: { tagId: 'tag-1' } }),
         );
 
-        expect(response.body.ok).toBe(true);
+        expectTaskIds(response, ['task-1']);
+      });
+
+      it('should filter tasks by the virtual TODAY tag using dueDay', async () => {
+        const tasks = [
+          createMockTask('task-1', { dueDay: '2026-05-12' }),
+          createMockTask('task-2', { dueDay: '2026-05-13' }),
+          createMockTask('task-3', { dueDay: '2026-05-11' }),
+          createMockTask('task-4'),
+        ];
+        Object.defineProperty(taskServiceMock, 'allTasks$', { get: () => of(tasks) });
+
+        const response = await sendRequestAndWait(
+          createRequest('GET', '/tasks', { query: { tagId: TODAY_TAG.id } }),
+        );
+
+        expectTaskIds(response, ['task-1']);
+      });
+
+      it('should combine the virtual TODAY tag filter with projectId and query', async () => {
+        const tasks = [
+          createMockTask('task-1', {
+            title: 'Buy milk',
+            projectId: 'project-1',
+            dueDay: '2026-05-12',
+          }),
+          createMockTask('task-2', {
+            title: 'Buy bread',
+            projectId: 'project-2',
+            dueDay: '2026-05-12',
+          }),
+          createMockTask('task-3', {
+            title: 'Walk dog',
+            projectId: 'project-1',
+            dueDay: '2026-05-12',
+          }),
+        ];
+        Object.defineProperty(taskServiceMock, 'allTasks$', { get: () => of(tasks) });
+
+        const response = await sendRequestAndWait(
+          createRequest('GET', '/tasks', {
+            query: { tagId: TODAY_TAG.id, projectId: 'project-1', query: 'milk' },
+          }),
+        );
+
+        expectTaskIds(response, ['task-1']);
+      });
+
+      it('should include done virtual TODAY tasks when includeDone=true', async () => {
+        const tasks = [
+          createMockTask('task-1', { dueDay: '2026-05-12', isDone: false }),
+          createMockTask('task-2', { dueDay: '2026-05-12', isDone: true }),
+        ];
+        Object.defineProperty(taskServiceMock, 'allTasks$', { get: () => of(tasks) });
+
+        const response = await sendRequestAndWait(
+          createRequest('GET', '/tasks', {
+            query: { tagId: TODAY_TAG.id, includeDone: 'true' },
+          }),
+        );
+
+        expectTaskIds(response, ['task-1', 'task-2']);
+      });
+
+      it('should filter virtual TODAY tasks by dueWithTime and start-of-next-day offset', async () => {
+        dateServiceMock.todayStr.and.returnValue('2026-02-15');
+        dateServiceMock.getStartOfNextDayDiffMs.and.returnValue(4 * 60 * 60 * 1000);
+        const tasks = [
+          createMockTask('task-1', {
+            dueWithTime: new Date(2026, 1, 16, 2, 0).getTime(),
+          }),
+          createMockTask('task-2', {
+            dueWithTime: new Date(2026, 1, 16, 5, 0).getTime(),
+          }),
+        ];
+        Object.defineProperty(taskServiceMock, 'allTasks$', { get: () => of(tasks) });
+
+        const response = await sendRequestAndWait(
+          createRequest('GET', '/tasks', { query: { tagId: TODAY_TAG.id } }),
+        );
+
+        expectTaskIds(response, ['task-1']);
+      });
+
+      it('should let dueWithTime take priority over dueDay for the virtual TODAY tag', async () => {
+        const tasks = [
+          createMockTask('task-1', {
+            dueDay: '2026-05-12',
+            dueWithTime: new Date(2026, 4, 13, 10, 0).getTime(),
+          }),
+          createMockTask('task-2', {
+            dueDay: '2026-05-12',
+          }),
+        ];
+        Object.defineProperty(taskServiceMock, 'allTasks$', { get: () => of(tasks) });
+
+        const response = await sendRequestAndWait(
+          createRequest('GET', '/tasks', { query: { tagId: TODAY_TAG.id } }),
+        );
+
+        expectTaskIds(response, ['task-2']);
+      });
+
+      it('should not fail the virtual TODAY filter for invalid dueWithTime values', async () => {
+        const tasks = [
+          createMockTask('task-1', {
+            dueDay: '2026-05-12',
+            dueWithTime: -1,
+          }),
+          createMockTask('task-2', {
+            dueWithTime: -1,
+          }),
+          createMockTask('task-3', {
+            dueDay: '2026-05-12',
+            dueWithTime: 8_640_000_000_000_001,
+          }),
+          createMockTask('task-4', {
+            dueWithTime: 8_640_000_000_000_001,
+          }),
+        ];
+        Object.defineProperty(taskServiceMock, 'allTasks$', { get: () => of(tasks) });
+
+        const response = await sendRequestAndWait(
+          createRequest('GET', '/tasks', { query: { tagId: TODAY_TAG.id } }),
+        );
+
+        expectTaskIds(response, ['task-1', 'task-3']);
       });
 
       it('should exclude done tasks by default', async () => {
@@ -253,7 +403,7 @@ describe('LocalRestApiHandlerService', () => {
 
         const response = await sendRequestAndWait(createRequest('GET', '/tasks'));
 
-        expect(response.body.ok).toBe(true);
+        expectTaskIds(response, ['task-1']);
       });
 
       it('should include done tasks when includeDone=true', async () => {
@@ -267,11 +417,11 @@ describe('LocalRestApiHandlerService', () => {
           createRequest('GET', '/tasks', { query: { includeDone: 'true' } }),
         );
 
-        expect(response.body.ok).toBe(true);
+        expectTaskIds(response, ['task-1', 'task-2']);
       });
 
       it('should return archived tasks when source=archived', async () => {
-        const archivedTask = createMockTask('archivedTask1', { isDone: true });
+        const archivedTask = createMockTask('archivedTask1');
         (taskArchiveServiceMock as any).load.and.returnValue(
           Promise.resolve({
             ids: ['archivedTask1'],
@@ -284,6 +434,7 @@ describe('LocalRestApiHandlerService', () => {
         );
 
         expect(response.body.ok).toBe(true);
+        expectTaskIds(response, ['archivedTask1']);
         expect(taskArchiveServiceMock.load).toHaveBeenCalled();
       });
 
@@ -300,6 +451,7 @@ describe('LocalRestApiHandlerService', () => {
         );
 
         expect(response.body.ok).toBe(true);
+        expectTaskIds(response, ['task-1']);
         expect(taskServiceMock.getAllTasksEverywhere).toHaveBeenCalled();
       });
     });

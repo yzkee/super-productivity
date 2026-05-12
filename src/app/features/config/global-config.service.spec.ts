@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { provideMockStore } from '@ngrx/store/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import { DEFAULT_GLOBAL_CONFIG } from './default-global-config.const';
 import { GlobalConfigService } from './global-config.service';
-import { CONFIG_FEATURE_NAME } from './store/global-config.reducer';
+import { selectSyncConfig } from './store/global-config.reducer';
 import type { SyncConfig } from './global-config.model';
 
 describe('GlobalConfigService', () => {
@@ -20,17 +20,14 @@ describe('GlobalConfigService', () => {
     } as SyncConfig;
 
     TestBed.configureTestingModule({
-      providers: [
-        provideMockStore({
-          initialState: {
-            [CONFIG_FEATURE_NAME]: {
-              ...DEFAULT_GLOBAL_CONFIG,
-              sync: syncConfig,
-            },
-          },
-        }),
-      ],
+      providers: [provideMockStore()],
     });
+
+    // overrideSelector bypasses feature-state lookup and any cross-spec
+    // pollution of the underlying store state.
+    const store = TestBed.inject(MockStore);
+    store.overrideSelector(selectSyncConfig, syncConfig);
+
 
     const snapshot = await TestBed.inject(GlobalConfigService).getSyncConfig();
 
