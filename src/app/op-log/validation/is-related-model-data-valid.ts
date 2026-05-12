@@ -38,6 +38,11 @@ const SAFE_VALIDITY_INFO_KEYS = new Set([
   'treeType',
 ]);
 
+const KNOWN_MENU_TREE_KINDS = new Set<string>(Object.values(MenuTreeKind));
+
+const getMenuTreeKindForLog = (kind: unknown): string =>
+  typeof kind === 'string' && KNOWN_MENU_TREE_KINDS.has(kind) ? kind : 'unknown';
+
 const getValueType = (value: unknown): string => {
   if (value === null) return 'null';
   if (Array.isArray(value)) return 'array';
@@ -66,6 +71,10 @@ const getValidityInfoMeta = (additionalInfo: unknown): SyncLogMeta => {
 
   for (const key of SAFE_VALIDITY_INFO_KEYS) {
     const value = info[key];
+    if (key === 'nodeKind') {
+      meta[key] = getMenuTreeKindForLog(value);
+      continue;
+    }
     if (
       typeof value === 'string' ||
       typeof value === 'number' ||
