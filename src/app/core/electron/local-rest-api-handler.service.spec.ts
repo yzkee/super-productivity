@@ -5,6 +5,8 @@ import { TaskService } from '../../features/tasks/task.service';
 import { TaskArchiveService } from '../../features/archive/task-archive.service';
 import { ProjectService } from '../../features/project/project.service';
 import { TagService } from '../../features/tag/tag.service';
+import { TODAY_TAG } from '../../features/tag/tag.const';
+import { DateService } from '../date/date.service';
 import { Task, TaskWithSubTasks, TaskArchive } from '../../features/tasks/task.model';
 import {
   LocalRestApiRequestPayload,
@@ -17,6 +19,7 @@ describe('LocalRestApiHandlerService', () => {
   let taskArchiveServiceMock: jasmine.SpyObj<TaskArchiveService>;
   let projectServiceMock: jasmine.SpyObj<ProjectService>;
   let tagServiceMock: jasmine.SpyObj<TagService>;
+  let dateServiceMock: jasmine.SpyObj<DateService>;
   let requestHandler: ((payload: LocalRestApiRequestPayload) => void) | null = null;
   let responsePromiseResolve: ((response: LocalRestApiResponsePayload) => void) | null =
     null;
@@ -137,6 +140,10 @@ describe('LocalRestApiHandlerService', () => {
       },
     );
 
+    dateServiceMock = jasmine.createSpyObj('DateService', ['todayStr', 'isToday']);
+    dateServiceMock.todayStr.and.returnValue('2026-05-12');
+    dateServiceMock.isToday.and.returnValue(false);
+
     TestBed.configureTestingModule({
       providers: [
         LocalRestApiHandlerService,
@@ -144,6 +151,7 @@ describe('LocalRestApiHandlerService', () => {
         { provide: TaskArchiveService, useValue: taskArchiveServiceMock },
         { provide: ProjectService, useValue: projectServiceMock },
         { provide: TagService, useValue: tagServiceMock },
+        { provide: DateService, useValue: dateServiceMock },
       ],
     });
 
@@ -242,6 +250,26 @@ describe('LocalRestApiHandlerService', () => {
         );
 
         expect(response.body.ok).toBe(true);
+      });
+
+      it('should filter TODAY virtual tag by due fields', async () => {
+        dateServiceMock.isToday.and.callFake((value: number | Date) => value === 12345);
+        const tasks = [
+          createMockTask('due-day', { dueDay: '2026-05-12' }),
+          createMockTask('due-time', { dueWithTime: 12345 }),
+          createMockTask('normal-tag', { tagIds: [TODAY_TAG.id] }),
+          createMockTask('tomorrow', { dueDay: '2026-05-13' }),
+        ];
+        Object.defineProperty(taskServiceMock, 'allTasks$', { get: () => of(tasks) });
+
+        const response = await sendRequestAndWait(
+          createRequest('GET', '/tasks', { query: { tagId: TODAY_TAG.id } }),
+        );
+
+        expect(response.body.ok).toBe(true);
+        expect(
+          ((response.body as { data: Task[] }).data || []).map((task) => task.id),
+        ).toEqual(['due-day', 'due-time']);
       });
 
       it('should exclude done tasks by default', async () => {
