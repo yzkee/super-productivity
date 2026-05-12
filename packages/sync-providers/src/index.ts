@@ -5,6 +5,14 @@ export type {
 export { FILE_BASED_SYNC_CONSTANTS } from './file-based-sync-data';
 export type { FileBasedSyncData, SyncFileCompactOp } from './file-based-sync-data';
 export type { FileAdapter } from './file-adapter';
+export { generateCodeChallenge, generateCodeVerifier, generatePKCECodes } from './pkce';
+export type {
+  GenerateCodeChallengeOptions,
+  GenerateCodeVerifierOptions,
+  GeneratePkceCodesOptions,
+  PkceCrypto,
+  PkceSha256,
+} from './pkce';
 export {
   isFileSyncProvider,
   type FileDownloadResponse,

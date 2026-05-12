@@ -18,7 +18,8 @@
     }
   },
   "dependencies": {
-    "@sp/sync-core": "*"
+    "@sp/sync-core": "*",
+    "hash-wasm": "^4.12.0"
   },
   "scripts": {
     "build": "tsup",

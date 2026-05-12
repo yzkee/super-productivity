@@ -194,6 +194,9 @@ Current extraction state and remaining immediate debt:
   generic host-owned state, compact-operation, and archive payload parameters.
   The app-side `file-based-sync.types.ts` shim binds those generics to
   `CompactOperation` and `ArchiveModel`.
+- Dropbox PKCE code generation now lives in `@sp/sync-providers`, including
+  the existing WebCrypto-first and `hash-wasm` fallback behavior. The app-side
+  Dropbox helper path remains a compatibility re-export.
 
 Suggested next order:
 
@@ -1004,6 +1007,15 @@ providers, and app wiring each live in their own package.
 - `src/app/op-log/sync-providers/file-based/file-based-sync.types.ts` remains
   the compatibility shim that binds the package envelope to app-owned
   `CompactOperation` and `ArchiveModel`.
+
+### Current Third Slice
+
+- Provider-owned PKCE utilities moved into `@sp/sync-providers`:
+  `generateCodeVerifier`, `generateCodeChallenge`, and `generatePKCECodes`.
+- The implementation keeps the existing browser WebCrypto behavior and the
+  `hash-wasm` fallback needed when `crypto.subtle` is unavailable.
+- `src/app/op-log/sync-providers/file-based/dropbox/generate-pkce-codes.ts`
+  remains as a compatibility re-export for existing Dropbox call sites.
 
 ### Verification
 
