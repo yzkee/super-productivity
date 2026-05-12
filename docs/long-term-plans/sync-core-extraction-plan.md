@@ -190,6 +190,10 @@ Current extraction state and remaining immediate debt:
   app-side `provider.interface.ts` and local `file-adapter.interface.ts` remain
   compatibility shims that specialize those contracts with `SyncProviderId` and
   `PrivateCfgByProviderId`.
+- File-based sync envelope contracts now live in `@sp/sync-providers` with
+  generic host-owned state, compact-operation, and archive payload parameters.
+  The app-side `file-based-sync.types.ts` shim binds those generics to
+  `CompactOperation` and `ArchiveModel`.
 
 Suggested next order:
 
@@ -990,6 +994,16 @@ providers, and app wiring each live in their own package.
 - `SyncCredentialStore` now implements the package
   `SyncCredentialStorePort`, while `src/app/op-log/sync-providers/` keeps
   shims so existing call sites keep their imports.
+
+### Current Second Slice
+
+- `FileBasedSyncData`, `SyncFileCompactOp`, and
+  `FILE_BASED_SYNC_CONSTANTS` moved into `@sp/sync-providers`.
+- The package contracts stay host-agnostic by accepting generic state,
+  compact-operation, and archive payload types.
+- `src/app/op-log/sync-providers/file-based/file-based-sync.types.ts` remains
+  the compatibility shim that binds the package envelope to app-owned
+  `CompactOperation` and `ArchiveModel`.
 
 ### Verification
 
