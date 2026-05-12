@@ -462,6 +462,10 @@ Initial candidate-file audit:
   route through `SyncLogger` with sanitized operation metadata plus payload
   type/count summaries only; raw payload values and raw payload keys stay out of
   exportable logs.
+- `op-log/validation/auto-fix-typia-errors.ts`: Typia repair attempts and
+  applied fixes now route through `SyncLogger` with path/type/count metadata
+  only; raw invalid values, defaults, and full Typia error objects stay out of
+  exportable logs.
 - `op-log/util/sync-file-prefix.ts`: now delegates to the package helper with
   app-supplied prefix and error construction. The app-facing shim should remain
   until consumers are deliberately switched to injected/configured helpers.
