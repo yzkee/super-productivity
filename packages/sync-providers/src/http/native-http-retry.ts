@@ -39,6 +39,13 @@ export interface ExecuteNativeRequestOptions {
   logger?: SyncLogger;
   label?: string;
   delay?: (ms: number) => Promise<void>;
+  /**
+   * Maximum number of retries on transient network errors. Defaults to
+   * `MAX_RETRIES` (2). Pass `0` to disable retries (e.g. one-shot
+   * user-initiated auth code exchange where automatic retry is not
+   * appropriate).
+   */
+  maxRetries?: number;
 }
 
 const defaultDelay = (ms: number): Promise<void> =>
@@ -62,9 +69,10 @@ export const executeNativeRequestWithRetry = async (
     logger = NOOP_SYNC_LOGGER,
     label = 'NativeHttp',
     delay = defaultDelay,
+    maxRetries = MAX_RETRIES,
   } = options;
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await executor({
         url: config.url,
@@ -76,7 +84,7 @@ export const executeNativeRequestWithRetry = async (
         readTimeout: config.readTimeout ?? DEFAULT_READ_TIMEOUT_MS,
       });
     } catch (retryErr) {
-      if (attempt < MAX_RETRIES && isTransientNetworkError(retryErr)) {
+      if (attempt < maxRetries && isTransientNetworkError(retryErr)) {
         const delayMs = 1000 * (attempt + 1);
         // toSyncLogError drops .code on Error instances, so we read it directly
         // off the raw error to preserve platform-specific transient codes
@@ -84,11 +92,11 @@ export const executeNativeRequestWithRetry = async (
         const rawCode = (retryErr as { code?: unknown } | null)?.code;
         logger.warn(
           `${label} transient network error, retrying in ${delayMs}ms ` +
-            `(attempt ${attempt + 1}/${MAX_RETRIES})`,
+            `(attempt ${attempt + 1}/${maxRetries})`,
           {
             url: config.url,
             attempt: attempt + 1,
-            maxRetries: MAX_RETRIES,
+            maxRetries,
             delayMs,
             errorName: toSyncLogError(retryErr).name,
             errorCode:

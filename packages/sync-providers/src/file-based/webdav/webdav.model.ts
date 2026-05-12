@@ -1,6 +1,5 @@
-import { SyncProviderPrivateCfgBase } from '../../../core/types/sync.types';
-
-export interface WebdavPrivateCfg extends SyncProviderPrivateCfgBase {
+export interface WebdavPrivateCfg {
+  encryptKey?: string;
   baseUrl: string;
   userName: string;
   password: string;

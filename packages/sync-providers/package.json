@@ -5,6 +5,7 @@
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "sideEffects": false,
   "exports": {
     ".": {
       "import": {
@@ -28,6 +29,7 @@
     "test:watch": "vitest"
   },
   "devDependencies": {
+    "@xmldom/xmldom": "^0.8.12",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0",
     "vitest": "^3.2.4"

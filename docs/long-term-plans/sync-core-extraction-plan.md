@@ -4,11 +4,14 @@
 > vector-clock ownership, full-state op classification config, PR 3b pure
 > helper slices, PR 4a port contracts, PR 4b small orchestration/planning
 > helpers, and PR 4c's narrow operation replay coordinator are present. PR 5
-> has started with the `@sp/sync-providers` scaffold, provider boundary lint,
-> provider-neutral contracts, a credential-store port, and app shims. Remaining
-> provider work should move implementations behind provider-package ports while
-> keeping app-owned IDs, OAuth routing, config UI, and platform bridges
-> app-side.**
+> has shipped the `@sp/sync-providers` scaffold, provider boundary lint,
+> provider-neutral contracts, a credential-store port, the file-based sync
+> envelope types, PKCE helpers, the native-HTTP retry helpers, the shared
+> provider error classes, and the Dropbox provider (behind
+> `ProviderPlatformInfo` + `WebFetchFactory` + `NativeHttpExecutor` ports).
+> Remaining provider work — WebDAV + Nextcloud, SuperSync, LocalFile — should
+> reuse those ports while keeping app-owned IDs, OAuth routing, config UI, and
+> platform bridges app-side.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -1042,50 +1045,130 @@ providers, and app wiring each live in their own package.
   registration, OAuth glue) needs additional package ports that should
   be designed and reviewed in their own slice. Updated plan below.
 
+### Current Fifth Slice
+
+Shipped as two commits behind a shared design doc
+(`docs/plans/2026-05-12-pr5-dropbox-slice.md`) plus a post-review
+cleanup pass:
+
+- **PR 5a — provider error classes.** Twelve provider-shared error
+  classes (`AuthFailSPError`, `InvalidDataSPError`,
+  `HttpNotOkAPIError`, `NoRevAPIError`, `RemoteFileNotFoundAPIError`,
+  `MissingCredentialsSPError`, `MissingRefreshTokenAPIError`,
+  `TooManyRequestsAPIError`, `UploadRevToMatchMismatchAPIError`,
+  `PotentialCorsError`, `RemoteFileChangedUnexpectedly`,
+  `EmptyRemoteBodySPError`) plus `AdditionalLogErrorBase` and
+  `extractErrorMessage` moved into `@sp/sync-providers`. App-side
+  `sync-errors.ts` is now a re-export shim so existing call sites and
+  `instanceof` catches keep working; a co-located identity spec
+  asserts constructor identity across import paths so future bundler
+  or tsconfig drift can't silently break the catches.
+- `AdditionalLogErrorBase` lost its constructor-time
+  `OP_LOG_SYNC_LOGGER.log` side effect (Option A from the design
+  doc): privacy responsibility shifts entirely onto catch-site
+  logging via the injected `SyncLogger` port.
+- `HttpNotOkAPIError` split its parsed body excerpt off `.message`
+  onto a new opt-in `.detail` field; `getErrorTxt` forwards
+  `.detail` to UI surfaces, so user-visible toasts remain unchanged
+  while privacy-aware logger paths see only "HTTP `<status>`
+  `<statusText>`". `TooManyRequestsAPIError`'s constructor was
+  narrowed to `{ status, retryAfter?, path? }`, closing a latent
+  bearer-token leak where Dropbox's `_handleErrorResponse` had
+  passed raw `Authorization` headers through `additionalLog`.
+- Package gained `"sideEffects": false` so consumers that only
+  import error classes can tree-shake through the barrel.
+- **PR 5b — Dropbox provider proper.** `Dropbox`, `DropboxApi`, and
+  `DropboxFileMetadata` moved into
+  `packages/sync-providers/src/file-based/dropbox/` behind three new
+  injected ports:
+  - `ProviderPlatformInfo` — readonly booleans `{ isNativePlatform,
+isAndroidWebView, isIosNative }` replacing direct
+    `Capacitor.isNativePlatform` / `IS_IOS_NATIVE` reads inside the
+    provider.
+  - `WebFetchFactory` — callable type `() => fetch`; lazy
+    resolution preserves the iOS workaround where Capacitor
+    patches `window.fetch` asynchronously.
+  - `NativeHttpExecutor` (from slice 4) gained a `maxRetries`
+    option so `getTokensFromAuthCode` can share the regular retry
+    helper while still being one-shot for one-time auth-code
+    exchanges.
+- App-side `dropbox.ts` collapsed to a 38-line factory function
+  `createDropboxProvider(deps)` that wires `OP_LOG_SYNC_LOGGER`,
+  `APP_PROVIDER_PLATFORM_INFO`, `APP_WEB_FETCH`,
+  `SyncCredentialStore`, and `CapacitorHttp.request` into
+  `DropboxDeps` and returns the package `Dropbox` class directly.
+  `sync-providers.factory.ts` was updated to call the factory.
+- Privacy work folded in alongside the move: malformed-download
+  raw `r.data` no longer logged; every
+  `SyncLog.critical(..., e)` catch-site replaced with structured
+  `toSyncLogError(e)` + curated `SyncLogMeta`; URLs scrubbed to
+  host + pathname; error constructors receive relative
+  `targetPath`, never the joined `basePath + targetPath`; and
+  `AuthFailSPError` no longer carries raw `responseData`.
+- Native-platform routing specs that were previously skipped under
+  Jasmine (`Capacitor.request` un-mockable) are now un-skipped
+  under Vitest with the injected `NativeHttpExecutor` mock. Package
+  spec count went from 70 to 103. `tryCatchInlineAsync` was deleted
+  (the sole consumer inlined a defensive `response.json().catch(...)`
+  instead) and `src/app/imex/sync/dropbox/dropbox.model.ts` was
+  deleted (no other consumers of `DropboxFileMetadata`).
+- **Post-review cleanups.** Round-2 multi-review surfaced four
+  follow-ups: dropped a dead `export type { NativeHttpResponse }`
+  from the Dropbox module (the package barrel already re-exports
+  it); replaced a hand-rolled `encodeFormBody` helper with
+  `URLSearchParams` (fetch path passes it as `BodyInit`, native
+  path uses `.toString()`); converted the runtime `_idCheck`
+  constant in the app shim into a pure-type `AssertDropboxId`
+  conditional alias; inlined the redundant
+  `_executeNativeRequestWithRetry` private wrapper on
+  `DropboxApi`; and dropped the now-unnecessary `as unknown as`
+  step on the `credentialStore` cast in the factory shim.
+
+Heads-up for the next slice: `errorMeta(e, extra)` and
+`urlPathOnly(url)` (currently
+`packages/sync-providers/src/file-based/dropbox/dropbox-api.ts`,
+~lines 88-104) should be promoted into a shared
+`packages/sync-providers/src/log/` module before WebDAV duplicates
+them.
+
 ### Remaining Slice Plan
 
-Finish PR 5 in four slices rather than three:
+Finish PR 5 in three slices:
 
-1. **Dropbox provider slice** (next)
-   - Move provider-specific error classes (`AuthFailSPError`,
-     `RemoteFileNotFoundAPIError`, `HttpNotOkAPIError`,
-     `MissingCredentialsSPError`, `NoRevAPIError`, `InvalidDataSPError`,
-     `EmptyRemoteBodySPError`, `MissingRefreshTokenAPIError`,
-     `TooManyRequestsAPIError`, `UploadRevToMatchMismatchAPIError`,
-     `PotentialCorsError`, `RemoteFileChangedUnexpectedly`) into the
-     package. Drop the `AdditionalLogErrorBase` constructor-time logging
-     side effect; rely on catch-site logging. The app's `sync-errors.ts`
-     re-exports the moved classes so consumer call sites stay unchanged.
-   - Introduce a `ProviderPlatformInfo` port for `isNativePlatform` /
-     `isIosNative` flags so provider code stops importing
-     `@capacitor/core` directly. Same applies to the iOS
-     `CapacitorWebFetch` lookup — wrap as a `WebFetchProvider` port.
-   - Move `tryCatchInlineAsync` into the package (small util, no
-     dependencies). Move the `DropboxFileMetadata` shape (already
-     duplicated under `imex/sync/dropbox/`).
-   - Move `dropbox.ts`, `dropbox-api.ts`, `dropbox-api.spec.ts`,
-     `dropbox-auth-helper.spec.ts`, `generate-pkce-codes.spec.ts`
-     into `packages/sync-providers/src/file-based/dropbox/`. Convert
-     Jasmine specs to Vitest. Replace `SyncProviderId.Dropbox` with a
-     `PROVIDER_ID_DROPBOX = 'Dropbox'` constant inside the package.
-   - Leave thin app-side shims that re-export the moved Dropbox class
-     wired with the app's logger + platform + credential-store
-     instances so `sync-providers.factory.ts` keeps working.
-2. **WebDAV + Nextcloud slice**
-   - Reuse the same error-class, platform-info, and HTTP-port surface
-     introduced for Dropbox.
+1. **WebDAV + Nextcloud slice** (next)
+   - Reuse the error-class, platform-info, and `WebFetchFactory`
+     ports introduced for Dropbox. Promote the shared
+     `errorMeta` / `urlPathOnly` helpers from `dropbox-api.ts` into
+     `packages/sync-providers/src/log/` before WebDAV adopts them.
    - Move `webdav-base-provider.ts`, `webdav-api.ts`,
      `webdav-xml-parser.ts`, `webdav.const.ts`, `webdav.model.ts`,
      `webdav.ts`, `nextcloud.ts`, `nextcloud.model.ts` and their
-     specs into the package.
+     specs into `packages/sync-providers/src/file-based/webdav/`.
+     Convert Jasmine specs to Vitest. Replace `SyncProviderId.WebDAV`
+     / `SyncProviderId.Nextcloud` with `PROVIDER_ID_WEBDAV` /
+     `PROVIDER_ID_NEXTCLOUD` constants inside the package.
    - `webdav-http-adapter.ts` currently calls a Capacitor-registered
-     `WebDavHttp` plugin for native platforms. Keep the Capacitor
-     plugin registration app-side and inject a
-     `WebDavNativeHttpExecutor` port that resolves to the registered
-     plugin on Android/iOS or to `fetch` on web/Electron.
+     `WebDavHttp` plugin (`capacitor-webdav-http/`) for native
+     platforms. Keep the Capacitor plugin registration app-side and
+     inject a `WebDavNativeHttpExecutor` port that resolves to the
+     registered plugin on Android/iOS or to `fetch` on web/Electron.
+     The port shape differs from `NativeHttpExecutor` (WebDAV needs
+     XML/streaming responses and `PROPFIND` verbs) — design and
+     multi-review the port in a brief doc before moving code.
    - Move `md5HashSync` (or replace with `hash-wasm` already in the
      package) since WebDAV uses content hashing for revs.
-3. **SuperSync integration slice**
+   - Apply the same A1/A3/B3.x privacy sweep as the Dropbox slice:
+     find all `SyncLog.critical(..., e)` raw-error logs, find `path`
+     / `url` arguments that include the user `basePath`, and audit
+     for error constructors that accept raw response headers or
+     bodies. The WebDAV equivalent of B3.1
+     (`TooManyRequestsAPIError` header leak) is already fixed by
+     PR 5a's type-narrowing.
+   - Leave thin app-side shims (factory functions
+     `createWebdavProvider` / `createNextcloudProvider`) wired with
+     the app's logger + platform + credential-store + native HTTP
+     executor instances so `sync-providers.factory.ts` keeps working.
+2. **SuperSync integration slice**
    - Move SuperSync provider implementation behind the same package boundary,
      reusing the HTTP/native-fetch ports introduced by the file-provider slices.
    - Move only provider implementation code; keep app state selectors,
@@ -1093,7 +1176,7 @@ Finish PR 5 in four slices rather than three:
      `src/app`.
    - Tighten provider factory/registry shims enough that app call sites keep
      working while package providers no longer import app-owned IDs.
-4. **LocalFile final slice**
+3. **LocalFile final slice**
    - Move LocalFile provider implementation last.
    - Put Electron/local-file APIs behind an app-provided file port and keep the
      Electron bridge implementation app-side.

@@ -2,6 +2,22 @@ export type {
   CredentialChangeHandler,
   SyncCredentialStorePort,
 } from './credential-store-port';
+export {
+  AdditionalLogErrorBase,
+  AuthFailSPError,
+  EmptyRemoteBodySPError,
+  extractErrorMessage,
+  HttpNotOkAPIError,
+  InvalidDataSPError,
+  MissingCredentialsSPError,
+  MissingRefreshTokenAPIError,
+  NoRevAPIError,
+  PotentialCorsError,
+  RemoteFileChangedUnexpectedly,
+  RemoteFileNotFoundAPIError,
+  TooManyRequestsAPIError,
+  UploadRevToMatchMismatchAPIError,
+} from './errors';
 export { FILE_BASED_SYNC_CONSTANTS } from './file-based-sync-data';
 export type { FileBasedSyncData, SyncFileCompactOp } from './file-based-sync-data';
 export type { FileAdapter } from './file-adapter';
@@ -18,10 +34,41 @@ export {
   isTransientNetworkError,
 } from './http/native-http-retry';
 export type {
+  ExecuteNativeRequestOptions,
   NativeHttpExecutor,
   NativeHttpRequestConfig,
   NativeHttpResponse,
 } from './http/native-http-retry';
+export { errorMeta, urlPathOnly } from './log/error-meta';
+export type { ProviderPlatformInfo } from './platform/provider-platform-info';
+export type { WebFetchFactory } from './platform/web-fetch-factory';
+export {
+  Dropbox,
+  PROVIDER_ID_DROPBOX,
+  type DropboxCfg,
+  type DropboxDeps,
+  type DropboxPrivateCfg,
+} from './file-based/dropbox/dropbox';
+export type { DropboxFileMetadata } from './file-based/dropbox/dropbox.model';
+export {
+  PROVIDER_ID_NEXTCLOUD,
+  PROVIDER_ID_WEBDAV,
+  WebdavBaseProvider,
+  type WebdavBaseDeps,
+  type WebdavProviderId,
+} from './file-based/webdav/webdav-base-provider';
+export { Webdav, type WebdavDeps } from './file-based/webdav/webdav';
+export { NextcloudProvider, type NextcloudDeps } from './file-based/webdav/nextcloud';
+export type { WebdavPrivateCfg } from './file-based/webdav/webdav.model';
+export type { NextcloudPrivateCfg } from './file-based/webdav/nextcloud.model';
+export {
+  testWebdavConnection,
+  type TestWebdavConnectionDeps,
+} from './file-based/webdav/test-connection';
+// `WebDavHttpAdapter` and `WebdavApi` are deliberately NOT exported.
+// Their single host-app consumer goes through `testWebdavConnection`
+// above. Keeping them internal preserves freedom to refactor the
+// adapter / api boundary later.
 export {
   isFileSyncProvider,
   type FileDownloadResponse,

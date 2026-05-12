@@ -1,5 +1,15 @@
-import { SyncLog } from '../../../../core/log';
-import { RemoteFileNotFoundAPIError } from '../../../core/errors/sync-errors';
+import type { SyncLogger } from '@sp/sync-core';
+import { RemoteFileNotFoundAPIError } from '../../errors';
+
+// Runtime DOMParser: browsers (and Capacitor WebViews on Android/iOS)
+// supply this global. The package's vitest env (Node) polyfills it via
+// `@xmldom/xmldom` in `tests/setup-dom-parser.ts` — that dep stays in
+// `devDependencies` so it does not ship to host bundles.
+declare const DOMParser: {
+  new (): {
+    parseFromString(text: string, mimeType: string): XmlNodeLike;
+  };
+};
 
 export interface FileMeta {
   filename: string;
@@ -11,6 +21,33 @@ export interface FileMeta {
   data: Record<string, string>;
   path: string; // Full path/href from response
 }
+
+// Minimal structural typing of the parser node API we use. Browser
+// DOMParser, Capacitor WebViews, and `@xmldom/xmldom` (test polyfill)
+// all expose this surface. Uses NS-aware lookups so namespace prefixes
+// (e.g. `<D:response>` vs `<response>`) do not affect matching — required
+// because `@xmldom/xmldom`'s `getElementsByTagName` is prefix-strict.
+interface XmlNodeLike {
+  readonly textContent: string | null;
+  getElementsByTagNameNS(namespaceURI: string, localName: string): XmlNodeCollection;
+}
+
+interface XmlNodeCollection {
+  readonly length: number;
+  item(index: number): XmlNodeLike | null;
+  [index: number]: XmlNodeLike | null;
+}
+
+const firstChild = (node: XmlNodeLike | null, localName: string): XmlNodeLike | null => {
+  if (!node) return null;
+  const list = node.getElementsByTagNameNS('*', localName);
+  return list.length > 0 ? (list[0] ?? null) : null;
+};
+
+const firstChildText = (node: XmlNodeLike | null, localName: string): string => {
+  const el = firstChild(node, localName);
+  return el?.textContent ?? '';
+};
 
 export class WebdavXmlParser {
   private static readonly L = 'WebdavXmlParser';
@@ -29,7 +66,7 @@ export class WebdavXmlParser {
   </D:prop>
 </D:propfind>`;
 
-  constructor() {}
+  constructor(private readonly _logger: SyncLogger) {}
 
   /**
    * Validates that response content is not an HTML error page
@@ -48,8 +85,9 @@ export class WebdavXmlParser {
         : WebdavXmlParser.MAX_XML_SIZE * 10; // Allow larger files for actual file content (100MB)
 
     if (content.length > maxSize) {
-      SyncLog.error(
-        `${WebdavXmlParser.L}.validateResponseContent() Content too large: ${content.length} bytes`,
+      this._logger.critical(
+        `${WebdavXmlParser.L}.validateResponseContent() Content too large`,
+        { contentLength: content.length, maxSize, operation },
       );
       throw new Error(
         `Response too large for ${operation} of ${path} (${content.length} bytes, max: ${maxSize})`,
@@ -57,11 +95,12 @@ export class WebdavXmlParser {
     }
 
     if (this.isHtmlResponse(content)) {
-      SyncLog.error(
+      // B3.x: never log the response body — only its shape/length.
+      this._logger.critical(
         `${WebdavXmlParser.L}.${operation}() received HTML error page instead of ${expectedContentDescription}`,
         {
-          path,
-          responseSnippet: content.substring(0, 200),
+          contentLength: content.length,
+          operation,
         },
       );
       throw new RemoteFileNotFoundAPIError(path);
@@ -86,8 +125,9 @@ export class WebdavXmlParser {
   parseMultiplePropsFromXml(xmlText: string, basePath: string): FileMeta[] {
     // Validate XML size
     if (xmlText.length > WebdavXmlParser.MAX_XML_SIZE) {
-      SyncLog.error(
-        `${WebdavXmlParser.L}.parseMultiplePropsFromXml() XML too large: ${xmlText.length} bytes`,
+      this._logger.critical(
+        `${WebdavXmlParser.L}.parseMultiplePropsFromXml() XML too large`,
+        { xmlLength: xmlText.length },
       );
       throw new RemoteFileNotFoundAPIError(
         `XML response too large (${xmlText.length} bytes)`,
@@ -96,7 +136,7 @@ export class WebdavXmlParser {
 
     // Basic XML validation
     if (!xmlText.trim().startsWith('<?xml') && !xmlText.trim().startsWith('<')) {
-      SyncLog.error(
+      this._logger.critical(
         `${WebdavXmlParser.L}.parseMultiplePropsFromXml() Invalid XML: doesn't start with <?xml or <`,
       );
       return [];
@@ -106,20 +146,23 @@ export class WebdavXmlParser {
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
 
-      const parserError = xmlDoc.querySelector('parsererror');
-      if (parserError) {
-        SyncLog.err(
+      const parserErr = firstChild(xmlDoc, 'parsererror');
+      if (parserErr) {
+        this._logger.critical(
           `${WebdavXmlParser.L}.parseMultiplePropsFromXml() XML parsing error`,
-          parserError.textContent,
+          { errorName: 'XmlParserError' },
         );
         return [];
       }
 
       const results: FileMeta[] = [];
-      const responses = xmlDoc.querySelectorAll('response');
+      const responses = xmlDoc.getElementsByTagNameNS('*', 'response');
 
-      for (const response of Array.from(responses)) {
-        const href = response.querySelector('href')?.textContent?.trim();
+      for (let i = 0; i < responses.length; i++) {
+        const response = responses[i];
+        if (!response) continue;
+        const hrefEl = firstChild(response, 'href');
+        const href = hrefEl?.textContent?.trim();
         if (!href) continue;
 
         const decodedHref = decodeURIComponent(href);
@@ -139,7 +182,7 @@ export class WebdavXmlParser {
           }
         }
 
-        const fileMeta = this.parseXmlResponseElement(response, decodedHref);
+        const fileMeta = this.parseXmlResponseElement(response);
         if (fileMeta) {
           results.push(fileMeta);
         }
@@ -147,9 +190,9 @@ export class WebdavXmlParser {
 
       return results;
     } catch (error) {
-      SyncLog.err(
+      this._logger.critical(
         `${WebdavXmlParser.L}.parseMultiplePropsFromXml() parsing error`,
-        error,
+        { errorName: error instanceof Error ? error.name : 'Unknown' },
       );
       return [];
     }
@@ -158,33 +201,34 @@ export class WebdavXmlParser {
   /**
    * Parse a single response element from WebDAV XML
    */
-  parseXmlResponseElement(response: Element, requestPath: string): FileMeta | null {
-    const href = response.querySelector('href')?.textContent?.trim();
+  parseXmlResponseElement(response: XmlNodeLike): FileMeta | null {
+    const hrefEl = firstChild(response, 'href');
+    const href = hrefEl?.textContent?.trim();
     if (!href) return null;
 
     // Decode the href for processing
     const decodedHref = decodeURIComponent(href);
 
-    const propstat = response.querySelector('propstat');
+    const propstat = firstChild(response, 'propstat');
     if (!propstat) return null;
 
-    const status = propstat.querySelector('status')?.textContent;
+    const status = firstChild(propstat, 'status')?.textContent;
     if (!status?.includes('200 OK')) return null;
 
-    const prop = propstat.querySelector('prop');
+    const prop = firstChild(propstat, 'prop');
     if (!prop) return null;
 
     // Extract properties
-    const displayname = prop.querySelector('displayname')?.textContent || '';
-    const contentLength = prop.querySelector('getcontentlength')?.textContent || '0';
-    const lastModified = prop.querySelector('getlastmodified')?.textContent || '';
-    const etag = prop.querySelector('getetag')?.textContent || '';
-    const resourceType = prop.querySelector('resourcetype');
-    const contentType = prop.querySelector('getcontenttype')?.textContent || '';
+    const displayname = firstChildText(prop, 'displayname');
+    const contentLength = firstChildText(prop, 'getcontentlength') || '0';
+    const lastModified = firstChildText(prop, 'getlastmodified');
+    const etag = firstChildText(prop, 'getetag');
+    const resourceType = firstChild(prop, 'resourcetype');
+    const contentType = firstChildText(prop, 'getcontenttype');
 
     // Determine if it's a collection (directory) or file
     const isCollection =
-      resourceType !== null && resourceType.querySelector('collection') !== null;
+      resourceType !== null && firstChild(resourceType, 'collection') !== null;
 
     const parsedSize = parseInt(contentLength, 10);
     const size = !isNaN(parsedSize) && parsedSize >= 0 ? parsedSize : 0;
@@ -202,7 +246,7 @@ export class WebdavXmlParser {
         'content-length': contentLength,
         'last-modified': lastModified,
         /* eslint-enable @typescript-eslint/naming-convention */
-        etag: etag, // Keep original etag in data for reference
+        etag, // Keep original etag in data for reference
         href: decodedHref,
       },
       path: decodedHref,
