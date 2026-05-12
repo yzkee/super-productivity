@@ -19,6 +19,8 @@ import {
 } from './operation-capture.meta-reducer';
 import { ClientIdService } from '../../core/util/client-id.service';
 import { OperationCaptureService } from './operation-capture.service';
+import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
+import { DateService } from '../../core/date/date.service';
 
 describe('OperationLogEffects', () => {
   let effects: OperationLogEffects;
@@ -32,6 +34,7 @@ describe('OperationLogEffects', () => {
   let mockImmediateUploadService: jasmine.SpyObj<ImmediateUploadService>;
   let mockClientIdService: jasmine.SpyObj<ClientIdService>;
   let mockOperationCaptureService: jasmine.SpyObj<OperationCaptureService>;
+  let mockDateService: jasmine.SpyObj<DateService>;
 
   const createPersistentAction = (
     type: string,
@@ -73,6 +76,7 @@ describe('OperationLogEffects', () => {
     mockOperationCaptureService = jasmine.createSpyObj('OperationCaptureService', [
       'dequeue',
     ]);
+    mockDateService = jasmine.createSpyObj('DateService', ['todayStr']);
 
     // Default mock implementations
     mockLockService.request.and.callFake(
@@ -91,6 +95,7 @@ describe('OperationLogEffects', () => {
     mockStore.select.and.returnValue(of({})); // Return empty state observable
     mockClientIdService.loadClientId.and.returnValue(Promise.resolve('testClient'));
     mockOperationCaptureService.dequeue.and.returnValue([]);
+    mockDateService.todayStr.and.returnValue('2024-06-14');
 
     TestBed.configureTestingModule({
       providers: [
@@ -105,6 +110,7 @@ describe('OperationLogEffects', () => {
         { provide: ImmediateUploadService, useValue: mockImmediateUploadService },
         { provide: ClientIdService, useValue: mockClientIdService },
         { provide: OperationCaptureService, useValue: mockOperationCaptureService },
+        { provide: DateService, useValue: mockDateService },
       ],
     });
 
@@ -251,6 +257,75 @@ describe('OperationLogEffects', () => {
             entityChanges: jasmine.any(Array),
           });
           done();
+        },
+      });
+    });
+
+    it('should persist planTasksForToday replay date fields in actionPayload', (done) => {
+      const action = TaskSharedActions.planTasksForToday({
+        taskIds: ['task-1'],
+        today: '2024-06-14',
+        startOfNextDayDiffMs: 4 * 60 * 60 * 1000,
+      });
+      actions$ = of(action);
+
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          const operation =
+            mockOpLogStore.appendWithVectorClockUpdate.calls.mostRecent().args[0];
+
+          expect(operation.actionType).toBe(ActionType.TASK_SHARED_PLAN_FOR_TODAY);
+          expect(operation.payload).toEqual({
+            actionPayload: {
+              taskIds: ['task-1'],
+              today: '2024-06-14',
+              startOfNextDayDiffMs: 4 * 60 * 60 * 1000,
+            },
+            entityChanges: [],
+          });
+          done();
+        },
+      });
+    });
+
+    it('should persist replay date fields for done task updates', (done) => {
+      const now = new Date(2024, 5, 15, 2, 0, 0, 0);
+      jasmine.clock().install();
+      jasmine.clock().mockDate(now);
+
+      const action = TaskSharedActions.updateTask({
+        task: { id: 'task-1', changes: { isDone: true } },
+      });
+      actions$ = of(action);
+
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          try {
+            const operation =
+              mockOpLogStore.appendWithVectorClockUpdate.calls.mostRecent().args[0];
+
+            expect(operation.timestamp).toBe(now.getTime());
+            expect(operation.payload).toEqual({
+              actionPayload: {
+                task: {
+                  id: 'task-1',
+                  changes: {
+                    isDone: true,
+                    doneOn: now.getTime(),
+                    dueDay: '2024-06-14',
+                  },
+                },
+              },
+              entityChanges: [],
+            });
+            done();
+          } finally {
+            jasmine.clock().uninstall();
+          }
+        },
+        error: (err) => {
+          jasmine.clock().uninstall();
+          done.fail(err);
         },
       });
     });

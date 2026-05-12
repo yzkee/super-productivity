@@ -918,6 +918,8 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     this._store.dispatch(
       TaskSharedActions.planTasksForToday({
         taskIds: [task.id],
+        today: this._dateService.todayStr(),
+        startOfNextDayDiffMs: this._dateService.getStartOfNextDayDiffMs(),
         parentTaskMap: { [task.id]: task.parentId },
       }),
     );
