@@ -21,6 +21,190 @@ Slice Plan" item 1 for surrounding context.
 
 ---
 
+## Multi-review consensus (2026-05-12)
+
+Four Claude reviewers (security/privacy, architecture, alternatives,
+simplicity) ran in parallel against the original design. Codex, Copilot,
+and Gemini CLIs were attempted but failed for environment reasons
+(Codex / Copilot blocked by harness sandbox, Gemini quota+workspace
+limits); results below reflect Claude-only consensus. The Dropbox
+slice's multi-review history is the comparable Claude-only precedent.
+
+### Decisions revised after review
+
+- **Open question 1 (`WebDavNativeHttpExecutor` port) — DROP the new
+  port. Reuse `NativeHttpExecutor`.** Two of three reviewers
+  (architecture, simplicity) verified the existing port already
+  supports the WebDAV use case: `NativeHttpRequestConfig` accepts
+  `method: string` (so `PROPFIND` / `MKCOL` / `MOVE` work), already
+  has `responseType?: 'text' | 'json'` (so XML stays raw), and
+  `executeNativeRequestWithRetry` exposes `maxRetries?: number` with
+  explicit `0` support. The auto-JSON-parse "concern" is a property
+  of `CapacitorHttp.request`, not of the port — the port is just
+  `(config) => Promise<NativeHttpResponse>`. The app injects a
+  different **adapter** (wired to `WebDavHttp` Capacitor plugin
+  instead of `CapacitorHttp`) of the **same** port. The alternatives
+  reviewer dissented (preferred a separate port to keep `data: string`
+  strictly typed), but the architecture argument that the response
+  contract `data: unknown` already covers strings, plus the YAGNI
+  argument, wins. Commit 2 collapses to "wire app-side
+  `APP_WEBDAV_NATIVE_HTTP: NativeHttpExecutor` factory" — no new
+  type, just a new adapter wiring.
+
+- **Open question 4 (inline `registerPlugin` cleanup) — DROP in this
+  slice.** Architecture reviewer verified a real correctness point:
+  `webdav-http-adapter.ts:31` registers `WebDavHttp` inline **without
+  a `web:` fallback**, while `capacitor-webdav-http/index.ts:4-6`
+  registers it **with** the `web: () => import('./web')` fallback.
+  Capacitor's `registerPlugin` is idempotent by name, so both work
+  today, but the canonical registration with the web fallback is the
+  one to keep. Dropping the inline registration is part of moving
+  the adapter into the package anyway. Resolved, not deferred.
+
+- **Open question 5 (CORS heuristic) — TIGHTEN in this slice.** Two
+  reviewers (security, simplicity) flag the existing heuristic at
+  `webdav-http-adapter.ts:180-219` as both leaking a raw error to
+  logs at line 208-211 (privacy regression — Firefox's "NetworkError
+  when attempting to fetch resource at `<url>`" leaks the full URL)
+  and being overly broad ("Failed to fetch" matches every offline
+  state, not just CORS). Combined approach: collapse the heuristic
+  to a ~3-line check (`error instanceof TypeError &&
+  error.message.includes('cors')`), and replace the ambiguous-error
+  log with structured `toSyncLogError(error)` plus
+  `urlPathOnly(options.url)` meta. Net result: ~40 lines deleted,
+  one privacy leak closed.
+
+- **Open question 6 (retry policy) — PRESERVE no-retry behavior.**
+  Three reviewers agreed: adding retries is a behavior change
+  masquerading as a refactor. WebDAV has stateful methods
+  (LOCK/UNLOCK) and conditional writes (412 Precondition Failed)
+  where retry semantics differ from Dropbox's idempotent file API.
+  Under the open-question-1 decision (reuse `NativeHttpExecutor`),
+  this becomes trivially a per-call-site `maxRetries: 0` argument —
+  the port doesn't decide.
+
+- **Open question 8 (spec split) — KEEP MONOLITHIC.** Dropbox
+  precedent: `dropbox-api.spec.ts` (~876 lines) was moved as one
+  file. Splitting during a Jasmine→Vitest migration conflates two
+  changes and balloons review diff. File-split is a follow-up if it
+  ever hurts maintenance.
+
+- **Commit shape — match Dropbox 5a/5b split.** Ship the helper
+  promotion (`errorMeta` / `urlPathOnly` → `packages/sync-providers/src/log/`)
+  as its own PR **6a** before the bulk move. Alternatives reviewer
+  noted this mirrors the Dropbox split, gets an independent green
+  build, and unblocks SuperSync slice prep. Bulk move becomes
+  PR **6b**: app-side `NativeHttpExecutor` adapter wiring +
+  WebDAV/Nextcloud file move + privacy sweep + Nextcloud generic
+  widening + `md5HashSync` migration, in one commit. Optionally
+  split 6b into "adapter wiring" + "file move" if the diff is still
+  unwieldy.
+
+- **Factory shim signature — `createWebdavProvider(extraPath?: string)`,
+  not `createWebdavProvider(deps)`.** Architecture reviewer caught
+  that the Dropbox precedent at
+  `src/app/op-log/sync-providers/file-based/dropbox/dropbox.ts:31-43`
+  has the factory **compose `deps` internally** from app singletons
+  (`APP_PROVIDER_PLATFORM_INFO`, `APP_WEB_FETCH`, `OP_LOG_SYNC_LOGGER`,
+  `SyncCredentialStore`). External callers pass app-level config
+  (e.g., `extraPath`), not the internal deps bag. WebDAV/Nextcloud
+  factories follow the same shape — `createWebdavProvider(extraPath?: string)`
+  matches `WebdavBaseProvider(_extraPath?: string)`.
+
+### Decisions affirmed
+
+- **Open question 2 (`md5HashSync` → `hash-wasm` async).** All three
+  reviewers that addressed it preferred option 1. Light recommendation
+  from alternatives: include a one-line benchmark in the PR
+  description (2 MB sync file) to confirm hash-wasm's WASM init cost
+  doesn't dominate; fall back to keeping `spark-md5` only if
+  empirically slower. The async ripple touches ~5 spec call sites
+  and `_computeContentHash` in `webdav-api.ts:27-29` becomes `async`.
+
+- **Open question 3 (Nextcloud generic — widen to union).** All three
+  affirmed. Eliminates four `as unknown as` casts. Architecture
+  reviewer flagged a future-cleanup observation: the generic is only
+  used as a phantom type for `SyncCredentialStore<T>` keying, so a
+  later slice could decouple the credential-store key from the
+  private-cfg type entirely. Out of scope for this slice — note in
+  the long-term plan only.
+
+- **Open question 7 (test infrastructure — delete `TestableWebDavHttpAdapter`).**
+  Mirrors the Dropbox slice un-skip pattern. Inject `platformInfo` +
+  the native HTTP adapter (now `NativeHttpExecutor`) directly in
+  specs; delete the subclass-override harness. Spec count delta TBD
+  on execution.
+
+### New blockers surfaced (must fix in slice)
+
+The security reviewer identified privacy regression sites the original
+privacy-sweep checklist undercounted:
+
+- **URL/basePath leak via `_buildFullPath` results passed to error
+  paths.** At least four call sites (`webdav-http-adapter.ts:118, 162,
+  173`, the catch-all log meta at `:117-121`) pass the full URL — must
+  scrub via `urlPathOnly` (PR 6a helper) at every error-construction
+  and log call site. Ordering note: PR 6a must land first so the
+  helper exists.
+- **PROPFIND response body fed into `HttpNotOkAPIError`** at
+  `webdav-api.ts:66-71` and `webdav-http-adapter.ts:176`.
+  Multistatus responses contain user filenames. The slice must
+  audit `HttpNotOkAPIError`'s body retention and either drop the
+  second-arg body or replace with a length-only summary.
+- **`testConnection` returns raw `e.message`** at
+  `webdav-api.ts:371-373`. Some runtimes embed the URL in the
+  message. Strip via `toSyncLogError(e).message` or use a fixed
+  user-facing string.
+- **`_buildFullPath` throws generic `Error('Invalid path: ${path}')`**
+  at `webdav-api.ts:483-485`. Replace with `InvalidDataSPError` and
+  scrub the path.
+- **A3 sweep undercount.** Privacy checklist enumerated only a few
+  `SyncLog.error(..., e)` sites; actual count includes
+  `webdav-api.ts:73, 111, 151, 261, 329, 372` plus
+  `webdav-base-provider.ts:83, 109, 124, 130`. Replace each with
+  `toSyncLogError(e)` + curated `SyncLogMeta`.
+- **B3.4 (new): `FileMeta` never enters a log call site.** The
+  PROPFIND parser returns `FileMeta` with `displayname` / `href`
+  (user filenames). Add as an explicit invariant: any future logging
+  of a parsed `FileMeta` is a privacy regression.
+- **Package-boundary invariant.** Pin "response headers are not
+  logged or attached to errors" as a documented package boundary so
+  future provider work doesn't accidentally regress it.
+
+### Simplicity-driven scope reductions
+
+The simplicity reviewer's analysis aligns with the open-question
+decisions above and suggests further trims to the doc itself:
+
+- Once decisions are landed, the doc's "Open questions" section
+  collapses — most have answers now. Keep the section as a
+  decision-log instead of deferred questions.
+- The `md5HashSync` section's option 2 (sync via injected port) is
+  dropped now that option 1 is the consensus.
+- The Nextcloud generic section's option 1 (keep casts) is dropped.
+- Doc target after revision: ~250 lines, every paragraph either
+  describes a move or records a decision.
+
+The "deferred to a follow-up" item simplicity raised about
+`errorMeta` / `urlPathOnly` premature promotion is **rejected**:
+the bulk-move adopts them in webdav-api during the privacy sweep
+(replacing the new raw-error log sites), so they have ≥2 consumers
+by the time PR 6b lands. PR 6a stands.
+
+### Action items going into PR 6a/6b
+
+1. **PR 6a (shared log helpers).** Promote `errorMeta` and
+   `urlPathOnly` from `dropbox-api.ts:88-104` into
+   `packages/sync-providers/src/log/error-meta.ts`. Export from the
+   package barrel. Update Dropbox imports. No behavior change.
+2. **PR 6b (bulk move).** Single or two-commit (adapter wiring + file
+   move). Reuse `NativeHttpExecutor`. Apply the expanded privacy
+   sweep above. Widen Nextcloud generic. Migrate `md5HashSync` →
+   `hash-wasm`. Drop the inline `registerPlugin`. Tighten the CORS
+   heuristic. Convert specs to Vitest. Delete `TestableWebDavHttpAdapter`.
+
+---
+
 ## What moves
 
 ### Source files
