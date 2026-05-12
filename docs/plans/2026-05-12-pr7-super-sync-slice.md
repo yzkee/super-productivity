@@ -154,8 +154,8 @@ body)`. The package-side class `AuthFailSPError` at
   `errorMessage`.** `super-sync.ts:478-481` re-throws with
   `\`Unable to connect to SuperSync server. Check your internet
   connection. (\${errorMessage})\``. The `errorMessage`was extracted
-  via`\_getErrorMessage(error)`; on low-level CapacitorHttp DNS/TLS
-  errors the underlying `.message` can carry the resolved hostname
+via`\_getErrorMessage(error)`; on low-level CapacitorHttp DNS/TLS
+errors the underlying `.message` can carry the resolved hostname
   or full URL. **Fix:** drop the parenthesised interpolation
   entirely; the fixed user-facing string suffices. Logging the
   underlying error happens separately via the structured log on

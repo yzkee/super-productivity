@@ -35,7 +35,7 @@ const _createProviders = async (): Promise<SyncProviderBase<SyncProviderId>[]> =
   const [
     { createDropboxProvider },
     { createWebdavProvider },
-    { SuperSyncProvider },
+    { createSuperSyncProvider },
     { createNextcloudProvider },
   ] = await Promise.all([
     import('./file-based/dropbox/dropbox'),
@@ -52,7 +52,7 @@ const _createProviders = async (): Promise<SyncProviderBase<SyncProviderId>[]> =
       basePath: environment.production ? `/` : `/DEV/`,
     }) as SyncProviderBase<SyncProviderId>,
     createWebdavProvider(extraPath) as SyncProviderBase<SyncProviderId>,
-    new SuperSyncProvider(extraPath) as SyncProviderBase<SyncProviderId>,
+    createSuperSyncProvider() as SyncProviderBase<SyncProviderId>,
     createNextcloudProvider(extraPath) as SyncProviderBase<SyncProviderId>,
   ];
 
