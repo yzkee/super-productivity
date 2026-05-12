@@ -28,7 +28,6 @@ describe('GlobalConfigService', () => {
     const store = TestBed.inject(MockStore);
     store.overrideSelector(selectSyncConfig, syncConfig);
 
-
     const snapshot = await TestBed.inject(GlobalConfigService).getSyncConfig();
 
     expect(snapshot).toEqual({
