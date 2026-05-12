@@ -3,7 +3,7 @@ import { provideMockActions } from '@ngrx/effects/testing';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { Observable, BehaviorSubject, of, Subject, take } from 'rxjs';
 import { Action } from '@ngrx/store';
-import { TaskDueEffects } from './task-due.effects';
+import { getOverdueIdsInTodayOrder, TaskDueEffects } from './task-due.effects';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
 import { SyncWrapperService } from '../../../imex/sync/sync-wrapper.service';
 import { AddTasksForTomorrowService } from '../../add-tasks-for-tomorrow/add-tasks-for-tomorrow.service';
@@ -14,14 +14,37 @@ import { DEFAULT_TASK, Task, TaskWithDueDay } from '../task.model';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { HydrationStateService } from '../../../op-log/apply/hydration-state.service';
 import { TaskSharedActions } from '../../../root-store/meta/task-shared.actions';
+import {
+  initialTagState,
+  selectTodayTagTaskIds,
+  TAG_FEATURE_NAME,
+} from '../../tag/store/tag.reducer';
+import {
+  selectStartOfNextDayDiffMs,
+  selectTodayStr,
+} from '../../../root-store/app-state/app-state.selectors';
+import { initialTaskState, TASK_FEATURE_NAME } from './task.reducer';
+import { appStateFeatureKey } from '../../../root-store/app-state/app-state.reducer';
 
-// These tests are skipped because TaskDueEffects imports SyncTriggerService which
-// imports PfapiService which imports pfapi-config.ts. That file eagerly instantiates
-// PFAPI_SYNC_PROVIDERS (including Dropbox) at module load time, which fails in the
-// test environment. This requires architectural changes to lazy-load sync providers.
-// See also: src/app/imex/sync/sync.effects.spec.ts for similar pattern.
-// TODO: Refactor pfapi-config.ts to lazy-load sync providers to enable these tests.
-xdescribe('TaskDueEffects', () => {
+describe('getOverdueIdsInTodayOrder', () => {
+  it('returns overdue ids in raw Today tag order', () => {
+    expect(
+      getOverdueIdsInTodayOrder(
+        [{ id: 'overdue-3' }, { id: 'overdue-1' }],
+        ['task-0', 'overdue-1', 'task-2', 'overdue-3'],
+      ),
+    ).toEqual(['overdue-1', 'overdue-3']);
+  });
+
+  it('returns an empty list when overdue ids are not in the raw Today tag order', () => {
+    expect(
+      getOverdueIdsInTodayOrder([{ id: 'overdue-1' }], ['task-2', 'task-3']),
+    ).toEqual([]);
+  });
+});
+
+describe('TaskDueEffects', () => {
+  let previousTimeout: number;
   const actions$: Observable<Action> = of();
   let effects: TaskDueEffects;
   let store: MockStore;
@@ -34,6 +57,22 @@ xdescribe('TaskDueEffects', () => {
   let addTasksForTomorrowService: jasmine.SpyObj<AddTasksForTomorrowService>;
 
   const todayStr = getDbDateStr();
+  const startOfNextDayDiffMs = 0;
+
+  const initialState = {
+    [TASK_FEATURE_NAME]: initialTaskState,
+    [TAG_FEATURE_NAME]: initialTagState,
+    [appStateFeatureKey]: { todayStr, startOfNextDayDiffMs },
+  };
+
+  beforeAll(() => {
+    previousTimeout = jasmine.DEFAULT_TIMEOUT_INTERVAL;
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = 10000;
+  });
+
+  afterAll(() => {
+    jasmine.DEFAULT_TIMEOUT_INTERVAL = previousTimeout;
+  });
 
   const createTask = (id: string, partial: Partial<Task> = {}): Task => ({
     ...DEFAULT_TASK,
@@ -74,17 +113,24 @@ xdescribe('TaskDueEffects', () => {
 
     const hydrationStateServiceSpy = jasmine.createSpyObj('HydrationStateService', [
       'isApplyingRemoteOps',
+      'isInSyncWindow',
     ]);
     hydrationStateServiceSpy.isApplyingRemoteOps.and.returnValue(false);
+    hydrationStateServiceSpy.isInSyncWindow.and.returnValue(false);
+    hydrationStateServiceSpy.isInSyncWindow$ = of(false);
 
     TestBed.configureTestingModule({
       providers: [
         TaskDueEffects,
         provideMockActions(() => actions$),
         provideMockStore({
+          initialState,
           selectors: [
             { selector: selectOverdueTasksOnToday, value: [] },
             { selector: selectTodayTaskIds, value: [] },
+            { selector: selectTodayTagTaskIds, value: [] },
+            { selector: selectTodayStr, value: todayStr },
+            { selector: selectStartOfNextDayDiffMs, value: startOfNextDayDiffMs },
           ],
         }),
         {
@@ -156,25 +202,22 @@ xdescribe('TaskDueEffects', () => {
     });
 
     it('should not react to duplicate date strings (distinctUntilChanged)', (done) => {
-      let emitCount = 0;
+      const subscription = effects.createRepeatableTasksAndAddDueToday$.subscribe();
 
-      const subscription = effects.createRepeatableTasksAndAddDueToday$.subscribe(() => {
-        emitCount++;
-      });
-
-      // Emit initial date
-      globalTrackingIntervalService.todayDateStr$.next(todayStr);
-      syncWrapperService.afterCurrentSyncDoneOrSyncDisabled$.next(true);
-
-      // Wait for debounce to pass, then check only one emission for same date
+      // Wait for the initial BehaviorSubject emission to pass through the debounce,
+      // then emit the same date again. The sync wrapper is also a BehaviorSubject
+      // in this setup, so each inner switchMap subscription receives the current
+      // "sync done" value without a manual next().
+      // distinctUntilChanged should suppress the duplicate date before that point.
       setTimeout(() => {
-        // Emit same date again - should be ignored
+        const callCountAfterInitialEmission =
+          addTasksForTomorrowService.addAllDueToday.calls.count();
         globalTrackingIntervalService.todayDateStr$.next(todayStr);
-        syncWrapperService.afterCurrentSyncDoneOrSyncDisabled$.next(true);
 
         setTimeout(() => {
-          // Only first emission should have triggered
-          expect(emitCount).toBeLessThanOrEqual(1);
+          expect(addTasksForTomorrowService.addAllDueToday.calls.count()).toBe(
+            callCountAfterInitialEmission,
+          );
           subscription.unsubscribe();
           done();
         }, 1500);
@@ -189,7 +232,7 @@ xdescribe('TaskDueEffects', () => {
       });
 
       store.overrideSelector(selectOverdueTasksOnToday, [overdueTask]);
-      store.overrideSelector(selectTodayTaskIds, ['overdue-1', 'task-2']);
+      store.overrideSelector(selectTodayTagTaskIds, ['overdue-1', 'task-2']);
       store.refreshState();
 
       const subscription = effects.removeOverdueFormToday$.pipe(take(1)).subscribe({
@@ -211,13 +254,13 @@ xdescribe('TaskDueEffects', () => {
       syncWrapperService.afterCurrentSyncDoneOrSyncDisabled$.next(true);
     });
 
-    it('should preserve task order from todayTaskIds when removing overdue', (done) => {
+    it('should preserve task order from todayTagTaskIds when removing overdue', (done) => {
       const overdueTask1 = createTask('overdue-1');
       const overdueTask2 = createTask('overdue-3');
 
       store.overrideSelector(selectOverdueTasksOnToday, [overdueTask1, overdueTask2]);
-      // Note the specific order in todayTaskIds
-      store.overrideSelector(selectTodayTaskIds, [
+      // Note the specific order in raw today tag task ids
+      store.overrideSelector(selectTodayTagTaskIds, [
         'task-0',
         'overdue-1',
         'task-2',
@@ -230,7 +273,7 @@ xdescribe('TaskDueEffects', () => {
         next: (action) => {
           expect(action).toEqual(
             jasmine.objectContaining({
-              taskIds: ['overdue-1', 'overdue-3'], // Order from todayTaskIds
+              taskIds: ['overdue-1', 'overdue-3'], // Order from raw today tag task ids
             }),
           );
           subscription.unsubscribe();
@@ -263,7 +306,7 @@ xdescribe('TaskDueEffects', () => {
       }, 1500);
     });
 
-    it('should not emit when overdue tasks exist but none are in todayTaskIds', (done) => {
+    it('should not emit when overdue tasks exist but none are in todayTagTaskIds', (done) => {
       // This tests the fix for the bug where removeTasksFromTodayTag was dispatched
       // with empty taskIds, causing "missing entityId/entityIds" error during sync
       const overdueTask = createTask('overdue-1', {
@@ -271,8 +314,8 @@ xdescribe('TaskDueEffects', () => {
       });
 
       store.overrideSelector(selectOverdueTasksOnToday, [overdueTask]);
-      // todayTaskIds does NOT contain overdue-1, so overdueIds will be empty
-      store.overrideSelector(selectTodayTaskIds, ['task-2', 'task-3']);
+      // raw today tag task ids do NOT contain overdue-1, so overdueIds will be empty
+      store.overrideSelector(selectTodayTagTaskIds, ['task-2', 'task-3']);
       store.refreshState();
 
       let emitted = false;
@@ -307,6 +350,8 @@ xdescribe('TaskDueEffects', () => {
             expect(action).toEqual(
               jasmine.objectContaining({
                 taskIds: ['due-today-1'],
+                today: todayStr,
+                startOfNextDayDiffMs,
                 isSkipRemoveReminder: true,
               }),
             );
@@ -385,6 +430,8 @@ xdescribe('TaskDueEffects', () => {
             expect(action).toEqual(
               jasmine.objectContaining({
                 taskIds: ['subtask-1'],
+                today: todayStr,
+                startOfNextDayDiffMs,
                 isSkipRemoveReminder: true,
               }),
             );
@@ -427,8 +474,11 @@ xdescribe('TaskDueEffects', () => {
 
       const hydrationStateServiceSpy2 = jasmine.createSpyObj('HydrationStateService', [
         'isApplyingRemoteOps',
+        'isInSyncWindow',
       ]);
       hydrationStateServiceSpy2.isApplyingRemoteOps.and.returnValue(false);
+      hydrationStateServiceSpy2.isInSyncWindow.and.returnValue(false);
+      hydrationStateServiceSpy2.isInSyncWindow$ = of(false);
 
       TestBed.resetTestingModule();
       TestBed.configureTestingModule({
@@ -436,9 +486,11 @@ xdescribe('TaskDueEffects', () => {
           TaskDueEffects,
           provideMockActions(() => emptyActions$),
           provideMockStore({
+            initialState,
             selectors: [
               { selector: selectOverdueTasksOnToday, value: [] },
               { selector: selectTodayTaskIds, value: [] },
+              { selector: selectTodayTagTaskIds, value: [] },
             ],
           }),
           {
