@@ -156,8 +156,9 @@ Current extraction state and remaining immediate debt:
 - PR 4a is present with `packages/sync-core/src/ports.ts`. The package now
   exports minimal contracts for operation application, action dispatch,
   remote-apply windows, deferred local action flushing, archive side effects,
-  and operation-store persistence. The existing Angular services satisfy those
-  contracts app-side.
+  operation-store persistence, conflict UI, and sync configuration. The existing
+  Angular services satisfy the replay/storage contracts app-side; conflict UI
+  and sync config are currently type-only contracts for future adapters.
 - PR 4b's current small helper set is present: remote-apply crash-safety
   ordering, upload last-server-sequence planning, full-state snapshot upload
   follow-up partitioning, download gap/full-state/encryption planning, and
@@ -669,8 +670,8 @@ Introduce orchestration ports without moving the orchestrators yet. This reduces
 the risk of the later service moves.
 
 Status: implemented for the current branch slice. `@sp/sync-core` exports the
-first minimal port contracts, and these app services now explicitly satisfy
-them:
+first minimal replay/storage port contracts, and these app services now
+explicitly satisfy them:
 
 - `OperationApplierService` implements `OperationApplyPort<Operation>` and uses
   `ActionDispatchPort<SyncActionLike>` for its NgRx dispatch seam.
@@ -679,6 +680,10 @@ them:
 - `ArchiveOperationHandler` implements `ArchiveSideEffectPort<PersistentAction>`.
 - `OperationLogStoreService` implements
   `OperationStorePort<Operation, OperationLogEntry>`.
+
+`ConflictUiPort` and `SyncConfigPort` are also exported as type-only package
+contracts. Runtime Angular adapters are intentionally still pending because no
+orchestration has moved behind them yet.
 
 This is contract-only: NgRx dispatch, hydration windows, archive IndexedDB
 handling, and deferred local action processing remain app-side.
