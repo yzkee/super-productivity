@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { provideMockActions } from '@ngrx/effects/testing';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 import { Observable, BehaviorSubject, of, Subject, take } from 'rxjs';
@@ -62,6 +62,9 @@ describe('TaskDueEffects', () => {
 
   const todayStr = getDbDateStr();
   const startOfNextDayDiffMs = 0;
+  const CREATE_REPEAT_DEBOUNCE_MS = 1000;
+  const REMOVE_OVERDUE_DEBOUNCE_MS = 1000;
+  const ENSURE_TASKS_DUE_DEBOUNCE_MS = 2000;
 
   const initialState = {
     [TASK_FEATURE_NAME]: initialTaskState,
@@ -185,29 +188,20 @@ describe('TaskDueEffects', () => {
   });
 
   describe('createRepeatableTasksAndAddDueToday$', () => {
-    it('should call addAllDueToday after initial sync (async)', (done) => {
+    it('should call addAllDueToday after initial sync (async)', fakeAsync(() => {
       // Subscribe to the effect
-      const subscription = effects.createRepeatableTasksAndAddDueToday$.subscribe(() => {
-        // The effect should have called addAllDueToday
-        expect(addTasksForTomorrowService.addAllDueToday).toHaveBeenCalled();
-        subscription.unsubscribe();
-        done();
-      });
+      const subscription = effects.createRepeatableTasksAndAddDueToday$.subscribe();
 
       // Trigger emissions
       globalTrackingIntervalService.todayDateStr$.next(todayStr);
       syncWrapperService.afterCurrentSyncDoneOrSyncDisabled$.next(true);
+      tick(CREATE_REPEAT_DEBOUNCE_MS);
 
-      // If effect doesn't emit within timeout, test will fail
-      setTimeout(() => {
-        if (!addTasksForTomorrowService.addAllDueToday.calls.count()) {
-          // Effect has debounceTime, so we might need to wait longer
-          // This is expected since effect has 1000ms debounceTime
-        }
-      }, 100);
-    });
+      expect(addTasksForTomorrowService.addAllDueToday).toHaveBeenCalled();
+      subscription.unsubscribe();
+    }));
 
-    it('should not react to duplicate date strings (distinctUntilChanged)', (done) => {
+    it('should not react to duplicate date strings (distinctUntilChanged)', fakeAsync(() => {
       const subscription = effects.createRepeatableTasksAndAddDueToday$.subscribe();
 
       // Wait for the initial BehaviorSubject emission to pass through the debounce,
@@ -215,24 +209,21 @@ describe('TaskDueEffects', () => {
       // in this setup, so each inner switchMap subscription receives the current
       // "sync done" value without a manual next().
       // distinctUntilChanged should suppress the duplicate date before that point.
-      setTimeout(() => {
-        const callCountAfterInitialEmission =
-          addTasksForTomorrowService.addAllDueToday.calls.count();
-        globalTrackingIntervalService.todayDateStr$.next(todayStr);
+      tick(CREATE_REPEAT_DEBOUNCE_MS);
+      const callCountAfterInitialEmission =
+        addTasksForTomorrowService.addAllDueToday.calls.count();
+      globalTrackingIntervalService.todayDateStr$.next(todayStr);
+      tick(CREATE_REPEAT_DEBOUNCE_MS);
 
-        setTimeout(() => {
-          expect(addTasksForTomorrowService.addAllDueToday.calls.count()).toBe(
-            callCountAfterInitialEmission,
-          );
-          subscription.unsubscribe();
-          done();
-        }, 1500);
-      }, 1500);
-    });
+      expect(addTasksForTomorrowService.addAllDueToday.calls.count()).toBe(
+        callCountAfterInitialEmission,
+      );
+      subscription.unsubscribe();
+    }));
   });
 
   describe('removeOverdueFormToday$', () => {
-    it('should dispatch localRemoveOverdueFromToday (non-persistent) when there are overdue tasks (#6992)', (done) => {
+    it('should dispatch localRemoveOverdueFromToday (non-persistent) when there are overdue tasks (#6992)', fakeAsync(() => {
       const overdueTask = createTask('overdue-1', {
         dueDay: '2024-01-01', // Past date
       });
@@ -241,26 +232,30 @@ describe('TaskDueEffects', () => {
       store.overrideSelector(selectTodayTagTaskIds, ['overdue-1', 'task-2']);
       store.refreshState();
 
-      const subscription = effects.removeOverdueFormToday$.pipe(take(1)).subscribe({
-        next: (action) => {
-          expect(action.type).toBe(TaskSharedActions.localRemoveOverdueFromToday.type);
-          expect(action).toEqual(
-            jasmine.objectContaining({
-              taskIds: ['overdue-1'],
-            }),
-          );
-          subscription.unsubscribe();
-          done();
-        },
-        error: done.fail,
-      });
+      let emittedAction: Action | undefined;
+      const subscription = effects.removeOverdueFormToday$
+        .pipe(take(1))
+        .subscribe((action) => {
+          emittedAction = action;
+        });
 
       // Trigger the effect
       globalTrackingIntervalService.todayDateStr$.next(todayStr);
       syncWrapperService.afterCurrentSyncDoneOrSyncDisabled$.next(true);
-    });
+      tick(REMOVE_OVERDUE_DEBOUNCE_MS);
 
-    it('should preserve task order from todayTagTaskIds when removing overdue', (done) => {
+      expect(emittedAction?.type).toBe(
+        TaskSharedActions.localRemoveOverdueFromToday.type,
+      );
+      expect(emittedAction).toEqual(
+        jasmine.objectContaining({
+          taskIds: ['overdue-1'],
+        }),
+      );
+      subscription.unsubscribe();
+    }));
+
+    it('should preserve task order from todayTagTaskIds when removing overdue', fakeAsync(() => {
       const overdueTask1 = createTask('overdue-1');
       const overdueTask2 = createTask('overdue-3');
 
@@ -275,24 +270,26 @@ describe('TaskDueEffects', () => {
       ]);
       store.refreshState();
 
-      const subscription = effects.removeOverdueFormToday$.pipe(take(1)).subscribe({
-        next: (action) => {
-          expect(action).toEqual(
-            jasmine.objectContaining({
-              taskIds: ['overdue-1', 'overdue-3'], // Order from raw today tag task ids
-            }),
-          );
-          subscription.unsubscribe();
-          done();
-        },
-        error: done.fail,
-      });
+      let emittedAction: Action | undefined;
+      const subscription = effects.removeOverdueFormToday$
+        .pipe(take(1))
+        .subscribe((action) => {
+          emittedAction = action;
+        });
 
       globalTrackingIntervalService.todayDateStr$.next(todayStr);
       syncWrapperService.afterCurrentSyncDoneOrSyncDisabled$.next(true);
-    });
+      tick(REMOVE_OVERDUE_DEBOUNCE_MS);
 
-    it('should not emit when no overdue tasks', (done) => {
+      expect(emittedAction).toEqual(
+        jasmine.objectContaining({
+          taskIds: ['overdue-1', 'overdue-3'], // Order from raw today tag task ids
+        }),
+      );
+      subscription.unsubscribe();
+    }));
+
+    it('should not emit when no overdue tasks', fakeAsync(() => {
       store.overrideSelector(selectOverdueTasksOnToday, []);
       store.refreshState();
 
@@ -303,16 +300,13 @@ describe('TaskDueEffects', () => {
 
       globalTrackingIntervalService.todayDateStr$.next(todayStr);
       syncWrapperService.afterCurrentSyncDoneOrSyncDisabled$.next(true);
+      tick(REMOVE_OVERDUE_DEBOUNCE_MS);
 
-      // Wait for potential emission
-      setTimeout(() => {
-        expect(emitted).toBe(false);
-        subscription.unsubscribe();
-        done();
-      }, 1500);
-    });
+      expect(emitted).toBe(false);
+      subscription.unsubscribe();
+    }));
 
-    it('should not emit when overdue tasks exist but none are in todayTagTaskIds', (done) => {
+    it('should not emit when overdue tasks exist but none are in todayTagTaskIds', fakeAsync(() => {
       // This tests the fix for the bug where removeTasksFromTodayTag was dispatched
       // with empty taskIds, causing "missing entityId/entityIds" error during sync
       const overdueTask = createTask('overdue-1', {
@@ -331,47 +325,44 @@ describe('TaskDueEffects', () => {
 
       globalTrackingIntervalService.todayDateStr$.next(todayStr);
       syncWrapperService.afterCurrentSyncDoneOrSyncDisabled$.next(true);
+      tick(REMOVE_OVERDUE_DEBOUNCE_MS);
 
-      // Wait for potential emission - should not emit because no matching tasks
-      setTimeout(() => {
-        expect(emitted).toBe(false);
-        subscription.unsubscribe();
-        done();
-      }, 1500);
-    });
+      expect(emitted).toBe(false);
+      subscription.unsubscribe();
+    }));
   });
 
   describe('ensureTasksDueTodayInTodayTag$', () => {
-    it('should dispatch planTasksForToday for tasks due today not in TODAY tag', (done) => {
+    it('should dispatch planTasksForToday for tasks due today not in TODAY tag', fakeAsync(() => {
       const taskDueToday = createTaskWithDueDay('due-today-1', todayStr);
 
       store.overrideSelector(selectTasksDueForDay, [taskDueToday]);
       store.overrideSelector(selectTodayTaskIds, ['other-task']);
       store.refreshState();
 
+      let emittedAction: Action | undefined;
       const subscription = effects.ensureTasksDueTodayInTodayTag$
         .pipe(take(1))
-        .subscribe({
-          next: (action) => {
-            expect(action).toEqual(
-              jasmine.objectContaining({
-                taskIds: ['due-today-1'],
-                today: todayStr,
-                startOfNextDayDiffMs,
-                isSkipRemoveReminder: true,
-              }),
-            );
-            subscription.unsubscribe();
-            done();
-          },
-          error: done.fail,
+        .subscribe((action) => {
+          emittedAction = action;
         });
 
       globalTrackingIntervalService.todayDateStr$.next(todayStr);
       syncWrapperService.afterCurrentSyncDoneOrSyncDisabled$.next(true);
-    });
+      tick(ENSURE_TASKS_DUE_DEBOUNCE_MS);
 
-    it('should not emit when all tasks due today are already in TODAY tag', (done) => {
+      expect(emittedAction).toEqual(
+        jasmine.objectContaining({
+          taskIds: ['due-today-1'],
+          today: todayStr,
+          startOfNextDayDiffMs,
+          isSkipRemoveReminder: true,
+        }),
+      );
+      subscription.unsubscribe();
+    }));
+
+    it('should not emit when all tasks due today are already in TODAY tag', fakeAsync(() => {
       const taskDueToday = createTaskWithDueDay('due-today-1', todayStr);
 
       store.overrideSelector(selectTasksDueForDay, [taskDueToday]);
@@ -385,15 +376,13 @@ describe('TaskDueEffects', () => {
 
       globalTrackingIntervalService.todayDateStr$.next(todayStr);
       syncWrapperService.afterCurrentSyncDoneOrSyncDisabled$.next(true);
+      tick(ENSURE_TASKS_DUE_DEBOUNCE_MS);
 
-      setTimeout(() => {
-        expect(emitted).toBe(false);
-        subscription.unsubscribe();
-        done();
-      }, 2500);
-    });
+      expect(emitted).toBe(false);
+      subscription.unsubscribe();
+    }));
 
-    it('should exclude subtasks whose parent is already in TODAY', (done) => {
+    it('should exclude subtasks whose parent is already in TODAY', fakeAsync(() => {
       const parentTask = createTaskWithDueDay('parent-1', todayStr);
       const subtask = createTaskWithDueDay('subtask-1', todayStr, {
         parentId: 'parent-1',
@@ -411,16 +400,14 @@ describe('TaskDueEffects', () => {
 
       globalTrackingIntervalService.todayDateStr$.next(todayStr);
       syncWrapperService.afterCurrentSyncDoneOrSyncDisabled$.next(true);
+      tick(ENSURE_TASKS_DUE_DEBOUNCE_MS);
 
-      setTimeout(() => {
-        // Should not emit because subtask's parent is already in TODAY
-        expect(emitted).toBe(false);
-        subscription.unsubscribe();
-        done();
-      }, 2500);
-    });
+      // Should not emit because subtask's parent is already in TODAY
+      expect(emitted).toBe(false);
+      subscription.unsubscribe();
+    }));
 
-    it('should include subtask if parent is not in TODAY', (done) => {
+    it('should include subtask if parent is not in TODAY', fakeAsync(() => {
       const subtask = createTaskWithDueDay('subtask-1', todayStr, {
         parentId: 'parent-not-in-today',
       });
@@ -429,29 +416,29 @@ describe('TaskDueEffects', () => {
       store.overrideSelector(selectTodayTaskIds, ['other-task']);
       store.refreshState();
 
+      let emittedAction: Action | undefined;
       const subscription = effects.ensureTasksDueTodayInTodayTag$
         .pipe(take(1))
-        .subscribe({
-          next: (action) => {
-            expect(action).toEqual(
-              jasmine.objectContaining({
-                taskIds: ['subtask-1'],
-                today: todayStr,
-                startOfNextDayDiffMs,
-                isSkipRemoveReminder: true,
-              }),
-            );
-            subscription.unsubscribe();
-            done();
-          },
-          error: done.fail,
+        .subscribe((action) => {
+          emittedAction = action;
         });
 
       globalTrackingIntervalService.todayDateStr$.next(todayStr);
       syncWrapperService.afterCurrentSyncDoneOrSyncDisabled$.next(true);
-    });
+      tick(ENSURE_TASKS_DUE_DEBOUNCE_MS);
 
-    it('should not emit when no tasks are due today', (done) => {
+      expect(emittedAction).toEqual(
+        jasmine.objectContaining({
+          taskIds: ['subtask-1'],
+          today: todayStr,
+          startOfNextDayDiffMs,
+          isSkipRemoveReminder: true,
+        }),
+      );
+      subscription.unsubscribe();
+    }));
+
+    it('should not emit when no tasks are due today', fakeAsync(() => {
       store.overrideSelector(selectTasksDueForDay, []);
       store.overrideSelector(selectTodayTaskIds, ['task-1']);
       store.refreshState();
@@ -463,17 +450,15 @@ describe('TaskDueEffects', () => {
 
       globalTrackingIntervalService.todayDateStr$.next(todayStr);
       syncWrapperService.afterCurrentSyncDoneOrSyncDisabled$.next(true);
+      tick(ENSURE_TASKS_DUE_DEBOUNCE_MS);
 
-      setTimeout(() => {
-        expect(emitted).toBe(false);
-        subscription.unsubscribe();
-        done();
-      }, 2500);
-    });
+      expect(emitted).toBe(false);
+      subscription.unsubscribe();
+    }));
   });
 
   describe('effect initialization', () => {
-    it('should wait for initial sync before processing', (done) => {
+    it('should wait for initial sync before processing', fakeAsync(() => {
       // Create a new sync trigger that hasn't emitted yet
       const delayedSyncTrigger$ = new Subject<boolean>();
       const emptyActions$: Observable<Action> = of();
@@ -535,20 +520,16 @@ describe('TaskDueEffects', () => {
       const subscription = newEffects.createRepeatableTasksAndAddDueToday$.subscribe();
 
       // Should not have been called yet because sync hasn't completed
-      setTimeout(() => {
-        expect(newAddTasksService.addAllDueToday).not.toHaveBeenCalled();
+      tick(100);
+      expect(newAddTasksService.addAllDueToday).not.toHaveBeenCalled();
 
-        // Now trigger sync completion
-        delayedSyncTrigger$.next(true);
-        delayedSyncTrigger$.complete();
+      // Now trigger sync completion
+      delayedSyncTrigger$.next(true);
+      delayedSyncTrigger$.complete();
+      tick(CREATE_REPEAT_DEBOUNCE_MS);
 
-        // Wait for effect to process
-        setTimeout(() => {
-          expect(newAddTasksService.addAllDueToday).toHaveBeenCalled();
-          subscription.unsubscribe();
-          done();
-        }, 1500);
-      }, 100);
-    });
+      expect(newAddTasksService.addAllDueToday).toHaveBeenCalled();
+      subscription.unsubscribe();
+    }));
   });
 });
