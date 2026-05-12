@@ -469,6 +469,10 @@ Initial candidate-file audit:
 - `op-log/validation/repair-menu-tree.ts`: menu-tree repair logs now use
   `SyncLogger` metadata for removed references/invalid nodes; raw node objects
   and folder names stay out of exportable logs.
+- `op-log/validation/validation-fn.ts`: schema validation failures now route
+  through `SyncLogger` with counts, paths, expected types, and data shape
+  summaries only; raw validation result data and invalid values stay out of
+  exportable logs.
 - `op-log/util/sync-file-prefix.ts`: now delegates to the package helper with
   app-supplied prefix and error construction. The app-facing shim should remain
   until consumers are deliberately switched to injected/configured helpers.
