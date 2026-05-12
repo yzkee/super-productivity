@@ -157,8 +157,8 @@ Current extraction state and remaining immediate debt:
   exports minimal contracts for operation application, action dispatch,
   remote-apply windows, deferred local action flushing, archive side effects,
   operation-store persistence, conflict UI, and sync configuration. The existing
-  Angular services satisfy the replay/storage contracts app-side; conflict UI
-  and sync config are currently type-only contracts for future adapters.
+  Angular services satisfy these contracts app-side. Conflict UI and sync config
+  adapters remain app-side and are not used by package orchestration yet.
 - PR 4b's current small helper set is present: remote-apply crash-safety
   ordering, upload last-server-sequence planning, full-state snapshot upload
   follow-up partitioning, download gap/full-state/encryption planning, and
@@ -681,9 +681,17 @@ explicitly satisfy them:
 - `OperationLogStoreService` implements
   `OperationStorePort<Operation, OperationLogEntry>`.
 
-`ConflictUiPort` and `SyncConfigPort` are also exported as type-only package
-contracts. Runtime Angular adapters are intentionally still pending because no
-orchestration has moved behind them yet.
+`ConflictUiPort` and `SyncConfigPort` are also exported and satisfied by
+app-side services:
+
+- `SyncImportConflictDialogService` implements
+  `ConflictUiPort<SyncImportConflictResolution>` for the sync-import conflict
+  dialog while keeping its app-specific `SyncImportConflictData` API.
+- `GlobalConfigService` implements `SyncConfigPort` by exposing the current
+  `selectSyncConfig` snapshot without leaking NgRx selectors into
+  `@sp/sync-core`.
+
+These adapters are intentionally not used by package orchestration yet.
 
 This is contract-only: NgRx dispatch, hydration windows, archive IndexedDB
 handling, and deferred local action processing remain app-side.
