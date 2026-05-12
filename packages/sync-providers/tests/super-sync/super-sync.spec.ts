@@ -1339,6 +1339,51 @@ describe('SuperSyncProvider', () => {
       // Privacy: the URL/hostname must NOT be in the user-facing message.
       expect(caught!.message).not.toContain('internal-host.invalid');
     });
+
+    /**
+     * Non-retryable foreign native errors (e.g. iOS TLS-cert errors) can
+     * embed the resolved hostname in `.message`. Verify the user-facing
+     * surface scrubs to a name-only form so dialogs / snacks don't leak.
+     */
+    it('scrubs non-retryable foreign native errors (e.g. TLS cert) to name-only surface', async () => {
+      const ctx = buildProvider({ isNativePlatform: true });
+      ctx.cfgStore.load.mockResolvedValue(testConfig);
+      const tlsError = new Error(
+        'SSL certificate problem: hostname mismatch for sync.example.com',
+      );
+      tlsError.name = 'TlsError';
+      ctx.nativeHttpExecutor.mockRejectedValue(tlsError);
+
+      let caught: Error | undefined;
+      try {
+        await ctx.provider.uploadOps([createMockOperation()], 'client-1');
+      } catch (e) {
+        caught = e as Error;
+      }
+      expect(caught?.message).toBe('SuperSync native request failed: TlsError');
+      // Privacy: the hostname from the cert error must NOT leak.
+      expect(caught!.message).not.toContain('sync.example.com');
+      expect(caught!.message).not.toContain('hostname mismatch');
+    });
+
+    /**
+     * Our own thrown errors carry only scrubbed content (HTTP <status>,
+     * AuthFailSPError, MissingCredentialsSPError) and must propagate
+     * unchanged on the non-retryable native path.
+     */
+    it('preserves AuthFailSPError identity through non-retryable native path', async () => {
+      const ctx = buildProvider({ isNativePlatform: true });
+      ctx.cfgStore.load.mockResolvedValue(testConfig);
+      ctx.nativeHttpExecutor.mockResolvedValue({
+        status: 401,
+        headers: {},
+        data: { error: 'token expired' },
+      });
+
+      await expect(
+        ctx.provider.uploadOps([createMockOperation()], 'client-1'),
+      ).rejects.toBeInstanceOf(AuthFailSPError);
+    });
   });
 
   describe('Request timeout handling', () => {

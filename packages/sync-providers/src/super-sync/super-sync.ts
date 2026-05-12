@@ -538,6 +538,23 @@ export class SuperSyncProvider
         'Unable to connect to SuperSync server. Check your internet connection.',
       );
     }
+    // Our own thrown errors (`AuthFailSPError`, `MissingCredentialsSPError`,
+    // `HTTP <status>` from the non-2xx branch) carry only scrubbed content
+    // and propagate unchanged. Foreign errors from the native HTTP executor
+    // (e.g. iOS TLS-cert errors like "Hostname mismatch for example.com")
+    // can embed the resolved hostname in `.message`. Replace those with a
+    // name-only surface — the full message is captured above via the
+    // structured logger.
+    if (
+      error instanceof AuthFailSPError ||
+      error instanceof MissingCredentialsSPError ||
+      (error instanceof Error && error.message.startsWith('HTTP '))
+    ) {
+      throw error;
+    }
+    if (error instanceof Error) {
+      throw new Error(`SuperSync native request failed: ${error.name}`);
+    }
     throw error;
   }
 

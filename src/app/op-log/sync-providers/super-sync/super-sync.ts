@@ -41,7 +41,12 @@ export const createSuperSyncProvider = (): PackageSuperSyncProvider => {
   const localStoragePort: SuperSyncDeps['storage'] = {
     getLastServerSeq: (key) => {
       const v = localStorage.getItem(key);
-      return v == null ? null : Number.parseInt(v, 10);
+      if (v == null || v === '') return null;
+      // `parseInt` returns NaN for non-numeric strings (e.g. a future
+      // regression that writes ""). Bridge to `null` so the package's
+      // `stored ?? 0` fallback fires correctly.
+      const n = Number.parseInt(v, 10);
+      return Number.isFinite(n) ? n : null;
     },
     setLastServerSeq: (key, value) => localStorage.setItem(key, String(value)),
     removeLastServerSeq: (key) => localStorage.removeItem(key),
