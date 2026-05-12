@@ -5,9 +5,9 @@ import { TaskService } from '../../features/tasks/task.service';
 import { TaskArchiveService } from '../../features/archive/task-archive.service';
 import { ProjectService } from '../../features/project/project.service';
 import { TagService } from '../../features/tag/tag.service';
-import { Task, TaskWithSubTasks, TaskArchive } from '../../features/tasks/task.model';
-import { DateService } from '../date/date.service';
 import { TODAY_TAG } from '../../features/tag/tag.const';
+import { DateService } from '../date/date.service';
+import { Task, TaskWithSubTasks, TaskArchive } from '../../features/tasks/task.model';
 import {
   LocalRestApiRequestPayload,
   LocalRestApiResponsePayload,
@@ -392,6 +392,26 @@ describe('LocalRestApiHandlerService', () => {
         );
 
         expectTaskIds(response, ['task-1', 'task-3']);
+      });
+
+      it('should filter TODAY virtual tag by due fields', async () => {
+        dateServiceMock.isToday.and.callFake((value: number | Date) => value === 12345);
+        const tasks = [
+          createMockTask('due-day', { dueDay: '2026-05-12' }),
+          createMockTask('due-time', { dueWithTime: 12345 }),
+          createMockTask('normal-tag', { tagIds: [TODAY_TAG.id] }),
+          createMockTask('tomorrow', { dueDay: '2026-05-13' }),
+        ];
+        Object.defineProperty(taskServiceMock, 'allTasks$', { get: () => of(tasks) });
+
+        const response = await sendRequestAndWait(
+          createRequest('GET', '/tasks', { query: { tagId: TODAY_TAG.id } }),
+        );
+
+        expect(response.body.ok).toBe(true);
+        expect(
+          ((response.body as { data: Task[] }).data || []).map((task) => task.id),
+        ).toEqual(['due-day', 'due-time']);
       });
 
       it('should exclude done tasks by default', async () => {

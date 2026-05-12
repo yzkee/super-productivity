@@ -176,8 +176,7 @@ module.exports = tseslint.config(
           paths: [
             {
               name: '@sp/shared-schema',
-              message:
-                '@sp/sync-providers must not import SP-specific schema packages.',
+              message: '@sp/sync-providers must not import SP-specific schema packages.',
             },
           ],
           patterns: [
