@@ -75,6 +75,16 @@ export class UploadRevToMatchMismatchAPIError extends AdditionalLogErrorBase {
 
 export class HttpNotOkAPIError extends AdditionalLogErrorBase {
   override name = ' HttpNotOkAPIError';
+  /**
+   * Raw `Response` object retained so callers can read `.status` /
+   * `.statusText`.
+   *
+   * **Privacy invariant: never log `response.body` (the body stream) or
+   * stream it into a structured logger.** It can contain user filenames
+   * (PROPFIND multistatus) and other content. The `detail` field below is
+   * the only sanctioned surface for body content, and that one is
+   * UI-only — see its JSDoc.
+   */
   response: Response;
   body?: string;
   /**
@@ -82,6 +92,11 @@ export class HttpNotOkAPIError extends AdditionalLogErrorBase {
    * from `.message` so privacy-aware log paths default to logging only
    * `HTTP <status> <statusText>`; UI surfaces opt in to the longer
    * detail via `getErrorTxt`.
+   *
+   * **Privacy invariant: route `detail` to user-facing UI only. Never
+   * pass it to `SyncLog` / structured logger meta** — Nextcloud's
+   * `<s:message>` content (the typical source) often includes the
+   * requested resource filename.
    */
   detail?: string;
 

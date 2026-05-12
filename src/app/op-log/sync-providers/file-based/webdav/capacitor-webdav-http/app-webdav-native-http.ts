@@ -25,6 +25,10 @@ export const APP_WEBDAV_NATIVE_HTTP: NativeHttpExecutor = async (config) => {
     method: config.method,
     headers: config.headers,
     data,
+    // Forward responseType so a future native impl that honors it returns
+    // text verbatim (XML, multistatus) instead of parsing JSON. The web
+    // fallback always returns text today.
+    responseType: config.responseType ?? 'text',
   });
 
   return {

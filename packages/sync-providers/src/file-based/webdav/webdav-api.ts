@@ -186,6 +186,10 @@ export class WebdavApi {
 
     const cfg = await this._deps.getCfg();
     const fullPath = this._buildFullPath(cfg.baseUrl, path);
+    // Hash the local payload once. Reused as the `expectedHash` passed to
+    // `_verifyUpload` so we never compute md5(data) twice per upload (saves
+    // one WASM call on the ~MB sync file).
+    const expectedHash = await this._computeContentHash(data);
 
     try {
       // Application-level conflict detection: download current file and compare hash
@@ -252,7 +256,10 @@ export class WebdavApi {
               retryError.response &&
               retryError.response.status === WebDavHttpStatus.CONFLICT
             ) {
-              this._deps.logger.critical(
+              // Demoted from `critical` to `normal`: this is a config-debug
+              // hint, not an exceptional / unrecoverable condition. The
+              // caller still gets the thrown error to surface in the UI.
+              this._deps.logger.normal(
                 `${WebdavApi.L}.upload() 409 Conflict persists after creating parent. ` +
                   `Verify syncFolderPath is relative to the WebDAV server root.`,
                 { path },
@@ -265,7 +272,6 @@ export class WebdavApi {
         }
       }
 
-      const expectedHash = await this._computeContentHash(data);
       const verifiedHash = await this._verifyUpload(path, fullPath, expectedHash);
       return { rev: verifiedHash };
     } catch (e) {
@@ -386,7 +392,11 @@ export class WebdavApi {
         fullUrl: fullPath,
       };
     } catch (e) {
-      this._deps.logger.critical(`${WebdavApi.L}.testConnection() failed`, errorMeta(e));
+      // testConnection is user-initiated and failure is the expected
+      // outcome of a misconfig retry loop. Log at `normal`, not
+      // `critical`, so the exportable log isn't dominated by
+      // configuration debugging.
+      this._deps.logger.normal(`${WebdavApi.L}.testConnection() failed`, errorMeta(e));
       const errMsg = e instanceof Error ? e.message : 'Unknown error occurred';
       return { success: false, error: errMsg, fullUrl: fullPath };
     }
@@ -475,7 +485,11 @@ export class WebdavApi {
       }
       // Re-throw unexpected errors (e.g. 403 Permission Denied) so the caller
       // sees the real cause instead of a confusing follow-up error.
-      this._deps.logger.critical(
+      // Demoted from `critical` to `normal`: a 403 / 5xx on MKCOL is a
+      // recoverable config-or-network condition, not an unrecoverable
+      // engine failure. The caller logs the thrown error at its catch
+      // site (which uses `errorMeta`).
+      this._deps.logger.normal(
         `${WebdavApi.L}._createDirectory() unexpected error`,
         errorMeta(e),
       );

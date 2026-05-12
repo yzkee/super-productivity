@@ -254,9 +254,13 @@ describe('WebdavApi', () => {
 
     it('privacy invariant: logger meta on failure carries no raw error / URL', async () => {
       const calls: Array<{ msg: string; meta?: unknown }> = [];
+      const push = (msg: string, meta?: unknown): void => {
+        calls.push({ msg, meta });
+      };
       const logger: SyncLogger = {
         ...NOOP_SYNC_LOGGER,
-        critical: (msg, meta) => calls.push({ msg, meta }),
+        normal: push,
+        critical: push,
       };
       const adapter = makeAdapter();
       adapter.request.mockRejectedValue(
@@ -265,7 +269,9 @@ describe('WebdavApi', () => {
       await makeApi(adapter, logger).testConnection(cfg);
 
       // The returned error string is user-facing and intentionally readable;
-      // privacy invariant lives on the logger side.
+      // privacy invariant lives on the logger side. testConnection logs at
+      // `normal` (not `critical`) since misconfig retries are expected, but
+      // either level the meta must be structured.
       const meta = calls[0]?.meta as { errorName?: string };
       expect(meta?.errorName).toBe('Error');
       expect(JSON.stringify(calls)).not.toContain('user:pass');

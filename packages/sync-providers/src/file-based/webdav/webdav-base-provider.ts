@@ -50,9 +50,22 @@ export interface WebdavBaseDeps<T extends WebdavProviderId, TPrivateCfg> {
  * base handles file ops, conditional uploads, hash-based revisions, and
  * post-upload integrity verification via `WebdavApi`.
  */
+/**
+ * Bare-credential surface every WebDAV-flavored cfg must expose. The
+ * `isReady` / `clearAuthCredentials` paths in the base provider only
+ * read these fields. Concrete cfgs (`WebdavPrivateCfg`,
+ * `NextcloudPrivateCfg`) extend with their own required fields.
+ */
+type WebdavCredentialsLike = {
+  userName?: string;
+  password?: string;
+  baseUrl?: string;
+  syncFolderPath?: string;
+};
+
 export abstract class WebdavBaseProvider<
   T extends WebdavProviderId,
-  TPrivateCfg = WebdavPrivateCfg,
+  TPrivateCfg extends WebdavCredentialsLike = WebdavPrivateCfg,
 > implements FileSyncProvider<T, TPrivateCfg> {
   abstract readonly id: T;
   readonly isUploadForcePossible = false;
@@ -86,14 +99,7 @@ export abstract class WebdavBaseProvider<
   }
 
   async isReady(): Promise<boolean> {
-    const privateCfg = (await this.privateCfg.load()) as
-      | (TPrivateCfg & {
-          userName?: string;
-          baseUrl?: string;
-          syncFolderPath?: string;
-          password?: string;
-        })
-      | null;
+    const privateCfg = await this.privateCfg.load();
     return !!(
       privateCfg &&
       privateCfg.userName &&
@@ -108,15 +114,13 @@ export abstract class WebdavBaseProvider<
   }
 
   async clearAuthCredentials(): Promise<void> {
-    const cfg = (await this.privateCfg.load()) as
-      | (TPrivateCfg & { userName?: string; password?: string })
-      | null;
+    const cfg = await this.privateCfg.load();
     if (cfg?.userName || cfg?.password) {
       await this.privateCfg.setComplete({
         ...cfg,
         userName: '',
         password: '',
-      } as unknown as TPrivateCfg);
+      });
     }
   }
 
