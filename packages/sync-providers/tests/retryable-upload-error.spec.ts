@@ -17,6 +17,11 @@ describe('isRetryableUploadError', () => {
       expect(isRetryableUploadError('Network error occurred')).toBe(true);
       expect(isRetryableUploadError('network request failed')).toBe(true);
       expect(isRetryableUploadError('Network failure')).toBe(true);
+      expect(
+        isRetryableUploadError(
+          'Unable to connect to SuperSync server. Check your internet connection.',
+        ),
+      ).toBe(true);
     });
 
     it('connection errors', () => {

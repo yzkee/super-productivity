@@ -19,6 +19,7 @@
 const RETRYABLE_UPLOAD_ERROR_PATTERNS: RegExp[] = [
   /\bfailed to fetch\b/,
   /\bnetwork\s*(error|request|failure)?\b/,
+  /\bunable to connect\b/,
   /\btimeout\b/,
   /\beconnrefused\b/,
   /\benotfound\b/,

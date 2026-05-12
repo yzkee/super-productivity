@@ -1,4 +1,8 @@
-import { compressWithGzip, compressWithGzipToString } from '@sp/sync-core';
+import {
+  compressWithGzip,
+  compressWithGzipToString,
+  toSyncLogError,
+} from '@sp/sync-core';
 import type { SyncLogger } from '@sp/sync-core';
 import type { SyncCredentialStorePort } from '../credential-store-port';
 import { AuthFailSPError, MissingCredentialsSPError } from '../errors';
@@ -48,7 +52,17 @@ const SERVER_ERROR_REASON_MAX_CHARS = 80;
  */
 class SuperSyncHttpStatusError extends Error {
   override readonly name = 'SuperSyncHttpStatusError';
+
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+  }
 }
+
+const RETRYABLE_NATIVE_REQUEST_MESSAGE =
+  'Unable to connect to SuperSync server. Check your internet connection.';
 
 export interface SuperSyncDeps {
   logger: SyncLogger;
@@ -141,16 +155,18 @@ export class SuperSyncProvider
    * network drop between server commit and client receipt) and return
    * the cached result instead of rejecting as duplicate ops.
    *
-   * The id is derived from `clientId` + a stable hash of the ops
-   * batch. Reordering nested object keys or repeating the exact same
-   * batch yields the same id; changing any op's payload (or batch
-   * size) yields a different id.
+   * The id is derived from `clientId` + a stable hash of the logical
+   * ops batch. Encrypted payload bytes are deliberately excluded
+   * because AES-GCM uses fresh IVs; retrying the same logical op can
+   * produce different ciphertext.
    */
   private _createOpsUploadRequestId(ops: SyncOperation[], clientId: string): string {
     const opIds = ops.map((op) => op.id).join('|');
     let opsFingerprint = opIds;
     try {
-      opsFingerprint = this._stableJsonStringify(ops);
+      opsFingerprint = this._stableJsonStringify(
+        ops.map((op) => this._toRequestIdFingerprintOp(op)),
+      );
     } catch {
       opsFingerprint = opIds;
     }
@@ -185,6 +201,13 @@ export class SuperSyncProvider
 
   private _stableJsonStringify(value: unknown): string {
     return JSON.stringify(this._toStableJsonValue(value)) ?? 'undefined';
+  }
+
+  private _toRequestIdFingerprintOp(op: SyncOperation): SyncOperation {
+    return {
+      ...op,
+      payload: op.isPayloadEncrypted ? '[encrypted-payload]' : op.payload,
+    };
   }
 
   private _toStableJsonValue(value: unknown): unknown {
@@ -536,7 +559,7 @@ export class SuperSyncProvider
    */
   private _checkHttpStatus(status: number, body?: string): void {
     if (status === 401 || status === 403) {
-      const reason = this._extractServerErrorReason(body);
+      const reason = this._extractServerErrorReason(body, status);
       throw new AuthFailSPError(reason || `Authentication failed (HTTP ${status})`);
     }
   }
@@ -548,25 +571,47 @@ export class SuperSyncProvider
    * `expired`); we cap at `SERVER_ERROR_REASON_MAX_CHARS` to defend
    * against future contract drift that might embed user content.
    */
-  private _extractServerErrorReason(body?: string): string | undefined {
+  private _extractServerErrorReason(body?: string, status?: number): string | undefined {
     if (!body) return undefined;
     try {
       const parsed = JSON.parse(body) as unknown;
-      if (
-        typeof parsed === 'object' &&
-        parsed !== null &&
-        'error' in parsed &&
-        typeof (parsed as { error: unknown }).error === 'string'
-      ) {
-        return (parsed as { error: string }).error.slice(
-          0,
-          SERVER_ERROR_REASON_MAX_CHARS,
-        );
+      if (typeof parsed === 'object' && parsed !== null) {
+        const errorReason =
+          'error' in parsed && typeof (parsed as { error: unknown }).error === 'string'
+            ? (parsed as { error: string }).error.slice(0, SERVER_ERROR_REASON_MAX_CHARS)
+            : undefined;
+        const retryDelayReason =
+          status === 429 ? this._extractRetryDelayReason(parsed) : undefined;
+        return [errorReason, retryDelayReason].filter(Boolean).join(' — ') || undefined;
       }
     } catch {
       // Not JSON — ignore
     }
     return undefined;
+  }
+
+  private _extractRetryDelayReason(parsed: object): string | undefined {
+    if (
+      !('message' in parsed) ||
+      typeof (parsed as { message: unknown }).message !== 'string'
+    ) {
+      return undefined;
+    }
+    const match = (parsed as { message: string }).message.match(
+      /\bretry in\s+(\d+)\s*(second|minute)s?\b/i,
+    );
+    if (!match) {
+      return undefined;
+    }
+    const count = Number.parseInt(match[1], 10);
+    if (!Number.isFinite(count)) {
+      return undefined;
+    }
+    const unit = match[2].toLowerCase();
+    return `retry in ${count} ${unit}${count === 1 ? '' : 's'}`.slice(
+      0,
+      SERVER_ERROR_REASON_MAX_CHARS,
+    );
   }
 
   /**
@@ -587,6 +632,17 @@ export class SuperSyncProvider
       return String((error as { message: unknown }).message);
     }
     return String(error);
+  }
+
+  private _getSafeErrorLogMeta(error: unknown): {
+    errorName: string;
+    errorCode?: string | number;
+  } {
+    const syncError = toSyncLogError(error);
+    return {
+      errorName: syncError.name,
+      ...(syncError.code !== undefined ? { errorCode: syncError.code } : {}),
+    };
   }
 
   /**
@@ -614,23 +670,21 @@ export class SuperSyncProvider
       {
         path,
         durationMs: duration,
-        error: errorMessage,
+        ...this._getSafeErrorLogMeta(error),
         isNetworkError: networkError,
       },
     );
 
     if (networkError) {
-      throw new Error(
-        'Unable to connect to SuperSync server. Check your internet connection.',
-      );
+      throw new Error(RETRYABLE_NATIVE_REQUEST_MESSAGE);
     }
     // Our own thrown errors (`AuthFailSPError`, `MissingCredentialsSPError`,
     // `SuperSyncHttpStatusError` from the non-2xx branch) carry only
     // scrubbed content and propagate unchanged. Foreign errors from the
     // native HTTP executor (e.g. iOS TLS-cert errors like "Hostname
     // mismatch for example.com") can embed the resolved hostname in
-    // `.message`. Replace those with a name-only surface — the full
-    // message is captured above via the structured logger.
+    // `.message`. Replace those with a name-only surface; the logger
+    // above also records only error name/code metadata.
     if (
       error instanceof AuthFailSPError ||
       error instanceof MissingCredentialsSPError ||
@@ -641,7 +695,7 @@ export class SuperSyncProvider
     if (error instanceof Error) {
       throw new Error(`SuperSync native request failed: ${error.name}`);
     }
-    throw error;
+    throw new Error(`SuperSync native request failed: ${toSyncLogError(error).name}`);
   }
 
   private async _fetchApi<T>(
@@ -749,10 +803,11 @@ export class SuperSyncProvider
         const errorText = await response.text().catch(() => '');
         // Check for auth failure FIRST before throwing generic error
         this._checkHttpStatus(response.status, errorText);
-        const reason = this._extractServerErrorReason(errorText);
+        const reason = this._extractServerErrorReason(errorText, response.status);
         const suffix = reason ? ` — ${reason}` : '';
         throw new SuperSyncHttpStatusError(
           `HTTP ${response.status} ${response.statusText}${suffix}`,
+          response.status,
         );
       }
 
@@ -795,7 +850,7 @@ export class SuperSyncProvider
       this._deps.logger.error(`${this._logLabel}: SuperSync request failed`, undefined, {
         path,
         durationMs: duration,
-        error: error instanceof Error ? error.message : String(error),
+        ...this._getSafeErrorLogMeta(error),
       });
       throw error;
     }
@@ -846,10 +901,13 @@ export class SuperSyncProvider
             : JSON.stringify(response.data);
         // Check for auth failure FIRST before throwing generic error
         this._checkHttpStatus(response.status, errorData);
-        const reason = this._extractServerErrorReason(errorData);
+        const reason = this._extractServerErrorReason(errorData, response.status);
         const suffix = reason ? ` — ${reason}` : '';
         // No `statusText` on CapacitorHttp responses; status-only form.
-        throw new SuperSyncHttpStatusError(`HTTP ${response.status}${suffix}`);
+        throw new SuperSyncHttpStatusError(
+          `HTTP ${response.status}${suffix}`,
+          response.status,
+        );
       }
 
       const duration = Date.now() - startTime;

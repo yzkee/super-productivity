@@ -14,6 +14,7 @@ import type {
   NativeHttpRequestConfig,
   NativeHttpResponse,
 } from '../../src/http/native-http-retry';
+import { isRetryableUploadError } from '../../src/http/retryable-upload-error';
 import type { ProviderPlatformInfo } from '../../src/platform/provider-platform-info';
 import type {
   OpUploadResponse,
@@ -413,7 +414,7 @@ describe('SuperSyncProvider', () => {
       expect(body.requestId.length).toBeLessThanOrEqual(64);
     });
 
-    it('uses a stable requestId across retries and key-reordering, distinct for content/batch changes', async () => {
+    it('uses a stable requestId across retries/key-reordering/encrypted IV changes', async () => {
       const { provider, cfgStore, fetchMock } = buildProvider();
       cfgStore.load.mockResolvedValue(testConfig);
       fetchMock.mockResolvedValue(okResponse({ results: [], latestSeq: 5 }));
@@ -455,9 +456,22 @@ describe('SuperSyncProvider', () => {
         'client-1',
         4,
       );
+      const encryptedOp = createMockOperation({
+        id: 'op-encrypted',
+        payload: 'ciphertext-with-random-iv-a',
+        isPayloadEncrypted: true,
+      });
+      // Call 5: encrypted payload
+      await provider.uploadOps([encryptedOp], 'client-1', 4);
+      // Call 6: same logical encrypted op after re-encryption with a fresh IV
+      await provider.uploadOps(
+        [{ ...encryptedOp, payload: 'ciphertext-with-random-iv-b' }],
+        'client-1',
+        4,
+      );
 
       const bodies = await Promise.all(
-        [0, 1, 2, 3, 4].map(async (i) => {
+        [0, 1, 2, 3, 4, 5, 6].map(async (i) => {
           const [, options] = fetchMock.mock.calls[i] as [string, RequestInit];
           return JSON.parse(await decompressGzip(options.body as Blob));
         }),
@@ -467,6 +481,7 @@ describe('SuperSyncProvider', () => {
       expect(bodies[2].requestId).toBe(bodies[0].requestId);
       expect(bodies[3].requestId).not.toBe(bodies[0].requestId);
       expect(bodies[4].requestId).not.toBe(bodies[0].requestId);
+      expect(bodies[6].requestId).toBe(bodies[5].requestId);
       expect(bodies[0].requestId.length).toBeLessThanOrEqual(64);
     });
 
@@ -669,13 +684,20 @@ describe('SuperSyncProvider', () => {
         errorResponse(
           429,
           'Too Many Requests',
-          '{"error":"Rate limited","errorCode":"RATE_LIMITED"}',
+          JSON.stringify({
+            statusCode: 429,
+            code: 'FST_TOO_MANY_REQUESTS',
+            error: 'Too Many Requests',
+            message: 'Rate limit exceeded, retry in 5 minutes',
+          }),
         ),
       );
 
       await expect(
         provider.uploadOps([createMockOperation()], 'client-1'),
-      ).rejects.toThrow(/HTTP 429 Too Many Requests/);
+      ).rejects.toThrow(
+        /HTTP 429 Too Many Requests — Too Many Requests — retry in 5 minutes/,
+      );
     });
 
     it('throws on 413 Storage Quota Exceeded', async () => {
@@ -1395,6 +1417,7 @@ describe('SuperSyncProvider', () => {
       expect(caught?.message).toBe(
         'Unable to connect to SuperSync server. Check your internet connection.',
       );
+      expect(isRetryableUploadError(caught)).toBe(true);
       // Privacy: the URL/hostname must NOT be in the user-facing message.
       expect(caught!.message).not.toContain('internal-host.invalid');
     });
@@ -1406,6 +1429,8 @@ describe('SuperSyncProvider', () => {
      */
     it('scrubs non-retryable foreign native errors (e.g. TLS cert) to name-only surface', async () => {
       const ctx = buildProvider({ isNativePlatform: true });
+      const { logger, spy } = createLoggerSpy();
+      ctx.deps.logger = logger;
       ctx.cfgStore.load.mockResolvedValue(testConfig);
       const tlsError = new Error(
         'SSL certificate problem: hostname mismatch for sync.example.com',
@@ -1423,6 +1448,11 @@ describe('SuperSyncProvider', () => {
       // Privacy: the hostname from the cert error must NOT leak.
       expect(caught!.message).not.toContain('sync.example.com');
       expect(caught!.message).not.toContain('hostname mismatch');
+      for (const call of spy.error.mock.calls) {
+        const serialized = JSON.stringify(call);
+        expect(serialized).not.toContain('sync.example.com');
+        expect(serialized).not.toContain('hostname mismatch');
+      }
     });
 
     /**
@@ -1536,7 +1566,7 @@ describe('SuperSyncProvider', () => {
         undefined,
         expect.objectContaining({
           path: '/api/sync/ops?sinceSeq=0&excludeClient=client-1',
-          error: 'Network error',
+          errorName: 'Error',
         }),
       );
     });
@@ -1667,6 +1697,7 @@ describe('SuperSyncProvider', () => {
       // error object leaks).
       for (const call of spy.error.mock.calls) {
         expect(call[1]).toBeUndefined();
+        expect(JSON.stringify(call)).not.toContain('internal-host.invalid');
       }
     });
   });
