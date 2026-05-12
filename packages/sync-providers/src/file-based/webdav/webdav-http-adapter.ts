@@ -90,14 +90,13 @@ export class WebDavHttpAdapter {
 
           response = await this._convertFetchResponse(fetchResponse);
         } catch (fetchError) {
-          // Tightened heuristic: only treat as CORS when the error explicitly
-          // says so. The previous broad "Failed to fetch" / "network request
-          // failed" matching also fired for plain offline / DNS errors and
-          // leaked the raw error message (which embeds the URL on Firefox).
-          if (
-            fetchError instanceof TypeError &&
-            fetchError.message.toLowerCase().includes('cors')
-          ) {
+          if (this._isLikelyCors(fetchError)) {
+            // Privacy: PotentialCorsError carries only the scrubbed URL,
+            // never the raw fetch error. The original-error meta below
+            // is structured (errorName/errorCode), so the embedded URL
+            // some browsers put in `error.message` (Firefox:
+            // "NetworkError when attempting to fetch resource at <url>")
+            // never reaches a log.
             throw new PotentialCorsError(scrubbedUrl);
           }
           throw fetchError;
@@ -129,6 +128,36 @@ export class WebDavHttpAdapter {
       });
       throw new HttpNotOkAPIError(errorResponse);
     }
+  }
+
+  /**
+   * Web-platform CORS detection. `fetch` rejects with a generic
+   * `TypeError` for cross-origin, offline, DNS, and server-unreachable
+   * cases — there is no portable distinguishing signal. Match on
+   * substrings the major browsers actually emit:
+   *
+   * - Chrome / Safari: `"Failed to fetch"` / `"Load failed"`
+   * - Firefox: `"NetworkError when attempting to fetch resource at <url>"`
+   *   (URL leak is contained by `PotentialCorsError(scrubbedUrl)`).
+   * - Explicit: `"CORS"`, `"cross-origin"`, `"opaque"`.
+   *
+   * Bias is intentional: WebDAV's most common deployment failure mode
+   * IS misconfigured CORS, so over-attributing offline / DNS to CORS
+   * still surfaces an actionable hint to the user. Native-platform
+   * paths never hit this branch.
+   */
+  private _isLikelyCors(error: unknown): boolean {
+    if (!(error instanceof TypeError)) return false;
+    const m = error.message.toLowerCase();
+    return (
+      m.includes('cors') ||
+      m.includes('cross-origin') ||
+      m.includes('opaque') ||
+      m.includes('failed to fetch') ||
+      m.includes('load failed') ||
+      m.includes('network request failed') ||
+      m.includes('networkerror when attempting')
+    );
   }
 
   private async _convertFetchResponse(response: Response): Promise<WebDavHttpResponse> {

@@ -148,11 +148,17 @@ describe('WebDavHttpAdapter', () => {
     });
   });
 
-  describe('CORS heuristic (tightened)', () => {
-    it('throws PotentialCorsError only when message mentions "cors"', async () => {
-      const fetchImpl = vi
-        .fn()
-        .mockRejectedValue(new TypeError('Failed to fetch: cors policy denied'));
+  describe('CORS heuristic', () => {
+    it.each([
+      ['CORS policy denied', 'Failed to fetch: CORS policy denied'],
+      ['cross-origin', 'cross-origin request blocked'],
+      ['opaque', 'opaque response not allowed'],
+      ['Chrome / Safari generic', 'Failed to fetch'],
+      ['Safari load failed', 'Load failed'],
+      ['Firefox', 'NetworkError when attempting to fetch resource at https://dav/'],
+      ['Capacitor / Cordova', 'Network request failed'],
+    ])('treats %s as PotentialCorsError on the fetch path', async (_label, msg) => {
+      const fetchImpl = vi.fn().mockRejectedValue(new TypeError(msg));
       const adapter = new WebDavHttpAdapter(
         makeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }),
       );
@@ -161,16 +167,42 @@ describe('WebDavHttpAdapter', () => {
       ).rejects.toBeInstanceOf(PotentialCorsError);
     });
 
-    it('does NOT treat plain "Failed to fetch" as CORS (was the false positive)', async () => {
-      const fetchImpl = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    it('passes non-TypeError fetch errors through as HttpNotOkAPIError', async () => {
+      // e.g. AbortError, generic Error — not a CORS smell.
+      const fetchImpl = vi.fn().mockRejectedValue(new Error('aborted'));
       const adapter = new WebDavHttpAdapter(
         makeDeps({ fetchImpl: fetchImpl as unknown as typeof fetch }),
       );
-      // Tightened: a plain network failure now bubbles up as HttpNotOkAPIError
-      // (via the outer catch), not as PotentialCorsError.
       await expect(
         adapter.request({ url: 'https://dav.example.com/x', method: 'GET' }),
       ).rejects.toBeInstanceOf(HttpNotOkAPIError);
+    });
+
+    it('PotentialCorsError carries only the scrubbed URL, never the raw error', async () => {
+      const fetchImpl = vi
+        .fn()
+        .mockRejectedValue(
+          new TypeError(
+            'NetworkError when attempting to fetch resource at https://user:pass@dav.example.com/x?token=secret',
+          ),
+        );
+      const adapter = new WebDavHttpAdapter(
+        makeDeps({
+          fetchImpl: fetchImpl as unknown as typeof fetch,
+        }),
+      );
+      try {
+        await adapter.request({
+          url: 'https://user:pass@dav.example.com/x?token=secret',
+          method: 'GET',
+        });
+        expect.fail('expected throw');
+      } catch (e) {
+        expect(e).toBeInstanceOf(PotentialCorsError);
+        const msg = (e as Error).message ?? '';
+        expect(msg).not.toContain('user:pass');
+        expect(msg).not.toContain('secret');
+      }
     });
   });
 
