@@ -18,7 +18,6 @@ export {
   isTransientNetworkError,
 } from './http/native-http-retry';
 export type {
-  ExecuteNativeRequestOptions,
   NativeHttpExecutor,
   NativeHttpRequestConfig,
   NativeHttpResponse,

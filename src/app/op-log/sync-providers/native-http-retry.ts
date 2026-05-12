@@ -10,12 +10,6 @@ import { OP_LOG_SYNC_LOGGER } from '../core/sync-logger.adapter';
 
 export type NativeRequestConfig = NativeHttpRequestConfig;
 
-const defaultDelay = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
-
-const capacitorExecutor: NativeHttpExecutor = (config) =>
-  CapacitorHttp.request(config) as unknown as Promise<NativeHttpResponse>;
-
 /**
  * App-side adapter: wires CapacitorHttp + OP_LOG_SYNC_LOGGER into the
  * package-owned retry helper. Existing callers keep their positional API.
@@ -29,12 +23,10 @@ export const executeNativeRequestWithRetry = async (
   label: string = 'NativeHttp',
   requestFn: (opts: NativeRequestConfig) => Promise<HttpResponse> = (opts) =>
     CapacitorHttp.request(opts),
-  delayFn: (ms: number) => Promise<void> = defaultDelay,
+  delayFn?: (ms: number) => Promise<void>,
 ): Promise<HttpResponse> => {
-  const executor: NativeHttpExecutor =
-    requestFn === undefined || requestFn === CapacitorHttp.request
-      ? capacitorExecutor
-      : (cfg) => requestFn(cfg) as unknown as Promise<NativeHttpResponse>;
+  const executor: NativeHttpExecutor = (cfg) =>
+    requestFn(cfg) as unknown as Promise<NativeHttpResponse>;
 
   const response = await packageExecuteNativeRequestWithRetry(config, {
     executor,

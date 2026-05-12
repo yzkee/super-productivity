@@ -23,19 +23,19 @@ export interface NativeHttpRequestConfig {
   readTimeout?: number;
 }
 
-export interface NativeHttpResponse<T = unknown> {
+export interface NativeHttpResponse {
   status: number;
   headers: Record<string, string>;
-  data: T;
+  data: unknown;
   url?: string;
 }
 
-export type NativeHttpExecutor<T = unknown> = (
+export type NativeHttpExecutor = (
   config: NativeHttpRequestConfig,
-) => Promise<NativeHttpResponse<T>>;
+) => Promise<NativeHttpResponse>;
 
-export interface ExecuteNativeRequestOptions<T = unknown> {
-  executor: NativeHttpExecutor<T>;
+export interface ExecuteNativeRequestOptions {
+  executor: NativeHttpExecutor;
   logger?: SyncLogger;
   label?: string;
   delay?: (ms: number) => Promise<void>;
@@ -53,10 +53,10 @@ const defaultDelay = (ms: number): Promise<void> =>
  * provide CapacitorHttp on native platforms, fetch on web/Electron, or a
  * test double in unit tests.
  */
-export const executeNativeRequestWithRetry = async <T = unknown>(
+export const executeNativeRequestWithRetry = async (
   config: NativeHttpRequestConfig,
-  options: ExecuteNativeRequestOptions<T>,
-): Promise<NativeHttpResponse<T>> => {
+  options: ExecuteNativeRequestOptions,
+): Promise<NativeHttpResponse> => {
   const {
     executor,
     logger = NOOP_SYNC_LOGGER,
@@ -78,15 +78,10 @@ export const executeNativeRequestWithRetry = async <T = unknown>(
     } catch (retryErr) {
       if (attempt < MAX_RETRIES && isTransientNetworkError(retryErr)) {
         const delayMs = 1000 * (attempt + 1);
-        const errorInfo = toSyncLogError(retryErr);
-        // toSyncLogError loses .code on Error instances; re-extract it here so
-        // platform-specific transient codes (NSURLErrorDomain, SocketTimeout...)
-        // survive into the retry log.
+        // toSyncLogError drops .code on Error instances, so we read it directly
+        // off the raw error to preserve platform-specific transient codes
+        // (NSURLErrorDomain, SocketTimeoutException, …) in the retry log.
         const rawCode = (retryErr as { code?: unknown } | null)?.code;
-        const safeCode =
-          typeof rawCode === 'string' || typeof rawCode === 'number'
-            ? rawCode
-            : errorInfo.code;
         logger.warn(
           `${label} transient network error, retrying in ${delayMs}ms ` +
             `(attempt ${attempt + 1}/${MAX_RETRIES})`,
@@ -95,8 +90,11 @@ export const executeNativeRequestWithRetry = async <T = unknown>(
             attempt: attempt + 1,
             maxRetries: MAX_RETRIES,
             delayMs,
-            errorName: errorInfo.name,
-            errorCode: safeCode,
+            errorName: toSyncLogError(retryErr).name,
+            errorCode:
+              typeof rawCode === 'string' || typeof rawCode === 'number'
+                ? rawCode
+                : undefined,
           },
         );
         await delay(delayMs);
@@ -128,14 +126,11 @@ export const executeNativeRequestWithRetry = async <T = unknown>(
  * **Fallback:** English string matching on the error message for web/Electron/unknown platforms.
  */
 export const isTransientNetworkError = (e: unknown): boolean => {
-  // Check error.code first (locale-proof for iOS and Android)
   const errorCode = (e as { code?: string } | null)?.code;
   if (typeof errorCode === 'string') {
-    // iOS: NSURLErrorDomain covers all network errors (connection lost, timeout, DNS, etc.)
     if (errorCode === 'NSURLErrorDomain') {
       return true;
     }
-    // Android: Java exception class names
     if (
       errorCode === 'SocketTimeoutException' ||
       errorCode === 'UnknownHostException' ||
@@ -145,7 +140,6 @@ export const isTransientNetworkError = (e: unknown): boolean => {
     }
   }
 
-  // Fallback: English string matching for web/Electron/unknown platforms
   const message = (e instanceof Error ? e.message : String(e)).toLowerCase();
   return (
     message.includes('network connection was lost') ||
