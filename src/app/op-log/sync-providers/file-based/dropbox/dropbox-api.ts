@@ -748,13 +748,16 @@ export class DropboxApi {
       // Ignore JSON parse errors for non-JSON responses
     }
 
-    // Handle rate limiting
+    // Handle rate limiting. We intentionally do NOT pass `headers`
+    // (contains the bearer token) or the raw `responseData` blob to the
+    // error — keep payload to primitives only (B3.1 in
+    // docs/plans/2026-05-12-pr5-dropbox-slice.md).
     if (responseData.error_summary?.includes('too_many_write_operations')) {
       const retryAfter = responseData.error?.retry_after;
       if (retryAfter) {
         return this._handleRateLimit(retryAfter, path, originalRequestExecutor);
       }
-      throw new TooManyRequestsAPIError({ response, headers, responseData });
+      throw new TooManyRequestsAPIError({ status: response.status, path });
     }
 
     // Handle specific error cases

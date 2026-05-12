@@ -1,51 +1,33 @@
 import { IValidation } from 'typia';
-import type { SyncFilePrefixInvalidPrefixDetails, SyncLogMeta } from '@sp/sync-core';
+import type { SyncFilePrefixInvalidPrefixDetails } from '@sp/sync-core';
+import { toSyncLogError } from '@sp/sync-core';
 import {
-  extractErrorMessage as extractGenericErrorMessage,
-  toSyncLogError,
-} from '@sp/sync-core';
+  AdditionalLogErrorBase as PackageAdditionalLogErrorBase,
+  extractErrorMessage as packageExtractErrorMessage,
+} from '@sp/sync-providers';
 import { FILE_BASED_SYNC_CONSTANTS } from '../../sync-providers/file-based/file-based-sync.types';
 import { OP_LOG_SYNC_LOGGER } from '../sync-logger.adapter';
 
-export const extractErrorMessage = (err: unknown): string | null => {
-  const message = extractGenericErrorMessage(err);
-  if (typeof message === 'string' && message.startsWith('Z_')) {
-    return `Compression error: ${message.replace('Z_', '').replace(/_/g, ' ').toLowerCase()}`;
-  }
-  return message;
-};
+// Re-export provider-shared error classes from @sp/sync-providers.
+// Single class definition per error is critical for `instanceof` checks
+// across the codebase. See docs/plans/2026-05-12-pr5-dropbox-slice.md
+// action item A5 and sync-errors.identity.spec.ts.
+export {
+  AuthFailSPError,
+  EmptyRemoteBodySPError,
+  HttpNotOkAPIError,
+  InvalidDataSPError,
+  MissingCredentialsSPError,
+  MissingRefreshTokenAPIError,
+  NoRevAPIError,
+  PotentialCorsError,
+  RemoteFileChangedUnexpectedly,
+  RemoteFileNotFoundAPIError,
+  TooManyRequestsAPIError,
+  UploadRevToMatchMismatchAPIError,
+} from '@sp/sync-providers';
 
-const isSafePrimitive = (
-  value: unknown,
-): value is string | number | boolean | null | undefined =>
-  value === null ||
-  value === undefined ||
-  typeof value === 'string' ||
-  typeof value === 'number' ||
-  typeof value === 'boolean';
-
-const getValueType = (value: unknown): string => {
-  if (value === null) return 'null';
-  if (Array.isArray(value)) return 'array';
-  if (value instanceof Error) return value.name || 'Error';
-  return typeof value;
-};
-
-const getPrimitiveKeySummary = (value: unknown): string | undefined => {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
-    return undefined;
-  }
-
-  try {
-    const record = value as Record<string, unknown>;
-    const keys = Object.keys(record)
-      .filter((key) => isSafePrimitive(record[key]))
-      .slice(0, 10);
-    return keys.length > 0 ? keys.join(',') : undefined;
-  } catch {
-    return undefined;
-  }
-};
+export const extractErrorMessage = packageExtractErrorMessage;
 
 const getValidationErrors = (
   validationResult?: IValidation<unknown>,
@@ -75,69 +57,20 @@ const getValidationErrorPathSummary = (
   return pathSummary || undefined;
 };
 
-const buildAdditionalLogMeta = (
-  errorName: string,
-  additional: unknown[],
-  extractedMessage: string | null,
-): SyncLogMeta => {
-  const firstAdditional = additional[0];
-  const firstAdditionalError = toSyncLogError(firstAdditional);
-  const firstAdditionalKeys = getPrimitiveKeySummary(firstAdditional);
-
-  return {
-    errorName,
-    additionalCount: additional.length,
-    firstAdditionalType: getValueType(firstAdditional),
-    hasExtractedMessage: extractedMessage !== null,
-    firstAdditionalKeys,
-    firstAdditionalErrorName:
-      firstAdditional instanceof Error ? firstAdditionalError.name : undefined,
-    firstAdditionalErrorCode:
-      firstAdditional instanceof Error ? firstAdditionalError.code : undefined,
-  };
-};
-
-class AdditionalLogErrorBase<T = unknown[]> extends Error {
-  additionalLog: T;
-
-  constructor(...additional: unknown[]) {
-    // Extract meaningful message from first argument, fall back to class name
-    const extractedMessage = extractErrorMessage(additional[0]);
-    super(extractedMessage ?? 'Unknown error');
-
-    const errorName = new.target.name;
-
-    if (additional.length > 0) {
-      try {
-        const firstAdditionalKeys = getPrimitiveKeySummary(additional[0]);
-        const keySuffix = firstAdditionalKeys ? ` (${firstAdditionalKeys})` : '';
-        OP_LOG_SYNC_LOGGER.log(`${errorName} additional error metadata${keySuffix}`, {
-          ...buildAdditionalLogMeta(errorName, additional, extractedMessage),
-        });
-      } catch (e) {
-        OP_LOG_SYNC_LOGGER.log(`${errorName} additional error metadata unavailable`, {
-          errorName,
-          additionalCount: additional.length,
-          loggingErrorName: toSyncLogError(e).name,
-        });
-      }
-    }
-    this.additionalLog = additional as T;
-  }
-}
+// AdditionalLogErrorBase is provided by @sp/sync-providers (without the
+// previous constructor-time logging side effect). The remaining app-only
+// errors below extend it; they MUST log at the catch site via
+// OP_LOG_SYNC_LOGGER rather than relying on the constructor.
+type AdditionalLogErrorBase<T = unknown[]> = PackageAdditionalLogErrorBase<T>;
+// Local alias so existing `extends AdditionalLogErrorBase` syntax keeps
+// working unchanged below.
+const AdditionalLogErrorBase = PackageAdditionalLogErrorBase;
 
 export class ImpossibleError extends Error {
   override name = ' ImpossibleError';
 }
 
-// --------------API ERRORS--------------
-export class NoRevAPIError extends AdditionalLogErrorBase {
-  override name = ' NoRevAPIError';
-}
-
-export class TooManyRequestsAPIError extends AdditionalLogErrorBase {
-  override name = ' TooManyRequestsAPIError';
-}
+// --------------APP-SIDE-ONLY API ERRORS--------------
 
 export class NoEtagAPIError extends AdditionalLogErrorBase {
   override name = ' NoEtagAPIError';
@@ -147,159 +80,8 @@ export class FileExistsAPIError extends Error {
   override name = ' FileExistsAPIError';
 }
 
-export class RemoteFileNotFoundAPIError extends AdditionalLogErrorBase {
-  override name = ' RemoteFileNotFoundAPIError';
-}
-
-export class MissingRefreshTokenAPIError extends Error {
-  override name = ' MissingRefreshTokenAPIError';
-}
-
 export class FileHashCreationAPIError extends AdditionalLogErrorBase {
   override name = ' FileHashCreationAPIError';
-}
-
-export class UploadRevToMatchMismatchAPIError extends AdditionalLogErrorBase {
-  override name = ' UploadRevToMatchMismatchAP';
-}
-
-// export class CannotCreateFolderAPIError extends AdditionalLogErrorBase {
-//   override name = 'CannotCreateFolderAPIError';
-// }
-
-export class HttpNotOkAPIError extends AdditionalLogErrorBase {
-  override name = ' HttpNotOkAPIError';
-  response: Response;
-  body?: string;
-
-  constructor(response: Response, body?: string) {
-    super(response, body);
-    this.response = response;
-    this.body = body;
-    const statusText = response.statusText || 'Unknown Status';
-
-    // Parse body to extract meaningful error information
-    let errorDetail = '';
-    if (body) {
-      const safeBody =
-        typeof body === 'string'
-          ? body
-          : body !== undefined
-            ? (() => {
-                try {
-                  return JSON.stringify(body);
-                } catch (e) {
-                  return String(body);
-                }
-              })()
-            : '';
-
-      // Try to extract meaningful error from XML/HTML responses
-      errorDetail = this._extractErrorFromBody(safeBody);
-    }
-
-    const bodyText = errorDetail ? ` - ${errorDetail}` : '';
-    this.message = `HTTP ${response.status} ${statusText}${bodyText}`;
-  }
-
-  private _extractErrorFromBody(body: string): string {
-    if (!body) return '';
-
-    // Limit body length for error messages
-    const maxBodyLength = 300;
-
-    // Try to extract error from Nextcloud/WebDAV XML responses
-    // Look for <s:message> or <d:error> tags
-    const nextcloudMessageMatch = body.match(/<s:message[^>]*>(.*?)<\/s:message>/i);
-    if (nextcloudMessageMatch && nextcloudMessageMatch[1]) {
-      return nextcloudMessageMatch[1].trim().substring(0, maxBodyLength);
-    }
-
-    const webdavErrorMatch = body.match(/<d:error[^>]*>(.*?)<\/d:error>/i);
-    if (webdavErrorMatch && webdavErrorMatch[1]) {
-      return webdavErrorMatch[1].trim().substring(0, maxBodyLength);
-    }
-
-    // Look for HTML title tags (often contain error descriptions)
-    const titleMatch = body.match(/<title[^>]*>(.*?)<\/title>/i);
-    if (titleMatch && titleMatch[1]) {
-      const title = titleMatch[1].trim();
-      // Avoid generic titles
-      if (title && !title.match(/^(error|404|403|500)$/i)) {
-        return title.substring(0, maxBodyLength);
-      }
-    }
-
-    // Try to extract JSON error
-    try {
-      const jsonMatch = body.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.error) {
-          return String(parsed.error).substring(0, maxBodyLength);
-        }
-        if (parsed.message) {
-          return String(parsed.message).substring(0, maxBodyLength);
-        }
-      }
-    } catch (e) {
-      // Not JSON, continue
-    }
-
-    // Strip script and style tags with their content
-    // Apply repeatedly to handle nested/crafted inputs like <scri<script>pt>
-    let cleanBody = body;
-    let previousBody: string;
-    do {
-      previousBody = cleanBody;
-      cleanBody = cleanBody
-        .replace(/<script\b[^>]*>[\s\S]*?<\/script\s*>/gim, '')
-        .replace(/<style\b[^>]*>[\s\S]*?<\/style\s*>/gim, '')
-        .replace(/<script\b/gim, '')
-        .replace(/<style\b/gim, '');
-    } while (cleanBody !== previousBody);
-
-    // Strip HTML tags for plain text
-    const withoutTags = cleanBody
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    // Return the first meaningful chunk of text
-    return withoutTags.substring(0, maxBodyLength);
-  }
-}
-
-// NOTE: we can't know for sure without complicating things
-export class PotentialCorsError extends AdditionalLogErrorBase {
-  override name = 'PotentialCorsError';
-  url: string;
-
-  constructor(url: string, ...args: unknown[]) {
-    super(
-      `Cross-Origin Request Blocked: The request to ${url} was blocked by CORS policy`,
-      ...args,
-    );
-    this.url = url;
-  }
-}
-
-// --------------SYNC PROVIDER ERRORS--------------
-
-export class MissingCredentialsSPError extends Error {
-  override name = 'MissingCredentialsSPError';
-}
-
-export class AuthFailSPError extends AdditionalLogErrorBase {
-  override name = 'AuthFailSPError';
-}
-
-export class InvalidDataSPError extends AdditionalLogErrorBase {
-  override name = 'InvalidDataSPError';
-}
-
-export class EmptyRemoteBodySPError extends InvalidDataSPError {
-  override name = 'EmptyRemoteBodySPError';
 }
 
 // --------------OTHER SYNC ERRORS--------------
@@ -372,10 +154,6 @@ export class NoRemoteModelFile extends AdditionalLogErrorBase<string> {
 
 export class NoRemoteMetaFile extends Error {
   override name = 'NoRemoteMetaFile';
-}
-
-export class RemoteFileChangedUnexpectedly extends AdditionalLogErrorBase {
-  override name = 'RemoteFileChangedUnexpectedly';
 }
 
 // --------------LOCKFILE ERRORS--------------

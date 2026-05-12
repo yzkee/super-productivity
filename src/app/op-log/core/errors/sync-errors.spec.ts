@@ -15,41 +15,40 @@ describe('sync errors', () => {
     spyOn(OpLog, 'err').and.stub();
   });
 
-  it('logs AdditionalLogErrorBase diagnostics as safe metadata', () => {
+  // NOTE: InvalidDataSPError (and the other moved provider errors) no
+  // longer log on construction — see PR 5a (docs/plans/2026-05-12-pr5-dropbox-slice.md).
+  // Privacy guarantee for those classes is now "no log = no leak" and is
+  // covered by packages/sync-providers/tests/errors.spec.ts. App-side
+  // privacy responsibility shifts entirely to catch-site logging.
+  it('does not log on construction for provider errors (privacy invariant after PR 5a)', () => {
     new InvalidDataSPError({
       responseName: 'sync-response',
       status: 400,
-      payload: {
-        title: 'secret task',
-      },
+      payload: { title: 'secret task' },
     });
 
-    const logText = JSON.stringify((OpLog.log as jasmine.Spy).calls.allArgs());
-    expect(logText).toContain('InvalidDataSPError');
-    expect(logText).toContain('responseName');
-    expect(logText).toContain('status');
-    expect(logText).not.toContain('secret task');
+    expect((OpLog.log as jasmine.Spy).calls.count()).toBe(0);
   });
 
-  it('preserves safe InvalidFilePrefixError metadata', () => {
-    new InvalidFilePrefixError({
+  it('stores InvalidFilePrefixError details on additionalLog without logging on construction', () => {
+    const err = new InvalidFilePrefixError({
       expectedPrefix: 'pf_',
       endSeparator: '__',
       inputLength: 42,
     });
 
-    const logText = JSON.stringify((OpLog.log as jasmine.Spy).calls.allArgs());
-    expect(logText).toContain('InvalidFilePrefixError');
-    expect(logText).toContain('inputLength');
+    expect((OpLog.log as jasmine.Spy).calls.count()).toBe(0);
+    expect(err.additionalLog).toBeDefined();
   });
 
-  it('does not log raw wrapped error messages from additional log errors', () => {
-    new DecompressError(new Error('secret task title'));
+  it('does not log on construction for DecompressError', () => {
+    // Privacy responsibility shifts to catch-site logging after PR 5a;
+    // .message may still contain the inner error's text — callers must
+    // not log .message directly via OP_LOG_SYNC_LOGGER (the SyncLogger
+    // privacy contract bans raw user data; toSyncLogError sanitizes).
+    new DecompressError(new Error('placeholder inner error'));
 
-    const logText = JSON.stringify((OpLog.log as jasmine.Spy).calls.allArgs());
-    expect(logText).toContain('DecompressError');
-    expect(logText).toContain('firstAdditionalErrorName');
-    expect(logText).not.toContain('secret task title');
+    expect((OpLog.log as jasmine.Spy).calls.count()).toBe(0);
   });
 
   it('does not log JSON parse data samples or raw original errors', () => {
