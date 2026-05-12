@@ -173,4 +173,199 @@ describe('WebdavXmlParser', () => {
       }
     });
   });
+
+  // ==========================================================================
+  // Namespace quirks — the NS-aware `getElementsByTagNameNS('*', name)` lookup
+  // is the only reason these all parse uniformly. Originally protected by the
+  // pre-package Karma specs; restored here so a future "let's use
+  // getElementsByTagName" cleanup that breaks Apache mod_dav / ownCloud /
+  // mixed-namespace responses fails loudly.
+  // ==========================================================================
+  describe('namespace quirks', () => {
+    const parser = new WebdavXmlParser(NOOP_SYNC_LOGGER);
+
+    it('parses lowercase DAV: prefix (the standard case)', () => {
+      const xml = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response>
+    <d:href>/lower/file</d:href>
+    <d:propstat>
+      <d:prop><d:displayname>file</d:displayname><d:getcontentlength>1</d:getcontentlength><d:resourcetype/></d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>`;
+      expect(parser.parseMultiplePropsFromXml(xml, '/lower/file')).toHaveLength(1);
+    });
+
+    it('parses no-prefix namespace (Apache mod_dav style)', () => {
+      const xml = `<?xml version="1.0"?>
+<multistatus xmlns="DAV:">
+  <response>
+    <href>/apache/file</href>
+    <propstat>
+      <prop><displayname>file</displayname><getcontentlength>2</getcontentlength><resourcetype/></prop>
+      <status>HTTP/1.1 200 OK</status>
+    </propstat>
+  </response>
+</multistatus>`;
+      const r = parser.parseMultiplePropsFromXml(xml, '/apache/file');
+      expect(r).toHaveLength(1);
+      expect(r[0].size).toBe(2);
+    });
+
+    it('parses ownCloud / Nextcloud-style custom namespaces alongside DAV:', () => {
+      const xml = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns">
+  <d:response>
+    <d:href>/oc/file</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>file</d:displayname>
+        <d:getcontentlength>3</d:getcontentlength>
+        <oc:fileid>123</oc:fileid>
+        <d:resourcetype/>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>`;
+      const r = parser.parseMultiplePropsFromXml(xml, '/oc/file');
+      expect(r).toHaveLength(1);
+      expect(r[0].size).toBe(3);
+    });
+
+    it('parses mixed prefixes in the same document', () => {
+      const xml = `<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:" xmlns:lp1="DAV:">
+  <D:response>
+    <lp1:href>/mixed/file</lp1:href>
+    <D:propstat>
+      <D:prop><lp1:displayname>file</lp1:displayname><D:getcontentlength>4</D:getcontentlength><D:resourcetype/></D:prop>
+      <lp1:status>HTTP/1.1 200 OK</lp1:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>`;
+      expect(parser.parseMultiplePropsFromXml(xml, '/mixed/file')).toHaveLength(1);
+    });
+  });
+
+  // ==========================================================================
+  // Server-specific response formats — real WebDAV servers vary. Originally
+  // protected by the pre-package Karma specs; key formats restored.
+  // ==========================================================================
+  describe('server-specific response formats', () => {
+    const parser = new WebdavXmlParser(NOOP_SYNC_LOGGER);
+
+    it('parses IIS-style multistatus (URLs that include the host prefix)', () => {
+      const xml = `<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response>
+    <D:href>http://dav.example.com:8080/iis/file</D:href>
+    <D:propstat>
+      <D:prop><D:displayname>file</D:displayname><D:getcontentlength>5</D:getcontentlength><D:resourcetype/></D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>`;
+      // We don't normalize the href; we preserve what the server sent.
+      const r = parser.parseMultiplePropsFromXml(xml, '/iis/file');
+      expect(r).toHaveLength(1);
+      expect(r[0].path).toBe('http://dav.example.com:8080/iis/file');
+    });
+
+    it('parses Nginx mod-dav-style multistatus with HTTP/1.0 in status', () => {
+      const xml = `<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response>
+    <D:href>/nginx/file</D:href>
+    <D:propstat>
+      <D:prop><D:displayname>file</D:displayname><D:getcontentlength>6</D:getcontentlength><D:resourcetype/></D:prop>
+      <D:status>HTTP/1.0 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>`;
+      // status check uses .includes('200 OK') — HTTP/1.0 vs 1.1 doesn't matter
+      expect(parser.parseMultiplePropsFromXml(xml, '/nginx/file')).toHaveLength(1);
+    });
+
+    it('skips entries with non-200 propstat (207 partial-failure response)', () => {
+      const xml = `<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response>
+    <D:href>/ok/file</D:href>
+    <D:propstat>
+      <D:prop><D:displayname>ok</D:displayname><D:getcontentlength>1</D:getcontentlength><D:resourcetype/></D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+  <D:response>
+    <D:href>/forbidden/file</D:href>
+    <D:propstat>
+      <D:prop><D:displayname>forbidden</D:displayname></D:prop>
+      <D:status>HTTP/1.1 403 Forbidden</D:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>`;
+      const r = parser.parseMultiplePropsFromXml(xml, '/');
+      // Only the 200-status entry is included
+      expect(r.map((m) => m.path)).toEqual(['/ok/file']);
+    });
+  });
+
+  describe('parseXmlResponseElement — null returns', () => {
+    const parser = new WebdavXmlParser(NOOP_SYNC_LOGGER);
+
+    it('returns null when href is missing (recoverable malformed response)', () => {
+      const xml = `<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response>
+    <D:propstat>
+      <D:prop><D:displayname>orphan</D:displayname><D:resourcetype/></D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>
+</D:multistatus>`;
+      expect(parser.parseMultiplePropsFromXml(xml, '/')).toEqual([]);
+    });
+
+    it('returns null when propstat is missing', () => {
+      const xml = `<?xml version="1.0"?>
+<D:multistatus xmlns:D="DAV:">
+  <D:response>
+    <D:href>/orphan</D:href>
+  </D:response>
+</D:multistatus>`;
+      expect(parser.parseMultiplePropsFromXml(xml, '/')).toEqual([]);
+    });
+  });
+
+  // ==========================================================================
+  // HTML response detection — protects testConnection / download from
+  // hashing a login redirect page as if it were file content. Originally
+  // covered by the pre-package isHtmlResponse specs; key cases restored.
+  // ==========================================================================
+  describe('HTML response detection (extra coverage)', () => {
+    const parser = new WebdavXmlParser(NOOP_SYNC_LOGGER);
+
+    it('detects HTML with explicit charset declaration', () => {
+      expect(
+        parser.isHtmlResponse('<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0//EN"><html>'),
+      ).toBe(true);
+    });
+
+    it('does not flag JSON content as HTML', () => {
+      expect(parser.isHtmlResponse('{"foo": "bar"}')).toBe(false);
+    });
+
+    it('does not flag plain text starting with "<" but not "<html"', () => {
+      expect(parser.isHtmlResponse('<note>this is content</note>')).toBe(false);
+    });
+
+    it('detects the Nextcloud anti-pattern "There is nothing here, sorry"', () => {
+      expect(
+        parser.isHtmlResponse('<some>not html</some>There is nothing here, sorry'),
+      ).toBe(true);
+    });
+  });
 });
