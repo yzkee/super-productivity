@@ -466,6 +466,9 @@ Initial candidate-file audit:
   applied fixes now route through `SyncLogger` with path/type/count metadata
   only; raw invalid values, defaults, and full Typia error objects stay out of
   exportable logs.
+- `op-log/validation/repair-menu-tree.ts`: menu-tree repair logs now use
+  `SyncLogger` metadata for removed references/invalid nodes; raw node objects
+  and folder names stay out of exportable logs.
 - `op-log/util/sync-file-prefix.ts`: now delegates to the package helper with
   app-supplied prefix and error construction. The app-facing shim should remain
   until consumers are deliberately switched to injected/configured helpers.
