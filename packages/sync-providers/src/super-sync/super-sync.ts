@@ -39,6 +39,17 @@ const SUPERSYNC_REQUEST_TIMEOUT_MS = 75000;
 /** Max chars of server `error` field threaded into thrown `Error.message`. */
 const SERVER_ERROR_REASON_MAX_CHARS = 80;
 
+/**
+ * Internal tag for non-2xx HTTP errors thrown by this provider, so
+ * `_handleNativeRequestError` can distinguish "errors we just
+ * constructed (already scrubbed)" from foreign native-stack errors
+ * that may embed hostname/URL in `.message`. Not exported — the only
+ * consumer is the catch block in `_doNativeFetch`.
+ */
+class SuperSyncHttpStatusError extends Error {
+  override readonly name = 'SuperSyncHttpStatusError';
+}
+
 export interface SuperSyncDeps {
   logger: SyncLogger;
   platformInfo: ProviderPlatformInfo;
@@ -614,16 +625,16 @@ export class SuperSyncProvider
       );
     }
     // Our own thrown errors (`AuthFailSPError`, `MissingCredentialsSPError`,
-    // `HTTP <status>` from the non-2xx branch) carry only scrubbed content
-    // and propagate unchanged. Foreign errors from the native HTTP executor
-    // (e.g. iOS TLS-cert errors like "Hostname mismatch for example.com")
-    // can embed the resolved hostname in `.message`. Replace those with a
-    // name-only surface — the full message is captured above via the
-    // structured logger.
+    // `SuperSyncHttpStatusError` from the non-2xx branch) carry only
+    // scrubbed content and propagate unchanged. Foreign errors from the
+    // native HTTP executor (e.g. iOS TLS-cert errors like "Hostname
+    // mismatch for example.com") can embed the resolved hostname in
+    // `.message`. Replace those with a name-only surface — the full
+    // message is captured above via the structured logger.
     if (
       error instanceof AuthFailSPError ||
       error instanceof MissingCredentialsSPError ||
-      (error instanceof Error && error.message.startsWith('HTTP '))
+      error instanceof SuperSyncHttpStatusError
     ) {
       throw error;
     }
@@ -740,7 +751,9 @@ export class SuperSyncProvider
         this._checkHttpStatus(response.status, errorText);
         const reason = this._extractServerErrorReason(errorText);
         const suffix = reason ? ` — ${reason}` : '';
-        throw new Error(`HTTP ${response.status} ${response.statusText}${suffix}`);
+        throw new SuperSyncHttpStatusError(
+          `HTTP ${response.status} ${response.statusText}${suffix}`,
+        );
       }
 
       // CRITICAL: Read response body BEFORE clearing timeout
@@ -836,7 +849,7 @@ export class SuperSyncProvider
         const reason = this._extractServerErrorReason(errorData);
         const suffix = reason ? ` — ${reason}` : '';
         // No `statusText` on CapacitorHttp responses; status-only form.
-        throw new Error(`HTTP ${response.status}${suffix}`);
+        throw new SuperSyncHttpStatusError(`HTTP ${response.status}${suffix}`);
       }
 
       const duration = Date.now() - startTime;

@@ -1426,6 +1426,35 @@ describe('SuperSyncProvider', () => {
     });
 
     /**
+     * Regression: an earlier version of `_handleNativeRequestError`
+     * used `error.message.startsWith('HTTP ')` to detect our own
+     * thrown HTTP errors. That heuristic would have let a foreign
+     * error with a coincidental "HTTP " prefix through unscrubbed,
+     * leaking whatever followed. The current implementation tags our
+     * own thrown errors with an internal class, so the foreign error
+     * is scrubbed even when its message starts with "HTTP ".
+     */
+    it('scrubs foreign errors that coincidentally start with "HTTP " in the message', async () => {
+      const ctx = buildProvider({ isNativePlatform: true });
+      ctx.cfgStore.load.mockResolvedValue(testConfig);
+      const trickyError = new Error(
+        'HTTP request from sync.example.com refused at 10.0.0.5',
+      );
+      trickyError.name = 'NetworkPolicyError';
+      ctx.nativeHttpExecutor.mockRejectedValue(trickyError);
+
+      let caught: Error | undefined;
+      try {
+        await ctx.provider.uploadOps([createMockOperation()], 'client-1');
+      } catch (e) {
+        caught = e as Error;
+      }
+      expect(caught?.message).toBe('SuperSync native request failed: NetworkPolicyError');
+      expect(caught!.message).not.toContain('sync.example.com');
+      expect(caught!.message).not.toContain('10.0.0.5');
+    });
+
+    /**
      * Our own thrown errors carry only scrubbed content (HTTP <status>,
      * AuthFailSPError, MissingCredentialsSPError) and must propagate
      * unchanged on the non-retryable native path.
