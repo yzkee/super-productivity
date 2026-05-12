@@ -1,4 +1,7 @@
-import { passesCalendarEventRegexFilter } from './calendar-event-regex-filter';
+import {
+  CALENDAR_REGEX_FILTER_MAX_LENGTH,
+  passesCalendarEventRegexFilter,
+} from './calendar-event-regex-filter';
 import { CalendarIntegrationEvent } from './calendar-integration.model';
 
 const baseEvent: CalendarIntegrationEvent = {
@@ -64,6 +67,35 @@ describe('passesCalendarEventRegexFilter', () => {
 
     it('should silently ignore an invalid exclude regex and return true', () => {
       expect(passesCalendarEventRegexFilter(baseEvent, null, '[invalid')).toBe(true);
+    });
+  });
+
+  describe('length cap', () => {
+    it('should fail closed on an include regex longer than the limit', () => {
+      // Oversized include is treated as unusable; hide the event rather than
+      // silently broadening the user's intended scope.
+      const oversized = 'a'.repeat(CALENDAR_REGEX_FILTER_MAX_LENGTH + 1);
+      expect(passesCalendarEventRegexFilter(baseEvent, oversized, null)).toBe(false);
+    });
+
+    it('should fail open on an exclude regex longer than the limit', () => {
+      // Oversized exclude degrades to "no exclusion" — matches prior
+      // invalid-regex UX so a bad exclude does not hide every event.
+      const oversized = 'a'.repeat(CALENDAR_REGEX_FILTER_MAX_LENGTH + 1);
+      expect(passesCalendarEventRegexFilter(baseEvent, null, oversized)).toBe(true);
+    });
+
+    it('should still apply a regex exactly at the limit', () => {
+      const padded = 'Meeting'.padEnd(CALENDAR_REGEX_FILTER_MAX_LENGTH, '.');
+      expect(padded.length).toBe(CALENDAR_REGEX_FILTER_MAX_LENGTH);
+      expect(passesCalendarEventRegexFilter(baseEvent, padded, null)).toBe(true);
+    });
+
+    it('should not let an oversized include be bypassed by also-oversized exclude', () => {
+      const oversized = 'a'.repeat(CALENDAR_REGEX_FILTER_MAX_LENGTH + 1);
+      expect(passesCalendarEventRegexFilter(baseEvent, oversized, oversized)).toBe(
+        false,
+      );
     });
   });
 
