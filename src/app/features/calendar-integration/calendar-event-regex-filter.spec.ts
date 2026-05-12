@@ -1,5 +1,6 @@
 import {
   CALENDAR_REGEX_FILTER_MAX_LENGTH,
+  isSafeCalendarFilterRegex,
   passesCalendarEventRegexFilter,
 } from './calendar-event-regex-filter';
 import { CalendarIntegrationEvent } from './calendar-integration.model';
@@ -50,6 +51,17 @@ describe('passesCalendarEventRegexFilter', () => {
     it('should silently ignore an invalid include regex and return true', () => {
       expect(passesCalendarEventRegexFilter(baseEvent, '[invalid', null)).toBe(true);
     });
+
+    it('should fail closed for unsafe include regexes without testing them', () => {
+      const adversarialEvent = {
+        ...baseEvent,
+        title: `${'a'.repeat(5000)}!`,
+      };
+
+      expect(passesCalendarEventRegexFilter(adversarialEvent, '^(a+)+$', null)).toBe(
+        false,
+      );
+    });
   });
 
   describe('exclude filter', () => {
@@ -68,6 +80,42 @@ describe('passesCalendarEventRegexFilter', () => {
     it('should silently ignore an invalid exclude regex and return true', () => {
       expect(passesCalendarEventRegexFilter(baseEvent, null, '[invalid')).toBe(true);
     });
+
+    it('should fail open for unsafe exclude regexes without testing them', () => {
+      const adversarialEvent = {
+        ...baseEvent,
+        title: `${'a'.repeat(5000)}!`,
+      };
+
+      expect(passesCalendarEventRegexFilter(adversarialEvent, null, '^(a+)+$')).toBe(
+        true,
+      );
+    });
+  });
+
+  describe('regex safety checks', () => {
+    it('should allow normal calendar filter regexes', () => {
+      expect(isSafeCalendarFilterRegex('Lunch|Meeting')).toBe(true);
+      expect(isSafeCalendarFilterRegex('^Team.*(Meeting|Standup)$')).toBe(true);
+      expect(isSafeCalendarFilterRegex('\\b(project|planning)\\b')).toBe(true);
+    });
+
+    it('should reject nested quantified groups', () => {
+      expect(isSafeCalendarFilterRegex('^(a+)+$')).toBe(false);
+      expect(isSafeCalendarFilterRegex('^([a-z]*)+$')).toBe(false);
+      expect(isSafeCalendarFilterRegex('^((a+))+$')).toBe(false);
+    });
+
+    it('should reject repeated groups with ambiguous alternatives', () => {
+      expect(isSafeCalendarFilterRegex('^(a|aa)+$')).toBe(false);
+      expect(isSafeCalendarFilterRegex('^(?:event|events)*$')).toBe(false);
+      expect(isSafeCalendarFilterRegex('^((a|aa))+$')).toBe(false);
+    });
+
+    it('should reject backreferences', () => {
+      expect(isSafeCalendarFilterRegex('^(a+)\\1+$')).toBe(false);
+      expect(isSafeCalendarFilterRegex('^(?<word>\\w+)\\k<word>$')).toBe(false);
+    });
   });
 
   describe('length cap', () => {
@@ -79,7 +127,7 @@ describe('passesCalendarEventRegexFilter', () => {
     });
 
     it('should fail open on an exclude regex longer than the limit', () => {
-      // Oversized exclude degrades to "no exclusion" — matches prior
+      // Oversized exclude degrades to "no exclusion" - matches prior
       // invalid-regex UX so a bad exclude does not hide every event.
       const oversized = 'a'.repeat(CALENDAR_REGEX_FILTER_MAX_LENGTH + 1);
       expect(passesCalendarEventRegexFilter(baseEvent, null, oversized)).toBe(true);

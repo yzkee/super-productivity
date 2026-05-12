@@ -5,14 +5,17 @@ import { CalendarProviderCfg } from './calendar.model';
 import { ISSUE_PROVIDER_COMMON_FORM_FIELDS } from '../../common-issue-form-stuff.const';
 import { IS_ELECTRON } from '../../../../app.constants';
 import { IssueLog } from '../../../../core/log';
-import { CALENDAR_REGEX_FILTER_MAX_LENGTH } from '../../../calendar-integration/calendar-event-regex-filter';
+import {
+  CALENDAR_REGEX_FILTER_MAX_LENGTH,
+  isSafeCalendarFilterRegex,
+} from '../../../calendar-integration/calendar-event-regex-filter';
 
 const isValidCalendarFilterRegex = (value: string | undefined | null): boolean => {
   if (!value) return true;
   if (value.length > CALENDAR_REGEX_FILTER_MAX_LENGTH) return false;
   try {
     new RegExp(value);
-    return true;
+    return isSafeCalendarFilterRegex(value);
   } catch {
     return false;
   }
