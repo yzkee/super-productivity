@@ -9,21 +9,21 @@ import {
   limitVectorClockSize,
   VectorClock,
   SYNC_ERROR_CODES,
-  ConflictType,
   ConflictResult,
 } from './sync.types';
+import { APPROX_BYTES_PER_OP } from './sync.const';
 import { Logger } from '../logger';
-import { CURRENT_SCHEMA_VERSION } from '@sp/shared-schema';
 import { Prisma } from '@prisma/client';
 import {
   ValidationService,
-  ALLOWED_ENTITY_TYPES,
   RateLimitService,
   RequestDeduplicationService,
   DeviceService,
   OperationDownloadService,
   StorageQuotaService,
   SnapshotService,
+  type PreparedSnapshotCache,
+  type CacheSnapshotResult,
 } from './services';
 
 /**
@@ -316,6 +316,7 @@ export class SyncService {
       if (isCleanSlate) {
         this.rateLimitService.clearForUser(userId);
         this.snapshotService.clearForUser(userId);
+        this.storageQuotaService.clearForUser(userId);
       }
     } catch (err) {
       // Transaction failed - all operations were rolled back
@@ -707,17 +708,33 @@ export class SyncService {
     return this.snapshotService.getCachedSnapshot(userId);
   }
 
-  async cacheSnapshot(userId: number, state: unknown, serverSeq: number): Promise<void> {
-    return this.snapshotService.cacheSnapshot(userId, state, serverSeq);
+  async prepareSnapshotCache(state: unknown): Promise<PreparedSnapshotCache> {
+    return this.snapshotService.prepareSnapshotCache(state);
   }
 
-  async generateSnapshot(userId: number): Promise<{
+  async getCachedSnapshotBytes(userId: number): Promise<number> {
+    return this.snapshotService.getCachedSnapshotBytes(userId);
+  }
+
+  async cacheSnapshot(
+    userId: number,
+    state: unknown,
+    serverSeq: number,
+    preparedSnapshot?: PreparedSnapshotCache,
+  ): Promise<CacheSnapshotResult> {
+    return this.snapshotService.cacheSnapshot(userId, state, serverSeq, preparedSnapshot);
+  }
+
+  async generateSnapshot(
+    userId: number,
+    onCacheDelta?: (deltaBytes: number) => Promise<void>,
+  ): Promise<{
     state: unknown;
     serverSeq: number;
     generatedAt: number;
     schemaVersion: number;
   }> {
-    return this.snapshotService.generateSnapshot(userId);
+    return this.snapshotService.generateSnapshot(userId, onCacheDelta);
   }
 
   async getRestorePoints(
@@ -791,6 +808,22 @@ export class SyncService {
     return this.storageQuotaService.updateStorageUsage(userId);
   }
 
+  async incrementStorageUsage(userId: number, deltaBytes: number): Promise<void> {
+    return this.storageQuotaService.incrementStorageUsage(userId, deltaBytes);
+  }
+
+  async decrementStorageUsage(userId: number, deltaBytes: number): Promise<void> {
+    return this.storageQuotaService.decrementStorageUsage(userId, deltaBytes);
+  }
+
+  async runWithStorageUsageLock<T>(userId: number, fn: () => Promise<T>): Promise<T> {
+    return this.storageQuotaService.runWithStorageUsageLock(userId, fn);
+  }
+
+  markStorageNeedsReconcile(userId: number): void {
+    this.storageQuotaService.markNeedsReconcile(userId);
+  }
+
   async getStorageInfo(userId: number): Promise<{
     storageUsedBytes: number;
     storageQuotaBytes: number;
@@ -834,6 +867,10 @@ export class SyncService {
         if (result.count > 0) {
           totalDeleted += result.count;
           affectedUserIds.push(state.userId);
+          // Deliberately leave storageUsedBytes stale-high here. A count-based
+          // approximate decrement can undercount users with many tiny ops and
+          // let them bypass quota indefinitely. The quota-miss path performs one
+          // exact reconcile for the affected user before rejecting uploads.
         }
       }
     }
@@ -893,15 +930,10 @@ export class SyncService {
       return { deletedCount: 0, freedBytes: 0, success: false };
     }
 
-    // Calculate approximate size of ops being deleted using SQL aggregate
-    // to avoid loading potentially large payloads into Node memory.
-    // NOTE: Column names match the Prisma `Operation` model's `@@map("operations")`
-    // and `@map(...)` annotations (see prisma/schema.prisma).
-    const sizeResult = await prisma.$queryRaw<[{ total: bigint | null }]>`
-      SELECT COALESCE(SUM(pg_column_size(payload) + pg_column_size(vector_clock)), 0) as total
-      FROM operations WHERE user_id = ${userId} AND server_seq <= ${deleteUpToSeq}
-    `;
-    const freedBytes = Number(sizeResult[0]?.total ?? 0);
+    // freedBytes is an approximate decrement applied to the cached counter so
+    // freeStorageForUpload's loop can make progress without recomputing per-row
+    // pg_column_size (the original DoS pattern). Reconciled to exact value once
+    // at the end of freeStorageForUpload via a single updateStorageUsage call.
 
     // Delete the operations
     const result = await prisma.operation.deleteMany({
@@ -910,6 +942,8 @@ export class SyncService {
         serverSeq: { lte: deleteUpToSeq },
       },
     });
+
+    const freedBytes = result.count * APPROX_BYTES_PER_OP;
 
     if (result.count > 0) {
       // Clear stale snapshot cache if it references deleted operations
@@ -932,10 +966,12 @@ export class SyncService {
         );
       }
 
-      // Update storage usage cache
-      await this.updateStorageUsage(userId);
+      // Decrement counter by the approximate freed bytes so freeStorageForUpload
+      // can detect progress. Final accuracy is restored by the single
+      // updateStorageUsage call at the end of freeStorageForUpload.
+      await this.decrementStorageUsage(userId, freedBytes);
       Logger.info(
-        `[user:${userId}] Deleted ${result.count} ops (freed ~${Math.round(freedBytes / 1024)}KB)`,
+        `[user:${userId}] Deleted ${result.count} ops (approx freed ~${Math.round(freedBytes / 1024)}KB)`,
       );
     }
 
@@ -971,19 +1007,72 @@ export class SyncService {
     const MAX_CLEANUP_ITERATIONS = 50;
     let iterations = 0;
 
+    // Reconcile the approximate counter once at the end via a single
+    // calculateStorageUsage scan. Slow but bounded to a single user per
+    // quota-cleanup event (not per upload like the previous regression).
+    //
+    // If reconcile fails we must NOT leave the counter at its post-decrement
+    // (artificially low) value — that would let the user bypass quota until
+    // the next successful reconcile. Roll the optimistic decrement back so the
+    // counter returns to its pre-cleanup state (which was correctly tracked by
+    // incremental upload deltas).
+    const reconcileCounter = async (): Promise<boolean> => {
+      try {
+        await this.updateStorageUsage(userId);
+        return true;
+      } catch (err) {
+        Logger.warn(
+          `[user:${userId}] Failed to reconcile storage usage after cleanup: ${
+            (err as Error).message
+          }`,
+        );
+        return false;
+      }
+    };
+    const reconcileOrRollback = async (): Promise<void> => {
+      const ok = await reconcileCounter();
+      if (!ok && totalFreedBytes > 0) {
+        try {
+          await this.storageQuotaService.incrementStorageUsage(userId, totalFreedBytes);
+          Logger.warn(
+            `[user:${userId}] Rolled back ${totalFreedBytes} bytes of optimistic cleanup decrement after reconcile failure`,
+          );
+        } catch (err) {
+          Logger.error(
+            `[user:${userId}] Failed to roll back cleanup decrement: ${
+              (err as Error).message
+            }`,
+          );
+        }
+      }
+    };
+
     // Keep trying until we have enough space or hit minimum
     while (iterations < MAX_CLEANUP_ITERATIONS) {
       iterations++;
 
-      // Check if we now have enough space
+      // Check if we now have enough space. The cached counter may have been
+      // moved by approximate count*const deletes, so verify once with the exact
+      // reconciled counter before declaring success.
       const quotaCheck = await this.checkStorageQuota(userId, requiredBytes);
       if (quotaCheck.allowed) {
-        return {
-          success: true,
-          freedBytes: totalFreedBytes,
-          deletedRestorePoints,
-          deletedOps: totalDeletedOps,
-        };
+        // On the success-path we want fresh truth, but if reconcile fails we
+        // also want the rollback (otherwise we'd be making the success
+        // decision against an artificially-low counter).
+        await reconcileOrRollback();
+        const reconciledQuotaCheck = await this.checkStorageQuota(userId, requiredBytes);
+        if (reconciledQuotaCheck.allowed) {
+          return {
+            success: true,
+            freedBytes: totalFreedBytes,
+            deletedRestorePoints,
+            deletedOps: totalDeletedOps,
+          };
+        }
+        Logger.warn(
+          `[user:${userId}] Storage still exceeded after exact reconcile: ` +
+            `${reconciledQuotaCheck.currentUsage}/${reconciledQuotaCheck.quota} bytes`,
+        );
       }
 
       // Only need to know whether at least two restore points remain.
@@ -1003,6 +1092,7 @@ export class SyncService {
         Logger.warn(
           `[user:${userId}] Cannot free more storage: only ${restorePoints.length} restore point(s) remaining`,
         );
+        await reconcileOrRollback();
         return {
           success: false,
           freedBytes: totalFreedBytes,
@@ -1014,6 +1104,7 @@ export class SyncService {
       // Delete oldest restore point + all ops before it
       const result = await this.deleteOldestRestorePointAndOps(userId);
       if (!result.success) {
+        await reconcileOrRollback();
         return {
           success: false,
           freedBytes: totalFreedBytes,
@@ -1036,6 +1127,7 @@ export class SyncService {
     Logger.warn(
       `[user:${userId}] Storage cleanup exceeded max iterations (${MAX_CLEANUP_ITERATIONS})`,
     );
+    await reconcileOrRollback();
     return {
       success: false,
       freedBytes: totalFreedBytes,
@@ -1082,6 +1174,7 @@ export class SyncService {
     // Clear caches
     this.rateLimitService.clearForUser(userId);
     this.snapshotService.clearForUser(userId);
+    this.storageQuotaService.clearForUser(userId);
   }
 
   async isDeviceOwner(userId: number, clientId: string): Promise<boolean> {

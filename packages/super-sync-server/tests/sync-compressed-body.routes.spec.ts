@@ -11,10 +11,17 @@ const mocks = vi.hoisted(() => {
     uploadOps: vi.fn(),
     cacheRequestResults: vi.fn(),
     cacheSnapshot: vi.fn(),
+    prepareSnapshotCache: vi.fn(),
     updateStorageUsage: vi.fn(),
+    incrementStorageUsage: vi.fn(),
+    decrementStorageUsage: vi.fn(),
+    runWithStorageUsageLock: vi.fn(),
     freeStorageForUpload: vi.fn(),
     getLatestSeq: vi.fn(),
     getOpsSinceWithSeq: vi.fn(),
+    getStorageInfo: vi.fn(),
+    getCachedSnapshotBytes: vi.fn(),
+    markStorageNeedsReconcile: vi.fn(),
   };
 
   return {
@@ -72,8 +79,28 @@ describe('Sync compressed body routes', () => {
       quota: 100 * 1024 * 1024,
     });
     mocks.syncService.uploadOps.mockResolvedValue([{ accepted: true, serverSeq: 1 }]);
-    mocks.syncService.cacheSnapshot.mockResolvedValue(undefined);
+    mocks.syncService.cacheSnapshot.mockResolvedValue({
+      cached: true,
+      bytesWritten: 0,
+      previousBytes: 0,
+      deltaBytes: 0,
+    });
+    mocks.syncService.prepareSnapshotCache.mockImplementation((state: unknown) => {
+      const serialized = JSON.stringify(state);
+      const data = zlib.gzipSync(serialized);
+      return {
+        data,
+        bytes: data.length,
+        stateBytes: Buffer.byteLength(serialized, 'utf8'),
+        cacheable: true,
+      };
+    });
     mocks.syncService.updateStorageUsage.mockResolvedValue(undefined);
+    mocks.syncService.incrementStorageUsage.mockResolvedValue(undefined);
+    mocks.syncService.decrementStorageUsage.mockResolvedValue(undefined);
+    mocks.syncService.runWithStorageUsageLock.mockImplementation(
+      async (_userId: number, fn: () => Promise<unknown>) => fn(),
+    );
     mocks.syncService.freeStorageForUpload.mockResolvedValue({
       success: false,
       freedBytes: 0,
@@ -85,6 +112,11 @@ describe('Sync compressed body routes', () => {
       ops: [],
       latestSeq: 1,
     });
+    mocks.syncService.getStorageInfo.mockResolvedValue({
+      storageUsedBytes: 0,
+      storageQuotaBytes: 100 * 1024 * 1024,
+    });
+    mocks.syncService.getCachedSnapshotBytes.mockResolvedValue(0);
 
     app = Fastify();
     await app.register(syncRoutes, { prefix: '/api/sync' });
@@ -118,7 +150,15 @@ describe('Sync compressed body routes', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().results[0].accepted).toBe(true);
     expect(mocks.syncService.uploadOps).toHaveBeenCalledOnce();
-    expect(mocks.syncService.checkStorageQuota).toHaveBeenCalledWith(1, payloadSize);
+    // Quota gate now accounts via computeOpsStorageBytes(ops), so the value is
+    // the per-op payload+vectorClock bytes rather than the full body size.
+    // Tests of compression handling stay value-agnostic — assert a finite,
+    // bounded delta was passed in.
+    const quotaCall = mocks.syncService.checkStorageQuota.mock.calls[0];
+    expect(quotaCall[0]).toBe(1);
+    expect(typeof quotaCall[1]).toBe('number');
+    expect(quotaCall[1]).toBeGreaterThan(0);
+    expect(quotaCall[1]).toBeLessThan(payloadSize);
   });
 
   it('should fall back to UTF-8 JSON byte size for plain JSON without content-length', async () => {
@@ -149,10 +189,12 @@ describe('Sync compressed body routes', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(mocks.syncService.checkStorageQuota).toHaveBeenCalledWith(
-      1,
-      Buffer.byteLength(jsonPayload, 'utf-8'),
-    );
+    const quotaCall = mocks.syncService.checkStorageQuota.mock.calls[0];
+    expect(quotaCall[0]).toBe(1);
+    expect(typeof quotaCall[1]).toBe('number');
+    expect(quotaCall[1]).toBeGreaterThan(0);
+    // Multi-byte UTF-8 payload must measure larger in bytes than UTF-16 units
+    // to keep the quota gate accurate.
     expect(Buffer.byteLength(jsonPayload, 'utf-8')).toBeGreaterThan(jsonPayload.length);
   });
 
@@ -182,7 +224,11 @@ describe('Sync compressed body routes', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().results[0].accepted).toBe(true);
     expect(mocks.syncService.uploadOps).toHaveBeenCalledOnce();
-    expect(mocks.syncService.checkStorageQuota).toHaveBeenCalledWith(1, decompressedSize);
+    const quotaCall = mocks.syncService.checkStorageQuota.mock.calls[0];
+    expect(quotaCall[0]).toBe(1);
+    expect(typeof quotaCall[1]).toBe('number');
+    expect(quotaCall[1]).toBeGreaterThan(0);
+    expect(quotaCall[1]).toBeLessThan(decompressedSize);
     expect(decompressedSize).not.toBe(
       Buffer.byteLength(compressedPayload.toString('base64'), 'utf-8'),
     );
@@ -286,11 +332,20 @@ describe('Sync compressed body routes', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().accepted).toBe(true);
-    expect(mocks.syncService.cacheSnapshot).toHaveBeenCalledWith(1, payload.state, 1);
-    expect(mocks.syncService.checkStorageQuota).toHaveBeenCalledWith(
+    expect(mocks.syncService.cacheSnapshot).toHaveBeenCalledWith(
       1,
-      Buffer.byteLength(jsonPayload, 'utf-8'),
+      payload.state,
+      1,
+      expect.anything(),
     );
+    // Snapshot quota gate now accounts via estimated op + cache-delta bytes
+    // rather than the raw request body size. Stay value-agnostic; the
+    // compression-handling intent is still covered by the 200 + cacheSnapshot.
+    const quotaCall = mocks.syncService.checkStorageQuota.mock.calls[0];
+    expect(quotaCall[0]).toBe(1);
+    expect(typeof quotaCall[1]).toBe('number');
+    expect(quotaCall[1]).toBeGreaterThanOrEqual(0);
+    void jsonPayload;
   });
 
   it('should preserve the invalid gzip route response', async () => {
@@ -308,5 +363,218 @@ describe('Sync compressed body routes', () => {
     expect(response.statusCode).toBe(400);
     expect(response.json().error).toBe('Failed to decompress gzip body');
     expect(mocks.syncService.uploadOps).not.toHaveBeenCalled();
+  });
+
+  it('should reject clean-slate snapshot when replacement exceeds quota', async () => {
+    const clientId = 'clean-slate-quota-client';
+    mocks.syncService.prepareSnapshotCache.mockReturnValueOnce({
+      data: Buffer.from('cached-snapshot'),
+      bytes: 80,
+      stateBytes: 30,
+      cacheable: true,
+    });
+    mocks.syncService.getStorageInfo.mockResolvedValueOnce({
+      storageUsedBytes: 1000,
+      storageQuotaBytes: 100,
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sync/snapshot',
+      headers: { authorization: `Bearer ${authToken}` },
+      payload: {
+        state: { TASK: { 'task-1': { id: 'task-1' } } },
+        clientId,
+        reason: 'initial',
+        vectorClock: {},
+        isCleanSlate: true,
+      },
+    });
+
+    expect(response.statusCode).toBe(413);
+    expect(response.json().errorCode).toBe('STORAGE_QUOTA_EXCEEDED');
+    expect(mocks.syncService.uploadOps).not.toHaveBeenCalled();
+  });
+
+  it('should reconcile the counter before rejecting on the cheap snapshot pre-gate', async () => {
+    // Regression for W10: when the cached counter says we are at quota, the
+    // route reconciles once before rejecting — a stale-high counter would
+    // otherwise lock out users whose new snapshot would actually shrink
+    // their storage.
+    const clientId = 'pre-gate-reconcile-client';
+    const vectorClock = { [clientId]: 1 };
+
+    // 1st getStorageInfo returns stale-high (over quota). After reconcile,
+    // the 2nd call returns the corrected (under quota) value.
+    mocks.syncService.getStorageInfo
+      .mockResolvedValueOnce({
+        storageUsedBytes: 100 * 1024 * 1024,
+        storageQuotaBytes: 100 * 1024 * 1024,
+      })
+      .mockResolvedValue({
+        storageUsedBytes: 50_000,
+        storageQuotaBytes: 100 * 1024 * 1024,
+      });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sync/snapshot',
+      headers: { authorization: `Bearer ${authToken}` },
+      payload: {
+        state: { TASK: { 'task-1': { id: 'task-1' } } },
+        clientId,
+        reason: 'recovery',
+        vectorClock,
+      },
+    });
+
+    expect(mocks.syncService.updateStorageUsage).toHaveBeenCalledWith(1);
+    expect(response.statusCode).toBe(200);
+  });
+
+  it('should still 413 on the snapshot pre-gate when reconcile confirms over-quota', async () => {
+    // Same path as above, but reconcile does not move the counter. The
+    // rejection now uses errorCode (not code) and routes through the unified
+    // 413 helper.
+    const clientId = 'pre-gate-no-reconcile-client';
+    mocks.syncService.getStorageInfo.mockResolvedValue({
+      storageUsedBytes: 100 * 1024 * 1024,
+      storageQuotaBytes: 100 * 1024 * 1024,
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sync/snapshot',
+      headers: { authorization: `Bearer ${authToken}` },
+      payload: {
+        state: { TASK: { 'task-1': { id: 'task-1' } } },
+        clientId,
+        reason: 'recovery',
+        vectorClock: { [clientId]: 1 },
+      },
+    });
+
+    expect(response.statusCode).toBe(413);
+    const body = response.json();
+    expect(body.errorCode).toBe('STORAGE_QUOTA_EXCEEDED');
+    // No legacy `code:` key — clients dispatch on errorCode.
+    expect(body.code).toBeUndefined();
+    expect(mocks.syncService.uploadOps).not.toHaveBeenCalled();
+  });
+
+  it('should fall through gracefully when the pre-gate reconcile throws', async () => {
+    // If the reconcile fails (DB hiccup), the route logs and uses the stale
+    // cached read. Either accept (cached < quota) or reject with 413 — but
+    // never bubble a 500.
+    const clientId = 'pre-gate-reconcile-throws';
+    mocks.syncService.getStorageInfo.mockResolvedValue({
+      storageUsedBytes: 100 * 1024 * 1024,
+      storageQuotaBytes: 100 * 1024 * 1024,
+    });
+    mocks.syncService.updateStorageUsage.mockRejectedValueOnce(new Error('db down'));
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sync/snapshot',
+      headers: { authorization: `Bearer ${authToken}` },
+      payload: {
+        state: { TASK: { 'task-1': { id: 'task-1' } } },
+        clientId,
+        reason: 'recovery',
+        vectorClock: { [clientId]: 1 },
+      },
+    });
+
+    expect(response.statusCode).toBe(413);
+    expect(response.json().errorCode).toBe('STORAGE_QUOTA_EXCEEDED');
+  });
+
+  it('should mark the user for forced reconcile when post-commit counter delta fails', async () => {
+    // Regression for W6: when applyStorageUsageDelta (called after a
+    // successful snapshot upload) fails, the user must be marked so the
+    // next quota check self-heals instead of waiting for daily cleanup.
+    const clientId = 'post-commit-counter-failure';
+    const vectorClock = { [clientId]: 1 };
+    mocks.syncService.prepareSnapshotCache.mockReturnValueOnce({
+      data: Buffer.from('cached-snapshot'),
+      bytes: 40,
+      stateBytes: 25,
+      cacheable: true,
+    });
+    mocks.syncService.uploadOps.mockResolvedValueOnce([{ accepted: true, serverSeq: 7 }]);
+    mocks.syncService.cacheSnapshot.mockResolvedValueOnce({
+      cached: true,
+      bytesWritten: 40,
+      previousBytes: 10,
+      deltaBytes: 30,
+    });
+    mocks.syncService.incrementStorageUsage.mockRejectedValueOnce(
+      new Error('counter down'),
+    );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sync/snapshot',
+      headers: { authorization: `Bearer ${authToken}` },
+      payload: {
+        state: { TASK: { 'task-1': { id: 'task-1' } } },
+        clientId,
+        reason: 'recovery',
+        vectorClock,
+      },
+    });
+
+    // The data write is committed; the response must still succeed even
+    // though the counter is stale.
+    expect(response.statusCode).toBe(200);
+    expect(mocks.syncService.markStorageNeedsReconcile).toHaveBeenCalledWith(1);
+  });
+
+  it('should count snapshot op bytes and cache replacement delta after upload', async () => {
+    const clientId = 'snapshot-delta-client';
+    const vectorClock = { [clientId]: 1 };
+    const preparedSnapshot = {
+      data: Buffer.from('cached-snapshot'),
+      bytes: 40,
+      stateBytes: 25,
+      cacheable: true,
+    };
+    mocks.syncService.prepareSnapshotCache.mockReturnValueOnce(preparedSnapshot);
+    mocks.syncService.getCachedSnapshotBytes.mockResolvedValueOnce(10);
+    mocks.syncService.uploadOps.mockResolvedValueOnce([{ accepted: true, serverSeq: 7 }]);
+    mocks.syncService.cacheSnapshot.mockResolvedValueOnce({
+      cached: true,
+      bytesWritten: 40,
+      previousBytes: 10,
+      deltaBytes: 30,
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sync/snapshot',
+      headers: { authorization: `Bearer ${authToken}` },
+      payload: {
+        state: { TASK: { 'task-1': { id: 'task-1' } } },
+        clientId,
+        reason: 'recovery',
+        vectorClock,
+      },
+    });
+
+    const vectorClockBytes = Buffer.byteLength(JSON.stringify(vectorClock), 'utf8');
+    const expectedDelta = preparedSnapshot.stateBytes + vectorClockBytes + 30;
+
+    expect(response.statusCode).toBe(200);
+    expect(mocks.syncService.checkStorageQuota).toHaveBeenCalledWith(1, expectedDelta);
+    expect(mocks.syncService.cacheSnapshot).toHaveBeenCalledWith(
+      1,
+      { TASK: { 'task-1': { id: 'task-1' } } },
+      7,
+      preparedSnapshot,
+    );
+    expect(mocks.syncService.incrementStorageUsage).toHaveBeenCalledWith(
+      1,
+      expectedDelta,
+    );
   });
 });

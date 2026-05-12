@@ -12,8 +12,11 @@ import { getWsConnectionService } from './services/websocket-connection.service'
 import { Logger } from '../logger';
 import { prisma } from '../db';
 import {
+  Operation,
+  ServerOperation,
   UploadOpsRequest,
   UploadOpsResponse,
+  UploadResult,
   DownloadOpsResponse,
   SnapshotResponse,
   SyncStatusResponse,
@@ -23,14 +26,17 @@ import {
   parseCompressedJsonBody,
   type CompressedJsonBodyParseResult,
 } from './compressed-body-parser';
+import { APPROX_BYTES_PER_OP } from './sync.const';
+
+type ZodIssue = z.ZodError['issues'][number];
 
 /**
  * Helper to create validation error response.
  * In production, hides detailed Zod error info to prevent schema leakage.
  */
 const createValidationErrorResponse = (
-  zodIssues: z.ZodIssue[],
-): { error: string; details?: z.ZodIssue[] } => {
+  zodIssues: ZodIssue[],
+): { error: string; details?: ZodIssue[] } => {
   if (process.env.NODE_ENV === 'production') {
     return { error: 'Validation failed' };
   }
@@ -51,6 +57,93 @@ const MAX_DECOMPRESSED_SIZE = 100 * 1024 * 1024; // 100MB - catches malicious hi
 // Error helper
 const errorMessage = (err: unknown): string =>
   err instanceof Error ? err.message : 'Unknown error';
+
+/**
+ * Approximate on-disk byte cost of a set of operations, computed locally so
+ * the hot path never scans the operations table. Approximation ignores TOAST
+ * compression overhead and is used to keep the `users.storage_used_bytes`
+ * counter accurate via incremental deltas.
+ *
+ * Robust against malformed payloads: if JSON.stringify throws (e.g. BigInt,
+ * circular ref), the op is charged APPROX_BYTES_PER_OP so the counter cannot
+ * be bypassed by submitting unserializable ops that still persist as JSONB.
+ */
+const computeOpsStorageBytes = (
+  ops: Array<{ id?: string; payload: unknown; vectorClock: unknown }>,
+): number => {
+  let total = 0;
+  let skipped = 0;
+  for (const op of ops) {
+    try {
+      total += Buffer.byteLength(JSON.stringify(op.payload ?? null), 'utf8');
+      total += Buffer.byteLength(JSON.stringify(op.vectorClock ?? {}), 'utf8');
+    } catch {
+      // Charge conservative fallback so unserializable ops still count toward
+      // quota. Persisting via Prisma JSONB does not require JSON.stringify on
+      // the Node side, so a throw here does not mean the op was dropped.
+      total += APPROX_BYTES_PER_OP;
+      skipped++;
+    }
+  }
+  if (skipped > 0) {
+    Logger.warn(
+      `computeOpsStorageBytes: ${skipped} unserializable op(s) charged at APPROX_BYTES_PER_OP`,
+    );
+  }
+  return total;
+};
+
+const computeJsonStorageBytes = (value: unknown, fallback: unknown): number => {
+  try {
+    return Buffer.byteLength(JSON.stringify(value ?? fallback), 'utf8');
+  } catch {
+    return 0;
+  }
+};
+
+const applyStorageUsageDelta = async (
+  userId: number,
+  deltaBytes: number,
+  context: string,
+): Promise<void> => {
+  if (!Number.isFinite(deltaBytes) || deltaBytes === 0) return;
+  const syncService = getSyncService();
+  try {
+    if (deltaBytes > 0) {
+      await syncService.incrementStorageUsage(userId, deltaBytes);
+    } else {
+      await syncService.decrementStorageUsage(userId, Math.abs(deltaBytes));
+    }
+  } catch (err) {
+    // Counter write failed AFTER the data write committed. The cached
+    // storage_used_bytes is now stale (low for increments, high for
+    // decrements). Mark the user for forced reconcile so the next quota
+    // check self-heals rather than waiting for daily cleanup.
+    syncService.markStorageNeedsReconcile(userId);
+    Logger.warn(
+      `[user:${userId}] Failed to update storage usage cache ${context}: ${errorMessage(err)}; marked for forced reconcile`,
+    );
+  }
+};
+
+const sendQuotaExceededReply = (
+  reply: FastifyReply,
+  body: {
+    storageUsedBytes: number;
+    storageQuotaBytes: number;
+    autoCleanupAttempted: boolean;
+    cleanupStats?: {
+      freedBytes: number;
+      deletedRestorePoints: number;
+      deletedOps: number;
+    };
+  },
+): FastifyReply =>
+  reply.status(413).send({
+    error: 'Storage quota exceeded',
+    errorCode: SYNC_ERROR_CODES.STORAGE_QUOTA_EXCEEDED,
+    ...body,
+  });
 
 type CompressedJsonBodyParseFailure = Extract<
   CompressedJsonBodyParseResult,
@@ -86,55 +179,40 @@ const sendCompressedBodyParseFailure = (
   return reply.status(failure.statusCode).send({ error: failure.error });
 };
 
-const getContentLengthBytes = (req: FastifyRequest): number | undefined => {
-  const rawContentLength = req.headers['content-length'];
-  const contentLength = Array.isArray(rawContentLength)
-    ? rawContentLength[0]
-    : rawContentLength;
-  if (contentLength === undefined) return undefined;
-
-  const parsed = Number(contentLength);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
-};
-
-const getParsedBodySizeBytes = (
-  req: FastifyRequest,
-  body: unknown,
-  decompressedSize?: number,
-): number => {
-  if (decompressedSize !== undefined) return decompressedSize;
-
-  const contentLength = getContentLengthBytes(req);
-  if (contentLength !== undefined) return contentLength;
-
-  return Buffer.byteLength(JSON.stringify(body), 'utf-8');
-};
-
 /**
  * Check storage quota, recalculate if stale, and auto-cleanup if needed.
  * @returns `true` if quota is OK (caller can proceed), `false` if reply was sent with 413 error.
  */
 async function enforceStorageQuota(
   userId: number,
-  payloadSize: number,
+  storageDeltaBytes: number,
   reply: FastifyReply,
 ): Promise<boolean> {
   const syncService = getSyncService();
-  let quotaCheck = await syncService.checkStorageQuota(userId, payloadSize);
+  let quotaCheck = await syncService.checkStorageQuota(userId, storageDeltaBytes);
   if (quotaCheck.allowed) return true;
 
-  // Cache might be stale - recalculate actual storage before taking action
+  // Cache miss path only — reconcile once before resorting to destructive
+  // cleanup. Safe to run the slow scan here because this branch only fires for
+  // users actually near quota (rare). The DoS came from running this on every
+  // upload success, not on quota misses. Also guards against pre-deploy stale
+  // counters where the old code's pg_column_size SUM left an inflated value.
   Logger.info(
-    `[user:${userId}] Quota check failed (cached: ${quotaCheck.currentUsage}/${quotaCheck.quota}). Recalculating actual storage...`,
+    `[user:${userId}] Quota cache miss (cached: ${quotaCheck.currentUsage}/${quotaCheck.quota}). Reconciling before cleanup...`,
   );
-  await syncService.updateStorageUsage(userId);
-  quotaCheck = await syncService.checkStorageQuota(userId, payloadSize);
-
-  if (quotaCheck.allowed) {
-    Logger.info(
-      `[user:${userId}] Quota OK after recalculation: ${quotaCheck.currentUsage}/${quotaCheck.quota} bytes`,
+  try {
+    await syncService.updateStorageUsage(userId);
+    quotaCheck = await syncService.checkStorageQuota(userId, storageDeltaBytes);
+    if (quotaCheck.allowed) {
+      Logger.info(
+        `[user:${userId}] Quota OK after reconcile: ${quotaCheck.currentUsage}/${quotaCheck.quota}`,
+      );
+      return true;
+    }
+  } catch (err) {
+    Logger.warn(
+      `[user:${userId}] Reconcile failed, proceeding with cleanup: ${errorMessage(err)}`,
     );
-    return true;
   }
 
   Logger.warn(
@@ -142,7 +220,7 @@ async function enforceStorageQuota(
   );
 
   // Iteratively delete old data until we have enough space
-  const cleanupResult = await syncService.freeStorageForUpload(userId, payloadSize);
+  const cleanupResult = await syncService.freeStorageForUpload(userId, storageDeltaBytes);
 
   if (cleanupResult.success) {
     Logger.info(
@@ -153,13 +231,11 @@ async function enforceStorageQuota(
   }
 
   // Truly out of space - return error
-  const finalQuota = await syncService.checkStorageQuota(userId, payloadSize);
+  const finalQuota = await syncService.checkStorageQuota(userId, storageDeltaBytes);
   Logger.warn(
     `[user:${userId}] Storage quota still exceeded after cleanup: ${finalQuota.currentUsage}/${finalQuota.quota} bytes`,
   );
-  reply.status(413).send({
-    error: 'Storage quota exceeded',
-    errorCode: SYNC_ERROR_CODES.STORAGE_QUOTA_EXCEEDED,
+  sendQuotaExceededReply(reply, {
     storageUsedBytes: finalQuota.currentUsage,
     storageQuotaBytes: finalQuota.quota,
     autoCleanupAttempted: true,
@@ -168,6 +244,27 @@ async function enforceStorageQuota(
       deletedRestorePoints: cleanupResult.deletedRestorePoints,
       deletedOps: cleanupResult.deletedOps,
     },
+  });
+  return false;
+}
+
+async function enforceCleanSlateStorageQuota(
+  userId: number,
+  finalStorageBytes: number,
+  reply: FastifyReply,
+): Promise<boolean> {
+  const syncService = getSyncService();
+  const storageInfo = await syncService.getStorageInfo(userId);
+  if (finalStorageBytes <= storageInfo.storageQuotaBytes) return true;
+
+  Logger.warn(
+    `[user:${userId}] Clean-slate snapshot exceeds quota: ` +
+      `${finalStorageBytes}/${storageInfo.storageQuotaBytes} bytes`,
+  );
+  sendQuotaExceededReply(reply, {
+    storageUsedBytes: 0,
+    storageQuotaBytes: storageInfo.storageQuotaBytes,
+    autoCleanupAttempted: false,
   });
   return false;
 }
@@ -207,6 +304,11 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
   fastify.post<{ Body: UploadOpsRequest }>(
     '/ops',
     {
+      // Cap raw request body at the same compressed limit we enforce after
+      // parsing, so the server cannot be made to buffer up to the global 20MB
+      // limit just to reject in `parseCompressedJsonBody`. Reduces gzip-bomb
+      // amplification surface.
+      bodyLimit: MAX_COMPRESSED_SIZE_OPS,
       config: {
         rateLimit: {
           max: 100,
@@ -221,7 +323,6 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
         // Support gzip-encoded uploads to save bandwidth
         let body: unknown = req.body;
         const contentEncoding = req.headers['content-encoding'];
-        let decompressedBodySize: number | undefined;
 
         if (contentEncoding === 'gzip') {
           const contentTransferEncoding = req.headers['content-transfer-encoding'] as
@@ -245,7 +346,6 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
           }
 
           body = compressedBodyResult.body;
-          decompressedBodySize = compressedBodyResult.decompressedSize;
           Logger.debug(
             `[user:${userId}] Ops upload decompressed: ${compressedBodyResult.compressedSize} -> ${compressedBodyResult.decompressedSize} bytes (base64: ${compressedBodyResult.isBase64})`,
           );
@@ -301,7 +401,7 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
             // The original response may have contained newOps that the client missed if the
             // network dropped the response. By using the CURRENT request's lastKnownServerSeq,
             // we ensure the client gets all ops it hasn't seen yet.
-            let newOps: import('./sync.types').ServerOperation[] | undefined;
+            let newOps: ServerOperation[] | undefined;
             let latestSeq: number;
             let hasMorePiggyback = false;
             const PIGGYBACK_LIMIT = 500;
@@ -343,18 +443,45 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
           }
         }
 
-        // Check storage quota before processing (after dedup to allow retries)
-        const payloadSize = getParsedBodySizeBytes(req, body, decompressedBodySize);
-        const quotaOk = await enforceStorageQuota(userId, payloadSize, reply);
-        if (!quotaOk) return;
-
-        // Process operations - cast to Operation[] since Zod validates the structure
-        const results = await syncService.uploadOps(
+        const results = await syncService.runWithStorageUsageLock<UploadResult[] | null>(
           userId,
-          clientId,
-          ops as unknown as import('./sync.types').Operation[],
-          isCleanSlate,
+          async () => {
+            // Check storage quota before processing (after dedup to allow retries).
+            // Account using the same per-op payload+vectorClock measure that the
+            // post-accept counter increment uses, so the gate and the increment
+            // cannot disagree on what "size" means.
+            const typedOpsForGate = ops as unknown as Operation[];
+            const estimatedDelta = computeOpsStorageBytes(typedOpsForGate);
+            const quotaOk = await enforceStorageQuota(userId, estimatedDelta, reply);
+            if (!quotaOk) return null;
+
+            // Process operations - cast to Operation[] since Zod validates the structure
+            const uploadResults = await syncService.uploadOps(
+              userId,
+              clientId,
+              ops as unknown as Operation[],
+              isCleanSlate,
+            );
+
+            // Update storage usage cache with the locally-computed delta of accepted
+            // ops. Replaces the previous full-table SUM(pg_column_size) recalc that
+            // was DoS'ing the server. Wrapped in try/catch — ops have already been
+            // accepted and persisted, so a counter update failure must not 500 the
+            // response (would cause client retry + double-upload).
+            const acceptedOps: Operation[] = [];
+            const typedOps = ops as unknown as Operation[];
+            for (let i = 0; i < typedOps.length; i++) {
+              if (uploadResults[i]?.accepted) acceptedOps.push(typedOps[i]);
+            }
+            const deltaBytes = computeOpsStorageBytes(acceptedOps);
+            if (deltaBytes > 0) {
+              await applyStorageUsageDelta(userId, deltaBytes, 'after ops upload');
+            }
+
+            return uploadResults;
+          },
         );
+        if (!results) return;
 
         // Cache results for deduplication if requestId was provided
         if (requestId) {
@@ -374,13 +501,8 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
           );
         }
 
-        // Update storage usage after successful operations
-        if (accepted > 0) {
-          await syncService.updateStorageUsage(userId);
-        }
-
         // Optionally include new ops from other clients (with atomic latestSeq read)
-        let newOps: import('./sync.types').ServerOperation[] | undefined;
+        let newOps: ServerOperation[] | undefined;
         let latestSeq: number;
         let hasMorePiggyback = false;
         const PIGGYBACK_LIMIT = 500;
@@ -545,7 +667,12 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
         const syncService = getSyncService();
 
         Logger.info(`[user:${userId}] Snapshot requested`);
-        const snapshot = await syncService.generateSnapshot(userId);
+        // Keep the storage counter in sync with snapshotData rewrites; without
+        // this hook GET /snapshot can grow up to MAX_SNAPSHOT_SIZE_BYTES of
+        // cached data with no quota accounting.
+        const snapshot = await syncService.generateSnapshot(userId, (deltaBytes) =>
+          applyStorageUsageDelta(userId, deltaBytes, 'after generateSnapshot'),
+        );
         Logger.info(`[user:${userId}] Snapshot ready (seq=${snapshot.serverSeq})`);
         return reply.send(snapshot as SnapshotResponse);
       } catch (err) {
@@ -569,7 +696,6 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
         // Handle gzip-compressed request body
         let body: unknown = req.body;
         const contentEncoding = req.headers['content-encoding'];
-        let decompressedBodySize: number | undefined;
 
         if (contentEncoding === 'gzip') {
           const contentTransferEncoding = req.headers['content-transfer-encoding'] as
@@ -593,7 +719,6 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
           }
 
           body = compressedBodyResult.body;
-          decompressedBodySize = compressedBodyResult.decompressedSize;
           Logger.debug(
             `[user:${userId}] Snapshot decompressed: ${compressedBodyResult.compressedSize} -> ${compressedBodyResult.decompressedSize} bytes (base64: ${compressedBodyResult.isBase64})`,
           );
@@ -625,14 +750,36 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
         } = parseResult.data;
         const syncService = getSyncService();
 
-        // Check storage quota before processing
-        const payloadSize = getParsedBodySizeBytes(req, body, decompressedBodySize);
-        const quotaOk = await enforceStorageQuota(userId, payloadSize, reply);
-        if (!quotaOk) return;
+        // Cheap pre-quota gate BEFORE prepareSnapshotCache so quota-exhausted
+        // clients can't burn CPU on JSON.stringify + zlib.gzipSync. Uses only
+        // the cached counter; if it says we're already at quota, reconcile
+        // once before rejecting — a stale-high counter would otherwise lock
+        // out a user whose new snapshot would actually shrink storage. Skip
+        // for clean-slate which wipes existing usage.
+        if (!isCleanSlate) {
+          let cachedInfo = await syncService.getStorageInfo(userId);
+          if (cachedInfo.storageUsedBytes >= cachedInfo.storageQuotaBytes) {
+            try {
+              await syncService.updateStorageUsage(userId);
+              cachedInfo = await syncService.getStorageInfo(userId);
+            } catch (err) {
+              Logger.warn(
+                `[user:${userId}] Snapshot pre-gate reconcile failed: ${errorMessage(err)}`,
+              );
+            }
+            if (cachedInfo.storageUsedBytes >= cachedInfo.storageQuotaBytes) {
+              return sendQuotaExceededReply(reply, {
+                storageUsedBytes: cachedInfo.storageUsedBytes,
+                storageQuotaBytes: cachedInfo.storageQuotaBytes,
+                autoCleanupAttempted: false,
+              });
+            }
+          }
+        }
 
-        // FIX: Reject duplicate SYNC_IMPORT to prevent data loss
-        // Only the FIRST client to sync with an empty server should create SYNC_IMPORT.
-        // Subsequent clients should download existing data and upload their ops as regular ops.
+        // Reject duplicate SYNC_IMPORT before we acquire the per-user lock — a
+        // duplicate rejection is cheap (one indexed lookup) and skipping the
+        // lock lets concurrent legitimate clients keep moving.
         // Exceptions that bypass this check:
         // - 'recovery': Explicit backup restore or repair (user action)
         // - 'migration': Legacy data migration (should be allowed to override)
@@ -684,15 +831,73 @@ export const syncRoutes = async (fastify: FastifyInstance): Promise<void> => {
           syncImportReason,
         };
 
-        const results = await syncService.uploadOps(userId, clientId, [op], isCleanSlate);
-        const result = results[0];
+        const preparedSnapshot = await syncService.prepareSnapshotCache(state);
+        const estimatedOpStorageBytes =
+          preparedSnapshot.stateBytes + computeJsonStorageBytes(op.vectorClock, {});
 
-        if (result.accepted && result.serverSeq !== undefined) {
-          // Cache the snapshot
-          await syncService.cacheSnapshot(userId, state, result.serverSeq);
-          // Update storage usage
-          await syncService.updateStorageUsage(userId);
-        }
+        const result = await syncService.runWithStorageUsageLock<UploadResult | null>(
+          userId,
+          async () => {
+            // Check storage quota before processing. For clean-slate uploads, use a
+            // zero-current-usage baseline because uploadOps will wipe existing data
+            // and reset storageUsedBytes inside its transaction. For regular
+            // snapshots, include the operation payload plus the cached snapshot
+            // replacement delta; checking only the request body can under-count by
+            // nearly 2x because the server stores both the op and snapshot cache.
+            if (isCleanSlate) {
+              const finalStorageBytes =
+                estimatedOpStorageBytes +
+                (preparedSnapshot.cacheable ? preparedSnapshot.bytes : 0);
+              const quotaOk = await enforceCleanSlateStorageQuota(
+                userId,
+                finalStorageBytes,
+                reply,
+              );
+              if (!quotaOk) return null;
+            } else {
+              const previousSnapshotBytes = preparedSnapshot.cacheable
+                ? await syncService.getCachedSnapshotBytes(userId)
+                : 0;
+              const estimatedSnapshotCacheDelta = preparedSnapshot.cacheable
+                ? preparedSnapshot.bytes - previousSnapshotBytes
+                : 0;
+              const additionalBytes =
+                estimatedOpStorageBytes + estimatedSnapshotCacheDelta;
+              const quotaOk = await enforceStorageQuota(userId, additionalBytes, reply);
+              if (!quotaOk) return null;
+            }
+
+            // Duplicate SYNC_IMPORT rejection already handled before the lock.
+
+            const results = await syncService.uploadOps(
+              userId,
+              clientId,
+              [op],
+              isCleanSlate,
+            );
+            const uploadResult = results[0];
+
+            if (uploadResult.accepted && uploadResult.serverSeq !== undefined) {
+              // Cache the snapshot
+              const cacheResult = await syncService.cacheSnapshot(
+                userId,
+                state,
+                uploadResult.serverSeq,
+                preparedSnapshot,
+              );
+              const storedOpBytes =
+                preparedSnapshot.stateBytes + computeJsonStorageBytes(op.vectorClock, {});
+              await applyStorageUsageDelta(
+                userId,
+                storedOpBytes + cacheResult.deltaBytes,
+                'after snapshot',
+              );
+            }
+
+            return uploadResult;
+          },
+        );
+        if (!result) return;
 
         Logger.info(`Snapshot uploaded for user ${userId}, reason: ${reason}`);
 
