@@ -292,6 +292,8 @@ describe('SuperSyncProvider', () => {
       const body = JSON.parse(bodyJson);
       expect(body.ops).toEqual(ops);
       expect(body.clientId).toBe('client-1');
+      expect(body.requestId).toMatch(/^ops-v1-/);
+      expect(body.requestId.length).toBeLessThanOrEqual(64);
     });
 
     it('should include lastKnownServerSeq when provided', async () => {
@@ -316,6 +318,72 @@ describe('SuperSyncProvider', () => {
       const bodyJson = await decompressGzip(fetchSpy.calls.mostRecent().args[1].body);
       const body = JSON.parse(bodyJson);
       expect(body.lastKnownServerSeq).toBe(2);
+    });
+
+    it('should use a stable requestId for retried operation batches', async () => {
+      mockPrivateCfgStore.load.and.returnValue(Promise.resolve(testConfig));
+
+      fetchSpy.and.returnValue(
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ results: [], latestSeq: 5 }),
+        } as Response),
+      );
+
+      const firstOp = createMockOperation({
+        id: 'op-123',
+        payload: { top: 'value', nested: { a: 1, b: 2 } },
+        vectorClock: { client1: 1, client2: 2 },
+      });
+      const secondOp = createMockOperation({ id: 'op-456', entityId: 'task-2' });
+      const ops = [firstOp, secondOp];
+
+      await provider.uploadOps(ops, 'client-1', 2);
+      await provider.uploadOps(ops, 'client-1', 4);
+      await provider.uploadOps(
+        [
+          {
+            ...firstOp,
+            payload: { nested: { b: 2, a: 1 }, top: 'value' },
+            vectorClock: { client2: 2, client1: 1 },
+          },
+          secondOp,
+        ],
+        'client-1',
+        4,
+      );
+      await provider.uploadOps(
+        [{ ...firstOp, payload: { title: 'Changed Task' } }, secondOp],
+        'client-1',
+        4,
+      );
+      await provider.uploadOps(
+        [...ops, createMockOperation({ id: 'op-789', entityId: 'task-3' })],
+        'client-1',
+        4,
+      );
+
+      const firstBody = JSON.parse(
+        await decompressGzip(fetchSpy.calls.argsFor(0)[1].body),
+      );
+      const retryBody = JSON.parse(
+        await decompressGzip(fetchSpy.calls.argsFor(1)[1].body),
+      );
+      const reorderedContentBody = JSON.parse(
+        await decompressGzip(fetchSpy.calls.argsFor(2)[1].body),
+      );
+      const changedContentBody = JSON.parse(
+        await decompressGzip(fetchSpy.calls.argsFor(3)[1].body),
+      );
+      const changedBatchBody = JSON.parse(
+        await decompressGzip(fetchSpy.calls.argsFor(4)[1].body),
+      );
+
+      expect(retryBody.requestId).toBe(firstBody.requestId);
+      expect(reorderedContentBody.requestId).toBe(firstBody.requestId);
+      expect(changedContentBody.requestId).not.toBe(firstBody.requestId);
+      expect(changedBatchBody.requestId).not.toBe(firstBody.requestId);
+      expect(firstBody.requestId.length).toBeLessThanOrEqual(64);
     });
 
     it('should throw MissingCredentialsSPError when config is missing', async () => {
