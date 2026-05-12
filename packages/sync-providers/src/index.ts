@@ -62,12 +62,13 @@ export { NextcloudProvider, type NextcloudDeps } from './file-based/webdav/nextc
 export type { WebdavPrivateCfg } from './file-based/webdav/webdav.model';
 export type { NextcloudPrivateCfg } from './file-based/webdav/nextcloud.model';
 export {
-  WebDavHttpAdapter,
-  type WebDavHttpAdapterDeps,
-  type WebDavHttpRequest,
-  type WebDavHttpResponse,
-} from './file-based/webdav/webdav-http-adapter';
-export { WebdavApi, type WebdavApiDeps } from './file-based/webdav/webdav-api';
+  testWebdavConnection,
+  type TestWebdavConnectionDeps,
+} from './file-based/webdav/test-connection';
+// `WebDavHttpAdapter` and `WebdavApi` are deliberately NOT exported.
+// Their single host-app consumer goes through `testWebdavConnection`
+// above. Keeping them internal preserves freedom to refactor the
+// adapter / api boundary later.
 export {
   isFileSyncProvider,
   type FileDownloadResponse,
