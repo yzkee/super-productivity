@@ -7,6 +7,7 @@ import { ProjectService } from '../../features/project/project.service';
 import { TagService } from '../../features/tag/tag.service';
 import { TODAY_TAG } from '../../features/tag/tag.const';
 import { DateService } from '../date/date.service';
+import { isTodayWithOffset } from '../../util/is-today.util';
 import {
   LocalRestApiRequestPayload,
   LocalRestApiResponsePayload,
@@ -110,6 +111,20 @@ const createSuccessResponse = (
 });
 
 type TaskSource = 'active' | 'archived' | 'all';
+
+const isValidTimestamp = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && new Date(value).getTime() > 0;
+
+const isTaskInToday = (
+  task: Task,
+  todayStr: string,
+  startOfNextDayDiffMs: number,
+): boolean => {
+  if (isValidTimestamp(task.dueWithTime)) {
+    return isTodayWithOffset(task.dueWithTime, todayStr, startOfNextDayDiffMs);
+  }
+  return task.dueDay === todayStr;
+};
 
 @Injectable({
   providedIn: 'root',
@@ -296,10 +311,12 @@ export class LocalRestApiHandlerService {
       filtered = filtered.filter((t) => t.projectId === projectId);
     }
 
-    if (tagId) {
-      filtered = filtered.filter((t) =>
-        tagId === TODAY_TAG.id ? this._isTaskInToday(t) : t.tagIds.includes(tagId),
-      );
+    if (tagId === TODAY_TAG.id) {
+      const todayStr = this._dateService.todayStr();
+      const startOfNextDayDiffMs = this._dateService.getStartOfNextDayDiffMs();
+      filtered = filtered.filter((t) => isTaskInToday(t, todayStr, startOfNextDayDiffMs));
+    } else if (tagId) {
+      filtered = filtered.filter((t) => t.tagIds.includes(tagId));
     }
 
     if (!includeDone) {
@@ -307,14 +324,6 @@ export class LocalRestApiHandlerService {
     }
 
     return createSuccessResponse(requestId, 200, filtered);
-  }
-
-  private _isTaskInToday(task: Task): boolean {
-    if (task.dueWithTime) {
-      return this._dateService.isToday(task.dueWithTime);
-    }
-
-    return task.dueDay === this._dateService.todayStr();
   }
 
   private async _handleCreateTask(
