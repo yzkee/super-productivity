@@ -2,11 +2,13 @@
 
 > **Status: In progress - PR 1, PR 2 guardrails/logger adapter work, PR 3a
 > vector-clock ownership, full-state op classification config, PR 3b pure
-> helper slices, PR 4a port contracts, and the current PR 4b small
-> orchestration/planning helper set are present on this branch. PR 4c now has
-> the narrow operation replay coordinator extracted while the Angular shell
-> stays app-side. Remaining cleanup is targeted future `SyncLogger` routing for
-> files as they move plus provider/package boundary work.**
+> helper slices, PR 4a port contracts, PR 4b small orchestration/planning
+> helpers, and PR 4c's narrow operation replay coordinator are present. PR 5
+> has started with the `@sp/sync-providers` scaffold, provider boundary lint,
+> provider-neutral contracts, a credential-store port, and app shims. Remaining
+> provider work should move implementations behind provider-package ports while
+> keeping app-owned IDs, OAuth routing, config UI, and platform bridges
+> app-side.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -177,6 +179,17 @@ Current extraction state and remaining immediate debt:
   package-side with app-owned diagnostics, sync-core source comments were
   rechecked for SP entity examples, and the core boundary grep was rerun with no
   forbidden source imports.
+- PR 5 has its initial package boundary: `packages/sync-providers/` exists with
+  tsup/Vitest scaffolding, root scripts, build-package wiring, the
+  `@sp/sync-providers` path alias, package-local generated-artifact ignores,
+  and ESLint restrictions that reject Angular, NgRx, app imports,
+  `@sp/shared-schema`, sync-core internals, and dynamic imports.
+- Provider-neutral contracts now live in `@sp/sync-providers`: generic
+  string-ID provider contracts, operation-sync response types, file provider
+  response types, a credential-store port, and the local file-adapter port. The
+  app-side `provider.interface.ts` and local `file-adapter.interface.ts` remain
+  compatibility shims that specialize those contracts with `SyncProviderId` and
+  `PrivateCfgByProviderId`.
 
 Suggested next order:
 
@@ -188,9 +201,9 @@ Suggested next order:
 3. Treat the current PR 4a/4b/4c port, small-helper, and replay-coordinator
    slices as complete for this round; keep the Angular `OperationApplierService`
    shell app-side unless a later port proves another small extraction safe.
-4. Start PR 5 provider extraction after this branch is merged. Provider-specific
-   `SyncLog`/`OpLog` routing should be handled inside PR 5 as provider files
-   move behind provider-package ports.
+4. Continue PR 5 by moving implementation slices behind the new provider
+   contracts. Provider-specific `SyncLog`/`OpLog` routing should be handled as
+   provider files move behind provider-package ports.
 
 ## PR 1 - Thin First Slice (#7546)
 
@@ -370,7 +383,9 @@ Remaining PR 2 follow-up:
   - `@sp/shared-schema`
   - `src/app/*` and relative app imports such as `../../src/app/*`
 - Keep package exceptions explicit for packages that cannot yet be linted.
-- Add the same rule for `packages/sync-providers/**` once that package exists.
+- `packages/sync-providers/**` now has the same boundary shape, with an
+  additional ban on sync-core internal import paths. It may import public
+  `@sp/sync-core` only.
 - The rule was proved with a temporary `@angular/core` import under
   `packages/sync-core/src/`; scoped lint failed as expected with
   `no-restricted-imports`, and the file was removed.
@@ -958,6 +973,24 @@ providers, and app wiring each live in their own package.
 - Provider package must not import `@sp/sync-core` internals beyond public
   ports/types.
 
+### Current First Slice
+
+- `packages/sync-providers/` mirrors the `sync-core` package scaffolding:
+  `package.json`, tsup build, Vitest config, strict package `tsconfig`, and a
+  package-local `.gitignore` for generated artifacts.
+- Root wiring is in place: `sync-providers:build`,
+  `sync-providers:test`, the `packages:test` aggregate used by root
+  `npm test`, `build-packages.js`, `prepare`, the `@sp/sync-providers` path
+  alias, package-lock workspace metadata, and Angular lint coverage.
+- Boundary lint rejects Angular, NgRx, app source imports, `@sp/shared-schema`,
+  sync-core internals, and dynamic imports under `packages/sync-providers/**`.
+- Provider-neutral type contracts moved first. App-owned `SyncProviderId`,
+  provider constants, OAuth routing, config UI, and the IndexedDB credential
+  store implementation remain app-side.
+- `SyncCredentialStore` now implements the package
+  `SyncCredentialStorePort`, while `src/app/op-log/sync-providers/` keeps
+  shims so existing call sites keep their imports.
+
 ### Verification
 
 - Per-provider unit specs.
@@ -973,7 +1006,8 @@ This is now a final audit rather than the first boundary rule.
 
 ### Goals
 
-- Extend the boundary rules to `packages/sync-providers/**`.
+- Recheck the boundary rules for `packages/sync-core/**` and
+  `packages/sync-providers/**`.
 - Audit package manifests for accidental runtime deps.
 - Audit public exports for SP names and app-only concepts.
 - Add a small architecture note that explains the package boundaries and allowed

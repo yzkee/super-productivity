@@ -1,0 +1,30 @@
+export type {
+  CredentialChangeHandler,
+  SyncCredentialStorePort,
+} from './credential-store-port';
+export type { FileAdapter } from './file-adapter';
+export {
+  isFileSyncProvider,
+  type FileDownloadResponse,
+  type FileRevResponse,
+  type FileSnapshotOpDownloadResponse,
+  type FileSyncProvider,
+  type OpDownloadResponse,
+  type OpDownloadResponseBase,
+  type OpDownloadResponseForMode,
+  type OperationSyncCapable,
+  type OperationSyncProviderMode,
+  type OpUploadResponse,
+  type OpUploadResult,
+  type ProviderId,
+  type RestoreCapable,
+  type RestorePoint,
+  type RestorePointsResponse,
+  type RestoreSnapshotResponse,
+  type ServerSyncOperation,
+  type SnapshotUploadResponse,
+  type SuperSyncOpDownloadResponse,
+  type SyncOperation,
+  type SyncProviderAuthHelper,
+  type SyncProviderBase,
+} from './provider.types';
