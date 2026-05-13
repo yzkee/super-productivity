@@ -1,24 +1,47 @@
-# `@sp/sync-core` Extraction Plan
+# `@sp/sync-core` Extraction Record
 
-> **Status: In progress - PR 1, PR 2 guardrails/logger adapter work, PR 3a
-> vector-clock ownership, full-state op classification config, PR 3b pure
-> helper slices, PR 4a port contracts, PR 4b small orchestration/planning
-> helpers, and PR 4c's narrow operation replay coordinator are present. PR 5
-> has shipped the `@sp/sync-providers` scaffold, provider boundary lint,
-> provider-neutral contracts, a credential-store port, the file-based sync
-> envelope types, PKCE helpers, the native-HTTP retry helpers, the shared
-> provider error classes, and the bundled Dropbox, WebDAV + Nextcloud,
-> SuperSync, and LocalFile providers behind injected platform/credential/file
-> ports. PR 6 final boundary hardening is present, including boundary
-> lint/grep, manifest and public-export audit, a package-boundary architecture
-> note, and package build/test verification. PR 7 optional polish is present:
-> PKCE is package-owned, the deprecated provider alias is retired, duplicate
-> package-boundary lint patterns are trimmed, WebDAV XML parser subtree scans
-> are reduced, and tiered `@sp/sync-providers/*` exports are present.**
+> **Status: completed for this extraction branch.** `@sp/sync-core` and
+> `@sp/sync-providers` are in place, the frontend imports through package
+> boundaries and tiered provider subpaths, and PR 6/PR 7 boundary hardening and
+> polish are complete. Remaining work before merge is verification only.
 
-**Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
-framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
-`@sp/sync-providers` package for bundled provider implementations.
+**Outcome:** The sync engine has been carved out of `src/app/op-log/` into a
+reusable, framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus
+a sibling `@sp/sync-providers` package for bundled provider implementations.
+
+## Current Architecture
+
+- `@sp/sync-core` owns the generic sync engine surface: operation/apply
+  primitives, vector clocks, full-state op helper factories, entity-key and
+  sync-file-prefix helpers, compression/error helpers, import-filter decisions,
+  conflict-resolution helpers, upload/download/replay/remote-apply planning
+  helpers, entity-registry contracts, orchestration ports, and the
+  privacy-aware `SyncLogger` port.
+- `@sp/sync-providers` owns provider contracts and bundled implementations:
+  Dropbox, WebDAV + Nextcloud, SuperSync, LocalFile, file-based sync envelopes,
+  provider-shared errors, PKCE helpers, retry helpers, platform/credential/file
+  ports, provider-owned string constants, and tiered subpath exports.
+- `src/app/op-log/` owns Super Productivity wiring: NgRx adapters, app dialogs,
+  IndexedDB orchestration, entity-registry composition, `ActionType`,
+  `EntityType`, `SyncImportReason`, `SyncProviderId`, repair shapes,
+  full-state wire format, credential-store implementation, OAuth routing,
+  provider UI configuration, response validators, and platform bridges.
+- Package boundaries are enforced by ESLint, package manifests, public-export
+  audits, and source grep. `@sp/sync-core` has no runtime dependencies.
+  `@sp/sync-providers` may depend only on public `@sp/sync-core` plus
+  provider-runtime dependencies.
+
+## Remaining Merge Gates
+
+The extraction work itself is complete. Remaining work before merge is selected
+verification only:
+
+- Provider E2E smoke tests as needed for Dropbox, WebDAV, LocalFile, and
+  SuperSync.
+- Fresh-client bootstrap checks for file-based providers if that surface is
+  touched before merge.
+- Electron/Android LocalFile path smoke tests only when those platform bridges
+  are part of the merge validation pass.
 
 ## Context
 
@@ -29,7 +52,7 @@ legacy and out of scope). It already organizes itself by concern (`core`,
 reaches into NgRx state, `core/entity-registry.ts` hardcodes imports from 15+
 feature reducers, and providers and engine code intermix freely.
 
-The eventual target is a **three-concern split**:
+The final shape is a **three-concern split**:
 
 1. **Sync logic / engine** - operation orchestration, vector clocks, conflict
    resolution, persistence interfaces. Framework-agnostic and domain-agnostic.
@@ -69,8 +92,7 @@ factory is the model to follow.
 
 ## Recommendations From PR #7546 Review
 
-These adjustments should happen before the extraction proceeds beyond the thin
-first slice:
+These adjustments guided the extraction after the thin first slice:
 
 1. **Move boundary enforcement up.** Add ESLint/package-boundary checks in the
    next PR, not at the end. Once `packages/sync-core/` exists, accidental
@@ -102,26 +124,27 @@ first slice:
    provider IDs, file prefixes, OAuth behavior, credential storage, or bundled
    provider lists.
 
-## Current Branch Snapshot
+## Final Branch Snapshot
 
-The branch now contains the current package boundary for this extraction slice:
+The branch now contains the final package boundary for this extraction:
 
 - `packages/sync-core/` exists and is exposed through the `@sp/sync-core` path
   alias.
 - `packages/sync-providers/` exists and is exposed through the
-  `@sp/sync-providers` path alias.
+  `@sp/sync-providers` path alias and focused `@sp/sync-providers/*` subpath
+  exports.
 - `npm run sync-core:build` and `npm run sync-providers:build` run the package
   builds, and `prepare` builds `sync-core`, `sync-providers`, `shared-schema`,
   then `plugin-api`.
 - `eslint.config.js` applies `no-restricted-imports` and a dynamic-import ban to
   `packages/sync-core/**/*.ts` and `packages/sync-providers/**/*.ts`.
-- `@sp/sync-core` currently exports generic operation/apply primitives,
+- `@sp/sync-core` exports generic operation/apply primitives,
   vector-clock algorithms, full-state op-type helper factories, entity-key and
   sync-file-prefix helpers, compression/error helpers, import-filter decisions,
   conflict-resolution helpers, upload/download/replay/remote-apply planning
   helpers, entity-registry contracts, app-side orchestration ports,
   `SyncStateCorruptedError`, and the privacy-aware logger port.
-- `@sp/sync-providers` currently exports provider-neutral contracts, provider
+- `@sp/sync-providers` exports provider-neutral contracts, provider
   ports, file-based sync envelope types, provider-shared errors, PKCE and retry
   helpers, safe logging helpers, provider-owned string constants, and the
   bundled Dropbox, WebDAV + Nextcloud, SuperSync, and LocalFile provider
@@ -130,7 +153,7 @@ The branch now contains the current package boundary for this extraction slice:
   injection token. Existing helper functions still read the app-side
   `ENTITY_CONFIGS` singleton for compatibility.
 
-Current extraction state and remaining immediate debt:
+Final extraction state:
 
 - Full-state operation classification is now host-configured via
   `createFullStateOpTypeHelpers()`. The SP-facing
@@ -141,7 +164,8 @@ Current extraction state and remaining immediate debt:
   host-defined compatibility strings.
 - Vector-clock compare/merge/prune now lives in `@sp/sync-core`, with
   `@sp/shared-schema` re-exporting it for existing client/server imports.
-- `SyncLogger` exists, but movable app code still mostly calls `OpLog` directly.
+- `SyncLogger` exists for package and movable code. App-only orchestration
+  diagnostics intentionally still use `OpLog` where they remain app-side.
 - `@sp/sync-core` has a Vitest package test runner and vector-clock tests.
 - Generic gzip/base64 compression helpers now live in
   `packages/sync-core/src/compression.ts`. The app-facing
@@ -218,19 +242,14 @@ Current extraction state and remaining immediate debt:
   response validators that depend on `@sp/shared-schema`, and the
   Electron/SAF platform bridges app-side.
 
-Suggested next order:
+The extraction sequence below is historical. Work through PR 7 is complete on
+this branch; the only remaining work is the merge-level verification listed
+above.
 
-1. Treat PR 2 documentation/verification and the targeted `SyncLogger` routing
-   needed before provider extraction as complete for this branch. Continue
-   logger routing only when additional files actually move.
-2. Treat the PR 3b pure conflict-resolution and sync-import slices as complete
-   for this round.
-3. Treat the current PR 4a/4b/4c port, small-helper, and replay-coordinator
-   slices as complete for this round; keep the Angular `OperationApplierService`
-   shell app-side unless a later port proves another small extraction safe.
-4. Treat PR 5 provider lift and PR 6 final boundary hardening as complete for
-   this branch. The next work is optional post-provider-lift polish or merge
-   verification outside this extraction slice.
+## Historical Slice Notes
+
+The following sections preserve how the extraction landed and why the boundaries
+were chosen. They are not a pending task list.
 
 ## PR 1 - Thin First Slice (#7546)
 
@@ -350,7 +369,7 @@ immediately after the package exists.
 3. **Logger port.** Define a privacy-aware `SyncLogger` interface in
    `@sp/sync-core` so moveable files can drop direct `OpLog` imports.
 
-### Current State
+### Implemented State
 
 Already present:
 
@@ -393,14 +412,14 @@ Already present:
   `npm run lint:file -- packages/sync-core/src/__boundary-check__.ts` failed on
   `no-restricted-imports`, proving the boundary rule is active.
 
-Remaining PR 2 follow-up:
+Post-extraction PR 2 notes:
 
-- Keep the compatibility `ENTITY_CONFIGS` singleton until remaining non-DI
-  consumers have been deliberately migrated.
-- Continue routing only files being moved or made movable through `SyncLogger`;
-  do not do a broad `OpLog` refactor.
-- Keep external PR text aligned with this document if the branch is split for
-  review.
+- The compatibility `ENTITY_CONFIGS` singleton remains intentionally while
+  non-DI consumers still need it.
+- `SyncLogger` routing was kept targeted to package and movable files. A broad
+  app-side `OpLog` refactor is outside the extraction scope.
+- External PR text should describe the extraction as complete and treat
+  remaining provider E2E checks as merge verification.
 
 ### Boundary Enforcement
 
@@ -673,7 +692,7 @@ contracts until those are separately decoupled.
 Move framework-agnostic, stateless sync algorithms. These should only need typed
 inputs and the logger port.
 
-### Current State
+### Implemented State
 
 - `deepEqual`, `isIdenticalConflict`, `suggestConflictResolution`,
   `buildEntityFrontier`, `adjustForClockCorruption`, and
@@ -961,9 +980,8 @@ Status: complete for this branch.
   factories.
 - `OperationApplierService` logging remains app-side intentionally; the moved
   replay coordinator has no logging dependency.
-- Provider-specific logging and credential diagnostics remain in
-  `src/app/op-log/sync-providers/` and should be handled during PR 5 when those
-  files move to `@sp/sync-providers`.
+- Provider-specific logging and credential diagnostics were handled during PR 5
+  as those files moved to `@sp/sync-providers`.
 - Boundary verification was rerun for `packages/sync-core/src` and found no
   forbidden Angular, NgRx, `src/app`, or `@sp/shared-schema` imports.
 
@@ -1001,7 +1019,7 @@ providers, and app wiring each live in their own package.
 - Provider package must not import `@sp/sync-core` internals beyond public
   ports/types.
 
-### Current First Slice
+### First Slice
 
 - `packages/sync-providers/` mirrors the `sync-core` package scaffolding:
   `package.json`, tsup build, Vitest config, strict package `tsconfig`, and a
@@ -1019,7 +1037,7 @@ providers, and app wiring each live in their own package.
   `SyncCredentialStorePort`, while `src/app/op-log/sync-providers/` keeps
   shims so existing call sites keep their imports.
 
-### Current Second Slice
+### Second Slice
 
 - `FileBasedSyncData`, `SyncFileCompactOp`, and
   `FILE_BASED_SYNC_CONSTANTS` moved into `@sp/sync-providers`.
@@ -1029,7 +1047,7 @@ providers, and app wiring each live in their own package.
   the compatibility shim that binds the package envelope to app-owned
   `CompactOperation` and `ArchiveModel`.
 
-### Current Third Slice
+### Third Slice
 
 - Provider-owned PKCE utilities moved into `@sp/sync-providers`:
   `generateCodeVerifier`, `generateCodeChallenge`, and `generatePKCECodes`.
@@ -1038,7 +1056,7 @@ providers, and app wiring each live in their own package.
 - `src/app/op-log/sync-providers/file-based/dropbox/generate-pkce-codes.ts`
   remains as a compatibility re-export for existing Dropbox call sites.
 
-### Current Fourth Slice
+### Fourth Slice
 
 - Provider-owned native HTTP retry helpers moved into `@sp/sync-providers`:
   `executeNativeRequestWithRetry`, `isTransientNetworkError`, and the
@@ -1062,7 +1080,7 @@ providers, and app wiring each live in their own package.
   registration, OAuth glue) needs additional package ports that should
   be designed and reviewed in their own slice. Updated plan below.
 
-### Current Fifth Slice
+### Fifth Slice
 
 Shipped as two commits behind a shared design doc
 (`docs/plans/2026-05-12-pr5-dropbox-slice.md`) plus a post-review
@@ -1141,14 +1159,10 @@ isAndroidWebView, isIosNative }` replacing direct
   `DropboxApi`; and dropped the now-unnecessary `as unknown as`
   step on the `credentialStore` cast in the factory shim.
 
-Heads-up for the next slice: `errorMeta(e, extra)` and
-`urlPathOnly(url)` (currently
-`packages/sync-providers/src/file-based/dropbox/dropbox-api.ts`,
-~lines 88-104) should be promoted into a shared
-`packages/sync-providers/src/log/` module before WebDAV duplicates
-them.
+WebDAV follow-up resolved: `errorMeta(e, extra)` and `urlPathOnly(url)` were
+promoted into shared provider logging helpers before WebDAV duplicated them.
 
-### Current Sixth Slice
+### Sixth Slice
 
 Shipped as two commits (one helper-promotion PR plus the bulk move) behind
 a shared design doc (`docs/plans/2026-05-12-pr5-webdav-slice.md`) with
@@ -1245,9 +1259,9 @@ global DOMParser`, W3) so xmldom does not ship in the package bundle
   `HttpNotOkAPIError`'s second arg. Package boundary invariant
   documented: response headers are not logged or attached to errors.
 - **Bundle size.** Package CJS now 75.77 KB / ESM 73.23 KB / DTS
-  37.13 KB. Up from ~55 KB pre-slice. The single barrel is still fine;
-  tiered split (`@sp/sync-providers/dropbox`, `/webdav`, …) deferred to
-  post-provider-lift polish.
+  37.13 KB. Up from ~55 KB pre-slice. The single barrel was still fine at that
+  point; the tiered split (`@sp/sync-providers/dropbox`, `/webdav`, ...) is now
+  complete in the post-provider-lift polish.
 - **WebDAV parser follow-up.** Repeated
   `getElementsByTagNameNS('*', name)` subtree walks in
   `webdav-xml-parser.ts` were replaced with one `childNodes`/`localName`
@@ -1256,7 +1270,7 @@ global DOMParser`, W3) so xmldom does not ship in the package bundle
   repeated response-subtree walks and preventing nested extension fields from
   shadowing direct WebDAV children.
 
-### Current Seventh Slice
+### Seventh Slice
 
 Shipped behind the shared design doc
 (`docs/plans/2026-05-12-pr7-super-sync-slice.md`) with multi-review
@@ -1316,9 +1330,9 @@ consensus, then tightened by follow-up commits from review findings:
   pending instead of permanently rejected under SuperSync rate limiting.
 - **Spec count delta.** Package spec count is now 278 after the
   SuperSync move and rate-limit hardening. The SuperSync provider spec
-  remains intentionally monolithic; splitting it into themed files is
-  deferred to polish so the Jasmine -> Vitest conversion stays easy to
-  review.
+  remains intentionally monolithic; splitting it into themed files is outside
+  this extraction because the Jasmine -> Vitest conversion is easier to review
+  in one move.
 - **Bundle size.** Package build after the SuperSync slice is roughly
   CJS 99.56 KB / ESM 96.76 KB / DTS 47.18 KB. Tiered exports are now present
   for provider and helper surfaces (`@sp/sync-providers/dropbox`, `/webdav`,
@@ -1326,7 +1340,7 @@ consensus, then tightened by follow-up commits from review findings:
   `/platform`, `/provider-types`, and `/credential-store`) while the root
   barrel stays available for compatibility.
 
-### Current Eighth Slice
+### Eighth Slice
 
 Shipped the LocalFile final slice:
 
@@ -1357,7 +1371,7 @@ Shipped the LocalFile final slice:
   logic. The remaining app-side Jasmine spec continues to cover the
   Electron compatibility shim.
 
-### Remaining Slice Plan
+### Final Slice State
 
 PR 5 and PR 6 final boundary hardening are complete for this branch:
 
@@ -1376,13 +1390,13 @@ PR 5 and PR 6 final boundary hardening are complete for this branch:
   the explicitly-deprecated full-state op compatibility exports and
   host-defined `OpType.SyncImport` / `BackupImport` / `Repair` strings noted
   above; reusable hosts should use `createFullStateOpTypeHelpers()` instead of
-  those defaults. Tiered provider exports remain polish-only until size or
-  consumer pressure justifies the manifest surface.
+  those defaults. Tiered provider exports are now present for focused consumer
+  imports.
 - Added `docs/sync-and-op-log/package-boundaries.md`, linked it from the sync
   docs README, and recorded the boundary direction in `ARCHITECTURE-DECISIONS.md`.
 
-Remaining merge gates outside this extraction slice: selected provider E2E
-smoke tests as needed.
+Selected provider E2E smoke tests remain merge-level verification outside this
+extraction slice.
 
 ### Verification
 
@@ -1406,7 +1420,7 @@ This is now a final audit rather than the first boundary rule.
 - Add a small architecture note that explains the package boundaries and allowed
   dependency direction.
 
-### Current State
+### Implemented State
 
 Status: implemented for this branch.
 
@@ -1455,10 +1469,10 @@ Non-blocking cleanups surfaced during the PR 5 provider lift. These do not
 change behaviour or boundaries; they remove duplication, tighten tests, and
 retire deprecated aliases after consumers have migrated.
 
-### Current State
+### Implemented State
 
 - PKCE is package-owned: app OAuth code imports `generateCodeVerifier` and
-  `generateCodeChallenge` from `@sp/sync-providers`, and the app-local
+  `generateCodeChallenge` from `@sp/sync-providers/pkce`, and the app-local
   `pkce.util` shim/spec/helper were removed.
 - The dead `_length` parameter was removed from `generatePKCECodes()`, and the
   Dropbox call site now uses the zero-argument helper.
@@ -1494,23 +1508,23 @@ retire deprecated aliases after consumers have migrated.
 
 ---
 
-## Summary Timeline
+## Completed Timeline
 
-| PR     | Scope                                                      | Risk        | Notes                                 |
-| ------ | ---------------------------------------------------------- | ----------- | ------------------------------------- |
-| **1**  | Stand up `@sp/sync-core` with generic primitives and stubs | Low         | Present on branch                     |
-| **2**  | Boundary lint, registry types, privacy-aware logger port   | Medium      | Groundwork present; finish follow-ups |
-| **3a** | Vector-clock ownership and package test harness            | Medium      | Present on branch                     |
-| **3b** | Pure algorithmic core                                      | Medium      | No Angular/NgRx/IndexedDB             |
-| **4a** | Port contracts only                                        | Medium      | Current slice present                 |
-| **4b** | Move small orchestration units behind ports                | High        | Current slice present                 |
-| **4c** | Revisit `OperationApplierService` extraction               | High        | Narrow replay coordinator present     |
-| **5**  | Lift providers into `@sp/sync-providers`                   | Medium-High | Provider deps stay out of core        |
-| **6**  | Final boundary hardening and architecture note             | Low         | Audit and lock down                   |
-| **7**  | Optional polish: dedupe PKCE, retire deprecated aliases    | Low         | Present on branch                     |
+| PR     | Scope                                                      | Risk        | Notes                     |
+| ------ | ---------------------------------------------------------- | ----------- | ------------------------- |
+| **1**  | Stand up `@sp/sync-core` with generic primitives and stubs | Low         | Complete                  |
+| **2**  | Boundary lint, registry types, privacy-aware logger port   | Medium      | Complete                  |
+| **3a** | Vector-clock ownership and package test harness            | Medium      | Complete                  |
+| **3b** | Pure algorithmic core                                      | Medium      | Complete                  |
+| **4a** | Port contracts only                                        | Medium      | Complete                  |
+| **4b** | Move small orchestration units behind ports                | High        | Complete                  |
+| **4c** | Revisit `OperationApplierService` extraction               | High        | Narrow replay coordinator |
+| **5**  | Lift providers into `@sp/sync-providers`                   | Medium-High | Complete                  |
+| **6**  | Final boundary hardening and architecture note             | Low         | Complete                  |
+| **7**  | Optional polish and tiered provider exports                | Low         | Complete                  |
 
-After the final PR, `@sp/sync-core` should be the domain-agnostic sync engine
-and abstractions, `@sp/sync-providers` should contain bundled provider
-implementations, and `src/app/op-log/` should contain SP-specific wiring: NgRx
-adapters, dialog ports, entity-registry composition, `ActionType`, `EntityType`,
-`SyncImportReason`, `SyncProviderId`, repair shapes, and full-state wire format.
+After the final PR, `@sp/sync-core` is the domain-agnostic sync engine and
+abstractions, `@sp/sync-providers` contains bundled provider implementations,
+and `src/app/op-log/` contains SP-specific wiring: NgRx adapters, dialog ports,
+entity-registry composition, `ActionType`, `EntityType`, `SyncImportReason`,
+`SyncProviderId`, repair shapes, and full-state wire format.
