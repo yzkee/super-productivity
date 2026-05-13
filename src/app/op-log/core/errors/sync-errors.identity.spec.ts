@@ -1,6 +1,7 @@
 import {
   AuthFailSPError as PackageAuthFailSPError,
   EmptyRemoteBodySPError as PackageEmptyRemoteBodySPError,
+  FileHashCreationAPIError as PackageFileHashCreationAPIError,
   HttpNotOkAPIError as PackageHttpNotOkAPIError,
   InvalidDataSPError as PackageInvalidDataSPError,
   MissingCredentialsSPError as PackageMissingCredentialsSPError,
@@ -15,6 +16,7 @@ import {
 import {
   AuthFailSPError,
   EmptyRemoteBodySPError,
+  FileHashCreationAPIError,
   HttpNotOkAPIError,
   InvalidDataSPError,
   MissingCredentialsSPError,
@@ -45,6 +47,11 @@ describe('sync-errors identity (single class definition across import paths)', (
       PackageRemoteFileNotFoundAPIError,
     ],
     ['NoRevAPIError', NoRevAPIError, PackageNoRevAPIError],
+    [
+      'FileHashCreationAPIError',
+      FileHashCreationAPIError,
+      PackageFileHashCreationAPIError,
+    ],
     ['HttpNotOkAPIError', HttpNotOkAPIError, PackageHttpNotOkAPIError],
     [
       'MissingCredentialsSPError',
