@@ -1443,8 +1443,8 @@ describe('OperationLogUploadService', () => {
     });
   });
 
-  // NOTE: _isNetworkError tests have been moved to sync-error-utils.spec.ts
-  // The shared isTransientNetworkError utility is now in sync-error-utils.ts
+  // NOTE: transient-error classification is delegated to `isRetryableUploadError`
+  // in `@sp/sync-providers`, which has its own unit test suite.
 
   describe('_opTypeToSnapshotReason', () => {
     // Access private method for testing

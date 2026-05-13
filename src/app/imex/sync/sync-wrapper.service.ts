@@ -38,6 +38,7 @@ import {
   DecryptNoPasswordError,
   LockPresentError,
   MissingCredentialsSPError,
+  NetworkUnavailableSPError,
   NoRemoteModelFile,
   PotentialCorsError,
   RevMismatchForModelError,
@@ -769,6 +770,13 @@ export class SyncWrapperService {
             suggestion:
               'Large sync operations may take up to 90 seconds. Please try again.',
           },
+        });
+        return 'HANDLED_ERROR';
+      } else if (error instanceof NetworkUnavailableSPError) {
+        this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
+        this._snackService.open({
+          msg: T.F.SYNC.S.NETWORK_ERROR,
+          type: 'WARNING',
         });
         return 'HANDLED_ERROR';
       } else if (this._isPermissionError(error)) {

@@ -39,6 +39,7 @@ export {
   WebCryptoNotAvailableError,
   RemoteFileNotFoundAPIError,
   MissingCredentialsSPError,
+  NetworkUnavailableSPError,
   AuthFailSPError,
   NoSyncProviderSetError,
   SyncAlreadyInProgressError,
