@@ -29,6 +29,8 @@ files:
   # copies are dead weight at runtime.
   - '!**/@noble/**'
   - '!**/hash-wasm/**'
+  # uuidv7 is imported by src/ (Angular bundle inlines it); not used by electron/
+  - '!**/uuidv7/**'
 directories:
   output: './.tmp/app-builds'
 
