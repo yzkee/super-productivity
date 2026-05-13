@@ -42,6 +42,10 @@ export class NoRevAPIError extends AdditionalLogErrorBase {
   override name = ' NoRevAPIError';
 }
 
+export class FileHashCreationAPIError extends AdditionalLogErrorBase {
+  override name = ' FileHashCreationAPIError';
+}
+
 export class TooManyRequestsAPIError extends AdditionalLogErrorBase<{
   status: number;
   retryAfter?: number;

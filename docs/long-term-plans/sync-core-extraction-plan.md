@@ -7,11 +7,9 @@
 > has shipped the `@sp/sync-providers` scaffold, provider boundary lint,
 > provider-neutral contracts, a credential-store port, the file-based sync
 > envelope types, PKCE helpers, the native-HTTP retry helpers, the shared
-> provider error classes, and the Dropbox provider (behind
-> `ProviderPlatformInfo` + `WebFetchFactory` + `NativeHttpExecutor` ports).
-> Remaining provider work — WebDAV + Nextcloud, SuperSync, LocalFile — should
-> reuse those ports while keeping app-owned IDs, OAuth routing, config UI, and
-> platform bridges app-side.**
+> provider error classes, and the bundled Dropbox, WebDAV + Nextcloud,
+> SuperSync, and LocalFile providers behind injected platform/credential/file
+> ports. Next up: PR 6 final boundary hardening and documentation.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -182,7 +180,7 @@ Current extraction state and remaining immediate debt:
   package-side with app-owned diagnostics, sync-core source comments were
   rechecked for SP entity examples, and the core boundary grep was rerun with no
   forbidden source imports.
-- PR 5 has its initial package boundary: `packages/sync-providers/` exists with
+- PR 5 has its package boundary: `packages/sync-providers/` exists with
   tsup/Vitest scaffolding, root scripts, build-package wiring, the
   `@sp/sync-providers` path alias, package-local generated-artifact ignores,
   and ESLint restrictions that reject Angular, NgRx, app imports,
@@ -200,6 +198,11 @@ Current extraction state and remaining immediate debt:
 - Dropbox PKCE code generation now lives in `@sp/sync-providers`, including
   the existing WebCrypto-first and `hash-wasm` fallback behavior. The app-side
   Dropbox helper path remains a compatibility re-export.
+- Dropbox, WebDAV + Nextcloud, SuperSync, and LocalFile provider
+  implementations now live in `@sp/sync-providers`. App-side shims keep
+  `SyncProviderId`, OAuth routing, config UI, credential-store implementation,
+  response validators that depend on `@sp/shared-schema`, and the
+  Electron/SAF platform bridges app-side.
 
 Suggested next order:
 
@@ -211,10 +214,9 @@ Suggested next order:
 3. Treat the current PR 4a/4b/4c port, small-helper, and replay-coordinator
    slices as complete for this round; keep the Angular `OperationApplierService`
    shell app-side unless a later port proves another small extraction safe.
-4. Finish PR 5 in three larger implementation slices behind the new provider
-   contracts: HTTP file providers first, SuperSync integration second, and
-   LocalFile last. Provider-specific `SyncLog`/`OpLog` routing should be
-   handled as provider files move behind provider-package ports.
+4. Treat PR 5 provider lift as complete for this branch. Continue with PR 6:
+   final boundary hardening, manifest/public-export audits, and a short
+   architecture note for package dependency direction.
 
 ## PR 1 - Thin First Slice (#7546)
 
@@ -1175,9 +1177,9 @@ PROVIDER_ID_WEBDAV | typeof PROVIDER_ID_NEXTCLOUD`. Four
   `as unknown as SyncProviderId.WebDAV` double-casts deleted.
 - **`md5HashSync` migrated to `hash-wasm` async.** `WebdavApi._computeContentHash`
   became `async`; ripple touched ~5 spec call sites. `spark-md5` no
-  longer appears in the package surface. App-side `local-file-sync-base.ts:178`
-  still uses `md5HashPromise` / `spark-md5` — out of scope until the
-  LocalFile slice.
+  longer appears in the package surface. The later LocalFile slice also
+  migrated its rev hashing to `hash-wasm` and removed the app-side
+  `spark-md5` helper/dependency.
 - **CORS heuristic tightened.** `webdav-http-adapter.ts:180-219` collapsed
   to a ~3-line check (`error instanceof TypeError &&
 error.message.includes('cors')`). Ambiguous-error log path that
@@ -1304,20 +1306,48 @@ consensus, then tightened by follow-up commits from review findings:
   `/webdav`, `/super-sync`, …) remain deferred to post-provider-lift
   polish.
 
+### Current Eighth Slice
+
+Shipped the LocalFile final slice:
+
+- `LocalFileSyncBase`, `LocalFileSyncElectron`,
+  `LocalFileSyncAndroid`, `LocalFileSyncPrivateCfg`, and
+  `PROVIDER_ID_LOCAL_FILE` now live in
+  `packages/sync-providers/src/file-based/local-file/`.
+- LocalFile provider behavior is package-owned, but Electron and Android
+  platform bridges stay app-side:
+  - Electron file operations still go through the app's
+    `ElectronFileAdapter` and `window.ea` bridge.
+  - Android SAF operations still go through `SafService` /
+    `SafFileAdapter`.
+  - App factory shims (`createLocalFileSyncElectron` /
+    `createLocalFileSyncAndroid`) inject those bridges plus
+    `SyncCredentialStore` and `OP_LOG_SYNC_LOGGER` into the package
+    classes. The dead app-side abstract base shim and duplicate spec were
+    removed.
+- LocalFile rev hashing now uses `hash-wasm` directly in the package,
+  matching the WebDAV move. The unused app-side `src/app/util/md5-hash.ts`,
+  `spark-md5` dependency, lockfile entry, and Angular CommonJS allowance
+  were removed.
+- `FileHashCreationAPIError` moved into `@sp/sync-providers` with the
+  other provider-shared errors. The app error module re-exports it so
+  cross-import `instanceof` identity remains guarded.
+- Package LocalFile Vitest coverage was added for the base file provider,
+  Electron folder-picker/path logic, and Android SAF permission/setup
+  logic. The remaining app-side Jasmine spec continues to cover the
+  Electron compatibility shim.
+
 ### Remaining Slice Plan
 
-Finish PR 5 with one remaining provider slice:
+PR 5 is complete for this branch. Continue with PR 6 final boundary
+hardening:
 
-1. **LocalFile final slice** (next)
-   - Move LocalFile provider implementation last.
-   - Put Electron/local-file APIs behind an app-provided file port and
-     keep the Electron bridge implementation app-side.
-   - Keep Android/browser LocalFile behavior covered by app shims while
-     the package owns only platform-neutral provider logic.
-   - Migrate `md5HashPromise` / `spark-md5` usage in
-     `local-file-sync-base.ts:178` to `hash-wasm` (already a package
-     runtime dep), mirroring the WebDAV slice's `md5HashSync`
-     migration.
+1. Recheck package boundary rules and forbidden import greps for both
+   `sync-core` and `sync-providers`.
+2. Audit manifests/runtime deps now that all bundled providers moved.
+3. Audit the `@sp/sync-providers` public barrel for app-owned concepts and
+   consider whether tiered exports should remain polish-only.
+4. Add the short package-boundary architecture note described in PR 6.
 
 ### Verification
 

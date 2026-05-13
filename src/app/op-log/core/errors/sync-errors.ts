@@ -15,6 +15,7 @@ import { OP_LOG_SYNC_LOGGER } from '../sync-logger.adapter';
 export {
   AuthFailSPError,
   EmptyRemoteBodySPError,
+  FileHashCreationAPIError,
   HttpNotOkAPIError,
   InvalidDataSPError,
   MissingCredentialsSPError,
@@ -78,10 +79,6 @@ export class NoEtagAPIError extends AdditionalLogErrorBase {
 
 export class FileExistsAPIError extends Error {
   override name = ' FileExistsAPIError';
-}
-
-export class FileHashCreationAPIError extends AdditionalLogErrorBase {
-  override name = ' FileHashCreationAPIError';
 }
 
 // --------------OTHER SYNC ERRORS--------------
