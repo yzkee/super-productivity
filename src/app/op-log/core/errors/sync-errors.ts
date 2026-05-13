@@ -406,6 +406,9 @@ export class BackupImportFailedError extends AdditionalLogErrorBase {
   override name = 'BackupImportFailedError';
 }
 
+// Re-export from @sp/sync-core (the canonical definition). Must remain a
+// re-export — never redefine locally — so `instanceof WebCryptoNotAvailableError`
+// works across all import paths. See the comment at the top of this file.
 export { WebCryptoNotAvailableError } from '@sp/sync-core';
 
 /**

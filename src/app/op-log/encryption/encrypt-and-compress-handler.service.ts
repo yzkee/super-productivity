@@ -2,7 +2,7 @@ import {
   extractSyncFileStateFromPrefix,
   getSyncFilePrefix,
 } from '../util/sync-file-prefix';
-import { decryptBatch, encryptBatch, type SyncLogger } from '@sp/sync-core';
+import { decrypt, encrypt, type SyncLogger } from '@sp/sync-core';
 import { OP_LOG_SYNC_LOGGER } from '../core/sync-logger.adapter';
 import {
   DecryptError,
@@ -85,7 +85,7 @@ export class EncryptAndCompressHandlerService {
         throw new Error('No encryption password provided');
       }
 
-      [dataStr] = await encryptBatch([dataStr], encryptKey);
+      dataStr = await encrypt(dataStr, encryptKey);
     }
 
     return prefix + dataStr;
@@ -119,7 +119,7 @@ export class EncryptAndCompressHandlerService {
         });
       }
       try {
-        [outStr] = await decryptBatch([outStr], encryptKey);
+        outStr = await decrypt(outStr, encryptKey);
       } catch (e) {
         throw new DecryptError(e);
       }

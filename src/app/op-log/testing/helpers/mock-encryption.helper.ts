@@ -7,7 +7,7 @@
  * for tests that don't need to verify actual cryptographic behavior.
  *
  * Use real encryption only in:
- * - encryption.spec.ts (tests the actual encryption)
+ * - packages/sync-core/tests/encryption.spec.ts (tests the actual encryption)
  * - Security-focused integration tests (if any)
  *
  * Usage with Jasmine spyOn (recommended):
