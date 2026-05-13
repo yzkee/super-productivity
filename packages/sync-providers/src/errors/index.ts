@@ -202,6 +202,22 @@ export class MissingCredentialsSPError extends Error {
   override name = 'MissingCredentialsSPError';
 }
 
+/**
+ * Provider-level signal that a transient network failure has exhausted
+ * the retry budget. Carries a user-facing message that is safe to display
+ * directly (no hostnames, paths, tokens, or body content). The wrapper
+ * layer matches this via `instanceof` so the contract is type-based, not
+ * a string round-trip through regex classifiers.
+ */
+export class NetworkUnavailableSPError extends Error {
+  override name = 'NetworkUnavailableSPError';
+  constructor(
+    message = 'Unable to connect to SuperSync server. Check your internet connection.',
+  ) {
+    super(message);
+  }
+}
+
 export class AuthFailSPError extends AdditionalLogErrorBase {
   override name = 'AuthFailSPError';
 }

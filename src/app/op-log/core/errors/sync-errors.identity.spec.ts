@@ -5,6 +5,7 @@ import {
   InvalidDataSPError as PackageInvalidDataSPError,
   MissingCredentialsSPError as PackageMissingCredentialsSPError,
   MissingRefreshTokenAPIError as PackageMissingRefreshTokenAPIError,
+  NetworkUnavailableSPError as PackageNetworkUnavailableSPError,
   NoRevAPIError as PackageNoRevAPIError,
   PotentialCorsError as PackagePotentialCorsError,
   RemoteFileChangedUnexpectedly as PackageRemoteFileChangedUnexpectedly,
@@ -19,6 +20,7 @@ import {
   InvalidDataSPError,
   MissingCredentialsSPError,
   MissingRefreshTokenAPIError,
+  NetworkUnavailableSPError,
   NoRevAPIError,
   PotentialCorsError,
   RemoteFileChangedUnexpectedly,
@@ -55,6 +57,11 @@ describe('sync-errors identity (single class definition across import paths)', (
       'MissingRefreshTokenAPIError',
       MissingRefreshTokenAPIError,
       PackageMissingRefreshTokenAPIError,
+    ],
+    [
+      'NetworkUnavailableSPError',
+      NetworkUnavailableSPError,
+      PackageNetworkUnavailableSPError,
     ],
     ['TooManyRequestsAPIError', TooManyRequestsAPIError, PackageTooManyRequestsAPIError],
     [

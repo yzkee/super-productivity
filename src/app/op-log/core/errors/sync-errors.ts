@@ -19,6 +19,7 @@ export {
   InvalidDataSPError,
   MissingCredentialsSPError,
   MissingRefreshTokenAPIError,
+  NetworkUnavailableSPError,
   NoRevAPIError,
   PotentialCorsError,
   RemoteFileChangedUnexpectedly,
