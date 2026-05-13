@@ -1228,76 +1228,92 @@ global DOMParser`, W3) so xmldom does not ship in the package bundle
 - **Bundle size.** Package CJS now 75.77 KB / ESM 73.23 KB / DTS
   37.13 KB. Up from ~55 KB pre-slice. The single barrel is still fine;
   tiered split (`@sp/sync-providers/dropbox`, `/webdav`, …) deferred to
-  PR 7 polish.
+  post-provider-lift polish.
 - **Architectural deferral.** `getElementsByTagNameNS('*', name)`
   subtree walk in `webdav-xml-parser.ts` is O(n) per call; for typical
   PROPFIND sizes (10-100 files) it's <50 ms but the performance
-  reviewer flagged a one-pass `childNodes` scan as cheaper. Tracked
-  for SuperSync slice / follow-up; not touched this slice.
+  reviewer flagged a one-pass `childNodes` scan as cheaper. Tracked as
+  a follow-up; not touched this slice.
+
+### Current Seventh Slice
+
+Shipped behind the shared design doc
+(`docs/plans/2026-05-12-pr7-super-sync-slice.md`) with multi-review
+consensus, then tightened by follow-up commits from review findings:
+
+- **PR 7a - retryable upload helper.** Promoted the broad-pattern
+  operation-upload retry predicate from
+  `src/app/op-log/sync/sync-error-utils.ts` into
+  `packages/sync-providers/src/http/retryable-upload-error.ts` as
+  `isRetryableUploadError`. The app-side `sync-error-utils.ts` now
+  re-exports it as `isTransientNetworkError` so
+  `operation-log-upload.service.ts` kept its import surface unchanged.
+  This helper remains distinct from the native-code-aware
+  `isTransientNetworkError` in `native-http-retry.ts`.
+- **PR 7b - SuperSync provider proper.** `super-sync.ts`,
+  `super-sync.model.ts`, and the SuperSync provider spec moved into
+  `packages/sync-providers/src/super-sync/`. The spec was converted
+  from Jasmine to Vitest. `SyncProviderId.SuperSync` was replaced in
+  the package by `PROVIDER_ID_SUPER_SYNC`, with the app-side
+  `AssertSuperSyncId` bridge matching the Dropbox/WebDAV pattern.
+- **App-side composition stayed thin.** `src/app/op-log/sync-providers/super-sync/super-sync.ts`
+  now exports `createSuperSyncProvider()` with no `extraPath` argument
+  (SuperSync has no file base-path concept). The factory wires
+  `OP_LOG_SYNC_LOGGER`, `APP_PROVIDER_PLATFORM_INFO`, `APP_WEB_FETCH`,
+  `SyncCredentialStore`, `CapacitorHttp.request`, `SuperSyncStorage`,
+  and the app response validators into `SuperSyncDeps`.
+- **Response validators remain app-side.** `response-validators.ts`
+  still imports `@sp/shared-schema`, so it stays under `src/app` and is
+  injected through the package's `SuperSyncResponseValidators` port.
+  The package owns the response _types_ only.
+- **Narrow SuperSync storage port.** `localStorage` access for
+  `lastServerSeq` moved behind `SuperSyncStorage`, while the package
+  still owns the `super_sync_last_server_seq_` prefix and the
+  per-server/per-token hash key. `_cachedServerSeqKey` is explicitly
+  reset on `setPrivateCfg` to preserve account/server isolation.
+- **Transport and compression ports reused.** SuperSync now uses the
+  existing `SyncLogger`, `ProviderPlatformInfo`, `WebFetchFactory`,
+  `NativeHttpExecutor`, and `SyncCredentialStorePort` ports. Web uploads
+  use `WebFetchFactory`; native uploads preserve the base64-gzip
+  `CapacitorHttp` path for Android WebView/iOS binary-body safety.
+  Compression imports directly from `@sp/sync-core`.
+- **Privacy sweep.** The move folded in the SuperSync-specific privacy
+  blockers from the design doc: `AuthFailSPError` no longer retains raw
+  response bodies in `additionalLog`; transient native request errors
+  throw a fixed user-facing message without interpolating raw native
+  messages; web timeout messages no longer include the request path;
+  server `error` reasons are capped at 80 chars; non-retryable foreign
+  native errors are surfaced by error name only; logger catch paths use
+  safe error name/code metadata rather than raw error objects.
+- **Idempotency and retry hardening.** Ops upload `requestId` generation
+  was ported and hardened: it is deterministic over the logical ops
+  batch, stable across JSON key ordering and encrypted payload IV
+  changes, but changes when unencrypted payload content changes. A
+  post-review fix broadened `isRetryableUploadError` for `429`, "too
+  many requests", "rate limit", and "retry in ..." messages so
+  full-state uploads (`SYNC_IMPORT`, `BACKUP_IMPORT`, `REPAIR`) are left
+  pending instead of permanently rejected under SuperSync rate limiting.
+- **Spec count delta.** Package spec count is now 278 after the
+  SuperSync move and rate-limit hardening. The SuperSync provider spec
+  remains intentionally monolithic; splitting it into themed files is
+  deferred to polish so the Jasmine -> Vitest conversion stays easy to
+  review.
+- **Bundle size.** Package build after the SuperSync slice is roughly
+  CJS 99.56 KB / ESM 96.76 KB / DTS 47.18 KB. The single barrel is
+  still acceptable; tiered exports (`@sp/sync-providers/dropbox`,
+  `/webdav`, `/super-sync`, …) remain deferred to post-provider-lift
+  polish.
 
 ### Remaining Slice Plan
 
-Finish PR 5 in two more slices:
+Finish PR 5 with one remaining provider slice:
 
-1. **SuperSync integration slice** (next)
-   - Move SuperSync provider implementation
-     (`super-sync.ts`, `super-sync.model.ts`) and its co-located spec
-     into `packages/sync-providers/src/super-sync/`. Convert the spec
-     from Jasmine to Vitest. Replace `SyncProviderId.SuperSync` reads
-     inside the package with a `PROVIDER_ID_SUPER_SYNC` constant; the
-     app composes the bridge via the same `AssertSuperSyncId`
-     conditional-type pattern used for Dropbox / WebDAV.
-   - Reuse the ports introduced in slices 5-6: `SyncLogger`,
-     `ProviderPlatformInfo`, `NativeHttpExecutor`, `SyncCredentialStorePort`,
-     `WebFetchFactory`. SuperSync only needs `WebFetchFactory` if its
-     web path migrates off direct `window.fetch`; otherwise it can keep
-     using `fetch` directly (Dropbox uses `WebFetchFactory` because of
-     iOS Capacitor's async fetch-patching).
-   - `response-validators.ts` stays app-side because it imports
-     `@sp/shared-schema` (banned in the package boundary). The package
-     `SuperSyncProvider` accepts a `responseValidators` dep port; the
-     app supplies the implementation that calls
-     `@sp/shared-schema`-backed `safeParse`. The validators' co-located
-     spec also stays app-side.
-   - `localStorage`-backed `getLastServerSeq` / `setLastServerSeq` and
-     the `_cachedServerSeqKey` hash logic need a small storage port
-     (mostly to make Vitest's Node test runner happy without
-     `localStorage` polyfills).
-   - SuperSync currently uses the app-side broad-pattern
-     `isTransientNetworkError` at `src/app/op-log/sync/sync-error-utils.ts:96`
-     — distinct from the package's native-error-code-aware version at
-     `packages/sync-providers/src/http/native-http-retry.ts:136`.
-     Promote the broad-pattern version into the package (e.g.
-     `isTransientErrorMessage`) so both call sites have a stable home,
-     or inject as a predicate port. `operation-log-upload.service.ts:166`
-     also uses the broad-pattern version and must keep working after.
-   - Compression: SuperSync currently imports
-     `compressWithGzip` / `compressWithGzipToString` from
-     `src/app/op-log/encryption/compression-handler.ts`, which is a
-     thin shim around `@sp/sync-core`'s implementations that wraps
-     errors in app-side `CompressError` / `DecompressError`. In the
-     package, import from `@sp/sync-core` directly — SuperSync's catch
-     paths handle generic `Error` fine.
-   - Apply the same A1/A3/B3.x privacy sweep as Dropbox/WebDAV.
-     Particular sites: `_doNativeFetch:646-648` and `_doWebFetch:582`
-     both embed the raw response body into the thrown `Error.message`;
-     scrub via `urlPathOnly` or use a fixed "HTTP `<status>`
-     `<statusText>`" form. `_handleNativeRequestError` already extracts
-     a string error message — verify no native runtimes embed the
-     full URL in `TypeError.message` analogous to Firefox's WebDAV
-     leak.
-   - Leave a thin app-side factory shim
-     (`createSuperSyncProvider(extraPath?: string)`) wired with app
-     singletons through `sync-providers.factory.ts`. The four other
-     SuperSync-named app services (`super-sync-status.service`,
-     `super-sync-websocket.service`, `super-sync-restore.service`,
-     `supersync-encryption-toggle.service`) stay app-side.
-2. **LocalFile final slice**
+1. **LocalFile final slice** (next)
    - Move LocalFile provider implementation last.
-   - Put Electron/local-file APIs behind an app-provided file port and keep the
-     Electron bridge implementation app-side.
-   - Keep Android/browser LocalFile behavior covered by app shims while the
-     package owns only platform-neutral provider logic.
+   - Put Electron/local-file APIs behind an app-provided file port and
+     keep the Electron bridge implementation app-side.
+   - Keep Android/browser LocalFile behavior covered by app shims while
+     the package owns only platform-neutral provider logic.
    - Migrate `md5HashPromise` / `spark-md5` usage in
      `local-file-sync-base.ts:178` to `hash-wasm` (already a package
      runtime dep), mirroring the WebDAV slice's `md5HashSync`
@@ -1334,7 +1350,7 @@ This is now a final audit rather than the first boundary rule.
 
 ---
 
-## PR 7 - Optional Polish (Post-Provider Lift)
+## Optional Polish (Post-Provider Lift)
 
 Non-blocking cleanups surfaced during the PR 5 provider lift. None of these
 change behaviour or boundaries — they remove duplication, tighten tests, and
