@@ -37,13 +37,6 @@ export type FileSyncProvider<PID extends SyncProviderId> = GenericFileSyncProvid
   PrivateCfgByProviderId<PID>
 >;
 
-/**
- * @deprecated Use `SyncProviderBase` for generic provider references
- * or `FileSyncProvider` for file-based providers. Kept as alias for backward compatibility.
- */
-export type SyncProviderServiceInterface<PID extends SyncProviderId> =
-  FileSyncProvider<PID>;
-
 export const isFileSyncProvider = (
   provider: SyncProviderBase<SyncProviderId>,
 ): provider is FileSyncProvider<SyncProviderId> => {

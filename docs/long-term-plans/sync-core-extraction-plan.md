@@ -9,7 +9,11 @@
 > envelope types, PKCE helpers, the native-HTTP retry helpers, the shared
 > provider error classes, and the bundled Dropbox, WebDAV + Nextcloud,
 > SuperSync, and LocalFile providers behind injected platform/credential/file
-> ports. Next up: PR 6 final boundary hardening and documentation.**
+> ports. PR 6 final boundary hardening is present, including boundary
+> lint/grep, manifest and public-export audit, a package-boundary architecture
+> note, and package build/test verification. PR 7 optional polish is present:
+> PKCE is package-owned, the deprecated provider alias is retired, and duplicate
+> package-boundary lint patterns are trimmed.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -99,20 +103,28 @@ first slice:
 
 ## Current Branch Snapshot
 
-The branch already contains the first package boundary and part of the PR 2
-groundwork:
+The branch now contains the current package boundary for this extraction slice:
 
 - `packages/sync-core/` exists and is exposed through the `@sp/sync-core` path
   alias.
-- `npm run sync-core:build` runs the package build, and `prepare` builds
-  `sync-core`, `shared-schema`, then `plugin-api`.
+- `packages/sync-providers/` exists and is exposed through the
+  `@sp/sync-providers` path alias.
+- `npm run sync-core:build` and `npm run sync-providers:build` run the package
+  builds, and `prepare` builds `sync-core`, `sync-providers`, `shared-schema`,
+  then `plugin-api`.
 - `eslint.config.js` applies `no-restricted-imports` and a dynamic-import ban to
-  `packages/sync-core/**/*.ts`.
-- The package currently exports operation primitives, apply types, LWW helper
-  factory, full-state op-type helper factory, entity-key helpers,
-  host-configured sync-file prefix helpers, generic error-message helpers,
-  `SyncStateCorruptedError`, entity-registry contracts, and the privacy-aware
-  logger port.
+  `packages/sync-core/**/*.ts` and `packages/sync-providers/**/*.ts`.
+- `@sp/sync-core` currently exports generic operation/apply primitives,
+  vector-clock algorithms, full-state op-type helper factories, entity-key and
+  sync-file-prefix helpers, compression/error helpers, import-filter decisions,
+  conflict-resolution helpers, upload/download/replay/remote-apply planning
+  helpers, entity-registry contracts, app-side orchestration ports,
+  `SyncStateCorruptedError`, and the privacy-aware logger port.
+- `@sp/sync-providers` currently exports provider-neutral contracts, provider
+  ports, file-based sync envelope types, provider-shared errors, PKCE and retry
+  helpers, safe logging helpers, provider-owned string constants, and the
+  bundled Dropbox, WebDAV + Nextcloud, SuperSync, and LocalFile provider
+  classes.
 - The app registry now has `buildEntityRegistry()` and an `ENTITY_REGISTRY`
   injection token. Existing helper functions still read the app-side
   `ENTITY_CONFIGS` singleton for compatibility.
@@ -214,9 +226,9 @@ Suggested next order:
 3. Treat the current PR 4a/4b/4c port, small-helper, and replay-coordinator
    slices as complete for this round; keep the Angular `OperationApplierService`
    shell app-side unless a later port proves another small extraction safe.
-4. Treat PR 5 provider lift as complete for this branch. Continue with PR 6:
-   final boundary hardening, manifest/public-export audits, and a short
-   architecture note for package dependency direction.
+4. Treat PR 5 provider lift and PR 6 final boundary hardening as complete for
+   this branch. The next work is optional post-provider-lift polish or merge
+   verification outside this extraction slice.
 
 ## PR 1 - Thin First Slice (#7546)
 
@@ -298,9 +310,10 @@ Each previously-public symbol path keeps working via thin shims:
 - Update the PR description if it still says `action-types.enum.ts` or
   `provider.const.ts` moved into `@sp/sync-core`; the code correctly keeps them
   app-side.
-- Fix comments that imply `sync-core` depends on `shared-schema`. The build may
-  run after `shared-schema`, but the package dependency direction must remain
-  absent.
+- Resolved in PR 3a: vector-clock ownership moved to `@sp/sync-core`, and
+  `packages/shared-schema` now compatibility-re-exports those algorithms from
+  `@sp/sync-core`. The forbidden direction remains
+  `@sp/sync-core -> @sp/shared-schema`.
 - Resolved in follow-up: `FULL_STATE_OP_TYPES` is now app-configured via
   `createFullStateOpTypeHelpers()`.
 
@@ -1053,7 +1066,7 @@ Shipped as two commits behind a shared design doc
 (`docs/plans/2026-05-12-pr5-dropbox-slice.md`) plus a post-review
 cleanup pass:
 
-- **PR 5a — provider error classes.** Twelve provider-shared error
+- **Dropbox slice A — provider error classes.** Twelve provider-shared error
   classes (`AuthFailSPError`, `InvalidDataSPError`,
   `HttpNotOkAPIError`, `NoRevAPIError`, `RemoteFileNotFoundAPIError`,
   `MissingCredentialsSPError`, `MissingRefreshTokenAPIError`,
@@ -1079,7 +1092,7 @@ cleanup pass:
   passed raw `Authorization` headers through `additionalLog`.
 - Package gained `"sideEffects": false` so consumers that only
   import error classes can tree-shake through the barrel.
-- **PR 5b — Dropbox provider proper.** `Dropbox`, `DropboxApi`, and
+- **Dropbox slice B — Dropbox provider proper.** `Dropbox`, `DropboxApi`, and
   `DropboxFileMetadata` moved into
   `packages/sync-providers/src/file-based/dropbox/` behind three new
   injected ports:
@@ -1140,12 +1153,12 @@ a shared design doc (`docs/plans/2026-05-12-pr5-webdav-slice.md`) with
 multi-review consensus, followed by tightening commits that fold
 post-review findings:
 
-- **PR 6a — shared log helpers.** Promoted `errorMeta(e, extra)` and
+- **WebDAV slice A — shared log helpers.** Promoted `errorMeta(e, extra)` and
   `urlPathOnly(url)` from `dropbox-api.ts:88-104` into
   `packages/sync-providers/src/log/error-meta.ts` so WebDAV could adopt
   them without copy-paste. Exported from the package barrel. Dropbox
   imports updated. No behavior change.
-- **PR 6b — WebDAV + Nextcloud provider proper.** `webdav-base-provider.ts`,
+- **WebDAV slice B — WebDAV + Nextcloud provider proper.** `webdav-base-provider.ts`,
   `webdav-api.ts`, `webdav-xml-parser.ts`, `webdav-http-adapter.ts`,
   `webdav.const.ts`, `webdav.model.ts`, `webdav.ts`, `nextcloud.ts`, and
   `nextcloud.model.ts` (plus their co-located specs) moved into
@@ -1205,7 +1218,9 @@ browsers`, W2) restored "Failed to fetch" / "NetworkError" /
   no-retry behavior keeps the slice scope a refactor. Trivially
   addable later as a per-call-site `maxRetries` argument on the
   reused `NativeHttpExecutor` port.
-- **Spec count delta.** Package spec count went from 103 (post PR 5b) to 177. PR 6b added 53 webdav specs (Jasmine → Vitest one-to-one move).
+- **Spec count delta.** Package spec count went from 103 (post Dropbox slice B)
+  to 177. WebDAV slice B added 53 webdav specs (Jasmine → Vitest one-to-one
+  move).
   Two follow-up commits added 13 namespace/server-format specs (the
   `getElementsByTagNameNS('*', name)` PROPFIND parsing path,
   `:href` variants, server-format compatibility — `restore WebDAV
@@ -1243,7 +1258,7 @@ Shipped behind the shared design doc
 (`docs/plans/2026-05-12-pr7-super-sync-slice.md`) with multi-review
 consensus, then tightened by follow-up commits from review findings:
 
-- **PR 7a - retryable upload helper.** Promoted the broad-pattern
+- **SuperSync slice A - retryable upload helper.** Promoted the broad-pattern
   operation-upload retry predicate from
   `src/app/op-log/sync/sync-error-utils.ts` into
   `packages/sync-providers/src/http/retryable-upload-error.ts` as
@@ -1252,7 +1267,7 @@ consensus, then tightened by follow-up commits from review findings:
   `operation-log-upload.service.ts` kept its import surface unchanged.
   This helper remains distinct from the native-code-aware
   `isTransientNetworkError` in `native-http-retry.ts`.
-- **PR 7b - SuperSync provider proper.** `super-sync.ts`,
+- **SuperSync slice B - SuperSync provider proper.** `super-sync.ts`,
   `super-sync.model.ts`, and the SuperSync provider spec moved into
   `packages/sync-providers/src/super-sync/`. The spec was converted
   from Jasmine to Vitest. `SyncProviderId.SuperSync` was replaced in
@@ -1339,15 +1354,30 @@ Shipped the LocalFile final slice:
 
 ### Remaining Slice Plan
 
-PR 5 is complete for this branch. Continue with PR 6 final boundary
-hardening:
+PR 5 and PR 6 final boundary hardening are complete for this branch:
 
-1. Recheck package boundary rules and forbidden import greps for both
-   `sync-core` and `sync-providers`.
-2. Audit manifests/runtime deps now that all bundled providers moved.
-3. Audit the `@sp/sync-providers` public barrel for app-owned concepts and
-   consider whether tiered exports should remain polish-only.
-4. Add the short package-boundary architecture note described in PR 6.
+- Boundary rules were rechecked with direct ESLint on
+  `packages/sync-core/**/*.ts` and `packages/sync-providers/**/*.ts`; the
+  forbidden-import grep for Angular, NgRx, `src/app`, `@sp/shared-schema`, and
+  sync-core deep imports returned no source matches.
+- Manifest/runtime dependency audit: `@sp/sync-core` has no runtime
+  dependencies and now declares `"sideEffects": false`; `@sp/sync-providers`
+  runtime deps remain limited to public `@sp/sync-core` plus `hash-wasm`, with
+  `@xmldom/xmldom` test-only in `devDependencies`.
+- Public barrel audit: `@sp/sync-providers` exports provider classes,
+  provider-owned string constants, contracts, ports, and shared helpers, but no
+  app-owned `SyncProviderId`, provider lists, OAuth routing, UI config, storage
+  prefixes, or `@sp/shared-schema` validators. `@sp/sync-core` still carries
+  the explicitly-deprecated full-state op compatibility exports and
+  host-defined `OpType.SyncImport` / `BackupImport` / `Repair` strings noted
+  above; reusable hosts should use `createFullStateOpTypeHelpers()` instead of
+  those defaults. Tiered provider exports remain polish-only until size or
+  consumer pressure justifies the manifest surface.
+- Added `docs/sync-and-op-log/package-boundaries.md`, linked it from the sync
+  docs README, and recorded the boundary direction in `ARCHITECTURE-DECISIONS.md`.
+
+Remaining merge gates outside this extraction slice: selected provider E2E
+smoke tests as needed.
 
 ### Verification
 
@@ -1371,51 +1401,83 @@ This is now a final audit rather than the first boundary rule.
 - Add a small architecture note that explains the package boundaries and allowed
   dependency direction.
 
+### Current State
+
+Status: implemented for this branch.
+
+- `docs/sync-and-op-log/package-boundaries.md` documents the allowed dependency
+  direction: app composition may consume both packages,
+  `@sp/sync-providers` may consume only public `@sp/sync-core`, and
+  `@sp/sync-core` stays independent of Angular, NgRx, app code,
+  `@sp/shared-schema`, and provider implementations.
+- `docs/sync-and-op-log/README.md` now points to the package-boundary note and
+  its key-file section reflects the current package/app split rather than the
+  pre-extraction app-local provider layout.
+- `ARCHITECTURE-DECISIONS.md` records the package boundary direction as an
+  active architectural decision.
+- `packages/sync-core/package.json` now declares `"sideEffects": false`,
+  matching `@sp/sync-providers` and the package's no-runtime-side-effect
+  surface.
+- Manifest and public-export audit found no app-owned provider enums, provider
+  lists, storage prefixes, OAuth routing, UI config, shared-schema validators,
+  or sync-core deep imports in package public APIs. The known exception remains
+  the deprecated `@sp/sync-core` full-state op compatibility exports plus the
+  host-defined `OpType.SyncImport` / `BackupImport` / `Repair` strings retained
+  for existing consumers.
+
 ### Verification
 
-- `npm run lint`.
-- Boundary grep for both packages.
-- Package builds from a clean install.
-- Full app unit tests and selected sync E2E.
+- `npm ci` completed, including the prepare-time builds for sync-core,
+  sync-providers, shared-schema, and plugin-api.
+- `npx eslint "packages/sync-core/**/*.ts" "packages/sync-providers/**/*.ts"`
+  passed.
+- `npm run lint` passed.
+- Boundary grep for both packages returned no forbidden source imports.
+- `npm run sync-core:build` passed.
+- `npm run sync-providers:build` passed.
+- Local run on May 13, 2026: `npm run packages:test` passed with sync-core 156
+  tests and sync-providers 302 tests.
+- Full app unit tests passed in the PR 7 verification below; selected sync E2E
+  remain merge-level verification as needed.
 
 ---
 
 ## Optional Polish (Post-Provider Lift)
 
-Non-blocking cleanups surfaced during the PR 5 provider lift. None of these
-change behaviour or boundaries — they remove duplication, tighten tests, and
-retire deprecated aliases once consumers have migrated.
+Status: implemented for this branch.
 
-### Candidates
+Non-blocking cleanups surfaced during the PR 5 provider lift. These do not
+change behaviour or boundaries; they remove duplication, tighten tests, and
+retire deprecated aliases after consumers have migrated.
 
-- **Consolidate PKCE helpers.** `packages/sync-providers/src/pkce.ts` currently
-  duplicates `src/app/util/pkce.util.ts`. The package needs to stand alone, so
-  the duplication is intentional during the scaffold, but the remaining
-  consumers (`src/app/plugins/oauth/plugin-oauth.service.ts`,
-  `src/app/plugins/oauth/pkce.util.spec.ts`,
-  `src/app/op-log/sync-providers/file-based/dropbox/dropbox-auth-helper.spec.ts`)
-  should migrate onto `@sp/sync-providers` so `src/app/util/pkce.util.ts` can be
-  deleted. Drift between the two implementations is the risk this resolves.
-- **Drop the dead `_length` arg in `generatePKCECodes`.** Pre-existing from the
-  original helper; the parameter is unused. Either remove it (single call site)
-  or document why it is kept for API compatibility.
-- **Tighten the PKCE verifier-length assertion.** `tests/pkce.spec.ts` bounds
-  the verifier with `toBeLessThanOrEqual(128)`, but a 32-byte random buffer
-  always encodes to exactly 43 base64url chars. Replace with an exact length
-  check so the test actually constrains the output.
-- **Retire `SyncProviderServiceInterface` alias.** Marked `@deprecated` in
-  `src/app/op-log/sync-providers/provider.interface.ts`. Sweep callers to
-  `SyncProviderBase` / `FileSyncProvider` and remove the alias.
-- **Trim duplicate ESLint pattern depths.** The `packages/sync-providers/**`
-  block in `eslint.config.js` lists `../sync-core/**`, `../../sync-core/**`, and
-  `**/sync-core/**` (plus shared-schema equivalents). The `**/...` form already
-  covers the relative variants; collapse for readability.
+### Current State
+
+- PKCE is package-owned: app OAuth code imports `generateCodeVerifier` and
+  `generateCodeChallenge` from `@sp/sync-providers`, and the app-local
+  `pkce.util` shim/spec/helper were removed.
+- The dead `_length` parameter was removed from `generatePKCECodes()`, and the
+  Dropbox call site now uses the zero-argument helper.
+- Package PKCE tests now assert the exact 43-character verifier length produced
+  by the default 32 random bytes.
+- The deprecated `SyncProviderServiceInterface` alias was removed. File-provider
+  references now use `FileSyncProvider`, and generic/operation-capable provider
+  references now use `SyncProviderBase` plus `OperationSyncCapable` where
+  needed.
+- The `packages/sync-providers/**` ESLint boundary override no longer repeats
+  relative sync-core/shared-schema pattern depths already covered by the
+  `**/...` forms.
 
 ### Verification
 
-- `npm run lint`, `npm test`, `npm run packages:test`.
-- Grep for `pkce.util` and `SyncProviderServiceInterface` after the cleanup —
-  both should return zero hits outside of `packages/sync-providers`.
+- `npm run packages:test` passed with sync-core 156 tests and sync-providers
+  302 tests.
+- `npm run sync-core:build` passed.
+- `npm run sync-providers:build` passed.
+- `npm test` passed, including the full Karma run and the Los Angeles timezone
+  run.
+- `npm run lint` passed.
+- Source grep for `pkce.util` and `SyncProviderServiceInterface` returned zero
+  hits under `src` and `packages`.
 
 ---
 
@@ -1432,7 +1494,7 @@ retire deprecated aliases once consumers have migrated.
 | **4c** | Revisit `OperationApplierService` extraction               | High        | Narrow replay coordinator present     |
 | **5**  | Lift providers into `@sp/sync-providers`                   | Medium-High | Provider deps stay out of core        |
 | **6**  | Final boundary hardening and architecture note             | Low         | Audit and lock down                   |
-| **7**  | Optional polish: dedupe PKCE, retire deprecated aliases    | Low         | Non-blocking cleanup                  |
+| **7**  | Optional polish: dedupe PKCE, retire deprecated aliases    | Low         | Present on branch                     |
 
 After the final PR, `@sp/sync-core` should be the domain-agnostic sync engine
 and abstractions, `@sp/sync-providers` should contain bundled provider

@@ -5,7 +5,7 @@ import { SyncProviderManager } from '../../op-log/sync-providers/provider-manage
 import { SyncProviderId } from '../../op-log/sync-providers/provider.const';
 import {
   OperationSyncCapable,
-  SyncProviderServiceInterface,
+  SyncProviderBase,
 } from '../../op-log/sync-providers/provider.interface';
 import { SuperSyncPrivateCfg } from '../../op-log/sync-providers/super-sync/super-sync.model';
 import { AppDataComplete } from '../../op-log/model/model-config';
@@ -15,7 +15,7 @@ describe('ImportEncryptionHandlerService', () => {
   let mockSnapshotUploadService: jasmine.SpyObj<SnapshotUploadService>;
   let mockProviderManager: jasmine.SpyObj<SyncProviderManager>;
   let mockSyncProvider: jasmine.SpyObj<
-    SyncProviderServiceInterface<SyncProviderId> & OperationSyncCapable
+    SyncProviderBase<SyncProviderId> & OperationSyncCapable
   >;
 
   const createMockImportedData = (

@@ -12,7 +12,7 @@ import { ValidateStateService } from '../../validation/validate-state.service';
 import { RepairOperationService } from '../../validation/repair-operation.service';
 import { StateSnapshotService } from '../../backup/state-snapshot.service';
 import {
-  SyncProviderServiceInterface,
+  SyncProviderBase,
   OperationSyncCapable,
   OpUploadResponse,
   OpDownloadResponse,
@@ -58,7 +58,7 @@ import { SyncImportFilterService } from '../../sync/sync-import-filter.service';
 
 // Mock Sync Provider that supports operation sync
 class MockOperationSyncProvider
-  implements SyncProviderServiceInterface<SyncProviderId>, OperationSyncCapable
+  implements SyncProviderBase<SyncProviderId>, OperationSyncCapable
 {
   id = SyncProviderId.SuperSync;
   supportsOperationSync = true;

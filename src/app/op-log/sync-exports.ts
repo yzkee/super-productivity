@@ -56,7 +56,6 @@ export {
 export {
   SyncProviderBase,
   FileSyncProvider,
-  SyncProviderServiceInterface,
   isFileSyncProvider,
 } from './sync-providers/provider.interface';
 
