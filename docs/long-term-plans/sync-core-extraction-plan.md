@@ -12,8 +12,9 @@
 > ports. PR 6 final boundary hardening is present, including boundary
 > lint/grep, manifest and public-export audit, a package-boundary architecture
 > note, and package build/test verification. PR 7 optional polish is present:
-> PKCE is package-owned, the deprecated provider alias is retired, and duplicate
-> package-boundary lint patterns are trimmed.**
+> PKCE is package-owned, the deprecated provider alias is retired, duplicate
+> package-boundary lint patterns are trimmed, and WebDAV XML parser subtree
+> scans are reduced.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -1246,11 +1247,13 @@ global DOMParser`, W3) so xmldom does not ship in the package bundle
   37.13 KB. Up from ~55 KB pre-slice. The single barrel is still fine;
   tiered split (`@sp/sync-providers/dropbox`, `/webdav`, …) deferred to
   post-provider-lift polish.
-- **Architectural deferral.** `getElementsByTagNameNS('*', name)`
-  subtree walk in `webdav-xml-parser.ts` is O(n) per call; for typical
-  PROPFIND sizes (10-100 files) it's <50 ms but the performance
-  reviewer flagged a one-pass `childNodes` scan as cheaper. Tracked as
-  a follow-up; not touched this slice.
+- **WebDAV parser follow-up.** Repeated
+  `getElementsByTagNameNS('*', name)` subtree walks in
+  `webdav-xml-parser.ts` were replaced with one `childNodes`/`localName`
+  document scan for response discovery plus direct-child scans for field
+  extraction. This keeps mixed-prefix WebDAV compatibility while avoiding
+  repeated response-subtree walks and preventing nested extension fields from
+  shadowing direct WebDAV children.
 
 ### Current Seventh Slice
 
@@ -1466,11 +1469,15 @@ retire deprecated aliases after consumers have migrated.
 - The `packages/sync-providers/**` ESLint boundary override no longer repeats
   relative sync-core/shared-schema pattern depths already covered by the
   `**/...` forms.
+- WebDAV XML parsing now uses namespace-agnostic `childNodes`/`localName`
+  scans instead of repeated `getElementsByTagNameNS()` subtree walks. A package
+  spec covers mixed-prefix parsing and direct WebDAV child precedence over
+  nested extension fields.
 
 ### Verification
 
 - `npm run packages:test` passed with sync-core 156 tests and sync-providers
-  302 tests.
+  303 tests.
 - `npm run sync-core:build` passed.
 - `npm run sync-providers:build` passed.
 - `npm test` passed, including the full Karma run and the Los Angeles timezone
