@@ -406,9 +406,7 @@ export class BackupImportFailedError extends AdditionalLogErrorBase {
   override name = 'BackupImportFailedError';
 }
 
-export class WebCryptoNotAvailableError extends Error {
-  override name = 'WebCryptoNotAvailableError';
-}
+export { WebCryptoNotAvailableError } from '@sp/sync-core';
 
 /**
  * Thrown when IndexedDB storage quota is exceeded during operation log write.

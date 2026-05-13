@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { encrypt, decrypt, encryptBatch, decryptBatch } from '../encryption/encryption';
+import { decrypt, decryptBatch, encrypt, encryptBatch } from '@sp/sync-core';
 import { SyncOperation } from '../sync-providers/provider.interface';
 import { DecryptError } from '../core/errors/sync-errors';
 

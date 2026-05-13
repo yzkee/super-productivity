@@ -12,7 +12,7 @@
  *
  * Usage with Jasmine spyOn (recommended):
  * ```typescript
- * import * as encryptionModule from '../../encryption/encryption';
+ * import * as encryptionModule from '@sp/sync-core';
  * import { mockEncrypt, mockDecrypt } from './mock-encryption.helper';
  *
  * beforeEach(() => {

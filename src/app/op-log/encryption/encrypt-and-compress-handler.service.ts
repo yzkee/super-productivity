@@ -2,9 +2,8 @@ import {
   extractSyncFileStateFromPrefix,
   getSyncFilePrefix,
 } from '../util/sync-file-prefix';
-import type { SyncLogger } from '@sp/sync-core';
+import { decryptBatch, encryptBatch, type SyncLogger } from '@sp/sync-core';
 import { OP_LOG_SYNC_LOGGER } from '../core/sync-logger.adapter';
-import { decryptBatch, encryptBatch } from './encryption';
 import {
   DecryptError,
   DecryptNoPasswordError,

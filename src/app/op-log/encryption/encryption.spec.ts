@@ -10,7 +10,7 @@ import {
   clearSessionKeyCache,
   getSessionKeyCacheStats,
   setArgon2ParamsForTesting,
-} from './encryption';
+} from '@sp/sync-core';
 
 describe('Encryption', () => {
   const PASSWORD = 'super_secret_password';
@@ -110,6 +110,7 @@ describe('Encryption', () => {
 
         expect(result.plaintext).toBe(DATA);
         expect(result.wasLegacy).toBe(true);
+        expect(result.wasLegacyKdf).toBe(true);
         expect(result.migratedCiphertext).toBeDefined();
 
         // Verify migrated ciphertext is valid Argon2id

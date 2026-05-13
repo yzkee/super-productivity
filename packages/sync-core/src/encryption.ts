@@ -1,7 +1,6 @@
 import { argon2id } from 'hash-wasm';
 import { gcm } from '@noble/ciphers/aes.js';
-import { WebCryptoNotAvailableError } from '../core/errors/sync-errors';
-import { Log } from '../../core/log';
+import { WebCryptoNotAvailableError } from './web-crypto-error';
 
 const ALGORITHM = 'AES-GCM' as const;
 const SALT_LENGTH = 16;
@@ -16,6 +15,54 @@ const DEFAULT_ARGON2_PARAMS = {
 
 let _argon2Params = { ...DEFAULT_ARGON2_PARAMS };
 
+interface EncryptionProcessGlobal {
+  process?: {
+    env?: {
+      NODE_ENV?: string;
+    };
+  };
+}
+
+interface EncryptionGlobals extends EncryptionProcessGlobal {
+  crypto?: Crypto;
+  atob?: (input: string) => string;
+  btoa?: (input: string) => string;
+}
+
+const globals = (): EncryptionGlobals => globalThis as unknown as EncryptionGlobals;
+
+const getRequiredCrypto = (): Crypto => {
+  const cryptoApi = globals().crypto;
+  if (cryptoApi === undefined) {
+    throw new WebCryptoNotAvailableError('Crypto API is not available');
+  }
+  return cryptoApi;
+};
+
+const getRequiredSubtle = (): SubtleCrypto => {
+  const subtle = getRequiredCrypto().subtle;
+  if (subtle === undefined) {
+    throw new WebCryptoNotAvailableError();
+  }
+  return subtle;
+};
+
+const getRequiredAtob = (): ((input: string) => string) => {
+  const atob = globals().atob;
+  if (atob === undefined) {
+    throw new Error('atob is not available in this runtime');
+  }
+  return atob;
+};
+
+const getRequiredBtoa = (): ((input: string) => string) => {
+  const btoa = globals().btoa;
+  if (btoa === undefined) {
+    throw new Error('btoa is not available in this runtime');
+  }
+  return btoa;
+};
+
 /**
  * Returns the current Argon2 parameters.
  * Tests can override these via `setArgon2ParamsForTesting()`.
@@ -29,6 +76,9 @@ export const getArgon2Params = (): typeof DEFAULT_ARGON2_PARAMS => _argon2Params
 export const setArgon2ParamsForTesting = (
   params?: Partial<typeof DEFAULT_ARGON2_PARAMS>,
 ): void => {
+  if (globals().process?.env?.NODE_ENV === 'production') {
+    throw new Error('setArgon2ParamsForTesting must not be called in production');
+  }
   _argon2Params = params
     ? { ...DEFAULT_ARGON2_PARAMS, ...params }
     : { ...DEFAULT_ARGON2_PARAMS };
@@ -49,11 +99,7 @@ export const setArgon2ParamsForTesting = (
  * Returns false in insecure contexts (http://, some custom schemes like Android Capacitor).
  */
 export const isCryptoSubtleAvailable = (): boolean => {
-  return (
-    typeof window !== 'undefined' &&
-    typeof window.crypto !== 'undefined' &&
-    typeof window.crypto.subtle !== 'undefined'
-  );
+  return globals().crypto?.subtle !== undefined;
 };
 
 // ============================================================================
@@ -74,7 +120,7 @@ export type DerivedKeyInfo =
  * Strategy interface for cryptographic operations.
  * Implemented by WebCrypto and @noble/ciphers backends.
  */
-interface CryptoStrategy {
+export interface CryptoStrategy {
   encrypt(key: DerivedKeyInfo, iv: Uint8Array, data: Uint8Array): Promise<Uint8Array>;
   decrypt(key: DerivedKeyInfo, iv: Uint8Array, data: Uint8Array): Promise<Uint8Array>;
   deriveKey(password: string, salt: Uint8Array): Promise<DerivedKeyInfo>;
@@ -109,7 +155,7 @@ const webCryptoStrategy: CryptoStrategy = {
     if (keyInfo.type !== 'webcrypto') {
       throw new Error('WebCrypto strategy requires webcrypto key type');
     }
-    const encrypted = await window.crypto.subtle.encrypt(
+    const encrypted = await getRequiredSubtle().encrypt(
       { name: ALGORITHM, iv: iv as Uint8Array<ArrayBuffer> },
       keyInfo.key,
       data as Uint8Array<ArrayBuffer>,
@@ -121,7 +167,7 @@ const webCryptoStrategy: CryptoStrategy = {
     if (keyInfo.type !== 'webcrypto') {
       throw new Error('WebCrypto strategy requires webcrypto key type');
     }
-    const decrypted = await window.crypto.subtle.decrypt(
+    const decrypted = await getRequiredSubtle().decrypt(
       { name: ALGORITHM, iv: iv as Uint8Array<ArrayBuffer> },
       keyInfo.key,
       data as Uint8Array<ArrayBuffer>,
@@ -131,7 +177,7 @@ const webCryptoStrategy: CryptoStrategy = {
 
   deriveKey: async (password, salt) => {
     const derivedBytes = await deriveKeyBytesArgon(password, salt);
-    const key = await window.crypto.subtle.importKey(
+    const key = await getRequiredSubtle().importKey(
       'raw',
       derivedBytes.buffer as ArrayBuffer,
       { name: ALGORITHM },
@@ -250,7 +296,7 @@ export const getSessionKeyCacheStats = (): {
 // ============================================================================
 
 export const base642ab = (base64: string): ArrayBuffer => {
-  const binary_string = window.atob(base64);
+  const binary_string = getRequiredAtob()(base64);
   const len = binary_string.length;
   const bytes = new Uint8Array(len);
   for (let i = 0; i < len; i++) {
@@ -263,7 +309,7 @@ export const ab2base64 = (buffer: ArrayBuffer): string => {
   const binary = Array.prototype.map
     .call(new Uint8Array(buffer), (byte: number) => String.fromCharCode(byte))
     .join('');
-  return window.btoa(binary);
+  return getRequiredBtoa()(binary);
 };
 
 /**
@@ -271,7 +317,7 @@ export const ab2base64 = (buffer: ArrayBuffer): string => {
  * Uses crypto.getRandomValues which is available even without crypto.subtle.
  */
 const getRandomBytes = (length: number): Uint8Array<ArrayBuffer> => {
-  return window.crypto.getRandomValues(new Uint8Array(length));
+  return getRequiredCrypto().getRandomValues(new Uint8Array(length));
 };
 
 // Minimum sizes for format detection
@@ -313,25 +359,22 @@ const _generateKey = async (password: string): Promise<CryptoKey> => {
     iterations: 1000,
     hash: 'SHA-256',
   };
-  const key = await window.crypto.subtle.importKey(
+  const key = await getRequiredSubtle().importKey(
     'raw',
     passwordBuffer,
     { name: 'PBKDF2' },
     false,
     ['deriveBits', 'deriveKey'],
   );
-  return window.crypto.subtle.deriveKey(
-    ops,
-    key,
-    { name: ALGORITHM, length: 256 },
-    true,
-    ['encrypt', 'decrypt'],
-  );
+  return getRequiredSubtle().deriveKey(ops, key, { name: ALGORITHM, length: 256 }, true, [
+    'encrypt',
+    'decrypt',
+  ]);
 };
 
 export const generateKey = async (password: string): Promise<string> => {
   const cryptoKey = await _generateKey(password);
-  const exportKey = await window.crypto.subtle.exportKey('raw', cryptoKey);
+  const exportKey = await getRequiredSubtle().exportKey('raw', cryptoKey);
   return ab2base64(exportKey);
 };
 
@@ -351,16 +394,10 @@ async function decryptLegacy(data: string, password: string): Promise<string> {
   const iv = new Uint8Array(dataBuffer, 0, IV_LENGTH);
   const encryptedData = new Uint8Array(dataBuffer, IV_LENGTH);
   const key = await _generateKey(password);
-  const decryptedContent = await window.crypto.subtle.decrypt(
+  const decryptedContent = await getRequiredSubtle().decrypt(
     { name: ALGORITHM, iv: iv },
     key,
     encryptedData,
-  );
-
-  // Only warn AFTER successful decryption, to avoid false positives when
-  // Argon2id decryption fails for other reasons (wrong password, corrupted data)
-  Log.warn(
-    '[DEPRECATION] Legacy PBKDF2 encryption detected. Consider re-syncing to migrate to Argon2id.',
   );
 
   const dec = new TextDecoder();
@@ -410,8 +447,6 @@ export const decrypt = async (data: string, password: string): Promise<string> =
     // Fallback to legacy decryption (pre-Argon2 format)
     // NOTE: Legacy PBKDF2 decryption requires WebCrypto. If WebCrypto is unavailable
     // and this is legacy data, the user will get a clear error.
-    // The deprecation warning is only emitted if legacy decryption SUCCEEDS,
-    // avoiding false positives when Argon2id fails for other reasons (wrong password).
     return await decryptLegacy(data, password);
   }
 };
@@ -428,6 +463,8 @@ export interface DecryptResult {
   migratedCiphertext?: string;
   /** True if the data was encrypted with legacy PBKDF2 */
   wasLegacy: boolean;
+  /** True if the data used the legacy PBKDF2 KDF */
+  wasLegacyKdf?: boolean;
 }
 
 /**
@@ -452,7 +489,7 @@ export const decryptWithMigration = async (
     // Fallback to legacy PBKDF2 format - decrypt and prepare migration
     const plaintext = await decryptLegacy(data, password);
     const migratedCiphertext = await encrypt(plaintext, password);
-    return { plaintext, migratedCiphertext, wasLegacy: true };
+    return { plaintext, migratedCiphertext, wasLegacy: true, wasLegacyKdf: true };
   }
 };
 
