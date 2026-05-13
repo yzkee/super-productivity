@@ -853,8 +853,10 @@ export class SuperSyncProvider
         });
 
         if (!response.ok) {
-          clearTimeout(timeoutId);
+          // Keep the abort timer running across response.text() — a server/proxy
+          // that sends an error status and stalls the body must still be aborted.
           const errorText = await response.text().catch(() => '');
+          clearTimeout(timeoutId);
           // Check for auth failure FIRST before throwing generic error
           this._checkHttpStatus(response.status, errorText);
           const reason = this._extractServerErrorReason(errorText, response.status);
