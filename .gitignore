@@ -97,9 +97,6 @@ electron-builder.win-store.yaml
 /.claude/
 .aider*
 
-/packages/plugin-api/dist/**/*.*
-/packages/plugin-api/src/**/*.js
-/packages/plugin-api/src/**/*.js.map
 
 #
 perf-metrics-create-tasks.json
