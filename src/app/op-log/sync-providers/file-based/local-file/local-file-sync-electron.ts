@@ -1,7 +1,7 @@
 import {
   LocalFileSyncElectron as PackageLocalFileSyncElectron,
   type LocalFileSyncElectronDeps,
-} from '@sp/sync-providers';
+} from '@sp/sync-providers/local-file';
 import { IS_ELECTRON } from '../../../../app.constants';
 import type { ElectronAPI } from '../../../../../../electron/electronAPI';
 import { OP_LOG_SYNC_LOGGER } from '../../../core/sync-logger.adapter';

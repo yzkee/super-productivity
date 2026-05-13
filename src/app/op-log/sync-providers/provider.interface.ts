@@ -21,7 +21,7 @@ import {
   type SyncOperation as GenericSyncOperation,
   type SyncProviderAuthHelper as GenericSyncProviderAuthHelper,
   type SyncProviderBase as GenericSyncProviderBase,
-} from '@sp/sync-providers';
+} from '@sp/sync-providers/provider-types';
 import type { SyncProviderId } from './provider.const';
 import type { PrivateCfgByProviderId } from '../core/types/sync.types';
 

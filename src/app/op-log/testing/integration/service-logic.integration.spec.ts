@@ -19,7 +19,7 @@ import {
   SyncOperation,
 } from '../../sync-providers/provider.interface';
 import { SyncProviderId } from '../../sync-providers/provider.const';
-import { SuperSyncPrivateCfg } from '../../sync-providers/super-sync/super-sync.model';
+import type { SuperSyncPrivateCfg } from '@sp/sync-providers/super-sync';
 import { provideMockStore } from '@ngrx/store/testing';
 import {
   ActionType,

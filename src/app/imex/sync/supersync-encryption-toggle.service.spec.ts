@@ -7,7 +7,7 @@ import {
   OperationSyncCapable,
   SyncProviderBase,
 } from '../../op-log/sync-providers/provider.interface';
-import { SuperSyncPrivateCfg } from '../../op-log/sync-providers/super-sync/super-sync.model';
+import type { SuperSyncPrivateCfg } from '@sp/sync-providers/super-sync';
 
 describe('SuperSyncEncryptionToggleService', () => {
   let service: SuperSyncEncryptionToggleService;

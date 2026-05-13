@@ -13,7 +13,7 @@ import {
   RemoteFileNotFoundAPIError as PackageRemoteFileNotFoundAPIError,
   TooManyRequestsAPIError as PackageTooManyRequestsAPIError,
   UploadRevToMatchMismatchAPIError as PackageUploadRevToMatchMismatchAPIError,
-} from '@sp/sync-providers';
+} from '@sp/sync-providers/errors';
 import {
   AuthFailSPError,
   EmptyRemoteBodySPError,

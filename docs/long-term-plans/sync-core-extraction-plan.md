@@ -13,8 +13,8 @@
 > lint/grep, manifest and public-export audit, a package-boundary architecture
 > note, and package build/test verification. PR 7 optional polish is present:
 > PKCE is package-owned, the deprecated provider alias is retired, duplicate
-> package-boundary lint patterns are trimmed, and WebDAV XML parser subtree
-> scans are reduced.**
+> package-boundary lint patterns are trimmed, WebDAV XML parser subtree scans
+> are reduced, and tiered `@sp/sync-providers/*` exports are present.**
 
 **Goal:** Carve the sync engine out of `src/app/op-log/` into a reusable,
 framework-agnostic, **domain-agnostic** `@sp/sync-core` package, plus a sibling
@@ -201,9 +201,10 @@ Current extraction state and remaining immediate debt:
 - Provider-neutral contracts now live in `@sp/sync-providers`: generic
   string-ID provider contracts, operation-sync response types, file provider
   response types, a credential-store port, and the local file-adapter port. The
-  app-side `provider.interface.ts` and local `file-adapter.interface.ts` remain
-  compatibility shims that specialize those contracts with `SyncProviderId` and
-  `PrivateCfgByProviderId`.
+  app-side `provider.interface.ts` remains as the SP-narrowed compatibility
+  shim that specializes those contracts with `SyncProviderId` and
+  `PrivateCfgByProviderId`; the unused local `file-adapter.interface.ts` shim
+  was removed after app adapters switched to `@sp/sync-providers/file-based`.
 - File-based sync envelope contracts now live in `@sp/sync-providers` with
   generic host-owned state, compact-operation, and archive payload parameters.
   The app-side `file-based-sync.types.ts` shim binds those generics to
@@ -1319,10 +1320,11 @@ consensus, then tightened by follow-up commits from review findings:
   deferred to polish so the Jasmine -> Vitest conversion stays easy to
   review.
 - **Bundle size.** Package build after the SuperSync slice is roughly
-  CJS 99.56 KB / ESM 96.76 KB / DTS 47.18 KB. The single barrel is
-  still acceptable; tiered exports (`@sp/sync-providers/dropbox`,
-  `/webdav`, `/super-sync`, …) remain deferred to post-provider-lift
-  polish.
+  CJS 99.56 KB / ESM 96.76 KB / DTS 47.18 KB. Tiered exports are now present
+  for provider and helper surfaces (`@sp/sync-providers/dropbox`, `/webdav`,
+  `/super-sync`, `/local-file`, `/http`, `/errors`, `/file-based`, `/pkce`,
+  `/platform`, `/provider-types`, and `/credential-store`) while the root
+  barrel stays available for compatibility.
 
 ### Current Eighth Slice
 
@@ -1473,6 +1475,10 @@ retire deprecated aliases after consumers have migrated.
   scans instead of repeated `getElementsByTagNameNS()` subtree walks. A package
   spec covers mixed-prefix parsing and direct WebDAV child precedence over
   nested extension fields.
+- Tiered `@sp/sync-providers/*` package exports were added, and frontend app
+  imports now use focused subpaths instead of the root provider barrel. The
+  unused app-side SuperSync model and LocalFile file-adapter re-export shims
+  were removed.
 
 ### Verification
 

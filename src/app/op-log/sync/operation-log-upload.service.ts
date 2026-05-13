@@ -28,7 +28,7 @@ import {
   UploadResult,
   UploadOptions,
 } from '../core/types/sync-results.types';
-import { isRetryableUploadError } from '@sp/sync-providers';
+import { isRetryableUploadError } from '@sp/sync-providers/http';
 import { handleStorageQuotaError } from './sync-error-utils';
 import { DecryptNoPasswordError } from '../core/errors/sync-errors';
 

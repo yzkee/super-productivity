@@ -76,7 +76,7 @@ import { OperationLogStoreService } from '../../op-log/persistence/operation-log
 import { OperationLogSyncService } from '../../op-log/sync/operation-log-sync.service';
 import { SyncSessionValidationService } from '../../op-log/sync/sync-session-validation.service';
 import { WrappedProviderService } from '../../op-log/sync-providers/wrapped-provider.service';
-import { SuperSyncProvider } from '../../op-log/sync-providers/super-sync/super-sync';
+import { SuperSyncProvider } from '@sp/sync-providers/super-sync';
 import { HydrationStateService } from '../../op-log/apply/hydration-state.service';
 
 /**

@@ -60,7 +60,7 @@ export {
 } from './sync-providers/provider.interface';
 
 // Provider types
-export type { DropboxPrivateCfg } from './sync-providers/file-based/dropbox/dropbox';
+export type { DropboxPrivateCfg } from '@sp/sync-providers/dropbox';
 
 // VectorClock from core
 export { VectorClock } from '../core/util/vector-clock';
