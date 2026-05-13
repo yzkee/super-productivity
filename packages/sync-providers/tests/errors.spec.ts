@@ -9,6 +9,7 @@ import {
   InvalidDataSPError,
   MissingCredentialsSPError,
   MissingRefreshTokenAPIError,
+  NetworkUnavailableSPError,
   NoRevAPIError,
   PotentialCorsError,
   RemoteFileChangedUnexpectedly,
@@ -171,11 +172,39 @@ describe('Error class identity (single definition per class)', () => {
       ['UploadRevToMatchMismatchAPIError', UploadRevToMatchMismatchAPIError],
       ['PotentialCorsError', PotentialCorsError],
       ['RemoteFileChangedUnexpectedly', RemoteFileChangedUnexpectedly],
+      ['NetworkUnavailableSPError', NetworkUnavailableSPError],
     ];
 
   it.each(ERROR_CLASSES)('%s is an Error subclass', (_name, ErrCtor) => {
     expect(typeof ErrCtor).toBe('function');
     expect(Object.create(ErrCtor.prototype) instanceof Error).toBe(true);
+  });
+
+  // Regression guard: prior versions shipped seven classes with a leading
+  // space in `name` (' NoRevAPIError') and one truncated to
+  // ' UploadRevToMatchMismatchAP'. Equality with the class identifier keeps
+  // the string identity log-correct and matches Error subclass convention.
+  // Asserting against `ErrCtor.name` (the static class identifier, which TS
+  // cannot synthesize with a leading space) rather than the tuple string
+  // means a future "fix" that co-mutates the test fixture and the source
+  // cannot mask a regression.
+  // `name` is an instance override (not a prototype property), so we must
+  // instantiate. Each class has a different constructor signature; pass a
+  // minimal stub that exercises the field-only branches.
+  it.each(ERROR_CLASSES)('%s instance.name matches the class name', (_name, ErrCtor) => {
+    let instance: Error;
+    if (ErrCtor === HttpNotOkAPIError) {
+      instance = new HttpNotOkAPIError(
+        new Response(null, { status: 500, statusText: 'Internal Server Error' }),
+      );
+    } else if (ErrCtor === TooManyRequestsAPIError) {
+      instance = new TooManyRequestsAPIError({ status: 429 });
+    } else if (ErrCtor === PotentialCorsError) {
+      instance = new PotentialCorsError('https://example.test');
+    } else {
+      instance = new (ErrCtor as new (...a: never[]) => Error)();
+    }
+    expect(instance.name).toBe(ErrCtor.name);
   });
 
   it('EmptyRemoteBodySPError extends InvalidDataSPError', () => {
