@@ -22,6 +22,31 @@ export interface PluginIframeConfig {
 export const PLUGIN_IFRAME_SANDBOX =
   'allow-scripts allow-same-origin allow-forms allow-popups allow-modals';
 
+const isTransparentCssValue = (value: string): boolean => {
+  const normalized = value.trim().replace(/\s+/g, '').toLowerCase();
+  if (!normalized || normalized === 'transparent') {
+    return true;
+  }
+  if (/^#[\da-f]{3}0$/.test(normalized) || /^#[\da-f]{6}00$/.test(normalized)) {
+    return true;
+  }
+  if (/^.+\/0(?:\.0+)?%?\)$/.test(normalized)) {
+    return true;
+  }
+  return /^(?:rgba?|hsla?)\([^,]+,[^,]+,[^,]+,0(?:\.0+)?%?\)$/.test(normalized);
+};
+
+const getPluginSurfaceVar = (
+  preferredSurface: string,
+  fallbackSurface: string,
+  baseSurface: string,
+): string => {
+  if (!isTransparentCssValue(preferredSurface)) {
+    return preferredSurface;
+  }
+  return isTransparentCssValue(fallbackSurface) ? baseSurface : fallbackSurface;
+};
+
 /**
  * Create CSS injection for plugins - KISS approach
  */
@@ -34,16 +59,20 @@ export const createPluginCssInjection = (): string => {
   const getVar = (name: string): string => {
     return computedStyle.getPropertyValue(name).trim();
   };
+  const bg = getVar('--bg');
+  const bgLighter = getVar('--bg-lighter');
+  const cardBg = getPluginSurfaceVar(getVar('--card-bg'), bgLighter, bg);
 
   return `
     <style id="injected-theme-vars">
       :root {
-        --bg: ${getVar('--bg')};
+        --bg: ${bg};
         --bg-darker: ${getVar('--bg-darker')};
+        --bg-lighter: ${bgLighter};
         --text-color: ${getVar('--text-color')};
         --text-color-less-intense: ${getVar('--text-color-less-intense')};
         --text-color-muted: ${getVar('--text-color-muted')};
-        --card-bg: ${getVar('--card-bg')};
+        --card-bg: ${cardBg};
         --card-shadow: ${getVar('--card-shadow')};
         --card-border-radius: ${getVar('--card-border-radius')};
         --divider-color: ${getVar('--divider-color')};
