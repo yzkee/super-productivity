@@ -7,13 +7,14 @@ import { NOOP_SYNC_LOGGER, toSyncLogError, type SyncLogger } from '@sp/sync-core
  * or mode: 'add') ensure duplicates fail with UploadRevToMatchMismatchAPIError.
  * Retries are safe for SuperSync: the server uses idempotent operations.
  *
- * Budget: 2 retries with 1.5s/3s linear backoff (~4.5s total). The earlier
- * 1s/2s backoff (~3s) was sometimes too short to recover from Android Doze
+ * Budget: 2 retries with 1.5s/3s linear backoff (~4.5s of additional sleep
+ * between attempts; per-attempt connect/read timeouts apply on top). The
+ * earlier 1s/2s backoff was sometimes too short to recover from Android Doze
  * DNS staleness after a long background period.
  * @see https://developer.apple.com/library/archive/qa/qa1941/_index.html
  */
 const MAX_RETRIES = 2;
-const RETRY_BACKOFF_MS = 1500;
+const RETRY_BACKOFF_BASE_MS = 1500;
 
 const DEFAULT_CONNECT_TIMEOUT_MS = 30_000;
 const DEFAULT_READ_TIMEOUT_MS = 120_000;
@@ -90,7 +91,7 @@ export const executeNativeRequestWithRetry = async (
       });
     } catch (retryErr) {
       if (attempt < maxRetries && isTransientNetworkError(retryErr)) {
-        const delayMs = RETRY_BACKOFF_MS * (attempt + 1);
+        const delayMs = RETRY_BACKOFF_BASE_MS * (attempt + 1);
         // toSyncLogError drops .code on Error instances, so we read it directly
         // off the raw error to preserve platform-specific transient codes
         // (NSURLErrorDomain, SocketTimeoutException, …) in the retry log.

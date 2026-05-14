@@ -142,6 +142,13 @@ describe('isRetryableUploadError', () => {
       expect(isRetryableUploadError('Something went wrong')).toBe(false);
       expect(isRetryableUploadError('Operation failed')).toBe(false);
     });
+
+    it('op-graph "Unable to resolve" rejections are not retried', () => {
+      // Guards the `\bunable to resolve host\b` anchor: server-side op-graph
+      // rejection strings must NOT be wrapped as transient network errors.
+      expect(isRetryableUploadError('Unable to resolve parent revision')).toBe(false);
+      expect(isRetryableUploadError('Unable to resolve operation reference')).toBe(false);
+    });
   });
 
   describe('edge cases', () => {
