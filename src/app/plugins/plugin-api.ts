@@ -69,6 +69,7 @@ export class PluginAPI implements PluginAPIInterface {
     private _pluginBridge: PluginBridgeService,
     private _pluginI18nService: PluginI18nService,
     private _manifest?: PluginManifest,
+    private _onReadyRegister?: (fn: () => void | Promise<void>) => void,
   ) {
     // Get bound methods for this plugin
     this._boundMethods = this._pluginBridge.createBoundMethods(
@@ -292,6 +293,16 @@ export class PluginAPI implements PluginAPIInterface {
   async triggerSync(): Promise<void> {
     PluginLog.log(`Plugin ${this._pluginId} requested to trigger sync`);
     return this._boundMethods.triggerSync();
+  }
+
+  /**
+   * Register a callback to run after the app confirms all declared APIs are ready.
+   * Put startup init code here (e.g. executeNodeScript calls) instead of at the
+   * top level of plugin.js. For nodeExecution plugins, fires only after a successful
+   * IPC ping — guaranteeing the bridge is available.
+   */
+  onReady(fn: () => void | Promise<void>): void {
+    this._onReadyRegister?.(fn);
   }
 
   /**
