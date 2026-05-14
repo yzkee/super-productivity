@@ -2,13 +2,16 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   FILE_BASED_SYNC_CONSTANTS,
   type FileBasedSyncData,
+  type SyncFileCompactOp,
+} from '../src/file-based';
+import {
   isFileSyncProvider,
   type FileSyncProvider,
   type OperationSyncCapable,
-  type SyncFileCompactOp,
-  type SyncCredentialStorePort,
   type SyncProviderBase,
-} from '../src';
+} from '../src/provider-types';
+import type { SyncCredentialStorePort } from '../src/credential-store';
+import { createMockCredentialStore } from './helpers/credential-store';
 
 type ProviderId = 'file' | 'ops';
 interface ProviderPrivateCfg {
@@ -25,13 +28,15 @@ interface HostArchive {
 const createCredentialStore = (): SyncCredentialStorePort<
   ProviderId,
   ProviderPrivateCfg
-> => ({
-  load: vi.fn().mockResolvedValue({ token: 'test-token' }),
-  setComplete: vi.fn().mockResolvedValue(undefined),
-  updatePartial: vi.fn().mockResolvedValue(undefined),
-  upsertPartial: vi.fn().mockResolvedValue(undefined),
-  clear: vi.fn().mockResolvedValue(undefined),
-});
+> => {
+  const store = createMockCredentialStore<ProviderId, ProviderPrivateCfg>();
+  (store.load as ReturnType<typeof vi.fn>).mockResolvedValue({ token: 'test-token' });
+  (store.setComplete as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+  (store.updatePartial as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+  (store.upsertPartial as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+  (store.clear as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+  return store;
+};
 
 describe('sync provider contracts', () => {
   it('keeps provider IDs and private config host-owned', async () => {
