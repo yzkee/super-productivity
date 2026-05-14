@@ -1,4 +1,5 @@
 import {
+  CurrentTaskChangePayload,
   PluginAPI,
   TaskCompletePayload,
   TaskUpdatePayload,
@@ -53,6 +54,21 @@ plugin.registerHook('taskUpdate' as any, (payload: TaskUpdatePayload) => {
   });
 });
 
+// The host provides both the new current task and the previous one on every
+// transition, so we don't need to track state locally. A switch between two
+// tasks arrives as { current: B, previous: A } and fires both stop+start.
+plugin.registerHook(
+  'currentTaskChange' as any,
+  ({ current, previous }: CurrentTaskChangePayload) => {
+    if (previous) {
+      automationManager.onTaskEvent({ type: 'taskStopped', task: previous });
+    }
+    if (current) {
+      automationManager.onTaskEvent({ type: 'taskStarted', task: current });
+    }
+  },
+);
+
 // Register UI commands
 if (plugin.onMessage) {
   plugin.onMessage(async (message: any) => {
@@ -73,6 +89,9 @@ if (plugin.onMessage) {
         };
       case 'saveRule':
         await automationManager.getRegistry().addOrUpdateRule(message.payload);
+        return { success: true };
+      case 'addRules':
+        await automationManager.getRegistry().addRules(message.payload);
         return { success: true };
       case 'deleteRule':
         await automationManager.getRegistry().deleteRule(message.payload.id);
