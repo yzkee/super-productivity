@@ -89,6 +89,15 @@ describe('isRetryableUploadError', () => {
       expect(isRetryableUploadError('dns resolution failed')).toBe(true);
     });
 
+    it('Android "unable to resolve host" (UnknownHostException)', () => {
+      expect(
+        isRetryableUploadError(
+          'Unable to resolve host "sync.example.com": No address associated with hostname',
+        ),
+      ).toBe(true);
+      expect(isRetryableUploadError('Network error: Unable to resolve host')).toBe(true);
+    });
+
     it('AbortError from Error object', () => {
       const abortError = new Error('The operation was aborted');
       abortError.name = 'AbortError';
