@@ -22,8 +22,7 @@
         "wellKnown": "https://super-productivity.com/.well-known/funding-manifest-urls"
       },
       "repositoryUrl": {
-        "url": "https://github.com/super-productivity/super-productivity",
-        "wellKnown": "https://github.com/super-productivity/super-productivity/blob/master/.well-known/funding-manifest-urls"
+        "url": "https://github.com/super-productivity/super-productivity"
       },
       "licenses": ["spdx:MIT"],
       "tags": [
