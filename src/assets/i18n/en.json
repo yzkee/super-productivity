@@ -1635,6 +1635,8 @@
         "REMOVE_FROM_MY_DAY": "Remove from Today",
         "SCHEDULE": "Schedule task",
         "SET_DEADLINE": "Set deadline",
+        "SHOW_HIDDEN_DONE_SUB_TASKS": "+ {{nr}} done subtasks",
+        "SHOW_HIDDEN_SUB_TASKS": "+ {{nr}} subtasks",
         "TIME_CONFLICT": "Overlaps with another scheduled task",
         "TOGGLE_ATTACHMENTS": "Show/hide attachments",
         "TOGGLE_DETAIL_PANEL": "Show/hide task panel",
