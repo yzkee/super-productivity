@@ -427,7 +427,8 @@ export class PluginBridgeService implements OnDestroy {
       duration: 5000, // 5 seconds default duration
     });
 
-    PluginLog.log('PluginBridge: Notification sent successfully', notifyCfg);
+    // No notifyCfg — title/body are user content; log history is exportable (rule #9).
+    PluginLog.log('PluginBridge: Notification sent successfully');
   }
 
   /**
@@ -1347,10 +1348,11 @@ export class PluginBridgeService implements OnDestroy {
 
     // Dispatch the action
     this._store.dispatch(action);
-    PluginLog.log(`PluginBridge: Dispatched action for plugin ${pluginId}`, {
-      actionType: action.type,
-      payload: action,
-    });
+    // Log the action TYPE only — the full action carries user content
+    // and the log history is user-exportable. See core/log.ts header / rule #9.
+    PluginLog.log(
+      `PluginBridge: Dispatched action '${action.type}' for plugin ${pluginId}`,
+    );
   }
 
   /**
