@@ -12,6 +12,7 @@ import {
 } from './plugin-issue-provider.model';
 import { Task } from '../../features/tasks/task.model';
 import { TagService } from '../../features/tag/tag.service';
+import { TODAY_TAG } from '../../features/tag/tag.const';
 import { sortTagLabels } from './plugin-tag-utils';
 
 const normalizeSyncDirectionForCapabilities = (
@@ -38,7 +39,11 @@ const convertMapping = (
       toIssueValue: (taskValue: unknown, ctx): unknown => {
         const tagIds = (taskValue as string[]) || [];
         const allTags = tagService.tags();
+        // Defensive: TODAY_TAG is virtual (rule 5) and must never reach a
+        // provider as a label. Filter the id out entirely — falling back
+        // to id-as-label below would push the literal "TODAY".
         const labels = tagIds
+          .filter((id) => id !== TODAY_TAG.id)
           .map((id) => allTags.find((t) => t.id === id)?.title || id)
           .sort();
         return pm.toIssueValue(labels, ctx);

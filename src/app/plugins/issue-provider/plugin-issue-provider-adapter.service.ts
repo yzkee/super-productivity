@@ -480,13 +480,23 @@ export class PluginIssueProviderAdapterService implements IssueServiceInterface 
 
   private _mapLabelsToTagIds(labels: string[], shouldCreate: boolean): string[] {
     const allTags = this._tagService.tagsNoMyDayAndNoList();
+    // Dedupe + track tags created in this call so a provider returning
+    // duplicate labels (['bug','bug']) doesn't create duplicate tags — the
+    // snapshot above is taken once and won't reflect addTag dispatches
+    // inside the loop.
+    const uniqueLabels = Array.from(new Set(labels));
+    const createdByTitle = new Map<string, string>();
     const tagIds: string[] = [];
-    for (const label of labels) {
+    for (const label of uniqueLabels) {
       const existing = allTags.find((t) => t.title === label);
       if (existing) {
         tagIds.push(existing.id);
+      } else if (createdByTitle.has(label)) {
+        tagIds.push(createdByTitle.get(label)!);
       } else if (shouldCreate) {
-        tagIds.push(this._tagService.addTag({ title: label }));
+        const newId = this._tagService.addTag({ title: label });
+        createdByTitle.set(label, newId);
+        tagIds.push(newId);
       }
     }
     return tagIds;
