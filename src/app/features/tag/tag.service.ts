@@ -21,12 +21,14 @@ import { DEFAULT_TAG } from './tag.const';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { sortByTitle } from '../../util/sort-by-title';
 import { getRandomWorkContextColor } from '../work-context/work-context-color';
+import { DeletedTagTitlesSidecarService } from '../issue/two-way-sync/deleted-tag-titles-sidecar.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class TagService {
   private _store$ = inject<Store<TagState>>(Store);
+  private _deletedTagTitlesSidecar = inject(DeletedTagTitlesSidecarService);
 
   tags$: Observable<Tag[]> = this._store$.pipe(select(selectAllTags));
   tags = toSignal(this.tags$, { initialValue: [] });
@@ -59,9 +61,10 @@ export class TagService {
   }
 
   deleteTag(id: string): void {
-    this._store$.dispatch(
-      deleteTag({ id, deletedTagTitles: this._getTagTitlesByIds([id]) }),
-    );
+    // Sidecar before dispatch so the push-on-delete effect can find titles
+    // without persisting them into the op-log action payload (rule 9).
+    this._deletedTagTitlesSidecar.set(this._getTagTitlesByIds([id]));
+    this._store$.dispatch(deleteTag({ id }));
   }
 
   removeTag(id: string): void {
@@ -77,9 +80,8 @@ export class TagService {
   }
 
   deleteTags(ids: string[]): void {
-    this._store$.dispatch(
-      deleteTags({ ids, deletedTagTitles: this._getTagTitlesByIds(ids) }),
-    );
+    this._deletedTagTitlesSidecar.set(this._getTagTitlesByIds(ids));
+    this._store$.dispatch(deleteTags({ ids }));
   }
 
   updateTag(id: string, changes: Partial<Tag>): void {

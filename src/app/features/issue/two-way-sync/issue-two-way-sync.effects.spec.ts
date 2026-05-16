@@ -18,6 +18,7 @@ import { IssueSyncAdapter } from './issue-sync-adapter.interface';
 import { IssueProvider } from '../issue.model';
 import { WorkContextType } from '../../work-context/work-context.model';
 import { DeletedTaskIssueSidecarService } from './deleted-task-issue-sidecar.service';
+import { DeletedTagTitlesSidecarService } from './deleted-tag-titles-sidecar.service';
 import { deleteTag } from '../../tag/store/tag.actions';
 import { selectAllTasks } from '../../tasks/store/task.selectors';
 
@@ -30,6 +31,7 @@ describe('IssueTwoWaySyncEffects', () => {
   let adapterRegistry: IssueSyncAdapterRegistryService;
   let snackServiceSpy: jasmine.SpyObj<SnackService>;
   let deletedTaskIssueSidecar: DeletedTaskIssueSidecarService;
+  let deletedTagTitlesSidecar: DeletedTagTitlesSidecarService;
 
   const createMockTask = (overrides: Partial<Task> = {}): Task =>
     ({
@@ -141,6 +143,7 @@ describe('IssueTwoWaySyncEffects', () => {
     store = TestBed.inject(MockStore);
     adapterRegistry = TestBed.inject(IssueSyncAdapterRegistryService);
     deletedTaskIssueSidecar = TestBed.inject(DeletedTaskIssueSidecarService);
+    deletedTagTitlesSidecar = TestBed.inject(DeletedTagTitlesSidecarService);
   });
 
   afterEach(() => {
@@ -740,7 +743,8 @@ describe('IssueTwoWaySyncEffects', () => {
 
       effects.pushTagChangesAfterTagDelete$.subscribe();
 
-      actions$.next(deleteTag({ id: 'tag-bug', deletedTagTitles: ['bug'] }));
+      deletedTagTitlesSidecar.set(['bug']);
+      actions$.next(deleteTag({ id: 'tag-bug' }));
       tick();
 
       expect(adapter.pushChanges).toHaveBeenCalledWith(
@@ -773,7 +777,8 @@ describe('IssueTwoWaySyncEffects', () => {
 
       effects.pushTagChangesAfterTagDelete$.subscribe();
 
-      actions$.next(deleteTag({ id: 'tag-bug', deletedTagTitles: ['bug'] }));
+      deletedTagTitlesSidecar.set(['bug']);
+      actions$.next(deleteTag({ id: 'tag-bug' }));
       tick();
 
       expect(adapter.pushChanges).not.toHaveBeenCalled();
