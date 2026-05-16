@@ -30,7 +30,10 @@ export const updateTag = createAction(
 
 export const deleteTag = createAction(
   '[Tag] Delete Tag',
-  (tagProps: { id: string; deletedTagTitles?: string[] }) => ({
+  // Tag titles for the push-on-delete two-way-sync effect ride on
+  // DeletedTagTitlesSidecarService — never in the action payload, so user
+  // content stays out of the exportable op-log (rule 9).
+  (tagProps: { id: string }) => ({
     ...tagProps,
     meta: {
       isPersistent: true,
@@ -43,7 +46,7 @@ export const deleteTag = createAction(
 
 export const deleteTags = createAction(
   '[Tag] Delete multiple Tags',
-  (tagProps: { ids: string[]; deletedTagTitles?: string[] }) => ({
+  (tagProps: { ids: string[] }) => ({
     ...tagProps,
     meta: {
       isPersistent: true,

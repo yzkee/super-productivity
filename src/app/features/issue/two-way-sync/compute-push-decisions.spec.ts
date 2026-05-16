@@ -85,6 +85,7 @@ describe('computePushDecisions', () => {
     expect(stateDecision).toEqual({
       field: 'state',
       action: 'skip',
+      reasonCode: 'provider-changed',
       reason: 'provider changed (provider wins)',
     });
   });
@@ -104,6 +105,7 @@ describe('computePushDecisions', () => {
     expect(stateDecision).toEqual({
       field: 'state',
       action: 'skip',
+      reasonCode: 'no-baseline',
       reason: 'no baseline (first sync)',
     });
   });
@@ -123,6 +125,7 @@ describe('computePushDecisions', () => {
     expect(stateDecision).toEqual({
       field: 'state',
       action: 'skip',
+      reasonCode: 'direction-skip',
       reason: "direction is 'off'",
     });
   });
@@ -142,6 +145,7 @@ describe('computePushDecisions', () => {
     expect(stateDecision).toEqual({
       field: 'state',
       action: 'skip',
+      reasonCode: 'direction-skip',
       reason: "direction is 'pullOnly'",
     });
   });
@@ -219,6 +223,7 @@ describe('computePushDecisions', () => {
     expect(stateDecision).toEqual({
       field: 'state',
       action: 'skip',
+      reasonCode: 'direction-skip',
       reason: "direction is 'pullOnly'",
     });
   });
@@ -402,6 +407,7 @@ describe('computePushDecisions', () => {
     expect(dueDayDecision).toEqual({
       field: 'start_date',
       action: 'skip',
+      reasonCode: 'provider-changed',
       reason: 'provider changed (provider wins)',
     });
   });
@@ -453,6 +459,7 @@ describe('computePushDecisions', () => {
     expect(labelDecision).toEqual({
       field: 'labels',
       action: 'skip',
+      reasonCode: 'provider-changed',
       reason: 'provider changed (provider wins)',
     });
   });

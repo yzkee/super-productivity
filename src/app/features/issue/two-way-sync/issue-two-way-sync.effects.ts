@@ -22,6 +22,7 @@ import {
   DeletedTaskIssueSidecarService,
   DeletedTaskIssueInfo,
 } from './deleted-task-issue-sidecar.service';
+import { DeletedTagTitlesSidecarService } from './deleted-tag-titles-sidecar.service';
 import { selectEnabledIssueProviders } from '../store/issue-provider.selectors';
 import { getErrorTxt } from '../../../util/get-error-text';
 import { T } from '../../../t.const';
@@ -109,6 +110,7 @@ export class IssueTwoWaySyncEffects {
   private readonly _adapterRegistry = inject(IssueSyncAdapterRegistryService);
   private readonly _snackService = inject(SnackService);
   private readonly _deletedTaskIssueSidecar = inject(DeletedTaskIssueSidecarService);
+  private readonly _deletedTagTitlesSidecar = inject(DeletedTagTitlesSidecarService);
   private readonly _pluginRegistry = inject(PluginIssueProviderRegistryService);
   private readonly _pluginHttp = inject(PluginHttpService);
   private readonly _tagService = inject(TagService);
@@ -184,7 +186,10 @@ export class IssueTwoWaySyncEffects {
     () =>
       this._actions$.pipe(
         ofType(deleteTag, deleteTags),
-        map((action) => action.deletedTagTitles ?? []),
+        // Titles arrive via sidecar (set by TagService before dispatch), not
+        // on the action payload — keeps user-visible tag titles out of the
+        // exportable op-log.
+        map(() => this._deletedTagTitlesSidecar.consume()),
         filter((deletedTagTitles) => deletedTagTitles.length > 0),
         concatMap((deletedTagTitles) =>
           this._store.select(selectAllTasks).pipe(
@@ -578,8 +583,7 @@ export class IssueTwoWaySyncEffects {
         const hasProviderOwnedSkip = decisions.some(
           (d) =>
             d.action === 'skip' &&
-            (d.reason === 'provider changed (provider wins)' ||
-              d.reason === 'no baseline (first sync)'),
+            (d.reasonCode === 'provider-changed' || d.reasonCode === 'no-baseline'),
         );
 
         // Only advance baselines for fields we actually wrote. Fresh provider
