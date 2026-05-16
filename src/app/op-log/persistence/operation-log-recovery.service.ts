@@ -81,6 +81,10 @@ export class OperationLogRecoveryService {
     // hydration would fail validation in turn.
     const validationResult = await this.validateStateService.validateState(legacyData);
     if (!validationResult.isValid) {
+      OpLog.err('OperationLogRecoveryService: Refusing to import invalid legacy data', {
+        typiaErrorCount: validationResult.typiaErrors.length,
+        crossModelError: validationResult.crossModelError,
+      });
       throw new Error(
         `Legacy recovery data validation failed (${validationResult.typiaErrors.length} typia errors` +
           `${validationResult.crossModelError ? `, cross-model: ${validationResult.crossModelError}` : ''})`,
