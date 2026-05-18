@@ -164,7 +164,6 @@ test.describe('Focus Mode - Break Controls (Issue #5995)', () => {
       'focus-mode-main button.complete-session-btn',
     );
     const skipBreakButton = page.getByRole('button', { name: 'Skip Break' });
-    const modeSelector = page.locator('focus-mode-main segmented-button-group');
 
     // Open focus mode overlay
     await mainFocusButton.click();
@@ -191,9 +190,8 @@ test.describe('Focus Mode - Break Controls (Issue #5995)', () => {
     await skipBreakButton.click();
 
     // Verify we're back on main screen and session auto-started
-    // (mode selector should NOT be visible because we're in progress)
     await expect(focusModeMain).toBeVisible({ timeout: 5000 });
-    await expect(modeSelector).not.toBeVisible();
+    await expect(focusModeBreak).not.toBeVisible();
     await expect(completeSessionButton).toBeVisible();
   });
 
