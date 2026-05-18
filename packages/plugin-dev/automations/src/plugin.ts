@@ -57,17 +57,19 @@ plugin.registerHook('taskUpdate' as any, (payload: TaskUpdatePayload) => {
 // The host provides both the new current task and the previous one on every
 // transition, so we don't need to track state locally. A switch between two
 // tasks arrives as { current: B, previous: A } and fires both stop+start.
-plugin.registerHook(
-  'currentTaskChange' as any,
-  ({ current, previous }: CurrentTaskChangePayload) => {
-    if (previous) {
-      automationManager.onTaskEvent({ type: 'taskStopped', task: previous });
-    }
-    if (current) {
-      automationManager.onTaskEvent({ type: 'taskStarted', task: current });
-    }
-  },
-);
+plugin.registerHook('currentTaskChange' as any, (payload: CurrentTaskChangePayload) => {
+  if (!payload) {
+    plugin.log.warn('Received currentTaskChange hook without payload');
+    return;
+  }
+  const { current, previous } = payload;
+  if (previous) {
+    automationManager.onTaskEvent({ type: 'taskStopped', task: previous });
+  }
+  if (current) {
+    automationManager.onTaskEvent({ type: 'taskStarted', task: current });
+  }
+});
 
 // Register UI commands
 if (plugin.onMessage) {
