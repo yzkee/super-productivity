@@ -214,6 +214,88 @@ describe('NextcloudProvider', () => {
     expect(url).toBe('https://cloud.example.com/remote.php/dav/files/a%20b%2Fc/');
   });
 
+  it('getAuthUserName falls back to file username when loginName is empty', () => {
+    expect(
+      NextcloudProvider.getAuthUserName({
+        userName: 'alice',
+        loginName: '',
+      }),
+    ).toBe('alice');
+  });
+
+  it('isReady rejects whitespace-only file username', async () => {
+    const provider = new NextcloudProvider({
+      logger: NOOP_SYNC_LOGGER,
+      platformInfo: {
+        isNativePlatform: false,
+        isAndroidWebView: false,
+        isIosNative: false,
+      },
+      webFetch: () => globalThis.fetch as typeof fetch,
+      nativeHttp: nativeNoop,
+      credentialStore: fakeStore<typeof PROVIDER_ID_NEXTCLOUD, NextcloudPrivateCfg>({
+        ...validNextcloudCfg,
+        userName: '   ',
+      }),
+    });
+    expect(await provider.isReady()).toBe(false);
+  });
+
+  it('_cfgOrError rejects whitespace-only file username', async () => {
+    const provider = new NextcloudProvider({
+      logger: NOOP_SYNC_LOGGER,
+      platformInfo: {
+        isNativePlatform: false,
+        isAndroidWebView: false,
+        isIosNative: false,
+      },
+      webFetch: () => globalThis.fetch as typeof fetch,
+      nativeHttp: nativeNoop,
+      credentialStore: fakeStore<typeof PROVIDER_ID_NEXTCLOUD, NextcloudPrivateCfg>({
+        ...validNextcloudCfg,
+        userName: '   ',
+      }),
+    });
+    await expect(provider.downloadFile('op-1.json')).rejects.toBeInstanceOf(
+      MissingCredentialsSPError,
+    );
+  });
+
+  it('uses loginName for auth while keeping userName in the DAV files path', async () => {
+    const nativeHttp = vi.fn().mockResolvedValue({
+      status: 200,
+      headers: {},
+      data: 'real-payload',
+    });
+    const provider = new NextcloudProvider({
+      logger: NOOP_SYNC_LOGGER,
+      platformInfo: {
+        isNativePlatform: true,
+        isAndroidWebView: false,
+        isIosNative: false,
+      },
+      webFetch: () => globalThis.fetch as typeof fetch,
+      nativeHttp,
+      credentialStore: fakeStore<typeof PROVIDER_ID_NEXTCLOUD, NextcloudPrivateCfg>({
+        ...validNextcloudCfg,
+        loginName: 'alice@example.com',
+      }),
+    });
+
+    await provider.downloadFile('op-1.json');
+
+    const request = nativeHttp.mock.calls[0]?.[0] as {
+      url: string;
+      headers: Record<string, string>;
+    };
+    expect(request.url).toBe(
+      'https://cloud.example.com/remote.php/dav/files/alice/sp/op-1.json',
+    );
+    expect(request.headers.Authorization).toBe(
+      `Basic ${btoa('alice@example.com:secret')}`,
+    );
+  });
+
   it('_cfgOrError rejects missing serverUrl', async () => {
     const provider = new NextcloudProvider({
       logger: NOOP_SYNC_LOGGER,

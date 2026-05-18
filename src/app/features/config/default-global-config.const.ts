@@ -239,6 +239,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
 
     nextcloud: {
       serverUrl: null,
+      loginName: null,
       userName: null,
       password: null,
       syncFolderPath: 'super-productivity',
