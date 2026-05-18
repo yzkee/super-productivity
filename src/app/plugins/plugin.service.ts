@@ -1126,26 +1126,11 @@ export class PluginService implements OnDestroy {
         );
       }
 
-      // Find and extract plugin.js
-      if (!extractedFiles['plugin.js']) {
-        throw new Error(this._translateService.instant(T.PLUGINS.PLUGIN_JS_NOT_FOUND));
-      }
-
-      // Validate plugin.js size
-      const pluginCodeBytes = extractedFiles['plugin.js'];
-      if (pluginCodeBytes.length > MAX_PLUGIN_CODE_SIZE) {
-        throw new Error(
-          this._translateService.instant(T.PLUGINS.CODE_TOO_LARGE, {
-            maxSize: (MAX_PLUGIN_CODE_SIZE / 1024 / 1024).toFixed(1),
-          }),
-        );
-      }
-
-      const pluginCode = new TextDecoder().decode(pluginCodeBytes);
-
       // Extract index.html if it exists (optional) and iFrame is true
       let indexHtml: string | null = null;
-      if (manifest.iFrame && extractedFiles['index.html']) {
+      const hasIndexHtml =
+        manifest.iFrame === true && extractedFiles['index.html'] !== undefined;
+      if (hasIndexHtml) {
         const indexHtmlBytes = extractedFiles['index.html'];
         // Reuse the manifest size limit for index.html.
         if (indexHtmlBytes.length > MAX_PLUGIN_MANIFEST_SIZE) {
@@ -1156,6 +1141,25 @@ export class PluginService implements OnDestroy {
           );
         }
         indexHtml = new TextDecoder().decode(indexHtmlBytes);
+      }
+
+      // Extract plugin.js when available. Iframe-only plugins can omit it because
+      // PluginRunner auto-registers iframe menu and side-panel entries from the manifest.
+      let pluginCode = '';
+      const pluginCodeBytes = extractedFiles['plugin.js'];
+      if (pluginCodeBytes !== undefined) {
+        if (pluginCodeBytes.length > MAX_PLUGIN_CODE_SIZE) {
+          throw new Error(
+            this._translateService.instant(T.PLUGINS.CODE_TOO_LARGE, {
+              maxSize: (MAX_PLUGIN_CODE_SIZE / 1024 / 1024).toFixed(1),
+            }),
+          );
+        }
+        pluginCode = new TextDecoder().decode(pluginCodeBytes);
+      } else if (!hasIndexHtml) {
+        throw new Error(this._translateService.instant(T.PLUGINS.PLUGIN_JS_NOT_FOUND));
+      } else if (!indexHtml?.trim()) {
+        throw new Error(this._translateService.instant(T.PLUGINS.INDEX_HTML_NOT_LOADED));
       }
 
       // Extract icon if specified in manifest

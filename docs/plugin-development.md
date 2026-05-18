@@ -33,10 +33,15 @@ If you want to build a sophisticated UI there is a boilerplate available for sol
 ```
 my-plugin/
 ├── manifest.json      # Plugin metadata (required)
-├── plugin.js          # Main plugin code that is launched when activated and when Super Productivity starts
-├── index.html         # UI interface (optional) => requires iFrame:true in manifest
+├── plugin.js          # Host-side plugin code (optional for iframe-only plugins)
+├── index.html         # UI interface (required when omitting plugin.js; requires iFrame:true in manifest)
 └── icon.svg           # Plugin icon (optional)
 ```
+
+`plugin.js` is required for plugins that need host-side setup at plugin load time,
+shortcuts, header buttons, background behavior, or host-side API handlers. A UI-only
+iframe plugin can ship only `manifest.json` and `index.html` when the manifest sets
+`iFrame: true`.
 
 ### 2. Minimal Example
 
@@ -161,6 +166,10 @@ Plugins that render custom UI in a sandboxed iframe.
 
 - You need custom UI/visualizations
 - You want to display charts, forms, or complex interfaces
+
+Iframe-only plugins do not need a `plugin.js` file if all plugin behavior lives inside
+`index.html`. Super Productivity automatically adds the default menu or side-panel entry
+from the manifest when the plugin is loaded.
 
 **Important:** When using iframes, you must inline all CSS and JavaScript directly in the HTML file. External stylesheets and scripts are blocked for security reasons.
 
