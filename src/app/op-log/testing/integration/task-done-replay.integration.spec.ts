@@ -73,6 +73,24 @@ describe('done task operation replay', () => {
     return reducer(state, bulkApplyOperations({ operations: [op] }));
   };
 
+  const createDoneOp = (changes: Partial<Task>, id = 'op-done-update'): Operation => ({
+    id,
+    actionType: ActionType.TASK_SHARED_UPDATE,
+    opType: OpType.Update,
+    entityType: 'TASK',
+    entityId: TASK_ID,
+    payload: {
+      actionPayload: {
+        task: { id: TASK_ID, changes: { isDone: true, ...changes } },
+      },
+      entityChanges: [],
+    },
+    clientId: 'clientA',
+    vectorClock: { clientA: 1 },
+    timestamp: DONE_TIMESTAMP,
+    schemaVersion: 1,
+  });
+
   const reduceLocalAction = (state: RootState, action: Action): RootState => {
     const passThroughReducer: ActionReducer<RootState, Action> = (s) => s as RootState;
     const reducer = taskSharedCrudMetaReducer(passThroughReducer);
@@ -160,6 +178,17 @@ describe('done task operation replay', () => {
       ...createState({ dueDay: scheduledDay }, todayStr),
       [plannerFeatureKey]: {
         days: { [scheduledDay]: [TASK_ID] },
+        addPlannedTasksDialogLastShown: undefined,
+      },
+    };
+  };
+
+  const createTimedScheduledState = (todayStr: string): RootState => {
+    const dueWithTime = new Date(2024, 5, 16, 9, 0, 0, 0).getTime();
+    return {
+      ...createState({ dueDay: undefined, dueWithTime }, todayStr),
+      [plannerFeatureKey]: {
+        days: {},
         addPlannedTasksDialogLastShown: undefined,
       },
     };
@@ -319,6 +348,67 @@ describe('done task operation replay', () => {
     expect(task.dueDay).toBe(scheduledDay);
   });
 
+  it('handles legacy synthetic completion dueDay replay across schedule states', () => {
+    const dueWithTime = new Date(2024, 5, 16, 9, 0, 0, 0).getTime();
+    const legacyOp = createDoneOp(
+      {
+        doneOn: DONE_TIMESTAMP,
+        dueDay: ACTION_TODAY,
+      },
+      'op-legacy-synthetic-due-day-matrix',
+    );
+    const cases: {
+      description: string;
+      taskOverrides: Partial<Task>;
+      expectedDueDay: string | undefined;
+      expectedDueWithTime?: number;
+    }[] = [
+      {
+        description: 'existing dueDay is preserved',
+        taskOverrides: { dueDay: '2024-06-13' },
+        expectedDueDay: '2024-06-13',
+      },
+      {
+        description: 'existing dueWithTime is preserved',
+        taskOverrides: { dueWithTime },
+        expectedDueDay: undefined,
+        expectedDueWithTime: dueWithTime,
+      },
+      {
+        description: 'unscheduled main task keeps legacy completion dueDay',
+        taskOverrides: {},
+        expectedDueDay: ACTION_TODAY,
+      },
+      {
+        description: 'unscheduled subtask drops legacy completion dueDay',
+        taskOverrides: { parentId: 'parent-task' },
+        expectedDueDay: undefined,
+      },
+      {
+        description: 'schedule matching completion day is preserved',
+        taskOverrides: { dueDay: ACTION_TODAY },
+        expectedDueDay: ACTION_TODAY,
+      },
+    ];
+
+    for (const {
+      description,
+      taskOverrides,
+      expectedDueDay,
+      expectedDueWithTime,
+    } of cases) {
+      const result = applyOperation(createState(taskOverrides), legacyOp);
+      const task = result[TASK_FEATURE_NAME].entities[TASK_ID] as Task;
+
+      expect(task.isDone).withContext(description).toBe(true);
+      expect(task.doneOn).withContext(description).toBe(DONE_TIMESTAMP);
+      expect(task.dueDay).withContext(description).toBe(expectedDueDay);
+      if (expectedDueWithTime !== undefined) {
+        expect(task.dueWithTime).withContext(description).toBe(expectedDueWithTime);
+      }
+    }
+  });
+
   it('round-trips a locally captured scheduled completion without schedule drift', async () => {
     jasmine.clock().install();
     jasmine.clock().mockDate(new Date(DONE_TIMESTAMP));
@@ -341,6 +431,41 @@ describe('done task operation replay', () => {
       expect(localTask.doneOn).toBe(DONE_TIMESTAMP);
       expect(replayTask.doneOn).toBe(localTask.doneOn);
       expect(replayTask.dueDay).toBe(localTask.dueDay);
+      expect(replayTask.dueWithTime).toBe(localTask.dueWithTime);
+      expect(getTodayTaskIds(replayResult)).toEqual(getTodayTaskIds(localResult));
+      expect(replayResult[plannerFeatureKey].days).toEqual(
+        localResult[plannerFeatureKey].days,
+      );
+    } finally {
+      jasmine.clock().uninstall();
+    }
+  });
+
+  it('round-trips a locally captured timed completion without schedule drift', async () => {
+    jasmine.clock().install();
+    jasmine.clock().mockDate(new Date(DONE_TIMESTAMP));
+
+    try {
+      const action = TaskSharedActions.updateTask({
+        task: { id: TASK_ID, changes: { isDone: true } },
+      });
+      const localResult = reduceLocalAction(
+        createTimedScheduledState(ACTION_TODAY),
+        action,
+      );
+      const persistedOp = await persistLocalAction(action);
+      const replayResult = applyOperation(
+        createTimedScheduledState(REPLAY_TODAY),
+        persistedOp,
+      );
+
+      const localTask = localResult[TASK_FEATURE_NAME].entities[TASK_ID] as Task;
+      const replayTask = replayResult[TASK_FEATURE_NAME].entities[TASK_ID] as Task;
+
+      expect(persistedOp.actionType).toBe(ActionType.TASK_SHARED_UPDATE);
+      expect(localTask.doneOn).toBe(DONE_TIMESTAMP);
+      expect(replayTask.doneOn).toBe(localTask.doneOn);
+      expect(replayTask.dueDay).toBeUndefined();
       expect(replayTask.dueWithTime).toBe(localTask.dueWithTime);
       expect(getTodayTaskIds(replayResult)).toEqual(getTodayTaskIds(localResult));
       expect(replayResult[plannerFeatureKey].days).toEqual(

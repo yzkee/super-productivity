@@ -589,14 +589,15 @@ const sanitizeDoneScheduleChanges = (
 
   const hasCurrentSchedule =
     typeof currentTask.dueDay === 'string' || typeof currentTask.dueWithTime === 'number';
-  if (!hasCurrentSchedule) {
+  if (!hasCurrentSchedule && !currentTask.parentId) {
     return taskUpdate;
   }
 
   const completionDay =
     typeof changes.doneOn === 'number' ? getDbDateStr(changes.doneOn) : todayStr;
   const isSyntheticCompletionDay =
-    changes.dueDay === completionDay && changes.dueDay !== currentTask.dueDay;
+    changes.dueDay === completionDay &&
+    (changes.dueDay !== currentTask.dueDay || !!currentTask.parentId);
 
   if (!isSyntheticCompletionDay) {
     return taskUpdate;
