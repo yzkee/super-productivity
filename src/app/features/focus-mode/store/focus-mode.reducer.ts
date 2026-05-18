@@ -71,6 +71,15 @@ export const focusModeReducer = createReducer(
   on(a.setFocusModeMode, (state, { mode }) => ({
     ...state,
     mode,
+    timer:
+      mode === FocusModeMode.Flowtime
+        ? {
+            ...state.timer,
+            duration: 0,
+          }
+        : state.timer,
+    _isOvertimeEnabled:
+      mode === FocusModeMode.Flowtime ? false : state._isOvertimeEnabled,
   })),
 
   // Overlay control

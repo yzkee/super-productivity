@@ -65,6 +65,34 @@ describe('FocusModeReducer', () => {
 
       expect(result.mode).toBe(FocusModeMode.Pomodoro);
     });
+
+    it('should clear a fixed-duration work timer when switching to Flowtime', () => {
+      const state = {
+        ...initialState,
+        mode: FocusModeMode.Pomodoro,
+        mainState: FocusMainUIState.InProgress,
+        timer: {
+          isRunning: true,
+          startedAt: Date.now(),
+          elapsed: 5 * 60 * 1000,
+          duration: FOCUS_MODE_DEFAULTS.SESSION_DURATION,
+          purpose: 'work' as const,
+        },
+        _isOvertimeEnabled: true,
+      };
+
+      const result = focusModeReducer(
+        state,
+        a.setFocusModeMode({ mode: FocusModeMode.Flowtime }),
+      );
+
+      expect(result.mode).toBe(FocusModeMode.Flowtime);
+      expect(result.timer).toEqual({
+        ...state.timer,
+        duration: 0,
+      });
+      expect(result._isOvertimeEnabled).toBe(false);
+    });
   });
 
   describe('overlay actions', () => {
