@@ -66,10 +66,10 @@ export class TaskRelatedModelEffects {
         // trigger planTasksForToday, not just the last one. switchMap would cancel
         // previous inner subscriptions when new actions arrive quickly.
         mergeMap(({ task }) => this._taskService.getByIdOnce$(task.id as string)),
-        // Skip if task is already scheduled for today (avoids no-op dispatch)
+        // Only auto-plan unscheduled tasks. Completion records doneOn, but must not
+        // rewrite an existing dueDay/dueWithTime schedule.
         filter(
-          (task: Task) =>
-            !!task && !task.parentId && task.dueDay !== this._dateService.todayStr(),
+          (task: Task) => !!task && !task.parentId && !task.dueDay && !task.dueWithTime,
         ),
         map((task) =>
           TaskSharedActions.planTasksForToday({

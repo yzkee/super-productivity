@@ -608,7 +608,7 @@ const handleUpdateTask = (
     ? updateTimeSpentForTask(taskId, timeSpentOnDay, taskState)
     : taskState;
   taskState = updateTimeEstimateForTask(taskUpdate, timeEstimate, taskState);
-  taskState = updateDoneOnForTask(taskUpdate, taskState, todayStr);
+  taskState = updateDoneOnForTask(taskUpdate, taskState);
   taskState = taskAdapter.updateOne(
     {
       ...taskUpdate,
@@ -625,10 +625,11 @@ const handleUpdateTask = (
     [TASK_FEATURE_NAME]: taskState,
   };
 
-  // Add completed top-level task to TODAY_TAG.taskIds for ordering.
-  // Subtasks are excluded — their parent manages today-tag membership.
+  // Keep TODAY_TAG.taskIds order intact for tasks that are already scheduled for today.
+  // Completing a task must not move an overdue/future scheduled task to today; doneOn
+  // records completion date separately from the task's schedule.
   const isToDone = taskUpdate.changes.isDone === true;
-  if (isToDone && !currentTask.parentId) {
+  if (isToDone && !currentTask.parentId && currentTask.dueDay === todayStr) {
     const todayTag = getTag(updatedState, TODAY_TAG.id);
     if (!todayTag.taskIds.includes(taskId)) {
       updatedState = updateTags(updatedState, [
@@ -638,8 +639,6 @@ const handleUpdateTask = (
         },
       ]);
     }
-    // Remove from planner days since task's dueDay changed to today
-    updatedState = removeTaskFromPlannerDays(updatedState, taskId);
   }
 
   // When dueDay changes (e.g. from two-way sync pull), update planner days

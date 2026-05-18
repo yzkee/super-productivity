@@ -78,4 +78,46 @@ describe('done task operation replay', () => {
     expect(task.dueDay).toBe(ACTION_TODAY);
     expect(task.dueDay).not.toBe(REPLAY_TODAY);
   });
+
+  it('does not move an already scheduled task to the completion day during replay', () => {
+    const scheduledDay = '2024-06-13';
+    const initialState = createState();
+    const stateWithScheduledTask: RootState = {
+      ...initialState,
+      [TASK_FEATURE_NAME]: {
+        ...initialState[TASK_FEATURE_NAME],
+        entities: {
+          ...initialState[TASK_FEATURE_NAME].entities,
+          [TASK_ID]: {
+            ...(initialState[TASK_FEATURE_NAME].entities[TASK_ID] as Task),
+            dueDay: scheduledDay,
+          },
+        },
+      },
+    };
+    const op: Operation = {
+      id: 'op-done-preserve-due-day',
+      actionType: ActionType.TASK_SHARED_UPDATE,
+      opType: OpType.Update,
+      entityType: 'TASK',
+      entityId: TASK_ID,
+      payload: {
+        actionPayload: {
+          task: { id: TASK_ID, changes: { isDone: true, doneOn: DONE_TIMESTAMP } },
+        },
+        entityChanges: [],
+      },
+      clientId: 'clientA',
+      vectorClock: { clientA: 1 },
+      timestamp: DONE_TIMESTAMP,
+      schemaVersion: 1,
+    };
+
+    const result = applyOperation(stateWithScheduledTask, op);
+    const task = result[TASK_FEATURE_NAME].entities[TASK_ID] as Task;
+
+    expect(task.isDone).toBe(true);
+    expect(task.doneOn).toBe(DONE_TIMESTAMP);
+    expect(task.dueDay).toBe(scheduledDay);
+  });
 });

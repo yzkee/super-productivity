@@ -30,7 +30,6 @@ import { ImmediateUploadService } from '../sync/immediate-upload.service';
 import { getDeferredActions, isDeferredAction } from './operation-capture.meta-reducer';
 import { ClientIdService } from '../../core/util/client-id.service';
 import { SuperSyncStatusService } from '../sync/super-sync-status.service';
-import { DateService } from '../../core/date/date.service';
 
 /**
  * NgRx Effects for persisting application state changes as operations to the
@@ -64,7 +63,6 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
   private operationCaptureService = inject(OperationCaptureService);
   private immediateUploadService = inject(ImmediateUploadService);
   private superSyncStatusService = inject(SuperSyncStatusService);
-  private dateService = inject(DateService);
 
   /**
    * Effect that persists local user actions to the operation log.
@@ -403,10 +401,6 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
             typeof taskChanges['doneOn'] === 'number'
               ? taskChanges['doneOn']
               : operationTimestamp,
-          dueDay:
-            typeof taskChanges['dueDay'] === 'string'
-              ? taskChanges['dueDay']
-              : this.dateService.todayStr(),
         },
       },
     };

@@ -81,10 +81,11 @@ describe('TaskRelatedModelEffects', () => {
   });
 
   describe('autoAddTodayTagOnMarkAsDone', () => {
-    it('should dispatch planTasksForToday when task is marked done and dueDay is not today', (done) => {
+    it('should dispatch planTasksForToday when an unscheduled task is marked done', (done) => {
       const task = createTask('task-1', {
         parentId: undefined,
-        dueDay: undefined, // NOT set to today
+        dueDay: undefined,
+        dueWithTime: undefined,
       });
       taskService.getByIdOnce$.and.returnValue(of(task));
 
@@ -107,6 +108,56 @@ describe('TaskRelatedModelEffects', () => {
           task: { id: 'task-1', changes: { isDone: true } },
         }),
       );
+    });
+
+    it('should NOT dispatch planTasksForToday when marked done task has an existing dueDay', (done) => {
+      const task = createTask('task-1', {
+        parentId: undefined,
+        dueDay: '2026-05-16',
+      });
+      taskService.getByIdOnce$.and.returnValue(of(task));
+
+      let emitted = false;
+      const subscription = effects.autoAddTodayTagOnMarkAsDone.subscribe(() => {
+        emitted = true;
+      });
+
+      actions$.next(
+        TaskSharedActions.updateTask({
+          task: { id: 'task-1', changes: { isDone: true } },
+        }),
+      );
+
+      setTimeout(() => {
+        expect(emitted).toBe(false);
+        subscription.unsubscribe();
+        done();
+      }, 100);
+    });
+
+    it('should NOT dispatch planTasksForToday when marked done task has dueWithTime', (done) => {
+      const task = createTask('task-1', {
+        parentId: undefined,
+        dueWithTime: Date.now(),
+      });
+      taskService.getByIdOnce$.and.returnValue(of(task));
+
+      let emitted = false;
+      const subscription = effects.autoAddTodayTagOnMarkAsDone.subscribe(() => {
+        emitted = true;
+      });
+
+      actions$.next(
+        TaskSharedActions.updateTask({
+          task: { id: 'task-1', changes: { isDone: true } },
+        }),
+      );
+
+      setTimeout(() => {
+        expect(emitted).toBe(false);
+        subscription.unsubscribe();
+        done();
+      }, 100);
     });
 
     it('should NOT dispatch planTasksForToday when task is marked done but already has dueDay set to today', (done) => {
