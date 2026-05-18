@@ -1136,7 +1136,7 @@ describe('taskSharedCrudMetaReducer', () => {
       );
     });
 
-    it('should handle isDone updates and set doneOn timestamp without changing dueDay', () => {
+    it('should handle isDone updates and set doneOn timestamp and completion dueDay for unscheduled tasks', () => {
       const testState = createStateWithExistingTasks(['task1'], [], ['task1']);
       const action = createUpdateTaskAction('task1', {
         isDone: true,
@@ -1147,7 +1147,10 @@ describe('taskSharedCrudMetaReducer', () => {
       const updatedTask = resultState[TASK_FEATURE_NAME].entities['task1'] as Task;
       expect(updatedTask.isDone).toBe(true);
       expect(updatedTask.doneOn).toEqual(jasmine.any(Number));
-      expect(updatedTask.dueDay).toBeUndefined();
+      expect(updatedTask.dueDay).toBe(getDbDateStr());
+      expect((resultState[TAG_FEATURE_NAME].entities['TODAY'] as Tag).taskIds).toContain(
+        'task1',
+      );
     });
 
     it('should add completed task to TODAY_TAG.taskIds', () => {
@@ -1259,6 +1262,24 @@ describe('taskSharedCrudMetaReducer', () => {
         mockReducer,
         testState,
       );
+    });
+
+    it('should ignore legacy synthetic completion dueDay for an already scheduled task', () => {
+      const scheduledDate = '2099-12-25';
+      const completionDay = getDbDateStr();
+      const testState = createStateWithExistingTasks(['task1'], [], ['task1']);
+      (testState[TASK_FEATURE_NAME].entities['task1'] as any).dueDay = scheduledDate;
+      const action = createUpdateTaskAction('task1', {
+        isDone: true,
+        dueDay: completionDay,
+        doneOn: Date.now(),
+      });
+
+      metaReducer(testState, action);
+      const resultState = mockReducer.calls.mostRecent().args[0] as RootState;
+      const updatedTask = resultState[TASK_FEATURE_NAME].entities['task1'] as Task;
+      expect(updatedTask.isDone).toBe(true);
+      expect(updatedTask.dueDay).toBe(scheduledDate);
     });
 
     it('should not add subtask to TODAY_TAG.taskIds when marked done', () => {

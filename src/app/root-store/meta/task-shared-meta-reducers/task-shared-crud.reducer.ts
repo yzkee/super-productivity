@@ -577,6 +577,39 @@ const handleRestoreDeletedTask = (
   return updatedState;
 };
 
+const sanitizeDoneScheduleChanges = (
+  taskUpdate: Update<Task>,
+  currentTask: Task,
+  todayStr: string,
+): Update<Task> => {
+  const { changes } = taskUpdate;
+  if (changes.isDone !== true || typeof changes.dueDay !== 'string') {
+    return taskUpdate;
+  }
+
+  const hasCurrentSchedule =
+    typeof currentTask.dueDay === 'string' || typeof currentTask.dueWithTime === 'number';
+  if (!hasCurrentSchedule) {
+    return taskUpdate;
+  }
+
+  const completionDay =
+    typeof changes.doneOn === 'number' ? getDbDateStr(changes.doneOn) : todayStr;
+  const isSyntheticCompletionDay =
+    changes.dueDay === completionDay && changes.dueDay !== currentTask.dueDay;
+
+  if (!isSyntheticCompletionDay) {
+    return taskUpdate;
+  }
+
+  const changesWithoutSyntheticDoneDay = { ...changes };
+  delete changesWithoutSyntheticDoneDay.dueDay;
+  return {
+    ...taskUpdate,
+    changes: changesWithoutSyntheticDoneDay,
+  };
+};
+
 const handleUpdateTask = (
   state: RootState,
   taskUpdate: Update<Task>,
@@ -590,30 +623,35 @@ const handleUpdateTask = (
   }
 
   let updatedState = state;
+  const todayStr = state[appStateFeatureKey]?.todayStr ?? getDbDateStr();
+  const sanitizedTaskUpdate = sanitizeDoneScheduleChanges(
+    taskUpdate,
+    currentTask,
+    todayStr,
+  );
 
   // Handle tag changes if tagIds are being updated
-  if (taskUpdate.changes.tagIds) {
+  if (sanitizedTaskUpdate.changes.tagIds) {
     const oldTagIds = currentTask.tagIds;
-    const newTagIds = taskUpdate.changes.tagIds;
+    const newTagIds = sanitizedTaskUpdate.changes.tagIds;
 
     updatedState = handleTagUpdates(updatedState, taskId, oldTagIds, newTagIds);
   }
 
   // Handle task state updates using existing task reducer logic
   let taskState = updatedState[TASK_FEATURE_NAME];
-  const { timeSpentOnDay, timeEstimate } = taskUpdate.changes;
-  const todayStr = state[appStateFeatureKey]?.todayStr ?? getDbDateStr();
+  const { timeSpentOnDay, timeEstimate } = sanitizedTaskUpdate.changes;
 
   taskState = timeSpentOnDay
     ? updateTimeSpentForTask(taskId, timeSpentOnDay, taskState)
     : taskState;
-  taskState = updateTimeEstimateForTask(taskUpdate, timeEstimate, taskState);
-  taskState = updateDoneOnForTask(taskUpdate, taskState);
+  taskState = updateTimeEstimateForTask(sanitizedTaskUpdate, timeEstimate, taskState);
+  taskState = updateDoneOnForTask(sanitizedTaskUpdate, taskState, todayStr);
   taskState = taskAdapter.updateOne(
     {
-      ...taskUpdate,
+      ...sanitizedTaskUpdate,
       changes: {
-        ...taskUpdate.changes,
+        ...sanitizedTaskUpdate.changes,
         modified: Date.now(),
       },
     },
@@ -628,7 +666,7 @@ const handleUpdateTask = (
   // Keep TODAY_TAG.taskIds order intact for tasks that are already scheduled for today.
   // Completing a task must not move an overdue/future scheduled task to today; doneOn
   // records completion date separately from the task's schedule.
-  const isToDone = taskUpdate.changes.isDone === true;
+  const isToDone = sanitizedTaskUpdate.changes.isDone === true;
   if (isToDone && !currentTask.parentId && currentTask.dueDay === todayStr) {
     const todayTag = getTag(updatedState, TODAY_TAG.id);
     if (!todayTag.taskIds.includes(taskId)) {
@@ -643,7 +681,16 @@ const handleUpdateTask = (
 
   // When dueDay changes (e.g. from two-way sync pull), update planner days
   // and TODAY_TAG.taskIds to keep them consistent with the task's dueDay.
-  const newDueDay = taskUpdate.changes.dueDay;
+  const taskAfterUpdate = taskState.entities[taskId] as Task;
+  const hasDueDayChange = Object.prototype.hasOwnProperty.call(
+    sanitizedTaskUpdate.changes,
+    'dueDay',
+  );
+  const newDueDay = hasDueDayChange
+    ? sanitizedTaskUpdate.changes.dueDay
+    : isToDone && taskAfterUpdate?.dueDay !== currentTask.dueDay
+      ? taskAfterUpdate?.dueDay
+      : undefined;
   if (newDueDay !== undefined && newDueDay !== currentTask.dueDay) {
     const oldDueDay = currentTask.dueDay;
 

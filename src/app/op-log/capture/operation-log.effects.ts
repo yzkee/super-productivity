@@ -98,6 +98,7 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
     action: PersistentAction,
     skipDequeue = false,
   ): Promise<void> {
+    const operationTimestamp = Date.now();
     // Always read from ClientIdService (which has its own in-memory cache).
     // Do NOT cache locally — BackupService.generateNewClientId() updates the
     // service cache, and a local cache here would go stale after backup import.
@@ -174,7 +175,6 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
         // enqueueing — there's no matching queue entry to dequeue.
         const entityChanges = skipDequeue ? [] : this.operationCaptureService.dequeue();
 
-        const operationTimestamp = Date.now();
         const actionPayload = this.addReplayDateFieldsToActionPayload(
           action,
           rawActionPayload,

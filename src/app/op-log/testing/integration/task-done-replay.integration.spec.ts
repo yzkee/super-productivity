@@ -120,4 +120,81 @@ describe('done task operation replay', () => {
     expect(task.doneOn).toBe(DONE_TIMESTAMP);
     expect(task.dueDay).toBe(scheduledDay);
   });
+
+  it('replays doneOn-only completed unscheduled tasks with the completion day', () => {
+    const op: Operation = {
+      id: 'op-done-on-only',
+      actionType: ActionType.TASK_SHARED_UPDATE,
+      opType: OpType.Update,
+      entityType: 'TASK',
+      entityId: TASK_ID,
+      payload: {
+        actionPayload: {
+          task: { id: TASK_ID, changes: { isDone: true, doneOn: DONE_TIMESTAMP } },
+        },
+        entityChanges: [],
+      },
+      clientId: 'clientA',
+      vectorClock: { clientA: 1 },
+      timestamp: DONE_TIMESTAMP,
+      schemaVersion: 1,
+    };
+
+    const result = applyOperation(createState(), op);
+    const task = result[TASK_FEATURE_NAME].entities[TASK_ID] as Task;
+
+    expect(task.isDone).toBe(true);
+    expect(task.doneOn).toBe(DONE_TIMESTAMP);
+    expect(task.dueDay).toBe(ACTION_TODAY);
+    expect(task.dueDay).not.toBe(REPLAY_TODAY);
+  });
+
+  it('ignores legacy synthetic completion dueDay when replaying onto a scheduled task', () => {
+    const scheduledDay = '2024-06-13';
+    const initialState = createState();
+    const stateWithScheduledTask: RootState = {
+      ...initialState,
+      [TASK_FEATURE_NAME]: {
+        ...initialState[TASK_FEATURE_NAME],
+        entities: {
+          ...initialState[TASK_FEATURE_NAME].entities,
+          [TASK_ID]: {
+            ...(initialState[TASK_FEATURE_NAME].entities[TASK_ID] as Task),
+            dueDay: scheduledDay,
+          },
+        },
+      },
+    };
+    const op: Operation = {
+      id: 'op-legacy-bad-due-day',
+      actionType: ActionType.TASK_SHARED_UPDATE,
+      opType: OpType.Update,
+      entityType: 'TASK',
+      entityId: TASK_ID,
+      payload: {
+        actionPayload: {
+          task: {
+            id: TASK_ID,
+            changes: {
+              isDone: true,
+              doneOn: DONE_TIMESTAMP,
+              dueDay: ACTION_TODAY,
+            },
+          },
+        },
+        entityChanges: [],
+      },
+      clientId: 'clientA',
+      vectorClock: { clientA: 1 },
+      timestamp: DONE_TIMESTAMP,
+      schemaVersion: 1,
+    };
+
+    const result = applyOperation(stateWithScheduledTask, op);
+    const task = result[TASK_FEATURE_NAME].entities[TASK_ID] as Task;
+
+    expect(task.isDone).toBe(true);
+    expect(task.doneOn).toBe(DONE_TIMESTAMP);
+    expect(task.dueDay).toBe(scheduledDay);
+  });
 });

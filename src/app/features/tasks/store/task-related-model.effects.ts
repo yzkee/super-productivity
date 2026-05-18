@@ -41,6 +41,8 @@ export class TaskRelatedModelEffects {
         withLatestFrom(this._store.select(selectTodayTaskIds)),
         filter(
           ([{ task }, todayTaskIds]) =>
+            !task.dueDay &&
+            typeof task.dueWithTime !== 'number' &&
             !todayTaskIds.includes(task.id) &&
             (!task.parentId || !todayTaskIds.includes(task.parentId)),
         ),
@@ -69,7 +71,11 @@ export class TaskRelatedModelEffects {
         // Only auto-plan unscheduled tasks. Completion records doneOn, but must not
         // rewrite an existing dueDay/dueWithTime schedule.
         filter(
-          (task: Task) => !!task && !task.parentId && !task.dueDay && !task.dueWithTime,
+          (task: Task) =>
+            !!task &&
+            !task.parentId &&
+            !task.dueDay &&
+            typeof task.dueWithTime !== 'number',
         ),
         map((task) =>
           TaskSharedActions.planTasksForToday({
