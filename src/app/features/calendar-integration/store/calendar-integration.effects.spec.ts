@@ -1,7 +1,6 @@
 import { TestBed, fakeAsync, flush, tick } from '@angular/core/testing';
-import { provideMockActions } from '@ngrx/effects/testing';
 import { provideMockStore } from '@ngrx/store/testing';
-import { BehaviorSubject, of, Subject, Subscription } from 'rxjs';
+import { BehaviorSubject, of, Subscription } from 'rxjs';
 import { CalendarIntegrationEffects } from './calendar-integration.effects';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
 import { BannerService } from '../../../core/banner/banner.service';
@@ -48,15 +47,19 @@ describe('CalendarIntegrationEffects pollChanges$ startup guard', () => {
   const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
   const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 
-  const buildEvent = (id: string): CalendarIntegrationEvent => ({
+  // Default event start is far enough out that isCalenderEventDue is false,
+  // so the import-only tests don't accidentally exercise the banner branch.
+  const buildEvent = (
+    id: string,
+    overrides: Partial<CalendarIntegrationEvent> = {},
+  ): CalendarIntegrationEvent => ({
     id,
     calProviderId: PROVIDER_ID,
     title: `Event ${id}`,
-    // Start ~6h in the future so the "due" check stays false (we don't want
-    // to assert on the banner branch here). isToday is stubbed to true below.
     start: Date.now() + SIX_HOURS_MS,
     duration: THIRTY_MINUTES_MS,
     issueProviderKey: 'ICAL',
+    ...overrides,
   });
 
   beforeEach(() => {
@@ -77,7 +80,6 @@ describe('CalendarIntegrationEffects pollChanges$ startup guard', () => {
     TestBed.configureTestingModule({
       providers: [
         CalendarIntegrationEffects,
-        provideMockActions(() => new Subject()),
         provideMockStore({
           selectors: [{ selector: selectCalendarProviders, value: [buildProvider()] }],
         }),
@@ -177,5 +179,52 @@ describe('CalendarIntegrationEffects pollChanges$ startup guard', () => {
     flush();
 
     expect(addTaskFromIssueSpy).not.toHaveBeenCalled();
+  }));
+
+  it('does NOT import if the sync window opens during the IDB-read await (post-await race)', fakeAsync(() => {
+    // Gate is open at the start...
+    isInitialSyncDoneSyncSpy.and.returnValue(true);
+    isInSyncWindowSpy.and.returnValue(false);
+
+    // ...but the IDB read yields and a tab-resume opens a sync window before
+    // the import loop runs. The second guard inside the tap must catch this.
+    getAllIssueIdsSpy.and.callFake(async () => {
+      isInSyncWindowSpy.and.returnValue(true);
+      return [];
+    });
+
+    sub = effects.pollChanges$.subscribe();
+    tick(0);
+    flush();
+
+    expect(addTaskFromIssueSpy).not.toHaveBeenCalled();
+  }));
+
+  it('still queues the banner branch when the import branch is gated off', fakeAsync(() => {
+    // Import gate closed
+    isInitialSyncDoneSyncSpy.and.returnValue(true);
+    isInSyncWindowSpy.and.returnValue(true);
+
+    // Event starts in 30min — within showBannerBeforeThreshold (2h), so
+    // isCalenderEventDue is true and the banner branch should fire.
+    requestEvents$Spy.and.returnValue(
+      of([buildEvent('cal-evt-due', { start: Date.now() + THIRTY_MINUTES_MS })]),
+    );
+
+    sub = effects.pollChanges$.subscribe();
+    tick(0);
+    flush();
+
+    expect(addTaskFromIssueSpy).not.toHaveBeenCalled();
+    // The banner branch pushes onto _currentlyShownBanners$. Asserting that
+    // BehaviorSubject's value is the cleanest pin on "banner branch is
+    // unaffected by the sync guard".
+    const banners = (
+      effects as unknown as {
+        _currentlyShownBanners$: BehaviorSubject<{ id: string }[]>;
+      }
+    )._currentlyShownBanners$.getValue();
+    expect(banners.length).toBe(1);
+    expect(banners[0].id).toBe('cal-evt-due');
   }));
 });

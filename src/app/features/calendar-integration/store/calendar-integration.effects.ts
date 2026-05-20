@@ -54,14 +54,15 @@ export class CalendarIntegrationEffects {
   /**
    * Poll external calendar providers for events and auto-import them as tasks.
    *
-   * The auto-import branch is gated on first-sync completion AND being outside
-   * the sync window. Calendar event task IDs are deterministic across devices
-   * (see generateCalendarTaskId), so if a second client imports before its
-   * first sync download lands, both clients emit a CRT op for the same entity
-   * id → conflict. Discussion #7677.
+   * The auto-import branch is gated on `isInitialSyncDoneSync() &&
+   * !isInSyncWindow()` — equivalent to `skipDuringSyncWindow()` applied only
+   * to the import side. The operator can't be lifted to the outer pipe
+   * because the banner-display branch must keep firing during sync.
    *
-   * The banner-display branch is read-only (BehaviorSubject push) and runs
-   * unconditionally.
+   * Why the gate matters: calendar task IDs are deterministic across devices
+   * (see `generateCalendarTaskId`), so a pre-first-sync import on a second
+   * client emits a CRT op on the same entity id as the remote one →
+   * conflict. Discussion #7677.
    */
   pollChanges$ = createEffect(
     () =>
@@ -102,27 +103,31 @@ export class CalendarIntegrationEffects {
                           await this._taskService.getAllIssueIdsForProviderEverywhere(
                             calProvider.id,
                           );
-                        allEventsToday.forEach((calEv) => {
-                          if (
-                            passesCalendarEventRegexFilter(
-                              calEv,
-                              calProvider.filterIncludeRegex,
-                              calProvider.filterExcludeRegex,
-                            ) &&
-                            this._dateService.isToday(calEv.start) &&
-                            !matchesAnyCalendarEventId(calEv, allIssueIds)
-                          ) {
-                            this._issueService.addTaskFromIssue({
-                              issueProviderKey:
-                                (calEv.issueProviderKey as IssueProviderKey) || 'ICAL',
-                              issueProviderId: calProvider.id,
-                              issueDataReduced: calEv,
-                              // from this context we should always add to the default project rather than current context
-                              isForceDefaultProject: true,
-                            });
-                          }
-                        });
-                        // this._issueService.addTaskFromIssue()
+                        // Re-check after the IDB read: a sync window can open
+                        // during the await (e.g. tab resume → openSyncWindow()),
+                        // and importing now would still emit a duplicate CRT op.
+                        if (!this._hydrationStateService.isInSyncWindow()) {
+                          allEventsToday.forEach((calEv) => {
+                            if (
+                              passesCalendarEventRegexFilter(
+                                calEv,
+                                calProvider.filterIncludeRegex,
+                                calProvider.filterExcludeRegex,
+                              ) &&
+                              this._dateService.isToday(calEv.start) &&
+                              !matchesAnyCalendarEventId(calEv, allIssueIds)
+                            ) {
+                              this._issueService.addTaskFromIssue({
+                                issueProviderKey:
+                                  (calEv.issueProviderKey as IssueProviderKey) || 'ICAL',
+                                issueProviderId: calProvider.id,
+                                issueDataReduced: calEv,
+                                // from this context we should always add to the default project rather than current context
+                                isForceDefaultProject: true,
+                              });
+                            }
+                          });
+                        }
                       }
 
                       const eventsToShowBannerFor = allEventsToday.filter(
