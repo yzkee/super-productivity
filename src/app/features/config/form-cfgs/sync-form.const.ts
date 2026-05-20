@@ -550,8 +550,17 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
             btnStyle: 'stroked',
             onClick: async (field: FormlyFieldConfig) => {
               const result = await openEnableEncryptionDialog();
-              if (result?.success && field?.model) {
-                field.model.isEncryptionEnabled = true;
+              if (result?.success) {
+                // Sub-model write keeps the SuperSync nested form section in
+                // sync; the root write is what the sibling hideExpressions
+                // (info-panel, ENCRYPTION_ENCOURAGED, this button) read,
+                // mirroring the Disable flow above.
+                if (field?.model) {
+                  field.model.isEncryptionEnabled = true;
+                }
+                if (field?.parent?.parent?.model) {
+                  field.parent.parent.model.isEncryptionEnabled = true;
+                }
               }
               return result?.success ? true : false;
             },
