@@ -471,6 +471,21 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
     {
       key: 'superSync',
       fieldGroup: [
+        // Encryption info line — shown the moment SuperSync is selected so the
+        // mandatory client-side encryption step is visible before a token is
+        // entered. Hidden once encryption is set up (the encryption-status-box
+        // above already shows "Encryption password is set" in that case).
+        {
+          hideExpression: (m, v, field) =>
+            field?.parent?.parent?.model.syncProvider !== SyncProviderId.SuperSync ||
+            (field?.parent?.parent?.model?.isEncryptionEnabled ?? false),
+          type: 'tpl',
+          templateOptions: {
+            tag: 'div',
+            text: T.F.SYNC.FORM.SUPER_SYNC.E2E_ENCRYPTION_INFO,
+            class: 'info-panel info-panel--encryption',
+          },
+        },
         {
           hideExpression: (m, v, field) =>
             field?.parent?.parent?.model.syncProvider !== SyncProviderId.SuperSync,
@@ -504,11 +519,14 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
           },
         },
         // Encryption encouragement warning (shown when encryption is NOT enabled)
-        // Hidden during initial setup (encryption dialog opens automatically after save)
+        // Hidden during initial setup (encryption dialog opens automatically after save).
+        // Reads root `isEncryptionEnabled` so it stays in lockstep with the
+        // encryption-status-box / BTN_CHANGE_PASSWORD above (sync.service derives
+        // the root flag from SuperSync's privateCfg.isEncryptionEnabled).
         {
           hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
             field?.parent?.parent?.model?.syncProvider !== SyncProviderId.SuperSync ||
-            (field?.model?.isEncryptionEnabled ?? false) ||
+            (field?.parent?.parent?.model?.isEncryptionEnabled ?? false) ||
             field?.parent?.parent?.model?._isInitialSetup === true,
           type: 'tpl',
           templateOptions: {
@@ -522,7 +540,7 @@ export const SYNC_FORM: ConfigFormSection<SyncConfig> = {
         {
           hideExpression: (m: any, v: any, field?: FormlyFieldConfig) =>
             field?.parent?.parent?.model?.syncProvider !== SyncProviderId.SuperSync ||
-            (field?.model?.isEncryptionEnabled ?? false) ||
+            (field?.parent?.parent?.model?.isEncryptionEnabled ?? false) ||
             field?.parent?.parent?.model?._isInitialSetup === true,
           type: 'btn',
           className: 'e2e-enable-encryption-btn',
