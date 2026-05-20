@@ -23,6 +23,8 @@ import { DateService } from '../../../core/date/date.service';
 import { TaskService } from '../../tasks/task.service';
 import { TranslateService, TranslateStore } from '@ngx-translate/core';
 import { Log } from '../../../core/log';
+import { SyncTriggerService } from '../../../imex/sync/sync-trigger.service';
+import { HydrationStateService } from '../../../op-log/apply/hydration-state.service';
 import {
   getCalendarEventIdCandidates,
   matchesAnyCalendarEventId,
@@ -46,16 +48,20 @@ export class CalendarIntegrationEffects {
   private _dateService = inject(DateService);
   private _translateService = inject(TranslateService);
   private _translateStore = inject(TranslateStore);
+  private _syncTriggerService = inject(SyncTriggerService);
+  private _hydrationStateService = inject(HydrationStateService);
 
   /**
    * Poll external calendar providers for events and auto-import them as tasks.
    *
-   * SYNC-SAFE: This effect is intentionally safe during sync/hydration because:
-   * - dispatch: false - no direct store mutations
-   * - Duplicate prevention built-in: matchesAnyCalendarEventId() checks existing tasks
-   *   before importing, so synced tasks won't be duplicated
-   * - Timer-driven from external calendar API data, not store-change driven
-   * - Task creation via IssueService handles deduplication internally
+   * The auto-import branch is gated on first-sync completion AND being outside
+   * the sync window. Calendar event task IDs are deterministic across devices
+   * (see generateCalendarTaskId), so if a second client imports before its
+   * first sync download lands, both clients emit a CRT op for the same entity
+   * id → conflict. Discussion #7677.
+   *
+   * The banner-display branch is read-only (BehaviorSubject push) and runs
+   * unconditionally.
    */
   pollChanges$ = createEffect(
     () =>
@@ -87,7 +93,11 @@ export class CalendarIntegrationEffects {
                 switchMap((allEventsToday) =>
                   timer(0, CHECK_TO_SHOW_INTERVAL).pipe(
                     tap(async () => {
-                      if (calProvider.isAutoImportForCurrentDay) {
+                      if (
+                        calProvider.isAutoImportForCurrentDay &&
+                        this._syncTriggerService.isInitialSyncDoneSync() &&
+                        !this._hydrationStateService.isInSyncWindow()
+                      ) {
                         const allIssueIds =
                           await this._taskService.getAllIssueIdsForProviderEverywhere(
                             calProvider.id,
