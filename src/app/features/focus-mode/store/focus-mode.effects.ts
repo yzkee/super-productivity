@@ -268,7 +268,6 @@ export class FocusModeEffects {
         ([timer, mode, _isOvertimeEnabled]) =>
           timer.purpose === 'work' &&
           !timer.isRunning &&
-          timer.duration > 0 &&
           timer.elapsed >= timer.duration &&
           mode !== FocusModeMode.Flowtime &&
           !_isOvertimeEnabled,

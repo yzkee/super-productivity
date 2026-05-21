@@ -2256,6 +2256,32 @@ describe('FocusModeEffects', () => {
       }, 50);
     });
 
+    // Bug #7707: dragging the timer down to 0 (or starting a non-Flowtime session
+    // with duration 0) must still reach the SessionDone screen. The reducer flips
+    // isRunning to false on the next tick; this effect must then dispatch
+    // completeFocusSession even though duration is 0.
+    it('should dispatch completeFocusSession when duration is 0 (Bug #7707)', (done) => {
+      store.overrideSelector(
+        selectors.selectTimer,
+        createMockTimer({
+          isRunning: false,
+          purpose: 'work',
+          duration: 0,
+          elapsed: 60 * 1000, // user focused for 1 min, then dragged duration to 0
+        }),
+      );
+      store.overrideSelector(selectors.selectMode, FocusModeMode.Pomodoro);
+      store.overrideSelector(selectors.selectIsOvertimeEnabled, false);
+      store.refreshState();
+
+      effects = TestBed.inject(FocusModeEffects);
+
+      effects.detectSessionCompletion$.pipe(take(1)).subscribe((action) => {
+        expect(action).toEqual(actions.completeFocusSession({ isManual: false }));
+        done();
+      });
+    });
+
     // Bug #6206 updated: with overtime, isManualBreakStart=true causes the timer to keep
     // running (via _isOvertimeEnabled). The user completes the session manually.
     // When _isOvertimeEnabled is false (non-manual-break sessions), auto-completion still works.
