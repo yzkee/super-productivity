@@ -14,6 +14,7 @@ import {
   reconcileTopLevelTaskRefs,
   refreshChipContentFromCache,
   snapshotInContextTaskIds,
+  stripChipContent,
   taskNodeJSON,
   taskRefWithSubtasksJSON,
   type PMNode,
@@ -162,6 +163,120 @@ test('migrateStoredDoc: preserves non-task nodes', () => {
     content: [{ type: 'paragraph', content: [{ type: 'text', text: 'note' }] }],
   };
   assert.deepEqual(migrateStoredDoc(raw, mkLookup([])), raw);
+});
+
+/* -------------------------------------------------------------------------- */
+/* stripChipContent                                                            */
+/* -------------------------------------------------------------------------- */
+
+test('stripChipContent: strips taskRef/subTaskRef content + isDone, keeps taskId', () => {
+  const doc = {
+    type: 'doc',
+    content: [
+      {
+        type: 'taskRef',
+        attrs: { taskId: 'a', isDone: true },
+        content: [{ type: 'text', text: 'Buy milk' }],
+      },
+      {
+        type: 'subTaskRef',
+        attrs: { taskId: 's1', isDone: false },
+        content: [{ type: 'text', text: 'Sub one' }],
+      },
+    ],
+  };
+  const out = stripChipContent(doc) as PMNode;
+  assert.deepEqual(childAt(out, 0), { type: 'taskRef', attrs: { taskId: 'a' } });
+  assert.deepEqual(childAt(out, 1), { type: 'subTaskRef', attrs: { taskId: 's1' } });
+});
+
+test('stripChipContent: leaves prose blocks and their text content intact', () => {
+  const doc = {
+    type: 'doc',
+    content: [
+      {
+        type: 'heading',
+        attrs: { level: 1 },
+        content: [{ type: 'text', text: 'Title' }],
+      },
+      { type: 'paragraph', content: [{ type: 'text', text: 'a note' }] },
+      {
+        type: 'bulletList',
+        content: [
+          {
+            type: 'listItem',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: 'item' }] }],
+          },
+        ],
+      },
+      { type: 'taskRef', attrs: { taskId: 'a' }, content: [{ type: 'text', text: 'A' }] },
+    ],
+  };
+  const out = stripChipContent(doc) as PMNode;
+  assert.deepEqual(childAt(out, 0), doc.content[0]);
+  assert.deepEqual(childAt(out, 1), doc.content[1]);
+  assert.deepEqual(childAt(out, 2), doc.content[2]);
+  // Chip inside the same doc is still stripped.
+  assert.deepEqual(childAt(out, 3), { type: 'taskRef', attrs: { taskId: 'a' } });
+});
+
+test('stripChipContent: does not mutate the input object', () => {
+  const doc = {
+    type: 'doc',
+    content: [
+      {
+        type: 'taskRef',
+        attrs: { taskId: 'a', isDone: true },
+        content: [{ type: 'text', text: 'Buy milk' }],
+      },
+      { type: 'paragraph', content: [{ type: 'text', text: 'a note' }] },
+    ],
+  };
+  const before = JSON.stringify(doc);
+  const out = stripChipContent(doc);
+  assert.notEqual(out, doc);
+  assert.equal(JSON.stringify(doc), before);
+});
+
+test('stripChipContent: round-trips through prepareStoredDoc to rebuild chip titles', () => {
+  const look = mkLookup([
+    mkTask({ id: 'a', title: 'Alpha', isDone: true, subTaskIds: ['s1'] }),
+    mkTask({ id: 's1', title: 'Sub one' }),
+  ]);
+  const live = {
+    type: 'doc',
+    content: [
+      { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Proj' }] },
+      {
+        type: 'taskRef',
+        attrs: { taskId: 'a', isDone: true },
+        content: [{ type: 'text', text: 'Alpha' }],
+      },
+      {
+        type: 'subTaskRef',
+        attrs: { taskId: 's1', isDone: false },
+        content: [{ type: 'text', text: 'Sub one' }],
+      },
+      { type: 'paragraph', content: [{ type: 'text', text: 'a note' }] },
+    ],
+  };
+  const stripped = stripChipContent(live);
+  const out = prepareStoredDoc(
+    stripped,
+    mkCtx({ id: 'P', taskIds: ['a'] }),
+    look,
+  ) as PMNode;
+  assert.deepEqual(summary(out), [
+    'heading',
+    'taskRef:a',
+    'subTaskRef:s1',
+    'paragraph',
+    'paragraph',
+  ]);
+  assert.equal(chipText(childAt(out, 1)), 'Alpha');
+  assert.equal(childAt(out, 1).attrs?.isDone, true);
+  assert.equal(chipText(childAt(out, 2)), 'Sub one');
+  assert.equal(chipText(childAt(out, 3)), 'a note');
 });
 
 /* -------------------------------------------------------------------------- */

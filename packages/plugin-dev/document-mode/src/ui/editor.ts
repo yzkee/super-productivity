@@ -23,6 +23,7 @@ import {
   buildSeedDoc,
   prepareStoredDoc,
   snapshotInContextTaskIds,
+  stripChipContent,
   taskNodeJSON,
   taskRefWithSubtasksJSON,
   type TaskLookup,
@@ -275,7 +276,7 @@ const flushSave = async (): Promise<void> => {
     const latest = await readBlob();
     const merged: StoredState = {
       ...latest,
-      docs: { ...latest.docs, [currentCtx.id]: editor.getJSON() },
+      docs: { ...latest.docs, [currentCtx.id]: stripChipContent(editor.getJSON()) },
     };
     storedState = merged;
     await PluginAPI.persistDataSynced(JSON.stringify(merged));
@@ -314,7 +315,7 @@ const flushSaveSync = (): void => {
   try {
     const merged: StoredState = {
       ...storedState,
-      docs: { ...storedState.docs, [currentCtx.id]: editor.getJSON() },
+      docs: { ...storedState.docs, [currentCtx.id]: stripChipContent(editor.getJSON()) },
     };
     storedState = merged;
     void PluginAPI.persistDataSynced(JSON.stringify(merged));

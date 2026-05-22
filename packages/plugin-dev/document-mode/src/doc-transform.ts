@@ -118,6 +118,44 @@ export const migrateStoredDoc = (raw: unknown, getTask: TaskLookup): unknown => 
   return visit(raw as PMNode);
 };
 
+/**
+ * Strip redundant chip data from a doc before it is serialized to storage.
+ *
+ * Each `taskRef` / `subTaskRef` chip carries inline title text (`content`)
+ * and an `isDone` attr, but on load both are re-derived from the host task
+ * cache: `migrateStoredDoc` backfills missing `content` and `refreshChipContentFromCache`
+ * overwrites both unconditionally. Persisting them is therefore dead weight in
+ * the synced payload — and the title is the byte-heavy, variable-length part.
+ * This collapses every chip to a bare identity atom `{ type, attrs: { taskId } }`.
+ *
+ * Pure: returns new objects, never mutates `doc`. It runs only on the
+ * serialized copy (`editor.getJSON()` returns a fresh object); the live
+ * editor document keeps its inline content, so title write-back
+ * (`reconcileTitlesFromDoc`, which reads the live doc) is unaffected.
+ */
+export const stripChipContent = (doc: unknown): unknown => {
+  const visit = (node: PMNode | PMText | undefined): PMNode | PMText | undefined => {
+    if (!node || typeof node !== 'object') return node;
+    if ('text' in node) return node;
+    if (node.type === 'taskRef' || node.type === 'subTaskRef') {
+      return {
+        type: node.type,
+        attrs: { taskId: (node.attrs?.taskId as string) || '' },
+      };
+    }
+    if (Array.isArray(node.content)) {
+      return {
+        ...node,
+        content: node.content
+          .map(visit)
+          .filter((n): n is PMNode | PMText => n !== undefined),
+      };
+    }
+    return node;
+  };
+  return visit(doc as PMNode);
+};
+
 /** A paragraph with no inline content — the editor's structural landing line. */
 const isEmptyParagraph = (n: PMNode | PMText): boolean => {
   const node = n as PMNode;
