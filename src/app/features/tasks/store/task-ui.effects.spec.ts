@@ -243,6 +243,27 @@ describe('TaskUiEffects', () => {
       actions$.next(createAddTaskAction(task));
     });
 
+    it('should NOT show snack when task has no title', (done) => {
+      const task = createMockTask({
+        id: 'new-task-456',
+        projectId: 'project-1',
+        title: '',
+      });
+      let emitted = false;
+
+      effects.taskCreatedSnack$.subscribe(() => {
+        emitted = true;
+      });
+
+      actions$.next(createAddTaskAction(task));
+
+      setTimeout(() => {
+        expect(emitted).toBe(false);
+        expect(snackServiceMock.open).not.toHaveBeenCalled();
+        done();
+      }, 10);
+    });
+
     afterEach(() => {
       localStorage.removeItem(LS.ONBOARDING_HINTS_DONE);
     });

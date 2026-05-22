@@ -63,6 +63,8 @@ export class TaskUiEffects {
     () =>
       this._actions$.pipe(
         ofType(TaskSharedActions.addTask),
+        // Skip the created snack for accidentally created tasks with no title
+        filter(({ task }) => !!task.title.trim()),
         withLatestFrom(this._workContextService.mainListTaskIds$),
         switchMap(([{ task }, activeContextTaskIds]) => {
           if (task.projectId) {
