@@ -30,8 +30,8 @@ export class ClientIdService {
   /**
    * Loads the client ID.
    *
-   * Uses caching to avoid repeated IndexedDB reads. The client ID is
-   * immutable once generated, so caching is safe.
+   * Uses caching to avoid repeated IndexedDB reads. Rotation paths bypass or
+   * refresh the cache when they need cross-context freshness.
    *
    * @returns The client ID, or null if not yet generated
    */
@@ -40,33 +40,12 @@ export class ClientIdService {
       return this._cachedClientId;
     }
 
-    const db = await this._getDb();
-    const clientId = await db.get(DB_STORE_NAME, CLIENT_ID_KEY);
+    const clientId = await this._readPersistedValidClientId({ warnOnInvalid: true });
 
-    if (typeof clientId !== 'string') {
-      return null;
+    if (clientId) {
+      this._cachedClientId = clientId;
+      OpLog.normal('ClientIdService.loadClientId() loaded');
     }
-
-    if (!this._isValidClientIdFormat(clientId)) {
-      // Unrecognized format — log but treat as missing rather than throwing.
-      // Throwing here permanently blocks sync (issue #6197: "Invalid clientId loaded: B_H8AR").
-      // Returning null causes the caller to generate a fresh clientId, which unblocks sync.
-      OpLog.critical(
-        'ClientIdService.loadClientId() Invalid clientId format, will regenerate:',
-        {
-          clientId,
-          length: clientId.length,
-        },
-      );
-      this._snackService?.open({
-        msg: T.F.SYNC.S.WARN_CLIENT_ID_REGENERATED,
-        type: 'WARNING',
-      });
-      return null;
-    }
-
-    this._cachedClientId = clientId;
-    OpLog.normal('ClientIdService.loadClientId() loaded:', { clientId });
     return clientId;
   }
 
@@ -85,7 +64,7 @@ export class ClientIdService {
     await db.put(DB_STORE_NAME, newClientId, CLIENT_ID_KEY);
 
     this._cachedClientId = newClientId;
-    OpLog.normal('ClientIdService.generateNewClientId() generated:', { newClientId });
+    OpLog.normal('ClientIdService.generateNewClientId() generated');
     return newClientId;
   }
 
@@ -103,7 +82,7 @@ export class ClientIdService {
     const db = await this._getDb();
     await db.put(DB_STORE_NAME, clientId, CLIENT_ID_KEY);
     this._cachedClientId = clientId;
-    OpLog.normal('ClientIdService.persistClientId() persisted:', { clientId });
+    OpLog.normal('ClientIdService.persistClientId() persisted');
   }
 
   /**
@@ -126,12 +105,114 @@ export class ClientIdService {
   }
 
   /**
+   * Rotate the clientId for the duration of `fn`. Captures the prior id,
+   * generates and persists a new one, runs `fn(newClientId)`. If `fn` throws,
+   * the prior id is restored so the `pf` database stays consistent with any
+   * caller-side state that didn't get updated.
+   *
+   * Edge case: if there was no prior clientId (wholly fresh device), the new
+   * id is intentionally left in `pf` on failure — there is nothing to restore
+   * to. If the restore itself throws, the original `fn` error is propagated
+   * and the restore failure is logged at critical level for forensics.
+   *
+   * `logPrefix` is used to tag the critical-log entry on rollback failure so
+   * forensics can attribute it to the caller (e.g. `'[CleanSlate]'`).
+   */
+  async withRotation<T>(
+    logPrefix: string,
+    fn: (newClientId: string) => Promise<T>,
+  ): Promise<T> {
+    const priorClientId = await this._readPersistedValidClientId();
+    const newClientId = await this.generateNewClientId();
+    try {
+      return await fn(newClientId);
+    } catch (e) {
+      if (priorClientId) {
+        try {
+          await this._restorePriorClientIdIfCurrentMatches(priorClientId, newClientId);
+        } catch (rollbackErr) {
+          OpLog.critical(
+            `${logPrefix} Failed to roll back clientId rotation after failure`,
+            {
+              hadPriorClientId: true,
+              originalErrorName: this._errorName(e),
+              rollbackErrorName: this._errorName(rollbackErr),
+            },
+          );
+        }
+      }
+      throw e;
+    }
+  }
+
+  /**
    * Returns true if the clientId matches a known valid format.
    * Old format: any string of length >= 10 (legacy IDs).
    * New format: {platform}_{4-char-base62} e.g. "B_a7Kx".
    */
   private _isValidClientIdFormat(clientId: string): boolean {
     return clientId.length >= 10 || /^[BEAI]_[a-zA-Z0-9]{4}$/.test(clientId);
+  }
+
+  private async _readPersistedValidClientId(
+    options: { warnOnInvalid?: boolean } = {},
+  ): Promise<string | null> {
+    const db = await this._getDb();
+    const clientId = await db.get(DB_STORE_NAME, CLIENT_ID_KEY);
+
+    if (typeof clientId !== 'string') {
+      return null;
+    }
+
+    if (!this._isValidClientIdFormat(clientId)) {
+      if (options.warnOnInvalid) {
+        // Unrecognized format — log but treat as missing rather than throwing.
+        // Throwing here permanently blocks sync (issue #6197: "Invalid clientId loaded: B_H8AR").
+        // Returning null causes the caller to generate a fresh clientId, which unblocks sync.
+        // Length only — the literal clientId value is sensitive (vector-clock
+        // key) and log history is user-exportable (CLAUDE.md sync rule 9).
+        OpLog.critical(
+          'ClientIdService.loadClientId() Invalid clientId format, will regenerate:',
+          {
+            length: clientId.length,
+          },
+        );
+        this._snackService?.open({
+          msg: T.F.SYNC.S.WARN_CLIENT_ID_REGENERATED,
+          type: 'WARNING',
+        });
+      }
+      return null;
+    }
+
+    return clientId;
+  }
+
+  private async _restorePriorClientIdIfCurrentMatches(
+    priorClientId: string,
+    expectedCurrentClientId: string,
+  ): Promise<void> {
+    const db = await this._getDb();
+    const tx = db.transaction(DB_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(DB_STORE_NAME);
+    const currentClientId = await store.get(CLIENT_ID_KEY);
+
+    if (currentClientId === expectedCurrentClientId) {
+      await store.put(priorClientId, CLIENT_ID_KEY);
+      await tx.done;
+      this._cachedClientId = priorClientId;
+      return;
+    }
+
+    await tx.done;
+    this._cachedClientId =
+      typeof currentClientId === 'string' && this._isValidClientIdFormat(currentClientId)
+        ? currentClientId
+        : null;
+  }
+
+  private _errorName(error: unknown): string {
+    return error instanceof Error ? error.name : typeof error;
   }
 
   /**

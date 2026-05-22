@@ -71,16 +71,17 @@ describe('OperationLogEffects', () => {
     mockImmediateUploadService = jasmine.createSpyObj('ImmediateUploadService', [
       'trigger',
     ]);
-    mockClientIdService = jasmine.createSpyObj('ClientIdService', ['loadClientId']);
+    mockClientIdService = jasmine.createSpyObj('ClientIdService', [
+      'loadClientId',
+      'generateNewClientId',
+    ]);
     mockOperationCaptureService = jasmine.createSpyObj('OperationCaptureService', [
       'dequeue',
     ]);
 
     // Default mock implementations
-    mockLockService.request.and.callFake(
-      async (_name: string, fn: () => Promise<void>) => {
-        await fn();
-      },
+    mockLockService.request.and.callFake(async <T>(_name: string, fn: () => Promise<T>) =>
+      fn(),
     );
     mockOpLogStore.append.and.returnValue(Promise.resolve(1));
     mockOpLogStore.appendWithVectorClockUpdate.and.returnValue(Promise.resolve(1));
@@ -92,6 +93,9 @@ describe('OperationLogEffects', () => {
     mockCompactionService.emergencyCompact.and.returnValue(Promise.resolve(true));
     mockStore.select.and.returnValue(of({})); // Return empty state observable
     mockClientIdService.loadClientId.and.returnValue(Promise.resolve('testClient'));
+    mockClientIdService.generateNewClientId.and.returnValue(
+      Promise.resolve('generatedClient'),
+    );
     mockOperationCaptureService.dequeue.and.returnValue([]);
 
     TestBed.configureTestingModule({
@@ -180,6 +184,72 @@ describe('OperationLogEffects', () => {
           expect(mockLockService.request).toHaveBeenCalledWith(
             'sp_op_log',
             jasmine.any(Function),
+          );
+          done();
+        },
+      });
+    });
+
+    it('should load clientId only after acquiring operation log lock', (done) => {
+      const callOrder: string[] = [];
+      mockLockService.request.and.callFake(
+        async <T>(_name: string, fn: () => Promise<T>) => {
+          callOrder.push('lock');
+          return fn();
+        },
+      );
+      mockClientIdService.loadClientId.and.callFake(async () => {
+        callOrder.push('clientId');
+        return 'testClient';
+      });
+      mockOpLogStore.appendWithVectorClockUpdate.and.callFake(async () => {
+        callOrder.push('append');
+        return 1;
+      });
+
+      const action = createPersistentAction(ActionType.TASK_SHARED_UPDATE);
+      actions$ = of(action);
+
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          expect(callOrder).toEqual(['lock', 'clientId', 'append']);
+          done();
+        },
+      });
+    });
+
+    it('should capture the post-rotation clientId when a destructive replacement rotates it while this op is queued (#7709)', (done) => {
+      // Simulates the race the fix at operation-log.effects.ts:163-171 closes:
+      // a clean-slate / backup-import is already holding the operation-log lock
+      // and rotates the clientId via ClientIdService.withRotation. A queued op
+      // waiting behind that lock must read the rotated id, not the pre-rotation
+      // id captured before lock acquisition.
+      let persistedClientId = 'oldClient';
+
+      mockLockService.request.and.callFake(
+        async <T>(_name: string, fn: () => Promise<T>) => {
+          // The destructive replacement that we're racing has already mutated
+          // ClientIdService's persisted state by the time we acquire the lock.
+          persistedClientId = 'newClient';
+          return fn();
+        },
+      );
+      mockClientIdService.loadClientId.and.callFake(async () => persistedClientId);
+
+      const action = createPersistentAction(ActionType.TASK_SHARED_UPDATE);
+      actions$ = of(action);
+
+      effects.persistOperation$.subscribe({
+        complete: () => {
+          expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledWith(
+            jasmine.objectContaining({ clientId: 'newClient' }),
+            'local',
+          );
+          // Negative assertion: if clientId were read before lock acquisition,
+          // we'd see 'oldClient'. The fix prevents that.
+          expect(mockOpLogStore.appendWithVectorClockUpdate).not.toHaveBeenCalledWith(
+            jasmine.objectContaining({ clientId: 'oldClient' }),
+            jasmine.anything(),
           );
           done();
         },

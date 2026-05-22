@@ -160,6 +160,8 @@ interface OpLogDB extends DBSchema {
   };
 }
 
+type OpLogStoreName = (typeof STORE_NAMES)[keyof typeof STORE_NAMES];
+
 /**
  * Manages the persistence of operations and state snapshots in IndexedDB.
  * It uses a dedicated IndexedDB database ('SUP_OPS') to store:
@@ -1550,6 +1552,120 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
         this._appliedOpIdsCache = null;
         this._cacheLastSeq = 0;
         throw new Error(DUPLICATE_OPERATION_ERROR_MSG);
+      }
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        throw new StorageQuotaExceededError();
+      }
+      throw e;
+    }
+  }
+
+  /**
+   * Atomically replace local op-log + state_cache + vector_clock with a new
+   * full-state baseline. Used by destructive flows (clean-slate, backup-restore)
+   * to fix issue #7709 — interrupted destructive sequences could otherwise
+   * leave OPS empty and state_cache stale, tripping the
+   * `isWhollyFreshClient + meaningful store data` branch on next launch.
+   *
+   * If any step throws, the IndexedDB transaction aborts and no committed
+   * change to OPS / STATE_CACHE / VECTOR_CLOCK survives.
+   *
+   * Atomicity holds within the `SUP_OPS` database only. Callers that rotate
+   * the clientId (stored in the separate `pf` database) own that rollback —
+   * including the no-prior-clientId edge case, where the rotated id is
+   * intentionally left in `pf` on failure (see ClientIdService.withRotation).
+   *
+   * The new baseline is taken entirely from `syncImportOp`: its `payload` is
+   * written to OPS (the snapshot the uploader sends) and re-used as the
+   * STATE_CACHE state (what `isWhollyFreshClient` reads next launch); its
+   * `vectorClock` and `schemaVersion` populate both stores. A single source
+   * object makes it impossible for OPS and STATE_CACHE to disagree.
+   */
+  async runDestructiveStateReplacement(opts: {
+    syncImportOp: Operation;
+    snapshotEntityKeys: string[];
+    archiveYoung?: ArchiveStoreEntry['data'];
+    archiveOld?: ArchiveStoreEntry['data'];
+  }): Promise<void> {
+    await this._ensureInit();
+
+    const { syncImportOp, snapshotEntityKeys, archiveYoung, archiveOld } = opts;
+    const newState = syncImportOp.payload;
+    const newVectorClock = syncImportOp.vectorClock;
+    const compactedAt = Date.now();
+    const compactOp = encodeOperation(syncImportOp);
+    const storeNames: OpLogStoreName[] = [
+      STORE_NAMES.OPS,
+      STORE_NAMES.STATE_CACHE,
+      STORE_NAMES.VECTOR_CLOCK,
+    ];
+    if (archiveYoung != null) {
+      storeNames.push(STORE_NAMES.ARCHIVE_YOUNG);
+    }
+    if (archiveOld != null) {
+      storeNames.push(STORE_NAMES.ARCHIVE_OLD);
+    }
+    const tx = this.db.transaction(storeNames, 'readwrite');
+
+    try {
+      const opsStore = tx.objectStore(STORE_NAMES.OPS);
+      const stateCacheStore = tx.objectStore(STORE_NAMES.STATE_CACHE);
+      const vcStore = tx.objectStore(STORE_NAMES.VECTOR_CLOCK);
+
+      await opsStore.clear();
+
+      const entry: Omit<StoredOperationLogEntry, 'seq'> = {
+        op: compactOp,
+        appliedAt: Date.now(),
+        source: 'local',
+        syncedAt: undefined,
+        applicationStatus: undefined,
+      };
+      const seq = (await opsStore.add(entry as StoredOperationLogEntry)) as number;
+
+      await vcStore.put({ clock: newVectorClock, lastUpdate: Date.now() }, SINGLETON_KEY);
+
+      await stateCacheStore.put({
+        id: SINGLETON_KEY,
+        state: newState,
+        lastAppliedOpSeq: seq,
+        vectorClock: newVectorClock,
+        compactedAt,
+        schemaVersion: syncImportOp.schemaVersion,
+        snapshotEntityKeys,
+      });
+
+      if (archiveYoung != null) {
+        await tx.objectStore(STORE_NAMES.ARCHIVE_YOUNG).put({
+          id: SINGLETON_KEY,
+          data: archiveYoung,
+          lastModified: compactedAt,
+        });
+      }
+
+      if (archiveOld != null) {
+        await tx.objectStore(STORE_NAMES.ARCHIVE_OLD).put({
+          id: SINGLETON_KEY,
+          data: archiveOld,
+          lastModified: compactedAt,
+        });
+      }
+
+      await tx.done;
+
+      this._appliedOpIdsCache = null;
+      this._cacheLastSeq = 0;
+      this._invalidateUnsyncedCache();
+      this._vectorClockCache = newVectorClock;
+    } catch (e) {
+      // idb auto-aborts the tx on any rejected request, but a spy that
+      // throws synchronously instead of rejecting the IDB request (used by
+      // the interrupt integration tests) leaves the tx open with queued
+      // writes — explicit abort is what unwinds them in that case.
+      try {
+        tx.abort();
+      } catch {
+        // Already aborted/committed — InvalidStateError; nothing to do.
       }
       if (e instanceof DOMException && e.name === 'QuotaExceededError') {
         throw new StorageQuotaExceededError();
