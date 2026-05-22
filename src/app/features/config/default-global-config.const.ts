@@ -126,6 +126,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
     toggleTaskViewCustomizerPanel: 'C',
     toggleIssuePanel: 'P',
     focusSideNav: 'Shift+D',
+    toggleSideNavMode: 'Ctrl+B',
     showHelp: '?',
     showSearchBar: 'Shift+F',
     toggleBacklog: 'B',
@@ -239,6 +240,7 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfigState = {
 
     nextcloud: {
       serverUrl: null,
+      loginName: null,
       userName: null,
       password: null,
       syncFolderPath: 'super-productivity',

@@ -11,7 +11,13 @@ import { prisma, disconnectDb } from './db';
 import websocket from '@fastify/websocket';
 import { apiRoutes } from './api';
 import { pageRoutes } from './pages';
-import { syncRoutes, startCleanupJobs, stopCleanupJobs } from './sync';
+import {
+  syncRoutes,
+  startCleanupJobs,
+  stopCleanupJobs,
+  initSyncService,
+  getSyncService,
+} from './sync';
 import { wsRoutes } from './sync/websocket.routes';
 import {
   getWsConnectionService,
@@ -45,6 +51,27 @@ const SENSITIVE_QUERY_PARAM_PATTERN = new RegExp(
   `([?&](?:${SENSITIVE_QUERY_PARAMS.join('|')})=)[^&\\s]*`,
   'gi',
 );
+
+/**
+ * Picks the log level for a Fastify-handled error. 5xx → error (with stack);
+ * WS-upgrade 429s → debug (storm tail from pre-18.6.0 clients that reconnect
+ * on any close; the cooldown WARN+summary in WebSocketConnectionService is
+ * the actionable signal, the rate-limit 429s only add flood). Everything
+ * else → warn. Exact-matches /api/sync/ws (strips ?query + trailing slashes)
+ * so future siblings like /api/sync/ws-status do not silently inherit
+ * debug-only behavior. statusCode gate short-circuits the path-normalize on
+ * the ~99% of error responses that aren't 429.
+ */
+export const pickErrorLogLevel = (
+  url: string,
+  statusCode: number,
+): 'error' | 'warn' | 'debug' => {
+  if (statusCode >= 500) return 'error';
+  if (statusCode === 429 && url.split('?', 1)[0].replace(/\/+$/, '') === '/api/sync/ws') {
+    return 'debug';
+  }
+  return 'warn';
+};
 
 export const sanitizeRequestUrlForLog = (rawUrl: string): string => {
   try {
@@ -109,6 +136,7 @@ export const createServer = (
   stop: () => Promise<void>;
 } => {
   const fullConfig = loadConfigFromEnv(config);
+  initSyncService({ batchUpload: fullConfig.batchUpload });
 
   // Ensure data directory exists
   if (!fs.existsSync(fullConfig.dataDir)) {
@@ -146,8 +174,11 @@ export const createServer = (
         const statusCode = error.statusCode ?? 500;
         const sanitizedUrl = sanitizeRequestUrlForLog(req.url);
         const logMessage = `Request failed ${statusCode} ${req.method} ${sanitizedUrl}: ${error.name}: ${error.message}`;
-        if (statusCode >= 500) {
+        const level = pickErrorLogLevel(req.url, statusCode);
+        if (level === 'error') {
           Logger.error(logMessage, error.stack);
+        } else if (level === 'debug') {
+          Logger.debug(logMessage);
         } else {
           Logger.warn(logMessage);
         }
@@ -219,6 +250,22 @@ export const createServer = (
       await fastifyServer.register(websocket, {
         options: { maxPayload: 1024 },
       });
+
+      // Backfill self-check: paired with the env-flag enforcement in
+      // loadConfigFromEnv. The env flag (SUPERSYNC_PAYLOAD_BYTES_BACKFILL_COMPLETE)
+      // is operator-set; if it is flipped to true before the migrate-payload-bytes
+      // script finishes, batch-upload deltas are still correct but the SUM-based
+      // reconcile in calculateStorageUsage would mix exact bytes with the
+      // CASE-WHEN fallback for legacy rows. One indexed probe at startup closes
+      // the trust hole: refuse to boot if any row still has payload_bytes = 0.
+      if (fullConfig.batchUpload) {
+        try {
+          await getSyncService().assertPayloadBytesBackfillComplete();
+        } catch (err) {
+          Logger.error('Startup self-check failed', err);
+          throw err;
+        }
+      }
 
       // Health Check - verifies database connectivity
       // Exempt from rate limiting (Kubernetes probes hit this every 5-15s)

@@ -150,6 +150,7 @@ export interface SuperSyncConfig extends WebDavConfig {
 
 export interface NextcloudConfig {
   serverUrl?: string | null;
+  loginName?: string | null;
   userName?: string | null;
   password?: string | null;
   syncFolderPath?: string | null;
@@ -263,6 +264,7 @@ export type FocusModeConfig = Readonly<{
    * Kept on the type so old persisted configs deserialize without errors.
    */
   isStartInBackground?: boolean;
+  /** Note: Controls Pomodoro overtime only (keeps timer running until manually ended) */
   isManualBreakStart?: boolean;
 }>;
 
