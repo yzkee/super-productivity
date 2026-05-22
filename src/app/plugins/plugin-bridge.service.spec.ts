@@ -846,7 +846,7 @@ describe('PluginBridgeService - dispatchAction privacy (#7619)', () => {
         { provide: MatDialog, useValue: {} },
         { provide: PluginHooksService, useValue: {} },
         { provide: TaskService, useValue: {} },
-        { provide: WorkContextService, useValue: {} },
+        { provide: WorkContextService, useValue: { activeWorkContext$: of(null) } },
         { provide: ProjectService, useValue: {} },
         { provide: TagService, useValue: {} },
         { provide: PluginUserPersistenceService, useValue: {} },
