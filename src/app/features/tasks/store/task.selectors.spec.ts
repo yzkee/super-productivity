@@ -5,6 +5,13 @@ import { taskAdapter } from './task.adapter';
 import { TODAY_TAG } from '../../tag/tag.const';
 import { getDbDateStr } from '../../../util/get-db-date-str';
 import { PROJECT_FEATURE_NAME } from '../../project/store/project.reducer';
+import {
+  selectAllProjects,
+  selectArchivedProjectIds,
+  selectArchivedProjects,
+  selectArrayOfArchivedProjectIds,
+  selectProjectFeatureState,
+} from '../../project/store/project.selectors';
 import { TAG_FEATURE_NAME } from '../../tag/store/tag.reducer';
 import { appStateFeatureKey } from '../../../root-store/app-state/app-state.reducer';
 
@@ -220,11 +227,27 @@ describe('Task Selectors', () => {
     fromSelectors.selectTaskByIdWithSubTaskData.clearResult();
     fromSelectors.selectOverdueTasksWithSubTasks.clearResult();
     fromSelectors.selectLaterTodayTasksWithSubTasks.clearResult();
+    fromSelectors.selectAllTasks.clearResult();
+    fromSelectors.selectAllTasksInActiveProjects.clearResult();
+    fromSelectors.selectOverdueTasks.clearResult();
+    selectProjectFeatureState.clearResult();
+    selectAllProjects.clearResult();
+    selectArchivedProjects.clearResult();
+    selectArrayOfArchivedProjectIds.clearResult();
+    selectArchivedProjectIds.clearResult();
     fromSelectors.selectAllTasksWithSubTasks.release();
     fromSelectors.selectAllRepeatableTaskWithSubTasks.release();
     fromSelectors.selectTaskByIdWithSubTaskData.release();
     fromSelectors.selectOverdueTasksWithSubTasks.release();
     fromSelectors.selectLaterTodayTasksWithSubTasks.release();
+    fromSelectors.selectAllTasks.release();
+    fromSelectors.selectAllTasksInActiveProjects.release();
+    fromSelectors.selectOverdueTasks.release();
+    selectProjectFeatureState.release();
+    selectAllProjects.release();
+    selectArchivedProjects.release();
+    selectArrayOfArchivedProjectIds.release();
+    selectArchivedProjectIds.release();
   });
 
   // Basic selectors
