@@ -690,8 +690,7 @@ export class GlobalThemeService {
    */
   /**
    * Read native safe area insets and set CSS variables.
-   * Works around Capacitor 7's broken adjustMarginsForEdgeToEdge and
-   * Android WebView's unreliable env(safe-area-inset-*) values.
+   * Works around Android WebView's unreliable env(safe-area-inset-*) values.
    */
   private _initSafeAreaInsets(): void {
     const applyInsets = (insets: {
