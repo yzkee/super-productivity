@@ -358,6 +358,14 @@ export class GlobalThemeService {
         });
     }
 
+    // VisualViewport keyboard-height tracking covers every non-iOS touch
+    // build: Capacitor Android, the legacy F-Droid build, and Android
+    // mobile-web. iOS uses _initIOSKeyboardHandling above; its Capacitor
+    // plugin already drives the same CSS variable and the two would race.
+    if (IS_TOUCH_ONLY && !this._platformService.isIOS()) {
+      this._initVisualViewportKeyboardTracking();
+    }
+
     // Use effect to reactively update animation class
     effect(() => {
       const misc = this._globalConfigService.misc();
@@ -604,6 +612,44 @@ export class GlobalThemeService {
       this._iosViewportChangeRaf = null;
       // Connected CDK overlays listen to viewport resize events via ViewportRuler.
       window.dispatchEvent(new Event('resize'));
+    });
+  }
+
+  /**
+   * Keyboard-height tracking via VisualViewport — the fallback path for any
+   * non-iOS touch build (Capacitor Android, F-Droid, mobile-web).
+   *
+   * Android's `adjustResize` is supposed to shrink the WebView when the IME
+   * appears, in which case `position: fixed; bottom: 0` would naturally sit
+   * above the keyboard. In practice it's inconsistent — depending on Chrome
+   * version, transient transitions, and edge-to-edge insets, the layout
+   * viewport sometimes does not shrink in step with the keyboard, leaving
+   * fixed-position UI hidden behind it.
+   *
+   * VisualViewport always reflects the actual visible area. The difference
+   * `window.innerHeight - visualViewport.height` is the obscured area —
+   * which is zero when adjustResize already handled it, and equals the
+   * keyboard height otherwise. Either way, `--keyboard-height` ends up
+   * correct without needing to know which path Android took.
+   */
+  private _initVisualViewportKeyboardTracking(): void {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const root = this.document.documentElement;
+    // Filter out small differences that come from URL bar / overlay UI
+    // rather than the IME — keeps us from setting a phantom keyboard offset.
+    const KEYBOARD_THRESHOLD_PX = 100;
+
+    const update = (): void => {
+      const obscured = window.innerHeight - vv.height;
+      const keyboardHeight = obscured > KEYBOARD_THRESHOLD_PX ? obscured : 0;
+      root.style.setProperty(CSS_VAR_KEYBOARD_HEIGHT, `${keyboardHeight}px`);
+    };
+
+    update();
+    vv.addEventListener('resize', update, { passive: true });
+    this._destroyRef.onDestroy(() => {
+      vv.removeEventListener('resize', update);
     });
   }
 
