@@ -31,6 +31,30 @@ export const selectUnarchivedHiddenProjectIds = createSelector(
 export const selectArchivedProjects = createSelector(selectAllProjects, (projects) =>
   projects.filter((p) => p.isArchived),
 );
+export const selectArchivedProjectsSortedByTitle = createSelector(
+  selectArchivedProjects,
+  (projects) => [...projects].sort((a, b) => a.title.localeCompare(b.title)),
+);
+export const selectArrayOfArchivedProjectIds = createSelector(
+  selectArchivedProjects,
+  (ps): string[] => ps.map((p) => p.id).sort(),
+);
+export const selectArchivedProjectIds = createSelector(
+  selectArrayOfArchivedProjectIds,
+  (ids): Set<string> => new Set(ids),
+);
+export const selectArrayOfHiddenProjectIds = createSelector(
+  selectAllProjects,
+  (projects) =>
+    projects
+      .filter((p) => p.isHiddenFromMenu)
+      .map((p) => p.id)
+      .sort(),
+);
+export const selectHiddenProjectIds = createSelector(
+  selectArrayOfHiddenProjectIds,
+  (ids): Set<string> => new Set(ids),
+);
 export const selectAllProjectColors = createSelector(selectAllProjects, (projects) =>
   projects.reduce((prev, cur) => ({ ...prev, [cur.id]: cur.theme?.primary }), {}),
 );
