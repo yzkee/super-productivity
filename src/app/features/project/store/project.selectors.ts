@@ -4,6 +4,7 @@ import { exists } from '../../../util/exists';
 import { PROJECT_FEATURE_NAME, projectAdapter } from './project.reducer';
 import { INBOX_PROJECT } from '../project.const';
 import { devError } from '../../../util/dev-error';
+import { Log } from '../../../core/log';
 
 export const selectProjectFeatureState =
   createFeatureSelector<ProjectState>(PROJECT_FEATURE_NAME);
@@ -81,7 +82,11 @@ export const selectProjectById = createSelector(
     }
     const p = state.entities[props.id];
     if (!p) {
-      devError('Project ' + props.id + ' not found');
+      // Log only — a project the user is viewing can vanish via sync
+      // (SYNC_IMPORT_REMOTE, remote delete). devError's window.alert would
+      // block the whole browser on a legitimate runtime state. Matches the
+      // pattern in work-context.selectors.ts for the same case.
+      Log.err('Project ' + props.id + ' not found');
       return undefined;
     }
     return p;
