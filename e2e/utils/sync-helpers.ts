@@ -7,6 +7,10 @@ import {
 import { expect } from '@playwright/test';
 import { waitForAppReady } from './waits';
 import type { SyncPage } from '../pages/sync.page';
+import {
+  attachPageErrorCollector,
+  guardContextCloseWithRuntimeErrorCheck,
+} from './runtime-errors';
 
 /**
  * WebDAV configuration interface
@@ -68,12 +72,15 @@ export const createSyncFolder = async (
       },
     });
     if (!response.ok() && response.status() !== 405) {
-      console.warn(
-        `Failed to create WebDAV folder: ${response.status()} ${response.statusText()}`,
+      throw new Error(
+        `Failed to create WebDAV folder "${folderName}": ${response.status()} ${response.statusText()}`,
       );
     }
   } catch (e) {
-    console.warn('Error creating WebDAV folder:', e);
+    const message = e instanceof Error ? e.message : String(e);
+    throw new Error(
+      `Error creating WebDAV folder "${folderName}" at ${mkcolUrl}: ${message}`,
+    );
   }
 };
 
@@ -99,6 +106,8 @@ export const setupSyncClient = async (
 ): Promise<{ context: BrowserContext; page: Page }> => {
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
+  const pageErrors = attachPageErrorCollector(page, 'WebDAV sync client');
+  guardContextCloseWithRuntimeErrorCheck(context, pageErrors, 'WebDAV sync client');
 
   // Skip onboarding, hints, and example tasks before the app boots.
   // This runs before any page JavaScript, so Angular sees the flags immediately.
