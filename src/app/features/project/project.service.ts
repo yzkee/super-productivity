@@ -142,65 +142,30 @@ export class ProjectService {
     );
   }
 
-  async archive(projectId: string): Promise<boolean> {
-    const project = await firstValueFrom(this.getByIdOnce$(projectId));
-    if (!project) {
-      return false;
-    }
-    const isConfirmed = await firstValueFrom(
-      this._matDialog
-        .open(DialogConfirmComponent, {
-          restoreFocus: true,
-          data: {
-            message: T.F.PROJECT.D_CONFIRM_ARCHIVE.MSG,
-            okTxt: T.F.PROJECT.D_CONFIRM_ARCHIVE.OK,
-            translateParams: { title: project.title },
-          },
-        })
-        .afterClosed(),
-    );
-    if (!isConfirmed) {
-      return false;
-    }
-    this._archiveNow(projectId);
-    return true;
-  }
-
-  unarchive(projectId: string): void {
-    this._store$.dispatch(unarchiveProject({ id: projectId }));
-    // NgRx `Store.select` is BehaviorSubject-backed so `take(1).subscribe()`
-    // emits synchronously — we read the snapshot before opening the snack.
-    let isHiddenFromMenu = false;
-    this._store$
-      .select(selectProjectById, { id: projectId })
-      .pipe(take(1))
-      .subscribe((p) => {
-        isHiddenFromMenu = !!p?.isHiddenFromMenu;
-      });
-    const snack = isHiddenFromMenu
-      ? {
-          ico: 'unarchive',
-          msg: T.F.PROJECT.S.UNARCHIVED_HIDDEN_FROM_MENU,
-          actionStr: T.F.PROJECT.ARCHIVED_PROJECTS.SHOW_IN_MENU,
-          actionFn: () => this._store$.dispatch(toggleHideFromMenu({ id: projectId })),
-        }
-      : {
-          ico: 'unarchive',
-          msg: T.F.PROJECT.S.UNARCHIVED,
-          actionStr: T.G.UNDO,
-          // Undo skips the archive confirm dialog — the user is explicitly
-          // reversing the unarchive they just performed.
-          actionFn: () => this._archiveNow(projectId),
-        };
-    this._snackService.open(snack);
-  }
-
-  private _archiveNow(projectId: string): void {
+  archive(projectId: string): void {
     this._store$.dispatch(archiveProject({ id: projectId }));
     this._snackService.open({
       ico: 'archive',
       msg: T.F.PROJECT.S.ARCHIVED,
     });
+  }
+
+  async unarchive(projectId: string): Promise<void> {
+    const project = await firstValueFrom(this.getByIdOnce$(projectId));
+    this._store$.dispatch(unarchiveProject({ id: projectId }));
+    this._snackService.open(
+      project?.isHiddenFromMenu
+        ? {
+            ico: 'unarchive',
+            msg: T.F.PROJECT.S.UNARCHIVED_HIDDEN_FROM_MENU,
+            actionStr: T.F.PROJECT.S.SHOW_IN_MENU,
+            actionFn: () => this._store$.dispatch(toggleHideFromMenu({ id: projectId })),
+          }
+        : {
+            ico: 'unarchive',
+            msg: T.F.PROJECT.S.UNARCHIVED,
+          },
+    );
   }
 
   getByIdOnce$(id: string): Observable<Project | undefined> {
