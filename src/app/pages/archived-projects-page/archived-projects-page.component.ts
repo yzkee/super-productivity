@@ -12,6 +12,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { MatFormField, MatLabel, MatSuffix } from '@angular/material/form-field';
 import { MatInput } from '@angular/material/input';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { selectArchivedProjectsSortedByTitle } from '../../features/project/store/project.selectors';
 import { ProjectService } from '../../features/project/project.service';
@@ -34,6 +35,7 @@ import { T } from '../../t.const';
     MatInput,
     MatSuffix,
     FormsModule,
+    RouterLink,
     TranslatePipe,
   ],
 })

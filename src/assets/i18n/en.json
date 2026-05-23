@@ -897,6 +897,10 @@
       "BREAK_IS_DONE": "Break is over!"
     },
     "PROJECT": {
+      "D_CONFIRM_ARCHIVE": {
+        "MSG": "Archive the project \"{{title}}\"? Tasks, repeating configs and reminders are paused until you restore it.",
+        "OK": "Archive"
+      },
       "D_CONFIRM_DUPLICATE_BIG_PROJECT": {
         "CANCEL": "Cancel",
         "MSG": "This project is large and may take a while to duplicate. Do you want to proceed?",
@@ -942,13 +946,16 @@
         "ARCHIVED": "Archived Project",
         "CREATED": "Created project <strong>{{title}}</strong>. You can select it from the menu on the top left.",
         "DELETED": "Deleted Project",
-        "UNARCHIVED": "Project unarchived. It may still be hidden from the menu.",
+        "UNARCHIVED": "Project restored",
+        "UNARCHIVED_HIDDEN_FROM_MENU": "Project restored, but still hidden from the menu",
         "UPDATED": "Updated project settings"
       },
       "ARCHIVED_PROJECTS": {
+        "ARCHIVED_NOTICE": "This project is archived. Restore it to resume reminders and repeating tasks.",
         "EMPTY": "No archived projects.",
         "LINK_LABEL": "Archived projects",
         "SEARCH": "Search archived projects",
+        "SHOW_IN_MENU": "Show in menu",
         "UNARCHIVE": "Restore project"
       }
     },

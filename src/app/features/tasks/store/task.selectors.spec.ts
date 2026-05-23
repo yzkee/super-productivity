@@ -1042,4 +1042,111 @@ describe('Task Selectors', () => {
       expect(result.every((t) => !t.isDone)).toBe(true);
     });
   });
+
+  // Defensive regression coverage: these selectors compose from
+  // `selectAllTasksInActiveProjects` and therefore must inherit the
+  // archived-project filter. If a future refactor swaps their input back to
+  // `selectAllTasks`, these tests catch the regression.
+  describe('Archive filter pass-through on derived selectors', () => {
+    const archivedTaskWithReminder: Task = {
+      ...DEFAULT_TASK,
+      id: 'reminderInArchived',
+      title: 'Reminder in archived project',
+      projectId: 'projectArchived',
+      remindAt: Date.now() + 60_000,
+      created: Date.now(),
+      subTaskIds: [],
+      tagIds: [],
+      timeSpentOnDay: {},
+    };
+    const activeTaskWithReminder: Task = {
+      ...DEFAULT_TASK,
+      id: 'reminderInActive',
+      title: 'Reminder in active project',
+      projectId: 'project2',
+      remindAt: Date.now() + 60_000,
+      created: Date.now(),
+      subTaskIds: [],
+      tagIds: [],
+      timeSpentOnDay: {},
+    };
+    const archivedTaskWithDeadline: Task = {
+      ...DEFAULT_TASK,
+      id: 'deadlineInArchived',
+      title: 'Deadline reminder in archived project',
+      projectId: 'projectArchived',
+      deadlineRemindAt: Date.now() + 60_000,
+      created: Date.now(),
+      subTaskIds: [],
+      tagIds: [],
+      timeSpentOnDay: {},
+    };
+    const archivedOverdueTask: Task = {
+      ...DEFAULT_TASK,
+      id: 'overdueInArchived',
+      title: 'Overdue in archived project',
+      projectId: 'projectArchived',
+      dueDay: yesterday,
+      created: Date.now(),
+      subTaskIds: [],
+      tagIds: [],
+      timeSpentOnDay: {},
+    };
+
+    const archivedState = {
+      ...mockState,
+      [TASK_FEATURE_NAME]: {
+        ...mockTaskState,
+        ids: [
+          ...mockTaskState.ids,
+          archivedTaskWithReminder.id,
+          activeTaskWithReminder.id,
+          archivedTaskWithDeadline.id,
+          archivedOverdueTask.id,
+        ],
+        entities: {
+          ...mockTaskState.entities,
+          [archivedTaskWithReminder.id]: archivedTaskWithReminder,
+          [activeTaskWithReminder.id]: activeTaskWithReminder,
+          [archivedTaskWithDeadline.id]: archivedTaskWithDeadline,
+          [archivedOverdueTask.id]: archivedOverdueTask,
+        },
+      },
+      [PROJECT_FEATURE_NAME]: {
+        ...mockState[PROJECT_FEATURE_NAME],
+        ids: [...mockState[PROJECT_FEATURE_NAME].ids, 'projectArchived'],
+        entities: {
+          ...mockState[PROJECT_FEATURE_NAME].entities,
+          projectArchived: {
+            id: 'projectArchived',
+            title: 'Archived Project',
+            isHiddenFromMenu: false,
+            isArchived: true,
+          },
+        },
+      },
+    };
+
+    it('selectAllTasksWithReminder excludes tasks from archived projects', () => {
+      const ids = fromSelectors
+        .selectAllTasksWithReminder(archivedState as any)
+        .map((t) => t.id);
+      expect(ids).toContain('reminderInActive');
+      expect(ids).not.toContain('reminderInArchived');
+    });
+
+    it('selectAllTasksWithDeadlineReminder excludes tasks from archived projects', () => {
+      const ids = fromSelectors
+        .selectAllTasksWithDeadlineReminder(archivedState as any)
+        .map((t) => t.id);
+      expect(ids).not.toContain('deadlineInArchived');
+    });
+
+    it('selectOverdueTasks excludes tasks from archived projects', () => {
+      const ids = fromSelectors.selectOverdueTasks(archivedState as any).map((t) => t.id);
+      expect(ids).not.toContain('overdueInArchived');
+      // task6 (overdue, in active project1) still shows up
+      expect(ids).toContain('task6');
+    });
+  });
 });

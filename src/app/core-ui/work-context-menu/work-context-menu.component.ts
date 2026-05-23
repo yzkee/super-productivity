@@ -126,8 +126,8 @@ export class WorkContextMenuComponent implements OnInit {
 
   async archiveProject(): Promise<void> {
     const activeId = this._workContextService.activeWorkContextId;
-    this._projectService.archive(this.contextId);
-    if (activeId === this.contextId) {
+    const wasArchived = await this._projectService.archive(this.contextId);
+    if (wasArchived && activeId === this.contextId) {
       await this._router.navigateByUrl('/');
     }
   }

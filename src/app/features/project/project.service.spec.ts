@@ -1,6 +1,7 @@
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { ProjectService } from './project.service';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { selectTaskFeatureState } from '../tasks/store/task.selectors';
 import { TaskState } from '../tasks/task.model';
 import { TaskService } from '../tasks/task.service';
@@ -27,6 +28,8 @@ describe('ProjectService', () => {
   let snackService: jasmine.SpyObj<SnackService>;
   let workContextService: jasmine.SpyObj<WorkContextService>;
   let timeTrackingService: jasmine.SpyObj<TimeTrackingService>;
+  let matDialog: jasmine.SpyObj<MatDialog>;
+  let confirmResult$: any;
 
   /* eslint-disable @typescript-eslint/naming-convention */
   const initialTaskState: TaskState = {
@@ -112,8 +115,10 @@ describe('ProjectService', () => {
             projects: {
               ids: ['project-1', 'project-2'],
               entities: {
-                project1: createProject({ id: 'project-1', title: 'Project 1' }),
-                project2: createProject({ id: 'project-2', title: 'Project 2' }),
+                /* eslint-disable @typescript-eslint/naming-convention */
+                'project-1': createProject({ id: 'project-1', title: 'Project 1' }),
+                'project-2': createProject({ id: 'project-2', title: 'Project 2' }),
+                /* eslint-enable @typescript-eslint/naming-convention */
               },
             },
           },
@@ -148,8 +153,17 @@ describe('ProjectService', () => {
             getStartOfNextDayDiffMs: () => 0,
           },
         },
+        {
+          provide: MatDialog,
+          useValue: jasmine.createSpyObj('MatDialog', ['open']),
+        },
       ],
     });
+    matDialog = TestBed.inject(MatDialog) as jasmine.SpyObj<MatDialog>;
+    confirmResult$ = of(true);
+    matDialog.open.and.callFake(
+      () => ({ afterClosed: () => confirmResult$ }) as MatDialogRef<unknown>,
+    );
     workContextService.activeWorkContext$ = EMPTY;
     workContextService.activeWorkContextTypeAndId$ = of({
       activeId: 'project-1',
@@ -282,30 +296,33 @@ describe('ProjectService', () => {
   });
 
   describe('archive', () => {
-    it('should dispatch archiveProject action', () => {
+    it('opens a confirm dialog and dispatches archiveProject when confirmed', async () => {
+      confirmResult$ = of(true);
       const dispatchSpy = spyOn(store, 'dispatch').and.callThrough();
-      service.archive('project-1');
+      const result = await service.archive('project-1');
+      expect(matDialog.open).toHaveBeenCalled();
       const types = dispatchSpy.calls.allArgs().map((args: any) => args[0]?.type);
       expect(types).toContain('[Project] Archive Project');
+      expect(result).toBe(true);
     });
 
-    it('should show snack with archive icon and UNDO action', () => {
-      service.archive('project-1');
-      expect(snackService.open).toHaveBeenCalledWith(
-        jasmine.objectContaining({
-          ico: 'archive',
-          msg: T.F.PROJECT.S.ARCHIVED,
-          actionStr: T.G.UNDO,
-        }),
-      );
+    it('shows a snack without an UNDO action after confirmation', async () => {
+      confirmResult$ = of(true);
+      await service.archive('project-1');
+      expect(snackService.open).toHaveBeenCalledWith({
+        ico: 'archive',
+        msg: T.F.PROJECT.S.ARCHIVED,
+      });
     });
 
-    it('should call unarchive when snack actionFn is triggered', () => {
-      spyOn(service, 'unarchive');
-      service.archive('project-1');
-      const callArgs = snackService.open.calls.mostRecent().args[0] as any;
-      callArgs.actionFn();
-      expect(service.unarchive).toHaveBeenCalledWith('project-1');
+    it('does not dispatch or snack when the dialog is cancelled', async () => {
+      confirmResult$ = of(false);
+      const dispatchSpy = spyOn(store, 'dispatch').and.callThrough();
+      const result = await service.archive('project-1');
+      const types = dispatchSpy.calls.allArgs().map((args: any) => args[0]?.type);
+      expect(types).not.toContain('[Project] Archive Project');
+      expect(snackService.open).not.toHaveBeenCalled();
+      expect(result).toBe(false);
     });
   });
 
@@ -328,12 +345,55 @@ describe('ProjectService', () => {
       );
     });
 
-    it('should call archive when snack actionFn is triggered', () => {
-      spyOn(service, 'archive');
+    it('re-archives without confirmation when the UNDO action fires', () => {
+      const dispatchSpy = spyOn(store, 'dispatch').and.callThrough();
       service.unarchive('project-1');
       const callArgs = snackService.open.calls.mostRecent().args[0] as any;
+      dispatchSpy.calls.reset();
       callArgs.actionFn();
-      expect(service.archive).toHaveBeenCalledWith('project-1');
+      expect(matDialog.open).not.toHaveBeenCalled();
+      const types = dispatchSpy.calls.allArgs().map((args: any) => args[0]?.type);
+      expect(types).toContain('[Project] Archive Project');
+    });
+
+    describe('when project is still hidden from the menu', () => {
+      beforeEach(() => {
+        store.setState({
+          projects: {
+            ids: ['project-1'],
+            entities: {
+              /* eslint-disable @typescript-eslint/naming-convention */
+              'project-1': createProject({
+                id: 'project-1',
+                title: 'Hidden Project',
+                isHiddenFromMenu: true,
+              }),
+              /* eslint-enable @typescript-eslint/naming-convention */
+            },
+          },
+        });
+      });
+
+      it('should show the hidden-from-menu snack message', () => {
+        service.unarchive('project-1');
+        expect(snackService.open).toHaveBeenCalledWith(
+          jasmine.objectContaining({
+            ico: 'unarchive',
+            msg: T.F.PROJECT.S.UNARCHIVED_HIDDEN_FROM_MENU,
+            actionStr: T.F.PROJECT.ARCHIVED_PROJECTS.SHOW_IN_MENU,
+          }),
+        );
+      });
+
+      it('should dispatch toggleHideFromMenu when the snack action is invoked', () => {
+        const dispatchSpy = spyOn(store, 'dispatch').and.callThrough();
+        service.unarchive('project-1');
+        const callArgs = snackService.open.calls.mostRecent().args[0] as any;
+        dispatchSpy.calls.reset();
+        callArgs.actionFn();
+        const types = dispatchSpy.calls.allArgs().map((args: any) => args[0]?.type);
+        expect(types).toContain('[Project] Toggle hide from menu');
+      });
     });
   });
 });
