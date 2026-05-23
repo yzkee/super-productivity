@@ -82,6 +82,11 @@ export class CapacitorReminderService {
   async initialize(): Promise<void> {
     if (this._platformService.isIOS()) {
       await this._notificationService.registerReminderActions();
+      // Trigger the iOS system permission dialog at app launch.
+      // Without this, the prompt only appears the first time a reminder is
+      // scheduled — which may be much later, or never if the user opens the
+      // app passively, leaving notifications silently disabled.
+      await this._notificationService.ensurePermissions();
     }
   }
 
