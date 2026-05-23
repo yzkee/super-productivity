@@ -1,3 +1,25 @@
+@if (currentProject()?.isArchived) {
+  <div
+    class="archived-notice"
+    role="status"
+    aria-live="polite"
+  >
+    <mat-icon
+      class="archived-notice-icon"
+      aria-hidden="true"
+      >archive</mat-icon
+    >
+    <span class="archived-notice-text">{{
+      T.F.PROJECT.ARCHIVED_PROJECTS.ARCHIVED_NOTICE | translate
+    }}</span>
+    <button
+      mat-button
+      (click)="restoreProject()"
+    >
+      {{ T.F.PROJECT.ARCHIVED_PROJECTS.UNARCHIVE | translate }}
+    </button>
+  </div>
+}
 <work-view
   [backlogTasks]="backlogTasks()"
   [doneTasks]="doneTasks()"

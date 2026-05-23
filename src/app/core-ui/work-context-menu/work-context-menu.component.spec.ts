@@ -24,6 +24,7 @@ describe('WorkContextMenuComponent', () => {
       'unarchive',
       'getByIdOnce$',
     ]);
+    mockProjectService.archive.and.returnValue(Promise.resolve(true));
     mockWorkContextService = { activeWorkContextId: undefined };
 
     const mockShareService = jasmine.createSpyObj('ShareService', ['getShareSupport']);
@@ -80,6 +81,13 @@ describe('WorkContextMenuComponent', () => {
       mockWorkContextService.activeWorkContextId = undefined;
       await component.archiveProject();
       expect(mockProjectService.archive).toHaveBeenCalledWith('project-123');
+      expect(router.navigateByUrl).not.toHaveBeenCalled();
+    });
+
+    it('does not navigate when the archive confirmation is cancelled', async () => {
+      mockProjectService.archive.and.returnValue(Promise.resolve(false));
+      mockWorkContextService.activeWorkContextId = 'project-123';
+      await component.archiveProject();
       expect(router.navigateByUrl).not.toHaveBeenCalled();
     });
   });

@@ -33,13 +33,18 @@
       >
         @for (project of filteredProjects(); track project.id) {
           <li class="project-row">
-            <mat-icon
-              class="project-icon"
-              aria-hidden="true"
-              [style.color]="project.theme?.primary || null"
-              >{{ project.icon || DEFAULT_PROJECT_ICON }}</mat-icon
+            <a
+              class="project-link"
+              [routerLink]="['/project', project.id, 'tasks']"
             >
-            <span class="project-title">{{ project.title }}</span>
+              <mat-icon
+                class="project-icon"
+                aria-hidden="true"
+                [style.color]="project.theme?.primary || null"
+                >{{ project.icon || DEFAULT_PROJECT_ICON }}</mat-icon
+              >
+              <span class="project-title">{{ project.title }}</span>
+            </a>
             <button
               mat-icon-button
               [matTooltip]="T.F.PROJECT.ARCHIVED_PROJECTS.UNARCHIVE | translate"

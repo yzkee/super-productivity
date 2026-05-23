@@ -23,12 +23,30 @@
 .project-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 0;
+  gap: var(--s);
+  padding: var(--s) 0;
   border-bottom: 1px solid var(--divider-color);
 
   &:last-child {
     border-bottom: none;
+  }
+}
+
+.project-link {
+  display: flex;
+  align-items: center;
+  gap: var(--s);
+  flex: 1;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--s-half);
+  padding: var(--s-half);
+  margin: calc(var(--s-half) * -1);
+
+  &:hover,
+  &:focus-visible {
+    background: var(--state-hover);
   }
 }
 
@@ -39,5 +57,7 @@
 
 .project-title {
   flex: 1;
-  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
