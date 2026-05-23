@@ -34,14 +34,17 @@ import { createTaskRefNode, type TaskRefNodeDeps } from './task-ref-node';
 
 declare const PluginAPI: PluginAPI;
 
-// Save cadence. This is a *throttle*, not a debounce: the host tears the
-// embed iframe down on every work-context switch, so a save deferred until
-// the user goes idle (or until teardown) routinely never runs. Committing
-// every SAVE_THROTTLE_MS while editing keeps the doc blob fresh in host
-// storage while the iframe is still alive. Kept above the host's 1 s
-// persist rate limit (MIN_PLUGIN_PERSIST_INTERVAL_MS) so saves aren't
-// rejected.
-const SAVE_THROTTLE_MS = 2_000;
+// Save cadence. This is a *throttle*, not a debounce: a debounce would never
+// fire for a continuous typist, and the host tears the embed iframe down on
+// every work-context switch. The throttle bounds op-rate during typing; the
+// real safety net against data loss is the set of flush triggers wired up in
+// mount(): `visibilitychange`, `blur`, `pagehide`, `unload`, plus the
+// explicit `flushSaveSync` on work-context change. Together those cover
+// every non-crash "user is done editing for now" moment, so the throttle
+// ceiling is only paid on actual process termination without any of those
+// firing. Kept above the host's 1 s persist rate limit
+// (MIN_PLUGIN_PERSIST_INTERVAL_MS) so saves aren't rejected.
+const SAVE_THROTTLE_MS = 30_000;
 const STORAGE_VERSION = 1;
 
 // Action type the host emits for an in-place single-task update (NgRx
@@ -67,6 +70,12 @@ let taskCache = new Map<string, Task>();
  */
 const lookupTask: TaskLookup = (id) => taskCache.get(id);
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+// True from the moment the throttled `flushSave` setTimeout fires until its
+// async readBlob+persist round-trip completes. The dirty signal moves from
+// `saveTimer` to this flag for the duration, so a teardown that arrives
+// mid-flight (pagehide/unload while `await readBlob()` is suspended) still
+// triggers the sync safety-net write in `flushSaveSync`.
+let saveInFlight = false;
 let editor: Editor | null = null;
 let isLoadingDoc = false;
 // Set when the stored doc for the current ctx failed to parse and we fell
@@ -272,6 +281,7 @@ const flushSave = async (): Promise<void> => {
     saveTimer = null;
   }
   if (!currentCtx || !editor) return;
+  saveInFlight = true;
   try {
     const latest = await readBlob();
     const merged: StoredState = {
@@ -282,6 +292,8 @@ const flushSave = async (): Promise<void> => {
     await PluginAPI.persistDataSynced(JSON.stringify(merged));
   } catch (err) {
     logErr('persistDataSynced failed', err);
+  } finally {
+    saveInFlight = false;
   }
 };
 
@@ -297,7 +309,9 @@ const flushSave = async (): Promise<void> => {
  *
  * This variant skips the round-trip: it builds the blob from the in-memory
  * `storedState` and dispatches `persistDataSynced` synchronously, so the
- * postMessage leaves the iframe before it dies.
+ * postMessage leaves the iframe before it dies. The host transparently
+ * compresses the payload on its end (see `plugin-data-codec.ts`), so this
+ * path still benefits from the size win.
  *
  * Trade-off: an `enabledCtxIds` change made by background.ts since our last
  * `readBlob` would be written back stale. That field only changes on an
@@ -305,6 +319,12 @@ const flushSave = async (): Promise<void> => {
  * window is effectively nil, and losing the whole doc is the worse outcome.
  */
 const flushSaveSync = (): void => {
+  // Dirty signal: a timer is pending (edits queued for the throttle window)
+  // OR an async flushSave is mid-flight (its readBlob round-trip is awaiting
+  // a response that may never arrive if teardown is now). Skipping when
+  // neither is true avoids a full stringify + gzip on every blur (which
+  // fires on any focus shift inside the page).
+  if (saveTimer === null && !saveInFlight) return;
   if (saveTimer !== null) {
     clearTimeout(saveTimer);
     saveTimer = null;
@@ -2004,13 +2024,20 @@ const mount = async (): Promise<void> => {
     onAnyTaskUpdate(payload as AnyTaskUpdatePayload);
   });
 
-  // Best-effort teardown flush. The throttled save above is the real
-  // safety net (it commits while the iframe is unquestionably alive); this
-  // only catches edits made in the last < SAVE_THROTTLE_MS before the
-  // iframe is discarded. `pagehide` and `unload` are both wired up because
-  // browsers are inconsistent about which fires when an iframe element is
-  // removed from the DOM — flushSaveSync is idempotent, so double-firing
-  // is harmless.
+  // Flush triggers. `flushSaveSync` is idempotent, so overlap is harmless.
+  //
+  // - `visibilitychange` (on 'hidden') covers tab-switch, window-minimize,
+  //   mobile-background, and screen-lock. The iframe's visibilityState
+  //   mirrors the top-level document.
+  // - `blur` covers focus moving between iframes within the same page —
+  //   which `visibilitychange` does not catch.
+  // - `pagehide` / `unload` cover iframe teardown; browsers are inconsistent
+  //   about which fires when an iframe element is removed from the DOM, so
+  //   both are wired.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushSaveSync();
+  });
+  window.addEventListener('blur', () => flushSaveSync());
   window.addEventListener('pagehide', () => flushSaveSync());
   window.addEventListener('unload', () => flushSaveSync());
 };

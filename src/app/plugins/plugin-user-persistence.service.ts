@@ -8,11 +8,18 @@ import {
 } from './plugin-persistence.model';
 import { upsertPluginUserData, deletePluginUserData } from './store/plugin.actions';
 import { selectPluginUserDataFeatureState } from './store/plugin-user-data.reducer';
+import { decodeFromPersist, encodeForPersist } from './util/plugin-data-codec';
+import { PluginLog } from '../core/log';
 
 /**
  * Service for persisting plugin user data using NgRx actions.
  * Handles data that plugins store and retrieve via persistDataSynced/loadSyncedData.
  * Includes rate limiting and size validation to prevent abuse.
+ *
+ * Data is transparently gzip-compressed at the persistence boundary (see
+ * `plugin-data-codec.ts`). Plugins only see their own raw strings; the
+ * compressed form lives in NgRx state, IndexedDB, the op-log, and on the
+ * sync server, shrinking per-op payloads ~4–5× for typical JSON.
  */
 @Injectable({
   providedIn: 'root',
@@ -28,6 +35,7 @@ export class PluginUserPersistenceService {
   /**
    * Data that arrived inside the rate-limit window and is waiting to be
    * committed. Coalesced — only the most recent value per plugin is kept.
+   * Holds *uncompressed* input (compression happens at commit time).
    */
   private _pendingData = new Map<string, string>();
 
@@ -35,6 +43,32 @@ export class PluginUserPersistenceService {
    * Active flush timers for coalesced writes, keyed by plugin id.
    */
   private _flushTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  /**
+   * The latest uncompressed input for a plugin whose `_commit` has started
+   * but whose async compression has not yet dispatched. A read in this
+   * window must see the latest write (read-your-writes), so we hold the
+   * raw input here until the dispatch lands.
+   */
+  private _committing = new Map<string, string>();
+
+  /**
+   * Per-plugin commit chain. Compression is async (`CompressionStream`),
+   * so two `_commit` calls in quick succession could finish out of order
+   * and dispatch a stale write last. Chaining serializes
+   * compress-then-dispatch per plugin while leaving different plugins
+   * concurrent.
+   */
+  private _commitChain = new Map<string, Promise<void>>();
+
+  /**
+   * Per-plugin generation counter. Bumped by `_cancelPending` so any
+   * in-flight `_commit` whose compression started under an older
+   * generation aborts before dispatching. Without this, a
+   * `removePluginUserData` issued during an async compress would be
+   * silently undone by the resurrecting upsert that lands afterwards.
+   */
+  private _commitGeneration = new Map<string, number>();
 
   /**
    * Persist user data for a specific plugin (called by plugin via persistDataSynced).
@@ -46,10 +80,27 @@ export class PluginUserPersistenceService {
    * the caller's most recent data. Dropping it silently lost edits — e.g. a
    * plugin's final save on teardown landing just after a periodic save.
    *
+   * Returns a Promise that resolves once the data has been compressed and
+   * dispatched (or queued for a future commit). The size-cap check is
+   * synchronous: callers that hit the limit get a thrown Error, not a
+   * rejected Promise, so the existing `try { persist(...) } catch` pattern
+   * keeps working.
+   *
+   * Read-modify-write contract: a `loadPluginUserData` whose result is then
+   * mutated and passed back via `persistPluginUserData` must not span a
+   * `removePluginUserData` for the same plugin. The remove invalidates any
+   * in-flight commit (via the generation counter), but a fresh `persist`
+   * issued from a stale `load` result *after* the remove is a new write and
+   * will resurrect the entry — the codec cannot distinguish "user wants
+   * this back" from "stale read". Callers performing RMW after a delete
+   * must `loadPluginUserData` again first.
+   *
    * @throws Error if data exceeds MAX_PLUGIN_DATA_SIZE
    */
-  persistPluginUserData(pluginId: string, data: string): void {
+  persistPluginUserData(pluginId: string, data: string): Promise<void> {
     // Validate data size — applies whether the write commits now or later.
+    // Cap is on the uncompressed user input, so a plugin can't bypass by
+    // sending pre-compressed bytes.
     const dataSize = new Blob([data]).size;
     if (dataSize > MAX_PLUGIN_DATA_SIZE) {
       throw new Error(
@@ -71,37 +122,75 @@ export class PluginUserPersistenceService {
         const delay = MIN_PLUGIN_PERSIST_INTERVAL_MS - timeSinceLastPersist;
         this._flushTimers.set(
           pluginId,
-          setTimeout(() => this._flushPendingData(pluginId), delay),
+          setTimeout(() => {
+            void this._flushPendingData(pluginId);
+          }, delay),
         );
       }
-      return;
+      return Promise.resolve();
     }
 
-    this._commit(pluginId, data, now);
+    return this._commit(pluginId, data, now);
   }
 
   /**
    * Commit a coalesced write once its rate-limit window has elapsed.
    */
-  private _flushPendingData(pluginId: string): void {
+  private async _flushPendingData(pluginId: string): Promise<void> {
     this._flushTimers.delete(pluginId);
     const data = this._pendingData.get(pluginId);
     if (data === undefined) {
       return;
     }
     this._pendingData.delete(pluginId);
-    this._commit(pluginId, data, Date.now());
+    await this._commit(pluginId, data, Date.now());
   }
 
   /**
-   * Dispatch the persist action and record the commit time for rate limiting.
+   * Compress and dispatch. Serialized per plugin via `_commitChain` to
+   * preserve write order even if compression times vary across calls.
    */
-  private _commit(pluginId: string, data: string, at: number): void {
+  private _commit(pluginId: string, data: string, at: number): Promise<void> {
     this._lastPersistTime.set(pluginId, at);
-    const pluginUserData: PluginUserData = {
-      id: pluginId,
-      data,
-    };
+    this._committing.set(pluginId, data);
+    // Capture the generation at the moment we schedule. If a remove bumps
+    // it before this commit's compression finishes, _encodeAndDispatch
+    // bails and the upsert is suppressed — preventing post-delete
+    // resurrection.
+    const myGeneration = this._commitGeneration.get(pluginId) ?? 0;
+
+    const prev = this._commitChain.get(pluginId) ?? Promise.resolve();
+    // Swallow prior errors so the chain doesn't poison subsequent writes.
+    // The original failed call has already seen and surfaced its own error.
+    const next: Promise<void> = prev
+      .catch(() => undefined)
+      .then(() => this._encodeAndDispatch(pluginId, data, myGeneration));
+    this._commitChain.set(pluginId, next);
+
+    next.finally(() => {
+      if (this._committing.get(pluginId) === data) {
+        this._committing.delete(pluginId);
+      }
+      if (this._commitChain.get(pluginId) === next) {
+        this._commitChain.delete(pluginId);
+      }
+    });
+
+    return next;
+  }
+
+  private async _encodeAndDispatch(
+    pluginId: string,
+    data: string,
+    generation: number,
+  ): Promise<void> {
+    const encoded = await encodeForPersist(data);
+    if ((this._commitGeneration.get(pluginId) ?? 0) !== generation) {
+      // A removePluginUserData / clearAllPluginUserData ran between
+      // schedule and dispatch. Dropping the upsert preserves the delete.
+      return;
+    }
+    const pluginUserData: PluginUserData = { id: pluginId, data: encoded };
     this._store.dispatch(upsertPluginUserData({ pluginUserData }));
   }
 
@@ -109,18 +198,38 @@ export class PluginUserPersistenceService {
    * Load user data for a specific plugin (called by plugin via loadSyncedData).
    *
    * Returns a coalesced-but-not-yet-committed write if one is pending, so a
-   * plugin's read-modify-write cycle always sees its own latest data.
+   * plugin's read-modify-write cycle always sees its own latest data. Same
+   * applies to a commit that has started compression but not yet dispatched.
+   *
+   * Otherwise reads from NgRx state and decompresses transparently.
    */
   async loadPluginUserData(pluginId: string): Promise<string | null> {
     const pending = this._pendingData.get(pluginId);
     if (pending !== undefined) {
       return pending;
     }
+    const committing = this._committing.get(pluginId);
+    if (committing !== undefined) {
+      return committing;
+    }
     const currentState = await firstValueFrom(
       this._store.select(selectPluginUserDataFeatureState),
     );
     const pluginData = currentState.find((item) => item.id === pluginId);
-    return pluginData?.data || null;
+    if (!pluginData?.data) {
+      return null;
+    }
+    try {
+      return await decodeFromPersist(pluginData.data);
+    } catch (err) {
+      // Don't log `err` directly — gzip/atob messages can contain partial
+      // payload bytes from user content. Surface only the error class.
+      PluginLog.err('PluginUserPersistenceService: failed to decode stored data', {
+        pluginId,
+        errName: (err as Error)?.name,
+      });
+      return null;
+    }
   }
 
   /**
@@ -133,7 +242,10 @@ export class PluginUserPersistenceService {
 
   /**
    * Drop any pending coalesced write (and its timer) for a plugin, so it
-   * cannot resurrect data that is being removed.
+   * cannot resurrect data that is being removed. Also bumps the commit
+   * generation so an *in-flight* `_commit` (already past its rate-limit
+   * check, currently awaiting compression) detects the cancel and skips
+   * its dispatch — the upsert would otherwise undo this delete.
    */
   private _cancelPending(pluginId: string): void {
     const timer = this._flushTimers.get(pluginId);
@@ -142,17 +254,16 @@ export class PluginUserPersistenceService {
       this._flushTimers.delete(pluginId);
     }
     this._pendingData.delete(pluginId);
-  }
-
-  /**
-   * Get all plugin user data
-   */
-  async getAllPluginUserData(): Promise<PluginUserData[]> {
-    return firstValueFrom(this._store.select(selectPluginUserDataFeatureState));
+    this._committing.delete(pluginId);
+    this._commitGeneration.set(pluginId, (this._commitGeneration.get(pluginId) ?? 0) + 1);
   }
 
   /**
    * Clear all plugin user data (removes each one individually to create operations)
+   *
+   * Yields the event loop after the dispatch loop — CLAUDE.md sync rule 6:
+   * rapid in-loop dispatches against an `array`-pattern entity can lose
+   * state without a microtask break.
    */
   async clearAllPluginUserData(): Promise<void> {
     const currentState = await firstValueFrom(
@@ -162,5 +273,6 @@ export class PluginUserPersistenceService {
       this._cancelPending(item.id);
       this._store.dispatch(deletePluginUserData({ pluginId: item.id }));
     }
+    await new Promise((r) => setTimeout(r, 0));
   }
 }
