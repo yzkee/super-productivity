@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { of } from 'rxjs';
 import { WorkContextMenuComponent } from './work-context-menu.component';
 import { WorkContextService } from '../../features/work-context/work-context.service';
 import { ProjectService } from '../../features/project/project.service';
@@ -16,6 +17,8 @@ describe('WorkContextMenuComponent', () => {
   let component: WorkContextMenuComponent;
   let mockProjectService: jasmine.SpyObj<ProjectService>;
   let mockWorkContextService: { activeWorkContextId: string | undefined };
+  let mockMatDialog: jasmine.SpyObj<MatDialog>;
+  let confirmResult$: any;
   let router: Router;
 
   beforeEach(() => {
@@ -24,11 +27,19 @@ describe('WorkContextMenuComponent', () => {
       'unarchive',
       'getByIdOnce$',
     ]);
-    mockProjectService.archive.and.returnValue(Promise.resolve(true));
+    mockProjectService.getByIdOnce$.and.returnValue(
+      of({ id: 'project-123', title: 'Demo project' } as any),
+    );
     mockWorkContextService = { activeWorkContextId: undefined };
 
     const mockShareService = jasmine.createSpyObj('ShareService', ['getShareSupport']);
     mockShareService.getShareSupport.and.returnValue(Promise.resolve('none'));
+
+    mockMatDialog = jasmine.createSpyObj('MatDialog', ['open']);
+    confirmResult$ = of(true);
+    mockMatDialog.open.and.callFake(
+      () => ({ afterClosed: () => confirmResult$ }) as MatDialogRef<unknown>,
+    );
 
     TestBed.configureTestingModule({
       imports: [WorkContextMenuComponent, TranslateModule.forRoot()],
@@ -37,7 +48,7 @@ describe('WorkContextMenuComponent', () => {
         { provide: ProjectService, useValue: mockProjectService },
         { provide: WorkContextService, useValue: mockWorkContextService },
         { provide: SnackService, useValue: { open: () => {} } },
-        { provide: MatDialog, useValue: jasmine.createSpyObj('MatDialog', ['open']) },
+        { provide: MatDialog, useValue: mockMatDialog },
         {
           provide: TagService,
           useValue: jasmine.createSpyObj('TagService', ['getTagById$']),
@@ -57,37 +68,29 @@ describe('WorkContextMenuComponent', () => {
   });
 
   describe('archiveProject()', () => {
-    it('should call projectService.archive with the current contextId', async () => {
+    it('archives after confirmation', async () => {
       await component.archiveProject();
+      expect(mockMatDialog.open).toHaveBeenCalled();
       expect(mockProjectService.archive).toHaveBeenCalledWith('project-123');
     });
 
-    it('should navigate away when archiving the currently active project', async () => {
+    it('navigates away when archiving the currently active project', async () => {
       mockWorkContextService.activeWorkContextId = 'project-123';
       await component.archiveProject();
       expect(router.navigateByUrl).toHaveBeenCalledWith('/');
-      expect(mockProjectService.archive).toHaveBeenCalledBefore(
-        router.navigateByUrl as jasmine.Spy,
-      );
     });
 
-    it('should NOT navigate when archiving a non-active project', async () => {
+    it('does not navigate when archiving a non-active project', async () => {
       mockWorkContextService.activeWorkContextId = 'other-project';
       await component.archiveProject();
       expect(router.navigateByUrl).not.toHaveBeenCalled();
     });
 
-    it('should still archive even when no project is active', async () => {
-      mockWorkContextService.activeWorkContextId = undefined;
-      await component.archiveProject();
-      expect(mockProjectService.archive).toHaveBeenCalledWith('project-123');
-      expect(router.navigateByUrl).not.toHaveBeenCalled();
-    });
-
-    it('does not navigate when the archive confirmation is cancelled', async () => {
-      mockProjectService.archive.and.returnValue(Promise.resolve(false));
+    it('does nothing when the confirmation is cancelled', async () => {
+      confirmResult$ = of(false);
       mockWorkContextService.activeWorkContextId = 'project-123';
       await component.archiveProject();
+      expect(mockProjectService.archive).not.toHaveBeenCalled();
       expect(router.navigateByUrl).not.toHaveBeenCalled();
     });
   });

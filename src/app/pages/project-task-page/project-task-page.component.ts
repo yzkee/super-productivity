@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { MatIcon } from '@angular/material/icon';
 import { MatButton } from '@angular/material/button';
 import { TranslatePipe } from '@ngx-translate/core';
 import { WorkContextService } from '../../features/work-context/work-context.service';
@@ -14,7 +13,7 @@ import { T } from '../../t.const';
   templateUrl: './project-task-page.component.html',
   styleUrls: ['./project-task-page.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MatIcon, MatButton, TranslatePipe, WorkViewComponent],
+  imports: [MatButton, TranslatePipe, WorkViewComponent],
 })
 export class ProjectTaskPageComponent {
   workContextService = inject(WorkContextService);

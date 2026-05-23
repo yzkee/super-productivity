@@ -9,14 +9,8 @@
   padding: var(--s) var(--s2);
   background: var(--state-hover);
   border-bottom: 1px solid var(--divider-color);
-}
 
-.archived-notice-icon {
-  opacity: 0.6;
-  flex-shrink: 0;
-}
-
-.archived-notice-text {
-  flex: 1;
-  opacity: 0.85;
+  span {
+    flex: 1;
+  }
 }
