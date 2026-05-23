@@ -10,6 +10,7 @@ import type { SyncPage } from '../pages/sync.page';
 import {
   attachPageErrorCollector,
   guardContextCloseWithRuntimeErrorCheck,
+  installDevErrorDialogHandler,
 } from './runtime-errors';
 
 /**
@@ -107,6 +108,7 @@ export const setupSyncClient = async (
   const context = await browser.newContext({ baseURL });
   const page = await context.newPage();
   const pageErrors = attachPageErrorCollector(page, 'WebDAV sync client');
+  installDevErrorDialogHandler(page, 'WebDAV sync client');
   guardContextCloseWithRuntimeErrorCheck(context, pageErrors, 'WebDAV sync client');
 
   // Skip onboarding, hints, and example tasks before the app boots.
@@ -123,6 +125,11 @@ export const setupSyncClient = async (
   page.on('dialog', async (dialog) => {
     if (dialog.type() === 'confirm') {
       const message = dialog.message();
+      // devError's "Throw an error for error? ––– …" confirm is handled by
+      // installDevErrorDialogHandler above; don't trip the strict validator.
+      if (message.startsWith('Throw an error for error?')) {
+        return;
+      }
       // Validate this is the expected fresh client sync confirmation
       const expectedPatterns = [/fresh/i, /remote/i, /sync/i, /operations/i];
       const isExpectedDialog = expectedPatterns.some((pattern) => pattern.test(message));

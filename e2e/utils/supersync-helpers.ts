@@ -25,6 +25,7 @@ import {
 import {
   assertNoRuntimeBrowserErrors,
   attachPageErrorCollector,
+  installDevErrorDialogHandler,
   type RuntimeBrowserError,
 } from './runtime-errors';
 
@@ -223,6 +224,7 @@ export const createSimulatedClient = async (
 
   const page = await context.newPage();
   const runtimeErrors = attachPageErrorCollector(page, `Client ${clientName}`);
+  installDevErrorDialogHandler(page, `Client ${clientName}`);
 
   // Skip onboarding, hints, and example tasks before the app boots.
   // This runs before any page JavaScript, so Angular sees the flags immediately.

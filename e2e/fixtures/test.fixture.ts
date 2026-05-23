@@ -14,6 +14,7 @@ import { skipOnboardingForE2E, waitForAppReady } from '../utils/waits';
 import {
   assertNoRuntimeBrowserErrors,
   attachPageErrorCollector,
+  installDevErrorDialogHandler,
 } from '../utils/runtime-errors';
 
 type TestFixtures = {
@@ -73,6 +74,7 @@ export const test = base.extend<TestFixtures>({
     // when the test fails for another reason), then aggregated and thrown at teardown
     // if the test otherwise passed.
     const runtimeErrors = attachPageErrorCollector(page, 'page');
+    installDevErrorDialogHandler(page, 'page');
 
     // Skip onboarding, hints, and example tasks before the app boots.
     // This runs before any page JavaScript, so Angular sees the flags immediately.
