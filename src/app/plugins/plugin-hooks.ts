@@ -14,13 +14,22 @@ export class PluginHooksService {
   private _handlers = new Map<Hooks, Map<string, PluginHookHandler<any>>>();
 
   /**
-   * Register a hook handler
+   * Register a hook handler.
+   * Rejects pluginIds containing `:` so the persistence-key grammar
+   * (`pluginId[:key]`) cannot be subverted via the hooks registry — the
+   * differ collapses keyed entityIds to owner pluginIds for dispatch, and a
+   * spoofed `victim:doc` registration would silently never fire.
    */
   registerHookHandler<T extends Hooks>(
     pluginId: string,
     hook: T,
     handler: PluginHookHandler<T>,
   ): void {
+    if (pluginId.includes(':')) {
+      throw new Error(
+        `Plugin id "${pluginId}" must not contain ':' — the colon is reserved as the persistence-key delimiter.`,
+      );
+    }
     if (!this._handlers.has(hook)) {
       this._handlers.set(hook, new Map());
     }
@@ -29,30 +38,43 @@ export class PluginHooksService {
   }
 
   /**
-   * Dispatch a hook to all registered handlers
+   * Dispatch a hook to all registered handlers (fan-out).
+   * Use for events that potentially affect every plugin — task/project/language
+   * changes. For per-plugin events (e.g. `PERSISTED_DATA_CHANGED`) use
+   * {@link dispatchHookToPlugin} so only the owner's handler runs.
    */
   async dispatchHook(hook: Hooks, payload?: unknown): Promise<void> {
     const handlers = this._handlers.get(hook);
     if (!handlers || handlers.size === 0) {
       return;
     }
-
     for (const [pluginId, handler] of handlers) {
-      let timeoutId: ReturnType<typeof setTimeout>;
-      try {
-        await Promise.race([
-          handler(payload),
-          new Promise<void>((_, reject) => {
-            timeoutId = setTimeout(
-              () => reject(new Error('Hook handler timed out')),
-              PluginHooksService.HOOK_TIMEOUT_MS,
-            );
-          }),
-        ]).finally(() => clearTimeout(timeoutId));
-      } catch (error) {
-        PluginLog.err(`Plugin ${pluginId} ${hook} handler error:`, error);
-      }
+      await this._invokeWithTimeout(pluginId, hook, handler, payload);
     }
+  }
+
+  /**
+   * Dispatch a hook to a single plugin's handler (scoped).
+   * Counterpart to {@link dispatchHook} — use for per-owner events such as
+   * `PERSISTED_DATA_CHANGED` where only the affected plugin should be notified.
+   * No-op if `pluginId` has no handler registered for `hook`.
+   *
+   * Callers are expected to invoke without awaiting (fire-and-forget). Each
+   * call allocates one `Promise.race([handler, 5s timeout])` (see
+   * `HOOK_TIMEOUT_MS` above) — the closure is released within the timeout
+   * window, so concurrent dispatches stay bounded by the number of in-flight
+   * plugins.
+   */
+  async dispatchHookToPlugin<T extends Hooks>(
+    pluginId: string,
+    hook: T,
+    payload?: unknown,
+  ): Promise<void> {
+    const handler = this._handlers.get(hook)?.get(pluginId);
+    if (!handler) {
+      return;
+    }
+    await this._invokeWithTimeout(pluginId, hook, handler, payload);
   }
 
   /**
@@ -69,5 +91,27 @@ export class PluginHooksService {
    */
   clearAllHooks(): void {
     this._handlers.clear();
+  }
+
+  private async _invokeWithTimeout(
+    pluginId: string,
+    hook: Hooks,
+    handler: PluginHookHandler<any>,
+    payload?: unknown,
+  ): Promise<void> {
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    try {
+      await Promise.race([
+        handler(payload),
+        new Promise<void>((_, reject) => {
+          timeoutId = setTimeout(
+            () => reject(new Error('Hook handler timed out')),
+            PluginHooksService.HOOK_TIMEOUT_MS,
+          );
+        }),
+      ]).finally(() => clearTimeout(timeoutId));
+    } catch (error) {
+      PluginLog.err(`Plugin ${pluginId} ${hook} handler error:`, error);
+    }
   }
 }
