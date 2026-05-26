@@ -13,11 +13,14 @@
 // in the beforeEach below, so no cross-spec IDB state survives.
 //
 // `fake-indexeddb/auto` installs the polyfill class globals (IDBDatabase,
-// IDBKeyRange, etc.) once. The `beforeEach` below swaps `globalThis.indexedDB`
-// to a fresh `IDBFactory` instance per spec — the class globals stay constant
-// so the `idb` library's `instanceof` checks still pass, but the per-instance
-// `_databases` map is empty, so no leftover connections, schema versions, or
-// blocked deletes survive between tests.
+// IDBKeyRange, IDBObjectStore, IDBIndex, IDBCursor, IDBTransaction, …) once.
+// The `beforeEach` below swaps `globalThis.indexedDB` to a fresh `IDBFactory`
+// instance per spec — the class globals stay constant so the `idb` library's
+// `instanceof` checks (against IDBDatabase / IDBObjectStore / IDBIndex /
+// IDBCursor / IDBTransaction, captured lazily by `getIdbProxyableTypes()`)
+// keep wrapping per-spec connections, while the per-factory `_databases` map
+// is empty so no leftover connections, schema versions, or blocked deletes
+// survive between tests.
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 
@@ -35,11 +38,14 @@ beforeAll(() => {
 
 beforeEach(() => {
   // Swap in a fresh fake IDB factory per spec. `window.indexedDB` is
-  // getter-only, so direct assignment throws — same `defineProperty` trick
-  // `fake-indexeddb/auto` uses on initial install. The previous factory and
-  // its databases become unreachable and are GC'd; no `deleteDatabase` dance
-  // (which blocks on open connections held by `providedIn: 'root'` services
-  // that have not been destroyed by TestBed).
+  // getter-only in browsers, so direct assignment throws — same
+  // `defineProperty` trick `fake-indexeddb/auto` uses on initial install.
+  // No `deleteDatabase` dance (which blocks on open connections held by
+  // `providedIn: 'root'` services that have not been destroyed by TestBed).
+  // Singleton services from previous specs retain a stale `_db` reference
+  // until the next `TestBed.configureTestingModule` replaces them, so the
+  // previous factory plateaus on those references — it does not grow per
+  // spec — and is dropped on the next module reset.
   Object.defineProperty(globalThis, 'indexedDB', {
     value: new IDBFactory(),
     configurable: true,
