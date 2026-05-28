@@ -49,6 +49,7 @@ import { LayoutService } from '../../core-ui/layout/layout.service';
 
 interface NavigationBarPlugin {
   setColor(options: { color: string; style: 'LIGHT' | 'DARK' }): Promise<void>;
+  setWebViewBackgroundColor(options: { color: string }): Promise<void>;
 }
 
 const NavigationBar = registerPlugin<NavigationBarPlugin>('NavigationBar');
@@ -340,7 +341,11 @@ export class GlobalThemeService {
 
     if (IS_ANDROID_WEB_VIEW) {
       androidInterface.isKeyboardShown$
-        .pipe(takeUntilDestroyed(this._destroyRef))
+        // The native OnGlobalLayoutListener pushes a value on every layout pass
+        // (i.e. every frame of the IME slide), so dedupe to actual transitions —
+        // otherwise we rewrite <body> classes and re-trigger change detection
+        // every frame while the keyboard animates.
+        .pipe(distinctUntilChanged(), takeUntilDestroyed(this._destroyRef))
         .subscribe((isShown) => {
           Log.log('isShown', isShown);
 
@@ -796,6 +801,11 @@ export class GlobalThemeService {
           style: isDark ? 'DARK' : 'LIGHT',
         }).catch((err) => {
           Log.warn('Failed to set navigation bar color', err);
+        });
+        // Keep the native WebView surface matched to the theme so the
+        // adjustResize keyboard animation can't flash white between frames.
+        NavigationBar.setWebViewBackgroundColor({ color: bgColor }).catch((err) => {
+          Log.warn('Failed to set web view background color', err);
         });
       }
     });
