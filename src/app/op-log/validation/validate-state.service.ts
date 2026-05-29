@@ -13,6 +13,7 @@ import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
 import { HydrationStateService } from '../apply/hydration-state.service';
 import { T } from '../../t.const';
 import { alertDialog, confirmDialog } from '../../util/native-dialogs';
+import { recordCriticalErrorTime } from '../../util/critical-error-signal';
 
 let _validateFullPromise:
   | Promise<typeof import('./validation-fn').validateFull>
@@ -278,6 +279,9 @@ export class ValidateStateService {
         wasRepaired: false,
       };
     }
+
+    // Detected data damage (repairable or not) — hold off the rating prompt.
+    recordCriticalErrorTime();
 
     // State is invalid - ask user for confirmation before repair
     OpLog.log('[ValidateStateService] State invalid, asking user for confirmation...');
