@@ -1422,6 +1422,7 @@
           "L_TENANT_ID": "Tenant ID",
           "L_USE_CUSTOM_APP": "Use my own Microsoft Entra app registration",
           "OFFICIAL_MODE_INFO": "Using built-in Microsoft 365 sign-in for this app. Switch to custom mode only if you need your own Entra app registration.",
+          "PLATFORM_INFO": "OneDrive sync is available in the desktop and mobile apps only, not in the browser version.",
           "SYNC_FOLDER_PATH_DESCRIPTION": "Stored under your OneDrive App Folder (e.g. super-productivity)",
           "TENANT_ID_DESCRIPTION": "Use 'common' for multi-tenant sign-in",
           "USE_CUSTOM_APP_DESCRIPTION": "Enable this if you want to provide your own Application (Client) ID"
