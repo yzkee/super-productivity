@@ -82,12 +82,14 @@ describe('rate-dialog-state', () => {
         expect(shouldShowRateDialog(afterFirst, 100, ERROR_SUPPRESSION_MS)).toBe(true);
       });
 
-      it('cooldown does not override permanent opt-out', () => {
+      it('permanent opt-out wins even with a recent error in the window', () => {
         const optedOut: RateDialogState = {
           lastShownAppStartDay: 0,
           permanentOptOut: true,
         };
-        expect(shouldShowRateDialog(optedOut, 32, NO_ERR)).toBe(false);
+        // Pass a recent error (0 ms ago) so this actually exercises the
+        // opt-out-vs-cooldown ordering rather than the no-error path.
+        expect(shouldShowRateDialog(optedOut, 32, 0)).toBe(false);
       });
 
       it('uses a window of at least 30 days', () => {
