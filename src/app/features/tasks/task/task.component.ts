@@ -918,15 +918,6 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     setTimeout(() => {
       this.tagToggleMenuList()?.openMenu();
     });
-
-    // this._matDialog
-    //   .open(DialogEditTagsForTaskComponent, {
-    //     data: {
-    //       task: this.task(),
-    //     },
-    //   })
-    //   .afterClosed()
-    //   .subscribe(() => this.focusSelf());
   }
 
   toggleTag(tagId: string): void {

@@ -11,16 +11,12 @@ import {
 import { taskAdapter } from './task.adapter';
 import { devError } from '../../../util/dev-error';
 import { isDBDateStr } from '../../../util/get-db-date-str';
-import { TODAY_TAG } from '../../tag/tag.const';
 import { IssueProvider, isPluginIssueProvider } from '../../issue/issue.model';
 import {
   selectArchivedProjectIds,
   selectHiddenProjectIds,
 } from '../../project/store/project.selectors';
-import {
-  selectTagFeatureState,
-  selectTodayTagTaskIds,
-} from '../../tag/store/tag.reducer';
+import { selectTodayTagTaskIds } from '../../tag/store/tag.reducer';
 import {
   selectStartOfNextDayDiffMs,
   selectTodayStr,
@@ -331,26 +327,6 @@ export const selectOverdueTasksWithSubTasks = createSelector(
   },
 );
 
-export const selectAllTasksDueAndOverdue = createSelector(
-  selectTaskFeatureState,
-  selectTagFeatureState,
-  selectTodayStr,
-  (s, tagState, todayStr): Task[] => {
-    const todayTaskIdSet = new Set(tagState.entities[TODAY_TAG.id]?.taskIds);
-    return s.ids
-      .map((id) => s.entities[id])
-      .filter(
-        (task): task is Task =>
-          !!task &&
-          // Note: String comparison works correctly here because dueDay is in YYYY-MM-DD format
-          // which is lexicographically sortable. This avoids timezone conversion issues.
-          !!task.dueDay &&
-          task.dueDay <= todayStr &&
-          !todayTaskIdSet.has(task.id),
-      );
-  },
-);
-
 export const selectSelectedTaskId = createSelector(
   selectTaskFeatureState,
   (state) => state.selectedTaskId,
@@ -575,26 +551,6 @@ export const selectAllCalendarTaskEventIds = createSelector(
 export const selectAllCalendarIssueTasks = createSelector(
   selectAllTasks,
   (tasks: Task[]): Task[] => tasks.filter(isCalendarIssueTask),
-);
-
-// intentionally unfiltered: seems unused
-export const selectTasksWorkedOnOrDoneFlat = createSelector(
-  selectAllTasks,
-  (tasks: Task[], props: { day: string }) => {
-    if (!props) {
-      return null;
-    }
-
-    const todayStr = props.day;
-    return tasks.filter(
-      (t: Task) =>
-        !!t &&
-        (t.isDone ||
-          (t.timeSpentOnDay &&
-            t.timeSpentOnDay?.[todayStr] &&
-            t.timeSpentOnDay?.[todayStr] > 0)),
-    );
-  },
 );
 
 export const selectTasksDueForDay = createSelector(
