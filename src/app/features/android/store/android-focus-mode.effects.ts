@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { createEffect } from '@ngrx/effects';
-import { Store } from '@ngrx/store';
+import { Action, Store } from '@ngrx/store';
 import { filter, map, pairwise, startWith, tap, withLatestFrom } from 'rxjs/operators';
 import { IS_ANDROID_WEB_VIEW } from '../../../util/is-android-web-view';
 import { androidInterface } from '../android-interface';
@@ -14,12 +14,57 @@ import {
 } from '../../focus-mode/store/focus-mode.selectors';
 import * as focusModeActions from '../../focus-mode/store/focus-mode.actions';
 import { selectCurrentTask, selectCurrentTaskId } from '../../tasks/store/task.selectors';
-import { combineLatest } from 'rxjs';
+import { combineLatest, Observable } from 'rxjs';
 import { FocusModeMode, TimerState } from '../../focus-mode/focus-mode.model';
 import { DroidLog } from '../../../core/log';
 import { HydrationStateService } from '../../../op-log/apply/hydration-state.service';
 import { SnackService } from '../../../core/snack/snack.service';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
+
+/**
+ * On app resume, fire a single `tick()` so the wall-clock-based focus reducer
+ * snaps the in-app countdown back to the truth after the WebView interval was
+ * frozen in the background (#7856). The `tick` reducer is a no-op when the timer
+ * is idle or paused, so no extra guard is needed here.
+ */
+export const createFocusResumeTick$ = (onResume$: Observable<void>): Observable<Action> =>
+  onResume$.pipe(map(() => focusModeActions.tick()));
+
+/**
+ * Whether the focus-mode notification needs a fresh push to the native service.
+ * Elapsed-only changes are throttled to 5s (the native handler already ticks
+ * every second), but pause/purpose changes — and the large elapsed jump a resume
+ * `tick()` produces (#7856) — must propagate immediately so the notification
+ * reconciles with the corrected in-app countdown.
+ */
+export const hasFocusNotificationStateChanged = (
+  prevTimer: TimerState | undefined,
+  currTimer: TimerState,
+): boolean => {
+  if (!prevTimer) return true;
+  // Pause state changed
+  if (prevTimer.isRunning !== currTimer.isRunning) return true;
+  // Purpose changed (work -> break or vice versa)
+  if (prevTimer.purpose !== currTimer.purpose) return true;
+  // Otherwise throttle elapsed-only updates to every 5 seconds
+  return Math.abs(currTimer.elapsed - prevTimer.elapsed) >= 5000;
+};
+
+/**
+ * Whether a native timer-complete event should drive a state change. The native
+ * foreground service fires this when its countdown reaches 0; we act on it only
+ * while the matching session is still active in app state — a break event needs an
+ * active break, a work event needs a still-running work session. The work guard is
+ * what makes the native completion a no-op once a resume `tick()` has already
+ * completed the session on return from the background (#7856), so the two never
+ * double-complete. Pure + exported so the `IS_ANDROID_WEB_VIEW`-gated effect's guard
+ * is unit-testable.
+ */
+export const shouldHandleNativeTimerComplete = (
+  isBreak: boolean,
+  timer: TimerState,
+): boolean =>
+  isBreak ? timer.purpose === 'break' : timer.purpose === 'work' && timer.isRunning;
 
 @Injectable()
 export class AndroidFocusModeEffects {
@@ -98,7 +143,7 @@ export class AndroidFocusModeEffects {
                   'Failed to start focus mode notification',
                   true,
                 );
-              } else if (this._hasStateChanged(prev?.timer, timer, taskTitle, curr)) {
+              } else if (hasFocusNotificationStateChanged(prev?.timer, timer)) {
                 // Only update if something significant changed
                 DroidLog.log('AndroidFocusModeEffects: Updating focus mode service', {
                   title,
@@ -165,6 +210,23 @@ export class AndroidFocusModeEffects {
       ),
     );
 
+  // When the app returns to the foreground, the WebView's interval(1000) may have
+  // been frozen while backgrounded, leaving the in-app focus countdown stale and
+  // adrift from the still-accurate native notification (#7856). Fire one tick so
+  // the wall-clock reducer snaps the countdown back to the truth — mirroring how
+  // time tracking re-syncs from native on resume (syncOnResume$).
+  resyncFocusTimerOnResume$ =
+    IS_ANDROID_WEB_VIEW &&
+    createEffect(() =>
+      createFocusResumeTick$(
+        androidInterface.onResume$.pipe(
+          tap(() =>
+            DroidLog.log('AndroidFocusModeEffects: App resumed, re-syncing focus timer'),
+          ),
+        ),
+      ),
+    );
+
   handleFocusSkip$ =
     IS_ANDROID_WEB_VIEW &&
     createEffect(() =>
@@ -208,11 +270,7 @@ export class AndroidFocusModeEffects {
           this._store.select(selectTimer),
           this._store.select(selectPausedTaskId),
         ),
-        filter(([isBreak, timer]) =>
-          isBreak
-            ? timer.purpose === 'break'
-            : timer.purpose === 'work' && timer.isRunning,
-        ),
+        filter(([isBreak, timer]) => shouldHandleNativeTimerComplete(isBreak, timer)),
         map(([isBreak, timer, pausedTaskId]) => {
           if (isBreak) {
             return focusModeActions.skipBreak({ pausedTaskId });
@@ -266,34 +324,5 @@ export class AndroidFocusModeEffects {
       default:
         return 'Focus';
     }
-  }
-
-  private _hasStateChanged(
-    prevTimer: TimerState | undefined,
-    currTimer: TimerState,
-    taskTitle: string | null,
-    curr: {
-      timer: TimerState;
-      mode: FocusModeMode;
-      currentTask: { title: string } | null;
-      isBreakActive: boolean;
-      isLongBreak: boolean;
-      timeRemaining: number;
-    },
-  ): boolean {
-    if (!prevTimer) return true;
-
-    // Check if pause state changed
-    if (prevTimer.isRunning !== currTimer.isRunning) return true;
-
-    // Check if purpose changed (work -> break or vice versa)
-    if (prevTimer.purpose !== currTimer.purpose) return true;
-
-    // Only update notification every 5 seconds to reduce overhead
-    // (native service already updates every second)
-    const elapsedDiff = Math.abs(currTimer.elapsed - prevTimer.elapsed);
-    if (elapsedDiff >= 5000) return true;
-
-    return false;
   }
 }
