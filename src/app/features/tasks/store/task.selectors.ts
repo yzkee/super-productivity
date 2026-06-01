@@ -28,6 +28,12 @@ import {
 import { dateStrToUtcDate } from '../../../util/date-str-to-utc-date';
 import { isTodayWithOffset } from '../../../util/is-today.util';
 import { getTimeConflictTaskIds } from '../util/get-time-conflict-task-ids';
+
+const isCalendarIssueTask = (task: Task | undefined): task is Task =>
+  !!task &&
+  !!task.issueType &&
+  (task.issueType === 'ICAL' || isPluginIssueProvider(task.issueType));
+
 const mapSubTasksToTasks = (tasksIN: Task[]): TaskWithSubTasks[] => {
   // Create a Map for O(1) lookups instead of O(n) find() calls
   const taskMap = new Map<string, Task>();
@@ -561,27 +567,14 @@ export const selectMainTasksWithoutTag = createSelector(
 export const selectAllCalendarTaskEventIds = createSelector(
   selectAllTasks,
   (tasks: Task[]): string[] =>
-    tasks
-      .filter(
-        (task) =>
-          !!task &&
-          !!task.issueType &&
-          (task.issueType === 'ICAL' || isPluginIssueProvider(task.issueType)),
-      )
-      .map((t) => t.issueId as string),
+    tasks.filter(isCalendarIssueTask).map((t) => t.issueId as string),
 );
 
 // intentionally unfiltered: explicit design choice to poll ALL calendar tasks across all projects
 // (including archived) — see poll-issue-updates.effects.ts comment "poll ALL calendar tasks"
 export const selectAllCalendarIssueTasks = createSelector(
   selectAllTasks,
-  (tasks: Task[]): Task[] =>
-    tasks.filter(
-      (task) =>
-        !!task &&
-        !!task.issueType &&
-        (task.issueType === 'ICAL' || isPluginIssueProvider(task.issueType)),
-    ),
+  (tasks: Task[]): Task[] => tasks.filter(isCalendarIssueTask),
 );
 
 // intentionally unfiltered: seems unused
