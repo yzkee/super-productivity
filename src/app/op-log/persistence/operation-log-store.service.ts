@@ -10,6 +10,7 @@ import {
 } from '../core/operation.types';
 import { StorageQuotaExceededError } from '../core/errors/sync-errors';
 import { toEntityKey } from '../util/entity-key.util';
+import { getOpEntityIds } from '../util/get-op-entity-ids.util';
 import {
   encodeOperation,
   decodeOperation,
@@ -585,37 +586,7 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
    * @returns The latest full-state operation, or undefined if none exists
    */
   async getLatestFullStateOp(): Promise<Operation | undefined> {
-    await this._ensureInit();
-
-    // Use reverse cursor to iterate from newest to oldest by seq
-    // This is more memory-efficient than getAll() and we can exit early
-    // once we've found a full-state op that's older than our current best
-    let cursor = await this.db
-      .transaction(STORE_NAMES.OPS)
-      .store.openCursor(null, 'prev');
-
-    let latestFullStateOp: Operation | undefined;
-
-    while (cursor) {
-      const entry = decodeStoredEntry(cursor.value);
-      const isFullStateOp = isFullStateOpType(entry.op.opType);
-
-      if (isFullStateOp) {
-        // Track the latest by UUIDv7 (lexicographic comparison works for UUIDv7)
-        if (!latestFullStateOp || entry.op.id > latestFullStateOp.id) {
-          latestFullStateOp = entry.op;
-        }
-        // NOTE: We don't early-exit here because UUIDv7 order may differ from seq order
-        // if remote ops with earlier timestamps arrive later. We must check all full-state
-        // ops to find the one with the latest UUIDv7 ID. However, we continue using
-        // reverse cursor to still benefit from early exit if the first full-state op found
-        // has the highest UUIDv7 (which is the common case).
-      }
-
-      cursor = await cursor.continue();
-    }
-
-    return latestFullStateOp;
+    return (await this.getLatestFullStateOpEntry())?.op;
   }
 
   /**
@@ -668,38 +639,8 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
    * @returns Number of operations deleted
    */
   async clearFullStateOps(): Promise<number> {
-    await this._ensureInit();
-
-    const opsToDelete: string[] = [];
-
-    // Find all full-state ops
-    let cursor = await this.db.transaction(STORE_NAMES.OPS).store.openCursor();
-
-    while (cursor) {
-      const entry = decodeStoredEntry(cursor.value);
-      const isFullStateOp = isFullStateOpType(entry.op.opType);
-
-      if (isFullStateOp) {
-        opsToDelete.push(entry.op.id);
-      }
-
-      cursor = await cursor.continue();
-    }
-
-    // Delete them in a write transaction
-    if (opsToDelete.length > 0) {
-      const tx = this.db.transaction(STORE_NAMES.OPS, 'readwrite');
-      for (const id of opsToDelete) {
-        await tx.store
-          .index(OPS_INDEXES.BY_ID)
-          .openCursor(id)
-          .then((c) => c?.delete());
-      }
-      await tx.done;
-      this._invalidateUnsyncedCache();
-    }
-
-    return opsToDelete.length;
+    // Deleting all full-state ops is the no-exclusion case of clearFullStateOpsExcept.
+    return this.clearFullStateOpsExcept([]);
   }
 
   /**
@@ -802,11 +743,7 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
     const unsynced = await this.getUnsynced();
     const map = new Map<string, Operation[]>();
     for (const entry of unsynced) {
-      const ids = entry.op.entityIds?.length
-        ? entry.op.entityIds
-        : entry.op.entityId
-          ? [entry.op.entityId]
-          : [];
+      const ids = getOpEntityIds(entry.op);
       for (const id of ids) {
         const key = toEntityKey(entry.op.entityType, id);
         if (!map.has(key)) map.set(key, []);
