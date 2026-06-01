@@ -11,6 +11,15 @@
     outline: var(--focus-ring-width) solid var(--focus-ring-color);
     outline-offset: var(--focus-ring-offset);
   }
+
+  :host.isInline & {
+    display: inline-block;
+
+    & > * {
+      display: inline-block;
+      vertical-align: middle;
+    }
+  }
 }
 
 .collapsible-title {

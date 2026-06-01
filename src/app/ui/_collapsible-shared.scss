@@ -1,5 +1,7 @@
 // Shared structural styles for the collapsible widgets.
 // Used by: collapsible, formly-collapsible
+// Consumers are expected to bind the `isExpanded` host class; the `isInline`
+// variant lives in collapsible.component.scss since only that component has it.
 
 @mixin collapsible-shared {
   :host {
@@ -12,15 +14,6 @@
     display: flex;
     flex-direction: row;
     align-items: center;
-
-    :host.isInline & {
-      display: inline-block;
-
-      & > * {
-        display: inline-block;
-        vertical-align: middle;
-      }
-    }
   }
 
   .collapsible-title {
