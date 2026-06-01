@@ -140,15 +140,6 @@ test.describe('@migration Pre-migration Dialog', () => {
         // No dialog, continue
       }
 
-      // A genuine fresh start opens the onboarding preset takeover, which
-      // intentionally hides the side-nav (visibility:hidden). Pick a preset to
-      // dismiss it and enter the main app. This context deliberately skips the
-      // skipOnboardingForE2E init script the shared `page` fixture injects.
-      const presetCard = page.locator('[e2e="onboardingPreset-simple-todo"]');
-      if (await presetCard.isVisible({ timeout: 5000 }).catch(() => false)) {
-        await presetCard.click();
-      }
-
       // Wait for app to initialize (may take time for fresh start)
       await page.waitForSelector('magic-side-nav', { state: 'visible', timeout: 30000 });
 
