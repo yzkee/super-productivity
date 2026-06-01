@@ -579,9 +579,7 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
    * BEFORE the latest full-state op should be discarded, as it references state
    * that no longer exists.
    *
-   * Uses cursor iteration for memory efficiency - avoids loading all ops into memory
-   * at once, which matters on mobile devices with limited RAM. Trade-off is slightly
-   * slower due to per-op cursor overhead vs bulk getAll().
+   * Convenience wrapper over {@link getLatestFullStateOpEntry} returning only the op.
    *
    * @returns The latest full-state operation, or undefined if none exists
    */
@@ -600,6 +598,10 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
    * These fields are needed to determine if the import requires user confirmation:
    * - Local unsynced imports (source='local', no syncedAt) → show dialog
    * - Remote/synced imports → silently filter old ops (already accepted)
+   *
+   * Uses cursor iteration for memory efficiency - avoids loading all ops into memory
+   * at once, which matters on mobile devices with limited RAM. Trade-off is slightly
+   * slower due to per-op cursor overhead vs bulk getAll().
    *
    * @returns The latest full-state operation entry, or undefined if none exists
    */
@@ -621,6 +623,11 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
         if (!latestEntry || entry.op.id > latestEntry.op.id) {
           latestEntry = entry;
         }
+        // NOTE: We don't early-exit here because UUIDv7 order may differ from seq order
+        // if remote ops with earlier timestamps arrive later. We must check all full-state
+        // ops to find the one with the latest UUIDv7 ID. However, we continue using
+        // reverse cursor to still benefit from early exit if the first full-state op found
+        // has the highest UUIDv7 (which is the common case).
       }
 
       cursor = await cursor.continue();
