@@ -866,7 +866,8 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   }
 
   hideDetailPanel(): void {
-    this._taskService.setSelectedId(this.task().id);
+    // Explicitly deselect to close the panel; do NOT re-select (that's showDetailPanel's job).
+    this._taskService.setSelectedId(null);
     this.focusSelf();
   }
 
