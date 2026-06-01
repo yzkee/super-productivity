@@ -10,6 +10,7 @@ import { ArchiveModel } from '../../features/archive/archive.model';
 import { initialTimeTrackingState } from '../../features/time-tracking/store/time-tracking.reducer';
 import { CapacitorPlatformService } from '../../core/platform/capacitor-platform.service';
 import { AppDataComplete } from '../../op-log/model/model-config';
+import { T } from '../../t.const';
 
 const BACKUP_INTERVAL = 5 * 60 * 1000;
 
@@ -173,6 +174,110 @@ describe('LocalBackupService', () => {
     });
   });
 
+  describe('empty-state guard (#7901)', () => {
+    const setIosPlatform = (): jasmine.Spy => {
+      (
+        service as unknown as {
+          _platformService: Pick<CapacitorPlatformService, 'isIOS'>;
+        }
+      )._platformService = { isIOS: () => true };
+      return spyOn(
+        service as unknown as LocalBackupServiceWithBackupIos,
+        '_backupIOS',
+      ).and.resolveTo();
+    };
+
+    it('should NOT write a backup when the store has no meaningful data', async () => {
+      // Simulates a post-eviction boot: empty store (no tasks, only INBOX
+      // project, only system tags, no notes). hasMeaningfulStateData → false.
+      stateSnapshotServiceSpy.getAllSyncModelDataFromStoreAsync.and.resolveTo({
+        task: { ids: [], entities: {} },
+        project: { ids: [], entities: {} },
+        tag: { ids: [], entities: {} },
+        note: { ids: [], entities: {} },
+        archiveYoung: DEFAULT_ARCHIVE,
+        archiveOld: DEFAULT_ARCHIVE,
+      } as any);
+      const backupIosSpy = setIosPlatform();
+
+      await (service as unknown as LocalBackupServiceWithPrivate)._backup();
+
+      expect(backupIosSpy).not.toHaveBeenCalled();
+    });
+
+    it('should write a backup when the store has meaningful data', async () => {
+      // Default mock has task1 → hasMeaningfulStateData → true.
+      const backupIosSpy = setIosPlatform();
+
+      await (service as unknown as LocalBackupServiceWithPrivate)._backup();
+
+      expect(backupIosSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('iOS backup ring (#7901)', () => {
+    const PRIMARY = 'super-productivity-backup.json';
+    const PREV = 'super-productivity-backup.prev.json';
+
+    type LocalBackupServiceWithIosRing = {
+      _readIOSFileOrNull: (path: string) => Promise<string | null>;
+      _writeIOSFile: (path: string, data: string) => Promise<void>;
+    };
+
+    beforeEach(() => {
+      (
+        service as unknown as {
+          _platformService: Pick<CapacitorPlatformService, 'isIOS'>;
+        }
+      )._platformService = { isIOS: () => true };
+    });
+
+    it('promotes the existing backup to the prev slot before overwriting', async () => {
+      const existing = JSON.stringify({ task: { ids: ['existing'] } });
+      spyOn(
+        service as unknown as LocalBackupServiceWithIosRing,
+        '_readIOSFileOrNull',
+      ).and.resolveTo(existing);
+      const writeSpy = spyOn(
+        service as unknown as LocalBackupServiceWithIosRing,
+        '_writeIOSFile',
+      ).and.resolveTo();
+
+      await (service as unknown as LocalBackupServiceWithPrivate)._backup();
+
+      // First write promotes the existing blob to prev, second writes the new primary.
+      expect(writeSpy).toHaveBeenCalledTimes(2);
+      expect(writeSpy.calls.first().args).toEqual([PREV, existing]);
+      expect(writeSpy.calls.mostRecent().args[0]).toBe(PRIMARY);
+    });
+
+    it('skips promotion when there is no existing backup yet', async () => {
+      spyOn(
+        service as unknown as LocalBackupServiceWithIosRing,
+        '_readIOSFileOrNull',
+      ).and.resolveTo(null);
+      const writeSpy = spyOn(
+        service as unknown as LocalBackupServiceWithIosRing,
+        '_writeIOSFile',
+      ).and.resolveTo();
+
+      await (service as unknown as LocalBackupServiceWithPrivate)._backup();
+
+      expect(writeSpy).toHaveBeenCalledTimes(1);
+      expect(writeSpy.calls.mostRecent().args[0]).toBe(PRIMARY);
+    });
+
+    it('loadBackupIOS resolves to "" (never throws) when no usable backup exists', async () => {
+      // Guards the fire-and-forget startup path from an unhandled rejection.
+      spyOn(
+        service as unknown as LocalBackupServiceWithIosRing,
+        '_readIOSFileOrNull',
+      ).and.resolveTo(null);
+
+      await expectAsync(service.loadBackupIOS()).toBeResolvedTo('');
+    });
+  });
+
   describe('automatic backup timer', () => {
     it('should stop creating automatic backups when disabled after being enabled', fakeAsync(() => {
       const cfg$ = new BehaviorSubject({
@@ -214,6 +319,41 @@ describe('LocalBackupService', () => {
         (service as unknown as LocalBackupServiceWithPrivate)._backup,
       ).toHaveBeenCalledTimes(1);
     }));
+  });
+
+  describe('informed mobile restore prompt (#7901)', () => {
+    type LocalBackupServiceWithPrompt = {
+      _restoreMobilePromptMsg: (backupData: string) => string;
+    };
+
+    it('names the task and project counts when the backup parses', () => {
+      translateServiceSpy.instant.and.returnValue('msg');
+      const backupData = JSON.stringify({
+        task: { ids: ['a', 'b'], entities: {} },
+        project: { ids: ['p1'], entities: {} },
+      });
+
+      (service as unknown as LocalBackupServiceWithPrompt)._restoreMobilePromptMsg(
+        backupData,
+      );
+
+      expect(translateServiceSpy.instant).toHaveBeenCalledWith(
+        T.CONFIRM.RESTORE_FILE_BACKUP_MOBILE,
+        { tasks: 2, projects: 1 },
+      );
+    });
+
+    it('falls back to the generic prompt for an unparseable backup', () => {
+      translateServiceSpy.instant.and.returnValue('msg');
+
+      (service as unknown as LocalBackupServiceWithPrompt)._restoreMobilePromptMsg(
+        '{corrupt',
+      );
+
+      expect(translateServiceSpy.instant).toHaveBeenCalledWith(
+        T.CONFIRM.RESTORE_FILE_BACKUP_ANDROID,
+      );
+    });
   });
 
   describe('import backup', () => {
