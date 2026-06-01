@@ -9,6 +9,7 @@
       @for (preset of presets; track preset.id) {
         <button
           class="preset-card"
+          [attr.e2e]="'onboardingPreset-' + preset.id"
           [class.selected]="selectedPreset()?.id === preset.id"
           [class.not-selected]="selectedPreset() && selectedPreset()?.id !== preset.id"
           (click)="selectPreset(preset)"
