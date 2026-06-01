@@ -116,6 +116,8 @@ const parseLines = (text: string): ParsedLine[] | null => {
 
 // Shift indent levels so the shallowest item sits at level 0, making the
 // top-level walk independent of how deeply the source list was indented.
+// Mutates in place; safe because parseLines hands each caller a freshly built,
+// single-owner array.
 const normalizeIndentation = (parsedLines: ParsedLine[]): void => {
   const minIndentLevel = findMinIndentLevel(parsedLines);
   for (const line of parsedLines) {

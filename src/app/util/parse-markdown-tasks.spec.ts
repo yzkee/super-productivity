@@ -419,10 +419,16 @@ describe('convertToMarkdownNotes', () => {
     );
   });
 
-  it('should preserve the leading indentation of nested items', () => {
-    expect(convertToMarkdownNotes('* parent\n  * child')).toBe(
-      '- [ ] parent\n  - [ ] child',
+  it('should preserve absolute leading indentation, not dedent', () => {
+    // Unlike the structured parsers, convertToMarkdownNotes keeps raw
+    // whitespace: a uniformly-indented block must NOT be normalized to level 0.
+    expect(convertToMarkdownNotes('  * parent\n    * child')).toBe(
+      '  - [ ] parent\n    - [ ] child',
     );
+  });
+
+  it('should preserve tab indentation and brackets without spaces', () => {
+    expect(convertToMarkdownNotes('-[x] a\n\t* b')).toBe('- [x] a\n\t- [ ] b');
   });
 
   it('should return null when any line is not a list item', () => {
@@ -447,16 +453,21 @@ describe('shared input handling', () => {
   });
 
   it('should strip a leading BOM', () => {
-    expect(parseMarkdownTasks('﻿- a\n- b')).toEqual([
+    expect(parseMarkdownTasks('\uFEFF- a\n- b')).toEqual([
       { title: 'a', isCompleted: false },
       { title: 'b', isCompleted: false },
     ]);
   });
 
-  it('should return null for input exceeding the max length', () => {
-    const tooLong = '- ' + 'a'.repeat(800_001);
-    expect(parseMarkdownTasks(tooLong)).toBe(null);
-    expect(parseMarkdownTasksWithStructure(tooLong)).toBe(null);
-    expect(convertToMarkdownNotes(tooLong)).toBe(null);
+  it('should reject input over the max length but accept input at the limit', () => {
+    const overMax = '- ' + 'a'.repeat(800_001); // length 800003
+    expect(parseMarkdownTasks(overMax)).toBe(null);
+    expect(parseMarkdownTasksWithStructure(overMax)).toBe(null);
+    expect(convertToMarkdownNotes(overMax)).toBe(null);
+
+    // Boundary: length exactly MAX_INPUT_LENGTH must still parse (guard is `>`).
+    const atMax = '- ' + 'a'.repeat(799_998);
+    expect(atMax.length).toBe(800_000);
+    expect(parseMarkdownTasks(atMax)).not.toBeNull();
   });
 });
