@@ -1,4 +1,5 @@
 import {
+  convertToMarkdownNotes,
   parseMarkdownTasks,
   parseMarkdownTasksWithStructure,
 } from './parse-markdown-tasks';
@@ -362,5 +363,100 @@ describe('parseMarkdownTasksWithStructure', () => {
       ],
       totalSubTasks: 2,
     });
+  });
+
+  // Tripwire: once a sub-task level is set, a later nested item at a *shallower*
+  // (but still > 0) level breaks out of the walk and is dropped here, whereas
+  // parseMarkdownTasks keeps it as a note (see the matching test below). This
+  // documents the divergence that a future shared top-level walker must
+  // preserve.
+  it('drops a nested item that dips below the first sub-task level', () => {
+    const input = `* main
+    * deep
+  * shallow`;
+
+    const result = parseMarkdownTasksWithStructure(input);
+    expect(result).toEqual({
+      mainTasks: [
+        {
+          title: 'main',
+          isCompleted: false,
+          subTasks: [{ title: 'deep', isCompleted: false }],
+        },
+      ],
+      totalSubTasks: 1,
+    });
+  });
+
+  it('keeps the same dip-below item as a note in parseMarkdownTasks', () => {
+    const input = `* main
+    * deep
+  * shallow`;
+
+    const result = parseMarkdownTasks(input);
+    expect(result).toEqual([
+      {
+        title: 'main',
+        isCompleted: false,
+        notes: '    - [ ] deep\n  - [ ] shallow',
+      },
+    ]);
+  });
+});
+
+describe('convertToMarkdownNotes', () => {
+  it('should convert a dash bullet list to checkbox notes', () => {
+    expect(convertToMarkdownNotes('- a\n- b')).toBe('- [ ] a\n- [ ] b');
+  });
+
+  it('should convert asterisk bullets to checkbox notes', () => {
+    expect(convertToMarkdownNotes('* a\n* b')).toBe('- [ ] a\n- [ ] b');
+  });
+
+  it('should preserve completion state', () => {
+    expect(convertToMarkdownNotes('- [x] done\n- [ ] todo')).toBe(
+      '- [x] done\n- [ ] todo',
+    );
+  });
+
+  it('should preserve the leading indentation of nested items', () => {
+    expect(convertToMarkdownNotes('* parent\n  * child')).toBe(
+      '- [ ] parent\n  - [ ] child',
+    );
+  });
+
+  it('should return null when any line is not a list item', () => {
+    expect(convertToMarkdownNotes('- a\nplain text')).toBe(null);
+  });
+
+  it('should return null for empty, null and undefined input', () => {
+    expect(convertToMarkdownNotes('')).toBe(null);
+    expect(convertToMarkdownNotes(null as any)).toBe(null);
+    expect(convertToMarkdownNotes(undefined as any)).toBe(null);
+  });
+});
+
+// Exercises the shared parseLines / splitMarkdownLines setup that all three
+// exported parsers now route through.
+describe('shared input handling', () => {
+  it('should normalize CRLF line endings', () => {
+    expect(parseMarkdownTasks('- a\r\n- b')).toEqual([
+      { title: 'a', isCompleted: false },
+      { title: 'b', isCompleted: false },
+    ]);
+  });
+
+  it('should strip a leading BOM', () => {
+    expect(parseMarkdownTasks('﻿- a\n- b')).toEqual([
+      { title: 'a', isCompleted: false },
+      { title: 'b', isCompleted: false },
+    ]);
+  });
+
+  it('should return null for input exceeding the max length', () => {
+    const tooLong = '- ' + 'a'.repeat(800_001);
+    expect(parseMarkdownTasks(tooLong)).toBe(null);
+    expect(parseMarkdownTasksWithStructure(tooLong)).toBe(null);
+    expect(convertToMarkdownNotes(tooLong)).toBe(null);
   });
 });
