@@ -79,14 +79,6 @@ export const KEYBOARD_SETTINGS_FORM_CFG: ConfigFormSection<KeyboardConfig> = {
     kbField('zoomIn', T.GCF.KEYBOARD.ZOOM_IN),
     kbField('zoomOut', T.GCF.KEYBOARD.ZOOM_OUT),
     kbField('zoomDefault', T.GCF.KEYBOARD.ZOOM_DEFAULT),
-    // TODO implement somehow
-    // {
-    //   key: 'saveNote',
-    //   type: 'keyboard',
-    //   templateOptions: {
-    //     label: T.GCF.KEYBOARD.SAVE_NOTE,
-    //   },
-    // },
     kbField('triggerSync', T.GCF.KEYBOARD.TRIGGER_SYNC),
 
     // TASKS
