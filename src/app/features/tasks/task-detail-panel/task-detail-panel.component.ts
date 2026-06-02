@@ -608,8 +608,7 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   focusItem(cmpInstance: TaskDetailItemComponent, timeoutDuration: number = 150): void {
-    window.clearTimeout(this._focusTimeout);
-    this._focusTimeout = window.setTimeout(() => {
+    this._scheduleTaskGuardedFocus(timeoutDuration, () => {
       const itemEls = this.itemEls();
       if (!itemEls) {
         throw new Error();
@@ -622,7 +621,24 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
         this.panelState.selectedItemIndex.set(i);
         cmpInstance.elementRef.nativeElement.focus();
       }
-    }, timeoutDuration);
+    });
+  }
+
+  /**
+   * Schedules a deferred focus action, but only runs it if the panel still
+   * shows the same task when the timer fires. A focus scheduled for one task
+   * (e.g. the auto-focus on panel open) must not steal focus once the user has
+   * navigated the list to a different task (#6578). Capturing the id at
+   * schedule time — not at fire time — is what makes a late timer a no-op.
+   */
+  private _scheduleTaskGuardedFocus(delayMs: number, focusFn: () => void): void {
+    window.clearTimeout(this._focusTimeout);
+    const scheduledForTaskId = this.task().id;
+    this._focusTimeout = window.setTimeout(() => {
+      if (this.task().id === scheduledForTaskId) {
+        focusFn();
+      }
+    }, delayMs);
   }
 
   updateTaskTitleIfChanged(isChanged: boolean, newTitle: string): void {
@@ -632,7 +648,7 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
   }
 
   private _focusFirst(): void {
-    this._focusTimeout = window.setTimeout(() => {
+    this._scheduleTaskGuardedFocus(150, () => {
       const itemEls = this.itemEls();
       if (!itemEls) {
         throw new Error('No items found');
@@ -640,6 +656,6 @@ export class TaskDetailPanelComponent implements OnInit, AfterViewInit, OnDestro
       if (itemEls.length && itemEls[0]) {
         this.focusItem(itemEls[0], 0);
       }
-    }, 150);
+    });
   }
 }
