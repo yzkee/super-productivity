@@ -37,14 +37,30 @@ export const TaskSharedActions = createActionGroup({
 
     convertToMainTask: (taskProps: {
       task: Task;
-      parentTagIds: string[];
+      parentTagIds?: string[];
       isPlanForToday?: boolean;
+      afterTaskId?: string | null;
+      isDone?: boolean;
     }) => ({
       ...taskProps,
       meta: {
         isPersistent: true,
         entityType: 'TASK',
         entityId: taskProps.task.id,
+        opType: OpType.Update,
+      } satisfies PersistentActionMeta,
+    }),
+
+    convertToSubTask: (taskProps: {
+      taskId: string;
+      targetParentId: string;
+      afterTaskId: string | null;
+    }) => ({
+      ...taskProps,
+      meta: {
+        isPersistent: true,
+        entityType: 'TASK',
+        entityId: taskProps.taskId,
         opType: OpType.Update,
       } satisfies PersistentActionMeta,
     }),
