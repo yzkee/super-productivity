@@ -15,9 +15,17 @@ ordered so each item is independently shippable and reviewable.
 - ✅ `SqliteOpLogAdapter` fully implemented against a minimal `SqliteDb` port,
   unit-tested against an in-memory SQLite stand-in. **Not wired to any
   platform; no native plugin dependency.**
+- ✅ App-private local backup shipped (#7924): `LocalBackupService` writes a
+  JSON snapshot every 5 min on Android (`KeyValStore` rows `backup` /
+  `backup_prev`) and iOS (`Directory.Data` `super-productivity-backup.json` /
+  `.prev.json`), with an empty-state write guard and a two-generation ring so
+  one bad/evicted write cycle can't erase the only good copy. Fresh-launch
+  restore prompt is informed (`summarizeBackupStr` shows task / project
+  counts). Electron continues to use its own rotated backup folder.
 
-Nothing below changes runtime behavior for existing users until step B3 flips a
-platform to the SQLite backend.
+Nothing in the SQLite tracks below changes runtime behavior for existing users
+until step B3 flips a platform to the SQLite backend. The #7924 local-backup
+work is already live on Android/iOS.
 
 ---
 
@@ -32,28 +40,38 @@ SQLite work. Highest user value per unit effort; do these first.
 native and logs nothing when `persist()` resolves `false`. On Android WebView
 the grant is often not honored, so today a report like #7892 carries no signal.
 
-- **Do:** `Log.log({ persisted, granted })` on every branch (incl. native), and
-  surface the result in the exported logs / "About" diagnostics.
+- **Do:** `Log.log({ persisted, granted })` on every branch (incl. native), so
+  exported logs always carry the durability state of the WebView store.
+  Optionally surface in About diagnostics as a follow-up.
 - **Size:** ~1 file, a few lines. **Risk:** none (logging only).
-- **Payoff:** the next #7892-style report is conclusive instead of a mystery.
+- **Payoff:** the next #7892-style report is conclusive instead of a mystery,
+  and the telemetry decides whether the next protective steps (e.g. the
+  near-empty write guard below) are worth the added complexity.
 
-### A2. Periodic local auto-backup outside the WebView store (native)
+### A2 (shipped). Debounced on-data-change backup trigger
 
-A second copy of the op-log/state in app-private storage that OS WebView
-eviction cannot touch.
+✅ Shipped in #7925: `LocalBackupService._triggerBackupSave$` merges a
+`LOCAL_ACTIONS`-driven trigger with the existing 5-min interval — any local
+action settles into a backup after a 30s quiet period. `LOCAL_ACTIONS`
+already filters out remote/hydration replays, and the existing empty-state
+guard in `_backup()` prevents writing a degraded post-eviction snapshot
+over a good backup, so the trigger strictly adds frequency without spam.
 
-- **Do:** on native, periodically (and on a debounced "data changed") write a
-  JSON snapshot via `@capacitor/filesystem` to `Directory.Data`; keep the last
-  N. Restore offered on a wholly-fresh launch when a backup exists. Hook into
-  the existing `_initBackups()` / `loadStateCache()` flow that already has the
-  native restore-prompt scaffolding.
-- **Size:** medium, isolated feature. **Risk:** low (additive; never deletes the
-  live store).
-- **Payoff:** survives the exact overnight-eviction scenario in #7892 even
-  before SQLite lands.
+### A3 (shipped). Near-empty write-time overwrite guard
 
-> A1 + A2 are the recommended near-term fix for #7892. SQLite (Track B) is the
-> durable architectural fix but is weeks of on-device work behind these.
+✅ Shipped in #7925: `LocalBackupService._backupAndroid()` and `_backupIOS()`
+each read the existing primary slot before promoting/overwriting, and bail
+when a near-empty snapshot (< 3 tasks) would clobber a substantial existing
+backup (≥ 10 tasks). Counts include active + young-archived + old-archived
+tasks via the shared `countAllTasks` helper, so the threshold is the same
+on the read side (`summarizeBackupStr`) and the write side. Electron is
+unchanged — its rotated, timestamped backup chain isn't a single-slot
+overwrite. Fail-safe: skipping never loses data; the guard self-clears
+once the store grows back past 3 tasks, so a legitimate bulk-delete is
+captured on the next tick.
+
+> A1, A2, and A3 have shipped — Track A is complete. SQLite (Track B) is
+> the durable architectural fix and is tracked in #7931.
 
 ---
 
@@ -130,9 +148,47 @@ and the `adoptConnection` bridge once SQLite is the sole native backend.
 
 ## Suggested order
 
-1. **A1** (trivial, unblocks diagnosis) → **A2** (the real near-term #7892 fix).
-2. **B1 → B2 → B3** (gets SQLite runnable + validated behind a flag).
-3. **C1 → C2** (migrate real users' data, staged).
-4. **D** (tidy up once SQLite is the native default).
+1. ✅ Track A complete — **A1** (storage-persistence diagnostics) → **A2**
+   (debounced data-change trigger) → **A3** (near-empty write-time overwrite
+   guard) all shipped.
+2. **B1 → B2 → B3** (gets SQLite runnable + validated behind a flag) —
+   tracked in #7931.
+3. **C1 → C2** (migrate real users' data, staged) — tracked in #7931.
+4. **D** (tidy up once SQLite is the native default) — tracked in #7931.
 
-Tracks A and B/C/D are independent — A can ship while B is still in progress.
+Tracks A and B/C/D are independent — A shipped while B/C/D moves at its own
+device-gated cadence.
+
+## Cross-cutting / hardening
+
+These don't belong to a single track but were surfaced by the #7924 review and
+should land alongside the next time the area is touched.
+
+- **`JavaScriptInterface.kt` JS-literal injection** (Android bridge). The
+  `loadFromDbCallback(...)` call is built by raw single-quote interpolation of
+  the stored value into `evaluateJavascript`. Beyond the security smell, it is
+  a real functional bug: `JSON.stringify` does not escape `'`, so a backup
+  blob containing an apostrophe terminates the JS string literal and
+  load-from-DB returns garbage. Fix is to use `JSONObject.quote()` for the
+  arguments (the same primitive already used by
+  `emitForegroundServiceStartFailed`).
+- **Backup-date in the restore prompt** (strengthens the informed-restore UX
+  from #7924). iOS has `Filesystem.stat.mtime` for free; Android needs a
+  bridge change to surface the (now-real) `KEY_CREATED_AT` —
+  `loadFromDbWrapped(key)` returns only the value, so add a meta-aware reader
+  (e.g. `loadFromDbWithMeta` → `{ value, createdAt }`). This gives
+  `KEY_CREATED_AT` its first reader; the column is behaviorally inert today.
+- **Robust restore on empty/degraded boot** (was #7901 item 4). Today
+  `_initBackups()` only offers restore when there is no `stateCache` at all.
+  Extend the trigger to also fire when the loaded state is degraded per
+  `hasMeaningfulStateData`. Needs a decision on auto-restore vs prompt and a
+  guard against resurrecting an intentional wipe (the informed-restore prompt
+  shipped in #7924 already lets the user decline knowingly).
+- **"Last backup" visibility on mobile** (was #7901 item 5). Surface the
+  most recent successful backup time in About / a settings panel so no-sync
+  users can see they are protected. Pairs naturally with the backup-date
+  bridge change.
+- **No-sync onboarding nudge** (was #7901 item 6). On a no-sync mobile
+  install, surface that local-only data is at risk and recommend enabling
+  sync. Default-on local backup (since #7924) already protects them; this is
+  the awareness piece.

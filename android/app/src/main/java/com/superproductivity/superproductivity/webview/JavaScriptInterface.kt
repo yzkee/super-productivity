@@ -93,29 +93,36 @@ class JavaScriptInterface(
     @JavascriptInterface
     fun saveToDb(requestId: String, key: String, value: String) {
         (activity.application as App).keyValStore.set(key, value)
-        callJavaScriptFunction(FN_PREFIX + "saveToDbCallback('" + requestId + "')")
+        callJavaScriptFunction(FN_PREFIX + "saveToDbCallback(" + JSONObject.quote(requestId) + ")")
     }
 
+    // #7925: quote every arg so a stored value with ' / \ / newlines / </script>
+    // can't break out of the JS literal. (JSON.stringify does not escape
+    // apostrophes — pre-fix, a backup blob with one silently corrupted the load.)
     @Suppress("unused")
     @JavascriptInterface
     fun loadFromDb(requestId: String, key: String) {
         val r = (activity.application as App).keyValStore.get(key, "")
-        // NOTE: ' are important as otherwise the json messes up
-        callJavaScriptFunction(FN_PREFIX + "loadFromDbCallback('" + requestId + "', '" + key + "', '" + r + "')")
+        callJavaScriptFunction(
+            FN_PREFIX + "loadFromDbCallback(" +
+                JSONObject.quote(requestId) + ", " +
+                JSONObject.quote(key) + ", " +
+                JSONObject.quote(r) + ")"
+        )
     }
 
     @Suppress("unused")
     @JavascriptInterface
     fun removeFromDb(requestId: String, key: String) {
         (activity.application as App).keyValStore.set(key, null)
-        callJavaScriptFunction(FN_PREFIX + "removeFromDbCallback('" + requestId + "')")
+        callJavaScriptFunction(FN_PREFIX + "removeFromDbCallback(" + JSONObject.quote(requestId) + ")")
     }
 
     @Suppress("unused")
     @JavascriptInterface
     fun clearDb(requestId: String) {
         (activity.application as App).keyValStore.clearAll(activity)
-        callJavaScriptFunction(FN_PREFIX + "clearDbCallback('" + requestId + "')")
+        callJavaScriptFunction(FN_PREFIX + "clearDbCallback(" + JSONObject.quote(requestId) + ")")
     }
 
     @Suppress("unused")
