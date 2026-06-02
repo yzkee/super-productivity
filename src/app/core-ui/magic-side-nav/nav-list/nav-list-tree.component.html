@@ -161,14 +161,21 @@
   @for (project of allUnarchivedProjects(); track project.id) {
     <button
       mat-menu-item
+      role="menuitemcheckbox"
+      [attr.aria-checked]="!project.isHiddenFromMenu"
       (click)="toggleProjectVisibility(project.id)"
     >
       @if (!project.isHiddenFromMenu) {
-        <mat-icon>visibility</mat-icon>
+        <mat-icon>check_box</mat-icon>
       } @else {
-        <mat-icon>visibility_off</mat-icon>
+        <mat-icon>check_box_outline_blank</mat-icon>
       }
-      <span>{{ project.title }}</span>
+      <mat-icon
+        class="nav-icon"
+        [class.nav-icon-emoji]="isSingleEmoji(project.icon || DEFAULT_PROJECT_ICON)"
+        >{{ project.icon || DEFAULT_PROJECT_ICON }}</mat-icon
+      >
+      {{ project.title }}
     </button>
   }
   @if (archivedProjectsCount() > 0) {
