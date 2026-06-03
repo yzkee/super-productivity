@@ -20,6 +20,7 @@ import {
 } from './app/core/locale.constants';
 import { IS_ANDROID_WEB_VIEW } from './app/util/is-android-web-view';
 import { androidInterface } from './app/features/android/android-interface';
+import { AndroidBackButtonService } from './app/features/android/android-back-button.service';
 import { IS_IOS_NATIVE, IS_NATIVE_PLATFORM } from './app/util/is-native-platform';
 import { DataInitStateService } from './app/core/data-init/data-init-state.service';
 // Type definitions for window.ea are in ./app/core/window-ea.d.ts
@@ -449,7 +450,13 @@ if (!(environment.production || environment.stage) && IS_ANDROID_WEB_VIEW) {
 // Android-specific: Handle back button
 if (IS_ANDROID_WEB_VIEW) {
   CapacitorApp.addListener('backButton', ({ canGoBack }) => {
-    if (!canGoBack) {
+    // Delegate to the Angular service so back from a top-level destination pops
+    // to the start destination / exits per Android guidelines (issue #7972).
+    const backButtonService = appInjector?.get(AndroidBackButtonService);
+    if (backButtonService) {
+      backButtonService.handleBackButton();
+    } else if (!canGoBack) {
+      // Pre-bootstrap fallback (back pressed before Angular is ready).
       CapacitorApp.minimizeApp();
     } else {
       window.history.back();
