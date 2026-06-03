@@ -4,7 +4,7 @@
   // 999, not 1000: stay just below the CDK overlay container (z-index 1000) so
   // dialogs opened from here (e.g. the sync setup dialog) render above this
   // opaque backdrop rather than relying on a same-z-index DOM-order tiebreak
-  z-index: 999;
+  z-index: var(--z-onboarding-presets);
 }
 
 .onboarding-backdrop {

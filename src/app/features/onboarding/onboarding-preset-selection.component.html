@@ -33,7 +33,7 @@
       <button
         type="button"
         class="sync-cta-link"
-        [disabled]="!!selectedPreset()"
+        [disabled]="!!selectedPreset() || isSyncSetupInProgress()"
         (click)="setupSync()"
       >
         {{ 'ONBOARDING.SYNC_CTA_LINK' | translate }}
