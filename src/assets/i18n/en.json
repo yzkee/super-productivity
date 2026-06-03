@@ -2639,6 +2639,8 @@
     "TITLE": "How do you want to use Super Productivity?",
     "SUBTITLE": "Pick a setup that matches your workflow. You can always change this later in Settings.",
     "PRIVACY_HINT": "Your data stays securely on your device. Nothing is sent to a server.",
+    "SYNC_CTA": "Already using Super Productivity on another device?",
+    "SYNC_CTA_LINK": "Set up sync",
     "PRESETS": {
       "SIMPLE_TODO": {
         "TITLE": "Simple Todo List",

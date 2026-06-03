@@ -199,6 +199,35 @@ h1 {
   animation: exit-scale-fade 450ms ease-in 350ms forwards;
 }
 
+.sync-cta {
+  color: var(--text-color-muted);
+  font-size: 13px;
+  // breathing room so it reads as a separate optional action, not a footnote
+  // to the "nothing is sent to a server" privacy line above it
+  margin: var(--s2) 0 0 0;
+}
+
+.sync-cta-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--palette-primary-500);
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 250ms ease;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}
+
 .footer-hint {
   color: var(--text-color-muted);
   font-size: 13px;
@@ -262,6 +291,10 @@ h1 {
     .card-text p {
       font-size: 13px;
     }
+  }
+
+  .sync-cta {
+    font-size: 12px;
   }
 
   .footer-hint {
