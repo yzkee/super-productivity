@@ -35,6 +35,7 @@ import { getDefaultMainModelData } from '../model/model-config';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { SyncLocalStateService } from './sync-local-state.service';
 import { SyncImportConflictCoordinatorService } from './sync-import-conflict-coordinator.service';
+import { isExampleTaskCreateOp } from '../validation/is-example-task-op.util';
 
 /**
  * Orchestrates synchronization of the Operation Log with remote storage.
@@ -195,6 +196,47 @@ export class OperationLogSyncService {
           'Download remote data first before uploading.',
       );
       return { kind: 'blocked_fresh_client' };
+    }
+
+    // #7985: identity-based example-task cleanup (the deferred "Fix C" of #7980).
+    // `isNeverSyncedAtSyncStart` is captured PRE-download; if hasSyncedOps() is now true,
+    // this cycle's download just ADOPTED a populated remote. A genuinely-fresh client's
+    // onboarding example tasks are throwaway scaffolding every install regenerates;
+    // uploading them onto the adopted remote pollutes it and propagates to every device
+    // (the residual #7980 documented for non-encrypted accounts seeded by normal upload,
+    // where no SYNC_IMPORT fires the incoming-import gate's discard). Reject the example
+    // create ops so the upload never sends them.
+    //
+    // A status read alone is unsafe (download flips hasSyncedOps mid-cycle — #7980 §10);
+    // the PRE-download `isNeverSynced` is what makes this reliable.
+    //
+    // Stranding safety: we discard only from a PRISTINE post-boot batch — example creates
+    // plus the default GLOBAL_CONFIG writes, nothing else. hasMeaningfulPendingOps() is NOT
+    // enough here: it ignores Move/Batch (and planner/board/section) ops, which can reference
+    // an example task id without being "meaningful". Unlike the incoming-SYNC_IMPORT discard
+    // — where SyncImportFilterService drops any concurrent dependent op against the import —
+    // this adoption path has no import to filter them, so a surviving Move would strand a
+    // dangling reference once its create is rejected. Requiring an all-examples+config batch
+    // also preserves the "edited example syncs as real data" property: any user action (edit,
+    // reorder, real task) adds a non-config op and skips the cleanup, so everything uploads.
+    if (isNeverSyncedAtSyncStart && (await this.opLogStore.hasSyncedOps())) {
+      const pendingOps = await this.opLogStore.getUnsynced();
+      const isPristinePostBootBatch = pendingOps.every(
+        (entry) =>
+          isExampleTaskCreateOp(entry) || entry.op.entityType === 'GLOBAL_CONFIG',
+      );
+      if (isPristinePostBootBatch) {
+        const exampleOpIds = pendingOps
+          .filter(isExampleTaskCreateOp)
+          .map((entry) => entry.op.id);
+        if (exampleOpIds.length > 0) {
+          await this._discardExampleTaskOps(exampleOpIds);
+          OpLog.normal(
+            `OperationLogSyncService: Discarded ${exampleOpIds.length} untouched example-task ` +
+              'op(s) — never-synced client adopted a populated remote this sync (#7985).',
+          );
+        }
+      }
     }
 
     // SERVER MIGRATION CHECK: Passed as callback to execute INSIDE the upload lock.
@@ -474,14 +516,24 @@ export class OperationLogSyncService {
         // SuperSync→Dropbox, only has a config-change op (not "meaningful"), but the
         // store is full of real data that would be overwritten by old Dropbox state.
         //
-        // Known limitation (#7985): hasMeaningfulStoreData() counts ANY task, including onboarding
-        // example tasks (they carry the isExampleTask marker only on their op-log ops, not
-        // in NgRx state). So a fresh file-based client (Dropbox/WebDAV) that created example
-        // tasks while sync was disabled — or before a slow first sync completed — can still
-        // hit this dialog. afterInitialSyncDoneStrict$ shrinks but does not close that window.
+        // #7985: hasMeaningfulStoreData() counts ANY task, including onboarding example
+        // tasks (they carry the isExampleTask marker only on their op-log ops, not in NgRx
+        // state). Derive the example task ids from the pending example-create ops and let
+        // the store check ignore them, so a fresh file-based client (Dropbox/WebDAV) that
+        // only has example tasks adopts remote silently instead of hitting the spurious
+        // conflict dialog #7976/#7980 removed for the SuperSync path. Scope: this fires only
+        // while the example create ops are still pending (a never-synced file client) —
+        // exactly the reachable scenario. A real (non-example) task / non-INBOX project /
+        // non-system tag / note still reads as meaningful and shows the dialog.
+        const exampleTaskIds = new Set(
+          unsyncedOps
+            .filter(isExampleTaskCreateOp)
+            .map((entry) => entry.op.entityId)
+            .filter((id): id is string => id !== undefined),
+        );
         const hasMeaningfulUserData =
           this.syncImportConflictGateService.hasMeaningfulPendingOps(unsyncedOps) ||
-          this.syncLocalStateService.hasMeaningfulStoreData();
+          this.syncLocalStateService.hasMeaningfulStoreData(exampleTaskIds);
 
         if (hasMeaningfulUserData) {
           // Client has meaningful user data - show conflict dialog
