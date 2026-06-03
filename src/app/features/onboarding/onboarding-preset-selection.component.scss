@@ -1,7 +1,10 @@
 :host {
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  // 999, not 1000: stay just below the CDK overlay container (z-index 1000) so
+  // dialogs opened from here (e.g. the sync setup dialog) render above this
+  // opaque backdrop rather than relying on a same-z-index DOM-order tiebreak
+  z-index: 999;
 }
 
 .onboarding-backdrop {
@@ -215,7 +218,6 @@ h1 {
   color: var(--palette-primary-500);
   cursor: pointer;
   text-decoration: none;
-  transition: opacity 250ms ease;
 
   &:hover,
   &:focus-visible {
