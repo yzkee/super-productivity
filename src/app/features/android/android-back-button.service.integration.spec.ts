@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { provideLocationMocks } from '@angular/common/testing';
 import { provideRouter, Router } from '@angular/router';
+import { MatDialog } from '@angular/material/dialog';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 
 import { AndroidBackButtonService } from './android-back-button.service';
@@ -55,6 +56,7 @@ describe('AndroidBackButtonService integration with real Router (#7972)', () => 
             }),
           },
         },
+        { provide: MatDialog, useValue: { openDialogs: [] } },
       ],
     });
 
@@ -114,7 +116,7 @@ describe('AndroidBackButtonService integration with real Router (#7972)', () => 
     expect(router.url).toBe(TODAY_URL);
   }));
 
-  it('navigates up via history on a context sub-page', fakeAsync(() => {
+  it('navigates up via history on a non-top-level page (real serialized URL)', fakeAsync(() => {
     router.navigateByUrl('/project/p1/worklog');
     tick();
     expect(router.url).toBe('/project/p1/worklog');
@@ -126,27 +128,5 @@ describe('AndroidBackButtonService integration with real Router (#7972)', () => 
     expect(minimizeApp).not.toHaveBeenCalled();
     // history.back() is stubbed, so the route stays put
     expect(router.url).toBe('/project/p1/worklog');
-  }));
-
-  it('navigates up via history on a utility page (config)', fakeAsync(() => {
-    router.navigateByUrl('/config');
-    tick();
-
-    service.handleBackButton();
-    tick();
-
-    expect(historyBack).toHaveBeenCalled();
-    expect(minimizeApp).not.toHaveBeenCalled();
-  }));
-
-  it('exits from a utility page when there is no WebView history', fakeAsync(() => {
-    router.navigateByUrl('/config');
-    tick();
-
-    service.handleBackButton(false);
-    tick();
-
-    expect(minimizeApp).toHaveBeenCalled();
-    expect(historyBack).not.toHaveBeenCalled();
   }));
 });

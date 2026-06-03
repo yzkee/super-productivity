@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
+import { MatDialog } from '@angular/material/dialog';
 import { App as CapacitorApp } from '@capacitor/app';
 
 import { HISTORY_STATE } from '../../app.constants';
@@ -23,13 +24,16 @@ import { hideFocusOverlay } from '../focus-mode/store/focus-mode.actions';
  * History-backed overlays (side-nav, task-detail, notes, fullscreen-markdown)
  * and non-top-level pages (context sub-pages, settings, search, …) keep their
  * existing `window.history.back()` behavior so back still closes overlays and
- * navigates up. Focus mode is store-backed and is closed directly.
+ * navigates up. Focus mode is store-backed and is closed directly. A plain
+ * modal dialog (no history state) is dismissed directly so back closes it
+ * rather than minimizing the app underneath it.
  */
 @Injectable({ providedIn: 'root' })
 export class AndroidBackButtonService {
   private readonly _router = inject(Router);
   private readonly _globalConfigService = inject(GlobalConfigService);
   private readonly _store = inject(Store);
+  private readonly _matDialog = inject(MatDialog);
 
   private readonly _isFocusOverlayShown = this._store.selectSignal(selectIsOverlayShown);
   private readonly _allProjects = this._store.selectSignal(selectAllProjects);
@@ -48,7 +52,20 @@ export class AndroidBackButtonService {
       return;
     }
 
-    // 3. Not a top-level destination (context sub-page, settings, search, …)
+    // 3. A modal dialog without its own history state is open → dismiss the
+    //    topmost one instead of navigating/minimizing underneath it. A dialog
+    //    that opted out of dismissal (`disableClose`) swallows the back press,
+    //    mirroring its escape-key behavior. History-backed dialogs (e.g.
+    //    fullscreen-markdown) were already handled in step 2.
+    const topDialog = this._matDialog.openDialogs.at(-1);
+    if (topDialog) {
+      if (!topDialog.disableClose) {
+        topDialog.close();
+      }
+      return;
+    }
+
+    // 4. Not a top-level destination (context sub-page, settings, search, …)
     //    → navigate up via the history stack as before.
     const currentUrl = this._router.url;
     if (!this._isTopLevelDestination(currentUrl)) {
@@ -60,10 +77,10 @@ export class AndroidBackButtonService {
       return;
     }
 
-    // 4. A top-level destination → pop to the start destination, or exit if
+    // 5. A top-level destination → pop to the start destination, or exit if
     //    already there.
     const startUrl = this._getStartPageUrl();
-    if (this._isSamePath(currentUrl, startUrl)) {
+    if (this._pathOf(currentUrl) === this._pathOf(startUrl)) {
       this._minimizeApp();
     } else {
       this._router.navigateByUrl(startUrl, { replaceUrl: true });
@@ -112,10 +129,6 @@ export class AndroidBackButtonService {
       this._globalConfigService.appFeatures(),
       startProject,
     );
-  }
-
-  private _isSamePath(a: string, b: string): boolean {
-    return this._pathOf(a) === this._pathOf(b);
   }
 
   private _pathOf(url: string): string {

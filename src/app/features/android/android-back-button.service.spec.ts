@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
+import { MatDialog, MatDialogRef } from '@angular/material/dialog';
 import { provideMockStore, MockStore } from '@ngrx/store/testing';
 
 import { AndroidBackButtonService } from './android-back-button.service';
@@ -29,16 +30,27 @@ describe('AndroidBackButtonService (#7972)', () => {
   let dispatch: jasmine.Spy;
   let misc: { defaultStartPage?: number | string } | undefined;
   let appFeatures: Record<string, boolean>;
+  let openDialogs: MatDialogRef<unknown>[];
 
   const setProjects = (projects: Project[]): void => {
     store.overrideSelector(selectAllProjects, projects);
     store.refreshState();
   };
 
+  const fakeDialog = (
+    over: Partial<Pick<MatDialogRef<unknown>, 'disableClose'>> = {},
+  ): MatDialogRef<unknown> & { close: jasmine.Spy } =>
+    ({
+      disableClose: false,
+      close: jasmine.createSpy('close'),
+      ...over,
+    }) as MatDialogRef<unknown> & { close: jasmine.Spy };
+
   beforeEach(() => {
     routerUrl = TODAY_URL;
     navigateByUrl = jasmine.createSpy('navigateByUrl');
     misc = { defaultStartPage: DefaultStartPage.Today };
+    openDialogs = [];
     appFeatures = {
       isPlannerEnabled: true,
       isSchedulerEnabled: true,
@@ -63,6 +75,14 @@ describe('AndroidBackButtonService (#7972)', () => {
           useValue: {
             misc: () => misc,
             appFeatures: () => appFeatures,
+          },
+        },
+        {
+          provide: MatDialog,
+          useValue: {
+            get openDialogs(): MatDialogRef<unknown>[] {
+              return openDialogs;
+            },
           },
         },
       ],
@@ -117,6 +137,67 @@ describe('AndroidBackButtonService (#7972)', () => {
       expect(historyBack).not.toHaveBeenCalled();
       expect(minimizeApp).not.toHaveBeenCalled();
       expect(navigateByUrl).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('modal dialogs', () => {
+    it('closes the topmost open dialog instead of minimizing on the start page', () => {
+      const dialog = fakeDialog();
+      openDialogs = [dialog];
+
+      service.handleBackButton();
+
+      expect(dialog.close).toHaveBeenCalled();
+      expect(minimizeApp).not.toHaveBeenCalled();
+      expect(navigateByUrl).not.toHaveBeenCalled();
+      expect(historyBack).not.toHaveBeenCalled();
+    });
+
+    it('closes only the topmost dialog when several are stacked', () => {
+      const lower = fakeDialog();
+      const top = fakeDialog();
+      openDialogs = [lower, top];
+
+      service.handleBackButton();
+
+      expect(top.close).toHaveBeenCalled();
+      expect(lower.close).not.toHaveBeenCalled();
+    });
+
+    it('closes a dialog before navigating up from a non-top-level page', () => {
+      routerUrl = '/config';
+      const dialog = fakeDialog();
+      openDialogs = [dialog];
+
+      service.handleBackButton();
+
+      expect(dialog.close).toHaveBeenCalled();
+      expect(historyBack).not.toHaveBeenCalled();
+    });
+
+    it('swallows back for a non-closable dialog (disableClose) without closing or exiting', () => {
+      const dialog = fakeDialog({ disableClose: true });
+      openDialogs = [dialog];
+
+      service.handleBackButton();
+
+      expect(dialog.close).not.toHaveBeenCalled();
+      expect(minimizeApp).not.toHaveBeenCalled();
+      expect(navigateByUrl).not.toHaveBeenCalled();
+      expect(historyBack).not.toHaveBeenCalled();
+    });
+
+    it('lets a history-backed overlay take precedence over the dialog check', () => {
+      (
+        service as unknown as { _isHistoryOverlayOpen: jasmine.Spy }
+      )._isHistoryOverlayOpen.and.returnValue(true);
+      const dialog = fakeDialog();
+      openDialogs = [dialog];
+
+      service.handleBackButton();
+
+      expect(historyBack).toHaveBeenCalled();
+      expect(dialog.close).not.toHaveBeenCalled();
     });
   });
 
