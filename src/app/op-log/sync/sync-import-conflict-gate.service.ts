@@ -81,7 +81,7 @@ export class SyncImportConflictGateService {
 
   async checkIncomingFullStateConflict(
     incomingOps: Operation[],
-    options: { flushPendingWrites?: boolean } = {},
+    options: { flushPendingWrites?: boolean; isNeverSynced?: boolean } = {},
   ): Promise<IncomingFullStateConflictGateResult> {
     const fullStateOp = incomingOps.find((op) => FULL_STATE_OP_TYPES.has(op.opType));
 
@@ -121,6 +121,20 @@ export class SyncImportConflictGateService {
       return result;
     }
 
+    // A client that has never completed a sync cannot have diverged from remote — its
+    // "meaningful" pending ops are pre-first-sync startup state (e.g. example tasks).
+    // Flag this so the dialog guards the destructive USE_LOCAL choice with an extra
+    // confirmation (it would overwrite the populated remote with throwaway data).
+    //
+    // Callers SHOULD pass `isNeverSynced` captured at sync-cycle start (pre-download).
+    // A live `hasSyncedOps()` here is unreliable on the piggyback-upload path: by the
+    // time that gate runs, this same sync has already persisted downloaded ops
+    // (syncedAt set) and marked accepted uploads synced, so reading it now would see
+    // post-sync state and wrongly clear the guard. Fall back to a live read only for
+    // standalone callers (e.g. the download path, where nothing is persisted yet).
+    const isNeverSynced =
+      options.isNeverSynced ?? !(await this.opLogStore.hasSyncedOps());
+
     return {
       ...result,
       dialogData: {
@@ -128,6 +142,7 @@ export class SyncImportConflictGateService {
         localImportTimestamp: fullStateOp.timestamp ?? Date.now(),
         syncImportReason: fullStateOp.syncImportReason,
         scenario: 'INCOMING_IMPORT',
+        isNeverSynced,
       },
     };
   }

@@ -39,8 +39,12 @@ describe('SyncImportConflictGateService', () => {
   });
 
   beforeEach(() => {
-    opLogStoreSpy = jasmine.createSpyObj('OperationLogStoreService', ['getUnsynced']);
+    opLogStoreSpy = jasmine.createSpyObj('OperationLogStoreService', [
+      'getUnsynced',
+      'hasSyncedOps',
+    ]);
     opLogStoreSpy.getUnsynced.and.resolveTo([]);
+    opLogStoreSpy.hasSyncedOps.and.resolveTo(false);
 
     writeFlushServiceSpy = jasmine.createSpyObj('OperationWriteFlushService', [
       'flushPendingWrites',
@@ -86,6 +90,7 @@ describe('SyncImportConflictGateService', () => {
       localImportTimestamp: 123,
       syncImportReason: 'SERVER_MIGRATION',
       scenario: 'INCOMING_IMPORT',
+      isNeverSynced: true,
     });
   });
 
@@ -214,7 +219,76 @@ describe('SyncImportConflictGateService', () => {
       localImportTimestamp: 123,
       syncImportReason: undefined,
       scenario: 'INCOMING_IMPORT',
+      isNeverSynced: true,
     });
+  });
+
+  it('should mark dialogData.isNeverSynced=false for an already-synced client', async () => {
+    opLogStoreSpy.hasSyncedOps.and.resolveTo(true);
+    const incomingSyncImport = createOperation();
+    const pendingTaskEntry = createEntry(
+      createOperation({
+        id: 'local-task-update',
+        actionType: 'test' as ActionType,
+        opType: OpType.Update,
+        entityType: 'TASK',
+        entityId: 'task-1',
+        clientId: 'client-A',
+        vectorClock: { clientA: 1 },
+      }),
+    );
+    opLogStoreSpy.getUnsynced.and.resolveTo([pendingTaskEntry]);
+
+    const result = await service.checkIncomingFullStateConflict([incomingSyncImport]);
+
+    expect(result.dialogData?.isNeverSynced).toBeFalse();
+  });
+
+  it('should honor a caller-provided isNeverSynced snapshot instead of reading live sync history', async () => {
+    // The piggyback-upload path captures isNeverSynced at sync-cycle start and passes it
+    // in, because by the time that gate runs the live store already reflects this sync's
+    // own writes (downloaded ops persisted with syncedAt, accepted uploads marked synced).
+    // A live read here would be `true` (already synced), wrongly clearing the guard.
+    opLogStoreSpy.hasSyncedOps.and.resolveTo(true);
+    const incomingSyncImport = createOperation();
+    const pendingTaskEntry = createEntry(
+      createOperation({
+        id: 'local-task-update',
+        actionType: 'test' as ActionType,
+        opType: OpType.Update,
+        entityType: 'TASK',
+        entityId: 'task-1',
+        clientId: 'client-A',
+        vectorClock: { clientA: 1 },
+      }),
+    );
+    opLogStoreSpy.getUnsynced.and.resolveTo([pendingTaskEntry]);
+
+    const result = await service.checkIncomingFullStateConflict([incomingSyncImport], {
+      isNeverSynced: true,
+    });
+
+    expect(result.dialogData?.isNeverSynced).toBeTrue();
+    expect(opLogStoreSpy.hasSyncedOps).not.toHaveBeenCalled();
+  });
+
+  it('should not consult sync history when there are no meaningful pending ops', async () => {
+    const incomingSyncImport = createOperation();
+    const pendingConfigEntry = createEntry(
+      createOperation({
+        id: 'local-config-update',
+        opType: OpType.Update,
+        entityType: 'GLOBAL_CONFIG',
+        entityId: 'sync',
+        clientId: 'client-A',
+        vectorClock: { clientA: 1 },
+      }),
+    );
+    opLogStoreSpy.getUnsynced.and.resolveTo([pendingConfigEntry]);
+
+    await service.checkIncomingFullStateConflict([incomingSyncImport]);
+
+    expect(opLogStoreSpy.hasSyncedOps).not.toHaveBeenCalled();
   });
 
   it('should skip pending-op checks when incoming ops contain no full-state op', async () => {

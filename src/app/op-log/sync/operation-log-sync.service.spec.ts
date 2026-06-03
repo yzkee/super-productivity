@@ -59,7 +59,9 @@ describe('OperationLogSyncService', () => {
       'clearFullStateOps',
       'getVectorClock',
       'appendBatchSkipDuplicates',
+      'hasSyncedOps',
     ]);
+    opLogStoreSpy.hasSyncedOps.and.resolveTo(true);
     opLogStoreSpy.setVectorClock.and.resolveTo();
     opLogStoreSpy.clearFullStateOps.and.resolveTo();
     opLogStoreSpy.getVectorClock.and.resolveTo(null);
@@ -325,6 +327,68 @@ describe('OperationLogSyncService', () => {
         if (result.kind === 'completed') {
           expect(result.localWinOpsCreated).toBe(2);
         }
+      });
+
+      it('should flag the piggybacked SYNC_IMPORT conflict as never-synced using PRE-upload history', async () => {
+        // Regression: the never-synced guard must be captured before the upload marks
+        // accepted ops synced. uploadService.uploadPendingOps flips hasSyncedOps() to true
+        // as a side effect; if the gate read it afterwards it would clear the guard and
+        // re-open the data-loss trap (USE_LOCAL force-overwriting a populated remote).
+        opLogStoreSpy.hasSyncedOps.and.resolveTo(false);
+
+        const piggybackedSyncImport: Operation = {
+          id: 'remote-sync-import',
+          clientId: 'client-B',
+          actionType: ActionType.LOAD_ALL_DATA,
+          opType: OpType.SyncImport,
+          entityType: 'ALL',
+          payload: {},
+          vectorClock: { clientB: 5 },
+          timestamp: Date.now(),
+          schemaVersion: 1,
+        };
+        // A meaningful local op remains pending so the gate produces dialog data.
+        opLogStoreSpy.getUnsynced.and.resolveTo([
+          {
+            seq: 1,
+            op: {
+              id: 'local-task-create',
+              clientId: 'client-A',
+              actionType: 'test' as ActionType,
+              opType: OpType.Create,
+              entityType: 'TASK',
+              entityId: 'task-1',
+              payload: { title: 'Example task' },
+              vectorClock: { clientA: 1 },
+              timestamp: Date.now(),
+              schemaVersion: 1,
+            },
+            appliedAt: Date.now(),
+            source: 'local',
+          },
+        ]);
+
+        // Simulate the upload marking ops synced: hasSyncedOps() now reports true.
+        uploadServiceSpy.uploadPendingOps.and.callFake(async () => {
+          opLogStoreSpy.hasSyncedOps.and.resolveTo(true);
+          return {
+            uploadedCount: 1,
+            piggybackedOps: [piggybackedSyncImport],
+            rejectedCount: 0,
+            rejectedOps: [],
+          };
+        });
+
+        const mockProvider = { isReady: () => Promise.resolve(true) } as any;
+
+        const result = await service.uploadPendingOps(mockProvider);
+
+        // CANCEL is the default dialog result, so the upload reports cancelled.
+        expect(result.kind).toBe('cancelled');
+        // The dialog must have been shown with the PRE-upload never-synced value.
+        expect(
+          syncImportConflictDialogServiceSpy.showConflictDialog,
+        ).toHaveBeenCalledWith(jasmine.objectContaining({ isNeverSynced: true }));
       });
 
       describe('rejected ops handling delegation', () => {
@@ -2446,6 +2510,61 @@ describe('OperationLogSyncService', () => {
       expect(remoteOpsProcessingServiceSpy.processRemoteOps).not.toHaveBeenCalled();
       expect(mockProvider.setLastServerSeq).not.toHaveBeenCalled();
       expect(result.kind).toBe('cancelled');
+    });
+
+    // End-to-end guard for the reported data-loss trap: a genuinely-fresh client
+    // (only the seeded example-task ops, never synced) meets a populated remote
+    // SYNC_IMPORT. The dialog must receive isNeverSynced=true so USE_LOCAL — which
+    // would overwrite the real remote with throwaway data — is guarded. Spans
+    // service -> real conflict gate -> real coordinator -> dialog.
+    it('flags isNeverSynced=true on the dialog for a never-synced client meeting a populated remote SYNC_IMPORT', async () => {
+      const incomingSyncImport = createIncomingSyncImport();
+
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [incomingSyncImport],
+        success: true,
+        providerMode: 'superSyncOps',
+        failedFileCount: 0,
+        latestServerSeq: 42,
+      });
+
+      // Fresh client: has meaningful pending work (a seeded example task) but has
+      // never completed a sync.
+      opLogStoreSpy.hasSyncedOps.and.resolveTo(false);
+      opLogStoreSpy.getUnsynced.and.resolveTo([
+        {
+          seq: 1,
+          op: {
+            id: 'example-task-create',
+            clientId: 'client-A',
+            actionType: 'test' as ActionType,
+            opType: OpType.Create,
+            entityType: 'TASK',
+            entityId: 'task-1',
+            payload: { title: 'Example Task' },
+            vectorClock: { clientA: 1 },
+            timestamp: Date.now(),
+            schemaVersion: 1,
+          },
+          appliedAt: Date.now(),
+          source: 'local',
+        },
+      ]);
+      syncImportConflictDialogServiceSpy.showConflictDialog.and.resolveTo('CANCEL');
+
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await service.downloadRemoteOps(mockProvider);
+
+      expect(syncImportConflictDialogServiceSpy.showConflictDialog).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          scenario: 'INCOMING_IMPORT',
+          isNeverSynced: true,
+        }),
+      );
     });
 
     it('should flush pending writes before checking incoming SYNC_IMPORT conflicts', async () => {
