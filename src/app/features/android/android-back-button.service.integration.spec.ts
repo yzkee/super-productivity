@@ -138,4 +138,15 @@ describe('AndroidBackButtonService integration with real Router (#7972)', () => 
     expect(historyBack).toHaveBeenCalled();
     expect(minimizeApp).not.toHaveBeenCalled();
   }));
+
+  it('exits from a utility page when there is no WebView history', fakeAsync(() => {
+    router.navigateByUrl('/config');
+    tick();
+
+    service.handleBackButton(false);
+    tick();
+
+    expect(minimizeApp).toHaveBeenCalled();
+    expect(historyBack).not.toHaveBeenCalled();
+  }));
 });
