@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 import { TestBed } from '@angular/core/testing';
 import { OperationLogStoreService } from '../../persistence/operation-log-store.service';
 import { ActionType, OpType, Operation } from '../../core/operation.types';
