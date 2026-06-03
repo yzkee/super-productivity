@@ -30,6 +30,15 @@ describe('AndroidBackButtonService integration with real Router (#7972)', () => 
   let historyBack: jasmine.Spy;
 
   beforeEach(() => {
+    // The service reads the REAL window.history.state to detect history-backed
+    // overlays. Karma shares one browser context across the whole suite, so a
+    // prior spec rendering an overlay (notes, task-detail-panel, side-nav, …)
+    // can leave a HISTORY_STATE key set there, which would make
+    // handleBackButton take the early _historyBack() branch. Reset it so these
+    // tests are independent of suite run order. (provideLocationMocks gives the
+    // Router its own in-memory history, so this doesn't affect routing.)
+    window.history.replaceState(null, '');
+
     TestBed.configureTestingModule({
       providers: [
         AndroidBackButtonService,
