@@ -2801,6 +2801,7 @@
     "DIALOG_TITLE": "System Update"
   },
   "PS": {
+    "CLICK_TO_COPY_VERSION": "Click to copy version",
     "FAILED_TO_COPY_TO_CLIPBOARD": "Failed to copy to clipboard",
     "GLOBAL_SETTINGS": "Global Settings",
     "NO_PLUGINS_INSTALLED": "No plugins are currently installed",
