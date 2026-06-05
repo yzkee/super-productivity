@@ -101,15 +101,33 @@ export class CalendarIntegrationEffects {
                 switchMap((allEventsToday) =>
                   timer(0, CHECK_TO_SHOW_INTERVAL).pipe(
                     tap(async () => {
-                      if (
+                      const isAutoImportAllowed =
                         calProvider.isAutoImportForCurrentDay &&
                         this._syncTriggerService.isInitialSyncDoneSync() &&
-                        !this._hydrationStateService.isInSyncWindow()
-                      ) {
-                        const allIssueIds =
-                          await this._taskService.getAllIssueIdsForProviderEverywhere(
-                            calProvider.id,
-                          );
+                        !this._hydrationStateService.isInSyncWindow();
+                      const eventsToShowBannerFor = allEventsToday.filter(
+                        (calEv) =>
+                          passesCalendarEventRegexFilter(
+                            calEv,
+                            calProvider.filterIncludeRegex,
+                            calProvider.filterExcludeRegex,
+                          ) &&
+                          isCalenderEventDue(
+                            calEv,
+                            calProvider,
+                            this._calendarIntegrationService.skippedEventIds$.getValue(),
+                            now,
+                          ) &&
+                          !calEv.isReferenceCalendar,
+                      );
+                      const allIssueIds =
+                        isAutoImportAllowed || eventsToShowBannerFor.length
+                          ? await this._taskService.getAllIssueIdsForProviderEverywhere(
+                              calProvider.id,
+                            )
+                          : [];
+
+                      if (isAutoImportAllowed) {
                         // Re-check after the IDB read: a sync window can open
                         // during the await (e.g. tab resume → openSyncWindow()),
                         // and importing now would still emit a duplicate CRT op.
@@ -137,24 +155,11 @@ export class CalendarIntegrationEffects {
                         }
                       }
 
-                      const eventsToShowBannerFor = allEventsToday.filter(
-                        (calEv) =>
-                          passesCalendarEventRegexFilter(
-                            calEv,
-                            calProvider.filterIncludeRegex,
-                            calProvider.filterExcludeRegex,
-                          ) &&
-                          isCalenderEventDue(
-                            calEv,
-                            calProvider,
-                            this._calendarIntegrationService.skippedEventIds$.getValue(),
-                            now,
-                          ) &&
-                          !calEv.isReferenceCalendar,
-                      );
-                      eventsToShowBannerFor.forEach((calEv) => {
-                        this._addEvToShow(calEv, calProvider);
-                      });
+                      eventsToShowBannerFor
+                        .filter((calEv) => !matchesAnyCalendarEventId(calEv, allIssueIds))
+                        .forEach((calEv) => {
+                          this._addEvToShow(calEv, calProvider);
+                        });
                       // this._showBanner(calEv, calProvider),
                     }),
                   ),

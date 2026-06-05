@@ -227,4 +227,22 @@ describe('CalendarIntegrationEffects pollChanges$ startup guard', () => {
     expect(banners.length).toBe(1);
     expect(banners[0].id).toBe('cal-evt-due');
   }));
+
+  it('does NOT queue a banner for an event linked to an archived task', fakeAsync(() => {
+    getAllIssueIdsSpy.and.resolveTo(['cal-evt-due']);
+    requestEvents$Spy.and.returnValue(
+      of([buildEvent('cal-evt-due', { start: Date.now() + THIRTY_MINUTES_MS })]),
+    );
+
+    sub = effects.pollChanges$.subscribe();
+    tick(0);
+    flush();
+
+    const banners = (
+      effects as unknown as {
+        _currentlyShownBanners$: BehaviorSubject<{ id: string }[]>;
+      }
+    )._currentlyShownBanners$.getValue();
+    expect(banners).toEqual([]);
+  }));
 });
