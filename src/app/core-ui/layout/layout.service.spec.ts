@@ -73,6 +73,11 @@ describe('LayoutService', () => {
     });
 
     afterEach(() => {
+      // These tests shadow the native document.activeElement getter with an own
+      // data property via Object.defineProperty. Delete it so the prototype
+      // accessor shows through again; otherwise a stale activeElement leaks into
+      // later specs (e.g. TaskService.focusTaskById reads the clobbered value).
+      Reflect.deleteProperty(document, 'activeElement');
       if (mockTaskElement && mockTaskElement.parentNode) {
         mockTaskElement.parentNode.removeChild(mockTaskElement);
       }
