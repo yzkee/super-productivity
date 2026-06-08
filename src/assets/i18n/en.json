@@ -1309,7 +1309,8 @@
         "RECOMMEND_SERVER": "Recommended: Accept the server data to stay in sync with the other device.",
         "TITLE": "Sync Conflict Detected",
         "USE_LOCAL": "Use My Data",
-        "USE_REMOTE": "Use Server Data"
+        "USE_REMOTE": "Use Server Data",
+        "USE_REMOTE_CONFIRM": "This replaces this device's data with the server's and discards {{count}} local change(s). Continue?"
       },
       "FORM": {
         "BTN_CHANGE_PASSWORD": "Change Password",
@@ -1534,6 +1535,7 @@
         "LOCAL_CHANGES_DISCARDED": "{{count}} local change(s) discarded - item(s) were deleted on another device",
         "LOCAL_CHANGES_DISCARDED_SNAPSHOT": "{{count}} unsaved local change(s) discarded - sync downloaded newer data",
         "LOCAL_DATA_REPLACE_CANCELLED": "Sync cancelled. Your local data has been preserved.",
+        "LOCAL_DATA_REPLACE_UNDO": "Your local data was replaced with the server's data.",
         "LOCK_TIMEOUT_ERROR": "Sync timed out waiting for a previous operation to finish. Please try again.",
         "LWW_CONFLICTS_AUTO_RESOLVED": "Sync conflicts auto-resolved: {{localWins}} local win(s), {{remoteWins}} remote win(s)",
         "MIGRATION_FAILED": "Some sync data could not be migrated and was skipped. This may indicate data corruption or a bug.",
@@ -1546,6 +1548,7 @@
         "PERSIST_FAILED": "Failed to save changes. State may be inconsistent - please reload.",
         "REMOTE_DATA_TOO_OLD": "Remote data is too old to be processed. Please update your remote app.",
         "REPLAY_LOCAL_OPS_FAILED": "Failed to replay local operations after import. Some recent changes may be lost. Data has been validated.",
+        "RESTORE_ENCRYPTED": "Restoring from server history isn't available when end-to-end encryption is enabled. The server can't read your encrypted data to reconstruct an earlier point.",
         "RESTORE_ERROR": "Failed to restore data",
         "RESTORE_SUCCESS": "Data restored successfully",
         "SERVER_MIGRATION_VALIDATION_FAILED": "Could not migrate data to server - local data validation failed. Please try importing a backup.",
