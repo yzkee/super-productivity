@@ -81,6 +81,11 @@ describe('LayoutService', () => {
       if (mockTaskElement && mockTaskElement.parentNode) {
         mockTaskElement.parentNode.removeChild(mockTaskElement);
       }
+      // Restore the native activeElement getter — the tests below shadow it with
+      // a static own property via Object.defineProperty, which otherwise leaks
+      // into later specs and freezes document.activeElement (e.g. breaking
+      // task.service focusTaskById, which reads the real activeElement).
+      delete (document as unknown as { activeElement?: unknown }).activeElement;
     });
 
     it('should store focused task element when showing add task bar', () => {
