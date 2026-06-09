@@ -2283,7 +2283,7 @@
     "OPEN_IMPORT_FROM_URL_DIALOG": "Import from URL",
     "PRIVACY_EXPORT": "Export Data (anonymized)",
     "PRIVACY_EXPORT_DESCRIPTION": "Export anonymized data (to send to contact@super-productivity.com for debugging)",
-    "S_BACKUP_DOWNLOADED": "Backup downloaded to Android documents folder",
+    "S_BACKUP_DOWNLOADED": "Backup exported",
     "S_ERR_IMPORT_FAILED": "Importing data failed",
     "S_ERR_INVALID_DATA": "Import failed: Invalid JSON",
     "S_ERR_INVALID_URL": "Import failed: Invalid URL provided",
