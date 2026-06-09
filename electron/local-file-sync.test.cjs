@@ -273,3 +273,29 @@ test('TO_FILE_URL converts an outside path to a file:// URL', () => {
   const result = handlers['TO_FILE_URL']({}, path.join(externalDir, 'bg.png'));
   assert.match(result, /^file:\/\//);
 });
+
+test('IMAGE_CACHE_IMPORT imports an image and IMAGE_CACHE_GET_DATA_URL returns it', async () => {
+  fs.writeFileSync(path.join(externalDir, 'bg.png'), 'pngbytes');
+  const imported = await handlers['IMAGE_CACHE_IMPORT'](
+    {},
+    path.join(externalDir, 'bg.png'),
+  );
+  assert.ok(imported);
+  assert.match(imported.id, /^[a-f0-9]{32}$/);
+  const url = await handlers['IMAGE_CACHE_GET_DATA_URL']({}, imported.id);
+  assert.match(url, /^data:image\/png;base64,/);
+});
+
+test('IMAGE_CACHE_IMPORT refuses a path inside userData', async () => {
+  fs.writeFileSync(path.join(userDataDir, 'planted.png'), 'fake');
+  const imported = await handlers['IMAGE_CACHE_IMPORT'](
+    {},
+    path.join(userDataDir, 'planted.png'),
+  );
+  assert.equal(imported, null);
+});
+
+test('IMAGE_CACHE_GET_DATA_URL returns null for unknown ids', async () => {
+  const result = await handlers['IMAGE_CACHE_GET_DATA_URL']({}, 'a'.repeat(32));
+  assert.equal(result, null);
+});

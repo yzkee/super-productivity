@@ -15,6 +15,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import { assertPathOutside } from './file-path-guard';
 import { resolveSyncPath } from './sync-path-resolver';
 import { loadSimpleStoreAll, saveSimpleStore } from './simple-store';
+import { getImageDataUrl, importImage } from './image-cache';
 
 // SECURITY: file-sync must never read/write/list inside the app's private dir,
 // which holds settings/grants/db — touching it is a privilege-escalation
@@ -316,6 +317,25 @@ export const initLocalFileSyncAdapter = (): void => {
   ipcMain.handle(IPC.GET_SYNC_FOLDER_PATH, async (): Promise<string | null> => {
     return getSyncFolderPath();
   });
+
+  ipcMain.handle(
+    IPC.IMAGE_CACHE_IMPORT,
+    async (_, absolutePath: string): Promise<{ id: string; mimeType: string } | null> => {
+      // The caller passes a path the user just chose via SHOW_OPEN_DIALOG.
+      // `importImage` does its own validation (outside userData, allowed
+      // extension, size cap) so a renderer cannot use this IPC as a
+      // generic file-read primitive — only image-shaped files inside
+      // user-readable directories get cached.
+      return importImage(absolutePath);
+    },
+  );
+
+  ipcMain.handle(
+    IPC.IMAGE_CACHE_GET_DATA_URL,
+    async (_, id: string): Promise<string | null> => {
+      return getImageDataUrl(id);
+    },
+  );
 
   ipcMain.handle(
     IPC.SHOW_OPEN_DIALOG,

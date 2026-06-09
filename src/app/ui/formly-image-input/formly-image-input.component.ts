@@ -60,14 +60,23 @@ export class FormlyImageInputComponent extends FieldType<FormlyFieldConfig> {
       filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }],
     });
     const selectedPath = selectedPaths?.[0];
-    if (selectedPath) {
-      const fileUrl = await window.ea.toFileUrl(selectedPath);
-      this.formControl.setValue(fileUrl);
+    if (!selectedPath) {
+      return;
     }
-    // if (selectedPath) {
-    //   const normalizedPath = selectedPath.replace(/\\/g, '/');
-    //   this.formControl.setValue(`file://${normalizedPath}`);
-    // }
+    // Post-#8228: hand the path to main once at pick time. Main copies the
+    // file into a private cache and returns an opaque id; we store
+    // `image:<id>` in user config. The absolute path is never persisted in
+    // the renderer or echoed back over IPC, so a compromised renderer
+    // cannot ask main to re-read arbitrary files between sessions.
+    const imported = await window.ea.imageCacheImport(selectedPath);
+    if (!imported) {
+      this._snackService.open({
+        msg: T.F.PROJECT.FORM_THEME.S_BACKGROUND_IMAGE_READ_ERROR,
+        type: 'ERROR',
+      });
+      return;
+    }
+    this.formControl.setValue(`image:${imported.id}`);
   }
 
   onFileSelected(event: Event): void {

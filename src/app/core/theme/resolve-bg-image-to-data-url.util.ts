@@ -1,21 +1,43 @@
 import { IS_ELECTRON } from '../../app.constants';
 
+const IMAGE_CACHE_PREFIX = 'image:';
+
 /**
  * Resolve a background-image URL to something a CSS `background` can render.
  *
- * On Electron a `file://` URL has to be read off disk and inlined as a data
- * URL (the renderer can't load arbitrary `file://` paths); every other URL
- * passes through unchanged. Returns null when there is no image or the read
- * fails, so callers fall back to no background.
+ * Post-issue-#8228 the preferred shape is `image:<opaque-id>`, where the
+ * file lives in a main-owned cache (electron/image-cache.ts) and main hands
+ * back a data URL on demand. Plain http(s) URLs pass through unchanged.
  *
- * Note: callers that react to a changing source should guard against stale
- * results themselves (e.g. a request-id), since this resolves asynchronously.
+ * Legacy `file://` values are accepted on Electron for backward
+ * compatibility with configs saved before this change. They flow through
+ * the (still-userData-guarded) `readLocalImageAsDataUrl` IPC. The picker
+ * no longer produces new `file://` values, so the long-tail will drain as
+ * users re-pick their backgrounds.
+ *
+ * Returns null when there is no image or the read fails, so callers fall
+ * back to no background.
  */
 export const resolveBgImageToDataUrl = async (
   bgImage: string | null | undefined,
 ): Promise<string | null> => {
   if (!bgImage) {
     return null;
+  }
+  if (bgImage.startsWith(IMAGE_CACHE_PREFIX)) {
+    if (!IS_ELECTRON) {
+      return null;
+    }
+    const id = bgImage.substring(IMAGE_CACHE_PREFIX.length);
+    const imageCacheGetDataUrl = window.ea?.imageCacheGetDataUrl;
+    if (!imageCacheGetDataUrl) {
+      return null;
+    }
+    try {
+      return (await imageCacheGetDataUrl(id)) || null;
+    } catch {
+      return null;
+    }
   }
   if (!IS_ELECTRON || !bgImage.startsWith('file://')) {
     return bgImage;

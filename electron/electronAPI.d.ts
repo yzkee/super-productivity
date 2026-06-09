@@ -87,6 +87,22 @@ export interface ElectronAPI {
 
   readLocalImageAsDataUrl(filePathOrUrl: string): Promise<string | null>;
 
+  /**
+   * Copy a user-picked image into the main-owned cache and return an opaque
+   * id. The renderer stores the id (e.g. `image:<id>`) in user config and
+   * never holds the absolute path again. See `electron/image-cache.ts`.
+   */
+  imageCacheImport(
+    absolutePath: string,
+  ): Promise<{ id: string; mimeType: string } | null>;
+
+  /**
+   * Resolve a cached image id to a `data:` URL the renderer can use as a
+   * CSS background. Returns null when the id is unknown or the file
+   * disappeared.
+   */
+  imageCacheGetDataUrl(id: string): Promise<string | null>;
+
   // checkDirExists(dirPath: string): Promise<true | Error>;
 
   // STANDARD

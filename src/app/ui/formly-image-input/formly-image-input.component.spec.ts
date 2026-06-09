@@ -125,22 +125,46 @@ describe('FormlyImageInputComponent', () => {
     });
   });
 
-  it('sets file url from electron dialog selection', async () => {
+  it('imports the picked image into the main-owned cache and stores image:<id>', async () => {
     (component as any).IS_ELECTRON = true;
+
+    const imageCacheImport = jasmine
+      .createSpy('imageCacheImport')
+      .and.resolveTo({ id: 'a'.repeat(32), mimeType: 'image/png' });
 
     (window as any).ea = {
       showOpenDialog: jasmine
         .createSpy('showOpenDialog')
         .and.resolveTo(['/home/test/image.png']),
-      toFileUrl: jasmine
-        .createSpy('toFileUrl')
-        .and.resolveTo('file:///home/test/image.png'),
+      imageCacheImport,
     };
 
     const setValueSpy = spyOn(formControl, 'setValue').and.callThrough();
 
     await component.openFileExplorer();
 
-    expect(setValueSpy).toHaveBeenCalledWith('file:///home/test/image.png');
+    expect(imageCacheImport).toHaveBeenCalledWith('/home/test/image.png');
+    expect(setValueSpy).toHaveBeenCalledWith(`image:${'a'.repeat(32)}`);
+  });
+
+  it('shows a snack and does not set a value if image-cache import fails', async () => {
+    (component as any).IS_ELECTRON = true;
+
+    (window as any).ea = {
+      showOpenDialog: jasmine
+        .createSpy('showOpenDialog')
+        .and.resolveTo(['/home/test/image.png']),
+      imageCacheImport: jasmine.createSpy('imageCacheImport').and.resolveTo(null),
+    };
+
+    const setValueSpy = spyOn(formControl, 'setValue').and.callThrough();
+
+    await component.openFileExplorer();
+
+    expect(setValueSpy).not.toHaveBeenCalled();
+    expect(snackService.open).toHaveBeenCalledWith({
+      msg: T.F.PROJECT.FORM_THEME.S_BACKGROUND_IMAGE_READ_ERROR,
+      type: 'ERROR',
+    });
   });
 });

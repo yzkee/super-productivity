@@ -93,6 +93,13 @@ const ea: ElectronAPI = {
   toFileUrl: (filePath: string) => ipcRenderer.invoke(IPC.TO_FILE_URL, filePath),
   readLocalImageAsDataUrl: (filePathOrUrl: string) =>
     _invoke('READ_LOCAL_IMAGE_AS_DATA_URL', filePathOrUrl) as Promise<string | null>,
+  imageCacheImport: (absolutePath: string) =>
+    _invoke('IMAGE_CACHE_IMPORT', absolutePath) as Promise<{
+      id: string;
+      mimeType: string;
+    } | null>,
+  imageCacheGetDataUrl: (id: string) =>
+    _invoke('IMAGE_CACHE_GET_DATA_URL', id) as Promise<string | null>,
   // STANDARD
   // --------
   setZoomFactor: (zoomFactor: number) => {
