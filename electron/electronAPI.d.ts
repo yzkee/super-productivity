@@ -92,7 +92,7 @@ export interface ElectronAPI {
    */
   imagePickAndImport(args?: {
     replacesId?: string;
-  }): Promise<{ id: string; mimeType: string } | null>;
+  }): Promise<{ id: string; mimeType: string } | null | Error>;
 
   /**
    * Resolve a cached image id to a `data:` URL the renderer can use as a

@@ -8,10 +8,12 @@ export const PROVIDER_ID_LOCAL_FILE = 'LocalFile' as const;
 export interface LocalFileSyncPrivateCfg {
   encryptKey?: string;
   /**
-   * @deprecated Electron-selected sync folder path, kept for migration of
-   * pre-issue-#8228 configs. The authoritative copy now lives main-side in
-   * `electron/sync-folder-store.ts`; this field may be read once on upgrade
-   * to seed the main store, then becomes unused.
+   * @deprecated Electron-selected sync folder path, kept only so older
+   * persisted configs can still be parsed. Post-#8228 the authoritative
+   * sync folder lives main-side (inlined cache backed by `simple-store`
+   * inside `electron/local-file-sync.ts`); this field is read once on
+   * upgrade so the migration breadcrumb can log "needs re-pick", and is
+   * never written from new code paths.
    */
   syncFolderPath?: string;
   /** Android Storage Access Framework folder URI. */

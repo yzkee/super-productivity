@@ -279,16 +279,17 @@ test('IMAGE_PICK_AND_IMPORT returns null when the user cancels', async () => {
   assert.equal(result, null);
 });
 
-test('IMAGE_PICK_AND_IMPORT throws when the picked file fails validation', async () => {
-  // File inside userData → importImage returns null → handler throws so the
-  // renderer can show an error snack (vs a silent null for user-cancel).
+test('IMAGE_PICK_AND_IMPORT returns a safe Error when validation fails (no path leak)', async () => {
+  // File inside userData → importImage returns null → handler returns a
+  // safe Error so the renderer can show a snack (vs a silent null for cancel).
+  // The error message must not echo back the renderer-picked path.
   const planted = path.join(userDataDir, 'planted.png');
   fs.writeFileSync(planted, 'fake');
   nextDialogResult = { canceled: false, filePaths: [planted] };
-  await assert.rejects(
-    () => handlers['IMAGE_PICK_AND_IMPORT']({}, undefined),
-    /could not be imported/,
-  );
+  const result = await handlers['IMAGE_PICK_AND_IMPORT']({}, undefined);
+  assert.ok(result instanceof Error);
+  assert.ok(!String(result.message).includes(planted), 'no path in message');
+  assert.equal(result.stack, undefined, 'stack stripped, no main-bundle paths');
 });
 
 test('IMAGE_PICK_AND_IMPORT garbage-collects the prior cached image on replace', async () => {

@@ -252,38 +252,48 @@ export const initLocalFileSyncAdapter = (): void => {
     async (
       _,
       args?: { replacesId?: string },
-    ): Promise<{ id: string; mimeType: string } | null> => {
+    ): Promise<{ id: string; mimeType: string } | null | Error> => {
       // SECURITY: the dialog + import are atomic and run together in main.
       // The renderer never holds the absolute path — it cannot trigger an
       // image read without a user clicking through the native picker.
       // (The previous shape exposed an `importImage(path)` IPC that the
       // renderer could call with any image-extension path it pleased; this
       // version closes that gap.)
-      const { canceled, filePaths } = (await dialog.showOpenDialog(getWin(), {
-        title: 'Select image',
-        buttonLabel: 'Select',
-        properties: ['openFile'],
-        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }],
-      })) as unknown as { canceled: boolean; filePaths: string[] };
-      if (canceled || !filePaths[0]) {
-        // User cancelled — distinct from validation failure so the renderer
-        // can stay silent instead of showing a "couldn't read image" snack.
-        return null;
+      try {
+        const { canceled, filePaths } = (await dialog.showOpenDialog(getWin(), {
+          title: 'Select image',
+          buttonLabel: 'Select',
+          properties: ['openFile'],
+          filters: [
+            { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] },
+          ],
+        })) as unknown as { canceled: boolean; filePaths: string[] };
+        if (canceled || !filePaths[0]) {
+          // User cancelled — distinct from validation failure so the renderer
+          // can stay silent instead of showing a "couldn't read image" snack.
+          return null;
+        }
+        const imported = await importImage(filePaths[0]);
+        if (!imported) {
+          // Reject as an error: validation failed (extension, size, etc.) so
+          // the renderer surfaces the error path, not the cancel path. The
+          // safe-error wrapper below strips the stack and renames the error
+          // so it matches the FS handlers' contract — main bundle paths
+          // (from a raw `e.stack`) are not leaked.
+          throw new Error('Selected image could not be imported');
+        }
+        if (typeof args?.replacesId === 'string' && args.replacesId) {
+          // GC: drop the file the renderer is about to overwrite in its config.
+          // Renderer-supplied id is opaque; worst case is removing a cached
+          // image that wasn't actually orphaned, which the user can recover by
+          // re-picking.
+          await removeCachedImage(args.replacesId);
+        }
+        return imported;
+      } catch (e) {
+        error('Image pick-and-import failed', getSafeErrorMeta(e));
+        return createSafeIpcError(IPC.IMAGE_PICK_AND_IMPORT, e);
       }
-      const imported = await importImage(filePaths[0]);
-      if (!imported) {
-        // Reject as an error: validation failed (extension, size, etc.) so
-        // the renderer surfaces the error path, not the cancel path.
-        throw new Error('Selected image could not be imported');
-      }
-      if (typeof args?.replacesId === 'string' && args.replacesId) {
-        // GC: drop the file the renderer is about to overwrite in its config.
-        // Renderer-supplied id is opaque; worst case is removing a cached
-        // image that wasn't actually orphaned, which the user can recover by
-        // re-picking.
-        await removeCachedImage(args.replacesId);
-      }
-      return imported;
     },
   );
 

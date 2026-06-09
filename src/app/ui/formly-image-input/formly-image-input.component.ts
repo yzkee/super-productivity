@@ -3,6 +3,7 @@ import {
   Component,
   ElementRef,
   inject,
+  signal,
   viewChild,
 } from '@angular/core';
 import { FieldType } from '@ngx-formly/material';
@@ -44,13 +45,19 @@ export class FormlyImageInputComponent extends FieldType<FormlyFieldConfig> {
   readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
   readonly T = T;
   readonly IS_ELECTRON = IS_ELECTRON;
+  // Guard against double-click while the main-side dialog + import is in
+  // flight. A second click would otherwise queue a second IPC that opens
+  // a second dialog after the first resolves, and (because `replacesId` is
+  // computed from the form value at click time) leak the first import as
+  // an orphan in `userData/bg-images/`.
+  readonly isPickerBusy = signal(false);
 
   get isUnsplashAvailable(): boolean {
     return this._unsplashService.isAvailable();
   }
 
   async openFileExplorer(): Promise<void> {
-    if (!this.IS_ELECTRON) {
+    if (!this.IS_ELECTRON || this.isPickerBusy()) {
       return;
     }
     // Post-#8228: dialog + import are atomic in main. The renderer never
@@ -62,24 +69,27 @@ export class FormlyImageInputComponent extends FieldType<FormlyFieldConfig> {
       typeof current === 'string' && current.startsWith('image:')
         ? current.substring('image:'.length)
         : undefined;
-    let imported: { id: string; mimeType: string } | null;
+    this.isPickerBusy.set(true);
     try {
-      imported = await window.ea.imagePickAndImport(
+      const result = await window.ea.imagePickAndImport(
         replacesId ? { replacesId } : undefined,
       );
-    } catch {
-      // Validation failure (extension, size cap). User-cancel returns null
-      // and never throws — see local-file-sync.ts IMAGE_PICK_AND_IMPORT.
-      this._snackService.open({
-        msg: T.F.PROJECT.FORM_THEME.S_BACKGROUND_IMAGE_READ_ERROR,
-        type: 'ERROR',
-      });
-      return;
+      if (result instanceof Error) {
+        // Validation failure (extension, size cap, etc.). User-cancel
+        // returns null. See electron/local-file-sync.ts IMAGE_PICK_AND_IMPORT.
+        this._snackService.open({
+          msg: T.F.PROJECT.FORM_THEME.S_BACKGROUND_IMAGE_READ_ERROR,
+          type: 'ERROR',
+        });
+        return;
+      }
+      if (!result) {
+        return; // user cancelled
+      }
+      this.formControl.setValue(`image:${result.id}`);
+    } finally {
+      this.isPickerBusy.set(false);
     }
-    if (!imported) {
-      return; // user cancelled
-    }
-    this.formControl.setValue(`image:${imported.id}`);
   }
 
   onFileSelected(event: Event): void {

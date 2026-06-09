@@ -156,7 +156,7 @@ describe('FormlyImageInputComponent', () => {
     expect(imagePickAndImport).toHaveBeenCalledWith({ replacesId: 'b'.repeat(32) });
   });
 
-  it('shows a snack on validation failure (IPC rejects) but not on cancel', async () => {
+  it('shows a snack on validation failure (Error return) but not on cancel (null)', async () => {
     (component as any).IS_ELECTRON = true;
     const setValueSpy = spyOn(formControl, 'setValue').and.callThrough();
 
@@ -168,11 +168,11 @@ describe('FormlyImageInputComponent', () => {
     expect(setValueSpy).not.toHaveBeenCalled();
     expect(snackService.open).not.toHaveBeenCalled();
 
-    // Failure: IPC rejects, snack shown.
+    // Failure: IPC returns an Error (parity with FS handlers' contract).
     (window as any).ea = {
       imagePickAndImport: jasmine
         .createSpy('imagePickAndImport')
-        .and.rejectWith(new Error('Selected image could not be imported')),
+        .and.resolveTo(new Error('Selected image could not be imported')),
     };
     await component.openFileExplorer();
     expect(setValueSpy).not.toHaveBeenCalled();
@@ -180,5 +180,29 @@ describe('FormlyImageInputComponent', () => {
       msg: T.F.PROJECT.FORM_THEME.S_BACKGROUND_IMAGE_READ_ERROR,
       type: 'ERROR',
     });
+  });
+
+  it('blocks a second concurrent click while a pick is in flight', async () => {
+    (component as any).IS_ELECTRON = true;
+    let resolveFirst!: (v: { id: string; mimeType: string }) => void;
+    const imagePickAndImport = jasmine.createSpy('imagePickAndImport').and.callFake(
+      () =>
+        new Promise<{ id: string; mimeType: string }>((r) => {
+          resolveFirst = r;
+        }),
+    );
+    (window as any).ea = { imagePickAndImport };
+
+    const firstClick = component.openFileExplorer();
+    // Second click while the first is awaiting — must be a no-op so the
+    // form's `replacesId` for the second IPC doesn't still point at the
+    // old value and orphan the first import.
+    await component.openFileExplorer();
+    expect(imagePickAndImport).toHaveBeenCalledTimes(1);
+    expect(component.isPickerBusy()).toBe(true);
+
+    resolveFirst({ id: 'd'.repeat(32), mimeType: 'image/png' });
+    await firstClick;
+    expect(component.isPickerBusy()).toBe(false);
   });
 });

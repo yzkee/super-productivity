@@ -91,10 +91,14 @@ const ea: ElectronAPI = {
   }) => _invoke('SHOW_OPEN_DIALOG', options) as Promise<string[] | undefined>,
 
   imagePickAndImport: (args) =>
-    _invoke('IMAGE_PICK_AND_IMPORT', args) as Promise<{
-      id: string;
-      mimeType: string;
-    } | null>,
+    _invoke('IMAGE_PICK_AND_IMPORT', args) as Promise<
+      | {
+          id: string;
+          mimeType: string;
+        }
+      | null
+      | Error
+    >,
   imageCacheGetDataUrl: (id: string) =>
     _invoke('IMAGE_CACHE_GET_DATA_URL', id) as Promise<string | null>,
   // STANDARD
