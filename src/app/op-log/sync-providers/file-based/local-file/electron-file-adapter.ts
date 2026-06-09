@@ -5,10 +5,10 @@ import { ElectronAPI } from '../../../../../../electron/electronAPI';
  * Bridges `FileAdapter` calls to the Electron main process.
  *
  * Post-issue-#8228: the adapter sends only a *relative* path. The sync
- * folder is owned main-side (see `electron/sync-folder-store.ts`); the
- * renderer never round-trips an absolute path. The base class's
- * `getFilePath` already returns the relative form for Electron — we just
- * forward it here.
+ * folder is owned main-side (inlined at the top of
+ * `electron/local-file-sync.ts`); the renderer never round-trips an
+ * absolute path. The base class's `getFilePath` already returns the
+ * relative form for Electron — we just forward it here.
  */
 export class ElectronFileAdapter implements FileAdapter {
   private readonly ea: ElectronAPI;

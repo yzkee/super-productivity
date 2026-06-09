@@ -13,7 +13,7 @@ import { app, dialog, ipcMain } from 'electron';
 import { getWin } from './main-window';
 import { resolveSyncPath } from './sync-path-resolver';
 import { loadSimpleStoreAll, saveSimpleStore } from './simple-store';
-import { getImageDataUrl, importImage } from './image-cache';
+import { getImageDataUrl, importImage, removeCachedImage } from './image-cache';
 
 // SECURITY: file-sync must never read/write/list inside the app's private dir,
 // which holds settings/grants/db — touching it is a privilege-escalation
@@ -57,6 +57,17 @@ const setSyncFolderPath = async (rawPath: string): Promise<string> => {
   return canonical;
 };
 
+// Same `(maybeRoot, relative, userData) → absolutePath` resolution wrapped
+// so the five handlers below don't repeat the same incantation. Returns the
+// absolute path on success; throws PathNotAllowedError on rejection (the
+// existing handler try/catch funnels both into a safe IPC error).
+const _resolveRelative = async (relativePath: string | undefined): Promise<string> =>
+  resolveSyncPath(
+    (await getSyncFolderPath()) ?? undefined,
+    relativePath ?? '',
+    getAppPrivateDir(),
+  ).absolutePath;
+
 export const initLocalFileSyncAdapter = (): void => {
   ipcMain.handle(
     IPC.FILE_SYNC_SAVE,
@@ -73,11 +84,7 @@ export const initLocalFileSyncAdapter = (): void => {
       },
     ): Promise<string | Error> => {
       try {
-        const filePath = resolveSyncPath(
-          (await getSyncFolderPath()) ?? undefined,
-          relativePath,
-          getAppPrivateDir(),
-        ).absolutePath;
+        const filePath = await _resolveRelative(relativePath);
         log(IPC.FILE_SYNC_SAVE, {
           dataLength: dataStr.length,
           hasData: dataStr.length > 0,
@@ -111,11 +118,7 @@ export const initLocalFileSyncAdapter = (): void => {
       },
     ): Promise<{ rev: string; dataStr: string | undefined } | Error> => {
       try {
-        const filePath = resolveSyncPath(
-          (await getSyncFolderPath()) ?? undefined,
-          relativePath,
-          getAppPrivateDir(),
-        ).absolutePath;
+        const filePath = await _resolveRelative(relativePath);
         log(IPC.FILE_SYNC_LOAD, {
           hasLocalRev: !!localRev,
         });
@@ -145,11 +148,7 @@ export const initLocalFileSyncAdapter = (): void => {
       },
     ): Promise<void | Error> => {
       try {
-        const filePath = resolveSyncPath(
-          (await getSyncFolderPath()) ?? undefined,
-          relativePath,
-          getAppPrivateDir(),
-        ).absolutePath;
+        const filePath = await _resolveRelative(relativePath);
         log(IPC.FILE_SYNC_REMOVE);
         unlinkSync(filePath);
         return;
@@ -173,11 +172,7 @@ export const initLocalFileSyncAdapter = (): void => {
       try {
         // Default to the sync root itself (relativePath = '') so the legacy
         // "is the configured sync folder reachable?" check still works.
-        const dirPath = resolveSyncPath(
-          (await getSyncFolderPath()) ?? undefined,
-          relativePath ?? '',
-          getAppPrivateDir(),
-        ).absolutePath;
+        const dirPath = await _resolveRelative(relativePath);
         const dirEntries = readdirSync(dirPath);
         log(IPC.CHECK_DIR_EXISTS, {
           dirEntryCount: dirEntries.length,
@@ -206,11 +201,7 @@ export const initLocalFileSyncAdapter = (): void => {
       },
     ): Promise<string[] | Error> => {
       try {
-        const dirPath = resolveSyncPath(
-          (await getSyncFolderPath()) ?? undefined,
-          relativePath ?? '',
-          getAppPrivateDir(),
-        ).absolutePath;
+        const dirPath = await _resolveRelative(relativePath);
         return readdirSync(dirPath);
       } catch (e) {
         error('Local file sync list files failed', getSafeErrorMeta(e));
@@ -257,14 +248,42 @@ export const initLocalFileSyncAdapter = (): void => {
   });
 
   ipcMain.handle(
-    IPC.IMAGE_CACHE_IMPORT,
-    async (_, absolutePath: string): Promise<{ id: string; mimeType: string } | null> => {
-      // The caller passes a path the user just chose via SHOW_OPEN_DIALOG.
-      // `importImage` does its own validation (outside userData, allowed
-      // extension, size cap) so a renderer cannot use this IPC as a
-      // generic file-read primitive — only image-shaped files inside
-      // user-readable directories get cached.
-      return importImage(absolutePath);
+    IPC.IMAGE_PICK_AND_IMPORT,
+    async (
+      _,
+      args?: { replacesId?: string },
+    ): Promise<{ id: string; mimeType: string } | null> => {
+      // SECURITY: the dialog + import are atomic and run together in main.
+      // The renderer never holds the absolute path — it cannot trigger an
+      // image read without a user clicking through the native picker.
+      // (The previous shape exposed an `importImage(path)` IPC that the
+      // renderer could call with any image-extension path it pleased; this
+      // version closes that gap.)
+      const { canceled, filePaths } = (await dialog.showOpenDialog(getWin(), {
+        title: 'Select image',
+        buttonLabel: 'Select',
+        properties: ['openFile'],
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }],
+      })) as unknown as { canceled: boolean; filePaths: string[] };
+      if (canceled || !filePaths[0]) {
+        // User cancelled — distinct from validation failure so the renderer
+        // can stay silent instead of showing a "couldn't read image" snack.
+        return null;
+      }
+      const imported = await importImage(filePaths[0]);
+      if (!imported) {
+        // Reject as an error: validation failed (extension, size, etc.) so
+        // the renderer surfaces the error path, not the cancel path.
+        throw new Error('Selected image could not be imported');
+      }
+      if (typeof args?.replacesId === 'string' && args.replacesId) {
+        // GC: drop the file the renderer is about to overwrite in its config.
+        // Renderer-supplied id is opaque; worst case is removing a cached
+        // image that wasn't actually orphaned, which the user can recover by
+        // re-picking.
+        await removeCachedImage(args.replacesId);
+      }
+      return imported;
     },
   );
 
@@ -343,10 +362,4 @@ const createSafeIpcError = (operation: IPC, e: unknown): Error => {
   delete safeError.stack;
 
   return safeError;
-};
-
-/** Test-only: clear the in-memory cache so the next read re-loads from disk. */
-export const __resetSyncFolderCacheForTests = (): void => {
-  _cachedSyncFolder = undefined;
-  _loadPromise = null;
 };

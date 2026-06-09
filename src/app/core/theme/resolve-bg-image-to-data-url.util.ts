@@ -23,13 +23,14 @@ export const resolveBgImageToDataUrl = async (
     return null;
   }
   if (bgImage.startsWith(IMAGE_CACHE_PREFIX)) {
+    const id = bgImage.substring(IMAGE_CACHE_PREFIX.length);
+    if (!id) return null; // `image:` with empty id — nothing to look up
     // window.ea is only defined under Electron; on web the absence of the
     // bridge naturally short-circuits to null.
     const imageCacheGetDataUrl = window.ea?.imageCacheGetDataUrl;
     if (!imageCacheGetDataUrl) {
       return null;
     }
-    const id = bgImage.substring(IMAGE_CACHE_PREFIX.length);
     try {
       return (await imageCacheGetDataUrl(id)) || null;
     } catch {
@@ -39,6 +40,12 @@ export const resolveBgImageToDataUrl = async (
   if (bgImage.startsWith('file://')) {
     // Legacy shape — picker now produces `image:<id>`. No safe IPC to read
     // an arbitrary renderer-supplied path remains; user must re-pick.
+    // TODO(#8228 follow-up): one-time snack to nudge re-pick. Translation
+    // infrastructure is the only blocker; for now we log so devs notice.
+    // eslint-disable-next-line no-console
+    console.warn(
+      'Background image with legacy file:// URL is no longer resolvable; please re-pick',
+    );
     return null;
   }
   return bgImage;

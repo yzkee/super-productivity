@@ -52,9 +52,10 @@ const ensureCacheDir = async (): Promise<string> => {
 };
 
 const getExt = (p: string): string => {
-  const base = p.toLowerCase().split('/').pop() || '';
-  const dot = base.lastIndexOf('.');
-  return dot >= 0 ? base.substring(dot + 1) : '';
+  // Use path.extname so Windows backslash separators are handled too —
+  // the renderer-supplied path may originate from a Windows-style picker.
+  const ext = path.extname(p).toLowerCase();
+  return ext.startsWith('.') ? ext.substring(1) : ext;
 };
 
 export interface ImportedImage {

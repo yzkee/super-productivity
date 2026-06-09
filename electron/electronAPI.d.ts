@@ -84,13 +84,15 @@ export interface ElectronAPI {
   }): Promise<string[] | undefined>;
 
   /**
-   * Copy a user-picked image into the main-owned cache and return an opaque
-   * id. The renderer stores the id (e.g. `image:<id>`) in user config and
-   * never holds the absolute path again. See `electron/image-cache.ts`.
+   * Open the native image picker, copy the chosen file into the main-owned
+   * cache, and return an opaque id. The renderer never holds the absolute
+   * path. Pass `replacesId` to garbage-collect the previous cached image
+   * the renderer is about to overwrite in its config. Returns null when the
+   * user cancels or the picked file fails validation.
    */
-  imageCacheImport(
-    absolutePath: string,
-  ): Promise<{ id: string; mimeType: string } | null>;
+  imagePickAndImport(args?: {
+    replacesId?: string;
+  }): Promise<{ id: string; mimeType: string } | null>;
 
   /**
    * Resolve a cached image id to a `data:` URL the renderer can use as a

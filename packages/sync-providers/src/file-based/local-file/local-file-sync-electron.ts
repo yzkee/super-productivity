@@ -31,6 +31,19 @@ export class LocalFileSyncElectron extends LocalFileSyncBase {
       throw new Error('LocalFileSyncElectron is only available in electron');
     }
     const folderPath = await this._deps.getMainSyncFolderPath();
+    if (!folderPath) {
+      // Migration breadcrumb (#8228): a pre-fix install may still have a
+      // syncFolderPath in the renderer credential store. Log so the dev
+      // console shows why isReady=false until the user re-picks. A
+      // user-facing snack is the right shape but i18n infrastructure
+      // belongs in a UX follow-up, not the security fix.
+      const legacyCfg = await this.privateCfg.load().catch(() => null);
+      if (legacyCfg?.syncFolderPath) {
+        this.logger.critical(
+          `${LocalFileSyncElectron.L}: sync folder needs to be re-selected after security update (#8228)`,
+        );
+      }
+    }
     return !!folderPath;
   }
 

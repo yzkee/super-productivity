@@ -53,28 +53,31 @@ export class FormlyImageInputComponent extends FieldType<FormlyFieldConfig> {
     if (!this.IS_ELECTRON) {
       return;
     }
-
-    const selectedPaths = await window.ea.showOpenDialog({
-      properties: ['openFile'],
-      title: 'Select image',
-      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] }],
-    });
-    const selectedPath = selectedPaths?.[0];
-    if (!selectedPath) {
-      return;
-    }
-    // Post-#8228: hand the path to main once at pick time. Main copies the
-    // file into a private cache and returns an opaque id; we store
-    // `image:<id>` in user config. The absolute path is never persisted in
-    // the renderer or echoed back over IPC, so a compromised renderer
-    // cannot ask main to re-read arbitrary files between sessions.
-    const imported = await window.ea.imageCacheImport(selectedPath);
-    if (!imported) {
+    // Post-#8228: dialog + import are atomic in main. The renderer never
+    // sees the absolute path and cannot trigger an import without a real
+    // user-driven dialog interaction. We pass the current cached id (if
+    // any) so main can garbage-collect the file we're about to replace.
+    const current = this.formControl.value;
+    const replacesId =
+      typeof current === 'string' && current.startsWith('image:')
+        ? current.substring('image:'.length)
+        : undefined;
+    let imported: { id: string; mimeType: string } | null;
+    try {
+      imported = await window.ea.imagePickAndImport(
+        replacesId ? { replacesId } : undefined,
+      );
+    } catch {
+      // Validation failure (extension, size cap). User-cancel returns null
+      // and never throws — see local-file-sync.ts IMAGE_PICK_AND_IMPORT.
       this._snackService.open({
         msg: T.F.PROJECT.FORM_THEME.S_BACKGROUND_IMAGE_READ_ERROR,
         type: 'ERROR',
       });
       return;
+    }
+    if (!imported) {
+      return; // user cancelled
     }
     this.formControl.setValue(`image:${imported.id}`);
   }

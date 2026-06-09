@@ -125,42 +125,56 @@ describe('FormlyImageInputComponent', () => {
     });
   });
 
-  it('imports the picked image into the main-owned cache and stores image:<id>', async () => {
+  it('triggers the atomic pick+import IPC and stores image:<id>', async () => {
     (component as any).IS_ELECTRON = true;
 
-    const imageCacheImport = jasmine
-      .createSpy('imageCacheImport')
+    const imagePickAndImport = jasmine
+      .createSpy('imagePickAndImport')
       .and.resolveTo({ id: 'a'.repeat(32), mimeType: 'image/png' });
 
-    (window as any).ea = {
-      showOpenDialog: jasmine
-        .createSpy('showOpenDialog')
-        .and.resolveTo(['/home/test/image.png']),
-      imageCacheImport,
-    };
+    (window as any).ea = { imagePickAndImport };
 
     const setValueSpy = spyOn(formControl, 'setValue').and.callThrough();
 
     await component.openFileExplorer();
 
-    expect(imageCacheImport).toHaveBeenCalledWith('/home/test/image.png');
+    expect(imagePickAndImport).toHaveBeenCalledWith(undefined);
     expect(setValueSpy).toHaveBeenCalledWith(`image:${'a'.repeat(32)}`);
   });
 
-  it('shows a snack and does not set a value if image-cache import fails', async () => {
+  it('passes the replacesId so main can garbage-collect the old cached image', async () => {
     (component as any).IS_ELECTRON = true;
+    formControl.setValue(`image:${'b'.repeat(32)}`);
 
-    (window as any).ea = {
-      showOpenDialog: jasmine
-        .createSpy('showOpenDialog')
-        .and.resolveTo(['/home/test/image.png']),
-      imageCacheImport: jasmine.createSpy('imageCacheImport').and.resolveTo(null),
-    };
-
-    const setValueSpy = spyOn(formControl, 'setValue').and.callThrough();
+    const imagePickAndImport = jasmine
+      .createSpy('imagePickAndImport')
+      .and.resolveTo({ id: 'c'.repeat(32), mimeType: 'image/png' });
+    (window as any).ea = { imagePickAndImport };
 
     await component.openFileExplorer();
 
+    expect(imagePickAndImport).toHaveBeenCalledWith({ replacesId: 'b'.repeat(32) });
+  });
+
+  it('shows a snack on validation failure (IPC rejects) but not on cancel', async () => {
+    (component as any).IS_ELECTRON = true;
+    const setValueSpy = spyOn(formControl, 'setValue').and.callThrough();
+
+    // Cancel: returns null, no snack, no setValue.
+    (window as any).ea = {
+      imagePickAndImport: jasmine.createSpy('imagePickAndImport').and.resolveTo(null),
+    };
+    await component.openFileExplorer();
+    expect(setValueSpy).not.toHaveBeenCalled();
+    expect(snackService.open).not.toHaveBeenCalled();
+
+    // Failure: IPC rejects, snack shown.
+    (window as any).ea = {
+      imagePickAndImport: jasmine
+        .createSpy('imagePickAndImport')
+        .and.rejectWith(new Error('Selected image could not be imported')),
+    };
+    await component.openFileExplorer();
     expect(setValueSpy).not.toHaveBeenCalled();
     expect(snackService.open).toHaveBeenCalledWith({
       msg: T.F.PROJECT.FORM_THEME.S_BACKGROUND_IMAGE_READ_ERROR,

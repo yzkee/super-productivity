@@ -255,25 +255,61 @@ test('legacy TO_FILE_URL handler is no longer registered', () => {
   assert.equal(handlers['TO_FILE_URL'], undefined);
 });
 
-test('IMAGE_CACHE_IMPORT imports an image and IMAGE_CACHE_GET_DATA_URL returns it', async () => {
-  fs.writeFileSync(path.join(externalDir, 'bg.png'), 'pngbytes');
-  const imported = await handlers['IMAGE_CACHE_IMPORT'](
-    {},
-    path.join(externalDir, 'bg.png'),
-  );
+test('legacy IMAGE_CACHE_IMPORT handler is no longer registered', () => {
+  // Phase 5: dialog + import are atomic in IMAGE_PICK_AND_IMPORT now.
+  // The renderer cannot trigger an image read without a real dialog click.
+  assert.equal(handlers['IMAGE_CACHE_IMPORT'], undefined);
+});
+
+test('IMAGE_PICK_AND_IMPORT opens dialog, imports the chosen file, returns an id', async () => {
+  const picked = path.join(externalDir, 'bg.png');
+  fs.writeFileSync(picked, 'pngbytes');
+  nextDialogResult = { canceled: false, filePaths: [picked] };
+
+  const imported = await handlers['IMAGE_PICK_AND_IMPORT']({}, undefined);
   assert.ok(imported);
   assert.match(imported.id, /^[a-f0-9]{32}$/);
   const url = await handlers['IMAGE_CACHE_GET_DATA_URL']({}, imported.id);
   assert.match(url, /^data:image\/png;base64,/);
 });
 
-test('IMAGE_CACHE_IMPORT refuses a path inside userData', async () => {
-  fs.writeFileSync(path.join(userDataDir, 'planted.png'), 'fake');
-  const imported = await handlers['IMAGE_CACHE_IMPORT'](
-    {},
-    path.join(userDataDir, 'planted.png'),
+test('IMAGE_PICK_AND_IMPORT returns null when the user cancels', async () => {
+  nextDialogResult = { canceled: true, filePaths: [] };
+  const result = await handlers['IMAGE_PICK_AND_IMPORT']({}, undefined);
+  assert.equal(result, null);
+});
+
+test('IMAGE_PICK_AND_IMPORT throws when the picked file fails validation', async () => {
+  // File inside userData → importImage returns null → handler throws so the
+  // renderer can show an error snack (vs a silent null for user-cancel).
+  const planted = path.join(userDataDir, 'planted.png');
+  fs.writeFileSync(planted, 'fake');
+  nextDialogResult = { canceled: false, filePaths: [planted] };
+  await assert.rejects(
+    () => handlers['IMAGE_PICK_AND_IMPORT']({}, undefined),
+    /could not be imported/,
   );
-  assert.equal(imported, null);
+});
+
+test('IMAGE_PICK_AND_IMPORT garbage-collects the prior cached image on replace', async () => {
+  const oldPicked = path.join(externalDir, 'old.png');
+  fs.writeFileSync(oldPicked, 'oldbytes');
+  nextDialogResult = { canceled: false, filePaths: [oldPicked] };
+  const oldImport = await handlers['IMAGE_PICK_AND_IMPORT']({}, undefined);
+  assert.ok(oldImport);
+  const oldCachePath = path.join(userDataDir, 'bg-images', `${oldImport.id}.png`);
+  assert.equal(fs.existsSync(oldCachePath), true);
+
+  const newPicked = path.join(externalDir, 'new.png');
+  fs.writeFileSync(newPicked, 'newbytes');
+  nextDialogResult = { canceled: false, filePaths: [newPicked] };
+  const newImport = await handlers['IMAGE_PICK_AND_IMPORT'](
+    {},
+    { replacesId: oldImport.id },
+  );
+  assert.ok(newImport);
+  assert.notEqual(newImport.id, oldImport.id);
+  assert.equal(fs.existsSync(oldCachePath), false, 'old file should be removed');
 });
 
 test('IMAGE_CACHE_GET_DATA_URL returns null for unknown ids', async () => {
