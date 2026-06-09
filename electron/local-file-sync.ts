@@ -11,8 +11,6 @@ import {
 import { error, log } from 'electron-log/main';
 import { app, dialog, ipcMain } from 'electron';
 import { getWin } from './main-window';
-import { fileURLToPath, pathToFileURL } from 'url';
-import { assertPathOutside } from './file-path-guard';
 import { resolveSyncPath } from './sync-path-resolver';
 import { loadSimpleStoreAll, saveSimpleStore } from './simple-store';
 import { getImageDataUrl, importImage } from './image-cache';
@@ -60,66 +58,6 @@ const setSyncFolderPath = async (rawPath: string): Promise<string> => {
 };
 
 export const initLocalFileSyncAdapter = (): void => {
-  ipcMain.handle(
-    IPC.READ_LOCAL_IMAGE_AS_DATA_URL,
-    async (_, filePathOrUrl: string): Promise<string | null> => {
-      try {
-        const normalized = filePathOrUrl.startsWith('file://')
-          ? fileURLToPath(filePathOrUrl)
-          : filePathOrUrl;
-
-        // SECURITY: never inline a file from the app's private dir (the path is
-        // renderer-supplied background-image config).
-        assertPathOutside(getAppPrivateDir(), normalized);
-
-        const ext = normalized.toLowerCase().split('.').pop() || '';
-
-        const mimeTypeByExt: Record<string, string> = {
-          png: 'image/png',
-          jpg: 'image/jpeg',
-          jpeg: 'image/jpeg',
-          gif: 'image/gif',
-          webp: 'image/webp',
-          svg: 'image/svg+xml',
-          bmp: 'image/bmp',
-          avif: 'image/avif',
-        };
-
-        const mimeType = mimeTypeByExt[ext];
-
-        // Reject unsupported file types before reading
-        if (!mimeType) {
-          return null;
-        }
-
-        const fs = await import('fs');
-
-        const stat = await fs.promises.stat(normalized);
-
-        const MAX_FILE_SIZE = 5 * 1024 * 1024;
-
-        if (stat.size > MAX_FILE_SIZE) {
-          throw new Error('Background image exceeds 5 MB limit');
-        }
-
-        const buffer = await fs.promises.readFile(normalized);
-
-        return `data:${mimeType};base64,${buffer.toString('base64')}`;
-      } catch (e) {
-        error('Read local image as data URL failed', getSafeErrorMeta(e));
-        return null;
-      }
-    },
-  );
-
-  ipcMain.handle(IPC.TO_FILE_URL, (_, filePath: string): string => {
-    // SECURITY: a userData path must not be laundered into a file:// URL that
-    // later flows back through READ_LOCAL_IMAGE_AS_DATA_URL or a navigation
-    // guard. Same backstop as the other file-sync IPCs.
-    assertPathOutside(getAppPrivateDir(), filePath);
-    return pathToFileURL(filePath).href;
-  });
-
   ipcMain.handle(
     IPC.FILE_SYNC_SAVE,
     async (

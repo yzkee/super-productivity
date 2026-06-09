@@ -244,34 +244,15 @@ test('PICK_DIRECTORY returns undefined on user-cancel (distinct from error)', as
   assert.equal(result, undefined);
 });
 
-test('READ_LOCAL_IMAGE_AS_DATA_URL refuses an image inside userData', async () => {
-  fs.writeFileSync(path.join(userDataDir, 'secret.png'), 'not-really-png');
-  const result = await handlers['READ_LOCAL_IMAGE_AS_DATA_URL'](
-    {},
-    path.join(userDataDir, 'secret.png'),
-  );
-  assert.equal(result, null);
+test('legacy READ_LOCAL_IMAGE_AS_DATA_URL handler is no longer registered', () => {
+  // Phase 4: removed entirely. A compromised renderer that still tries this
+  // IPC must not find a handler — Electron will reject with "no handler
+  // registered for channel" which surfaces to the renderer as a rejection.
+  assert.equal(handlers['READ_LOCAL_IMAGE_AS_DATA_URL'], undefined);
 });
 
-test('READ_LOCAL_IMAGE_AS_DATA_URL inlines a user image outside userData', async () => {
-  fs.writeFileSync(path.join(externalDir, 'bg.png'), 'pngbytes');
-  const result = await handlers['READ_LOCAL_IMAGE_AS_DATA_URL'](
-    {},
-    path.join(externalDir, 'bg.png'),
-  );
-  assert.match(result, /^data:image\/png;base64,/);
-});
-
-test('TO_FILE_URL refuses a userData path (cannot launder into file://)', () => {
-  assert.throws(
-    () => handlers['TO_FILE_URL']({}, path.join(userDataDir, 'simpleSettings')),
-    /protected directory/,
-  );
-});
-
-test('TO_FILE_URL converts an outside path to a file:// URL', () => {
-  const result = handlers['TO_FILE_URL']({}, path.join(externalDir, 'bg.png'));
-  assert.match(result, /^file:\/\//);
+test('legacy TO_FILE_URL handler is no longer registered', () => {
+  assert.equal(handlers['TO_FILE_URL'], undefined);
 });
 
 test('IMAGE_CACHE_IMPORT imports an image and IMAGE_CACHE_GET_DATA_URL returns it', async () => {

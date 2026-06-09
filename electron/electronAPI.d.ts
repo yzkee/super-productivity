@@ -83,10 +83,6 @@ export interface ElectronAPI {
     filters?: { name: string; extensions: string[] }[];
   }): Promise<string[] | undefined>;
 
-  toFileUrl(filePath: string): Promise<string>;
-
-  readLocalImageAsDataUrl(filePathOrUrl: string): Promise<string | null>;
-
   /**
    * Copy a user-picked image into the main-owned cache and return an opaque
    * id. The renderer stores the id (e.g. `image:<id>`) in user config and
