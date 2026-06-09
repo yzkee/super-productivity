@@ -12,6 +12,12 @@ import { app, dialog, ipcMain } from 'electron';
 import { getWin } from './main-window';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { assertPathOutside } from './file-path-guard';
+import { resolveSyncPath } from './sync-path-resolver';
+import {
+  getSyncFolderPath,
+  initSyncFolderStore,
+  setSyncFolderPath,
+} from './sync-folder-store';
 
 // SECURITY: file-sync must never read/write/list inside the app's private dir,
 // which holds settings/grants/db — touching it is a privilege-escalation
@@ -20,7 +26,29 @@ import { assertPathOutside } from './file-path-guard';
 // changed at startup (--user-data-dir, Snap). See file-path-guard.ts.
 const getAppPrivateDir = (): string => app.getPath('userData');
 
+// Resolve a renderer-supplied relativePath against the main-owned sync folder.
+// Throws a generic, path-free error so the offending input never round-trips
+// to the renderer via createSafeIpcError.
+const _resolveOrThrow = (relativePath: unknown): string => {
+  if (typeof relativePath !== 'string') {
+    const e = new Error('Path not allowed for the sync folder');
+    e.name = 'PathNotAllowedError';
+    delete (e as { stack?: string }).stack;
+    throw e;
+  }
+  return resolveSyncPath(
+    getSyncFolderPath() ?? undefined,
+    relativePath,
+    getAppPrivateDir(),
+  ).absolutePath;
+};
+
 export const initLocalFileSyncAdapter = (): void => {
+  // Fire-and-forget: subsequent IPC handlers also `await initSyncFolderStore()`
+  // defensively (it is idempotent via _loadOnce), so we don't need to gate
+  // handler registration on this promise resolving.
+  void initSyncFolderStore();
+
   ipcMain.handle(
     IPC.READ_LOCAL_IMAGE_AS_DATA_URL,
     async (_, filePathOrUrl: string): Promise<string | null> => {
@@ -74,24 +102,30 @@ export const initLocalFileSyncAdapter = (): void => {
   );
 
   ipcMain.handle(IPC.TO_FILE_URL, (_, filePath: string): string => {
+    // SECURITY: a userData path must not be laundered into a file:// URL that
+    // later flows back through READ_LOCAL_IMAGE_AS_DATA_URL or a navigation
+    // guard. Same backstop as the other file-sync IPCs.
+    assertPathOutside(getAppPrivateDir(), filePath);
     return pathToFileURL(filePath).href;
   });
+
   ipcMain.handle(
     IPC.FILE_SYNC_SAVE,
-    (
+    async (
       ev,
       {
-        filePath,
+        relativePath,
         dataStr,
         localRev,
       }: {
-        filePath: string;
+        relativePath: string;
         dataStr: string;
         localRev: string | null;
       },
-    ): string | Error => {
+    ): Promise<string | Error> => {
       try {
-        assertPathOutside(getAppPrivateDir(), filePath);
+        await initSyncFolderStore();
+        const filePath = _resolveOrThrow(relativePath);
         log(IPC.FILE_SYNC_SAVE, {
           dataLength: dataStr.length,
           hasData: dataStr.length > 0,
@@ -114,18 +148,19 @@ export const initLocalFileSyncAdapter = (): void => {
 
   ipcMain.handle(
     IPC.FILE_SYNC_LOAD,
-    (
+    async (
       ev,
       {
-        filePath,
+        relativePath,
         localRev,
       }: {
-        filePath: string;
+        relativePath: string;
         localRev: string | null;
       },
-    ): { rev: string; dataStr: string | undefined } | Error => {
+    ): Promise<{ rev: string; dataStr: string | undefined } | Error> => {
       try {
-        assertPathOutside(getAppPrivateDir(), filePath);
+        await initSyncFolderStore();
+        const filePath = _resolveOrThrow(relativePath);
         log(IPC.FILE_SYNC_LOAD, {
           hasLocalRev: !!localRev,
         });
@@ -146,16 +181,17 @@ export const initLocalFileSyncAdapter = (): void => {
 
   ipcMain.handle(
     IPC.FILE_SYNC_REMOVE,
-    (
+    async (
       ev,
       {
-        filePath,
+        relativePath,
       }: {
-        filePath: string;
+        relativePath: string;
       },
-    ): void | Error => {
+    ): Promise<void | Error> => {
       try {
-        assertPathOutside(getAppPrivateDir(), filePath);
+        await initSyncFolderStore();
+        const filePath = _resolveOrThrow(relativePath);
         log(IPC.FILE_SYNC_REMOVE);
         unlinkSync(filePath);
         return;
@@ -168,16 +204,18 @@ export const initLocalFileSyncAdapter = (): void => {
 
   ipcMain.handle(
     IPC.CHECK_DIR_EXISTS,
-    (
+    async (
       ev,
       {
-        dirPath,
+        relativePath,
       }: {
-        dirPath: string;
+        relativePath?: string;
       },
-    ): true | Error => {
+    ): Promise<true | Error> => {
       try {
-        assertPathOutside(getAppPrivateDir(), dirPath);
+        await initSyncFolderStore();
+        // Default to operating on the sync root itself (relativePath = '').
+        const dirPath = _resolveOrThrow(relativePath ?? '');
         const dirEntries = readdirSync(dirPath);
         log(IPC.CHECK_DIR_EXISTS, {
           dirEntryCount: dirEntries.length,
@@ -197,16 +235,17 @@ export const initLocalFileSyncAdapter = (): void => {
 
   ipcMain.handle(
     IPC.FILE_SYNC_LIST_FILES,
-    (
+    async (
       ev,
       {
-        dirPath,
+        relativePath,
       }: {
-        dirPath: string;
+        relativePath?: string;
       },
-    ): string[] | Error => {
+    ): Promise<string[] | Error> => {
       try {
-        assertPathOutside(getAppPrivateDir(), dirPath);
+        await initSyncFolderStore();
+        const dirPath = _resolveOrThrow(relativePath ?? '');
         return readdirSync(dirPath);
       } catch (e) {
         error('Local file sync list files failed', getSafeErrorMeta(e));
@@ -233,9 +272,27 @@ export const initLocalFileSyncAdapter = (): void => {
     })) as unknown as { canceled: boolean; filePaths: string[] };
     if (canceled) {
       return undefined;
-    } else {
-      return filePaths[0];
     }
+    const selected = filePaths[0];
+    if (!selected) {
+      return undefined;
+    }
+    // Persist main-side immediately so the renderer never holds the
+    // authoritative copy of the sync folder path. The renderer may still
+    // receive the path for display, but a subsequent IPC will look up the
+    // stored value rather than trusting whatever the renderer echoes back.
+    try {
+      await setSyncFolderPath(selected);
+    } catch (e) {
+      error('Failed to persist sync folder selection', getSafeErrorMeta(e));
+      return undefined;
+    }
+    return selected;
+  });
+
+  ipcMain.handle(IPC.GET_SYNC_FOLDER_PATH, async (): Promise<string | null> => {
+    await initSyncFolderStore();
+    return getSyncFolderPath();
   });
 
   ipcMain.handle(

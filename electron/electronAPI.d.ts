@@ -51,23 +51,30 @@ export interface ElectronAPI {
   loadBackupData(backupPath: string): Promise<string>;
 
   fileSyncSave(args: {
-    filePath: string;
+    relativePath: string;
     localRev: string | null;
     dataStr: string;
   }): Promise<string | Error>;
 
   fileSyncLoad(args: {
-    filePath: string;
+    relativePath: string;
     localRev: string | null;
   }): Promise<{ rev: string; dataStr: string | undefined } | Error>;
 
-  fileSyncRemove(args: { filePath: string }): Promise<unknown | Error>;
+  fileSyncRemove(args: { relativePath: string }): Promise<unknown | Error>;
 
-  fileSyncListFiles(args: { dirPath: string }): Promise<string[] | Error>;
+  fileSyncListFiles(args: { relativePath?: string }): Promise<string[] | Error>;
 
-  checkDirExists(args: { dirPath: string }): Promise<true | Error>;
+  checkDirExists(args: { relativePath?: string }): Promise<true | Error>;
 
   pickDirectory(): Promise<string | undefined>;
+
+  /**
+   * Returns the main-owned sync folder path for display, or null if not yet
+   * configured. The renderer must not pass this value back to file-sync IPCs
+   * — those take only the relative path; main resolves against its own copy.
+   */
+  getSyncFolderPath(): Promise<string | null>;
 
   showOpenDialog(options: {
     properties: string[];

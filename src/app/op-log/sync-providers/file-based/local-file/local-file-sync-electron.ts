@@ -24,14 +24,8 @@ const buildLocalFileSyncElectronDeps = (): LocalFileSyncElectronDeps => ({
     SyncProviderId.LocalFile,
   ) as LocalFileSyncElectronDeps['credentialStore'],
   isElectron: IS_ELECTRON,
-  checkDirExists: async (dirPath) => {
-    const r = await getElectronApi().checkDirExists({ dirPath });
-    if (r instanceof Error) {
-      throw r;
-    }
-    return r;
-  },
   pickDirectory: () => getElectronApi().pickDirectory(),
+  getMainSyncFolderPath: () => getElectronApi().getSyncFolderPath(),
 });
 
 export const createLocalFileSyncElectron = (): PackageLocalFileSyncElectron =>

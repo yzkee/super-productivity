@@ -69,20 +69,19 @@ const ea: ElectronAPI = {
     _invoke('BACKUP_IS_AVAILABLE') as Promise<false | LocalBackupMeta>,
   loadBackupData: (backupPath) =>
     _invoke('BACKUP_LOAD_DATA', backupPath) as Promise<string>,
-  fileSyncSave: (filePath) =>
-    _invoke('FILE_SYNC_SAVE', filePath) as Promise<string | Error>,
-  fileSyncLoad: (filePath) =>
-    _invoke('FILE_SYNC_LOAD', filePath) as Promise<{
+  fileSyncSave: (args) => _invoke('FILE_SYNC_SAVE', args) as Promise<string | Error>,
+  fileSyncLoad: (args) =>
+    _invoke('FILE_SYNC_LOAD', args) as Promise<{
       rev: string;
       dataStr: string | undefined;
     }>,
-  fileSyncRemove: (filePath) => _invoke('FILE_SYNC_REMOVE', filePath) as Promise<void>,
+  fileSyncRemove: (args) => _invoke('FILE_SYNC_REMOVE', args) as Promise<void>,
   fileSyncListFiles: (args) =>
     _invoke('FILE_SYNC_LIST_FILES', args) as Promise<string[] | Error>,
-  checkDirExists: (dirPath) =>
-    _invoke('CHECK_DIR_EXISTS', dirPath) as Promise<true | Error>,
+  checkDirExists: (args) => _invoke('CHECK_DIR_EXISTS', args) as Promise<true | Error>,
 
   pickDirectory: () => _invoke('PICK_DIRECTORY') as Promise<string | undefined>,
+  getSyncFolderPath: () => _invoke('GET_SYNC_FOLDER_PATH') as Promise<string | null>,
 
   showOpenDialog: (options: {
     properties: string[];
