@@ -2,18 +2,9 @@
  * Security tests for the local file-sync IPC handlers.
  *
  * Post-issue-#8228 the handlers only accept a `relativePath`; the renderer
- * never supplies an absolute path. Main owns the sync folder via
- * `sync-folder-store` and resolves the relative path against it. These tests
- * cover:
- *
- *   - happy path inside a user-chosen sync folder
- *   - relative-path traversal (`..`) escape attempts
- *   - sync folder pointed at userData (must be denied at config time so the
- *     renderer cannot forge a grant file via the sync API)
- *   - absent sync folder
- *   - unchanged image-inlining and to-file-url guards
- *
- * Run via the standard electron .test.cjs runner.
+ * never supplies an absolute path. The sync folder is owned and persisted
+ * main-side (the cache lives at the top of `local-file-sync.ts`) and the
+ * relative path is resolved against it via `sync-path-resolver`.
  */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -26,22 +17,22 @@ require('ts-node/register/transpile-only');
 
 const modPath = path.resolve(__dirname, 'local-file-sync.ts');
 const simpleStorePath = path.resolve(__dirname, 'simple-store.ts');
-const syncFolderStorePath = path.resolve(__dirname, 'sync-folder-store.ts');
 const syncPathResolverPath = path.resolve(__dirname, 'sync-path-resolver.ts');
 const originalModuleLoad = Module._load;
 
 let handlers = {};
 let userDataDir;
 let externalDir;
+let nextDialogResult = { canceled: true, filePaths: [] };
 
-const installMocks = (overrides = {}) => {
+const installMocks = () => {
   Module._load = function patchedLoad(request, parent, isMain) {
     if (request === 'electron') {
       return {
         ipcMain: { handle: (channel, fn) => (handlers[channel] = fn) },
         app: { getPath: () => userDataDir },
-        dialog: overrides.dialog || {
-          showOpenDialog: async () => ({ canceled: true, filePaths: [] }),
+        dialog: {
+          showOpenDialog: async () => nextDialogResult,
         },
       };
     }
@@ -58,7 +49,6 @@ const installMocks = (overrides = {}) => {
 const resetCaches = () => {
   delete require.cache[modPath];
   delete require.cache[simpleStorePath];
-  delete require.cache[syncFolderStorePath];
   delete require.cache[syncPathResolverPath];
   handlers = {};
 };
@@ -69,17 +59,17 @@ const load = () => {
 };
 
 const configureSyncFolder = async (folder) => {
-  const store = require(syncFolderStorePath);
-  await store.setSyncFolderPath(folder);
+  // Drive the real PICK_DIRECTORY path so the test exercises the same
+  // canonicalize-and-persist code production uses.
+  nextDialogResult = { canceled: false, filePaths: [folder] };
+  const result = await handlers['PICK_DIRECTORY']({});
+  if (result instanceof Error) throw result;
+  return result;
 };
 
 test.beforeEach(() => {
-  userDataDir = fs.realpathSync.native(
-    fs.mkdtempSync(path.join(os.tmpdir(), 'sp-ud-')),
-  );
-  externalDir = fs.realpathSync.native(
-    fs.mkdtempSync(path.join(os.tmpdir(), 'sp-ext-')),
-  );
+  userDataDir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'sp-ud-')));
+  externalDir = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'sp-ext-')));
   installMocks();
   load();
 });
@@ -225,23 +215,33 @@ test('GET_SYNC_FOLDER_PATH returns null when unconfigured, then the configured p
 });
 
 test('PICK_DIRECTORY persists the selection main-side', async () => {
-  // Re-install mocks with a non-cancelling dialog.
-  Module._load = originalModuleLoad;
-  const picked = externalDir;
-  installMocks({
-    dialog: {
-      showOpenDialog: async () => ({ canceled: false, filePaths: [picked] }),
-    },
-  });
-  load();
-
+  nextDialogResult = { canceled: false, filePaths: [externalDir] };
   const returned = await handlers['PICK_DIRECTORY']({});
-  assert.equal(returned, picked);
+  assert.equal(returned, externalDir);
   assert.equal(
     await handlers['GET_SYNC_FOLDER_PATH']({}),
-    picked,
+    externalDir,
     'main-side store is updated; renderer does not have to echo back',
   );
+});
+
+test('PICK_DIRECTORY surfaces a safe error when persistence fails', async () => {
+  // Picker returns a path that no longer exists on disk → realpath throws
+  // → PICK_DIRECTORY must return a distinct Error, not undefined, so the
+  // renderer doesn't confuse persist-failure with user-cancel.
+  const gone = fs.mkdtempSync(path.join(os.tmpdir(), 'sp-gone-'));
+  fs.rmSync(gone, { recursive: true, force: true });
+  nextDialogResult = { canceled: false, filePaths: [gone] };
+  const result = await handlers['PICK_DIRECTORY']({});
+  assert.ok(result instanceof Error);
+  // Cache must not be poisoned with a non-existent path.
+  assert.equal(await handlers['GET_SYNC_FOLDER_PATH']({}), null);
+});
+
+test('PICK_DIRECTORY returns undefined on user-cancel (distinct from error)', async () => {
+  nextDialogResult = { canceled: true, filePaths: [] };
+  const result = await handlers['PICK_DIRECTORY']({});
+  assert.equal(result, undefined);
 });
 
 test('READ_LOCAL_IMAGE_AS_DATA_URL refuses an image inside userData', async () => {
