@@ -1,14 +1,15 @@
 import { MarkedOptions, MarkedRenderer } from 'ngx-markdown';
 import { Hooks, Token } from 'marked';
+import {
+  isExternalUrlSchemeAllowed,
+  isPathSafeToOpen,
+} from '../../../electron/shared-with-frontend/is-external-url-allowed';
 
 /**
  * Escape a string for safe interpolation into a double-quoted HTML attribute.
  *
- * Defense-in-depth: the note render surfaces run this renderer's output through
- * Angular's SecurityContext.HTML sanitizer (they no longer set disableSanitizer),
- * which already strips event-handler attributes. Escaping here additionally keeps
- * the raw renderer output non-injectable on its own, so a future sanitizer bypass
- * can't turn an attacker-controlled image href/title/alt into a new attribute.
+ * Defense-in-depth: note renders are sanitized as HTML before display, but the
+ * raw renderer output still must not be attribute-injectable on its own.
  * `&` must be replaced first.
  */
 export const escapeHtmlAttr = (value: string): string =>
@@ -117,10 +118,12 @@ export const markedOptionsFactory = (): MarkedOptions => {
     tokens: Token[];
   }) {
     const text = tokens ? this.parser.parseInline(tokens) : '';
-    // Escape href/title for parity with renderer.image — the raw renderer output
-    // must not be attribute-injectable on its own (text is already-parsed inline
-    // HTML, so it is not re-escaped). rel="noopener noreferrer" matches the
-    // hardening in render-links.pipe.ts and avoids reverse-tabnabbing.
+    // Block unsafe URL schemes from rendering as clickable links. On click the
+    // href is passed verbatim to shell.openExternal (Electron), which would let
+    // note content silently invoke OS protocol handlers. See GHSA-hr87-735w-hfq3.
+    if (!isExternalUrlSchemeAllowed(href)) {
+      return `<span class="markdown-blocked-link" title="Link blocked: unsafe URL scheme">${text}</span>`;
+    }
     return `<a target="_blank" rel="noopener noreferrer" href="${escapeHtmlAttr(href)}" title="${escapeHtmlAttr(title || '')}">${text}</a>`;
   };
 
@@ -136,6 +139,17 @@ export const markedOptionsFactory = (): MarkedOptions => {
     title: string | null;
     text: string;
   }) => {
+    // Unlike links, an image src auto-loads on render (no click). A remote
+    // `file://host/share` or UNC src would silently make the OS open an SMB
+    // connection and leak the user's NTLM hash just by viewing the note, so
+    // such srcs must never reach the `src` attribute. Remote web images
+    // (http/https/data/blob) are unaffected. See GHSA-hr87-735w-hfq3.
+    if (!isPathSafeToOpen(href)) {
+      return `<span class="markdown-blocked-link" title="Image blocked: unsafe URL">${escapeHtmlAttr(
+        text || '',
+      )}</span>`;
+    }
+
     const { width, height } = parseImageDimensionsFromTitle(title);
 
     // Build width and height attributes (not style, as Angular sanitizer strips inline styles)

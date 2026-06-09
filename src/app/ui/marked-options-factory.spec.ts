@@ -352,6 +352,57 @@ describe('markedOptionsFactory', () => {
       expect(result).toContain('href="http://x&quot; onmouseover=&quot;alert(1)"');
       expect(result).toContain('title="&quot; onfocus=&quot;alert(2)"');
     });
+
+    // GHSA-hr87-735w-hfq3: the rendered href is passed verbatim to
+    // shell.openExternal on click, so unsafe schemes must never become anchors.
+    describe('unsafe URL schemes (GHSA-hr87-735w-hfq3)', () => {
+      const mockParser = {
+        parseInline: (tokens: any[]) =>
+          tokens.map((t: any) => t.raw || t.text || '').join(''),
+      };
+
+      ['ms-calculator:', 'javascript:alert(1)', 'ssh://h', '\\\\host\\share'].forEach(
+        (href) => {
+          it(`renders "${href}" as inert text, not an anchor`, () => {
+            const linkRenderer = options.renderer!.link.bind({ parser: mockParser });
+            const result = linkRenderer({
+              href,
+              title: 'x',
+              tokens: [{ type: 'text', raw: 'Click here', text: 'Click here' }],
+            } as any);
+            expect(result).not.toContain('<a ');
+            expect(result).not.toContain(`href="${href}"`);
+            expect(result).toContain('Click here');
+          });
+        },
+      );
+
+      it('still renders allowed schemes (mailto:, file:) as anchors', () => {
+        const linkRenderer = options.renderer!.link.bind({ parser: mockParser });
+        ['mailto:a@b.com', 'file:///tmp/x', 'https://example.com'].forEach((href) => {
+          const result = linkRenderer({
+            href,
+            title: '',
+            tokens: [{ type: 'text', raw: 'L', text: 'L' }],
+          } as any);
+          expect(result).toContain(`href="${href}"`);
+        });
+      });
+
+      it('escapes a quote-injection href so it cannot break out of the attribute', () => {
+        const linkRenderer = options.renderer!.link.bind({ parser: mockParser });
+        const result = linkRenderer({
+          href: 'https://example.com/" onmouseover="alert(1)',
+          title: 'a"b',
+          tokens: [{ type: 'text', raw: 'L', text: 'L' }],
+        } as any);
+        expect(result).not.toContain('onmouseover="alert(1)"');
+        expect(result).toContain('&quot;');
+        expect(result).toContain(
+          'href="https://example.com/&quot; onmouseover=&quot;alert(1)"',
+        );
+      });
+    });
   });
 
   describe('image renderer', () => {
@@ -470,6 +521,56 @@ describe('markedOptionsFactory', () => {
         expect(result).toBe(
           '<img alt="pasted image" src="blob:https://app/abc-123" loading="lazy">',
         );
+      });
+    });
+
+    // GHSA-hr87-735w-hfq3: an image src auto-loads on render (no click), so a
+    // remote file:// / UNC src would silently leak the user's NTLM hash. Such
+    // srcs must never reach the `src` attribute.
+    describe('unsafe image src (GHSA-hr87-735w-hfq3)', () => {
+      [
+        'file://192.168.1.100/share/pixel.png',
+        'file:////host/share/pixel.png',
+        '\\\\host\\share\\pixel.png',
+        '//host/share/pixel.png',
+      ].forEach((href) => {
+        it(`blocks remote/UNC src "${href}" (renders no <img>)`, () => {
+          const result = options.renderer!.image({
+            href,
+            title: null,
+            text: 'Alt text',
+          } as any);
+          expect(result).not.toContain('<img');
+          expect(result).not.toContain(`src="${href}"`);
+          expect(result).toContain('Alt text');
+        });
+      });
+
+      it('still renders local file:// and remote web/data images', () => {
+        [
+          'file:///home/user/img.png',
+          'http://example.com/img.png',
+          'https://example.com/img.png',
+          'data:image/png;base64,iVBORw0KGgo=',
+          'blob:https://example.com/abc',
+        ].forEach((href) => {
+          const result = options.renderer!.image({
+            href,
+            title: null,
+            text: 'L',
+          } as any);
+          expect(result).toContain(`src="${href}"`);
+        });
+      });
+
+      it('escapes the blocked-image alt text so it cannot inject markup', () => {
+        const result = options.renderer!.image({
+          href: 'file://host/share/x.png',
+          title: null,
+          text: '<img src=x onerror=alert(1)>',
+        } as any);
+        expect(result).not.toContain('<img');
+        expect(result).toContain('&lt;img src=x onerror=alert(1)&gt;');
       });
     });
   });
