@@ -1,4 +1,10 @@
+import { Log } from '../log';
+
 const IMAGE_CACHE_PREFIX = 'image:';
+
+// Warn at most once per session: a stale legacy `file://` config would
+// otherwise spam the log on every theme/background re-resolution.
+let _hasWarnedAboutLegacyFileUrl = false;
 
 /**
  * Resolve a background-image URL to something a CSS `background` can render.
@@ -42,10 +48,13 @@ export const resolveBgImageToDataUrl = async (
     // an arbitrary renderer-supplied path remains; user must re-pick.
     // TODO(#8228 follow-up): one-time snack to nudge re-pick. Translation
     // infrastructure is the only blocker; for now we log so devs notice.
-    // eslint-disable-next-line no-console
-    console.warn(
-      'Background image with legacy file:// URL is no longer resolvable; please re-pick',
-    );
+    // Static message only — never log the URL (it's user content).
+    if (!_hasWarnedAboutLegacyFileUrl) {
+      _hasWarnedAboutLegacyFileUrl = true;
+      Log.warn(
+        'Background image with legacy file:// URL is no longer resolvable; please re-pick',
+      );
+    }
     return null;
   }
   return bgImage;
