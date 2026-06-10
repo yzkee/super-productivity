@@ -44,8 +44,15 @@ const getSyncFolderPath = async (): Promise<string | null> => {
   if (_cachedSyncFolder !== undefined) return _cachedSyncFolder;
   if (!_loadPromise) {
     _loadPromise = _loadSyncFolderFromDisk().then((v) => {
-      _cachedSyncFolder = v;
-      return v;
+      // A pick (setSyncFolderPath) can complete while this first disk read is
+      // still in flight. Only seed the cache if it's still unset, so the now-
+      // stale disk value can't clobber the freshly-picked folder. The guard +
+      // assignment run in one synchronous tick, so setSyncFolderPath cannot
+      // interleave between them.
+      if (_cachedSyncFolder === undefined) {
+        _cachedSyncFolder = v;
+      }
+      return _cachedSyncFolder;
     });
   }
   return _loadPromise;
