@@ -750,10 +750,35 @@ const _resetEntityIdsFromObjects = <T extends AppBaseDataEntityLikeStates>(
     {} as AppBaseDataEntityLikeStates['entities'],
   );
 
+  // Preserve the user-defined order held in `ids`. Reorder actions
+  // (updateSimpleCounterOrder / updateNoteOrder / updateTagOrder) mutate only
+  // `ids`, never the `entities` dict, so `Object.keys(entities)` reflects
+  // creation order — not the order the user sees. Rebuilding `ids` from the
+  // dict silently reverted habit/tag/note ordering on every repair and then
+  // propagated it via the full-state REPAIR op (#8257). Keep the existing
+  // `ids` order, drop ids whose entity didn't survive sanitization, dedupe,
+  // then append any sanitized entity that `ids` didn't already list.
+  const orderedIds: string[] = [];
+  const seen = new Set<string>();
+  const prevIds = Array.isArray(data.ids) ? (data.ids as (string | number)[]) : [];
+  for (const id of prevIds) {
+    const idStr = id as string;
+    if (sanitizedEntities[idStr] && !seen.has(idStr)) {
+      orderedIds.push(idStr);
+      seen.add(idStr);
+    }
+  }
+  for (const id of Object.keys(sanitizedEntities)) {
+    if (!seen.has(id)) {
+      orderedIds.push(id);
+      seen.add(id);
+    }
+  }
+
   return {
     ...data,
     entities: sanitizedEntities,
-    ids: Object.keys(sanitizedEntities),
+    ids: orderedIds,
   };
 };
 
