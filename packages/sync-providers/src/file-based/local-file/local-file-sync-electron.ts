@@ -37,9 +37,8 @@ export class LocalFileSyncElectron extends LocalFileSyncBase {
     if (!folderPath) {
       // Migration breadcrumb (#8228): a pre-fix install may still have a
       // syncFolderPath in the renderer credential store. Log so the dev
-      // console shows why isReady=false until the user re-picks. A
-      // user-facing snack is the right shape but i18n infrastructure
-      // belongs in a UX follow-up, not the security fix.
+      // console shows why isReady=false until the user re-picks. The host
+      // app surfaces a sticky user-facing warning from its provider manager.
       const legacyCfg = await this.privateCfg.load().catch(() => null);
       if (legacyCfg?.syncFolderPath) {
         this.logger.critical(

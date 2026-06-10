@@ -90,8 +90,8 @@ const ea: ElectronAPI = {
     filters?: { name: string; extensions: string[] }[];
   }) => _invoke('SHOW_OPEN_DIALOG', options) as Promise<string[] | undefined>,
 
-  imagePickAndImport: (args) =>
-    _invoke('IMAGE_PICK_AND_IMPORT', args) as Promise<
+  imagePickAndImport: () =>
+    _invoke('IMAGE_PICK_AND_IMPORT') as Promise<
       | {
           id: string;
           mimeType: string;

@@ -124,6 +124,40 @@ test('FILE_SYNC_SAVE rejects an absolute renderer-supplied relativePath', async 
   assert.ok(result instanceof Error);
 });
 
+test('FILE_SYNC_SAVE rejects the sync root and does not create a sibling temp file', async () => {
+  await configureSyncFolder(externalDir);
+  const siblingTemp = `${externalDir}.tmp`;
+  const result = await handlers['FILE_SYNC_SAVE'](
+    {},
+    { relativePath: '', dataStr: 'x', localRev: null },
+  );
+  assert.ok(result instanceof Error);
+  assert.equal(fs.existsSync(siblingTemp), false, 'must not write outside sync root');
+});
+
+test('FILE_SYNC_SAVE does not write through a predictable .tmp symlink', async () => {
+  await configureSyncFolder(externalDir);
+  const outside = path.join(userDataDir, 'outside-target');
+  fs.writeFileSync(outside, 'keep');
+  try {
+    fs.symlinkSync(outside, path.join(externalDir, 'main.json.tmp'), 'file');
+  } catch (e) {
+    if (process.platform === 'win32') {
+      return;
+    }
+    throw e;
+  }
+
+  const result = await handlers['FILE_SYNC_SAVE'](
+    {},
+    { relativePath: 'main.json', dataStr: '{"ok":1}', localRev: null },
+  );
+
+  assert.ok(!(result instanceof Error), 'normal save should still work');
+  assert.equal(fs.readFileSync(outside, 'utf8'), 'keep');
+  assert.equal(fs.readFileSync(path.join(externalDir, 'main.json'), 'utf8'), '{"ok":1}');
+});
+
 test('PICK_DIRECTORY rejects a folder inside userData', async () => {
   // A folder equal to (or inside) userData is rejected at pick time so the
   // user never ends up with a "configured" folder that resolveSyncPath then
@@ -307,7 +341,7 @@ test('IMAGE_PICK_AND_IMPORT returns a safe Error when validation fails (no path 
   assert.equal(result.stack, undefined, 'stack stripped, no main-bundle paths');
 });
 
-test('IMAGE_PICK_AND_IMPORT garbage-collects the prior cached image on replace', async () => {
+test('IMAGE_PICK_AND_IMPORT does not delete the prior cached image during replace', async () => {
   const oldPicked = path.join(externalDir, 'old.png');
   fs.writeFileSync(oldPicked, 'oldbytes');
   nextDialogResult = { canceled: false, filePaths: [oldPicked] };
@@ -319,13 +353,14 @@ test('IMAGE_PICK_AND_IMPORT garbage-collects the prior cached image on replace',
   const newPicked = path.join(externalDir, 'new.png');
   fs.writeFileSync(newPicked, 'newbytes');
   nextDialogResult = { canceled: false, filePaths: [newPicked] };
-  const newImport = await handlers['IMAGE_PICK_AND_IMPORT'](
-    {},
-    { replacesId: oldImport.id },
-  );
+  const newImport = await handlers['IMAGE_PICK_AND_IMPORT']({});
   assert.ok(newImport);
   assert.notEqual(newImport.id, oldImport.id);
-  assert.equal(fs.existsSync(oldCachePath), false, 'old file should be removed');
+  assert.equal(
+    fs.existsSync(oldCachePath),
+    true,
+    'old file must remain until config persistence makes it unreachable',
+  );
 });
 
 test('IMAGE_CACHE_GET_DATA_URL returns null for unknown ids', async () => {

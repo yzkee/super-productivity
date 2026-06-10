@@ -95,13 +95,11 @@ export interface ElectronAPI {
   /**
    * Open the native image picker, copy the chosen file into the main-owned
    * cache, and return an opaque id. The renderer never holds the absolute
-   * path. Pass `replacesId` to garbage-collect the previous cached image
-   * the renderer is about to overwrite in its config. Returns null when the
-   * user cancels or the picked file fails validation.
+   * path. Returns null when the user cancels and a safe Error when the picked
+   * file fails validation/import. Old cached images are not deleted here,
+   * because the surrounding config save may still fail or be cancelled.
    */
-  imagePickAndImport(args?: {
-    replacesId?: string;
-  }): Promise<{ id: string; mimeType: string } | null | Error>;
+  imagePickAndImport(): Promise<{ id: string; mimeType: string } | null | Error>;
 
   /**
    * Resolve a cached image id to a `data:` URL the renderer can use as a

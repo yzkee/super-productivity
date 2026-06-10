@@ -1,5 +1,6 @@
 import { IPC } from './shared-with-frontend/ipc-events.const';
 import { SimpleStoreKey } from './shared-with-frontend/simple-store.const';
+import { randomBytes } from 'crypto';
 import {
   readdirSync,
   readFileSync,
@@ -9,13 +10,14 @@ import {
   writeFileSync,
   unlinkSync,
 } from 'fs';
+import * as path from 'path';
 import { error, log } from 'electron-log/main';
 import { app, dialog, ipcMain } from 'electron';
 import { getWin } from './main-window';
-import { resolveSyncPath } from './sync-path-resolver';
+import { resolveSyncPath, type ResolvedSyncPath } from './sync-path-resolver';
 import { loadSimpleStoreAll, saveSimpleStore } from './simple-store';
 import { assertPathOutside } from './file-path-guard';
-import { getImageDataUrl, importImage, removeCachedImage } from './image-cache';
+import { getImageDataUrl, importImage } from './image-cache';
 
 // SECURITY: file-sync must never read/write/list inside the app's private dir,
 // which holds settings/grants/db — touching it is a privilege-escalation
@@ -68,12 +70,55 @@ const setSyncFolderPath = async (rawPath: string): Promise<string> => {
 // so the five handlers below don't repeat the same incantation. Returns the
 // absolute path on success; throws PathNotAllowedError on rejection (the
 // existing handler try/catch funnels both into a safe IPC error).
-const _resolveRelative = async (relativePath: string | undefined): Promise<string> =>
+const _resolveRelative = async (
+  relativePath: string | undefined,
+): Promise<ResolvedSyncPath> =>
   resolveSyncPath(
     (await getSyncFolderPath()) ?? undefined,
     relativePath ?? '',
     getAppPrivateDir(),
-  ).absolutePath;
+  );
+
+const _pathNotAllowed = (): Error => {
+  const e = new Error('Path not allowed for the sync folder');
+  e.name = 'PathNotAllowedError';
+  delete e.stack;
+  return e;
+};
+
+const _isEnoent = (e: unknown): boolean =>
+  typeof e === 'object' &&
+  e !== null &&
+  'code' in e &&
+  (e as { code?: unknown }).code === 'ENOENT';
+
+const _assertSaveTargetIsFilePath = (resolved: ResolvedSyncPath): void => {
+  if (resolved.isRoot) {
+    throw _pathNotAllowed();
+  }
+  try {
+    if (statSync(resolved.absolutePath).isDirectory()) {
+      throw _pathNotAllowed();
+    }
+  } catch (e) {
+    if (!_isEnoent(e)) {
+      throw e;
+    }
+  }
+};
+
+const _resolveTempPathForSave = (resolved: ResolvedSyncPath): string => {
+  const tempName = [
+    `.${path.basename(resolved.absolutePath)}`,
+    process.pid,
+    Date.now(),
+    randomBytes(8).toString('hex'),
+    'tmp',
+  ].join('.');
+  const candidate = path.join(path.dirname(resolved.absolutePath), tempName);
+  const tempRelative = path.relative(resolved.root, candidate);
+  return resolveSyncPath(resolved.root, tempRelative, getAppPrivateDir()).absolutePath;
+};
 
 export const initLocalFileSyncAdapter = (): void => {
   ipcMain.handle(
@@ -90,8 +135,11 @@ export const initLocalFileSyncAdapter = (): void => {
         localRev: string | null;
       },
     ): Promise<string | Error> => {
+      let tempPath: string | null = null;
       try {
-        const filePath = await _resolveRelative(relativePath);
+        const resolved = await _resolveRelative(relativePath);
+        _assertSaveTargetIsFilePath(resolved);
+        const filePath = resolved.absolutePath;
         log(IPC.FILE_SYNC_SAVE, {
           dataLength: dataStr.length,
           hasData: dataStr.length > 0,
@@ -100,12 +148,20 @@ export const initLocalFileSyncAdapter = (): void => {
         // Atomic write: write to temp file first, then rename.
         // renameSync is atomic on ext4/APFS/NTFS, so a crash mid-write
         // won't corrupt the original file.
-        const tempPath = filePath + '.tmp';
-        writeFileSync(tempPath, dataStr);
+        tempPath = _resolveTempPathForSave(resolved);
+        writeFileSync(tempPath, dataStr, { encoding: 'utf8', flag: 'wx' });
         renameSync(tempPath, filePath);
+        tempPath = null;
 
         return getRev(filePath);
       } catch (e) {
+        if (tempPath) {
+          try {
+            unlinkSync(tempPath);
+          } catch {
+            // Best-effort cleanup; the safe IPC error below is the important part.
+          }
+        }
         error('Local file sync save failed', getSafeErrorMeta(e));
         return createSafeIpcError(IPC.FILE_SYNC_SAVE, e);
       }
@@ -125,7 +181,7 @@ export const initLocalFileSyncAdapter = (): void => {
       },
     ): Promise<{ rev: string; dataStr: string | undefined } | Error> => {
       try {
-        const filePath = await _resolveRelative(relativePath);
+        const filePath = (await _resolveRelative(relativePath)).absolutePath;
         log(IPC.FILE_SYNC_LOAD, {
           hasLocalRev: !!localRev,
         });
@@ -155,7 +211,7 @@ export const initLocalFileSyncAdapter = (): void => {
       },
     ): Promise<void | Error> => {
       try {
-        const filePath = await _resolveRelative(relativePath);
+        const filePath = (await _resolveRelative(relativePath)).absolutePath;
         log(IPC.FILE_SYNC_REMOVE);
         unlinkSync(filePath);
         return;
@@ -179,7 +235,7 @@ export const initLocalFileSyncAdapter = (): void => {
       try {
         // Default to the sync root itself (relativePath = '') so the legacy
         // "is the configured sync folder reachable?" check still works.
-        const dirPath = await _resolveRelative(relativePath);
+        const dirPath = (await _resolveRelative(relativePath)).absolutePath;
         const dirEntries = readdirSync(dirPath);
         log(IPC.CHECK_DIR_EXISTS, {
           dirEntryCount: dirEntries.length,
@@ -208,7 +264,7 @@ export const initLocalFileSyncAdapter = (): void => {
       },
     ): Promise<string[] | Error> => {
       try {
-        const dirPath = await _resolveRelative(relativePath);
+        const dirPath = (await _resolveRelative(relativePath)).absolutePath;
         return readdirSync(dirPath);
       } catch (e) {
         error('Local file sync list files failed', getSafeErrorMeta(e));
@@ -256,10 +312,7 @@ export const initLocalFileSyncAdapter = (): void => {
 
   ipcMain.handle(
     IPC.IMAGE_PICK_AND_IMPORT,
-    async (
-      _,
-      args?: { replacesId?: string },
-    ): Promise<{ id: string; mimeType: string } | null | Error> => {
+    async (): Promise<{ id: string; mimeType: string } | null | Error> => {
       // SECURITY: the dialog + import are atomic and run together in main.
       // The renderer never holds the absolute path — it cannot trigger an
       // image read without a user clicking through the native picker.
@@ -293,13 +346,6 @@ export const initLocalFileSyncAdapter = (): void => {
           // so it matches the FS handlers' contract — main bundle paths
           // (from a raw `e.stack`) are not leaked.
           throw new Error('Selected image could not be imported');
-        }
-        if (typeof args?.replacesId === 'string' && args.replacesId) {
-          // GC: drop the file the renderer is about to overwrite in its config.
-          // Renderer-supplied id is opaque; worst case is removing a cached
-          // image that wasn't actually orphaned, which the user can recover by
-          // re-picking.
-          await removeCachedImage(args.replacesId);
         }
         return imported;
       } catch (e) {

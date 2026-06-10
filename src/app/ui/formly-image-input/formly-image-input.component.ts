@@ -48,9 +48,8 @@ export class FormlyImageInputComponent extends FieldType<FormlyFieldConfig> {
   readonly IS_ELECTRON = IS_ELECTRON;
   // Guard against double-click while the main-side dialog + import is in
   // flight. A second click would otherwise queue a second IPC that opens
-  // a second dialog after the first resolves, and (because `replacesId` is
-  // computed from the form value at click time) leak the first import as
-  // an orphan in `userData/bg-images/`.
+  // a second dialog after the first resolves and orphan all but the last
+  // selected import in `userData/bg-images/`.
   readonly isPickerBusy = signal(false);
 
   get isUnsplashAvailable(): boolean {
@@ -63,18 +62,11 @@ export class FormlyImageInputComponent extends FieldType<FormlyFieldConfig> {
     }
     // Post-#8228: dialog + import are atomic in main. The renderer never
     // sees the absolute path and cannot trigger an import without a real
-    // user-driven dialog interaction. We pass the current cached id (if
-    // any) so main can garbage-collect the file we're about to replace.
-    const current = this.formControl.value;
-    const replacesId =
-      typeof current === 'string' && current.startsWith('image:')
-        ? current.substring('image:'.length)
-        : undefined;
+    // user-driven dialog interaction. Old cached images are not deleted here:
+    // the surrounding form save can still be cancelled or fail.
     this.isPickerBusy.set(true);
     try {
-      const result = await window.ea.imagePickAndImport(
-        replacesId ? { replacesId } : undefined,
-      );
+      const result = await window.ea.imagePickAndImport();
       if (result instanceof Error) {
         // Validation failure (extension, size cap, etc.). User-cancel
         // returns null. See electron/local-file-sync.ts IMAGE_PICK_AND_IMPORT.

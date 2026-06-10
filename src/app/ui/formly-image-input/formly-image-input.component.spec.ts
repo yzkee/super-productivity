@@ -138,11 +138,11 @@ describe('FormlyImageInputComponent', () => {
 
     await component.openFileExplorer();
 
-    expect(imagePickAndImport).toHaveBeenCalledWith(undefined);
+    expect(imagePickAndImport).toHaveBeenCalledWith();
     expect(setValueSpy).toHaveBeenCalledWith(`image:${'a'.repeat(32)}`);
   });
 
-  it('passes the replacesId so main can garbage-collect the old cached image', async () => {
+  it('does not pass the previous image id before the form save is durable', async () => {
     (component as any).IS_ELECTRON = true;
     formControl.setValue(`image:${'b'.repeat(32)}`);
 
@@ -153,7 +153,7 @@ describe('FormlyImageInputComponent', () => {
 
     await component.openFileExplorer();
 
-    expect(imagePickAndImport).toHaveBeenCalledWith({ replacesId: 'b'.repeat(32) });
+    expect(imagePickAndImport).toHaveBeenCalledWith();
   });
 
   it('shows a snack on validation failure (Error return) but not on cancel (null)', async () => {
@@ -194,9 +194,8 @@ describe('FormlyImageInputComponent', () => {
     (window as any).ea = { imagePickAndImport };
 
     const firstClick = component.openFileExplorer();
-    // Second click while the first is awaiting — must be a no-op so the
-    // form's `replacesId` for the second IPC doesn't still point at the
-    // old value and orphan the first import.
+    // Second click while the first is awaiting must be a no-op so the form
+    // does not queue multiple imports and orphan all but the last selected one.
     await component.openFileExplorer();
     expect(imagePickAndImport).toHaveBeenCalledTimes(1);
     expect(component.isPickerBusy()).toBe(true);

@@ -46,9 +46,8 @@ export const resolveBgImageToDataUrl = async (
   if (bgImage.startsWith('file://')) {
     // Legacy shape — picker now produces `image:<id>`. No safe IPC to read
     // an arbitrary renderer-supplied path remains; user must re-pick.
-    // TODO(#8228 follow-up): one-time snack to nudge re-pick. Translation
-    // infrastructure is the only blocker; for now we log so devs notice.
-    // Static message only — never log the URL (it's user content).
+    // Static message only — never log the URL (it's user content). AppComponent
+    // shows the user-facing re-pick snack once per session.
     if (!_hasWarnedAboutLegacyFileUrl) {
       _hasWarnedAboutLegacyFileUrl = true;
       Log.warn(
