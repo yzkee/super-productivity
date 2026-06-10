@@ -303,7 +303,9 @@ describe('DialogEditTaskRepeatCfgComponent', () => {
         (c) => c.key === T.F.TASK_REPEAT.F.Q_MONTHLY_CURRENT_DATE,
       );
 
-      const today = new Date();
+      // "today" comes from the mocked DateService.getLogicalTodayDate (2026-06-09),
+      // not the wall clock — asserting against new Date() breaks on any other day
+      const today = new Date(2026, 5, 9);
       const todayDayStr = today.toLocaleDateString('en-US', { day: 'numeric' });
 
       expect(monthlyCall).toBeDefined();
