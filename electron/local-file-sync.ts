@@ -1,4 +1,5 @@
 import { IPC } from './shared-with-frontend/ipc-events.const';
+import { SimpleStoreKey } from './shared-with-frontend/simple-store.const';
 import {
   readdirSync,
   readFileSync,
@@ -13,6 +14,7 @@ import { app, dialog, ipcMain } from 'electron';
 import { getWin } from './main-window';
 import { resolveSyncPath } from './sync-path-resolver';
 import { loadSimpleStoreAll, saveSimpleStore } from './simple-store';
+import { assertPathOutside } from './file-path-guard';
 import { getImageDataUrl, importImage, removeCachedImage } from './image-cache';
 
 // SECURITY: file-sync must never read/write/list inside the app's private dir,
@@ -22,17 +24,17 @@ import { getImageDataUrl, importImage, removeCachedImage } from './image-cache';
 // changed at startup (--user-data-dir, Snap). See file-path-guard.ts.
 const getAppPrivateDir = (): string => app.getPath('userData');
 
-// Main-owned sync folder path. Backed by simple-store under SYNC_FOLDER_KEY;
-// cached in-memory after first load so each FS IPC doesn't re-read the file.
-// The canonical form is stored so subsequent realpath comparisons in
-// resolveSyncPath line up regardless of symlink/case-fold drift.
-const SYNC_FOLDER_KEY = 'syncFolderPath';
+// Main-owned sync folder path. Backed by simple-store under
+// SimpleStoreKey.SYNC_FOLDER_PATH; cached in-memory after first load so each FS
+// IPC doesn't re-read the file. The canonical form is stored so subsequent
+// realpath comparisons in resolveSyncPath line up regardless of symlink/case-
+// fold drift.
 let _cachedSyncFolder: string | null | undefined = undefined;
 let _loadPromise: Promise<string | null> | null = null;
 
 const _loadSyncFolderFromDisk = async (): Promise<string | null> => {
   const all = await loadSimpleStoreAll();
-  const raw = all[SYNC_FOLDER_KEY];
+  const raw = all[SimpleStoreKey.SYNC_FOLDER_PATH];
   return typeof raw === 'string' && raw.length > 0 ? raw : null;
 };
 
@@ -52,7 +54,12 @@ const setSyncFolderPath = async (rawPath: string): Promise<string> => {
   // resolveSyncPath will compare against, and so a relative or
   // symlinked path is rejected before it gets stored.
   const canonical = realpathSync.native(rawPath);
-  await saveSimpleStore(SYNC_FOLDER_KEY, canonical);
+  // Reject a folder equal to or inside userData BEFORE persisting. Otherwise
+  // we'd store a "configured" folder that resolveSyncPath then denies on every
+  // sync op — safe but confusing. Throwing here funnels into the handler's
+  // createSafeIpcError path; the store and the in-memory cache stay untouched.
+  assertPathOutside(getAppPrivateDir(), canonical);
+  await saveSimpleStore(SimpleStoreKey.SYNC_FOLDER_PATH, canonical);
   _cachedSyncFolder = canonical;
   return canonical;
 };

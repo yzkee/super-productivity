@@ -124,23 +124,38 @@ test('FILE_SYNC_SAVE rejects an absolute renderer-supplied relativePath', async 
   assert.ok(result instanceof Error);
 });
 
-test('FILE_SYNC_SAVE rejects when sync folder is configured as userData (grant-file forgery)', async () => {
-  // A misbehaving renderer cannot end up with the sync folder pointed at
-  // userData, because resolveSyncPath denies any root that equals or lives
-  // under userData. Belt-and-braces: even if the persisted value ever did
-  // collide with userData, the resolver refuses at every IPC call.
-  await configureSyncFolder(userDataDir);
+test('PICK_DIRECTORY rejects a folder inside userData', async () => {
+  // A folder equal to (or inside) userData is rejected at pick time so the
+  // user never ends up with a "configured" folder that resolveSyncPath then
+  // denies on every sync op (safe but confusing). Nothing is persisted.
+  nextDialogResult = { canceled: false, filePaths: [userDataDir] };
+  const result = await handlers['PICK_DIRECTORY']({});
+  assert.ok(result instanceof Error);
+  assert.equal(
+    await handlers['GET_SYNC_FOLDER_PATH']({}),
+    null,
+    'a userData folder is never persisted',
+  );
+});
+
+test('FILE_SYNC_SAVE rejects a poisoned userData sync folder (grant-file forgery)', async () => {
+  // Belt-and-braces: even if the persisted value ever did collide with
+  // userData (bypassing the pick-time guard above), resolveSyncPath refuses
+  // any root that equals or lives under userData at every IPC call. Simulate
+  // a poisoned store by writing simpleSettings directly BEFORE load() reads
+  // it, then assert the attacker payload never lands.
+  fs.writeFileSync(
+    path.join(userDataDir, 'simpleSettings'),
+    JSON.stringify({ syncFolderPath: userDataDir }),
+  );
+  load(); // re-register handlers so the poisoned store is read fresh
+
   const result = await handlers['FILE_SYNC_SAVE'](
     {},
     { relativePath: 'simpleSettings', dataStr: '{"pwn":true}', localRev: null },
   );
   assert.ok(result instanceof Error);
-  // simpleSettings either doesn't exist yet, or if simple-store wrote one
-  // earlier in this test, the sync-save's writeFile must not have overwritten
-  // it with the attacker payload.
-  const stored = fs.existsSync(path.join(userDataDir, 'simpleSettings'))
-    ? fs.readFileSync(path.join(userDataDir, 'simpleSettings'), 'utf8')
-    : '';
+  const stored = fs.readFileSync(path.join(userDataDir, 'simpleSettings'), 'utf8');
   assert.ok(!stored.includes('"pwn":true'), 'attacker payload did not land');
 });
 
