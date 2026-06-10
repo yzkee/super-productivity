@@ -760,9 +760,11 @@ const _resetEntityIdsFromObjects = <T extends AppBaseDataEntityLikeStates>(
   // then append any sanitized entity that `ids` didn't already list.
   const orderedIds: string[] = [];
   const seen = new Set<string>();
-  const prevIds = Array.isArray(data.ids) ? (data.ids as (string | number)[]) : [];
+  const prevIds: readonly (string | number)[] = Array.isArray(data.ids) ? data.ids : [];
   for (const id of prevIds) {
-    const idStr = id as string;
+    // `ids` is typed string[] | number[]; entity dict keys are always strings.
+    // Normalize so the lookup, dedupe Set, and output stay consistently typed.
+    const idStr = String(id);
     if (sanitizedEntities[idStr] && !seen.has(idStr)) {
       orderedIds.push(idStr);
       seen.add(idStr);

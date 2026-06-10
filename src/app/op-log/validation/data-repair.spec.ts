@@ -2423,5 +2423,36 @@ describe('dataRepair()', () => {
 
       expect(result.data.simpleCounter.ids).toEqual(['c2', 'c1', 'c3']);
     });
+
+    it('should dedupe duplicate ids while preserving first-seen order', () => {
+      const entities = {
+        c1: _counter('c1'),
+        c2: _counter('c2'),
+      };
+
+      const result = dataRepair({
+        ...mock,
+        simpleCounter: { ids: ['c1', 'c1', 'c2'], entities },
+      } as any);
+
+      expect(result.data.simpleCounter.ids).toEqual(['c1', 'c2']);
+    });
+
+    it('should re-key entities by entity.id and drop the stale dict key from ids', () => {
+      // Entity stored under a stale dict key whose canonical entity.id differs.
+      const entities = {
+        STALE_KEY: _counter('c2'),
+        c1: _counter('c1'),
+      } as any;
+
+      const result = dataRepair({
+        ...mock,
+        simpleCounter: { ids: ['STALE_KEY', 'c1'], entities },
+      } as any);
+
+      // 'STALE_KEY' has no entity after re-keying -> dropped; 'c1' preserved;
+      // 'c2' (the re-keyed entity) appended.
+      expect(result.data.simpleCounter.ids).toEqual(['c1', 'c2']);
+    });
   });
 });
