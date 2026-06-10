@@ -246,6 +246,7 @@
         "CAL_PROVIDER_ERROR": "Calendar Provider Error: {{errTxt}}",
         "CAL_PROVIDER_NOT_ICAL": "Calendar URL did not return iCal data. The share link may be expired, revoked, or require sign-in — try generating a new share URL.",
         "EVENT_HIDDEN": "Calendar event hidden",
+        "EVENT_MOVED": "Event moved",
         "EVENT_RESCHEDULED": "Event rescheduled",
         "EVENT_DELETED": "Event deleted",
         "TIME_BLOCK_ERROR": "Failed to sync time block: {{errTxt}}"
@@ -1125,6 +1126,7 @@
       "START": "Work Start"
     },
     "SEARCH_BAR": {
+      "INCLUDE_COMPLETED": "Include completed and archived tasks",
       "INFO": "Start typing to search for tasks or notes",
       "NO_RESULTS": "No tasks or notes found matching your search",
       "PLACEHOLDER": "Search for task, task notes or project notes"
@@ -1809,6 +1811,7 @@
         "DUE_TASKS": "Planned tasks reminder",
         "RESCHEDULE_EDIT": "Edit (reschedule)",
         "RESCHEDULE_UNTIL_TOMORROW": "Reschedule for tomorrow",
+        "SCHEDULED_FOR": "Scheduled for",
         "SNOOZE": "Snooze",
         "SNOOZE_ALL": "Snooze all",
         "START": "Start",
@@ -2371,7 +2374,6 @@
       "MOVE_TASK_TO_TOP": "Move task to the top of the list",
       "MOVE_TASK_UP": "Move task up in the list",
       "MOVE_TO_BACKLOG": "Move task to project backlog",
-      "MOVE_TO_REGULARS_TASKS": "Move task to Today",
       "OPEN_PROJECT_NOTES": "Show/hide notes",
       "PLUGIN_SHORTCUTS": "Plugin Shortcuts",
       "SELECT_NEXT_TASK": "Select next task",
@@ -2387,6 +2389,10 @@
       "TASK_OPEN_CONTEXT_MENU": "Open task context menu",
       "TASK_OPEN_ESTIMATION_DIALOG": "Edit estimate/time spent",
       "TASK_SCHEDULE": "Schedule task",
+      "TASK_SCHEDULE_TODAY": "Schedule task for today",
+      "TASK_SCHEDULE_TOMORROW": "Schedule task for tomorrow",
+      "TASK_SCHEDULE_NEXT_WEEK": "Schedule task for next week",
+      "TASK_SCHEDULE_NEXT_MONTH": "Schedule task for next month",
       "TASK_SCHEDULE_DEADLINE": "Set task deadline",
       "TASK_SHORTCUTS": "Tasks",
       "TASK_SHORTCUTS_INFO": "The following shortcuts apply to the currently selected task (selected via tab or mouse).",
