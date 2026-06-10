@@ -80,7 +80,7 @@ const ea: ElectronAPI = {
     _invoke('FILE_SYNC_LIST_FILES', args) as Promise<string[] | Error>,
   checkDirExists: (args) => _invoke('CHECK_DIR_EXISTS', args) as Promise<true | Error>,
 
-  pickDirectory: () => _invoke('PICK_DIRECTORY') as Promise<string | undefined>,
+  pickDirectory: () => _invoke('PICK_DIRECTORY') as Promise<string | Error | undefined>,
   getSyncFolderPath: () => _invoke('GET_SYNC_FOLDER_PATH') as Promise<string | null>,
 
   showOpenDialog: (options: {

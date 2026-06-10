@@ -67,7 +67,16 @@ export interface ElectronAPI {
 
   checkDirExists(args: { relativePath?: string }): Promise<true | Error>;
 
-  pickDirectory(): Promise<string | undefined>;
+  /**
+   * Opens the native folder picker for the sync folder. Resolves to:
+   * - `string`: the canonicalized, persisted folder path on success
+   * - `undefined`: the user cancelled the picker
+   * - `Error`: the pick succeeded but main could not canonicalize/persist it
+   *   (e.g. the folder was deleted between pick and commit, EACCES, or the
+   *   folder lives inside the app's private dir). Nothing is persisted in
+   *   this case; the renderer must treat it as a failure, not a picked path.
+   */
+  pickDirectory(): Promise<string | Error | undefined>;
 
   /**
    * Returns the main-owned sync folder path for display, or null if not yet

@@ -6,6 +6,9 @@ export interface LocalFileSyncElectronDeps extends LocalFileSyncBaseDeps {
   /**
    * Show the system folder picker and persist the result main-side. Returns
    * the picked path for display only, or undefined if the user cancelled.
+   * Rejects when the pick succeeded but main could not canonicalize/persist
+   * the folder (e.g. it was deleted between pick and commit, EACCES, or it
+   * lives inside the app's private dir); nothing is persisted in that case.
    * The renderer must NOT pass the returned value back into FS IPCs — those
    * take a relative path and main resolves against its own stored copy.
    */
