@@ -96,6 +96,11 @@ export const parseNativeTrackingData = (
  * re-post the notification once per second (battery drain, #8243). Only jumps
  * (manual edits, remote sync merges, idle/recovery corrections) need to
  * propagate; those show up as a decrease or a step larger than any tick.
+ * Accepted gap: a manual edit that ADDS <= 5s is indistinguishable from a tick
+ * and stays suppressed — the notification (display-only; persistence happens
+ * elsewhere) re-anchors on the next jump or task switch. The threshold is 5x
+ * TRACKING_INTERVAL as headroom for janky/coalesced ticks; a sibling 5000 in
+ * android-focus-mode.effects.ts has different semantics (abs), don't unify.
  *
  * Exported so unit tests can exercise it without instantiating the effect
  * (which is gated behind IS_ANDROID_WEB_VIEW).

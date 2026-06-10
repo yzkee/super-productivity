@@ -81,8 +81,10 @@ class FocusModeForegroundService : Service() {
 
         /**
          * Live remaining time (countdown) or elapsed time (Flowtime, where
-         * durationMs is 0 and remainingMs accumulates). Accounts for the time
-         * since the last 1-second tick so a cold-start read stays accurate.
+         * durationMs is 0 and remainingMs accumulates). The snapshot fields only
+         * move on start/update/completion, so this derives the live value from
+         * the wall clock — it is THE time source for the notification, the
+         * completion scheduling, and the JS readback (#8243).
          *
          * Named `liveRemainingMs` rather than `getRemainingMs` to avoid a JVM
          * signature clash with the `remainingMs` property's generated getter.
@@ -108,9 +110,11 @@ class FocusModeForegroundService : Service() {
 
     // Fires once at the expected countdown end instead of ticking every second —
     // the notification chronometer renders the live timer without app work (#8243).
-    // Handler delays run on uptime and stall during deep sleep, so on fire we
-    // re-check wall-clock remaining and re-arm if the timer isn't actually done
-    // (same late-completion behavior in Doze as the old 1s loop).
+    // Handler delays run on uptime, which stalls in deep sleep, so the runnable
+    // can only fire at wall-clock >= the requested delay (late completion in
+    // Doze, same as the old 1s loop). The re-arm branch below therefore only
+    // triggers when the wall clock moved BACKWARD (manual change/NTP) — re-arming
+    // keeps completion consistent with the wall-clock-based chronometer.
     private val completionRunnable = object : Runnable {
         override fun run() {
             if (!isRunning || isPaused || durationMs <= 0 || hasNotifiedCompletion) return
@@ -157,6 +161,10 @@ class FocusModeForegroundService : Service() {
                 title = intent.getStringExtra(EXTRA_TITLE) ?: "Focus"
                 taskTitle = intent.getStringExtra(EXTRA_TASK_TITLE)
                 durationMs = intent.getLongExtra(EXTRA_DURATION_MS, 0L)
+                // Anchor before remainingMs: a torn liveRemainingMs() read from
+                // the JS bridge thread then returns a slightly stale value
+                // instead of subtracting the whole since-last-anchor gap.
+                lastUpdateTimestamp = System.currentTimeMillis()
                 remainingMs = intent.getLongExtra(EXTRA_REMAINING_MS, 0L)
                 isBreak = intent.getBooleanExtra(EXTRA_IS_BREAK, false)
                 isPaused = intent.getBooleanExtra(EXTRA_IS_PAUSED, false)
@@ -175,13 +183,15 @@ class FocusModeForegroundService : Service() {
                     return START_NOT_STICKY
                 }
                 title = intent.getStringExtra(EXTRA_TITLE) ?: title
-                // Without ticks the companion remainingMs is only a snapshot;
-                // fall back to the live wall-clock value, not the stale field.
-                remainingMs = intent.getLongExtra(EXTRA_REMAINING_MS, liveRemainingMs())
+                // Defensive fallback only — the sole caller (JavaScriptInterface.
+                // updateFocusModeService) always sends the extra. Anchor before
+                // remainingMs (see ACTION_START) to bias torn reads safe.
+                val newRemainingMs = intent.getLongExtra(EXTRA_REMAINING_MS, liveRemainingMs())
+                lastUpdateTimestamp = System.currentTimeMillis()
+                remainingMs = newRemainingMs
                 isPaused = intent.getBooleanExtra(EXTRA_IS_PAUSED, isPaused)
                 isBreak = intent.getBooleanExtra(EXTRA_IS_BREAK, isBreak)
                 taskTitle = intent.getStringExtra(EXTRA_TASK_TITLE) ?: taskTitle
-                lastUpdateTimestamp = System.currentTimeMillis()
 
                 scheduleCompletionCheck()
                 updateNotification()
@@ -212,10 +222,10 @@ class FocusModeForegroundService : Service() {
                     this,
                     title,
                     taskTitle,
-                    liveRemainingMs(),
-                    durationMs > 0,
-                    isPaused,
-                    isBreak
+                    remainingMs = liveRemainingMs(),
+                    isCountdown = durationMs > 0,
+                    isPaused = isPaused,
+                    isBreak = isBreak
                 )
             } else {
                 // A content title is required on some OEM skins (notably Samsung
@@ -312,10 +322,10 @@ class FocusModeForegroundService : Service() {
                 this,
                 title,
                 taskTitle,
-                liveRemainingMs(),
-                durationMs > 0,
-                isPaused,
-                isBreak
+                remainingMs = liveRemainingMs(),
+                isCountdown = durationMs > 0,
+                isPaused = isPaused,
+                isBreak = isBreak
             )
             NotificationManagerCompat.from(this).notify(
                 FocusModeNotificationHelper.NOTIFICATION_ID,

@@ -133,19 +133,6 @@ describe('AndroidForegroundTrackingEffects - syncTimeSpentChanges logic', () => 
 
       expect(updateTrackingServiceSpy).toHaveBeenCalledWith(120000);
     }));
-
-    it('should NOT call updateTrackingService for tick-sized increments (chronometer self-ticks, #8243)', fakeAsync(() => {
-      const prevState = { taskId: 'task-1', timeSpent: 60000, isFocusModeActive: false };
-      const currState = { taskId: 'task-1', timeSpent: 61000, isFocusModeActive: false };
-
-      const shouldUpdate =
-        prevState.taskId === currState.taskId &&
-        currState.taskId !== null &&
-        !currState.isFocusModeActive &&
-        isTimeSpentJumpForNotification(prevState.timeSpent, currState.timeSpent);
-
-      expect(shouldUpdate).toBeFalse();
-    }));
   });
 
   describe('isTimeSpentJumpForNotification', () => {

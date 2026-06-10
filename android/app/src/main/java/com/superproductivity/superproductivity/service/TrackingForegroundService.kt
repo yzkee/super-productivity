@@ -195,8 +195,12 @@ class TrackingForegroundService : Service() {
 
         currentTaskId = taskId
         taskTitle = title
-        accumulatedMs = timeSpentMs
+        // Anchor first, accumulated second: a torn getElapsedMs() read from the
+        // JS bridge thread then under-reports (caught by the negative-duration
+        // keep-app-value path) instead of double-counting the since-last-anchor
+        // gap — which can be hours now that nothing re-anchors every second.
         startTimestamp = System.currentTimeMillis()
+        accumulatedMs = timeSpentMs
         isTracking = true
 
         // The foreground-service start token was already satisfied at the top
@@ -214,9 +218,10 @@ class TrackingForegroundService : Service() {
         }
         Log.d(TAG, "Updating time spent: timeSpentMs=$timeSpentMs (was accumulated=$accumulatedMs)")
 
-        // Reset the timer with the new accumulated value
-        accumulatedMs = timeSpentMs
+        // Reset the timer with the new accumulated value. Anchor first (see
+        // startTracking) so a torn bridge-thread read errs toward under-reporting.
         startTimestamp = System.currentTimeMillis()
+        accumulatedMs = timeSpentMs
 
         // Update notification immediately
         updateNotification()
