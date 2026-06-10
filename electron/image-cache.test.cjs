@@ -70,6 +70,39 @@ test('importImage copies a valid image and returns an opaque id', async () => {
   }
 });
 
+test('importImage accepts avif and bmp (restored legacy formats)', async () => {
+  const cache = load();
+  const sourceDir = fsModule.realpathSync.native(
+    await fs.mkdtemp(path.join(os.tmpdir(), 'sp-src-')),
+  );
+  try {
+    const avif = await mkPng(sourceDir, 'bg.avif', Buffer.from('fakeavif'));
+    const avifResult = await cache.importImage(avif);
+    assert.ok(avifResult);
+    assert.equal(avifResult.mimeType, 'image/avif');
+
+    const bmp = await mkPng(sourceDir, 'bg.bmp', Buffer.from('fakebmp'));
+    const bmpResult = await cache.importImage(bmp);
+    assert.ok(bmpResult);
+    assert.equal(bmpResult.mimeType, 'image/bmp');
+  } finally {
+    await fs.rm(sourceDir, { recursive: true, force: true });
+  }
+});
+
+test('importImage rejects svg (scriptable format deliberately excluded)', async () => {
+  const cache = load();
+  const sourceDir = fsModule.realpathSync.native(
+    await fs.mkdtemp(path.join(os.tmpdir(), 'sp-src-')),
+  );
+  try {
+    const svg = await mkPng(sourceDir, 'bg.svg', Buffer.from('<svg></svg>'));
+    assert.equal(await cache.importImage(svg), null);
+  } finally {
+    await fs.rm(sourceDir, { recursive: true, force: true });
+  }
+});
+
 test('importImage returns null for a path inside userData (no laundering)', async () => {
   const cache = load();
   const evilPath = await mkPng(userDataDir, 'planted.png');

@@ -272,7 +272,12 @@ export const initLocalFileSyncAdapter = (): void => {
           buttonLabel: 'Select',
           properties: ['openFile'],
           filters: [
-            { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp'] },
+            {
+              name: 'Images',
+              // Keep in sync with MIME_BY_EXT in image-cache.ts (svg excluded
+              // on purpose — scriptable format).
+              extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif'],
+            },
           ],
         })) as unknown as { canceled: boolean; filePaths: string[] };
         if (canceled || !filePaths[0]) {

@@ -33,12 +33,17 @@ import { assertPathOutside } from './file-path-guard';
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+// SVG is deliberately excluded: it is a scriptable format (can embed
+// <script>/event handlers) and inlining it as a data URL would reintroduce an
+// XSS surface, so the cache only accepts raster formats.
 const MIME_BY_EXT: Record<string, string> = {
   png: 'image/png',
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
   gif: 'image/gif',
   webp: 'image/webp',
+  bmp: 'image/bmp',
+  avif: 'image/avif',
 };
 
 const ID_RE = /^[a-f0-9]{32}$/;
