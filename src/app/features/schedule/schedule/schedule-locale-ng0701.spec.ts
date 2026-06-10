@@ -14,7 +14,6 @@ import { LayoutService } from '../../../core-ui/layout/layout.service';
 import { ScheduleService } from '../schedule.service';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
 import { GlobalConfigService } from '../../config/global-config.service';
-import { CalendarEventActionsService } from '../../calendar-integration/calendar-event-actions.service';
 import { DateTimeLocales } from '../../../core/locale.constants';
 import { safeFormatDate } from '../../../util/safe-format-date';
 
@@ -111,28 +110,13 @@ describe('issue #7383 — NG0701 race on /schedule', () => {
           { provide: LayoutService, useValue: mockLayoutService },
           { provide: ScheduleService, useValue: mockScheduleService },
           { provide: MatDialog, useValue: jasmine.createSpyObj('MatDialog', ['open']) },
-          // schedule-week/schedule-event eagerly inject this service; without a mock
-          // the deferred CD pass after the test hits NG0201 (missing ScannedActionsSubject)
-          // and the async error kills the whole Karma session.
           {
-            provide: CalendarEventActionsService,
-            useValue: jasmine.createSpyObj('CalendarEventActionsService', [
-              'hasEventUrl',
-              'isPluginEvent',
-              'canMoveEvent',
-              'openEventLink',
-              'reschedule',
-              'createAsTask',
-              'hideForever',
-              'deleteEvent',
-            ]),
-          },
-          {
-            // ScheduleComponent's children inject the root-provided
-            // CalendarEventActionsService, whose real DI chain pulls in
-            // IssueService → SnackService → LOCAL_ACTIONS (needs NgRx Actions,
-            // which provideMockStore does not supply). Mock it to keep the
-            // injector self-contained.
+            // ScheduleComponent's children (schedule-week/schedule-event) eagerly
+            // inject the root-provided CalendarEventActionsService, whose real DI
+            // chain pulls in IssueService → SnackService → LOCAL_ACTIONS (needs NgRx
+            // Actions, which provideMockStore does not supply). Without a mock the
+            // deferred CD pass after the test hits NG0201 and the async error kills
+            // the whole Karma session. Mock it to keep the injector self-contained.
             provide: CalendarEventActionsService,
             useValue: jasmine.createSpyObj('CalendarEventActionsService', [
               'hasEventUrl',
