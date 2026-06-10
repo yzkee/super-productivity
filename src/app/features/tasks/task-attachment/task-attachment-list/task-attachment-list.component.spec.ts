@@ -7,6 +7,7 @@ import { TaskAttachment } from '../task-attachment.model';
 import { T } from '../../../../t.const';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ClipboardImageService } from '../../../../core/clipboard-image/clipboard-image.service';
+import { Log } from '../../../../core/log';
 
 describe('TaskAttachmentListComponent', () => {
   let component: TaskAttachmentListComponent;
@@ -52,6 +53,9 @@ describe('TaskAttachmentListComponent', () => {
       [
         'file://192.168.1.100/share/pixel.png',
         'file:////host/share/pixel.png',
+        'file:///%5C%5Chost/share/pixel.png',
+        'file:///%2F%2Fhost/share/pixel.png',
+        'file:///%2e%2e/%2F%2Fhost/share/pixel.png',
         '\\\\host\\share\\pixel.png',
         '//host/share/pixel.png',
       ].forEach((path) => {
@@ -149,12 +153,12 @@ describe('TaskAttachmentListComponent', () => {
         .and.returnValue(Promise.reject(new Error('Permission denied')));
       setNavigatorClipboard({ writeText: writeTextSpy });
       document.execCommand = jasmine.createSpy('execCommand').and.returnValue(true);
-      spyOn(console, 'warn');
+      spyOn(Log, 'warn');
 
       await component.copy(attachment);
 
       expect(writeTextSpy).toHaveBeenCalledWith('https://example.com/test');
-      expect(console.warn).toHaveBeenCalled();
+      expect(Log.warn).toHaveBeenCalled();
       expect(document.execCommand).toHaveBeenCalledWith('copy');
       expect(snackService.open).toHaveBeenCalledWith(T.GLOBAL_SNACK.COPY_TO_CLIPPBOARD);
     });
@@ -177,12 +181,12 @@ describe('TaskAttachmentListComponent', () => {
       document.execCommand = jasmine
         .createSpy('execCommand')
         .and.throwError('Command not supported');
-      spyOn(console, 'error');
+      spyOn(Log, 'err');
 
       await component.copy(attachment);
 
       expect(document.execCommand).toHaveBeenCalledWith('copy');
-      expect(console.error).toHaveBeenCalled();
+      expect(Log.err).toHaveBeenCalled();
       expect(snackService.open).toHaveBeenCalledWith({
         msg: 'Failed to copy to clipboard. Please copy manually.',
         type: 'ERROR',
