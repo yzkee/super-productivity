@@ -23,6 +23,7 @@ import { DateService } from '../../../core/date/date.service';
 import { Task } from '../../tasks/task.model';
 import { selectTimer } from '../../focus-mode/store/focus-mode.selectors';
 import { combineLatest, firstValueFrom, Subject } from 'rxjs';
+import { ANDROID_BACKGROUND_TICK_CAP_MS } from '../../../app.constants';
 import { HydrationStateService } from '../../../op-log/apply/hydration-state.service';
 import { SnackService } from '../../../core/snack/snack.service';
 import { GlobalTrackingIntervalService } from '../../../core/global-tracking-interval/global-tracking-interval.service';
@@ -112,6 +113,62 @@ export const isTimeSpentJumpForNotification = (
 ): boolean =>
   currTimeSpent < prevTimeSpent ||
   currTimeSpent - prevTimeSpent > TIME_SPENT_JUMP_THRESHOLD_MS;
+
+/**
+ * Credit the backgrounded wall-clock gap (capped at 8h) to tick$ consumers
+ * (running stopwatch counters, break tracking) with one wake-up tick, and
+ * flush it into a syncTimeSpent op. The 1s interval is paused while the app
+ * is backgrounded (see createGlobalInterval$ — the web-layer half of the
+ * #8243 battery drain), so without this the gap would never reach them.
+ * resetTrackingStart() drops any over-cap remainder from the tick anchor so
+ * the restarted interval can't deliver it again; for the current task the
+ * native reconcile adds that remainder from the authoritative counter.
+ *
+ * MUST be called from syncOnResume$ BEFORE _syncElapsedTimeForTask (see the
+ * effect comment) — as a separate onResume$ effect it would race the native
+ * reconcile and double-count the gap in the op-log.
+ *
+ * Exported so the spec can exercise it without tripping the
+ * IS_ANDROID_WEB_VIEW gate on createEffect.
+ */
+export const creditBackgroundTickGap = (
+  globalTracking: GlobalTrackingIntervalService,
+  taskService: TaskService,
+): void => {
+  globalTracking.triggerWakeUpTick(ANDROID_BACKGROUND_TICK_CAP_MS);
+  globalTracking.resetTrackingStart();
+  taskService.flushAccumulatedTimeSpent();
+};
+
+export type AndroidResumeDeps = {
+  globalTracking: GlobalTrackingIntervalService;
+  taskService: TaskService;
+  syncElapsedTimeForTask: (taskId: string) => Promise<boolean>;
+  getNativeTrackingData: () => NativeTrackingData | null;
+  requestRecovery: (data: NativeTrackingData) => void;
+};
+
+/**
+ * Body of syncOnResume$, effect-independent so the spec can pin the
+ * load-bearing ordering (see the effect comment): the gap credit must run
+ * synchronously BEFORE syncElapsedTimeForTask samples the task, else the
+ * native reconcile re-emits the same gap as a second syncTimeSpent op and
+ * remote devices double-count it on op-log replay.
+ */
+export const handleAndroidResume = async (
+  deps: AndroidResumeDeps,
+  currentTask: Task | null,
+): Promise<void> => {
+  creditBackgroundTickGap(deps.globalTracking, deps.taskService);
+  if (currentTask) {
+    await deps.syncElapsedTimeForTask(currentTask.id);
+  } else {
+    const nativeData = deps.getNativeTrackingData();
+    if (nativeData) {
+      deps.requestRecovery(nativeData);
+    }
+  }
+};
 
 @Injectable()
 export class AndroidForegroundTrackingEffects {
@@ -268,7 +325,18 @@ export class AndroidForegroundTrackingEffects {
     );
 
   /**
-   * When the app resumes from background, sync the elapsed time from the native service.
+   * When the app resumes from background, first credit the backgrounded gap
+   * to generic tick$ consumers (the 1s interval was paused, #8243), then sync
+   * the current task's elapsed time from the native service.
+   *
+   * ORDER IS LOAD-BEARING: creditBackgroundTickGap must run synchronously
+   * BEFORE _syncElapsedTimeForTask subscribes its task snapshot. That way the
+   * native reconcile sees the already-credited timeSpent and computes only
+   * the uncredited remainder (cap overflow / sub-second jitter). If the
+   * reconcile sampled first — e.g. were the credit a separate onResume$
+   * effect — both paths would emit a syncTimeSpent op for the SAME gap, and
+   * remote devices would double-count it on op-log replay (ops apply
+   * state-relative there, unlike the snapshot-based local reducer).
    */
   syncOnResume$ =
     IS_ANDROID_WEB_VIEW &&
@@ -280,16 +348,19 @@ export class AndroidForegroundTrackingEffects {
             this._store.select(selectIsTaskDataLoaded),
           ),
           filter(([, , isTaskDataLoaded]) => isTaskDataLoaded),
-          tap(async ([, currentTask]) => {
-            if (currentTask) {
-              await this._syncElapsedTimeForTask(currentTask.id);
-            } else {
-              const nativeData = this._getNativeTrackingData();
-              if (nativeData) {
-                this._recoveryRequest$.next({ data: nativeData, source: 'resume' });
-              }
-            }
-          }),
+          tap(([, currentTask]) =>
+            handleAndroidResume(
+              {
+                globalTracking: this._globalTrackingIntervalService,
+                taskService: this._taskService,
+                syncElapsedTimeForTask: (taskId) => this._syncElapsedTimeForTask(taskId),
+                getNativeTrackingData: () => this._getNativeTrackingData(),
+                requestRecovery: (data) =>
+                  this._recoveryRequest$.next({ data, source: 'resume' }),
+              },
+              currentTask,
+            ),
+          ),
         ),
       { dispatch: false },
     );
