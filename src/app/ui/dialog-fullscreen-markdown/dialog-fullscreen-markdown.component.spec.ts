@@ -8,6 +8,7 @@ import { ClipboardImageService } from '../../core/clipboard-image/clipboard-imag
 import { ClipboardPasteHandlerService } from '../../core/clipboard-image/clipboard-paste-handler.service';
 import { TaskAttachmentService } from '../../features/tasks/task-attachment/task-attachment.service';
 import { DialogFullscreenMarkdownComponent } from './dialog-fullscreen-markdown.component';
+import { MOD, shortcutLabels } from './markdown-shortcuts.const';
 
 describe('DialogFullscreenMarkdownComponent', () => {
   let component: DialogFullscreenMarkdownComponent;
@@ -110,5 +111,283 @@ describe('DialogFullscreenMarkdownComponent', () => {
       expect(component.data.content).toBe('- [ ] Task 1\n\n- [ ] Task 2');
       expect(component.contentChanged.emit).not.toHaveBeenCalled();
     });
+  });
+
+  describe('keydownHandler', () => {
+    let mockTextarea: HTMLTextAreaElement;
+
+    beforeEach(() => {
+      mockTextarea = document.createElement('textarea');
+      spyOn(component, 'textareaEl').and.returnValue({
+        nativeElement: mockTextarea,
+      } as any);
+    });
+
+    it('should call close() on Ctrl+Enter', () => {
+      spyOn(component, 'close');
+      component.keydownHandler(
+        new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true }),
+      );
+      expect(component.close).toHaveBeenCalled();
+    });
+
+    it('should call onApplyBold and preventDefault on Ctrl+B', () => {
+      spyOn(component, 'onApplyBold');
+      const event = {
+        key: 'b',
+        code: 'KeyB',
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: false,
+        preventDefault: jasmine.createSpy('preventDefault'),
+      } as unknown as KeyboardEvent;
+
+      component.keydownHandler(event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(component.onApplyBold).toHaveBeenCalled();
+    });
+
+    it('should call onApplyBold on Meta+B (Mac)', () => {
+      spyOn(component, 'onApplyBold');
+      const event = {
+        key: 'b',
+        code: 'KeyB',
+        ctrlKey: false,
+        metaKey: true,
+        shiftKey: false,
+        preventDefault: jasmine.createSpy('preventDefault'),
+      } as unknown as KeyboardEvent;
+
+      component.keydownHandler(event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(component.onApplyBold).toHaveBeenCalled();
+    });
+
+    it('should call onApplyItalic on Ctrl+I', () => {
+      spyOn(component, 'onApplyItalic');
+      const event = {
+        key: 'i',
+        code: 'KeyI',
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: false,
+        preventDefault: jasmine.createSpy('preventDefault'),
+      } as unknown as KeyboardEvent;
+
+      component.keydownHandler(event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(component.onApplyItalic).toHaveBeenCalled();
+    });
+
+    it('should call onInsertLink on Ctrl+K', () => {
+      spyOn(component, 'onInsertLink');
+      const event = {
+        key: 'k',
+        code: 'KeyK',
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: false,
+        preventDefault: jasmine.createSpy('preventDefault'),
+      } as unknown as KeyboardEvent;
+
+      component.keydownHandler(event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(component.onInsertLink).toHaveBeenCalled();
+    });
+
+    it('should call onApplyStrikethrough on Ctrl+Shift+S', () => {
+      spyOn(component, 'onApplyStrikethrough');
+      const event = {
+        key: 's',
+        code: 'KeyS',
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: true,
+        preventDefault: jasmine.createSpy('preventDefault'),
+      } as unknown as KeyboardEvent;
+
+      component.keydownHandler(event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(component.onApplyStrikethrough).toHaveBeenCalled();
+    });
+
+    it('should call onApplyInlineCode on Ctrl+E', () => {
+      spyOn(component, 'onApplyInlineCode');
+      const event = {
+        key: 'e',
+        code: 'KeyE',
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: false,
+        preventDefault: jasmine.createSpy('preventDefault'),
+      } as unknown as KeyboardEvent;
+
+      component.keydownHandler(event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(component.onApplyInlineCode).toHaveBeenCalled();
+    });
+
+    it('should call onApplyBulletList on Ctrl+Shift+8 (code-based)', () => {
+      spyOn(component, 'onApplyBulletList');
+      const event = {
+        key: '*',
+        code: 'Digit8',
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: true,
+        preventDefault: jasmine.createSpy('preventDefault'),
+      } as unknown as KeyboardEvent;
+
+      component.keydownHandler(event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(component.onApplyBulletList).toHaveBeenCalled();
+    });
+
+    it('should call onApplyNumberedList on Ctrl+Shift+7 (code-based)', () => {
+      spyOn(component, 'onApplyNumberedList');
+      const event = {
+        key: '&',
+        code: 'Digit7',
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: true,
+        preventDefault: jasmine.createSpy('preventDefault'),
+      } as unknown as KeyboardEvent;
+
+      component.keydownHandler(event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(component.onApplyNumberedList).toHaveBeenCalled();
+    });
+
+    it('should call onApplyQuote on Ctrl+Shift+9 (code-based)', () => {
+      spyOn(component, 'onApplyQuote');
+      const event = {
+        key: '(',
+        code: 'Digit9',
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: true,
+        preventDefault: jasmine.createSpy('preventDefault'),
+      } as unknown as KeyboardEvent;
+
+      component.keydownHandler(event);
+
+      expect(event.preventDefault).toHaveBeenCalled();
+      expect(component.onApplyQuote).toHaveBeenCalled();
+    });
+
+    it('should not trigger any shortcut when no modifier key is held', () => {
+      spyOn(component, 'onApplyBold');
+      const event = {
+        key: 'b',
+        code: 'KeyB',
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+        preventDefault: jasmine.createSpy('preventDefault'),
+      } as unknown as KeyboardEvent;
+
+      component.keydownHandler(event);
+
+      expect(event.preventDefault).not.toHaveBeenCalled();
+      expect(component.onApplyBold).not.toHaveBeenCalled();
+    });
+
+    it('should NOT trigger strikethrough on Ctrl+S without Shift', () => {
+      spyOn(component, 'onApplyStrikethrough');
+      const event = {
+        key: 's',
+        code: 'KeyS',
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: false,
+        preventDefault: jasmine.createSpy('preventDefault'),
+      } as unknown as KeyboardEvent;
+
+      component.keydownHandler(event);
+
+      expect(component.onApplyStrikethrough).not.toHaveBeenCalled();
+    });
+
+    it('should NOT trigger bold on Ctrl+Alt+B', () => {
+      spyOn(component, 'onApplyBold');
+      const event = {
+        key: 'b',
+        code: 'KeyB',
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: false,
+        altKey: true,
+        preventDefault: jasmine.createSpy('preventDefault'),
+      } as unknown as KeyboardEvent;
+
+      component.keydownHandler(event);
+
+      expect(component.onApplyBold).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('shortcutLabels', () => {
+    it('should format bold label correctly', () => {
+      expect(shortcutLabels.bold.tooltip).toBe(` (${MOD}+B)`);
+      expect(shortcutLabels.bold.keys).toEqual([MOD, 'B']);
+    });
+
+    it('should include Shift for shift-based shortcuts', () => {
+      expect(shortcutLabels.strikethrough.tooltip).toBe(` (${MOD}+Shift+S)`);
+      expect(shortcutLabels.strikethrough.keys).toEqual([MOD, 'Shift', 'S']);
+    });
+
+    it('should use digit number for code-based shortcuts', () => {
+      expect(shortcutLabels.bullet.tooltip).toBe(` (${MOD}+Shift+8)`);
+      expect(shortcutLabels.bullet.keys).toEqual([MOD, 'Shift', '8']);
+    });
+  });
+
+  describe('caret placement after transform', () => {
+    let mockTextarea: HTMLTextAreaElement;
+
+    beforeEach(() => {
+      mockTextarea = document.createElement('textarea');
+      mockTextarea.value = 'item one';
+      mockTextarea.selectionStart = 0;
+      mockTextarea.selectionEnd = 8;
+
+      spyOn(component, 'textareaEl').and.returnValue({
+        nativeElement: mockTextarea,
+      } as any);
+    });
+
+    it('toolbar call (isKeyboard=false) preserves a selection range', fakeAsync(() => {
+      spyOn(mockTextarea, 'setSelectionRange').and.callThrough();
+
+      component.onApplyBulletList(false);
+      tick();
+
+      const [start, end] = (
+        mockTextarea.setSelectionRange as jasmine.Spy
+      ).calls.mostRecent().args;
+      expect(start).toBeLessThan(end);
+    }));
+
+    it('keyboard call (isKeyboard=true) collapses caret to end', fakeAsync(() => {
+      spyOn(mockTextarea, 'setSelectionRange').and.callThrough();
+
+      component.onApplyBulletList(true);
+      tick();
+
+      const [start, end] = (
+        mockTextarea.setSelectionRange as jasmine.Spy
+      ).calls.mostRecent().args;
+      expect(start).toEqual(end);
+    }));
   });
 });
