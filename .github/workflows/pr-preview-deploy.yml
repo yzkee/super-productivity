@@ -128,6 +128,8 @@ jobs:
           🔍 A live preview of the proposed fix in #${PR_NUMBER} is available (not yet released):
 
           ${URL}
+
+          Help testing this would be appreciated 🙏
           EOF
           )
           for ISSUE in $ISSUE_NUMBERS; do
