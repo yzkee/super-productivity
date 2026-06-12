@@ -262,8 +262,22 @@ describe('DateTimePickerComponent', () => {
     spyOn(fixture.nativeElement, 'querySelector').and.returnValue(activeCell);
 
     component.ngAfterViewInit();
-    tick(50); // Match the 50ms in component
-
+    tick(50);
     expect(activeCell.focus).toHaveBeenCalled();
   }));
+
+  it('should enable isKeyboardNavigating when the mouse leaves the host', () => {
+    fixture.detectChanges();
+    // Simulate mousemove to disable keyboard nav first
+    fixture.nativeElement.dispatchEvent(
+      new MouseEvent('mousemove', { clientX: 30, clientY: 40, bubbles: true }),
+    );
+    fixture.detectChanges();
+    expect(component.isKeyboardNavigating).toBeFalse();
+
+    // Trigger mouseleave
+    fixture.nativeElement.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+    fixture.detectChanges();
+    expect(component.isKeyboardNavigating).toBeTrue();
+  });
 });
