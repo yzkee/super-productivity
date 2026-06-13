@@ -769,9 +769,19 @@ export class GlobalThemeService {
     // self-corrects across OS versions without ever double-counting.
     if (this._platformService.isAndroid()) {
       applyInsets({ top: 0, right: 0, bottom: 0, left: 0 });
-      // Override only the top with the env() fallback (see above). getComputedStyle
-      // resolves env() to a pixel value, so the readers in
-      // _patchCdkViewportForSafeArea also pick up the real top inset.
+      // Override only the top with the env() fallback (see above). NOTE: this
+      // self-corrects only for *CSS* consumers — `padding-top: var(--safe-area-top)`
+      // resolves the nested env() at use-time, so the header padding is right. JS
+      // readers that parse this custom property via getComputedStyle (e.g.
+      // _patchCdkViewportForSafeArea, the context menus) get the *unresolved*
+      // "env(...)" token string back — env()/var() are only substituted when the
+      // property is actually used, not when a custom property's own value is read —
+      // so parseInt() yields 0, the same top inset those readers already used on
+      // Android before this change. Connected overlays are therefore not pushed
+      // below the status bar; only the header padding is. That is the scope of
+      // #8283 (the header was the reported regression). If overlay top-insets ever
+      // matter on Android, register the var via @property or read a probe element's
+      // resolved padding-top instead of the raw custom property.
       this.document.documentElement.style.setProperty(
         CSS_VAR_SAFE_AREA_TOP,
         'env(safe-area-inset-top, 0px)',
