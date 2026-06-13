@@ -54,7 +54,9 @@ import { IS_IOS } from 'src/app/util/is-ios';
 import { Keyboard } from '@capacitor/keyboard';
 import { DialogMarkdownShortcutsComponent } from './dialog-markdown-shortcuts.component';
 import {
+  isShortcutWithKey,
   MARKDOWN_SHORTCUTS,
+  MarkdownShortcut,
   shortcutLabels,
   ShortcutNames,
 } from './markdown-shortcuts.const';
@@ -210,17 +212,21 @@ export class DialogFullscreenMarkdownComponent implements OnInit, AfterViewInit 
         this.onApplyStrikethrough();
         break;
       case 'bullet':
-        this.onApplyBulletList(true);
+        this.onApplyBulletList();
         break;
       case 'numbered':
-        this.onApplyNumberedList(true);
+        this.onApplyNumberedList();
         break;
       case 'code':
         this.onApplyInlineCode();
         break;
       case 'quote':
-        this.onApplyQuote(true);
+        this.onApplyQuote();
         break;
+      default: {
+        const _exhaustive: never = name;
+        return _exhaustive;
+      }
     }
   }
 
@@ -239,10 +245,17 @@ export class DialogFullscreenMarkdownComponent implements OnInit, AfterViewInit 
     }
 
     if (hasModifier) {
-      const shortcut = MARKDOWN_SHORTCUTS.find((s) => {
-        const keyMatch = s.code ? ev.code === s.code : ev.key.toLowerCase() === s.key;
-        return keyMatch && ev.shiftKey === s.shiftKey;
-      });
+      const shortcutIndex = (MARKDOWN_SHORTCUTS as readonly MarkdownShortcut[]).findIndex(
+        (s) => {
+          const keyMatch = isShortcutWithKey(s)
+            ? ev.key.toLowerCase() === s.key
+            : ev.code === s.code;
+          return keyMatch && ev.shiftKey === s.shiftKey;
+        },
+      );
+
+      const shortcut =
+        shortcutIndex !== -1 ? MARKDOWN_SHORTCUTS[shortcutIndex] : undefined;
 
       if (shortcut) {
         ev.preventDefault();
@@ -361,16 +374,16 @@ export class DialogFullscreenMarkdownComponent implements OnInit, AfterViewInit 
     );
   }
 
-  onApplyQuote(isKeyboard = false): void {
-    this._applyTransformWithArgs(applyQuote, isKeyboard);
+  onApplyQuote(): void {
+    this._applyTransformWithArgs(applyQuote);
   }
 
-  onApplyBulletList(isKeyboard = false): void {
-    this._applyTransformWithArgs(applyBulletList, isKeyboard);
+  onApplyBulletList(): void {
+    this._applyTransformWithArgs(applyBulletList);
   }
 
-  onApplyNumberedList(isKeyboard = false): void {
-    this._applyTransformWithArgs(applyNumberedList, isKeyboard);
+  onApplyNumberedList(): void {
+    this._applyTransformWithArgs(applyNumberedList);
   }
 
   onApplyTaskList(): void {
@@ -399,7 +412,6 @@ export class DialogFullscreenMarkdownComponent implements OnInit, AfterViewInit 
 
   private _applyTransformWithArgs(
     transformFn: (text: string, start: number, end: number) => TextTransformResult,
-    isKeyboard = false,
   ): void {
     const textarea = this.textareaEl()?.nativeElement;
     if (!textarea) {
@@ -415,11 +427,7 @@ export class DialogFullscreenMarkdownComponent implements OnInit, AfterViewInit 
     // Wait for Angular to update the DOM after ngModel change before restoring selection
     setTimeout(() => {
       textarea.focus();
-      if (!isKeyboard) {
-        textarea.setSelectionRange(result.selectionStart, result.selectionEnd);
-      } else {
-        textarea.setSelectionRange(result.selectionEnd, result.selectionEnd);
-      }
+      textarea.setSelectionRange(result.selectionStart, result.selectionEnd);
     });
   }
 }
