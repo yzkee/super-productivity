@@ -963,6 +963,17 @@ export class SyncWrapperService {
     // download/decrypt old data with a potentially different encryption key.
     // This is critical when forceUpload is triggered after password change.
     await this.runWithSyncBlocked(async () => {
+      // #8309: claim the sync cycle so this flow's setLastServerSeq bookkeeping
+      // and session-validation latch are isolated from the immediate-upload /
+      // WS-download side channels, mirroring _forceDownload. runWithSyncBlocked
+      // has already drained any main sync and set isEncryptionOperationInProgress
+      // (which the side channels honour), so the only thing that could hold the
+      // guard here is a short-lived side channel; skip-and-let-the-user-retry
+      // rather than block.
+      if (!this._syncCycleGuard.tryBegin()) {
+        SyncLog.log('Force upload skipped: another sync cycle is in progress');
+        return;
+      }
       try {
         const rawProvider = this._providerManager.getActiveProvider();
         const syncCapableProvider =
@@ -985,6 +996,8 @@ export class SyncWrapperService {
           msg: errStr,
           type: 'ERROR',
         });
+      } finally {
+        this._syncCycleGuard.end();
       }
     });
   }

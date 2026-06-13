@@ -10,6 +10,7 @@ import { WrappedProviderService } from '../sync-providers/wrapped-provider.servi
 import { WsTriggeredDownloadService } from './ws-triggered-download.service';
 import { SyncSessionValidationService } from './sync-session-validation.service';
 import { SyncCycleGuardService } from './sync-cycle-guard.service';
+import { SyncWrapperService } from '../../imex/sync/sync-wrapper.service';
 import { AuthFailSPError, MissingCredentialsSPError } from '../sync-exports';
 
 describe('WsTriggeredDownloadService', () => {
@@ -19,6 +20,7 @@ describe('WsTriggeredDownloadService', () => {
   let mockSyncService: jasmine.SpyObj<OperationLogSyncService>;
   let mockProviderManager: jasmine.SpyObj<SyncProviderManager>;
   let mockWrappedProvider: jasmine.SpyObj<WrappedProviderService>;
+  let mockSyncWrapper: { isEncryptionOperationInProgress: boolean };
   let syncCapableProvider: any;
 
   beforeEach(() => {
@@ -51,6 +53,11 @@ describe('WsTriggeredDownloadService', () => {
       Promise.resolve(syncCapableProvider as any),
     );
 
+    // Stub SyncWrapperService: the service reads `isEncryptionOperationInProgress`
+    // off it lazily (via Injector, to avoid a DI cycle). Provide a minimal mock so
+    // the real (heavily-dependent) service is never constructed in the unit test.
+    mockSyncWrapper = { isEncryptionOperationInProgress: false };
+
     TestBed.configureTestingModule({
       providers: [
         WsTriggeredDownloadService,
@@ -58,6 +65,7 @@ describe('WsTriggeredDownloadService', () => {
         { provide: OperationLogSyncService, useValue: mockSyncService },
         { provide: SyncProviderManager, useValue: mockProviderManager },
         { provide: WrappedProviderService, useValue: mockWrappedProvider },
+        { provide: SyncWrapperService, useValue: mockSyncWrapper },
       ],
     });
 
@@ -110,6 +118,21 @@ describe('WsTriggeredDownloadService', () => {
 
     service.start();
     notification$.next({ latestSeq: 3 });
+    tick(500);
+    flushMicrotasks();
+
+    expect(mockWrappedProvider.getOperationSyncCapable).not.toHaveBeenCalled();
+    expect(mockSyncService.downloadRemoteOps).not.toHaveBeenCalled();
+  }));
+
+  // A WS download must not decrypt/apply remote ops while an encryption
+  // operation (password change, enable/disable, force upload) owns the key
+  // state — mirrors ImmediateUploadService gating on the same flag.
+  it('should skip downloads while an encryption operation is in progress', fakeAsync(() => {
+    mockSyncWrapper.isEncryptionOperationInProgress = true;
+
+    service.start();
+    notification$.next({ latestSeq: 9 });
     tick(500);
     flushMicrotasks();
 
