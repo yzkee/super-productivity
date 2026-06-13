@@ -76,7 +76,8 @@ describe('OperationLogEffects', () => {
       'getOrGenerateClientId',
     ]);
     mockOperationCaptureService = jasmine.createSpyObj('OperationCaptureService', [
-      'dequeue',
+      'extractEntityChanges',
+      'decrementPending',
     ]);
 
     // Default mock implementations
@@ -95,7 +96,7 @@ describe('OperationLogEffects', () => {
     mockClientIdService.getOrGenerateClientId.and.returnValue(
       Promise.resolve('testClient'),
     );
-    mockOperationCaptureService.dequeue.and.returnValue([]);
+    mockOperationCaptureService.extractEntityChanges.and.returnValue([]);
 
     TestBed.configureTestingModule({
       providers: [
@@ -340,7 +341,7 @@ describe('OperationLogEffects', () => {
 
       effects.persistOperation$.subscribe({
         complete: () => {
-          expect(mockOperationCaptureService.dequeue).toHaveBeenCalled();
+          expect(mockOperationCaptureService.extractEntityChanges).toHaveBeenCalled();
           expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledWith(
             jasmine.objectContaining({
               actionType: ActionType.GLOBAL_CONFIG_UPDATE_SECTION,
@@ -505,11 +506,12 @@ describe('OperationLogEffects', () => {
       expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledTimes(2);
     }));
 
-    it('should NOT dequeue a second time on the quota-exceeded retry (#8307)', fakeAsync(() => {
-      // Regression: the first attempt consumes this action's queue entry via
-      // dequeue() BEFORE appendWithVectorClockUpdate throws the quota error. The
-      // retry after emergency compaction must skip dequeue, otherwise it steals
-      // the NEXT pending action's entry.
+    it('re-extracts the SAME action on the quota-exceeded retry, never a second op (#8307)', fakeAsync(() => {
+      // Regression (#8307, now structural): the positional dequeue is gone.
+      // entityChanges is recomputed by the pure, idempotent extractEntityChanges()
+      // on every write, so the quota retry re-extracts THIS action's changes and
+      // can never steal the next pending action's entry the way the old
+      // double-dequeue did.
       const quotaError = new DOMException('Quota exceeded', 'QuotaExceededError');
       let appendCount = 0;
       mockOpLogStore.appendWithVectorClockUpdate.and.callFake(() => {
@@ -519,7 +521,6 @@ describe('OperationLogEffects', () => {
         }
         return Promise.resolve(1);
       });
-      mockOperationCaptureService.dequeue.and.returnValue([]);
 
       const action = createPersistentAction(ActionType.TASK_SHARED_UPDATE);
       actions$ = of(action);
@@ -527,9 +528,13 @@ describe('OperationLogEffects', () => {
       effects.persistOperation$.subscribe();
 
       tick(100);
-      // Append ran twice (initial + retry) but dequeue ran exactly once.
+      // Append ran twice (initial + retry). Extraction ran once per write and
+      // always against the same action — no positional queue to mis-consume.
       expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledTimes(2);
-      expect(mockOperationCaptureService.dequeue).toHaveBeenCalledTimes(1);
+      expect(mockOperationCaptureService.extractEntityChanges).toHaveBeenCalledTimes(2);
+      expect(mockOperationCaptureService.extractEntityChanges).toHaveBeenCalledWith(
+        action,
+      );
     }));
 
     it('should use updated clientId after backup import generates new one', (done) => {
