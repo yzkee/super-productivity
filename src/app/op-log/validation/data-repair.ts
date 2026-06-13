@@ -60,13 +60,13 @@ export const dataRepair = (
     typeErrorsFixed: 0,
   };
 
-  // NOTE deep copy is important to prevent readonly errors from frozen NgRx state
-  // We detect if the state is frozen and only deep clone in that case for performance
-  const isFrozen =
-    Object.isFrozen(data) ||
-    (data.task && Object.isFrozen(data.task)) ||
-    (data.project && Object.isFrozen(data.project));
-  let dataOut: AppDataComplete = isFrozen ? structuredClone(data) : { ...data };
+  // Deep clone before any repair runs: the fixers below mutate nested entities
+  // in place, and prod builds disable NgRx runtime freezing (src/main.ts) so
+  // `data` is a live, writable store reference. A shallow `{ ...data }` shares
+  // every nested object, letting repair corrupt store-owned state before
+  // `loadAllData` is dispatched (#8333). Only runs after a rare validation
+  // failure, so the unconditional clone is cheap.
+  let dataOut: AppDataComplete = structuredClone(data);
 
   // Ensure archive structures exist
   if (!dataOut.archiveYoung) {
