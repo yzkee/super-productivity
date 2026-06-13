@@ -91,60 +91,84 @@ test.describe('@supersync Rejected-ops transient download (#8331)', () => {
       await renameTask(clientA, taskName, `${taskName}-ModifiedByA`);
       await renameTask(clientB, taskName, `${taskName}-ModifiedByB`);
 
-      // 4. Arm B's network so the CONFLICT_CONCURRENT rejection is DETERMINISTIC.
+      // 4. A syncs first — A's concurrent edit is now DETERMINISTICALLY on the
+      //    server. This test runs with WebSocket and immediate-upload blocked
+      //    (no enableWebSocket), so the only ops that ever reach the server are
+      //    the ones an explicit syncAndWait() pushes — no background race.
+      await clientA.sync.syncAndWait();
+
+      // 5. Arm B's network with two phase-distinguished faults so BOTH the
+      //    CONFLICT_CONCURRENT rejection and the resolution-download failure the
+      //    fix guards fire deterministically.
       //
       //    The sync engine downloads before it uploads (sync-wrapper.service:
-      //    downloadRemoteOps → uploadPendingOps). So if A's concurrent edit is
-      //    already on the server when B syncs, B downloads and MERGES it during
-      //    the pre-upload download, then uploads a dominating op the server
-      //    ACCEPTS (200) — the upload-rejection path the fix guards is never
-      //    reached. That race is exactly what flaked this test (run
-      //    27465357634: B's upload returned 200, no resolution download fired,
-      //    so abortedResolutionGets was 0). Pre-syncing A here is therefore the
-      //    bug, not the setup.
+      //    downloadRemoteOps → uploadPendingOps). A's concurrent op is now on
+      //    the server, so B's pre-upload download would normally deliver it, B
+      //    would MERGE it, and B would then upload a dominating op the server
+      //    ACCEPTS (200) — the rejection path the fix guards is never reached.
+      //    That merge race is exactly what flaked this test (abortedResolutionGets
+      //    stayed 0 in runs 27465357634 and 27467427713); forcing the ordering
+      //    via a held POST + re-entrant A sync proved unreliable.
       //
-      //    Force the one ordering that guarantees a rejection: let B's
-      //    pre-upload download run while the server still has NO concurrent op
-      //    (A has not synced yet), then land A's edit in the window between B's
-      //    download and B's upload by syncing A *inside* B's held upload POST.
-      //    When B's POST is released the server holds A's concurrent op and
-      //    rejects B's upload CONFLICT_CONCURRENT — and because B never merged,
-      //    B's ORIGINAL pending edit is what rides into the resolution path.
-      //    (Holding the POST is safe: the web fetch path has no client-side
-      //    request timeout — connect/read timeouts apply only to native HTTP.)
+      //    (a) Pre-upload download (GET before B's first POST): return the REAL
+      //        server response with its ops STRIPPED, so B downloads nothing and
+      //        never merges A's edit. B then uploads its ORIGINAL (concurrent)
+      //        op and the real server returns a real, server-computed
+      //        CONFLICT_CONCURRENT — this stays a genuine vector-clock conflict,
+      //        not a mock. (Emptying the real response, rather than fabricating
+      //        one, keeps the test honest if DownloadOpsResponse changes shape.)
+      //    (b) Resolution download (every GET after the POST): fail it. The
+      //        provider retries transient fetch failures (SUPERSYNC_WEB_MAX_RETRIES),
+      //        so abort EVERY one — a single abort would be silently recovered
+      //        and never reach the catch the fix touches.
       //
-      //    The handler then downloads remote ops (GET) to resolve; fail EVERY
-      //    post-upload GET, not just one: the provider retries transient fetch
-      //    failures (SUPERSYNC_WEB_MAX_RETRIES), so a single abort would be
-      //    silently recovered and never reach the catch the fix touches.
       //    The glob must match the real ops URLs (`/api/sync/ops` and
       //    `/api/sync/ops?<query>`) — `**/api/sync/ops/**` would match NEITHER
       //    (it requires a literal `/` after `ops`).
       let sawUploadAttempt = false;
       let abortedResolutionGets = 0;
+      let strippedPreUploadDownloads = 0;
       await clientB.page.route('**/api/sync/ops*', async (route) => {
         const method = route.request().method();
-        if (method === 'POST') {
-          if (!sawUploadAttempt) {
-            sawUploadAttempt = true;
-            // A's concurrent edit reaches the server now — after B's pre-upload
-            // download saw nothing, before B's upload lands — so the server
-            // rejects B's upload CONFLICT_CONCURRENT.
-            await clientA!.sync.syncAndWait();
+        if (method === 'GET') {
+          if (sawUploadAttempt) {
+            // (b) resolution download — fail past the retry budget.
+            abortedResolutionGets++;
+            await route.abort('failed');
+            return;
           }
-          await route.continue();
+          // (a) pre-upload download — deliver the real response minus its ops so
+          //     B never merges A's concurrent edit. Pin latestSeq back to the
+          //     request's sinceSeq so B's stored lastServerSeq is NOT advanced
+          //     past A's edit: the client persists latestSeq even on an empty
+          //     download (operation-log-sync.service.ts ~660), and if B recorded
+          //     itself caught-up past A's edit it would never re-download it on
+          //     the post-fault clean sync and the two clients could not converge.
+          const sinceSeq = Number(
+            new URL(route.request().url()).searchParams.get('sinceSeq') ?? 0,
+          );
+          const response = await route.fetch();
+          const json = await response.json();
+          json.ops = [];
+          json.hasMore = false;
+          json.latestSeq = sinceSeq;
+          strippedPreUploadDownloads++;
+          await route.fulfill({
+            status: response.status(),
+            contentType: 'application/json',
+            body: JSON.stringify(json),
+          });
           return;
         }
-        if (method === 'GET' && sawUploadAttempt) {
-          abortedResolutionGets++;
-          await route.abort('failed');
-          return;
+        if (method === 'POST') {
+          sawUploadAttempt = true;
         }
         await route.continue();
       });
 
-      // 5. Client B syncs — the resolution download fails past its retry budget.
-      //    Sync reports an error; that is expected. The edit must remain
+      // 6. Client B syncs — the real server rejects its upload
+      //    CONFLICT_CONCURRENT, then the resolution download fails past its retry
+      //    budget. Sync reports an error; that is expected. The edit must remain
       //    pending, NOT be rejected.
       try {
         await clientB.sync.syncAndWait();
@@ -152,8 +176,9 @@ test.describe('@supersync Rejected-ops transient download (#8331)', () => {
         // Expected: the transient download failure surfaces as a sync error.
         console.log('[Test #8331] B sync failed as expected during the blip');
       }
-      // The fault must actually have fired (and exhausted the retry budget),
-      // otherwise the catch under test was never reached.
+      // Setup guards: both phases must actually have fired, otherwise the catch
+      // under test was never reached and a green result would be vacuous.
+      expect(strippedPreUploadDownloads).toBeGreaterThanOrEqual(1);
       expect(abortedResolutionGets).toBeGreaterThanOrEqual(1);
 
       // Precise discriminator (timing-independent): the blip must not have
@@ -161,13 +186,13 @@ test.describe('@supersync Rejected-ops transient download (#8331)', () => {
       // markRejected() so this is >= 1; with the fix the edit stays pending -> 0.
       expect(await countRejectedOps(clientB.page)).toBe(0);
 
-      // 6. Remove the fault and let B sync cleanly — the still-pending edit
+      // 7. Remove the fault and let B sync cleanly — the still-pending edit
       //    resolves and uploads (the merged op may need a second flush).
       await clientB.page.unroute('**/api/sync/ops*');
       await clientB.sync.syncAndWait();
       await clientB.sync.syncAndWait();
 
-      // 7. End-to-end recovery proof: after pulling B's now-uploaded edit, both
+      // 8. End-to-end recovery proof: after pulling B's now-uploaded edit, both
       //    clients converge to the SAME title. With the bug, B's edit was
       //    dropped on the blip, so it never reaches A and the two diverge.
       //    (Assert convergence, not a specific winner: the merged op snapshots
