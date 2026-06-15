@@ -139,9 +139,7 @@
                 <collapsible
                   [title]="groupKey | scheduledDateGroup"
                   [isIconBefore]="true"
-                  [isExpanded]="
-                    !customizerService.collapsedGroupIds().includes(groupKey)
-                  "
+                  [isExpanded]="!customizerService.collapsedGroupIds().includes(groupKey)"
                   (isExpandedChange)="customizerService.toggleGroupExpansion(groupKey)"
                   [isGroup]="true"
                 >
