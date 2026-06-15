@@ -16,6 +16,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { AppDataComplete } from '../../op-log/model/model-config';
 import { hasMeaningfulStateData } from '../../op-log/validation/has-meaningful-state-data.util';
 import {
+  backupStrHasSyncEnabled,
   countAllTasks,
   countAllTasksInBackupStr,
   isUsableBackupStr,
@@ -28,6 +29,7 @@ import { Log } from '../../core/log';
 import { confirmDialog } from '../../util/native-dialogs';
 import { CapacitorPlatformService } from '../../core/platform/capacitor-platform.service';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { LS } from '../../core/persistence/storage-keys.const';
 
 const DEFAULT_BACKUP_INTERVAL = 5 * 60 * 1000;
 // A2 (#7925): high enough that a flurry of UI actions settles into one backup;
@@ -142,6 +144,15 @@ export class LocalBackupService {
     return primary || prev;
   }
 
+  /**
+   * Startup recovery entry point. PRECONDITION (enforced by the only caller,
+   * StartupService._initBackups): invoke only when the live store is genuinely
+   * blank — no state cache AND an empty op-log. The mobile branch may restore a
+   * backup *without a prompt*, which is a destructive op-log replacement; that is
+   * only safe because the empty op-log means the concurrent hydrator has nothing
+   * to replay and cannot be raced. Do NOT call this from a path where real ops
+   * may exist. See #7901.
+   */
   async askForFileStoreBackupIfAvailable(): Promise<void> {
     if (!IS_ELECTRON && !this._isAndroidWebView && !this._platformService.isIOS()) {
       return;
@@ -167,15 +178,41 @@ export class LocalBackupService {
       return;
     }
 
-    // MOBILE (Android / iOS) — load the best ring generation first so the prompt
-    // can tell the user what they would restore (#7901). Loading is cheap and
-    // lets a blind "discard my data?" dialog become an informed one — they should
-    // never dismiss the only copy of their data without seeing it exists.
+    // MOBILE (Android / iOS) — recovery path. StartupService only calls this when
+    // there is no state cache AND the op-log is empty (see _initBackups), i.e. a
+    // genuinely blank store — in practice WebView IndexedDB eviction (#7901/#7892)
+    // or a fresh install. Because the op-log is empty, the concurrently-running
+    // hydrator has nothing to replay, so a destructive import cannot race it.
+    //
+    // Auto-restore WITHOUT a prompt only for a *usable* backup that had *no sync
+    // configured*. Restoring a synced backup resets `lastServerSeq` and writes a
+    // clean-slate BACKUP_IMPORT, which can silently drop other devices' concurrent
+    // work — so a synced backup must go through the informed prompt and let the
+    // user decide (they may prefer to re-pull from the server). Corrupt /
+    // data-less / synced backups all fall through to the prompt below.
     const backupData = await this._loadBestMobileBackupStr();
     if (!backupData) {
       // Nothing usable to restore — stay silent rather than prompt for nothing.
       return;
     }
+    if (isUsableBackupStr(backupData) && !backupStrHasSyncEnabled(backupData)) {
+      Log.log('mobile backupData auto-restored, length: ' + backupData.length);
+      const didImport = await this._importBackup(backupData);
+      if (didImport) {
+        const summary = summarizeBackupStr(backupData);
+        this._snackService.open({
+          type: 'SUCCESS',
+          msg: T.GCF.AUTO_BACKUPS.S_AUTO_RESTORED,
+          translateParams: {
+            tasks: summary?.taskCount ?? 0,
+            projects: summary?.projectCount ?? 0,
+          },
+        });
+      }
+      return;
+    }
+    // Corrupt, data-less, or sync-configured backup: don't silently act — surface
+    // the informed prompt so the user decides.
     if (confirmDialog(this._restoreMobilePromptMsg(backupData))) {
       Log.log('mobile backupData loaded, length: ' + backupData.length);
       await this._importBackup(backupData);
@@ -256,17 +293,46 @@ export class LocalBackupService {
       return;
     }
 
+    let didWrite = false;
     if (IS_ELECTRON) {
       // Electron has its own rotated, timestamped chain — no ring or A3 guard
       // needed (the bug class A3 protects against doesn't apply).
       await this._backupElectron(data);
+      didWrite = true;
     }
-    if (this._isAndroidWebView) {
-      await this._backupAndroid(data);
+    if (this._isAndroidWebView && (await this._backupAndroid(data))) {
+      didWrite = true;
     }
-    if (this._platformService.isIOS()) {
-      await this._backupIOS(data);
+    if (this._platformService.isIOS() && (await this._backupIOS(data))) {
+      didWrite = true;
     }
+
+    // #7901: record when a good backup was actually written so Settings can show
+    // the user they're protected. Only on a real write: the per-platform A3
+    // near-empty guard (#7925) can skip the write to preserve an older, larger
+    // backup, and the timestamp must not advance then — it would falsely claim
+    // "just backed up" on exactly the post-eviction boot the guard protects.
+    if (didWrite) {
+      this._recordLastBackupTime();
+    }
+  }
+
+  private _recordLastBackupTime(): void {
+    try {
+      localStorage.setItem(LS.LAST_LOCAL_BACKUP, Date.now().toString());
+    } catch (e) {
+      Log.warn('LocalBackupService: failed to record last backup time', e);
+    }
+  }
+
+  /** Epoch ms of the last successful local backup write, or null if none yet. */
+  getLastBackupTime(): number | null {
+    const raw = localStorage.getItem(LS.LAST_LOCAL_BACKUP);
+    if (!raw) {
+      return null;
+    }
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
   }
 
   private async _backupElectron(data: AppDataComplete): Promise<void> {
@@ -310,26 +376,37 @@ export class LocalBackupService {
     return true;
   }
 
-  private async _backupAndroid(data: AppDataComplete): Promise<void> {
+  // Returns true when a backup was actually written, false when the A3 guard
+  // skipped it (so the caller knows whether to advance the last-backup time).
+  private async _backupAndroid(data: AppDataComplete): Promise<boolean> {
     const existing = await androidInterface.loadFromDbWrapped(ANDROID_DB_KEY);
-    if (this._guardNearEmptyOverwrite(data, existing, 'Android')) return;
+    if (this._guardNearEmptyOverwrite(data, existing, 'Android')) {
+      return false;
+    }
     if (existing) {
       await androidInterface.saveToDbWrapped(ANDROID_DB_KEY_PREV, existing);
     }
     await androidInterface.saveToDbWrapped(ANDROID_DB_KEY, JSON.stringify(data));
+    return true;
   }
 
-  private async _backupIOS(data: AppDataComplete): Promise<void> {
+  // Returns true when a backup was actually written, false when the A3 guard
+  // skipped it or the write failed.
+  private async _backupIOS(data: AppDataComplete): Promise<boolean> {
     try {
       const existing = await this._readIOSFileOrNull(IOS_BACKUP_FILENAME);
-      if (this._guardNearEmptyOverwrite(data, existing, 'iOS')) return;
+      if (this._guardNearEmptyOverwrite(data, existing, 'iOS')) {
+        return false;
+      }
       if (existing) {
         await this._writeIOSFile(IOS_BACKUP_PREV_FILENAME, existing);
       }
       await this._writeIOSFile(IOS_BACKUP_FILENAME, JSON.stringify(data));
       Log.log('iOS backup saved successfully');
+      return true;
     } catch (error) {
       Log.err('Failed to save iOS backup', error);
+      return false;
     }
   }
 
