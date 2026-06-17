@@ -13,7 +13,7 @@ import { Note } from '../note.model';
 import { NoteService } from '../note.service';
 import { MatDialog } from '@angular/material/dialog';
 import { T } from '../../../t.const';
-import { DialogFullscreenMarkdownComponent } from '../../../ui/dialog-fullscreen-markdown/dialog-fullscreen-markdown.component';
+import { openFullscreenMarkdownDialog } from '../../../ui/dialog-fullscreen-markdown/open-fullscreen-markdown-dialog';
 import { Observable, of, ReplaySubject } from 'rxjs';
 import { TagComponent, TagComponentTag } from '../../tag/tag/tag.component';
 import { distinctUntilChanged, map, switchMap } from 'rxjs/operators';
@@ -32,7 +32,7 @@ import {
   MatMenuItem,
   MatMenuTrigger,
 } from '@angular/material/menu';
-import { AsyncPipe } from '@angular/common';
+import { AsyncPipe, Location } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import { DEFAULT_PROJECT_COLOR } from '../../work-context/work-context.const';
 import { DEFAULT_PROJECT_ICON } from '../../project/project.const';
@@ -63,6 +63,7 @@ import { isPathSafeToOpen } from '../../../../../electron/shared-with-frontend/i
 })
 export class NoteComponent implements OnChanges {
   private readonly _matDialog = inject(MatDialog);
+  private readonly _location = inject(Location);
   private readonly _noteService = inject(NoteService);
   private readonly _projectService = inject(ProjectService);
   private readonly _workContextService = inject(WorkContextService);
@@ -177,16 +178,17 @@ export class NoteComponent implements OnChanges {
     if (!this.note) {
       throw new Error('No note');
     }
-    this._matDialog
-      .open(DialogFullscreenMarkdownComponent, {
-        minWidth: '100vw',
-        height: '100vh',
-        restoreFocus: true,
-        autoFocus: 'textarea',
-        data: {
-          content: this.note.content,
-        },
-      })
+    // Persists the edit if a navigation (resize across the mobile breakpoint,
+    // Android back) closes the editor — see openFullscreenMarkdownDialog (#8434).
+    openFullscreenMarkdownDialog(this._matDialog, this._location, {
+      minWidth: '100vw',
+      height: '100vh',
+      restoreFocus: true,
+      autoFocus: 'textarea',
+      data: {
+        content: this.note.content,
+      },
+    })
       .afterClosed()
       .subscribe((res) => {
         if (!this.note) {

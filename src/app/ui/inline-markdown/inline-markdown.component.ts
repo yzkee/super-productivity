@@ -17,7 +17,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
-import { MatDialog, MatDialogState } from '@angular/material/dialog';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -33,7 +33,7 @@ import {
 } from '../../features/markdown-checklist/checklist-operations';
 import { T } from '../../t.const';
 import { fadeInAnimation } from '../animations/fade.ani';
-import { DialogFullscreenMarkdownComponent } from '../dialog-fullscreen-markdown/dialog-fullscreen-markdown.component';
+import { openFullscreenMarkdownDialog } from '../dialog-fullscreen-markdown/open-fullscreen-markdown-dialog';
 import { ClipboardImageService } from '../../core/clipboard-image/clipboard-image.service';
 import { TaskAttachmentService } from '../../features/tasks/task-attachment/task-attachment.service';
 import { ResolveClipboardImagesDirective } from '../../core/clipboard-image/resolve-clipboard-images.directive';
@@ -364,43 +364,24 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
     // Read directly from textarea since modelCopy may be stale (one-way ngModel binding)
     const textareaEl = this.textareaEl();
     const currentContent = textareaEl ? textareaEl.nativeElement.value : this.modelCopy();
-    const dialogRef = this._matDialog.open(DialogFullscreenMarkdownComponent, {
+    // Opens with closeOnNavigation disabled and saves-and-closes on a navigation
+    // (resize crossing the mobile breakpoint, Android back) instead of dropping
+    // the edit — see openFullscreenMarkdownDialog (#8434).
+    const dialogRef = openFullscreenMarkdownDialog(this._matDialog, this._location, {
       minWidth: '100vw',
       height: '100vh',
       restoreFocus: true,
       autoFocus: 'textarea',
-      // Opt out of MatDialog's default closeOnNavigation: it closes the dialog
-      // with NO result on any navigation — including the involuntary route
-      // change a window resize triggers when it crosses the mobile layout
-      // breakpoint — so the in-flight note was silently dropped (#8434). We
-      // reinstate the close-on-navigation below, but through the save path so
-      // the edit (and Android back-button close) survive.
-      closeOnNavigation: false,
       data: {
         content: currentContent,
         taskId,
       },
     });
 
-    // Reinstate close-on-navigation as a save-and-close: listen to the same
-    // Location signal closeOnNavigation uses, but route through the dialog's
-    // save path so an Android back-button press or the breakpoint-crossing
-    // resize above persists the note instead of dropping it. Not tied to
-    // takeUntilDestroyed so it still fires after a breakpoint switch destroys
-    // this host mid-edit; torn down in the afterClosed handler below.
-    const locationSub = this._location.subscribe(() => {
-      // A breakpoint-crossing resize can emit more than one popstate; only act
-      // while the dialog is still open so we don't re-run its exit animation.
-      if (dialogRef.getState() === MatDialogState.OPEN) {
-        dialogRef.componentInstance?.close();
-      }
-    });
-
     // Intentionally NOT torn down with takeUntilDestroyed: this MUST still fire
     // after the component is destroyed — see the `_isDestroyed` branch below.
     // afterClosed emits once then completes, so there is no leak.
     dialogRef.afterClosed().subscribe((res) => {
-      locationSub.unsubscribe();
       this._isFullscreenDialogOpen = false;
       // DELETE resets the note to its default text; a string is the saved note.
       // A missing result (Close without saving) leaves the note untouched.

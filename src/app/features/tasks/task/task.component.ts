@@ -55,7 +55,8 @@ import { WorkContextService } from '../../work-context/work-context.service';
 import { throttle } from '../../../util/decorators';
 import { TaskRepeatCfgService } from '../../task-repeat-cfg/task-repeat-cfg.service';
 import { DialogConfirmComponent } from '../../../ui/dialog-confirm/dialog-confirm.component';
-import { DialogFullscreenMarkdownComponent } from '../../../ui/dialog-fullscreen-markdown/dialog-fullscreen-markdown.component';
+import { openFullscreenMarkdownDialog } from '../../../ui/dialog-fullscreen-markdown/open-fullscreen-markdown-dialog';
+import { Location } from '@angular/common';
 import { Update } from '@ngrx/entity';
 import { DateAdapter } from '@angular/material/core';
 import { getDbDateStr, isDBDateStr } from '../../../util/get-db-date-str';
@@ -153,6 +154,7 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   private readonly _taskService = inject(TaskService);
   private readonly _taskRepeatCfgService = inject(TaskRepeatCfgService);
   private readonly _matDialog = inject(MatDialog);
+  private readonly _location = inject(Location);
   private readonly _configService = inject(GlobalConfigService);
   private readonly _attachmentService = inject(TaskAttachmentService);
   private readonly _elementRef = inject(ElementRef);
@@ -839,7 +841,9 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
 
   openNotesFullscreen(): void {
     const task = this.task();
-    const dialogRef = this._matDialog.open(DialogFullscreenMarkdownComponent, {
+    // Persists the edit if a navigation (resize across the mobile breakpoint,
+    // Android back) closes the editor — see openFullscreenMarkdownDialog (#8434).
+    const dialogRef = openFullscreenMarkdownDialog(this._matDialog, this._location, {
       minWidth: '100vw',
       height: '100vh',
       restoreFocus: true,

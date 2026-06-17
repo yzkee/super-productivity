@@ -1865,32 +1865,29 @@ describe('InlineMarkdownComponent', () => {
     });
   });
 
-  describe('fullscreen editor save-and-close on navigation (#8434)', () => {
+  // The navigation→save→close mechanics live in open-fullscreen-markdown-dialog
+  // (and its own spec); here we assert the opener's end of the contract: a
+  // navigation-close must PERSIST the edit, not just close it.
+  describe('fullscreen editor persists the edit on a navigation-close (#8434)', () => {
     let afterClosed$: Subject<unknown>;
     let store: MockStore;
-    let closeSpy: jasmine.Spy;
-    let unsubscribeSpy: jasmine.Spy;
     let locationCb: ((value: PopStateEvent) => void) | undefined;
-    let dialogState: MatDialogState;
 
     beforeEach(() => {
       afterClosed$ = new Subject<unknown>();
-      closeSpy = jasmine.createSpy('close');
-      unsubscribeSpy = jasmine.createSpy('unsubscribe');
       locationCb = undefined;
-      dialogState = MatDialogState.OPEN;
 
-      // Capture the Location listener so a "navigation" can be simulated.
+      // Capture the Location listener so a navigation can be simulated.
       const location = TestBed.inject(Location);
       spyOn(location, 'subscribe').and.callFake((cb: (value: PopStateEvent) => void) => {
         locationCb = cb;
-        return { unsubscribe: unsubscribeSpy } as never;
+        return { unsubscribe: () => {} } as never;
       });
 
       mockMatDialog.open.and.returnValue({
         afterClosed: () => afterClosed$.asObservable(),
-        componentInstance: { close: closeSpy },
-        getState: () => dialogState,
+        componentInstance: { close: () => {} },
+        getState: () => MatDialogState.OPEN,
       } as never);
       store = TestBed.inject(MockStore);
       spyOn(store, 'dispatch');
@@ -1900,42 +1897,7 @@ describe('InlineMarkdownComponent', () => {
 
     const navigate = (): void => locationCb!({} as PopStateEvent);
 
-    // The default closeOnNavigation disposes the overlay with no result on a
-    // navigation, dropping the edit (#8434); we must opt out so we can close it
-    // through the save path instead.
-    it('opens the dialog with closeOnNavigation disabled', () => {
-      component.openFullScreen();
-
-      const config = mockMatDialog.open.calls.mostRecent().args[1];
-      expect(config?.closeOnNavigation).toBe(false);
-    });
-
-    // A navigation while the editor is open — an Android back-button press, or
-    // the involuntary route change a breakpoint-crossing window resize fires —
-    // must close the dialog through its save path rather than silently drop it.
-    it('closes the dialog via its save path on a Location change', () => {
-      component.openFullScreen();
-      expect(closeSpy).not.toHaveBeenCalled();
-
-      navigate();
-
-      expect(closeSpy).toHaveBeenCalledTimes(1);
-    });
-
-    // A breakpoint-crossing resize can emit more than one popstate; the second
-    // must not re-trigger close() and re-run the dialog's exit animation.
-    it('does not close again once the dialog is already closing', () => {
-      component.openFullScreen();
-      navigate();
-      dialogState = MatDialogState.CLOSING;
-
-      navigate();
-
-      expect(closeSpy).toHaveBeenCalledTimes(1);
-    });
-
-    // The point of #8434: a navigation-close must PERSIST the edit, not just
-    // close. When still alive the note routes out via `changed`.
+    // When still alive the note routes out via `changed`.
     it('persists the edit via `changed` when a navigation closes the dialog', () => {
       spyOn(component.changed, 'emit');
       component.openFullScreen();
@@ -1961,14 +1923,6 @@ describe('InlineMarkdownComponent', () => {
           task: { id: 'task-1', changes: { notes: 'typed before resize' } },
         }),
       );
-    });
-
-    it('stops listening for navigations once the dialog has closed', () => {
-      component.openFullScreen();
-
-      afterClosed$.next(undefined);
-
-      expect(unsubscribeSpy).toHaveBeenCalled();
     });
   });
 });
