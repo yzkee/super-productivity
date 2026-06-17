@@ -1,5 +1,5 @@
 import { ComponentFixture, fakeAsync, TestBed, tick } from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogState } from '@angular/material/dialog';
 import { MarkdownModule } from 'ngx-markdown';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { InlineMarkdownComponent } from './inline-markdown.component';
@@ -1867,15 +1867,18 @@ describe('InlineMarkdownComponent', () => {
 
   describe('fullscreen editor save-and-close on navigation (#8434)', () => {
     let afterClosed$: Subject<unknown>;
+    let store: MockStore;
     let closeSpy: jasmine.Spy;
     let unsubscribeSpy: jasmine.Spy;
     let locationCb: ((value: PopStateEvent) => void) | undefined;
+    let dialogState: MatDialogState;
 
     beforeEach(() => {
       afterClosed$ = new Subject<unknown>();
       closeSpy = jasmine.createSpy('close');
       unsubscribeSpy = jasmine.createSpy('unsubscribe');
       locationCb = undefined;
+      dialogState = MatDialogState.OPEN;
 
       // Capture the Location listener so a "navigation" can be simulated.
       const location = TestBed.inject(Location);
@@ -1887,10 +1890,15 @@ describe('InlineMarkdownComponent', () => {
       mockMatDialog.open.and.returnValue({
         afterClosed: () => afterClosed$.asObservable(),
         componentInstance: { close: closeSpy },
+        getState: () => dialogState,
       } as never);
+      store = TestBed.inject(MockStore);
+      spyOn(store, 'dispatch');
       fixture.componentRef.setInput('taskId', 'task-1');
       fixture.detectChanges();
     });
+
+    const navigate = (): void => locationCb!({} as PopStateEvent);
 
     // The default closeOnNavigation disposes the overlay with no result on a
     // navigation, dropping the edit (#8434); we must opt out so we can close it
@@ -1909,9 +1917,50 @@ describe('InlineMarkdownComponent', () => {
       component.openFullScreen();
       expect(closeSpy).not.toHaveBeenCalled();
 
-      locationCb!({} as PopStateEvent);
+      navigate();
 
       expect(closeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    // A breakpoint-crossing resize can emit more than one popstate; the second
+    // must not re-trigger close() and re-run the dialog's exit animation.
+    it('does not close again once the dialog is already closing', () => {
+      component.openFullScreen();
+      navigate();
+      dialogState = MatDialogState.CLOSING;
+
+      navigate();
+
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    // The point of #8434: a navigation-close must PERSIST the edit, not just
+    // close. When still alive the note routes out via `changed`.
+    it('persists the edit via `changed` when a navigation closes the dialog', () => {
+      spyOn(component.changed, 'emit');
+      component.openFullScreen();
+
+      navigate();
+      // The dialog resolves through its save path with the typed content.
+      afterClosed$.next('typed before resize');
+
+      expect(component.changed.emit).toHaveBeenCalledWith('typed before resize');
+    });
+
+    // The production scenario: the breakpoint switch destroys this host while
+    // the editor is open, so the save must land via the direct dispatch (#8432).
+    it('persists directly when a navigation closes the dialog after host destroy', () => {
+      component.openFullScreen();
+      component.ngOnDestroy();
+
+      navigate();
+      afterClosed$.next('typed before resize');
+
+      expect(store.dispatch).toHaveBeenCalledWith(
+        TaskSharedActions.updateTask({
+          task: { id: 'task-1', changes: { notes: 'typed before resize' } },
+        }),
+      );
     });
 
     it('stops listening for navigations once the dialog has closed', () => {

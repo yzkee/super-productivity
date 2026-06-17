@@ -32,8 +32,11 @@ test.describe('Detail panel fullscreen note - resize', () => {
     await expect(detailPanel).toBeVisible();
 
     // Open the fullscreen markdown editor from the notes inline-markdown.
-    await detailPanel
-      .locator('inline-markdown button')
+    // The controls are opacity:0 until the notes area is hovered.
+    const noteMarkdown = detailPanel.locator('inline-markdown').first();
+    await noteMarkdown.hover();
+    await noteMarkdown
+      .locator('button')
       .filter({ has: page.locator('mat-icon', { hasText: 'fullscreen' }) })
       .first()
       .click();

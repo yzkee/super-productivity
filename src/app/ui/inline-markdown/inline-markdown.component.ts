@@ -17,7 +17,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogState } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -382,18 +382,19 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
       },
     });
 
-    // Reinstate close-on-navigation as a save-and-close. closeOnNavigation
-    // (above) is the overlay's `disposeOnNavigation`, which on a Location
-    // change (popstate/hashchange) DISPOSES the overlay with no result —
-    // dropping the edit. We listen to the same Location signal but close
-    // through the dialog's save path, so an Android back-button press or the
-    // involuntary navigation a breakpoint-crossing resize triggers persists
-    // the note instead of losing it. Not tied to takeUntilDestroyed so it
-    // still fires after a breakpoint switch destroys this host mid-edit; torn
-    // down in the afterClosed handler below.
-    const locationSub = this._location.subscribe(() =>
-      dialogRef.componentInstance?.close(),
-    );
+    // Reinstate close-on-navigation as a save-and-close: listen to the same
+    // Location signal closeOnNavigation uses, but route through the dialog's
+    // save path so an Android back-button press or the breakpoint-crossing
+    // resize above persists the note instead of dropping it. Not tied to
+    // takeUntilDestroyed so it still fires after a breakpoint switch destroys
+    // this host mid-edit; torn down in the afterClosed handler below.
+    const locationSub = this._location.subscribe(() => {
+      // A breakpoint-crossing resize can emit more than one popstate; only act
+      // while the dialog is still open so we don't re-run its exit animation.
+      if (dialogRef.getState() === MatDialogState.OPEN) {
+        dialogRef.componentInstance?.close();
+      }
+    });
 
     // Intentionally NOT torn down with takeUntilDestroyed: this MUST still fire
     // after the component is destroyed — see the `_isDestroyed` branch below.
