@@ -784,7 +784,7 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     this._loadedProjectListForProjectId = currentProjectId;
 
     this._moveToProjectListSub = this._projectService
-      .getProjectsWithoutId$(currentProjectId)
+      .getProjectsWithoutIdInTreeOrder$(currentProjectId)
       .subscribe((projects) => {
         this.moveToProjectList.set(projects);
       });
