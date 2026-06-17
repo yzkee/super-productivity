@@ -11,6 +11,7 @@ import { of, Subject } from 'rxjs';
 import { TranslateModule } from '@ngx-translate/core';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { Log } from '../../core/log';
+import { Location } from '@angular/common';
 
 describe('InlineMarkdownComponent', () => {
   let component: InlineMarkdownComponent;
@@ -1861,6 +1862,64 @@ describe('InlineMarkdownComponent', () => {
 
       expect(store.dispatch).not.toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('fullscreen editor save-and-close on navigation (#8434)', () => {
+    let afterClosed$: Subject<unknown>;
+    let closeSpy: jasmine.Spy;
+    let unsubscribeSpy: jasmine.Spy;
+    let locationCb: ((value: PopStateEvent) => void) | undefined;
+
+    beforeEach(() => {
+      afterClosed$ = new Subject<unknown>();
+      closeSpy = jasmine.createSpy('close');
+      unsubscribeSpy = jasmine.createSpy('unsubscribe');
+      locationCb = undefined;
+
+      // Capture the Location listener so a "navigation" can be simulated.
+      const location = TestBed.inject(Location);
+      spyOn(location, 'subscribe').and.callFake((cb: (value: PopStateEvent) => void) => {
+        locationCb = cb;
+        return { unsubscribe: unsubscribeSpy } as never;
+      });
+
+      mockMatDialog.open.and.returnValue({
+        afterClosed: () => afterClosed$.asObservable(),
+        componentInstance: { close: closeSpy },
+      } as never);
+      fixture.componentRef.setInput('taskId', 'task-1');
+      fixture.detectChanges();
+    });
+
+    // The default closeOnNavigation disposes the overlay with no result on a
+    // navigation, dropping the edit (#8434); we must opt out so we can close it
+    // through the save path instead.
+    it('opens the dialog with closeOnNavigation disabled', () => {
+      component.openFullScreen();
+
+      const config = mockMatDialog.open.calls.mostRecent().args[1];
+      expect(config?.closeOnNavigation).toBe(false);
+    });
+
+    // A navigation while the editor is open — an Android back-button press, or
+    // the involuntary route change a breakpoint-crossing window resize fires —
+    // must close the dialog through its save path rather than silently drop it.
+    it('closes the dialog via its save path on a Location change', () => {
+      component.openFullScreen();
+      expect(closeSpy).not.toHaveBeenCalled();
+
+      locationCb!({} as PopStateEvent);
+
+      expect(closeSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('stops listening for navigations once the dialog has closed', () => {
+      component.openFullScreen();
+
+      afterClosed$.next(undefined);
+
+      expect(unsubscribeSpy).toHaveBeenCalled();
     });
   });
 });

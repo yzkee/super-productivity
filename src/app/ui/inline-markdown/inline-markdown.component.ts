@@ -39,6 +39,7 @@ import { TaskAttachmentService } from '../../features/tasks/task-attachment/task
 import { ResolveClipboardImagesDirective } from '../../core/clipboard-image/resolve-clipboard-images.directive';
 import { ClipboardPasteHandlerService } from '../../core/clipboard-image/clipboard-paste-handler.service';
 import { Store } from '@ngrx/store';
+import { Location } from '@angular/common';
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 import { Log } from '../../core/log';
 import { handleListKeydown } from './markdown-toolbar.util';
@@ -72,6 +73,7 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
   private _taskAttachmentService = inject(TaskAttachmentService);
   private _clipboardPasteHandler = inject(ClipboardPasteHandlerService);
   private _store = inject(Store);
+  private _location = inject(Location);
   private _currentPastePlaceholder: string | null = null;
   private _isFullscreenDialogOpen = false;
   private _isDestroyed = false;
@@ -367,16 +369,37 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
       height: '100vh',
       restoreFocus: true,
       autoFocus: 'textarea',
+      // Opt out of MatDialog's default closeOnNavigation: it closes the dialog
+      // with NO result on any navigation — including the involuntary route
+      // change a window resize triggers when it crosses the mobile layout
+      // breakpoint — so the in-flight note was silently dropped (#8434). We
+      // reinstate the close-on-navigation below, but through the save path so
+      // the edit (and Android back-button close) survive.
+      closeOnNavigation: false,
       data: {
         content: currentContent,
         taskId,
       },
     });
 
+    // Reinstate close-on-navigation as a save-and-close. closeOnNavigation
+    // (above) is the overlay's `disposeOnNavigation`, which on a Location
+    // change (popstate/hashchange) DISPOSES the overlay with no result —
+    // dropping the edit. We listen to the same Location signal but close
+    // through the dialog's save path, so an Android back-button press or the
+    // involuntary navigation a breakpoint-crossing resize triggers persists
+    // the note instead of losing it. Not tied to takeUntilDestroyed so it
+    // still fires after a breakpoint switch destroys this host mid-edit; torn
+    // down in the afterClosed handler below.
+    const locationSub = this._location.subscribe(() =>
+      dialogRef.componentInstance?.close(),
+    );
+
     // Intentionally NOT torn down with takeUntilDestroyed: this MUST still fire
     // after the component is destroyed — see the `_isDestroyed` branch below.
     // afterClosed emits once then completes, so there is no leak.
     dialogRef.afterClosed().subscribe((res) => {
+      locationSub.unsubscribe();
       this._isFullscreenDialogOpen = false;
       // DELETE resets the note to its default text; a string is the saved note.
       // A missing result (Close without saving) leaves the note untouched.
