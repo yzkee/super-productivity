@@ -23,17 +23,23 @@ import {
   STORE_NAMES,
   SINGLETON_KEY,
   BACKUP_KEY,
+  FULL_STATE_OPS_META_KEY,
   OPS_INDEXES,
   ArchiveStoreEntry,
   ProfileDataStoreEntry,
 } from './db-keys.const';
+import {
+  buildFullStateOpsMeta,
+  FullStateOpRef,
+  FullStateOpsMetaEntry,
+} from './full-state-ops-meta';
 import {
   DUPLICATE_OPERATION_ERROR_MSG,
   OPERATION_LOG_STORE_NOT_INITIALIZED,
   isLockRelatedIdbOpenError,
 } from './op-log-errors.const';
 import { runDbUpgrade } from './db-upgrade';
-import { OpLogDbAdapter } from './op-log-db-adapter';
+import { OpLogDbAdapter, OpLogTx } from './op-log-db-adapter';
 import { OP_LOG_DB_ADAPTER_FACTORY } from './op-log-db-adapter.token';
 import { Log } from '../../core/log';
 import {
@@ -114,6 +120,9 @@ const getOpId = (op: Operation | CompactOperation): string => {
   return op.id;
 };
 
+const getStoredOpType = (op: Operation | CompactOperation): string =>
+  isCompactOperation(op) ? op.o : op.opType;
+
 // Note: DBSchema requires literal string keys matching STORE_NAMES values
 interface OpLogDB extends DBSchema {
   [STORE_NAMES.OPS]: {
@@ -188,6 +197,14 @@ interface OpLogDB extends DBSchema {
   [STORE_NAMES.CLIENT_ID]: {
     key: string; // SINGLETON_KEY ('current')
     value: string; // the clientId
+  };
+  /**
+   * Stores small derived metadata records. Full-state op refs live here so sync
+   * filtering does not need to scan and decode the full ops table every call.
+   */
+  [STORE_NAMES.META]: {
+    key: string;
+    value: FullStateOpsMetaEntry;
   };
 }
 
@@ -413,6 +430,131 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
     this._invalidateUnsyncedCache();
   }
 
+  private _getFullStateRef(
+    op: Operation | CompactOperation,
+    seq: number,
+  ): FullStateOpRef | undefined {
+    return isFullStateOpType(getStoredOpType(op))
+      ? { opId: getOpId(op), seq }
+      : undefined;
+  }
+
+  private _normalizeFullStateOpsMeta(meta: unknown): FullStateOpsMetaEntry | undefined {
+    if (typeof meta !== 'object' || meta === null || !('refs' in meta)) {
+      return undefined;
+    }
+    const refs = (meta as { refs: unknown }).refs;
+    if (!Array.isArray(refs)) {
+      return undefined;
+    }
+
+    const normalizedRefs: FullStateOpRef[] = [];
+    for (const ref of refs) {
+      if (
+        typeof ref !== 'object' ||
+        ref === null ||
+        !('opId' in ref) ||
+        !('seq' in ref)
+      ) {
+        return undefined;
+      }
+      const { opId, seq } = ref as { opId: unknown; seq: unknown };
+      if (typeof opId !== 'string' || typeof seq !== 'number') {
+        return undefined;
+      }
+      normalizedRefs.push({ opId, seq });
+    }
+
+    return buildFullStateOpsMeta(normalizedRefs);
+  }
+
+  private _withFullStateRef(
+    meta: FullStateOpsMetaEntry | undefined,
+    ref: FullStateOpRef,
+  ): FullStateOpsMetaEntry {
+    const refs = [...(meta?.refs ?? []).filter((r) => r.opId !== ref.opId), ref];
+    return buildFullStateOpsMeta(refs);
+  }
+
+  private _withoutFullStateRefs(
+    meta: FullStateOpsMetaEntry | undefined,
+    opIdsToRemove: Set<string>,
+  ): FullStateOpsMetaEntry {
+    const refs = (meta?.refs ?? []).filter((ref) => !opIdsToRemove.has(ref.opId));
+    return buildFullStateOpsMeta(refs);
+  }
+
+  private async _rebuildFullStateOpsMetaInTx(
+    tx: OpLogTx,
+  ): Promise<FullStateOpsMetaEntry> {
+    const refs: FullStateOpRef[] = [];
+    await tx.iterate<StoredOperationLogEntry>(STORE_NAMES.OPS, {}, (value, key) => {
+      const ref = this._getFullStateRef(value.op, key as number);
+      if (ref) {
+        refs.push(ref);
+      }
+      return 'continue';
+    });
+
+    const meta = buildFullStateOpsMeta(refs);
+    await tx.put(STORE_NAMES.META, meta, FULL_STATE_OPS_META_KEY);
+    return meta;
+  }
+
+  private async _getFullStateOpsMetaInTxOrRebuild(
+    tx: OpLogTx,
+  ): Promise<FullStateOpsMetaEntry> {
+    const meta = this._normalizeFullStateOpsMeta(
+      await tx.get<unknown>(STORE_NAMES.META, FULL_STATE_OPS_META_KEY),
+    );
+    return meta ?? (await this._rebuildFullStateOpsMetaInTx(tx));
+  }
+
+  private async _recordFullStateOpInTx(
+    tx: OpLogTx,
+    op: Operation | CompactOperation,
+    seq: number,
+  ): Promise<void> {
+    const ref = this._getFullStateRef(op, seq);
+    if (!ref) {
+      return;
+    }
+
+    const meta = await this._getFullStateOpsMetaInTxOrRebuild(tx);
+    await tx.put(
+      STORE_NAMES.META,
+      this._withFullStateRef(meta, ref),
+      FULL_STATE_OPS_META_KEY,
+    );
+  }
+
+  private async _rebuildFullStateOpsMeta(): Promise<FullStateOpsMetaEntry> {
+    const refs: FullStateOpRef[] = [];
+    await this._adapter.iterate<StoredOperationLogEntry>(
+      STORE_NAMES.OPS,
+      { mode: 'readonly' },
+      (value, key) => {
+        const ref = this._getFullStateRef(value.op, key as number);
+        if (ref) {
+          refs.push(ref);
+        }
+        return 'continue';
+      },
+    );
+
+    const meta = buildFullStateOpsMeta(refs);
+    await this._adapter.put(STORE_NAMES.META, meta, FULL_STATE_OPS_META_KEY);
+    return meta;
+  }
+
+  private async _getFullStateOpsMetaOrRebuild(): Promise<FullStateOpsMetaEntry> {
+    return (
+      this._normalizeFullStateOpsMeta(
+        await this._adapter.get<unknown>(STORE_NAMES.META, FULL_STATE_OPS_META_KEY),
+      ) ?? (await this._rebuildFullStateOpsMeta())
+    );
+  }
+
   async append(
     op: Operation,
     source: 'local' | 'remote' = 'local',
@@ -420,6 +562,18 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
   ): Promise<number> {
     await this._ensureInit();
     try {
+      if (isFullStateOpType(op.opType)) {
+        return await this._adapter.transaction(
+          [STORE_NAMES.OPS, STORE_NAMES.META],
+          'readwrite',
+          async (tx) => {
+            const entry = this._buildStoredEntry(op, source, options);
+            const seq = await tx.add(STORE_NAMES.OPS, entry);
+            await this._recordFullStateOpInTx(tx, entry.op, seq);
+            return seq;
+          },
+        );
+      }
       return await this._adapter.add(
         STORE_NAMES.OPS,
         this._buildStoredEntry(op, source, options),
@@ -436,21 +590,20 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
   ): Promise<number[]> {
     await this._ensureInit();
     try {
-      return await this._adapter.transaction(
-        [STORE_NAMES.OPS],
-        'readwrite',
-        async (tx) => {
-          const seqs: number[] = [];
-          for (const op of ops) {
-            const seq = await tx.add(
-              STORE_NAMES.OPS,
-              this._buildStoredEntry(op, source, options),
-            );
-            seqs.push(seq);
-          }
-          return seqs;
-        },
-      );
+      const storeNames: OpLogStoreName[] = [STORE_NAMES.OPS];
+      if (ops.some((op) => isFullStateOpType(op.opType))) {
+        storeNames.push(STORE_NAMES.META);
+      }
+      return await this._adapter.transaction(storeNames, 'readwrite', async (tx) => {
+        const seqs: number[] = [];
+        for (const op of ops) {
+          const entry = this._buildStoredEntry(op, source, options);
+          const seq = await tx.add(STORE_NAMES.OPS, entry);
+          await this._recordFullStateOpInTx(tx, entry.op, seq);
+          seqs.push(seq);
+        }
+        return seqs;
+      });
     } catch (e) {
       this._handleAppendError(e);
     }
@@ -485,7 +638,12 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
       const writtenOps: Operation[] = [];
       let skippedCount = 0;
 
-      await this._adapter.transaction([STORE_NAMES.OPS], 'readwrite', async (tx) => {
+      const storeNames: OpLogStoreName[] = [STORE_NAMES.OPS];
+      if (ops.some((op) => isFullStateOpType(op.opType))) {
+        storeNames.push(STORE_NAMES.META);
+      }
+
+      await this._adapter.transaction(storeNames, 'readwrite', async (tx) => {
         for (const op of ops) {
           // Check if op already exists in the same transaction (atomic)
           const existingKey = await tx.getKeyFromIndex(
@@ -498,10 +656,9 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
             continue;
           }
 
-          const seq = await tx.add(
-            STORE_NAMES.OPS,
-            this._buildStoredEntry(op, source, options),
-          );
+          const entry = this._buildStoredEntry(op, source, options);
+          const seq = await tx.add(STORE_NAMES.OPS, entry);
+          await this._recordFullStateOpInTx(tx, entry.op, seq);
           seqs.push(seq);
           writtenOps.push(op);
         }
@@ -647,52 +804,40 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
    * - Local unsynced imports (source='local', no syncedAt) → show dialog
    * - Remote/synced imports → silently filter old ops (already accepted)
    *
-   * Uses cursor iteration for memory efficiency - avoids loading all ops into memory
-   * at once, which matters on mobile devices with limited RAM. Trade-off is slightly
-   * slower due to per-op cursor overhead vs bulk getAll().
+   * Uses the persistent full-state metadata pointer. Existing databases rebuild
+   * that metadata once on first read, then future calls are O(1).
    *
    * @returns The latest full-state operation entry, or undefined if none exists
    */
   async getLatestFullStateOpEntry(): Promise<OperationLogEntry | undefined> {
-    let latestEntry: OperationLogEntry | undefined;
-
-    await this._forEachFullStateOp((entry) => {
-      // Track the latest by UUIDv7 (lexicographic comparison works for UUIDv7).
-      // We never stop early: UUIDv7 order can differ from seq order when remote
-      // ops with earlier timestamps arrive later, so we must scan all full-state
-      // ops to find the one with the latest UUIDv7 id.
-      if (!latestEntry || entry.op.id > latestEntry.op.id) {
-        latestEntry = entry;
-      }
-      return 'continue';
-    });
-
-    return latestEntry;
-  }
-
-  /**
-   * Iterates all ops, decodes each entry, and invokes `cb` for every
-   * full-state op (SYNC_IMPORT, BACKUP_IMPORT, REPAIR). Return `'stop'`
-   * from `cb` to end the scan early.
-   *
-   * Shared by `getLatestFullStateOpEntry` and `clearFullStateOpsExcept`
-   * to avoid duplicating the decode + isFullStateOpType check.
-   */
-  private async _forEachFullStateOp(
-    cb: (entry: OperationLogEntry) => 'continue' | 'stop',
-  ): Promise<void> {
     await this._ensureInit();
-    await this._adapter.iterate<StoredOperationLogEntry>(
+
+    const meta = await this._getFullStateOpsMetaOrRebuild();
+    if (!meta.latest) {
+      return undefined;
+    }
+
+    const stored = await this._adapter.get<StoredOperationLogEntry>(
       STORE_NAMES.OPS,
-      { mode: 'readonly' },
-      (value) => {
-        const entry = decodeStoredEntry(value);
-        if (isFullStateOpType(entry.op.opType)) {
-          return cb(entry);
-        }
-        return 'continue';
-      },
+      meta.latest.seq,
     );
+    if (
+      stored &&
+      getOpId(stored.op) === meta.latest.opId &&
+      isFullStateOpType(getStoredOpType(stored.op))
+    ) {
+      return decodeStoredEntry(stored);
+    }
+
+    const rebuiltMeta = await this._rebuildFullStateOpsMeta();
+    if (!rebuiltMeta.latest) {
+      return undefined;
+    }
+    const rebuiltStored = await this._adapter.get<StoredOperationLogEntry>(
+      STORE_NAMES.OPS,
+      rebuiltMeta.latest.seq,
+    );
+    return rebuiltStored ? decodeStoredEntry(rebuiltStored) : undefined;
   }
 
   /**
@@ -707,28 +852,6 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
   async clearFullStateOps(): Promise<number> {
     // Deleting all full-state ops is the no-exclusion case of clearFullStateOpsExcept.
     return this.clearFullStateOpsExcept([]);
-  }
-
-  /**
-   * Deletes ops by their `op.id` via the unique byId index, atomically.
-   * Mirrors the original keyed-index-cursor delete used by the
-   * clearFullStateOps* methods. No-op (and no cache invalidation) for an
-   * empty list, matching prior behavior.
-   */
-  private async _deleteOpsByIds(ids: string[]): Promise<void> {
-    if (ids.length === 0) {
-      return;
-    }
-    await this._adapter.transaction([STORE_NAMES.OPS], 'readwrite', async (tx) => {
-      for (const id of ids) {
-        await tx.iterate<StoredOperationLogEntry>(
-          STORE_NAMES.OPS,
-          { index: OPS_INDEXES.BY_ID, query: id },
-          () => 'delete-stop',
-        );
-      }
-    });
-    this._invalidateUnsyncedCache();
   }
 
   /**
@@ -749,18 +872,47 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
    * @returns Number of operations deleted
    */
   async clearFullStateOpsExcept(excludeIds: string[]): Promise<number> {
+    await this._ensureInit();
+
     const excludeIdSet = new Set(excludeIds);
-    const opsToDelete: string[] = [];
+    let deletedCount = 0;
+    await this._adapter.transaction(
+      [STORE_NAMES.OPS, STORE_NAMES.META],
+      'readwrite',
+      async (tx) => {
+        // Read meta INSIDE the tx so a full-state append committed between the
+        // read and the write can't be clobbered by a stale snapshot. The
+        // OPS deletes and the META update then stay atomic, matching
+        // deleteOpsWhere — no reliance on the OPERATION_LOG lock for safety.
+        const meta = await this._getFullStateOpsMetaInTxOrRebuild(tx);
+        const refsToDelete = meta.refs.filter((ref) => !excludeIdSet.has(ref.opId));
+        if (refsToDelete.length === 0) {
+          return;
+        }
 
-    await this._forEachFullStateOp((entry) => {
-      if (!excludeIdSet.has(entry.op.id)) {
-        opsToDelete.push(entry.op.id);
-      }
-      return 'continue';
-    });
-
-    await this._deleteOpsByIds(opsToDelete);
-    return opsToDelete.length;
+        const opIdsToDelete = new Set(refsToDelete.map((ref) => ref.opId));
+        for (const ref of refsToDelete) {
+          const stored = await tx.get<StoredOperationLogEntry>(STORE_NAMES.OPS, ref.seq);
+          if (
+            stored &&
+            getOpId(stored.op) === ref.opId &&
+            isFullStateOpType(getStoredOpType(stored.op))
+          ) {
+            await tx.delete(STORE_NAMES.OPS, ref.seq);
+            deletedCount++;
+          }
+        }
+        await tx.put(
+          STORE_NAMES.META,
+          this._withoutFullStateRefs(meta, opIdsToDelete),
+          FULL_STATE_OPS_META_KEY,
+        );
+      },
+    );
+    if (deletedCount > 0) {
+      this._invalidateUnsyncedCache();
+    }
+    return deletedCount;
   }
 
   async getUnsynced(): Promise<OperationLogEntry[]> {
@@ -976,15 +1128,34 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
     // Iterate the whole store, deleting entries that match the predicate.
     // (A range delete isn't possible — the predicate is on decoded fields.)
     let deletedCount = 0;
-    await this._adapter.iterate<StoredOperationLogEntry>(STORE_NAMES.OPS, {}, (value) => {
-      // Decode stored entry before applying predicate
-      const decoded = decodeStoredEntry(value);
-      if (predicate(decoded)) {
-        deletedCount++;
-        return 'delete';
-      }
-      return 'continue';
-    });
+    const deletedFullStateOpIds = new Set<string>();
+    await this._adapter.transaction(
+      [STORE_NAMES.OPS, STORE_NAMES.META],
+      'readwrite',
+      async (tx) => {
+        await tx.iterate<StoredOperationLogEntry>(STORE_NAMES.OPS, {}, (value) => {
+          // Decode stored entry before applying predicate
+          const decoded = decodeStoredEntry(value);
+          if (predicate(decoded)) {
+            deletedCount++;
+            if (isFullStateOpType(decoded.op.opType)) {
+              deletedFullStateOpIds.add(decoded.op.id);
+            }
+            return 'delete';
+          }
+          return 'continue';
+        });
+
+        if (deletedFullStateOpIds.size > 0) {
+          const meta = await this._getFullStateOpsMetaInTxOrRebuild(tx);
+          await tx.put(
+            STORE_NAMES.META,
+            this._withoutFullStateRefs(meta, deletedFullStateOpIds),
+            FULL_STATE_OPS_META_KEY,
+          );
+        }
+      },
+    );
 
     // Invalidate caches if any ops were deleted to prevent stale data
     if (deletedCount > 0) {
@@ -1240,6 +1411,7 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
       STORE_NAMES.ARCHIVE_OLD,
       STORE_NAMES.PROFILE_DATA,
       STORE_NAMES.CLIENT_ID,
+      STORE_NAMES.META,
     ];
     await this._adapter.transaction(allStores, 'readwrite', async (tx) => {
       for (const store of allStores) {
@@ -1310,7 +1482,18 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
    */
   async clearAllOperations(): Promise<void> {
     await this._ensureInit();
-    await this._adapter.clear(STORE_NAMES.OPS);
+    await this._adapter.transaction(
+      [STORE_NAMES.OPS, STORE_NAMES.META],
+      'readwrite',
+      async (tx) => {
+        await tx.clear(STORE_NAMES.OPS);
+        await tx.put(
+          STORE_NAMES.META,
+          buildFullStateOpsMeta([]),
+          FULL_STATE_OPS_META_KEY,
+        );
+      },
+    );
     this._invalidateAppliedAndUnsyncedCaches();
   }
 
@@ -1546,32 +1729,31 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
     await this._ensureInit();
 
     try {
-      return await this._adapter.transaction(
-        [STORE_NAMES.OPS, STORE_NAMES.VECTOR_CLOCK],
-        'readwrite',
-        async (tx) => {
-          // 1. Append operation to ops store (encoded to compact format)
-          const seq = await tx.add(
-            STORE_NAMES.OPS,
-            this._buildStoredEntry(op, source, options),
+      const storeNames: OpLogStoreName[] = [STORE_NAMES.OPS, STORE_NAMES.VECTOR_CLOCK];
+      if (isFullStateOpType(op.opType)) {
+        storeNames.push(STORE_NAMES.META);
+      }
+      return await this._adapter.transaction(storeNames, 'readwrite', async (tx) => {
+        // 1. Append operation to ops store (encoded to compact format)
+        const entry = this._buildStoredEntry(op, source, options);
+        const seq = await tx.add(STORE_NAMES.OPS, entry);
+        await this._recordFullStateOpInTx(tx, entry.op, seq);
+
+        // 2. Update vector clock to match the operation's clock (only for
+        // local ops). The op.vectorClock already contains the incremented
+        // value from the caller; we store it as the current clock so
+        // subsequent operations can build on it.
+        if (source === 'local') {
+          await tx.put(
+            STORE_NAMES.VECTOR_CLOCK,
+            { clock: op.vectorClock, lastUpdate: Date.now() },
+            SINGLETON_KEY,
           );
+          this._vectorClockCache = op.vectorClock;
+        }
 
-          // 2. Update vector clock to match the operation's clock (only for
-          // local ops). The op.vectorClock already contains the incremented
-          // value from the caller; we store it as the current clock so
-          // subsequent operations can build on it.
-          if (source === 'local') {
-            await tx.put(
-              STORE_NAMES.VECTOR_CLOCK,
-              { clock: op.vectorClock, lastUpdate: Date.now() },
-              SINGLETON_KEY,
-            );
-            this._vectorClockCache = op.vectorClock;
-          }
-
-          return seq;
-        },
-      );
+        return seq;
+      });
     } catch (e) {
       this._handleAppendError(e);
     }
@@ -1617,6 +1799,7 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
       // Unconditional: both callers (clean-slate, backup-restore) always rotate
       // the clientId. Unlike the archive stores it is never conditional.
       STORE_NAMES.CLIENT_ID,
+      STORE_NAMES.META,
     ];
     if (archiveYoung != null) {
       storeNames.push(STORE_NAMES.ARCHIVE_YOUNG);
@@ -1644,6 +1827,14 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
         const seq = await tx.add(
           STORE_NAMES.OPS,
           this._buildStoredEntry(syncImportOp, 'local'),
+        );
+        // syncImportOp is always a full-state op (both callers pass SYNC_IMPORT);
+        // OPS was just cleared, so the pointer is exactly this one op. Use the
+        // shared builder so `latest` is derived, never hand-asserted.
+        await tx.put(
+          STORE_NAMES.META,
+          buildFullStateOpsMeta([{ opId: syncImportOp.id, seq }]),
+          FULL_STATE_OPS_META_KEY,
         );
 
         await tx.put(
