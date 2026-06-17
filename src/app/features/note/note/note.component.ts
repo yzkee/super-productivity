@@ -178,16 +178,11 @@ export class NoteComponent implements OnChanges {
     if (!this.note) {
       throw new Error('No note');
     }
-    // Persists the edit if a navigation (resize across the mobile breakpoint,
-    // Android back) closes the editor — see openFullscreenMarkdownDialog (#8434).
+    // Saves-and-closes on a navigation (resize across the mobile breakpoint,
+    // Android back) instead of dropping the edit — see openFullscreenMarkdownDialog
+    // (#8434).
     openFullscreenMarkdownDialog(this._matDialog, this._location, {
-      minWidth: '100vw',
-      height: '100vh',
-      restoreFocus: true,
-      autoFocus: 'textarea',
-      data: {
-        content: this.note.content,
-      },
+      content: this.note.content,
     })
       .afterClosed()
       .subscribe((res) => {

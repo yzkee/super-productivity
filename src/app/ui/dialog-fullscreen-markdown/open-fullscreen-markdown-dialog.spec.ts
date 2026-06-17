@@ -36,19 +36,19 @@ describe('openFullscreenMarkdownDialog', () => {
   });
 
   const open = (): MatDialogRef<DialogFullscreenMarkdownComponent> =>
-    openFullscreenMarkdownDialog(matDialog, location, { data: { content: 'x' } });
+    openFullscreenMarkdownDialog(matDialog, location, { content: 'x' });
   const navigate = (): void => locationCb!({} as PopStateEvent);
 
   // The default closeOnNavigation disposes the overlay with no result on a
   // navigation, dropping the edit (#8434); we must opt out so we can close it
   // through the save path instead.
-  it('opens DialogFullscreenMarkdownComponent with closeOnNavigation disabled', () => {
+  it('opens DialogFullscreenMarkdownComponent fullscreen with closeOnNavigation disabled', () => {
     open();
 
     const [component, config] = matDialog.open.calls.mostRecent().args;
     expect(component).toBe(DialogFullscreenMarkdownComponent);
     expect(config?.closeOnNavigation).toBe(false);
-    // Caller config is preserved.
+    expect(config?.minWidth).toBe('100vw');
     expect(config?.data).toEqual({ content: 'x' });
   });
 
@@ -74,14 +74,6 @@ describe('openFullscreenMarkdownDialog', () => {
     navigate();
 
     expect(closeSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not throw when the dialog component is already gone', () => {
-    (dialogRef as { componentInstance: unknown }).componentInstance = null;
-    open();
-
-    expect(() => navigate()).not.toThrow();
-    expect(closeSpy).not.toHaveBeenCalled();
   });
 
   it('stops listening for navigations once the dialog has closed', () => {

@@ -1,8 +1,9 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { MatDialog } from '@angular/material/dialog';
+import { MatDialog, MatDialogState } from '@angular/material/dialog';
 import { Store } from '@ngrx/store';
 import { of } from 'rxjs';
+import { DialogFullscreenMarkdownComponent } from '../../../ui/dialog-fullscreen-markdown/dialog-fullscreen-markdown.component';
 import { DateAdapter } from '@angular/material/core';
 import { PlannerActions } from '../../planner/store/planner.actions';
 import { DateService } from '../../../core/date/date.service';
@@ -212,6 +213,24 @@ describe('TaskComponent shortcut handling', () => {
     });
 
     expect(taskServiceSpy.remove).toHaveBeenCalledWith(component.task());
+  });
+
+  // Guards against a future revert to a direct _matDialog.open that would
+  // reintroduce the resize/back data loss (#8434): the helper always disables
+  // closeOnNavigation.
+  it('opens the fullscreen notes editor through the nav-persisting helper', () => {
+    const matDialog = TestBed.inject(MatDialog) as jasmine.SpyObj<MatDialog>;
+    matDialog.open.and.returnValue({
+      afterClosed: () => of(),
+      getState: () => MatDialogState.OPEN,
+      componentInstance: {},
+    } as never);
+
+    component.openNotesFullscreen();
+
+    const [comp, config] = matDialog.open.calls.mostRecent().args;
+    expect(comp).toBe(DialogFullscreenMarkdownComponent);
+    expect(config?.closeOnNavigation).toBe(false);
   });
 
   it('does NOT delete on Escape for existing subtask with cleared title', () => {

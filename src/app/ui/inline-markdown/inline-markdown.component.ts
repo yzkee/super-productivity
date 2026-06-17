@@ -364,18 +364,12 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
     // Read directly from textarea since modelCopy may be stale (one-way ngModel binding)
     const textareaEl = this.textareaEl();
     const currentContent = textareaEl ? textareaEl.nativeElement.value : this.modelCopy();
-    // Opens with closeOnNavigation disabled and saves-and-closes on a navigation
-    // (resize crossing the mobile breakpoint, Android back) instead of dropping
-    // the edit — see openFullscreenMarkdownDialog (#8434).
+    // Saves-and-closes on a navigation (resize crossing the mobile breakpoint,
+    // Android back) instead of dropping the edit — see openFullscreenMarkdownDialog
+    // (#8434).
     const dialogRef = openFullscreenMarkdownDialog(this._matDialog, this._location, {
-      minWidth: '100vw',
-      height: '100vh',
-      restoreFocus: true,
-      autoFocus: 'textarea',
-      data: {
-        content: currentContent,
-        taskId,
-      },
+      content: currentContent ?? '',
+      taskId,
     });
 
     // Intentionally NOT torn down with takeUntilDestroyed: this MUST still fire

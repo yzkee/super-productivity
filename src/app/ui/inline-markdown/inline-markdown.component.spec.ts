@@ -1897,6 +1897,15 @@ describe('InlineMarkdownComponent', () => {
 
     const navigate = (): void => locationCb!({} as PopStateEvent);
 
+    // Guards against a future revert to a direct _matDialog.open (which would
+    // reintroduce the data loss): the helper always disables closeOnNavigation.
+    it('routes the fullscreen dialog through the nav-persisting helper', () => {
+      component.openFullScreen();
+
+      const config = mockMatDialog.open.calls.mostRecent().args[1];
+      expect(config?.closeOnNavigation).toBe(false);
+    });
+
     // When still alive the note routes out via `changed`.
     it('persists the edit via `changed` when a navigation closes the dialog', () => {
       spyOn(component.changed, 'emit');

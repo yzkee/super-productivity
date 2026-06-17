@@ -841,17 +841,12 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
 
   openNotesFullscreen(): void {
     const task = this.task();
-    // Persists the edit if a navigation (resize across the mobile breakpoint,
-    // Android back) closes the editor — see openFullscreenMarkdownDialog (#8434).
+    // Saves-and-closes on a navigation (resize across the mobile breakpoint,
+    // Android back) instead of dropping the edit — see openFullscreenMarkdownDialog
+    // (#8434).
     const dialogRef = openFullscreenMarkdownDialog(this._matDialog, this._location, {
-      minWidth: '100vw',
-      height: '100vh',
-      restoreFocus: true,
-      autoFocus: 'textarea',
-      data: {
-        content: task.notes || '',
-        taskId: task.id,
-      },
+      content: task.notes || '',
+      taskId: task.id,
     });
 
     dialogRef.afterClosed().subscribe((result) => {
