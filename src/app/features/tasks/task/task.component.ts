@@ -12,6 +12,7 @@ import {
   input,
   OnDestroy,
   signal,
+  untracked,
   viewChild,
 } from '@angular/core';
 import { TaskService } from '../task.service';
@@ -25,7 +26,10 @@ import {
 } from '../task.model';
 import { MatDialog } from '@angular/material/dialog';
 import { DialogTimeEstimateComponent } from '../dialog-time-estimate/dialog-time-estimate.component';
-import { expandInOnlyAnimation } from '../../../ui/animations/expand.ani';
+import {
+  expandFadeAnimation,
+  expandInOnlyAnimation,
+} from '../../../ui/animations/expand.ani';
 import {
   ChecklistProgress,
   getChecklistProgress,
@@ -104,13 +108,18 @@ import { millisecondsDiffToRemindOption } from '../util/remind-option-to-millise
 import { MenuTreeService } from '../../menu-tree/menu-tree.service';
 import { SelectOptionRowComponent } from '../../../ui/select-option-row/select-option-row.component';
 import { SnackService } from '../../../core/snack/snack.service';
+import {
+  AddSubtaskInputComponent,
+  AddSubtaskInputCloseReason,
+} from '../add-subtask-input/add-subtask-input.component';
+import { AddSubtaskInputService } from '../add-subtask-input/add-subtask-input.service';
 
 @Component({
   selector: 'task',
   templateUrl: './task.component.html',
   styleUrls: ['./task.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  animations: [expandInOnlyAnimation],
+  animations: [expandInOnlyAnimation, expandFadeAnimation],
   /* eslint-disable @typescript-eslint/naming-convention*/
   host: {
     '[id]': 'taskIdWithPrefix()',
@@ -148,6 +157,7 @@ import { SnackService } from '../../../core/snack/snack.service';
     DoneToggleComponent,
     SwipeBlockComponent,
     SelectOptionRowComponent,
+    AddSubtaskInputComponent,
   ],
 })
 export class TaskComponent implements OnDestroy, AfterViewInit {
@@ -169,6 +179,7 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   private readonly _translateService = inject(TranslateService);
   private readonly _datePipe = inject(LocaleDatePipe);
   private readonly _plannerService = inject(PlannerService);
+  private readonly _addSubtaskInputService = inject(AddSubtaskInputService);
 
   readonly workContextService = inject(WorkContextService);
   readonly layoutService = inject(LayoutService);
@@ -339,6 +350,36 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   });
   readonly taskContextMenu = viewChild('taskContextMenu', {
     read: TaskContextMenuComponent,
+  });
+  readonly addSubtaskInput = viewChild(AddSubtaskInputComponent);
+  readonly isAddSubtaskInputVisible = signal(false);
+  // Task the draft was opened from (may be a subtask), captured before focus
+  // moves into the input, so Escape can return focus there. See onAddSubtaskInputClosed.
+  private _subtaskInputOriginTaskId: string | null = null;
+
+  private readonly _addSubtaskInputRequestEffect = effect(() => {
+    const requestedParentId = this._addSubtaskInputService.openRequest();
+    if (requestedParentId === null || requestedParentId !== untracked(this.task).id) {
+      return;
+    }
+
+    window.setTimeout(() => {
+      // Consume the request so it isn't replayed (stealing focus) the next time
+      // this row is re-created with the same id, e.g. navigating away and back.
+      this._addSubtaskInputService.consume();
+      // Focus is still on the originating task here (the input isn't shown yet),
+      // so capture it now — once the input is focused, the parent row claims it.
+      this._subtaskInputOriginTaskId =
+        this._taskFocusService.focusedTaskId() ??
+        this._taskFocusService.lastFocusedTaskComponent()?.task().id ??
+        this.task().id;
+      const currentTask = this.task();
+      if (currentTask._hideSubTasksMode === HideSubTasksMode.HideAll) {
+        this._taskService.showSubTasks(currentTask.id);
+      }
+      this.isAddSubtaskInputVisible.set(true);
+      window.setTimeout(() => this.addSubtaskInput()?.focus());
+    });
   });
 
   // Lazy-loaded project list - only fetched when project menu opens
@@ -812,25 +853,14 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
     blurEvent?: FocusEvent;
     submitTrigger: SubmitTrigger;
   }): void {
+    const task = this.task();
+
     if (wasChanged) {
-      this._taskService.update(this.task().id, { title: newVal });
+      this._taskService.update(task.id, { title: newVal });
     }
 
     if (submitTrigger === 'modEnter') {
-      this._addSubTaskOrFocusEmpty(newVal);
-      return;
-    }
-
-    // Escape in subtask editor should return focus to previous sibling;
-    // for empty titles we remove the subtask entirely.
-    if (submitTrigger === 'escape' && this.task().parentId) {
-      const previousTaskEl = this._getPreviousTaskEl();
-      // Only auto-delete for freshly spawned empty subtasks.
-      // If user cleared an existing title, Escape should save and keep the task.
-      if (!wasChanged && !newVal) {
-        this._taskService.remove(this.task());
-      }
-      this._focusTaskHost(previousTaskEl);
+      this.addSubTask();
       return;
     }
 
@@ -896,38 +926,40 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
   }
 
   addSubTask(): void {
-    this._taskService.addSubTaskTo(this.task().parentId || this.task().id);
+    const task = this.task();
+    const parentId = task.parentId || task.id;
+    if (!task.parentId && task._hideSubTasksMode === HideSubTasksMode.HideAll) {
+      this._taskService.showSubTasks(task.id);
+    }
+    this._addSubtaskInputService.requestOpen(parentId);
   }
 
-  /**
-   * Mod+Enter (in title editor): focus an existing empty sibling subtask if
-   * one exists, otherwise create a new one. For top-level tasks, "siblings"
-   * means children. `effectiveSelfTitle` is the just-submitted title — use it
-   * instead of `task().title`, which still reflects the pre-update value
-   * within this turn.
-   */
-  private _addSubTaskOrFocusEmpty(effectiveSelfTitle: string): void {
-    const t = this.task();
-    const targetParentId = t.parentId || t.id;
-    const isOnParent = !t.parentId;
-    const isEmpty = (title?: string): boolean => !title?.trim();
-
-    if (isOnParent && t._hideSubTasksMode === HideSubTasksMode.HideAll) {
-      this._taskService.showSubTasks(t.id);
+  onAddSubtaskInputClosed(reason: AddSubtaskInputCloseReason): void {
+    this.isAddSubtaskInputVisible.set(false);
+    const originTaskId = this._subtaskInputOriginTaskId;
+    this._subtaskInputOriginTaskId = null;
+    if (reason === 'escape') {
+      // Return focus to the task the draft was opened from (which may be a
+      // subtask) so keyboard navigation continues from there after cancelling.
+      this._refocusTaskAfterDraftCancel(originTaskId);
     }
+  }
 
-    this._taskService.getByIdWithSubTaskData$(targetParentId).subscribe((parent) => {
-      const emptyChild = parent.subTasks.find((s) => s.id !== t.id && isEmpty(s.title));
-      if (emptyChild) {
-        this._taskService.focusTaskById(emptyChild.id, true);
-        return;
-      }
-      // Already on the only empty subtask — leave focus where it is.
-      if (!isOnParent && isEmpty(effectiveSelfTitle)) {
-        return;
-      }
-      this._taskService.addSubTaskTo(targetParentId);
-    });
+  private _refocusTaskAfterDraftCancel(taskId: string | null): void {
+    if (isTouchActive()) {
+      return;
+    }
+    const targetId = taskId ?? this.task().id;
+    // Deferred so focus lands after the input's removal settles.
+    window.setTimeout(() => this._focusTaskById(targetId));
+  }
+
+  private _focusTaskById(taskId: string): void {
+    // A task can render in two places at once (main list + detail side panel);
+    // prefer the last instance — the side-panel one — mirroring the inline-edit
+    // focus resolution above.
+    const els = document.querySelectorAll<HTMLElement>('#t-' + CSS.escape(taskId));
+    els[els.length - 1]?.focus();
   }
 
   @throttle(200, { leading: true, trailing: false })
@@ -1337,26 +1369,6 @@ export class TaskComponent implements OnDestroy, AfterViewInit {
         })()
       : (taskEls[currentIndex + 1] as HTMLElement);
     return nextEl;
-  }
-
-  private _getPreviousTaskEl(): HTMLElement | undefined {
-    const currentTaskEl = this._elementRef.nativeElement as HTMLElement;
-    const enclosingListEl = currentTaskEl.closest('task-list');
-    const taskEls = Array.from(
-      (enclosingListEl ?? document).querySelectorAll('task'),
-    ) as HTMLElement[];
-    const currentIndex = taskEls.findIndex((el) => el === currentTaskEl);
-    return currentIndex > 0 ? taskEls[currentIndex - 1] : undefined;
-  }
-
-  private _focusTaskHost(taskEl?: HTMLElement): void {
-    if (!taskEl || isTouchActive()) {
-      return;
-    }
-    // Defer to next tick so focus survives blur/delete related DOM updates.
-    window.setTimeout(() => {
-      taskEl.focus();
-    });
   }
 
   get kb(): KeyboardConfig {
