@@ -11,8 +11,7 @@ import {
 } from './providers/open-project/open-project-issue.model';
 import { RedmineCfg } from './providers/redmine/redmine.model';
 import { RedmineIssue } from './providers/redmine/redmine-issue.model';
-import { TrelloCfg } from './providers/trello/trello.model';
-import { TrelloIssue, TrelloIssueReduced } from './providers/trello/trello-issue.model';
+// Trello is now a plugin — no built-in Cfg/Issue types needed
 import { EntityState } from '@ngrx/entity';
 import {
   CalendarProviderCfg,
@@ -45,13 +44,17 @@ export type BuiltInIssueProviderKey =
   | 'CALDAV'
   | 'ICAL'
   | 'OPEN_PROJECT'
-  | 'TRELLO'
   | 'REDMINE'
   | 'AZURE_DEVOPS'
   | 'NEXTCLOUD_DECK';
 
 // Keys migrated from built-in to plugin — still valid as IssueProviderKey
-export type MigratedIssueProviderKey = 'GITHUB' | 'CLICKUP' | 'GITEA' | 'LINEAR';
+export type MigratedIssueProviderKey =
+  | 'GITHUB'
+  | 'CLICKUP'
+  | 'GITEA'
+  | 'LINEAR'
+  | 'TRELLO';
 
 // Plugin issue provider keys use a 'plugin:' prefix to avoid collision
 export type PluginIssueProviderKey = `plugin:${string}`;
@@ -74,7 +77,6 @@ const BUILT_IN_KEYS: ReadonlySet<string> = new Set<BuiltInIssueProviderKey>([
   'CALDAV',
   'ICAL',
   'OPEN_PROJECT',
-  'TRELLO',
   'REDMINE',
   'AZURE_DEVOPS',
   'NEXTCLOUD_DECK',
@@ -85,6 +87,7 @@ const MIGRATED_KEYS: ReadonlySet<string> = new Set<MigratedIssueProviderKey>([
   'CLICKUP',
   'GITEA',
   'LINEAR',
+  'TRELLO',
 ]);
 
 export const isValidIssueProviderKey = (key: string): key is IssueProviderKey => {
@@ -97,7 +100,6 @@ export type IssueIntegrationCfg =
   | CaldavCfg
   | CalendarProviderCfg
   | OpenProjectCfg
-  | TrelloCfg
   | RedmineCfg
   | AzureDevOpsCfg
   | NextcloudDeckCfg;
@@ -115,7 +117,6 @@ export interface IssueIntegrationCfgs {
   CALDAV?: CaldavCfg;
   CALENDAR?: CalendarProviderCfg;
   OPEN_PROJECT?: OpenProjectCfg;
-  TRELLO?: TrelloCfg;
   REDMINE?: RedmineCfg;
   AZURE_DEVOPS?: AzureDevOpsCfg;
   NEXTCLOUD_DECK?: NextcloudDeckCfg;
@@ -128,7 +129,6 @@ export type IssueData =
   | ICalIssue
   | OpenProjectWorkPackage
   | RedmineIssue
-  | TrelloIssue
   | AzureDevOpsIssue
   | NextcloudDeckIssue
   | PluginIssue;
@@ -140,7 +140,6 @@ export type IssueDataReduced =
   | CaldavIssueReduced
   | ICalIssueReduced
   | RedmineIssue
-  | TrelloIssueReduced
   | AzureDevOpsIssueReduced
   | NextcloudDeckIssueReduced
   | PluginSearchResult;
@@ -156,19 +155,17 @@ export type IssueDataReducedMap = {
           ? ICalIssueReduced
           : K extends 'OPEN_PROJECT'
             ? OpenProjectWorkPackageReduced
-            : K extends 'TRELLO'
-              ? TrelloIssueReduced
-              : K extends 'REDMINE'
-                ? RedmineIssue
-                : K extends 'AZURE_DEVOPS'
-                  ? AzureDevOpsIssueReduced
-                  : K extends 'NEXTCLOUD_DECK'
-                    ? NextcloudDeckIssueReduced
-                    : K extends MigratedIssueProviderKey
+            : K extends 'REDMINE'
+              ? RedmineIssue
+              : K extends 'AZURE_DEVOPS'
+                ? AzureDevOpsIssueReduced
+                : K extends 'NEXTCLOUD_DECK'
+                  ? NextcloudDeckIssueReduced
+                  : K extends MigratedIssueProviderKey
+                    ? PluginSearchResult
+                    : K extends PluginIssueProviderKey
                       ? PluginSearchResult
-                      : K extends PluginIssueProviderKey
-                        ? PluginSearchResult
-                        : never;
+                      : never;
 };
 
 // TODO: add issue model to the IssueDataReducedMap
@@ -250,8 +247,10 @@ export interface IssueProviderCalendar extends IssueProviderBase, CalendarProvid
   issueProviderKey: 'ICAL';
 }
 
-export interface IssueProviderTrello extends IssueProviderBase, TrelloCfg {
+export interface IssueProviderTrello extends IssueProviderBase {
   issueProviderKey: 'TRELLO';
+  pluginId: string;
+  pluginConfig: Record<string, unknown>;
 }
 
 export interface IssueProviderLinear extends IssueProviderBase {
