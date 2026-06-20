@@ -1,8 +1,14 @@
 # Android edge-to-edge + soft keyboard (IME)
 
-Why the global add-task bar sits above the keyboard, and how the pieces fit.
-Read this before touching anything keyboard/IME-related on Android — this area
-has regressed three times (#8295, then #8508's white gap + reversed typing).
+How the global add-task bar is positioned over the keyboard, and the full #8508
+saga. **Read this before touching anything keyboard/IME-related on Android — this
+area has regressed repeatedly (#8295, then #8508).**
+
+> **⚠️ Do NOT inset the WebView for the IME based on an assumption that the
+> system "doesn't resize on Android 15/16."** Real devices (incl. a Pixel-class
+> Android 16 phone) still resize the window for the keyboard. Insetting on top of
+> that double-counts and squashes the WebView. See #8508 below. Any future inset
+> must _detect_ whether the window already resized.
 
 ## How the bar is positioned
 
@@ -17,83 +23,89 @@ variable only:
 ```
 
 `--keyboard-height` defaults to `0px`. On Android/web it is set by
-`GlobalThemeService._initVisualViewportKeyboardTracking()` from
-`obscured = window.innerHeight - visualViewport.height`. On iOS the Capacitor
-Keyboard plugin sets it.
+`GlobalThemeService._initVisualViewportKeyboardTracking()`
+(`src/app/core/theme/global-theme.service.ts`) from
+`obscured = window.innerHeight - visualViewport.height`, with a 100px floor
+(`KEYBOARD_THRESHOLD_PX` — `obscured <= 100` is treated as `0`). On iOS the
+Capacitor Keyboard plugin sets it.
 
-So the bar only floats above the keyboard if **either** the WebView shrinks
+So the bar floats above the keyboard if **either** the window/WebView shrinks
 (then `bottom: 0` is already above the IME) **or** the visual viewport shrinks
-(then `--keyboard-height` lifts the bar). If neither happens, the bar sits
-behind the keyboard.
+(then `--keyboard-height` lifts the bar). On the devices we have tested, the
+window **does** shrink (the system resizes for the IME), so `--keyboard-height`
+stays `0` and the bar sits correctly at `bottom: var(--s2)`.
 
-## The trap: targetSdk 35+ / edge-to-edge
+## #8508 — reversed / invisible characters (the actual root cause)
 
-On `targetSdkVersion >= 35` (we are on 36, Android 16) edge-to-edge is
-**mandatory** and `android:windowSoftInputMode="adjustResize"` is a **no-op for
-the IME** — the system no longer resizes the window when the keyboard opens.
-`android:windowOptOutEdgeToEdgeEnforcement` only exists on API 35 (see
-`res/values-v35/styles.xml`) and is ignored on API 36, so there is no opt-out.
+**Symptom.** On Android, the add-task bar (and search) showed reversed or
+invisible characters; some users reported "I can't see what I'm writing and Enter
+does nothing." Reported on v18.11.0 only (Pixel 10/Android 17, Galaxy S23 Ultra,
+Pixel 8a, Tab S5e/Android 15).
 
-Under enforced edge-to-edge the **only** thing that can shrink the WebView for
-the IME is `@capawesome/capacitor-android-edge-to-edge-support`, which applies
-the IME inset as the WebView's bottom margin via a single
-`OnApplyWindowInsetsListener`.
+**Root cause.** v18.11.0 shipped a `patch-package` patch (commit `5497212b9`) to
+`@capawesome/capacitor-android-edge-to-edge-support` that **always** inset the
+WebView by the IME height (`bottomMargin = max(imeInsets.bottom, …)` on every
+`OnApplyWindowInsetsListener` callback), to fix the bar sitting _behind_ the
+keyboard under _assumed_ enforced edge-to-edge.
 
-## The plugin bug (fixed via patch-package)
+On real devices the assumption is false: the system **still resizes the window
+for the IME** even on Android 16. Measured on an Android 16 phone with the
+keyboard up: `window.innerHeight` went **732 → 141** (and `--keyboard-height`
+stayed `0`). The patch then added **another ~909px** inset on top of the already
+shrunk window → the WebView was squashed to a ~141px sliver with a huge blank
+gap above the keyboard. That squashed layout is almost certainly the
+"can't see what I'm writing" report.
 
-`EdgeToEdge.applyInsetsInternal()` ships with:
+**Fix (this change).** The patch was **removed entirely**. The plugin's stock
+behavior — `bottomMargin = keyboardVisible ? 0 : max(imeInsets.bottom, …)`, i.e.
+no inset while the keyboard is up — lets the system handle the keyboard.
+**Verified on an Android 16 phone: gap gone, WebView fills the resized window,
+bar sits just above the keyboard (no behind-keyboard regression).**
 
-```java
-// When keyboard is visible, don't apply bottom margin to avoid double-counting
-// (the system already resizes the window for the keyboard)
-int bottomMargin = keyboardVisible ? 0 : Math.max(imeInsets.bottom, systemBarsInsets.bottom);
-```
+## Theories that were RULED OUT (don't re-chase)
 
-That comment's premise — _"the system already resizes the window"_ — is false on
-Android 16. When the keyboard opens the plugin sets `bottomMargin = 0`, the
-WebView stays full height, nothing resizes, and the fixed add-task bar ends up
-behind the IME.
+- **"Angular `ngModel` `writeValue` resets the caret during composition."**
+  REFUTED. `NgModel`'s `isPropertyUpdated` guard skips `writeValue` while the
+  model equals the just-typed value, and the add-task bar never touches
+  `value`/`setSelectionRange`/`focus` mid-composition. Proven with an e2e CDP IME
+  probe (since removed) and the unit specs.
+- **"Per-keystroke DOM churn (signal updates) during composition."** Not the
+  cause. On-device logging showed the WebView does **not** relayout during steady
+  typing.
+- **An SDK-version gate (inset only on API 36+) and an inset "latch."** Both
+  tried and reverted. The gate is wrong because the Android 16 phone _resizes_
+  (so it still double-counted there); the latch held a stale keyboard height and
+  produced its own gap.
 
-### The naive fix that broke typing (#8508)
+## Open items — if this is NOT fixed for the reporters
 
-The first patch simply dropped the `keyboardVisible ? 0` case so the inset is
-**always** applied:
-
-```java
-int bottomMargin = Math.max(imeInsets.bottom, systemBarsInsets.bottom);
-```
-
-It fixed positioning on Android 16 but shipped two new bugs (#8508):
-
-1. **Double-count on API ≤35.** The premise "an edge-to-edge window never
-   resizes for the IME" is only true at API 36+. On API ≤34, and on API 35 (we
-   opt out via `windowOptOutEdgeToEdgeEnforcement` in `values-v35`), the system
-   _does_ resize for the IME. Adding our inset on top → the WebView shrinks twice
-   → a keyboard-height **blank white gap** above the keyboard.
-2. **Reversed / invisible typing on API 36+.** `applyInsetsInternal` runs from a
-   per-inset `OnApplyWindowInsetsListener` and ends in an unconditional
-   `view.setLayoutParams()` (= `requestLayout()`). The IME inset fluctuates
-   _during typing_ (suggestion strip, layout switches), so the WebView relayouts
-   mid-IME-composition — resetting the composing region and reversing characters.
-
-### The corrected patch
-
-`patches/@capawesome+...8.0.8.patch` now does three things:
-
-1. **Gate the inset to API 36+** (`Build.VERSION.SDK_INT >= 36`). Below that the
-   system resizes for the IME, so we keep the original `keyboardVisible ? 0` — no
-   double-count, no gap. (This alone fixes #8508 on API ≤35 devices.)
-2. **Latch the keyboard inset** while the keyboard stays visible, so inset
-   fluctuations don't relayout the WebView mid-composition. Reset on hide.
-3. **Skip the relayout when no margin changed** (`setLayoutParams` always calls
-   `requestLayout`).
-
-Verified: the white gap is gone on API 34. The API 36+ typing half needs a real
-device (headless/old emulators don't reproduce the IME composition reset).
-
-Apply via `npm install` (runs `patch-package` in `postinstall`). Upstream this
-to the plugin so the patch can be dropped. If the latch leaves a small gap when
-the suggestion strip appears _after_ the keyboard, switch latch-first → latch-max.
+1. **Confirm the "reversed characters" symptom on the reporters' devices.** The
+   squashed-WebView / gap is verified fixed on the maintainer's Android 16 phone.
+   It is **not yet confirmed** that the _reversal_ is gone for all reporters
+   (Pixel 10/A17, S23, Pixel 8a, Tab S5e). Ask them to test the next build.
+2. **Residual: the system itself resizes on suggestion-strip changes.** Even with
+   the patch gone, the logs show the IME inset oscillating (`imeBottom 909↔996`)
+   as the suggestion strip toggles — and the _system_ resizes the window each
+   time. Typing during that system resize could still disrupt composition. This
+   is Android's own `adjustResize`, not our code. If reports persist, this is the
+   next lead (e.g. a content-stable layout, or debouncing).
+3. **The other v18.11.0 change.** If the reversal persists with the patch gone,
+   re-examine the `@angular/* 21.2.11 → 21.2.17` bump (commit `f51954f80`) — the
+   only other IME-adjacent change in the release.
+4. **Long-term proper fix.** Removing the patch only puts the bar behind the
+   keyboard on a device that enforces edge-to-edge **and** whose _visual_ viewport
+   also fails to shrink for the IME — otherwise `--keyboard-height` still lifts
+   the bar. That is cosmetic and likely rare, vs. the squashed layout on every
+   real device tested. The correct inset would be **resize-detecting**: only inset
+   when the window did not already shrink for the IME. Web-side detection already
+   exists — `GlobalThemeService._isVisualViewportResizedForKeyboard()` — so a
+   future native inset can reuse that logic rather than re-derive it. Validate on
+   the device matrix below.
+5. **Re-enable diagnostics.** Add `android.util.Log.d("SP8508", …)` in
+   `EdgeToEdge.applyInsetsInternal` logging `kbVisible` / `imeBottom` /
+   `bottomMargin` / whether a relayout fired, then `adb -d logcat -s SP8508`.
+   On the web side, `chrome://inspect` →
+   `{innerH: innerHeight, vvH: visualViewport.height, kb: getComputedStyle(document.documentElement).getPropertyValue('--keyboard-height')}`.
 
 ## What NOT to do
 
@@ -102,17 +114,20 @@ signal (native physical-px height + a `baseInnerHeight`-tracking path combined a
 `max(obscured, nativeKeyboardHeight - layoutShrink)`). That was #8295; the
 sources race on separate async events, the baseline gets reset to the shrunk
 `innerHeight` mid-animation, the double-count guard collapses, and the bar is
-mispositioned. It was reverted. Fix the inset at the source (the WebView size),
-not with JS heuristics layered on top.
+mispositioned. It was reverted. Fix the inset at the source, and **only after
+detecting** whether the system already resized.
 
 ## Device test matrix (required before merging IME changes)
 
-Heuristic stacking looks fine on one device and breaks on another — test the
-add-task bar opening the keyboard, and content resizing, on:
+Behavior differs across devices — test the add-task bar opening the keyboard, and
+typing a word fast right after tapping +, on:
 
 - Android 10 (API 29) — pre-edge-to-edge; `Type.ime()` insets are unreliable here
 - Android 14 (API 34) — edge-to-edge opt-out still possible
-- Android 15 (API 35) — edge-to-edge enforced, `windowOptOutEdgeToEdgeEnforcement` honored
-- Android 16 (API 36) — edge-to-edge mandatory, no opt-out (our target)
+- Android 15 (API 35) — we opt out via `windowOptOutEdgeToEdgeEnforcement`
+- Android 16 (API 36) — our target; the system was observed to still resize for
+  the IME on a real device
 
-Both gesture-nav and 3-button-nav, light and dark.
+Both gesture-nav and 3-button-nav, light and dark. Confirm: no blank gap above
+the keyboard, bar visible just above the keyboard, and typed characters appear in
+order (not reversed).
