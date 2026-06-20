@@ -254,10 +254,7 @@ test('initIndicator uses NativeImage for Linux tray creation and updates', () =>
   // On Linux the running icon stays static (no progress-animation frames) to
   // avoid StatusNotifierItem flicker (#4905).
   assert.equal(traySetImageCalls.at(-1).kind, 'native-image');
-  assert.match(
-    traySetImageCalls.at(-1).iconPath,
-    /\/icons\/indicator\/running-d\.png$/,
-  );
+  assert.match(traySetImageCalls.at(-1).iconPath, /\/icons\/indicator\/running-d\.png$/);
 
   beforeQuitHandler();
 });

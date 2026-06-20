@@ -149,7 +149,7 @@ export interface PlainspaceCfg extends BaseIssueProviderCfg {
 > deliberate parity choice (a provider works on a fresh device after sync without
 > re-pasting), and is the accepted secret-handling posture for issue providers.
 > The account store (§3.3, local-only `localStorage`) holds a token **too**, but
-> only to bootstrap the "Share on Plainspace" flow, which needs a token *before*
+> only to bootstrap the "Share on Plainspace" flow, which needs a token _before_
 > any provider exists; the provider runtime reads only `cfg.token`. An earlier
 > draft said the token was not stored in the cfg — that was never the case in the
 > shipped code.

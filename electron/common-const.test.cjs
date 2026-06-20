@@ -4,11 +4,9 @@ const path = require('node:path');
 
 require('ts-node/register/transpile-only');
 
-const {
-  isGnomeDesktopEnv,
-  isWaylandEnv,
-  isGnomeWaylandEnv,
-} = require(path.resolve(__dirname, 'common.const.ts'));
+const { isGnomeDesktopEnv, isWaylandEnv, isGnomeWaylandEnv } = require(
+  path.resolve(__dirname, 'common.const.ts'),
+);
 
 test('isGnomeDesktopEnv: detects GNOME from desktop env vars', () => {
   assert.equal(isGnomeDesktopEnv('linux', { XDG_CURRENT_DESKTOP: 'GNOME' }), true);
@@ -56,7 +54,10 @@ test('isGnomeWaylandEnv: only true for GNOME AND Wayland together', () => {
   );
   // non-GNOME Wayland (e.g. KDE) is unaffected
   assert.equal(
-    isGnomeWaylandEnv('linux', { XDG_CURRENT_DESKTOP: 'KDE', XDG_SESSION_TYPE: 'wayland' }),
+    isGnomeWaylandEnv('linux', {
+      XDG_CURRENT_DESKTOP: 'KDE',
+      XDG_SESSION_TYPE: 'wayland',
+    }),
     false,
   );
 });
