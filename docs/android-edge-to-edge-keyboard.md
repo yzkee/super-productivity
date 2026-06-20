@@ -2,7 +2,7 @@
 
 Why the global add-task bar sits above the keyboard, and how the pieces fit.
 Read this before touching anything keyboard/IME-related on Android — this area
-has regressed twice.
+has regressed three times (#8295, then #8508's white gap + reversed typing).
 
 ## How the bar is positioned
 
@@ -54,22 +54,46 @@ Android 16. When the keyboard opens the plugin sets `bottomMargin = 0`, the
 WebView stays full height, nothing resizes, and the fixed add-task bar ends up
 behind the IME.
 
-`patches/@capawesome+capacitor-android-edge-to-edge-support+8.0.8.patch` drops
-the `keyboardVisible ? 0` special case:
+### The naive fix that broke typing (#8508)
+
+The first patch simply dropped the `keyboardVisible ? 0` case so the inset is
+**always** applied:
 
 ```java
 int bottomMargin = Math.max(imeInsets.bottom, systemBarsInsets.bottom);
 ```
 
-`imeInsets.bottom` already spans the navigation-bar area while the keyboard is
-up, and an edge-to-edge window never resizes for the IME, so a single `max()` is
-correct in both states with no double-counting. With the WebView inset above the
-keyboard, the content genuinely resizes and `--keyboard-height` stays `0` — the
-bar lands at `bottom: var(--s2)` just above the IME, on the existing JS path with
-no client changes.
+It fixed positioning on Android 16 but shipped two new bugs (#8508):
+
+1. **Double-count on API ≤35.** The premise "an edge-to-edge window never
+   resizes for the IME" is only true at API 36+. On API ≤34, and on API 35 (we
+   opt out via `windowOptOutEdgeToEdgeEnforcement` in `values-v35`), the system
+   _does_ resize for the IME. Adding our inset on top → the WebView shrinks twice
+   → a keyboard-height **blank white gap** above the keyboard.
+2. **Reversed / invisible typing on API 36+.** `applyInsetsInternal` runs from a
+   per-inset `OnApplyWindowInsetsListener` and ends in an unconditional
+   `view.setLayoutParams()` (= `requestLayout()`). The IME inset fluctuates
+   _during typing_ (suggestion strip, layout switches), so the WebView relayouts
+   mid-IME-composition — resetting the composing region and reversing characters.
+
+### The corrected patch
+
+`patches/@capawesome+...8.0.8.patch` now does three things:
+
+1. **Gate the inset to API 36+** (`Build.VERSION.SDK_INT >= 36`). Below that the
+   system resizes for the IME, so we keep the original `keyboardVisible ? 0` — no
+   double-count, no gap. (This alone fixes #8508 on API ≤35 devices.)
+2. **Latch the keyboard inset** while the keyboard stays visible, so inset
+   fluctuations don't relayout the WebView mid-composition. Reset on hide.
+3. **Skip the relayout when no margin changed** (`setLayoutParams` always calls
+   `requestLayout`).
+
+Verified: the white gap is gone on API 34. The API 36+ typing half needs a real
+device (headless/old emulators don't reproduce the IME composition reset).
 
 Apply via `npm install` (runs `patch-package` in `postinstall`). Upstream this
-to the plugin so the patch can be dropped.
+to the plugin so the patch can be dropped. If the latch leaves a small gap when
+the suggestion strip appears _after_ the keyboard, switch latch-first → latch-max.
 
 ## What NOT to do
 
