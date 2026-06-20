@@ -2,26 +2,27 @@ For all current downloads, package links, and platform-specific notes: [check th
 
 ### Features
 
-- Add notes directly from the add-task bar.
-- Added the built-in Plainspace theme and refreshed the Rainbow theme.
-- Project and tag dropdowns now follow their tree order.
-- Focus Mode is enabled in the time-tracker onboarding preset.
-- Updated Ukrainian translations.
+- Migrated Azure DevOps and Trello issue providers to plugins.
+- Added Plainspace integration for shared projects.
+- Focus Mode now shows session completion and sends a notification when a countdown finishes.
+- Kept the subtask input open after adding a subtask.
+- Clicking the issue-updated toggle now clears its badge.
+- Moved the collaboration option before the backlog option in the project creation dialog.
 
 ### Fixes
 
-- Improved sync reliability, conflict handling, retries, encryption operations, and lost-update protection.
-- Fullscreen note edits now persist when navigating, resizing, or ending a Focus Mode session.
-- Improved mobile backup restoration and durability, including large Android backups and iOS read failures.
-- Restored desktop plugin rendering, prevented empty side panels, and exposed the focused-task API to iframe plugins.
-- Fixed Windows tray icons, macOS shortcut layouts, and Meta/OS modifier recording.
-- Fixed Android keyboard positioning, status-bar spacing, and background battery drain.
-- Added support for app deep links such as `obsidian://`.
-- Fixed Daily Summary opening from the before-close dialog.
-- Fixed several task, Focus Mode, schedule, and idle-button visual issues.
-- Redacted provider credentials and WebSocket tokens from exportable logs.
-- Fixed Nextcloud Deck completion values and rejected negative counter values.
+- Improved Android keyboard inset handling and removed the keyboard-related white flash.
+- Clarified Nextcloud 404 errors caused by an incorrect user ID.
+- Preserved background overlay and blur settings after removing a background image.
+- Preserved sections during legacy backup migration.
+- Preserved manual task order within tags when sorting by tag.
+- Completing a task no longer automatically schedules it for today.
+- Unknown issue-provider keys are no longer reported as sync corruption.
+- Preserved Flowtime break settings when switching focus modes.
+- Improved the Linux tray icon and restored the custom title bar on GNOME X11.
+- Added Vikunja project discovery through CalDAV.
+- Corrected the Plainspace claim-list link icon color.
 
-### Performance
+### Documentation
 
-- Improved sync performance by caching the latest full-state operation lookup.
+- Added a guide for using Proton Drive through rclone and WebDAV.
