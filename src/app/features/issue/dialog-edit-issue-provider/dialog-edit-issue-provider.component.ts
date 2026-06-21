@@ -73,6 +73,8 @@ import { TagService } from '../../tag/tag.service';
 import { ChipListInputComponent } from '../../../ui/chip-list-input/chip-list-input.component';
 import { unique } from '../../../util/unique';
 
+type OptionsLoadState = 'idle' | 'loading' | 'loaded' | 'empty' | 'failed';
+
 @Component({
   selector: 'dialog-edit-issue-provider',
   imports: [
@@ -112,7 +114,7 @@ export class DialogEditIssueProviderComponent {
   isConnectionWorks = signal(false);
   isOAuthConnected = signal(false);
   isOAuthConnecting = signal(false);
-  optionsLoadState = signal<'idle' | 'loading' | 'loaded' | 'failed'>('idle');
+  optionsLoadState = signal<OptionsLoadState>('idle');
   form = new FormGroup({});
   showLoadOptionsButton = false;
 
@@ -299,7 +301,7 @@ export class DialogEditIssueProviderComponent {
           msg: T.F.ISSUE.S.CONNECTION_SUCCESS,
         });
         // Reload dynamic options (e.g. calendar lists) after successful connection
-        await this._loadDynamicOptions();
+        await this._loadAndSetDynamicOptionsState();
       } else {
         this._snackService.open({
           type: 'ERROR',
@@ -389,7 +391,7 @@ export class DialogEditIssueProviderComponent {
     });
     // _loadDynamicOptions surfaces its own per-field error snacks; failures
     // here must not be reported as OAuth failures (the connection succeeded).
-    await this._loadDynamicOptions();
+    await this._loadAndSetDynamicOptionsState();
   }
 
   async disconnectOAuth(): Promise<void> {
@@ -415,17 +417,20 @@ export class DialogEditIssueProviderComponent {
   }
 
   /**
-   * @returns true if all fields loaded successfully, false if any failed
+   * @returns whether all fields loaded successfully and at least one field has options
    */
-  private async _loadDynamicOptions(): Promise<boolean> {
+  private async _loadDynamicOptions(): Promise<{
+    isSuccess: boolean;
+    hasOptions: boolean;
+  }> {
     const provider = this._pluginRegistry.getProvider(this.issueProviderKey);
     if (!provider) {
-      return false;
+      return { isSuccess: false, hasOptions: false };
     }
     const configFields = this._pluginRegistry.getConfigFields(this.issueProviderKey);
     const dynamicFields = configFields.filter((f) => typeof f.loadOptions === 'function');
     if (!dynamicFields.length) {
-      return true;
+      return { isSuccess: true, hasOptions: true };
     }
 
     const pluginConfig = (this.model as Record<string, unknown>)['pluginConfig'] ?? {};
@@ -435,12 +440,16 @@ export class DialogEditIssueProviderComponent {
     );
 
     let anyFailed = false;
+    let hasOptions = false;
     for (const field of dynamicFields) {
       try {
         const options = await field.loadOptions!(
           pluginConfig as Record<string, unknown>,
           http,
         );
+        if (options.length > 0) {
+          hasOptions = true;
+        }
         const formlyField = this._findFormlyField(
           this.fields as FormlyFieldConfig[],
           'pluginConfig.' + field.key,
@@ -464,6 +473,7 @@ export class DialogEditIssueProviderComponent {
         });
       }
     }
+    this._refreshDynamicOptionFieldStates(hasOptions ? 'loaded' : 'empty');
     // Trigger formly refresh — reassign both fields and model so mat-select
     // re-evaluates display labels for already-selected values.
     // Use detectChanges() instead of markForCheck() because plugin bridge
@@ -477,7 +487,50 @@ export class DialogEditIssueProviderComponent {
         }
       : { ...this.model };
     this._cdr.detectChanges();
-    return !anyFailed;
+    return { isSuccess: !anyFailed, hasOptions };
+  }
+
+  private async _loadAndSetDynamicOptionsState(): Promise<void> {
+    this._setOptionsLoadState('loading');
+    const result = await this._loadDynamicOptions();
+    this._setOptionsLoadState(
+      result.isSuccess ? (result.hasOptions ? 'loaded' : 'empty') : 'failed',
+    );
+  }
+
+  private _setOptionsLoadState(state: OptionsLoadState): void {
+    this.optionsLoadState.set(state);
+    this._refreshDynamicOptionFieldStates(state);
+  }
+
+  private _refreshDynamicOptionFieldStates(state = this.optionsLoadState()): void {
+    const configFields = this._pluginRegistry.getConfigFields(this.issueProviderKey);
+    const dynamicFields = configFields.filter((f) => typeof f.loadOptions === 'function');
+    for (const field of dynamicFields) {
+      const formlyField = this._findFormlyField(
+        this.fields as FormlyFieldConfig[],
+        'pluginConfig.' + field.key,
+      );
+      if (!formlyField) {
+        continue;
+      }
+      const templateOptions = (formlyField.templateOptions ??= {});
+      const props = (formlyField.props ??= {});
+      const options = templateOptions.options ?? props.options ?? [];
+      const hasOptions = Array.isArray(options) && options.length > 0;
+      const isDisabled = state === 'loading' || state === 'empty' || !hasOptions;
+      const placeholder = getDynamicOptionPlaceholder(state, hasOptions);
+
+      templateOptions.disabled = isDisabled;
+      props.disabled = isDisabled;
+      if (placeholder) {
+        templateOptions.placeholder = placeholder;
+        props.placeholder = placeholder;
+      } else {
+        delete templateOptions.placeholder;
+        delete props.placeholder;
+      }
+    }
   }
 
   private _findFormlyField(
@@ -631,6 +684,7 @@ export class DialogEditIssueProviderComponent {
     pattern?: string;
     options?: { value: string; label: string }[];
     showIf?: string;
+    loadOptions?: unknown;
   }): unknown {
     if (f.type === 'link') {
       return {
@@ -661,7 +715,15 @@ export class DialogEditIssueProviderComponent {
         ...(f.description ? { description: f.description } : {}),
         ...(f.type === 'password' ? { type: 'password' } : {}),
         ...(f.type === 'select' || f.type === 'multiSelect'
-          ? { options: f.options }
+          ? {
+              options: f.options,
+              ...(f.loadOptions
+                ? {
+                    disabled: true,
+                    placeholder: T.F.ISSUE.DIALOG.LOAD_OPTIONS_FIRST,
+                  }
+                : {}),
+            }
           : {}),
         ...(f.type === 'multiSelect' ? { multiple: true } : {}),
         ...(f.pattern ? { pattern: f.pattern } : {}),
@@ -756,7 +818,7 @@ export class DialogEditIssueProviderComponent {
     );
     this.isOAuthConnected.set(hasTokens);
     if (hasTokens) {
-      await this._loadDynamicOptions();
+      await this._loadAndSetDynamicOptionsState();
     } else {
       // For non-OAuth plugins (e.g. CalDAV with Basic Auth), show a "Load Calendars"
       // button and attempt to load dynamic options if credentials are already saved.
@@ -775,11 +837,27 @@ export class DialogEditIssueProviderComponent {
   }
 
   async loadDynamicOptions(): Promise<void> {
-    this.optionsLoadState.set('loading');
-    const success = await this._loadDynamicOptions();
-    this.optionsLoadState.set(success ? 'loaded' : 'failed');
+    await this._loadAndSetDynamicOptionsState();
   }
 }
+
+const getDynamicOptionPlaceholder = (
+  state: OptionsLoadState,
+  hasOptions: boolean,
+): string | undefined => {
+  switch (state) {
+    case 'loading':
+      return T.F.ISSUE.DIALOG.LOADING_OPTIONS;
+    case 'empty':
+      return T.F.ISSUE.DIALOG.NO_OPTIONS_FOUND;
+    case 'failed':
+      return T.F.ISSUE.DIALOG.LOAD_OPTIONS_FAILED;
+    case 'loaded':
+      return hasOptions ? undefined : T.F.ISSUE.DIALOG.NO_OPTIONS_FOUND;
+    default:
+      return T.F.ISSUE.DIALOG.LOAD_OPTIONS_FIRST;
+  }
+};
 
 const CREDENTIAL_LIKE_CFG_KEY_RE = /token|secret|key|password|auth|credential/i;
 
