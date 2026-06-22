@@ -518,10 +518,8 @@ export class DialogEditIssueProviderComponent {
       const options = templateOptions.options ?? [];
       const hasOptions = Array.isArray(options) && options.length > 0;
       const isDisabled = state === 'loading' || state === 'empty' || !hasOptions;
-      const placeholder = getDynamicOptionPlaceholder(state, hasOptions);
 
       templateOptions.disabled = isDisabled;
-      templateOptions.placeholder = placeholder;
     }
   }
 
@@ -832,24 +830,6 @@ export class DialogEditIssueProviderComponent {
     await this._loadAndSetDynamicOptionsState();
   }
 }
-
-const getDynamicOptionPlaceholder = (
-  state: OptionsLoadState,
-  hasOptions: boolean,
-): string | undefined => {
-  switch (state) {
-    case 'loading':
-      return T.F.ISSUE.DIALOG.LOADING_OPTIONS;
-    case 'empty':
-      return T.F.ISSUE.DIALOG.NO_OPTIONS_FOUND;
-    case 'failed':
-      return T.F.ISSUE.DIALOG.LOAD_OPTIONS_FAILED;
-    case 'loaded':
-      return hasOptions ? undefined : T.F.ISSUE.DIALOG.NO_OPTIONS_FOUND;
-    default:
-      return T.F.ISSUE.DIALOG.LOAD_OPTIONS_FIRST;
-  }
-};
 
 const CREDENTIAL_LIKE_CFG_KEY_RE = /token|secret|key|password|auth|credential/i;
 
