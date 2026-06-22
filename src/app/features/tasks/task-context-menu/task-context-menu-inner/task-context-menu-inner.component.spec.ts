@@ -280,6 +280,31 @@ describe('TaskContextMenuInnerComponent', () => {
 
       expect(getByIdSpy).toHaveBeenCalledWith('t-task-with-{special}-chars');
     }));
+
+    // Regression guard for #8533: focusing the task after the context menu
+    // closes must never scroll the viewport. An action like "add to today"
+    // relocates the task (Overdue -> Today), so a plain .focus() would yank the
+    // list to the moved task. Focus is kept for keyboard continuity, but with
+    // preventScroll so the user stays anchored where they acted.
+    it('should focus the related task with preventScroll to avoid viewport jump', fakeAsync(() => {
+      component.task = {
+        id: 'T1',
+        title: 'Test',
+        projectId: 'P1',
+        tagIds: [],
+        subTaskIds: [],
+      } as any;
+
+      const focusSpy = jasmine.createSpy('focus');
+      spyOn(document, 'getElementById').and.returnValue({
+        focus: focusSpy,
+      } as unknown as HTMLElement);
+
+      component.focusRelatedTaskOrNext();
+      tick(100);
+
+      expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true });
+    }));
   });
 
   describe('focusFirstSubmenuItem()', () => {

@@ -304,7 +304,12 @@ export class TaskContextMenuInnerComponent implements AfterViewInit, OnDestroy {
     setTimeout(() => {
       const taskElement = document.getElementById(`t-${this.task.id}`);
       if (taskElement) {
-        taskElement.focus();
+        // Restore focus to the acted-on task (keyboard continuity) WITHOUT
+        // scrolling: an action that relocates the task (e.g. Overdue -> Today)
+        // would otherwise yank the viewport to the moved task's new position,
+        // breaking "schedule several in a row" triage. The user acted at their
+        // current scroll position, so keep them anchored there. See issue #8533.
+        taskElement.focus({ preventScroll: true });
         // Ensure focusedTaskId is set even if focus event doesn't fire
         this._taskFocusService.focusedTaskId.set(this.task.id);
       }
