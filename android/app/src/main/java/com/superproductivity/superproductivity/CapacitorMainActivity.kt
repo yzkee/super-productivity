@@ -10,6 +10,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.WebView
 import android.widget.Toast
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
@@ -45,6 +46,16 @@ class CapacitorMainActivity : BridgeActivity() {
     private var pendingShareIntent: JSONObject? = null
     private var isFrontendReady = false
     private var startupOverlayManager: StartupOverlayManager? = null
+
+    // SDK < 30 soft-keyboard workaround: the WebView's resting layout height
+    // (e.g. MATCH_PARENT), captured so it can be restored when the keyboard hides.
+    // See adjustWebViewHeightForKeyboardBelowApi30.
+    private var webViewLayoutHeightDefault: Int? = null
+
+    // Reused scratch for getLocationOnScreen in the keyboard layout listener (hot
+    // path) to avoid allocating an IntArray on every pass while the IME is up.
+    private val webViewLocationOnScreen = IntArray(2)
+
     private var isTimerCompleteReceiverRegistered = false
     private var isForegroundServiceFailureReceiverRegistered = false
 
@@ -174,6 +185,11 @@ class CapacitorMainActivity : BridgeActivity() {
         WebViewCompatibilityChecker.recordSuccessfulLoad(this, webViewCompatibility?.majorVersion)
 
 
+        // Remember the WebView's resting layout height (e.g. MATCH_PARENT) so the
+        // SDK < 30 keyboard workaround can restore it on hide. See
+        // adjustWebViewHeightForKeyboardBelowApi30.
+        webViewLayoutHeightDefault = bridge?.webView?.layoutParams?.height
+
         // Handle keyboard visibility changes
         val rootView = findViewById<View>(android.R.id.content)
         rootView.viewTreeObserver.addOnGlobalLayoutListener {
@@ -182,13 +198,13 @@ class CapacitorMainActivity : BridgeActivity() {
             val screenHeight = rootView.rootView.height
 
             val keypadHeight = screenHeight - rect.bottom
-            if (keypadHeight > screenHeight * 0.15) {
-                // keyboard is opened
-                callJSInterfaceFunctionIfExists("next", "isKeyboardShown$", "true")
-            } else {
-                // keyboard is closed
-                callJSInterfaceFunctionIfExists("next", "isKeyboardShown$", "false")
-            }
+            val isKeyboardOpen = keypadHeight > screenHeight * 0.15
+            callJSInterfaceFunctionIfExists(
+                "next",
+                "isKeyboardShown$",
+                if (isKeyboardOpen) "true" else "false"
+            )
+            adjustWebViewHeightForKeyboardBelowApi30(rect, isKeyboardOpen)
         }
 
         // Register broadcast receiver for focus mode timer completion
@@ -433,6 +449,75 @@ class CapacitorMainActivity : BridgeActivity() {
         super.onResume()
         Log.v("TW", "CapacitorFullscreenActivity: onResume")
         callJSInterfaceFunctionIfExists("next", "onResume$")
+    }
+
+    /**
+     * SDK < 30 soft-keyboard workaround for the add-task bar sitting behind the
+     * keyboard (#8508 follow-up, Android 9 / API 28).
+     *
+     * Root cause: the `@capawesome` edge-to-edge plugin sets the WebView
+     * `bottomMargin = 0` whenever the IME is visible (`EdgeToEdge.applyInsetsInternal`:
+     * "the system already resizes the window for the keyboard"), but under enforced
+     * edge-to-edge (targetSdk 36) the window does NOT resize on API < 30, so the
+     * WebView keeps its full height and the `position: fixed` bar sits behind the
+     * keyboard.
+     *
+     * We must NOT correct this via `bottomMargin`: the plugin owns that property and
+     * rewrites it on every inset dispatch, so a second writer just flickers
+     * (confirmed on an API 28 device — the margin alternated `0 ↔ lift`). WebView
+     * *padding* does not move the web layout viewport either.
+     *
+     * Instead, while the keyboard is up we set an explicit WebView **layout height**
+     * (to the keyboard top), and restore the resting height ([webViewLayoutHeightDefault],
+     * e.g. MATCH_PARENT) on hide. Height is a different property than the margin the
+     * plugin manages, and for an explicit-height view the bottom margin does not
+     * change the view's size — so the two never fight, and the plugin keeps doing
+     * everything else (system-bar insets AND its color overlays, so no white navbar
+     * gap). Shrinking the view shrinks the web layout viewport, so the existing CSS
+     * resolves the bar above the keyboard with no web-side keyboard-height math
+     * (avoiding the reverted #8295 fallback). The target (`rect.bottom − webViewTop`)
+     * is read from `getWindowVisibleDisplayFrame` (reliable on API 28) and does not
+     * depend on the WebView's own height, so it is stable across passes — no
+     * feedback loop. See docs/android-edge-to-edge-keyboard.md.
+     *
+     * API >= 30 is a strict no-op — the plugin stays fully in charge, so the
+     * behavior verified in 18.12.0 is unchanged.
+     *
+     * NOTE: [StartupOverlayManager.updateOverlayInsets] also reads the WebView's
+     * geometry (`webView.height`) to align the native startup overlay. It only
+     * stays correct because it early-returns once its input bar is visible (the
+     * keyboard phase) — i.e. it never reads the height while this method is
+     * shrinking it. Keep that guard if you touch either side.
+     */
+    private fun adjustWebViewHeightForKeyboardBelowApi30(rect: Rect, isKeyboardOpen: Boolean) {
+        if (android.os.Build.VERSION.SDK_INT >= 30) return
+        val webView = bridge?.webView ?: return
+        val params = webView.layoutParams ?: return
+        // Ignore stale/pre-layout geometry so the height is not set from a bad frame.
+        if (isKeyboardOpen && webView.height == 0) return
+
+        val targetHeight: Int
+        if (isKeyboardOpen) {
+            webView.getLocationOnScreen(webViewLocationOnScreen)
+            val heightToKeyboardTop = rect.bottom - webViewLocationOnScreen[1]
+            // Guard against a degenerate/transient measurement collapsing the
+            // WebView to 0 — the height==0 check above would then latch and stop
+            // recomputing. Keep the current height until a sane value appears.
+            if (heightToKeyboardTop <= 0) return
+            targetHeight = heightToKeyboardTop
+        } else {
+            targetHeight = webViewLayoutHeightDefault ?: ViewGroup.LayoutParams.MATCH_PARENT
+        }
+
+        if (params.height == targetHeight) return
+        params.height = targetHeight
+        webView.layoutParams = params
+        if (BuildConfig.DEBUG) {
+            Log.d(
+                "SUPKeyboard",
+                "webView height -> $targetHeight (kbOpen=$isKeyboardOpen rectB=${rect.bottom})"
+            )
+        }
     }
 
     private fun callJSInterfaceFunctionIfExists(
