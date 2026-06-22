@@ -456,8 +456,6 @@ export class DialogEditIssueProviderComponent {
         );
         if (formlyField?.templateOptions) {
           formlyField.templateOptions.options = options;
-        } else if (formlyField?.props) {
-          formlyField.props.options = options;
         }
       } catch (e) {
         anyFailed = true;
@@ -473,11 +471,8 @@ export class DialogEditIssueProviderComponent {
         });
       }
     }
-    this._refreshDynamicOptionFieldStates(hasOptions ? 'loaded' : 'empty');
     // Trigger formly refresh — reassign both fields and model so mat-select
     // re-evaluates display labels for already-selected values.
-    // Use detectChanges() instead of markForCheck() because plugin bridge
-    // async calls may resolve outside Zone.js (e.g. Electron IPC).
     this.fields = [...this.fields];
     const currentPluginCfg = (this.model as Record<string, unknown>)['pluginConfig'];
     this.model = currentPluginCfg
@@ -486,7 +481,6 @@ export class DialogEditIssueProviderComponent {
           pluginConfig: { ...(currentPluginCfg as Record<string, unknown>) },
         }
       : { ...this.model };
-    this._cdr.detectChanges();
     return { isSuccess: !anyFailed, hasOptions };
   }
 
@@ -501,9 +495,12 @@ export class DialogEditIssueProviderComponent {
   private _setOptionsLoadState(state: OptionsLoadState): void {
     this.optionsLoadState.set(state);
     this._refreshDynamicOptionFieldStates(state);
+    // Use detectChanges() instead of markForCheck() because plugin bridge
+    // async calls may resolve outside Zone.js (e.g. Electron IPC).
+    this._cdr.detectChanges();
   }
 
-  private _refreshDynamicOptionFieldStates(state = this.optionsLoadState()): void {
+  private _refreshDynamicOptionFieldStates(state: OptionsLoadState): void {
     const configFields = this._pluginRegistry.getConfigFields(this.issueProviderKey);
     const dynamicFields = configFields.filter((f) => typeof f.loadOptions === 'function');
     for (const field of dynamicFields) {
@@ -514,22 +511,17 @@ export class DialogEditIssueProviderComponent {
       if (!formlyField) {
         continue;
       }
-      const templateOptions = (formlyField.templateOptions ??= {});
-      const props = (formlyField.props ??= {});
-      const options = templateOptions.options ?? props.options ?? [];
+      const templateOptions = formlyField.templateOptions;
+      if (!templateOptions) {
+        continue;
+      }
+      const options = templateOptions.options ?? [];
       const hasOptions = Array.isArray(options) && options.length > 0;
       const isDisabled = state === 'loading' || state === 'empty' || !hasOptions;
       const placeholder = getDynamicOptionPlaceholder(state, hasOptions);
 
       templateOptions.disabled = isDisabled;
-      props.disabled = isDisabled;
-      if (placeholder) {
-        templateOptions.placeholder = placeholder;
-        props.placeholder = placeholder;
-      } else {
-        delete templateOptions.placeholder;
-        delete props.placeholder;
-      }
+      templateOptions.placeholder = placeholder;
     }
   }
 
