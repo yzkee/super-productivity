@@ -48,6 +48,17 @@ const buildTask = (id: string, subTasks: TaskWithSubTasks[] = []): TaskWithSubTa
   ({ id, subTasks }) as unknown as TaskWithSubTasks;
 
 describe('WorkViewComponent', () => {
+  let store: MockStore;
+
+  // overrideSelector() calls setResult() on the GLOBAL selector singletons, and
+  // NgRx MockStore does not auto-clear them between specs. Without this, the
+  // frozen today/offset values (selectTodayStr, selectStartOfNextDayDiffMs) leak
+  // into later specs (e.g. planner.selectors, task.selectors) under Jasmine's
+  // randomized spec order and make their "today" assertions fail intermittently.
+  afterEach(() => {
+    store?.resetSelectors();
+  });
+
   describe('selected task retention effect', () => {
     let selectedTaskId: ReturnType<typeof signal<string | null>>;
     let setSelectedId: jasmine.Spy;
@@ -57,7 +68,6 @@ describe('WorkViewComponent', () => {
     let customizeSource: () => Observable<{ list: TaskWithSubTasks[] }>;
     let isCustomized: ReturnType<typeof signal<boolean>>;
     let activeWorkContextId: string;
-    let store: MockStore;
 
     const createComponent = async (
       inputs: {
@@ -378,7 +388,7 @@ describe('WorkViewComponent', () => {
       TestBed.overrideComponent(WorkViewComponent, {
         set: { template: '', imports: [], styles: [''] },
       });
-      const store = TestBed.inject(MockStore);
+      store = TestBed.inject(MockStore);
       store.overrideSelector(selectOverdueTasksWithSubTasks, []);
       store.overrideSelector(selectLaterTodayTasksWithSubTasks, []);
       store.overrideSelector(selectTaskRepeatCfgsByProjectId, []);
