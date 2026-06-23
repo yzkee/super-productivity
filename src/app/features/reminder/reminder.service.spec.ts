@@ -375,37 +375,36 @@ describe('ReminderService', () => {
   });
 
   describe('reminder UI dismiss cooldown', () => {
+    const REMIND_AT = 1_700_000_000_000;
+
     it('is not suppressed by default', () => {
-      expect(service.isReminderUiSuppressed('task1')).toBe(false);
+      expect(service.isReminderUiSuppressed('task1', REMIND_AT)).toBe(false);
     });
 
-    it('suppresses a reminder after a passive dismiss', () => {
-      service.suppressReminderUiAfterDismiss('task1');
-      expect(service.isReminderUiSuppressed('task1')).toBe(true);
+    it('suppresses an occurrence after a passive dismiss', () => {
+      service.suppressReminderUiAfterDismiss('task1', REMIND_AT);
+      expect(service.isReminderUiSuppressed('task1', REMIND_AT)).toBe(true);
     });
 
-    it('only suppresses the dismissed reminder, not others', () => {
-      service.suppressReminderUiAfterDismiss('task1');
-      expect(service.isReminderUiSuppressed('task1')).toBe(true);
-      expect(service.isReminderUiSuppressed('task2')).toBe(false);
+    it('only suppresses the dismissed task, not others', () => {
+      service.suppressReminderUiAfterDismiss('task1', REMIND_AT);
+      expect(service.isReminderUiSuppressed('task1', REMIND_AT)).toBe(true);
+      expect(service.isReminderUiSuppressed('task2', REMIND_AT)).toBe(false);
+    });
+
+    it('does not suppress a different occurrence of the same task (reschedule)', () => {
+      service.suppressReminderUiAfterDismiss('task1', REMIND_AT);
+      // Rescheduling produces a new remindAt — even within the cooldown window it
+      // must fire, never be hidden by the old dismiss.
+      expect(service.isReminderUiSuppressed('task1', REMIND_AT + 60_000)).toBe(false);
     });
 
     it('expires after the cooldown so the reminder re-nudges', () => {
-      service.suppressReminderUiAfterDismiss('task1');
+      service.suppressReminderUiAfterDismiss('task1', REMIND_AT);
       const afterCooldown = Date.now() + REMINDER_DISMISS_UI_COOLDOWN_MS + 1000;
-      expect(service.isReminderUiSuppressed('task1', afterCooldown)).toBe(false);
-    });
-
-    it('stays suppressed right up to the cooldown boundary', () => {
-      const before = Date.now();
-      service.suppressReminderUiAfterDismiss('task1');
-      // 1s before expiry it must still be suppressed
-      expect(
-        service.isReminderUiSuppressed(
-          'task1',
-          before + REMINDER_DISMISS_UI_COOLDOWN_MS - 1000,
-        ),
-      ).toBe(true);
+      expect(service.isReminderUiSuppressed('task1', REMIND_AT, afterCooldown)).toBe(
+        false,
+      );
     });
   });
 

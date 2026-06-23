@@ -590,7 +590,7 @@ describe('DialogViewTaskRemindersComponent destroy clears unhandled deadline rem
   let matDialogRefSpy: jasmine.SpyObj<MatDialogRef<DialogViewTaskRemindersComponent>>;
   let reminderServiceStub: {
     onRemindersActive$: Subject<TaskWithReminderData[]>;
-    suppressReminderUiAfterDismiss: (taskId: string) => void;
+    suppressReminderUiAfterDismiss: (taskId: string, remindAt: number) => void;
   };
 
   const buildTask = (id: string, overrides: Partial<Task> = {}): Task =>
@@ -739,6 +739,7 @@ describe('DialogViewTaskRemindersComponent destroy clears unhandled deadline rem
 
     expect(reminderServiceStub.suppressReminderUiAfterDismiss).toHaveBeenCalledOnceWith(
       'task-1',
+      jasmine.any(Number),
     );
   });
 
@@ -751,9 +752,7 @@ describe('DialogViewTaskRemindersComponent destroy clears unhandled deadline rem
 
     component.ngOnDestroy();
 
-    expect(reminderServiceStub.suppressReminderUiAfterDismiss).not.toHaveBeenCalledWith(
-      'task-1',
-    );
+    expect(reminderServiceStub.suppressReminderUiAfterDismiss).not.toHaveBeenCalled();
   });
 
   it('clears every unhandled deadline reminder on destroy, skipping dismissed ones', () => {
@@ -979,7 +978,7 @@ describe('DialogViewTaskRemindersComponent navigation and focus', () => {
   let taskServiceSpy: jasmine.SpyObj<TaskService>;
   let reminderServiceStub: {
     onRemindersActive$: Subject<TaskWithReminderData[]>;
-    suppressReminderUiAfterDismiss: (taskId: string) => void;
+    suppressReminderUiAfterDismiss: (taskId: string, remindAt: number) => void;
   };
 
   const buildTask = (id: string): Task =>
@@ -1197,7 +1196,7 @@ describe('DialogViewTaskRemindersComponent reconciles vanished reminders (sync)'
   let matDialogRefSpy: jasmine.SpyObj<MatDialogRef<DialogViewTaskRemindersComponent>>;
   let reminderServiceStub: {
     onRemindersActive$: Subject<TaskWithReminderData[]>;
-    suppressReminderUiAfterDismiss: (taskId: string) => void;
+    suppressReminderUiAfterDismiss: (taskId: string, remindAt: number) => void;
   };
   let storeTasks$: BehaviorSubject<Task[]>;
 

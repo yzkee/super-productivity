@@ -82,9 +82,13 @@ export class ReminderModule {
             // worker (~10s tick) cannot immediately re-open the modal and freeze
             // the app. The cooldown is in-memory only — a cold start re-nudges.
             map((reminders) =>
-              (reminders || []).filter(
-                (r) => !this._reminderService.isReminderUiSuppressed(r.id),
-              ),
+              (reminders || []).filter((r) => {
+                const remindAt = r.reminderData?.remindAt;
+                return (
+                  remindAt == null ||
+                  !this._reminderService.isReminderUiSuppressed(r.id, remindAt)
+                );
+              }),
             ),
             // NOTE: we simply filter for open dialogs, as reminders are re-queried quite often
             filter(

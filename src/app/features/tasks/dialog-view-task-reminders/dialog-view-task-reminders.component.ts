@@ -160,6 +160,14 @@ export class DialogViewTaskRemindersComponent implements OnDestroy {
   // already absent at open time is never confirmed, so it is never dropped — this
   // preserves the open-time relaxation that fixed the worker/store snapshot race.
   private _confirmedPresentIds = new Set<string>();
+  // remindAt per shown reminder, captured from worker emissions so a passive
+  // dismiss can be recorded against the exact occurrence (taskId + remindAt) in
+  // the ReminderService UI cooldown.
+  private _remindAtById = new Map<string, number>(
+    this.data.reminders
+      .filter((r) => typeof r.reminderData?.remindAt === 'number')
+      .map((r): [string, number] => [r.id, r.reminderData!.remindAt]),
+  );
   // Stored separately so it can be cancelled eagerly when the dialog begins closing,
   // preventing race conditions where a worker tick updates a mid-animation dialog.
   private _onRemindersActiveSub: Subscription = Subscription.EMPTY;
@@ -177,6 +185,12 @@ export class DialogViewTaskRemindersComponent implements OnDestroy {
           filtered
             .filter((r) => r.isDeadlineReminder)
             .forEach((r) => this._deadlineReminderTaskIds.add(r.id));
+          // Keep occurrence remindAt in sync for the destroy-time UI cooldown.
+          filtered.forEach((r) => {
+            if (typeof r.reminderData?.remindAt === 'number') {
+              this._remindAtById.set(r.id, r.reminderData.remindAt);
+            }
+          });
           // Update isAllDeadline dynamically (W7)
           this.isAllDeadline = filtered.every((r) => r.isDeadlineReminder);
           this.taskIds$.next(filtered.map((r) => r.id));
@@ -249,7 +263,12 @@ export class DialogViewTaskRemindersComponent implements OnDestroy {
           !this._deadlineReminderTaskIds.has(taskId) &&
           !this._dismissedReminderIds.has(taskId),
       )
-      .forEach((taskId) => this._reminderService.suppressReminderUiAfterDismiss(taskId));
+      .forEach((taskId) => {
+        const remindAt = this._remindAtById.get(taskId);
+        if (typeof remindAt === 'number') {
+          this._reminderService.suppressReminderUiAfterDismiss(taskId, remindAt);
+        }
+      });
     this._subs.unsubscribe();
   }
 
