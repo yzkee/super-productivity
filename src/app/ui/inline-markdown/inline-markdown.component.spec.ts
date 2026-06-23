@@ -140,6 +140,37 @@ describe('InlineMarkdownComponent', () => {
     }));
   });
 
+  describe('checklist glyph selectability', () => {
+    it('keeps the checkbox glyph unselectable while its label stays copyable', fakeAsync(() => {
+      component.model = 'placeholder';
+      fixture.detectChanges();
+      tick();
+      fixture.detectChanges();
+      tick();
+
+      const preview = fixture.nativeElement.querySelector(
+        'markdown.markdown-parsed',
+      ) as HTMLElement;
+      expect(preview).toBeTruthy();
+
+      // The custom checklist renderer (marked-options-factory) emits a Material
+      // Icons ligature span whose textContent is the glyph name. The unit-test
+      // module doesn't wire that renderer, so emulate its output to verify the
+      // stylesheet keeps the glyph out of the clipboard while the label is kept
+      // selectable.
+      preview.innerHTML =
+        '<li class="checkbox-wrapper undone">' +
+        '<span class="checkbox material-icons">check_box_outline_blank</span> ' +
+        '<span class="checkbox-label">buy milk</span></li>';
+      fixture.detectChanges();
+
+      const glyph = preview.querySelector('.checkbox') as HTMLElement;
+      const label = preview.querySelector('.checkbox-label') as HTMLElement;
+      expect(window.getComputedStyle(glyph).userSelect).toBe('none');
+      expect(window.getComputedStyle(label).userSelect).toBe('text');
+    }));
+  });
+
   describe('XSS sanitization (GHSA-4rrp-xhp8-hf4p)', () => {
     it('should not render an executable event handler from a malicious note', fakeAsync(() => {
       component.model = '<img src=x onerror="alert(document.domain)">';
@@ -613,6 +644,90 @@ describe('InlineMarkdownComponent', () => {
       // Assert
       expect(component['_toggleShowEdit']).toHaveBeenCalled();
       expect(component.changed.emit).not.toHaveBeenCalled();
+    });
+
+    it('should NOT enter edit mode if selection exists on click', () => {
+      // Arrange
+      component.model = 'Some regular text';
+      fixture.detectChanges();
+
+      const paragraph = document.createElement('p');
+      paragraph.textContent = 'Some regular text';
+      mockPreviewEl.element.nativeElement.appendChild(paragraph);
+
+      spyOn<any>(component, '_toggleShowEdit');
+      spyOn(window, 'getSelection').and.returnValue({
+        toString: () => 'Some',
+      } as any);
+
+      // Act
+      const mockEvent = {
+        target: paragraph,
+        clientX: 10,
+        clientY: 10,
+      } as unknown as MouseEvent;
+      component.clickPreview(mockEvent);
+
+      // Assert
+      expect(component['_toggleShowEdit']).not.toHaveBeenCalled();
+    });
+
+    it('should NOT enter edit mode if it was a drag (drag distance > 5)', () => {
+      // Arrange
+      component.model = 'Some regular text';
+      fixture.detectChanges();
+
+      const paragraph = document.createElement('p');
+      paragraph.textContent = 'Some regular text';
+      mockPreviewEl.element.nativeElement.appendChild(paragraph);
+
+      spyOn<any>(component, '_toggleShowEdit');
+      spyOn(window, 'getSelection').and.returnValue({
+        toString: () => '',
+      } as any);
+
+      // Act - simulate mousedown then click-drag
+      component.previewMousedown({ button: 0, clientX: 10, clientY: 10 } as MouseEvent);
+
+      const mockEvent = {
+        target: paragraph,
+        clientX: 20,
+        clientY: 20,
+      } as unknown as MouseEvent;
+      component.clickPreview(mockEvent);
+
+      // Assert
+      expect(component['_toggleShowEdit']).not.toHaveBeenCalled();
+    });
+
+    it('should NOT enter edit mode if there was an active selection on mousedown', () => {
+      // Arrange
+      component.model = 'Some regular text';
+      fixture.detectChanges();
+
+      const paragraph = document.createElement('p');
+      paragraph.textContent = 'Some regular text';
+      mockPreviewEl.element.nativeElement.appendChild(paragraph);
+
+      spyOn<any>(component, '_toggleShowEdit');
+      const getSelectionSpy = spyOn(window, 'getSelection');
+
+      // Selection exists on mousedown, but is cleared on mouseup/click
+      getSelectionSpy.and.returnValue({ toString: () => 'Some' } as any);
+      component.previewMousedown({ button: 0, clientX: 10, clientY: 10 } as MouseEvent);
+
+      getSelectionSpy.and.returnValue({ toString: () => '' } as any);
+
+      // Act
+      const mockEvent = {
+        target: paragraph,
+        clientX: 10,
+        clientY: 10,
+      } as unknown as MouseEvent;
+      component.clickPreview(mockEvent);
+
+      // Assert
+      expect(component['_toggleShowEdit']).not.toHaveBeenCalled();
     });
   });
 

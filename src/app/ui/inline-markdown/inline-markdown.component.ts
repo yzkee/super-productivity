@@ -46,6 +46,10 @@ import { handleListKeydown } from './markdown-toolbar.util';
 
 const HIDE_OVERFLOW_TIMEOUT_DURATION = 300;
 
+// A pointer that moves more than this between mousedown and click is treated as
+// a drag-select rather than a click, so it must not flip the note into edit mode.
+const DRAG_THRESHOLD_PX = 5;
+
 @Component({
   selector: 'inline-markdown',
   templateUrl: './inline-markdown.component.html',
@@ -78,6 +82,9 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
   private _isFullscreenDialogOpen = false;
   private _isDestroyed = false;
   private _resolveGeneration = 0;
+  private _mousedownX = 0;
+  private _mousedownY = 0;
+  private _hasSelectionOnMousedown = false;
 
   readonly isLock = input<boolean>(false);
   readonly isShowControls = input<boolean>(false);
@@ -305,6 +312,15 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
     });
   }
 
+  previewMousedown($event: MouseEvent): void {
+    if ($event.button !== 0) {
+      return;
+    }
+    this._mousedownX = $event.clientX ?? 0;
+    this._mousedownY = $event.clientY ?? 0;
+    this._hasSelectionOnMousedown = !!window.getSelection()?.toString();
+  }
+
   clickPreview($event: MouseEvent): void {
     const target = $event.target as HTMLElement;
     if (target.tagName === 'A') {
@@ -318,9 +334,19 @@ export class InlineMarkdownComponent implements OnInit, OnDestroy {
     const wrapper = hit?.closest('.checkbox-wrapper') as HTMLElement | null;
     if (wrapper) {
       this._handleCheckboxClick(wrapper);
-    } else {
-      this._toggleShowEdit();
+      return;
     }
+
+    const dx = ($event.clientX ?? 0) - this._mousedownX;
+    const dy = ($event.clientY ?? 0) - this._mousedownY;
+    const isDrag = Math.hypot(dx, dy) > DRAG_THRESHOLD_PX;
+    const hasCurrentSelection = !!window.getSelection()?.toString();
+
+    if (this._hasSelectionOnMousedown || hasCurrentSelection || isDrag) {
+      return;
+    }
+
+    this._toggleShowEdit();
   }
 
   untoggleShowEdit(): void {
