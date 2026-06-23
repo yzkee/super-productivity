@@ -28,6 +28,7 @@ import {
   animationFrameScheduler,
   from,
   fromEvent,
+  interval,
   Observable,
   ReplaySubject,
   Subscription,
@@ -35,7 +36,7 @@ import {
   zip,
 } from 'rxjs';
 import { TaskWithSubTasks } from '../tasks/task.model';
-import { delay, filter, map, observeOn, switchMap } from 'rxjs/operators';
+import { delay, filter, map, observeOn, startWith, switchMap } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { fadeAnimation } from '../../ui/animations/fade.ani';
 import { T } from '../../t.const';
@@ -223,14 +224,21 @@ export class WorkViewComponent implements OnInit, OnDestroy {
     this._store.select(selectStartOfNextDayDiffMs),
     { initialValue: 0 },
   );
-  laterTodayCalendarEvents = computed(() =>
-    getLaterTodayCalendarEvents(
+  // Re-evaluate the now/end-of-today window on a coarse tick so events drop out
+  // of "Later Today" once they start, without waiting for the next calendar
+  // poll (iCal polls up to every 2h). Mirrors ScheduleService.scheduleRefreshTick.
+  private _refreshTick = toSignal(interval(2 * 60 * 1000).pipe(startWith(0)), {
+    initialValue: 0,
+  });
+  laterTodayCalendarEvents = computed(() => {
+    this._refreshTick();
+    return getLaterTodayCalendarEvents(
       this._calendarEventEntries(),
       this._todayStr(),
       this._startOfNextDayDiffMs(),
       Date.now(),
-    ),
-  );
+    );
+  });
   undoneTasks = input.required<TaskWithSubTasks[]>();
   customizedUndoneTasks = toSignal(
     this.customizerService.customizeUndoneTasks(this.workContextService.undoneTasks$),
