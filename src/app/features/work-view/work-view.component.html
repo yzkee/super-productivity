@@ -278,7 +278,10 @@
             </section>
           }
 
-          @if (laterTodayTasks().length > 0 && isOnTodayList()) {
+          @if (
+            (laterTodayTasks().length > 0 || laterTodayCalendarEvents().length > 0) &&
+            isOnTodayList()
+          ) {
             <div
               @expand
               class="collapsible-section"
@@ -287,7 +290,7 @@
                 [title]="
                   (T.WW.LATER_TODAY | translate) +
                   ' (' +
-                  (laterTodayTasks()?.length || 0) +
+                  (laterTodayTasks().length + laterTodayCalendarEvents().length) +
                   ')'
                 "
                 [isExpanded]="!isLaterTodayHidden()"
@@ -301,6 +304,15 @@
                   listId="PARENT"
                   listModelId="LATER_TODAY"
                 ></task-list>
+                @if (laterTodayCalendarEvents().length) {
+                  <div class="later-today-cal-events">
+                    @for (calEv of laterTodayCalendarEvents(); track calEv.id) {
+                      <planner-calendar-event
+                        [calendarEvent]="calEv"
+                      ></planner-calendar-event>
+                    }
+                  </div>
+                }
               </collapsible>
             </div>
           }

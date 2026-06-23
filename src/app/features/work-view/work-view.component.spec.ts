@@ -27,6 +27,11 @@ import {
   selectTaskRepeatCfgsByProjectId,
   selectTaskRepeatCfgsByTagId,
 } from '../task-repeat-cfg/store/task-repeat-cfg.selectors';
+import {
+  selectStartOfNextDayDiffMs,
+  selectTodayStr,
+} from '../../root-store/app-state/app-state.selectors';
+import { CalendarIntegrationService } from '../calendar-integration/calendar-integration.service';
 import { TODAY_TAG } from '../tag/tag.const';
 
 /**
@@ -141,6 +146,10 @@ describe('WorkViewComponent', () => {
           },
           { provide: SnackService, useValue: { open: () => {} } },
           {
+            provide: CalendarIntegrationService,
+            useValue: { calendarEvents$: of([]) },
+          },
+          {
             provide: GlobalConfigService,
             useValue: {
               appFeatures: signal({ isFinishDayEnabled: false }),
@@ -163,6 +172,8 @@ describe('WorkViewComponent', () => {
       store.overrideSelector(selectLaterTodayTasksWithSubTasks, []);
       store.overrideSelector(selectTaskRepeatCfgsByProjectId, []);
       store.overrideSelector(selectTaskRepeatCfgsByTagId, []);
+      store.overrideSelector(selectTodayStr, '2026-06-23');
+      store.overrideSelector(selectStartOfNextDayDiffMs, 0);
     });
 
     it('deselects when the task is absent from every list', async () => {
@@ -351,6 +362,10 @@ describe('WorkViewComponent', () => {
           },
           { provide: SnackService, useValue: { open: () => {} } },
           {
+            provide: CalendarIntegrationService,
+            useValue: { calendarEvents$: of([]) },
+          },
+          {
             provide: GlobalConfigService,
             useValue: {
               appFeatures: signal({ isFinishDayEnabled: false }),
@@ -368,6 +383,8 @@ describe('WorkViewComponent', () => {
       store.overrideSelector(selectLaterTodayTasksWithSubTasks, []);
       store.overrideSelector(selectTaskRepeatCfgsByProjectId, []);
       store.overrideSelector(selectTaskRepeatCfgsByTagId, []);
+      store.overrideSelector(selectTodayStr, '2026-06-23');
+      store.overrideSelector(selectStartOfNextDayDiffMs, 0);
 
       await TestBed.compileComponents();
       const fixture = TestBed.createComponent(WorkViewComponent);
