@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { BehaviorSubject, of } from 'rxjs';
-import { ReminderService } from './reminder.service';
+import { ReminderService, REMINDER_DISMISS_UI_COOLDOWN_MS } from './reminder.service';
 import { SnackService } from '../../core/snack/snack.service';
 import { ImexViewService } from '../../imex/imex-meta/imex-view.service';
 import { GlobalConfigService } from '../config/global-config.service';
@@ -371,6 +371,41 @@ describe('ReminderService', () => {
         type: 'ERROR',
         msg: jasmine.any(String),
       });
+    });
+  });
+
+  describe('reminder UI dismiss cooldown', () => {
+    it('is not suppressed by default', () => {
+      expect(service.isReminderUiSuppressed('task1')).toBe(false);
+    });
+
+    it('suppresses a reminder after a passive dismiss', () => {
+      service.suppressReminderUiAfterDismiss('task1');
+      expect(service.isReminderUiSuppressed('task1')).toBe(true);
+    });
+
+    it('only suppresses the dismissed reminder, not others', () => {
+      service.suppressReminderUiAfterDismiss('task1');
+      expect(service.isReminderUiSuppressed('task1')).toBe(true);
+      expect(service.isReminderUiSuppressed('task2')).toBe(false);
+    });
+
+    it('expires after the cooldown so the reminder re-nudges', () => {
+      service.suppressReminderUiAfterDismiss('task1');
+      const afterCooldown = Date.now() + REMINDER_DISMISS_UI_COOLDOWN_MS + 1000;
+      expect(service.isReminderUiSuppressed('task1', afterCooldown)).toBe(false);
+    });
+
+    it('stays suppressed right up to the cooldown boundary', () => {
+      const before = Date.now();
+      service.suppressReminderUiAfterDismiss('task1');
+      // 1s before expiry it must still be suppressed
+      expect(
+        service.isReminderUiSuppressed(
+          'task1',
+          before + REMINDER_DISMISS_UI_COOLDOWN_MS - 1000,
+        ),
+      ).toBe(true);
     });
   });
 

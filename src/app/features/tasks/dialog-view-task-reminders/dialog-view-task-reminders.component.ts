@@ -237,6 +237,19 @@ export class DialogViewTaskRemindersComponent implements OnDestroy {
         this._store.dispatch(TaskSharedActions.clearDeadlineReminder({ taskId }));
       }
     });
+    // Scheduled (non-deadline) reminders are intentionally NOT cleared on a
+    // passive dismiss — they should re-nudge later. But re-showing them on the
+    // very next worker tick (~10s) re-grabs the screen and freezes the app. Put
+    // them in a short in-memory UI cooldown instead, so the modal stays closed
+    // long enough to use the app while the reminder itself stays active.
+    this.taskIds$
+      .getValue()
+      .filter(
+        (taskId) =>
+          !this._deadlineReminderTaskIds.has(taskId) &&
+          !this._dismissedReminderIds.has(taskId),
+      )
+      .forEach((taskId) => this._reminderService.suppressReminderUiAfterDismiss(taskId));
     this._subs.unsubscribe();
   }
 

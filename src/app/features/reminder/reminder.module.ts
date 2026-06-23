@@ -77,12 +77,19 @@ export class ReminderModule {
         delay(1000),
         concatMap(() =>
           this._reminderService.onRemindersActive$.pipe(
+            // Drop reminders the user dismissed without acting on (backdrop /
+            // Escape / Android back): they are in a short UI cooldown so the
+            // worker (~10s tick) cannot immediately re-open the modal and freeze
+            // the app. The cooldown is in-memory only — a cold start re-nudges.
+            map((reminders) =>
+              (reminders || []).filter(
+                (r) => !this._reminderService.isReminderUiSuppressed(r.id),
+              ),
+            ),
             // NOTE: we simply filter for open dialogs, as reminders are re-queried quite often
             filter(
               (reminders) =>
-                this._matDialog.openDialogs.length === 0 &&
-                !!reminders &&
-                reminders.length > 0,
+                this._matDialog.openDialogs.length === 0 && reminders.length > 0,
             ),
             // don't show reminders while add task bar is open
             switchMap((reminders: TaskWithReminderData[]) => {

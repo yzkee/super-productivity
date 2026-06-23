@@ -49,9 +49,11 @@ describe('ReminderModule dialog opening', () => {
         ReminderModule,
         {
           provide: ReminderService,
-          useValue: jasmine.createSpyObj('ReminderService', ['init'], {
-            onRemindersActive$: remindersActive$,
-          }),
+          useValue: jasmine.createSpyObj(
+            'ReminderService',
+            ['init', 'isReminderUiSuppressed', 'suppressReminderUiAfterDismiss'],
+            { onRemindersActive$: remindersActive$ },
+          ),
         },
         { provide: MatDialog, useValue: matDialogSpy },
         {
@@ -159,9 +161,11 @@ describe('ReminderModule iOS notification actions', () => {
         ReminderModule,
         {
           provide: ReminderService,
-          useValue: jasmine.createSpyObj('ReminderService', ['init'], {
-            onRemindersActive$: NEVER,
-          }),
+          useValue: jasmine.createSpyObj(
+            'ReminderService',
+            ['init', 'isReminderUiSuppressed', 'suppressReminderUiAfterDismiss'],
+            { onRemindersActive$: NEVER },
+          ),
         },
         {
           provide: MatDialog,
