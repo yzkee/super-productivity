@@ -14,6 +14,10 @@ import {
 } from '../../project/store/project.selectors';
 import { TAG_FEATURE_NAME } from '../../tag/store/tag.reducer';
 import { appStateFeatureKey } from '../../../root-store/app-state/app-state.reducer';
+import {
+  selectStartOfNextDayDiffMs,
+  selectTodayStr,
+} from '../../../root-store/app-state/app-state.selectors';
 
 describe('Task Selectors', () => {
   // Define mock tasks
@@ -232,6 +236,10 @@ describe('Task Selectors', () => {
     fromSelectors.selectAllTasks.clearResult();
     fromSelectors.selectAllTasksInActiveProjects.clearResult();
     fromSelectors.selectOverdueTasks.clearResult();
+    // work-view.component.spec overrides these via overrideSelector (setResult);
+    // selectOverdueTasks reads them, so the leaked "today"/offset must be cleared too.
+    selectTodayStr.clearResult();
+    selectStartOfNextDayDiffMs.clearResult();
     selectProjectFeatureState.clearResult();
     selectAllProjects.clearResult();
     selectArchivedProjects.clearResult();
@@ -247,6 +255,8 @@ describe('Task Selectors', () => {
     fromSelectors.selectAllTasks.release();
     fromSelectors.selectAllTasksInActiveProjects.release();
     fromSelectors.selectOverdueTasks.release();
+    selectTodayStr.release();
+    selectStartOfNextDayDiffMs.release();
     selectProjectFeatureState.release();
     selectAllProjects.release();
     selectArchivedProjects.release();
