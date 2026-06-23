@@ -2,6 +2,7 @@ import { SVEType } from './schedule.const';
 import { TaskCopy, TaskWithDueTime } from '../tasks/task.model';
 import { TaskRepeatCfg } from '../task-repeat-cfg/task-repeat-cfg.model';
 import { CalendarIntegrationEvent } from '../calendar-integration/calendar-integration.model';
+import { oneDayInMilliseconds } from '../../util/month-time-conversion';
 
 export interface ScheduleEvent {
   id: string;
@@ -140,6 +141,15 @@ export const isScheduleCalendarEvent = (
   event?.type === SVEType.CalendarEvent &&
   !!event.data &&
   typeof (event.data as { issueProviderKey?: unknown }).issueProviderKey === 'string';
+
+/**
+ * Whether a calendar event should be treated as all-day. Some providers expose
+ * all-day events as 24h timed events, so a >= one-day duration counts too.
+ * Shared by the planner and the work-view "Later Today" section so they classify
+ * events identically.
+ */
+export const isAllDayCalendarEvent = (calEv: ScheduleFromCalendarEvent): boolean =>
+  calEv.isAllDay === true || calEv.duration >= oneDayInMilliseconds;
 
 // -----------------
 // BlockedBlocks

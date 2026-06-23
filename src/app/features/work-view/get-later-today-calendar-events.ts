@@ -1,9 +1,9 @@
 import {
+  isAllDayCalendarEvent,
   ScheduleCalendarMapEntry,
   ScheduleFromCalendarEvent,
 } from '../schedule/schedule.model';
 import { dateStrToUtcDate } from '../../util/date-str-to-utc-date';
-import { oneDayInMilliseconds } from '../../util/month-time-conversion';
 
 /**
  * Timed calendar events starting between `now` and the end of `todayStr`
@@ -30,8 +30,11 @@ export const getLaterTodayCalendarEvents = (
   const events: ScheduleFromCalendarEvent[] = [];
   for (const entry of calendarEventEntries) {
     for (const calEv of entry.items) {
-      const isAllDay = calEv.isAllDay === true || calEv.duration >= oneDayInMilliseconds;
-      if (!isAllDay && calEv.start >= now && calEv.start <= todayEndTime) {
+      if (
+        !isAllDayCalendarEvent(calEv) &&
+        calEv.start >= now &&
+        calEv.start <= todayEndTime
+      ) {
         events.push(calEv);
       }
     }

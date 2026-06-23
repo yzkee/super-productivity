@@ -13,7 +13,10 @@ import {
   ScheduleItemTask,
   ScheduleItemType,
 } from '../planner.model';
-import { ScheduleFromCalendarEvent } from '../../schedule/schedule.model';
+import {
+  isAllDayCalendarEvent,
+  ScheduleFromCalendarEvent,
+} from '../../schedule/schedule.model';
 import { Task, TaskCopy, TaskWithDueDay, TaskWithDueTime } from '../../tasks/task.model';
 import { TaskRepeatCfg } from '../../task-repeat-cfg/task-repeat-cfg.model';
 import { getDateTimeFromClockString } from '../../../util/get-date-time-from-clock-string';
@@ -32,7 +35,6 @@ import {
 } from '../../../root-store/app-state/app-state.selectors';
 import { isTodayWithOffset } from '../../../util/is-today.util';
 import { selectTaskRepeatCfgsForExactDay } from '../../task-repeat-cfg/store/task-repeat-cfg.selectors';
-import { oneDayInMilliseconds } from '../../../util/month-time-conversion';
 
 export const selectPlannerState = createFeatureSelector<fromPlanner.PlannerState>(
   fromPlanner.plannerFeatureKey,
@@ -382,7 +384,7 @@ const getIcalEventsForDay = (
     icalMapEntry.items.forEach((calEv) => {
       const start = calEv.start;
       if (getDbDateStr(new Date(start - startOfNextDayDiffMs)) === dayDate) {
-        if (isPlannerAllDayCalendarEvent(calEv)) {
+        if (isAllDayCalendarEvent(calEv)) {
           // Some providers expose all-day events as 24h timed events.
           allDayEvents.push({ ...calEv, isAllDay: true });
         } else {
@@ -403,9 +405,6 @@ const getIcalEventsForDay = (
   });
   return { timedEvents, allDayEvents };
 };
-
-const isPlannerAllDayCalendarEvent = (calEv: ScheduleFromCalendarEvent): boolean =>
-  calEv.isAllDay === true || calEv.duration >= oneDayInMilliseconds;
 
 /**
  * Groups all undone deadline tasks by their effective day string.
