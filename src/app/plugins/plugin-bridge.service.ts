@@ -117,16 +117,7 @@ import {
 } from '../features/simple-counter/store/simple-counter.actions';
 import { getDbDateStr } from '../util/get-db-date-str';
 import { DataInitService } from '../core/data-init/data-init.service';
-
-interface PluginNodeExecutionElectronApi {
-  requestGrant(pluginId: string): Promise<{ token: string } | null>;
-  executeScript(
-    pluginId: string,
-    grantToken: string,
-    request: PluginNodeScriptRequest,
-  ): Promise<PluginNodeScriptResult>;
-  revokeGrant(pluginId: string, grantToken: string): Promise<void>;
-}
+import { PluginNodeExecutionElectronApi } from '../../../electron/shared-with-frontend/plugin-node-execution.model';
 
 type PluginDateFormat = 'short' | 'medium' | 'long' | 'time' | 'datetime';
 
@@ -1716,8 +1707,11 @@ export class PluginBridgeService implements OnDestroy {
     return this.#nodeExecutionGrantTokens.get(pluginId);
   }
 
-  async requestNodeExecutionGrant(pluginId: string): Promise<{ token: string } | null> {
-    return (await this.#nodeExecutionApi?.requestGrant(pluginId)) ?? null;
+  async requestNodeExecutionGrant(
+    pluginId: string,
+    displayInfo?: { name?: string; version?: string },
+  ): Promise<{ token: string } | null> {
+    return (await this.#nodeExecutionApi?.requestGrant(pluginId, displayInfo)) ?? null;
   }
 
   revokeNodeExecutionGrantToken(pluginId: string): string | undefined {

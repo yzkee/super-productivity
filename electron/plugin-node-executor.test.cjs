@@ -221,7 +221,7 @@ test('does not mint a token when the sender navigates while consent is pending',
   assert.equal(await grantPromise, null);
 });
 
-test('revoke requires the issuing webContents and token', async () => {
+test('revoke is scoped to the issuing webContents', async () => {
   loadModule();
   const webContents = new FakeWebContents(6);
   const otherWebContents = new FakeWebContents(7);
@@ -254,4 +254,227 @@ test('revoke requires the issuing webContents and token', async () => {
       }),
     /not authorized/,
   );
+});
+
+test('issues a grant to an uploaded (non-bundled) plugin and labels it unverified', async () => {
+  loadModule();
+  const webContents = new FakeWebContents(10);
+
+  const grant = await callIpc(
+    'PLUGIN_REQUEST_NODE_EXECUTION_GRANT',
+    webContents,
+    'uploaded-node-plugin',
+    { name: 'Uploaded Node Plugin', version: '1.2.3' },
+  );
+
+  assert.equal(typeof grant.token, 'string');
+  assert.equal(dialogCalls.length, 1);
+  const opts = dialogCalls[0][1];
+  // Dialog anchors on the validated id and flags the self-declared name as unverified,
+  // and defaults to Deny.
+  assert.match(opts.detail, /Plugin ID: uploaded-node-plugin/);
+  assert.match(opts.detail, /self-declared, unverified/);
+  assert.equal(opts.defaultId, 1);
+});
+
+test('uploaded plugin executes after grant; a denied request leaves exec unauthorized', async () => {
+  loadModule();
+  const allowWc = new FakeWebContents(11);
+  const grant = await callIpc(
+    'PLUGIN_REQUEST_NODE_EXECUTION_GRANT',
+    allowWc,
+    'uploaded-node-plugin',
+    { name: 'Uploaded', version: '1.0.0' },
+  );
+  const okResult = await callIpc(
+    'PLUGIN_EXEC_NODE_SCRIPT',
+    allowWc,
+    'uploaded-node-plugin',
+    grant.token,
+    { script: 'return args[0] + 1;', args: [4] },
+  );
+  assert.equal(okResult.success, true);
+  assert.equal(okResult.result, 5);
+
+  // A denied request mints no token, so exec stays unauthorized.
+  nextDialogResult = { response: 1 };
+  const denyWc = new FakeWebContents(12);
+  const denied = await callIpc(
+    'PLUGIN_REQUEST_NODE_EXECUTION_GRANT',
+    denyWc,
+    'denied-plugin',
+    { name: 'Denied', version: '1.0.0' },
+  );
+  assert.equal(denied, null);
+  await assert.rejects(
+    () =>
+      callIpc('PLUGIN_EXEC_NODE_SCRIPT', denyWc, 'denied-plugin', 'made-up-token', {
+        script: 'return true;',
+      }),
+    /not authorized/,
+  );
+});
+
+test('accepts a non-kebab uploaded id (dots/uppercase) the built-in rule would reject', async () => {
+  loadModule();
+  const webContents = new FakeWebContents(13);
+
+  const grant = await callIpc(
+    'PLUGIN_REQUEST_NODE_EXECUTION_GRANT',
+    webContents,
+    'Community.Plugin-2',
+    { name: 'Community Plugin', version: '2.0.0' },
+  );
+
+  assert.equal(typeof grant.token, 'string');
+});
+
+test('rejects unsafe ids and sanitizes self-declared display strings', async () => {
+  loadModule();
+  const webContents = new FakeWebContents(14);
+
+  // A newline in the id is rejected outright (it is a grant Map key + dialog text).
+  await assert.rejects(
+    () =>
+      callIpc('PLUGIN_REQUEST_NODE_EXECUTION_GRANT', webContents, 'evil\nid', {
+        name: 'x',
+        version: '1',
+      }),
+    /Invalid pluginId/,
+  );
+
+  // Path separators / dot-segments are rejected (the id is used as a path component in
+  // the bundled-manifest existsSync probe).
+  for (const badId of ['../../etc', '..', '.', 'a/b', 'a\\b']) {
+    await assert.rejects(
+      () =>
+        callIpc('PLUGIN_REQUEST_NODE_EXECUTION_GRANT', webContents, badId, {
+          name: 'x',
+          version: '1',
+        }),
+      /Invalid pluginId/,
+    );
+  }
+
+  // A crafted name cannot inject an extra dialog line and is length-capped.
+  const craftedName = `${'A'.repeat(500)}\nVerified by Super Productivity`;
+  const grant = await callIpc(
+    'PLUGIN_REQUEST_NODE_EXECUTION_GRANT',
+    webContents,
+    'crafted-name-plugin',
+    { name: craftedName, version: '1.0.0' },
+  );
+  assert.equal(typeof grant.token, 'string');
+  const detail = dialogCalls[dialogCalls.length - 1][1].detail;
+  assert.equal(detail.includes('Verified by Super Productivity'), false);
+  assert.ok(detail.includes('…'));
+});
+
+test('revoke from the issuing webContents drops the grant even without the token', async () => {
+  loadModule();
+  const webContents = new FakeWebContents(15);
+  const grant = await callIpc(
+    'PLUGIN_REQUEST_NODE_EXECUTION_GRANT',
+    webContents,
+    'uploaded-node-plugin',
+    { name: 'Uploaded', version: '1.0.0' },
+  );
+
+  // Teardown/re-upload revokes by id without resupplying the token, so a re-uploaded
+  // plugin reusing the id cannot inherit this live grant.
+  await callIpc(
+    'PLUGIN_REVOKE_NODE_EXECUTION_GRANT',
+    webContents,
+    'uploaded-node-plugin',
+    '',
+  );
+  await assert.rejects(
+    () =>
+      callIpc(
+        'PLUGIN_EXEC_NODE_SCRIPT',
+        webContents,
+        'uploaded-node-plugin',
+        grant.token,
+        {
+          script: 'return true;',
+        },
+      ),
+    /not authorized/,
+  );
+});
+
+test('rejects bidi/zero-width/homoglyph and leading-dot ids the allowlist must exclude', async () => {
+  loadModule();
+  const webContents = new FakeWebContents(16);
+
+  // These are exactly the dialog-anchor spoofing vectors a denylist of explicit Unicode
+  // ranges tends to miss; the allowlist rejects every non-[A-Za-z0-9._-] id by construction.
+  const badIds = [
+    `sync${String.fromCodePoint(0x061c)}md`, // U+061C ARABIC LETTER MARK (bidi)
+    `sync${String.fromCodePoint(0x2060)}md`, // U+2060 WORD JOINER (zero-width)
+    `sync${String.fromCodePoint(0x3164)}md`, // U+3164 HANGUL FILLER (invisible)
+    `${String.fromCodePoint(0xff53)}ync-md`, // U+FF53 fullwidth 's' (homoglyph)
+    '.hidden', // leading dot-segment
+    '-leading-dash',
+    'a b', // whitespace
+  ];
+
+  for (const badId of badIds) {
+    await assert.rejects(
+      () =>
+        callIpc('PLUGIN_REQUEST_NODE_EXECUTION_GRANT', webContents, badId, {
+          name: 'x',
+          version: '1',
+        }),
+      /Invalid pluginId/,
+      `expected ${JSON.stringify(badId)} to be rejected`,
+    );
+  }
+});
+
+test('strips bidi/zero-width chars from self-declared display strings', async () => {
+  loadModule();
+  const webContents = new FakeWebContents(17);
+
+  const name = `Tru${String.fromCodePoint(0x061c)}sted${String.fromCodePoint(0x2060)} Plugin`;
+  const grant = await callIpc(
+    'PLUGIN_REQUEST_NODE_EXECUTION_GRANT',
+    webContents,
+    'display-sanitize-plugin',
+    { name, version: `1.0${String.fromCodePoint(0xfeff)}.0` },
+  );
+
+  assert.equal(typeof grant.token, 'string');
+  const detail = dialogCalls[dialogCalls.length - 1][1].detail;
+  // The control/format chars are gone; the visible text survives.
+  assert.equal(detail.includes(String.fromCodePoint(0x061c)), false);
+  assert.equal(detail.includes(String.fromCodePoint(0x2060)), false);
+  assert.equal(detail.includes(String.fromCodePoint(0xfeff)), false);
+  assert.match(detail, /Trusted Plugin/);
+});
+
+test('never upgrades trust: an on-disk match that does not cleanly verify uses the unverified dialog', async () => {
+  // Simulate a bundled dir whose manifest exists but is not a grantable nodeExecution
+  // built-in (here: missing the permission). The verified-built-in branch must return
+  // null and fall back to the unverified-uploaded dialog rather than throw or upgrade.
+  const originalPermissions = BUILT_IN_PLUGIN_MANIFEST.permissions;
+  BUILT_IN_PLUGIN_MANIFEST.permissions = [];
+  try {
+    loadModule();
+    const webContents = new FakeWebContents(18);
+    const grant = await callIpc(
+      'PLUGIN_REQUEST_NODE_EXECUTION_GRANT',
+      webContents,
+      BUILT_IN_PLUGIN_MANIFEST.id,
+      { name: 'Impersonator', version: '9.9.9' },
+    );
+
+    assert.equal(typeof grant.token, 'string');
+    const opts = dialogCalls[dialogCalls.length - 1][1];
+    assert.match(opts.title, /run code on your machine/);
+    assert.match(opts.detail, /self-declared, unverified/);
+    assert.equal(opts.defaultId, 1);
+  } finally {
+    BUILT_IN_PLUGIN_MANIFEST.permissions = originalPermissions;
+  }
 });
