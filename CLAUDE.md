@@ -2,6 +2,15 @@
 
 Guidance for Claude Code working in this repository. Super Productivity is a todo and time-tracking app on Angular + Electron + Capacitor.
 
+## Product principles
+
+From the project manifesto (_Deep Work, Your Way_), kept to what changes a build decision — weigh them on every feature, and surface the leaner path when a request fights them:
+
+- **Avoid feature creep:** prefer the smallest change that solves the real problem. New UI, settings, and sync surface are permanent costs, so extend existing building blocks before adding new ones, and let a feature ship only if it makes users _faster_, not busier. When scope outgrows the problem, propose the leaner option rather than silently building the larger one — it's still the user's call. Scope guard: this is a personal deep-work tool, not a team-management or reporting product.
+- **Less noise, more depth:** reject _constant_ alerts, vanity dashboards, streaks, and dopamine loops. Opt-in reminders and notifications are core to the app, but anything attention-grabbing ships off by default and stays quiet (flow, not friction).
+- **Adapt, don't impose:** people plan, track, and reflect differently, so ship new behavior as building blocks. Prefer one calm default over a new toggle; add a setting only when real workflows genuinely diverge, never to dodge a default decision (don't build it → calm default → opt-in setting).
+- **Privacy & offline first:** no analytics, tracking, or telemetry (see Project rules → Privacy). Core task and time tracking must work fully offline; sync and online integrations are optional layers that degrade gracefully, never prerequisites.
+
 ## Required reading per task
 
 - Styling changes → [`docs/styling-guide.md`](docs/styling-guide.md)
