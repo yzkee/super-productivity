@@ -132,6 +132,56 @@ export class PlainspaceCommonInterfacesService extends BaseIssueProviderService<
     return updates;
   }
 
+  /**
+   * Detect imported tasks that are no longer mine on Plainspace, for the safe
+   * auto-removal of orphans. `getMyTasks$` returns every task assigned to me —
+   * including done ones — so a task missing from that list was either deleted or
+   * reassigned away from me; both mean "no longer my task" and are removed the
+   * same way. Done tasks stay in the list, so completing a task never removes it.
+   *
+   * Safety gate against fleet-wide data loss: skip when NONE of my polled tasks
+   * are still in the fetched list. `getMyTasks$` fails soft to `[]` (offline /
+   * bad token / wholesale 404), the server returns `[]` when my membership scope
+   * is empty (removed from the space), and a wrong/garbage list shares no ids
+   * with mine — reading any of those as "everything was removed" would wipe every
+   * task on every synced device. A list that still contains some of my tasks
+   * proves it is live and authorized, so the rest can be trusted as removed.
+   * Trade-off: if every one of my tasks disappears in one window we skip, leaving
+   * the orphans until the next appears — the safe direction for a destructive
+   * action. NB: this trusts the list to be COMPLETE; GET /tasks is unpaginated
+   * today, so if it ever paginates/truncates the missing entries would be misread
+   * as removals here.
+   */
+  async getRemovedRemoteTasks(tasks: Task[]): Promise<Task[]> {
+    const tasksByProviderId = new Map<string, Task[]>();
+    for (const task of tasks) {
+      if (!task.issueProviderId || !task.issueId) {
+        continue;
+      }
+      const group = tasksByProviderId.get(task.issueProviderId) ?? [];
+      group.push(task);
+      tasksByProviderId.set(task.issueProviderId, group);
+    }
+
+    const removed: Task[] = [];
+    for (const [providerId, providerTasks] of tasksByProviderId) {
+      const cfg = await firstValueFrom(this._getCfgOnce$(providerId));
+      const myTaskIds = new Set(
+        (await firstValueFrom(this._plainspaceApiService.getMyTasks$(cfg))).map(
+          (issue) => issue.id,
+        ),
+      );
+      const gone = providerTasks.filter((task) => !myTaskIds.has(task.issueId!));
+      // All of my polled tasks gone at once → distrust the list, skip (see gate
+      // above). This subsumes the empty-list case.
+      if (gone.length === providerTasks.length) {
+        continue;
+      }
+      removed.push(...gone);
+    }
+    return removed;
+  }
+
   private _toFreshData(
     task: Task,
     issue: PlainspaceIssue | null,
