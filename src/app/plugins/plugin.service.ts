@@ -22,6 +22,7 @@ import {
 import { take } from 'rxjs/operators';
 import { firstValueFrom } from 'rxjs';
 import { PluginCleanupService } from './plugin-cleanup.service';
+import { PluginSecretService } from './secret/plugin-secret.service';
 import { PluginLoaderService } from './plugin-loader.service';
 import { validatePluginManifest } from './util/validate-manifest.util';
 import { TranslateService } from '@ngx-translate/core';
@@ -113,6 +114,7 @@ export class PluginService implements OnDestroy {
   private readonly _pluginMetaPersistenceService = inject(PluginMetaPersistenceService);
   private readonly _pluginUserPersistenceService = inject(PluginUserPersistenceService);
   private readonly _pluginCacheService = inject(PluginCacheService);
+  private readonly _pluginSecretService = inject(PluginSecretService);
   private readonly _cleanupService = inject(PluginCleanupService);
   private readonly _pluginLoader = inject(PluginLoaderService);
   private readonly _pluginBridge = inject(PluginBridgeService);
@@ -1635,6 +1637,21 @@ export class PluginService implements OnDestroy {
       this.unloadPlugin(pluginId);
     }
 
+    // Purge local-only credentials (secrets + OAuth tokens) FIRST so they
+    // never outlive their plugin — even if a later cleanup step throws.
+    // Best-effort: a purge failure is logged but must not abort the uninstall
+    // (on IndexedDB failure the credentials orphan locally until a later purge).
+    try {
+      await this._pluginSecretService.removeSecretsForPlugin(pluginId);
+    } catch (error) {
+      PluginLog.err(`Failed to purge secrets for plugin ${pluginId}:`, error);
+    }
+    try {
+      await this._pluginBridge.clearOAuthTokens(pluginId);
+    } catch (error) {
+      PluginLog.err(`Failed to purge OAuth tokens for plugin ${pluginId}:`, error);
+    }
+
     // Remove from cache
     await this._pluginCacheService.removePlugin(pluginId);
 
@@ -1673,13 +1690,15 @@ export class PluginService implements OnDestroy {
    * Clear all uploaded plugins from memory. Called when the IndexedDB cache is cleared
    * so that in-memory state matches the empty cache.
    *
-   * Also clears each uploaded plugin's main-owned PERSISTED nodeExecution consent
-   * (issue #8512 Phase 2). The cache wipe removes the plugin code, but the consent lives
-   * in the main process, so without this a later re-upload of the same id — potentially
-   * *different* code — would be silently granted node execution with no prompt: the
-   * post-clear upload has no `existingState`, so the re-upload clear in `loadPluginFromZip`
-   * never fires. Mirrors `removeUploadedPlugin`, keeping "replacing code under an id always
-   * re-asks" true on every removal path.
+   * Also purges each uploaded plugin's local-only credentials (secrets + OAuth
+   * tokens) and main-owned PERSISTED nodeExecution consent (issue #8512 Phase 2).
+   * The cache wipe removes the plugin code, but credentials and consent live in
+   * dedicated stores / the main process, so without this a later re-upload of the
+   * same id — potentially *different* code — would silently inherit the previous
+   * plugin's secrets, tokens, and node-execution grant with no prompt: the
+   * post-clear upload has no `existingState`, so the re-upload clear in
+   * `loadPluginFromZip` never fires. Mirrors `removeUploadedPlugin`, keeping
+   * "replacing code under an id always re-asks" true on every removal path.
    */
   async clearUploadedPluginsFromMemory(): Promise<void> {
     const states = this._pluginStates();
@@ -1704,11 +1723,24 @@ export class PluginService implements OnDestroy {
       return updated;
     });
     this._pluginIconsSignal.set(new Map(this._pluginIcons));
-    // Drop persisted consent after teardown has released the live grants. Each clear is
-    // fail-safe (worst case: a re-prompt) and idempotent, so a single failure can't leave
-    // a different id's consent behind.
+    // Purge local-only credentials + persisted consent after teardown has released the
+    // live grants. Each purge is best-effort and idempotent, so a single failure can't
+    // skip the rest or leave a different id's credentials/consent behind for a same-id
+    // re-upload to inherit.
     await Promise.all(
-      uploadedIds.map((pluginId) => this.clearNodeExecutionConsent(pluginId)),
+      uploadedIds.map(async (pluginId) => {
+        try {
+          await this._pluginSecretService.removeSecretsForPlugin(pluginId);
+        } catch (error) {
+          PluginLog.err(`Failed to purge secrets for plugin ${pluginId}:`, error);
+        }
+        try {
+          await this._pluginBridge.clearOAuthTokens(pluginId);
+        } catch (error) {
+          PluginLog.err(`Failed to purge OAuth tokens for plugin ${pluginId}:`, error);
+        }
+        await this.clearNodeExecutionConsent(pluginId);
+      }),
     );
   }
 
