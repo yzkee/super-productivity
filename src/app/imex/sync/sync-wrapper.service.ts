@@ -1330,6 +1330,25 @@ export class SyncWrapperService {
   private _isOpeningEncryptionDialog = false;
 
   /**
+   * One-shot flag: the legacy post-sync setup modal only fires for the fresh-setup
+   * sync (the sync triggered right after the config dialog enables SuperSync).
+   * Established/returning unencrypted accounts are nudged by the calm, dismissible
+   * SuperSyncEncryptionMigrationBannerService instead, so the per-sync modal must
+   * NOT fire for them — otherwise both would prompt at startup. Set by the config
+   * dialog via markPromptEncryptionAfterSetupSync(); consumed on the first
+   * post-sync prompt evaluation for SuperSync (see _promptSuperSyncEncryptionIfNeeded).
+   */
+  private _shouldPromptEncryptionAfterSetupSync = false;
+
+  /**
+   * Called by the sync config dialog immediately after (re)enabling SuperSync from
+   * a disabled state, so the setup encryption modal fires once for that setup sync.
+   */
+  markPromptEncryptionAfterSetupSync(): void {
+    this._shouldPromptEncryptionAfterSetupSync = true;
+  }
+
+  /**
    * After a successful sync, checks if SuperSync is active without encryption.
    * If so, opens the encryption dialog. Data has already been synced, so no data loss.
    */
@@ -1351,6 +1370,26 @@ export class SyncWrapperService {
     if (!provider) {
       return;
     }
+
+    // Established/returning unencrypted accounts are owned by the calm migration
+    // banner (SuperSyncEncryptionMigrationBannerService); only the fresh-setup sync
+    // that armed the flag fires this dead-end modal, so the two never both prompt.
+    // Consume the one-shot flag HERE (not at dialog-open) so it can't leak to a
+    // later, unrelated sync via one of the early-returns below. A failed setup sync
+    // returns HANDLED_ERROR and never reaches this method, so the arming survives
+    // and retries on the next successful sync. Tradeoff: if the modal-open is later
+    // blocked (another dialog open / TOCTOU guard below), the flag is already spent
+    // and this modal won't retry — acceptable because the migration banner catches
+    // the still-unencrypted account on the next app start (seq is now > 0).
+    // TODO(#8670): once the mandatory-encryption upload guard lands, retire this
+    // modal + flag entirely and let the banner own all cohorts.
+    if (!this._shouldPromptEncryptionAfterSetupSync) {
+      SyncLog.log(
+        'Skipping legacy setup encryption modal — migration banner owns established nudge',
+      );
+      return;
+    }
+    this._shouldPromptEncryptionAfterSetupSync = false;
 
     const cfg = (await provider.privateCfg.load()) as
       | { isEncryptionEnabled?: boolean; encryptKey?: string }
