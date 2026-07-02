@@ -35,6 +35,7 @@ import { DataInitStateService } from '../data-init/data-init-state.service';
 import { OnboardingHintService } from '../../features/onboarding/onboarding-hint.service';
 import { LocalRestApiHandlerService } from '../electron/local-rest-api-handler.service';
 import { CustomThemeService } from '../theme/custom-theme.service';
+import { UpdateCheckService } from '../update-check/update-check.service';
 
 const w = window as Window & { productivityTips?: string[][]; randomIndex?: number };
 
@@ -66,6 +67,7 @@ export class StartupService {
   private _chromeExtensionInterfaceService = inject(ChromeExtensionInterfaceService);
   private _projectService = inject(ProjectService);
   private _trackingReminderService = inject(TrackingReminderService);
+  private _updateCheckService = inject(UpdateCheckService);
   private _opLogStore = inject(OperationLogStoreService);
   private _legacyPfDb = inject(LegacyPfDbService);
   private _store = inject(Store);
@@ -127,6 +129,7 @@ export class StartupService {
     // deferred init
     window.setTimeout(async () => {
       this._trackingReminderService.init();
+      this._updateCheckService.init();
       this._checkAvailableStorage();
       this._initOfflineBanner();
 
