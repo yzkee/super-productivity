@@ -57,7 +57,7 @@ import { KeyboardConfig } from '@sp/keyboard-config';
               [attr.aria-label]="T.PLAINSPACE.OPEN_IN_PLAINSPACE | translate"
               mat-icon-button
             >
-              <mat-icon>open_in_new</mat-icon>
+              <mat-icon svgIcon="plainspace"></mat-icon>
             </button>
           }
           <button
