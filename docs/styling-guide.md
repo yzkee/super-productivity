@@ -164,7 +164,7 @@ Quickest adoption — add the `.focus-ring` utility class from `util.scss`, whic
 
 ## Responsive Breakpoints
 
-Available as CSS vars (`--layout-xxxs` through `--layout-xl`) and as SCSS mixins in `src/styles/mixins/_media-queries.scss`:
+Available as CSS vars (`--layout-xxxs` through `--layout-xl`) and as SCSS variables and mixins in `src/styles/mixins/_media-queries.scss`:
 
 | Breakpoint | Value  |
 | ---------- | ------ |
