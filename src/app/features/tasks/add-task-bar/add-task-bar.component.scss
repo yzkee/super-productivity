@@ -92,6 +92,14 @@
     padding: 0;
     line-height: 1.4;
     resize: none;
+    // cdkTextareaAutosize owns this field's height (it measures the content and
+    // pins an exact px height), so the textarea must never paint its own
+    // scrollbar. Without this the browser's default `overflow: auto` shows a
+    // spurious scrollbar on a single line whenever the rendered line box
+    // (16px × 1.4 = 22.4px) doesn't land exactly on the integer height the
+    // directive pins — which happens depending on font/zoom/platform. The
+    // directive still keeps the caret in view via programmatic scroll.
+    overflow: hidden;
     background: transparent;
     color: inherit;
     font-family: var(--font-primary-stack);
