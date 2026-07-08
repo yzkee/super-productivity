@@ -64,9 +64,11 @@ jobs:
 
           # Paths whose change can affect SuperSync behaviour or its E2E harness.
           # Keep in rough sync with the nightly workflow's push `paths:` list.
-          PATTERN='^(src/app/imex/sync/|src/app/op-log/|src/app/pfapi/|src/app/root-store/|src/app/features/[^/]+/store/|packages/sync-core/|packages/super-sync-server/|packages/shared-schema/|docker-compose\.yaml$|docker-compose\.supersync\.yaml$|e2e/tests/sync/|e2e/helpers/|e2e/pages/|e2e/fixtures/|e2e/constants/|e2e/utils/|e2e/playwright\.config\.ts$|e2e/global-setup\.ts$|\.github/workflows/e2e-supersync-pr\.yml$)'
+          PATTERN='^(src/app/imex/sync/|src/app/op-log/|src/app/pfapi/|src/app/root-store/|src/app/features/[^/]+/store/|packages/sync-providers/|packages/sync-core/|packages/super-sync-server/|packages/shared-schema/|docker-compose\.yaml$|docker-compose\.supersync\.yaml$|e2e/tests/sync/|e2e/helpers/|e2e/pages/|e2e/fixtures/|e2e/constants/|e2e/utils/|e2e/playwright\.config\.ts$|e2e/global-setup\.ts$|\.github/workflows/e2e-supersync-pr\.yml$)'
 
-          if echo "${CHANGED_FILES}" | grep -Eq "${PATTERN}"; then
+          # here-string (not echo|grep) so a first-line match can't SIGPIPE the
+          # upstream under `set -o pipefail`.
+          if grep -Eq "${PATTERN}" <<< "${CHANGED_FILES}"; then
             echo "→ Sync-affecting changes detected; running SuperSync suite."
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else
