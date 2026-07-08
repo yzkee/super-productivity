@@ -1,0 +1,213 @@
+name: 'E2E SuperSync (PR Gate)'
+
+# Runs the SuperSync E2E suite on PRs, but only when sync-affecting code changed.
+#
+# Why the gate/aggregator shape instead of a trigger-level `paths:` filter:
+# a required status check that gets filtered out by `paths:` never reports a
+# status, so unrelated PRs would hang forever waiting on a check that never runs.
+# Instead this workflow ALWAYS triggers, a cheap `detect` job decides whether the
+# heavy shards run, and the always-running `gate` job is the check you mark
+# required in branch protection — it passes when the shards succeeded OR were
+# skipped (no sync changes).
+#
+# The `detect` path list is a heuristic, not a proof: sync correctness is
+# cross-cutting, so a truly exhaustive list would approach "all of src/app".
+# The nightly `E2E Tests (Scheduled)` run remains the backstop for anything this
+# list misses.
+
+on:
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-supersync-pr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Job 0: decide whether sync-affecting files changed in this PR.
+  # Cheap (checkout + git diff, a few seconds) so it can always run.
+  detect:
+    name: Detect sync changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.detect.outputs.changed }}
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect sync-affecting changes
+        id: detect
+        env:
+          # For workflow_dispatch there is no PR base — force a run.
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${BASE_SHA:-}" ]; then
+            echo "No PR base (manual run) — running SuperSync suite."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Net changes of the PR relative to the merge-base with the target branch.
+          CHANGED_FILES="$(git diff --name-only "${BASE_SHA}...HEAD")"
+          echo "Changed files:"
+          echo "${CHANGED_FILES}"
+
+          # Paths whose change can affect SuperSync behaviour or its E2E harness.
+          # Keep in rough sync with the nightly workflow's push `paths:` list.
+          PATTERN='^(src/app/imex/sync/|src/app/op-log/|src/app/pfapi/|src/app/root-store/|src/app/features/[^/]+/store/|packages/sync-core/|packages/super-sync-server/|packages/shared-schema/|docker-compose\.yaml$|docker-compose\.supersync\.yaml$|e2e/tests/sync/|e2e/helpers/|e2e/pages/|e2e/fixtures/|e2e/constants/|e2e/utils/|e2e/playwright\.config\.ts$|e2e/global-setup\.ts$|\.github/workflows/e2e-supersync-pr\.yml$)'
+
+          if echo "${CHANGED_FILES}" | grep -Eq "${PATTERN}"; then
+            echo "→ Sync-affecting changes detected; running SuperSync suite."
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "→ No sync-affecting changes; skipping SuperSync suite."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Job 1: build the frontend once and share it with the shards.
+  build:
+    name: Build Frontend
+    needs: detect
+    if: needs.detect.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
+      UNSPLASH_CLIENT_ID: ${{ secrets.UNSPLASH_CLIENT_ID }}
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup E2E Environment
+        uses: ./.github/actions/setup-e2e
+
+      - run: npm run env
+
+      - name: Build Frontend for E2E
+        run: npm run buildFrontend:e2e
+
+      - name: Verify Build Output
+        run: |
+          test -f .tmp/angular-dist/browser/index.html || (echo "Build output missing" && exit 1)
+          test -f .tmp/angular-dist/browser/assets/bundled-plugins/api-test-plugin/manifest.json || (echo "Plugin assets missing from build" && exit 1)
+
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-supersync-pr-build-${{ github.run_id }}
+          path: .tmp/angular-dist
+          retention-days: 1
+
+  # Job 2: SuperSync E2E tests (sharded), each shard spins up its own server.
+  e2e-supersync:
+    name: SuperSync E2E ${{ matrix.shard }}/6
+    needs: [detect, build]
+    if: needs.detect.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4, 5, 6]
+    env:
+      UNSPLASH_KEY: ${{ secrets.UNSPLASH_KEY }}
+      UNSPLASH_CLIENT_ID: ${{ secrets.UNSPLASH_CLIENT_ID }}
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v6
+        with:
+          persist-credentials: false
+
+      - name: Setup E2E Environment
+        uses: ./.github/actions/setup-e2e
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v4
+        with:
+          name: e2e-supersync-pr-build-${{ github.run_id }}
+          path: .tmp/angular-dist
+
+      - name: Create .env file for Docker Compose
+        run: cp .env.example .env
+
+      - name: Start SuperSync Docker Service
+        # Retry to survive transient Docker Hub pull timeouts / rate limits;
+        # timeout_minutes also bounds the otherwise-unbounded health-wait loop.
+        uses: nick-fields/retry@ce71cc2ab81d554ebbe88c79ab5975992d79ba08 # v3
+        with:
+          timeout_minutes: 12
+          max_attempts: 3
+          retry_wait_seconds: 20
+          command: |
+            docker compose -f docker-compose.yaml -f docker-compose.supersync.yaml up -d --build supersync
+            echo "⏳ Waiting for SuperSync server..."
+            until curl -s http://localhost:1901/health > /dev/null 2>&1; do sleep 1; done
+            echo "✓ SuperSync server ready!"
+
+      - name: Run SuperSync E2E Tests
+        env:
+          E2E_REQUIRE_SUPERSYNC: 'true'
+        run: npm run e2e:all -- --grep "@supersync" --shard=${{ matrix.shard }}/6
+
+      - name: Stop Docker Services
+        if: always()
+        run: docker compose -f docker-compose.yaml -f docker-compose.supersync.yaml down supersync
+
+      - name: Print Docker Logs on Failure
+        if: ${{ failure() }}
+        run: |
+          echo "=== SuperSync Logs ==="
+          docker compose -f docker-compose.yaml -f docker-compose.supersync.yaml logs supersync
+
+      - name: Upload E2E Results on Failure
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-supersync-pr-results-${{ matrix.shard }}-${{ github.run_id }}
+          path: .tmp/e2e-test-results/**/*.*
+          retention-days: 30
+
+  # Job 3: the required status check. Always runs, so it always reports.
+  # Mark THIS job's name ("SuperSync E2E Gate") required in branch protection.
+  gate:
+    name: SuperSync E2E Gate
+    needs: [detect, e2e-supersync]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Evaluate result
+        env:
+          DETECT_RESULT: ${{ needs.detect.result }}
+          CHANGED: ${{ needs.detect.outputs.changed }}
+          RESULT: ${{ needs.e2e-supersync.result }}
+        run: |
+          set -euo pipefail
+          # Fail closed: if change detection didn't succeed we can't know whether
+          # the suite was needed, so block rather than pass on an empty output.
+          if [ "${DETECT_RESULT}" != "success" ]; then
+            echo "✗ Change detection did not succeed (result: ${DETECT_RESULT}); cannot clear the gate."
+            exit 1
+          fi
+          if [ "${CHANGED}" != "true" ]; then
+            echo "✓ No sync-affecting changes — SuperSync E2E not required for this PR."
+            exit 0
+          fi
+          if [ "${RESULT}" = "success" ]; then
+            echo "✓ SuperSync E2E passed."
+            exit 0
+          fi
+          echo "✗ SuperSync E2E did not pass (result: ${RESULT})."
+          exit 1
