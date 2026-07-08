@@ -51,6 +51,7 @@ jobs:
         env:
           # For workflow_dispatch there is no PR base — force both suites to run.
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
 
@@ -61,8 +62,16 @@ jobs:
             exit 0
           fi
 
-          # Net changes of the PR relative to the merge-base with the target branch.
-          CHANGED_FILES="$(git diff --name-only "${BASE_SHA}...HEAD")"
+          # Net changes of THIS PR only. actions/checkout leaves HEAD at the
+          # refs/pull/N/merge commit, whose parents are [live base tip (HEAD^1),
+          # PR head (HEAD^2)]. Diff the PR head against its merge-base with the
+          # live base. NB: do NOT diff the event-time pull_request.base.sha against
+          # the merge HEAD — that sha goes stale as the base branch advances while
+          # the PR is open, so the range balloons to every commit merged into the
+          # base since the PR opened and trips the pattern on unrelated churn.
+          BASE_TIP="$(git rev-parse HEAD^1)"
+          MERGE_BASE="$(git merge-base "${BASE_TIP}" "${PR_HEAD}")"
+          CHANGED_FILES="$(git diff --name-only "${MERGE_BASE}" "${PR_HEAD}")"
           echo "Changed files:"
           echo "${CHANGED_FILES}"
 
