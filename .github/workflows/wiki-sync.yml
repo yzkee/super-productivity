@@ -51,7 +51,10 @@ jobs:
       - name: Lint with yamllint
         id: yamllint
         run: |
+          # SHA-pinned `uses:` lines legitimately exceed 80 chars and carry a
+          # single-space `# vX.Y.Z` version comment, so relax both defaults.
           yamllint \
+            -d "{extends: default, rules: {line-length: {max: 120}, comments: {min-spaces-from-content: 1}}}" \
             --format github \
           "${GH_W7S}/wiki-sync.yml"
 
