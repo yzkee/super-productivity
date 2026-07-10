@@ -59,7 +59,11 @@ describe('OperationLogSyncService', () => {
   let lockServiceSpy: jasmine.SpyObj<LockService>;
 
   beforeEach(() => {
-    snackServiceSpy = jasmine.createSpyObj('SnackService', ['open']);
+    snackServiceSpy = jasmine.createSpyObj('SnackService', [
+      'open',
+      'hasPendingPersistentAction',
+    ]);
+    snackServiceSpy.hasPendingPersistentAction.and.returnValue(false);
     opLogStoreSpy = jasmine.createSpyObj('OperationLogStoreService', [
       'getUnsynced',
       'loadStateCache',
@@ -915,6 +919,42 @@ describe('OperationLogSyncService', () => {
         });
         expect(result.kind).toBe('snapshot_hydrated');
         expect(downloadServiceSpy.downloadRemoteOps).not.toHaveBeenCalled();
+      });
+
+      it('should offer the stranded pre-replace backup when an interrupted rebuild resume cannot finish', async () => {
+        // Resume path: the prior attempt already committed the destructive
+        // baseline, but this resume aborts in its download/validate phase (e.g.
+        // empty/newer-schema remote). Without an escape hatch the user is stuck
+        // on the baseline with the pre-replace backup hidden — surface Undo.
+        opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(true);
+        spyOn(service, 'forceDownloadRemoteState').and.rejectWith(
+          new Error('USE_REMOTE aborted: remote returned no data to rebuild from.'),
+        );
+        opLogStoreSpy.loadImportBackup.and.resolveTo({ savedAt: 4242 } as any);
+        snackServiceSpy.hasPendingPersistentAction.and.returnValue(false);
+        const mockProvider = { isReady: () => Promise.resolve(true) } as any;
+
+        await expectAsync(service.downloadRemoteOps(mockProvider)).toBeRejected();
+
+        expect(snackServiceSpy.open).toHaveBeenCalledWith(
+          jasmine.objectContaining({ msg: T.F.SYNC.S.LOCAL_DATA_REPLACE_UNDO }),
+        );
+      });
+
+      it('should not respawn the recovery snack while one is already showing', async () => {
+        opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(true);
+        spyOn(service, 'forceDownloadRemoteState').and.rejectWith(
+          new Error('USE_REMOTE aborted: remote returned no data to rebuild from.'),
+        );
+        opLogStoreSpy.loadImportBackup.and.resolveTo({ savedAt: 4242 } as any);
+        // A persistent recovery snack from a previous resume attempt is still up.
+        snackServiceSpy.hasPendingPersistentAction.and.returnValue(true);
+        const mockProvider = { isReady: () => Promise.resolve(true) } as any;
+
+        await expectAsync(service.downloadRemoteOps(mockProvider)).toBeRejected();
+
+        expect(opLogStoreSpy.loadImportBackup).not.toHaveBeenCalled();
+        expect(snackServiceSpy.open).not.toHaveBeenCalled();
       });
 
       it('should return localWinOpsCreated: 0 and newOpsCount: 0 when no new ops', async () => {

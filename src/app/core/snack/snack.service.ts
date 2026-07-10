@@ -38,11 +38,15 @@ export class SnackService {
     if (typeof params === 'string') {
       params = { msg: params };
     }
-    if (params.actionStr && params.config?.duration === 0) {
-      // Set this before the debounced render so immediate follow-up feedback
-      // cannot unknowingly replace a persistent recovery action.
-      this._hasPendingPersistentAction = true;
-    }
+    // Track a persistent recovery action (a sticky, actionable snack)
+    // synchronously, before the debounced render, so an immediate follow-up
+    // check (e.g. the header's post-sync success feedback) cannot unknowingly
+    // replace it. `_openSnack` is debounced trailing-edge, so this last-writer
+    // value matches the snack it will actually render — including the case
+    // where a non-persistent snack supersedes a persistent one.
+    this._hasPendingPersistentAction = !!(
+      params.actionStr && params.config?.duration === 0
+    );
     this._openSnack(params);
   }
 
@@ -118,8 +122,10 @@ export class SnackService {
       }
     }
 
+    // The pending-persistent-action flag is set authoritatively in open()
+    // before this debounced render. Here we only clear it once this specific
+    // snack is dismissed (guarded so a newer snack's flag isn't cleared).
     const openedRef = this._ref;
-    this._hasPendingPersistentAction = !!actionStr && cfg.duration === 0;
     openedRef
       ?.afterDismissed()
       .pipe(take(1))

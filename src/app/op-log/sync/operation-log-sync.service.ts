@@ -451,7 +451,19 @@ export class OperationLogSyncService {
       OpLog.warn(
         'OperationLogSyncService: Interrupted USE_REMOTE rebuild detected — redoing the raw rebuild.',
       );
-      await this.forceDownloadRemoteState(syncProvider, { isCrashResume: true });
+      try {
+        await this.forceDownloadRemoteState(syncProvider, { isCrashResume: true });
+      } catch (e) {
+        // The prior attempt already committed the destructive baseline (that is
+        // why we are resuming), so the user's original data now lives only in
+        // the pre-replace backup. If this resume cannot finish — empty/newer-
+        // schema remote, or a persistent download failure — forceDownloadRemoteState
+        // throws in its download/validate phase, before it can offer Undo, and
+        // the backup would otherwise stay stranded with no restore affordance
+        // (reads as total data loss). Surface the recovery Undo before rethrowing.
+        await this._offerStrandedRebuildBackup();
+        throw e;
+      }
       // State was replaced wholesale, exactly like a snapshot hydration.
       return { kind: 'snapshot_hydrated' };
     }
@@ -1557,6 +1569,24 @@ export class OperationLogSyncService {
       },
       config: { duration: 0 },
     });
+  }
+
+  /**
+   * Offer the pre-replace Undo after an interrupted USE_REMOTE rebuild whose
+   * resume could not finish. The first attempt already committed the destructive
+   * baseline, so the user's original data survives only in the IMPORT_BACKUP
+   * slot; without an explicit affordance here it has no restore entry point and
+   * reads as total data loss. Skipped while a persistent recovery snack is
+   * already showing, so repeated resume attempts (auto/WS syncs) don't respawn it.
+   */
+  private async _offerStrandedRebuildBackup(): Promise<void> {
+    if (this.snackService.hasPendingPersistentAction()) {
+      return;
+    }
+    const backup = await this.opLogStore.loadImportBackup();
+    if (backup?.savedAt !== undefined) {
+      this._showRestorePreviousDataSnack(backup.savedAt);
+    }
   }
 
   /**

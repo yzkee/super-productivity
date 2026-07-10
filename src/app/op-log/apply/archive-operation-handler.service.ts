@@ -36,6 +36,15 @@ const createEmptyArchiveModel = (): ArchiveModel => ({
 
 /**
  * Action types that affect archive storage and require special handling.
+ *
+ * INVARIANT: every archive side effect for these actions must be idempotent
+ * even when it already fully succeeded once. Crash recovery marks interrupted
+ * remote ops `archive_pending` (OperationLogRecoveryService) and the hydrator
+ * retry re-runs their archive work with `skipReducerDispatch` — the crash
+ * window is between archive completion and `markApplied()`, so a re-run can hit
+ * an archive that is already up to date. Use id-keyed writes / overwrites, never
+ * additive merges (e.g. `archiveTT[...] = value`, not `+=`); an additive path
+ * here would silently double-count time-tracking / counter deltas on this path.
  */
 const ARCHIVE_AFFECTING_ACTION_TYPES: string[] = [
   TaskSharedActions.moveToArchive.type,
