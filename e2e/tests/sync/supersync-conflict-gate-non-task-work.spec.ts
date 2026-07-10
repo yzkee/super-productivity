@@ -161,7 +161,10 @@ test.describe('@supersync incoming SYNC_IMPORT preserves non-task local work', (
 
       // ===== PHASE 5: B syncs — the conflict dialog MUST appear =====
       // triggerSync() does NOT auto-resolve dialogs, so we can assert on it.
-      await clientB.sync.triggerSync();
+      const clientBSync = clientB.sync.triggerSync();
+      // Prevent a teardown-triggered page close from becoming an unhandled
+      // rejection if an assertion below fails before we can await the sync.
+      clientBSync.catch(() => {});
 
       await expect(clientB.sync.syncImportConflictDialog).toBeVisible({ timeout: 30000 });
       console.log('[Gate] ✓ Conflict dialog shown for pending non-task work');
@@ -173,7 +176,7 @@ test.describe('@supersync incoming SYNC_IMPORT preserves non-task local work', (
         state: 'hidden',
         timeout: 10000,
       });
-      await clientB.sync.waitForSyncToComplete({ timeout: 30000 });
+      await clientBSync;
 
       // The dialog itself is not the guarantee: prove the exact pending counter
       // value won, then run another sync and prove it remains durable.
