@@ -361,7 +361,9 @@
       "owner": "johannesjo"
     }
   ],
+  "packageManager": "npm@11.7.0",
   "volta": {
-    "node": "22.18.0"
+    "node": "22.18.0",
+    "npm": "11.7.0"
   }
 }
