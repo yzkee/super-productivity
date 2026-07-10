@@ -805,7 +805,7 @@ describe('OperationLogEffects', () => {
     });
 
     it('should do nothing when no deferred actions are buffered', async () => {
-      await effects.processDeferredActions();
+      await expectAsync(effects.processDeferredActions()).toBeResolved();
 
       expect(mockOpLogStore.appendWithVectorClockUpdate).not.toHaveBeenCalled();
     });
@@ -893,12 +893,18 @@ describe('OperationLogEffects', () => {
         new Error('transient failure'),
       );
 
-      await effects.processDeferredActions();
+      await expectAsync(effects.processDeferredActions()).toBeRejected();
 
       // Only the failed action was attempted (3 retries); the successor was
       // never written out of order and both remain buffered.
       expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledTimes(3);
       expect(getDeferredActions()).toEqual([failedAction, successorAction]);
+      expect(mockSnackService.open).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          msg: T.F.SYNC.S.DEFERRED_ACTION_FAILED,
+          actionStr: T.G.DISMISS,
+        }),
+      );
 
       mockOpLogStore.appendWithVectorClockUpdate.calls.reset();
       mockOpLogStore.appendWithVectorClockUpdate.and.resolveTo(2);
@@ -931,7 +937,10 @@ describe('OperationLogEffects', () => {
       ).toBe(ActionType.TASK_SHARED_UPDATE);
       expect(getDeferredActions()).toEqual([]);
       expect(mockSnackService.open).toHaveBeenCalledWith(
-        jasmine.objectContaining({ msg: T.F.SYNC.S.DEFERRED_ACTION_FAILED }),
+        jasmine.objectContaining({
+          msg: T.F.SYNC.S.DEFERRED_ACTION_FAILED,
+          actionStr: T.G.DISMISS,
+        }),
       );
     });
 
@@ -1022,7 +1031,9 @@ describe('OperationLogEffects', () => {
         new DOMException('Quota exceeded', 'QuotaExceededError'),
       );
 
-      await effects.processDeferredActions({ callerHoldsOperationLogLock: true });
+      await expectAsync(
+        effects.processDeferredActions({ callerHoldsOperationLogLock: true }),
+      ).toBeRejected();
 
       expect(mockCompactionService.emergencyCompact).not.toHaveBeenCalled();
       expect(mockLockService.request).not.toHaveBeenCalledWith(
@@ -1055,7 +1066,9 @@ describe('OperationLogEffects', () => {
         new DOMException('Quota exceeded', 'QuotaExceededError'),
       );
 
-      await effects.processDeferredActions({ callerHoldsOperationLogLock: true });
+      await expectAsync(
+        effects.processDeferredActions({ callerHoldsOperationLogLock: true }),
+      ).toBeRejected();
 
       // 1. The bail path actually ran (proves handleQuotaExceeded was invoked
       //    AND took the caller-holds-lock branch — not some other code path).

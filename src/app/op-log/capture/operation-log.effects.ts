@@ -305,6 +305,11 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
           // (recordCriticalErrorTime) — that is fed by GlobalErrorHandler and the
           // validateState seam only; snackbar-surfaced conditions are out of scope
           // by design. See util/critical-error-signal.ts.
+          if (isDeferredWrite) {
+            throw new PermanentDeferredWriteError(
+              `Deferred action ${action.type} has an invalid payload.`,
+            );
+          }
           this.snackService.open({
             type: 'ERROR',
             msg: T.F.SYNC.S.INVALID_OPERATION_PAYLOAD,
@@ -313,11 +318,6 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
               window.location.reload();
             },
           });
-          if (isDeferredWrite) {
-            throw new PermanentDeferredWriteError(
-              `Deferred action ${action.type} has an invalid payload.`,
-            );
-          }
           return; // Skip persisting invalid operation
         }
 
@@ -409,7 +409,9 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
         // #8306: the effect path catches this throw in writeOperationFromEffect
         // — the shared persistOperation$ stream must NOT be torn down by one
         // failed write — while still showing the sticky snackbar below.
-        this.notifyUserAndTriggerRollback();
+        if (!isDeferredWrite) {
+          this.notifyUserAndTriggerRollback();
+        }
         throw e;
       }
       if (this.isQuotaExceededError(e)) {
@@ -418,13 +420,17 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
           OpLog.err(
             'OperationLogEffects: Quota exceeded during retry - aborting to prevent loop',
           );
-          this.notifyUserAndTriggerRollback();
+          if (!isDeferredWrite) {
+            this.notifyUserAndTriggerRollback();
+          }
         } else {
           await this.handleQuotaExceeded(action, isDeferredWrite, options);
           return;
         }
       } else {
-        this.notifyUserAndTriggerRollback();
+        if (!isDeferredWrite) {
+          this.notifyUserAndTriggerRollback();
+        }
       }
       throw e;
     }
@@ -687,6 +693,7 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
     const MAX_RETRIES = 3;
     const BASE_DELAY_MS = 100;
     let failedCount = 0;
+    let transientFailure: unknown;
 
     for (const action of deferredActions) {
       let lastError: unknown;
@@ -728,8 +735,7 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
       if (lastError instanceof PermanentDeferredWriteError) {
         // Terminal: the action can never be persisted (invalid identifiers or
         // payload). Abandon it — keeping it queued would retry it with backoff
-        // and re-raise the failure snack on every future sync window while the
-        // in-memory buffer's "durability" ends at the advised reload anyway.
+        // and re-raise the failure snack on every future sync window.
         acknowledgeDeferredAction(action);
         OpLog.err('OperationLogEffects: Abandoning permanently invalid deferred action', {
           actionType: action.type,
@@ -749,6 +755,7 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
           errorName: (lastError as Error | undefined)?.name,
         },
       );
+      transientFailure = lastError;
       break;
     }
 
@@ -757,14 +764,18 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
       this.snackService.open({
         type: 'ERROR',
         msg: T.F.SYNC.S.DEFERRED_ACTION_FAILED,
-        actionStr: T.PS.RELOAD,
-        actionFn: (): void => {
-          window.location.reload();
-        },
+        actionStr: T.G.DISMISS,
         config: {
           duration: 0, // Sticky - don't auto-dismiss critical errors
         },
       });
+    }
+
+    if (transientFailure !== undefined) {
+      throw new Error(
+        'Deferred local actions remain unpersisted after retry exhaustion.',
+        { cause: transientFailure },
+      );
     }
   }
 }

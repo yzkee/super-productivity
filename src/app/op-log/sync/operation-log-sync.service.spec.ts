@@ -6,6 +6,7 @@ import { SnackService } from '../../core/snack/snack.service';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { VectorClockService } from './vector-clock.service';
 import { OperationApplierService } from '../apply/operation-applier.service';
+import { OperationLogEffects } from '../capture/operation-log.effects';
 import { ConflictResolutionService } from './conflict-resolution.service';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { SyncSessionValidationService } from './sync-session-validation.service';
@@ -58,6 +59,7 @@ describe('OperationLogSyncService', () => {
   let validateStateServiceSpy: jasmine.SpyObj<ValidateStateService>;
   let lockServiceSpy: jasmine.SpyObj<LockService>;
   let operationApplierSpy: jasmine.SpyObj<OperationApplierService>;
+  let operationLogEffectsSpy: jasmine.SpyObj<OperationLogEffects>;
 
   beforeEach(() => {
     snackServiceSpy = jasmine.createSpyObj('SnackService', [
@@ -67,6 +69,8 @@ describe('OperationLogSyncService', () => {
     snackServiceSpy.hasPendingPersistentAction.and.returnValue(false);
     opLogStoreSpy = jasmine.createSpyObj('OperationLogStoreService', [
       'getUnsynced',
+      'getPendingRemoteOps',
+      'getFailedRemoteOps',
       'loadStateCache',
       'getLastSeq',
       'getOpById',
@@ -85,6 +89,8 @@ describe('OperationLogSyncService', () => {
     ]);
     opLogStoreSpy.hasSyncedOps.and.resolveTo(true);
     opLogStoreSpy.getUnsynced.and.resolveTo([]);
+    opLogStoreSpy.getPendingRemoteOps.and.resolveTo([]);
+    opLogStoreSpy.getFailedRemoteOps.and.resolveTo([]);
     opLogStoreSpy.markSynced.and.resolveTo();
     opLogStoreSpy.setVectorClock.and.resolveTo();
     opLogStoreSpy.clearFullStateOps.and.resolveTo();
@@ -188,6 +194,10 @@ describe('OperationLogSyncService', () => {
       'applyOperations',
     ]);
     operationApplierSpy.applyOperations.and.resolveTo({ appliedOps: [] });
+    operationLogEffectsSpy = jasmine.createSpyObj('OperationLogEffects', [
+      'processDeferredActions',
+    ]);
+    operationLogEffectsSpy.processDeferredActions.and.resolveTo();
 
     TestBed.configureTestingModule({
       providers: [
@@ -209,6 +219,7 @@ describe('OperationLogSyncService', () => {
           provide: OperationApplierService,
           useValue: operationApplierSpy,
         },
+        { provide: OperationLogEffects, useValue: operationLogEffectsSpy },
         {
           provide: ConflictResolutionService,
           useValue: jasmine.createSpyObj('ConflictResolutionService', [
@@ -315,6 +326,41 @@ describe('OperationLogSyncService', () => {
     });
 
     describe('uploadPendingOps', () => {
+      it('should drain deferred local actions before selecting pending uploads', async () => {
+        const callOrder: string[] = [];
+        writeFlushServiceSpy.flushPendingWrites.and.callFake(async () => {
+          callOrder.push('flush');
+        });
+        operationLogEffectsSpy.processDeferredActions.and.callFake(async () => {
+          callOrder.push('deferred');
+        });
+        uploadServiceSpy.uploadPendingOps.and.callFake(async () => {
+          callOrder.push('upload');
+          return {
+            uploadedCount: 0,
+            piggybackedOps: [],
+            rejectedCount: 0,
+            rejectedOps: [],
+          };
+        });
+
+        await service.uploadPendingOps({} as OperationSyncCapable);
+
+        expect(callOrder).toEqual(['flush', 'deferred', 'flush', 'upload']);
+      });
+
+      it('should block upload while a remote operation is incompletely applied', async () => {
+        opLogStoreSpy.getPendingRemoteOps.and.resolveTo([
+          { applicationStatus: 'pending' } as OperationLogEntry,
+        ]);
+
+        await expectAsync(
+          service.uploadPendingOps({} as OperationSyncCapable),
+        ).toBeRejected();
+
+        expect(uploadServiceSpy.uploadPendingOps).not.toHaveBeenCalled();
+      });
+
       it('should return localWinOpsCreated: 0 when no piggybacked ops', async () => {
         opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
         uploadServiceSpy.uploadPendingOps.and.returnValue(
@@ -908,6 +954,18 @@ describe('OperationLogSyncService', () => {
     });
 
     describe('downloadRemoteOps', () => {
+      it('should block download while a prior remote operation is incompletely applied', async () => {
+        opLogStoreSpy.getFailedRemoteOps.and.resolveTo([
+          { applicationStatus: 'archive_pending' } as OperationLogEntry,
+        ]);
+
+        await expectAsync(
+          service.downloadRemoteOps({} as OperationSyncCapable),
+        ).toBeRejected();
+
+        expect(downloadServiceSpy.downloadRemoteOps).not.toHaveBeenCalled();
+      });
+
       it('should redo the raw rebuild when a prior USE_REMOTE replay was interrupted', async () => {
         // The normal download path excludes this client's own ops server-side,
         // so resuming an interrupted rebuild through it would silently lose them.
@@ -3962,7 +4020,7 @@ describe('OperationLogSyncService', () => {
 
       const result = await service.downloadRemoteOps(mockProvider);
 
-      expect(events.slice(0, 2)).toEqual(['flush', 'getUnsynced']);
+      expect(events.slice(0, 4)).toEqual(['flush', 'flush', 'flush', 'getUnsynced']);
       expect(remoteOpsProcessingServiceSpy.processRemoteOps).toHaveBeenCalledWith([
         incomingSyncImport,
       ]);
@@ -4296,7 +4354,7 @@ describe('OperationLogSyncService', () => {
 
       const result = await service.uploadPendingOps(mockProvider);
 
-      expect(writeFlushServiceSpy.flushPendingWrites).toHaveBeenCalledTimes(2);
+      expect(writeFlushServiceSpy.flushPendingWrites).toHaveBeenCalledTimes(3);
       expect(opLogStoreSpy.getUnsynced).toHaveBeenCalled();
       expect(result.kind).toBe('completed');
     });

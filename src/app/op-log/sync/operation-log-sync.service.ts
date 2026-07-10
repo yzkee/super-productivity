@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { planSnapshotHydration } from '@sp/sync-core';
 import {
@@ -61,6 +61,7 @@ import {
 } from '../../features/config/local-only-sync-settings.util';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 import { OperationApplierService } from '../apply/operation-applier.service';
+import { processDeferredActions } from './process-deferred-actions-flush.util';
 
 /**
  * Orchestrates synchronization of the Operation Log with remote storage.
@@ -151,6 +152,7 @@ export class OperationLogSyncService {
   private syncImportConflictCoordinator = inject(SyncImportConflictCoordinatorService);
   private providerManager = inject(SyncProviderManager);
   private operationApplier = inject(OperationApplierService);
+  private injector = inject(Injector);
 
   /**
    * Checks if this client is "wholly fresh" - meaning it has never synced before
@@ -206,7 +208,8 @@ export class OperationLogSyncService {
     // The effect that writes operations uses concatMap for sequential processing,
     // but if sync is triggered before all operations are written to IndexedDB,
     // we would upload an incomplete set. This flush waits for all queued writes.
-    await this.writeFlushService.flushPendingWrites();
+    await this._flushLocalWritesIncludingDeferredActions();
+    await this._assertNoIncompleteRemoteOperations();
 
     // Capture never-synced status before the upload runs. The orchestrator passes a
     // value captured even earlier (pre-download, since download persists synced ops);
@@ -469,6 +472,9 @@ export class OperationLogSyncService {
       // State was replaced wholesale, exactly like a snapshot hydration.
       return { kind: 'snapshot_hydrated' };
     }
+
+    await this._flushLocalWritesIncludingDeferredActions();
+    await this._assertNoIncompleteRemoteOperations();
 
     const result = await this.downloadService.downloadRemoteOps(syncProvider, options);
 
@@ -1522,6 +1528,26 @@ export class OperationLogSyncService {
       }
     }
     return merged;
+  }
+
+  private async _flushLocalWritesIncludingDeferredActions(): Promise<void> {
+    await this.writeFlushService.flushPendingWrites();
+    await processDeferredActions(this.injector, false);
+    // Deferred writes are awaited directly, but this second barrier also
+    // catches ordinary actions dispatched while their drain was running.
+    await this.writeFlushService.flushPendingWrites();
+  }
+
+  private async _assertNoIncompleteRemoteOperations(): Promise<void> {
+    const [pendingRemoteOps, failedRemoteOps] = await Promise.all([
+      this.opLogStore.getPendingRemoteOps(),
+      this.opLogStore.getFailedRemoteOps(),
+    ]);
+    if (pendingRemoteOps.length > 0 || failedRemoteOps.length > 0) {
+      throw new Error(
+        'Sync blocked because previously downloaded operations are not fully applied. Restart the app to retry recovery.',
+      );
+    }
   }
 
   /**

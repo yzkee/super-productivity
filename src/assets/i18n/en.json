@@ -1549,7 +1549,7 @@
         "CONFLICT_RESOLUTION_FAILED": "Sync conflict resolution failed. Please reload.",
         "DATA_REPAIRED": "Sync cleanup: {{count}} reference(s) resolved",
         "DECRYPTION_FAILED": "Failed to decrypt synced data. Please check your encryption password.",
-        "DEFERRED_ACTION_FAILED": "Some changes made during sync could not be saved. Please reload to recover.",
+        "DEFERRED_ACTION_FAILED": "Some changes made during sync could not be saved yet. Sync will retry automatically; keep the app open.",
         "DISABLE_ENCRYPTION_FAILED": "Failed to disable encryption: {{message}}",
         "ENABLE_ENCRYPTION_FAILED": "Failed to enable encryption: {{message}}",
         "ENCRYPTION_DISABLED_ON_OTHER_DEVICE": "Encryption was disabled on another device. Your sync settings have been updated.",
