@@ -6,6 +6,7 @@ import { VectorClockService } from '../sync/vector-clock.service';
 import {
   ActionType,
   Operation,
+  OperationLogEntry,
   OpType,
   EntityType,
   VectorClock,
@@ -29,7 +30,12 @@ import {
   MAX_VECTOR_CLOCK_SIZE,
 } from '../core/operation-log.const';
 import { IndexedDBOpenError } from '../core/errors/indexed-db-open.error';
-import { FULL_STATE_OPS_META_KEY, SINGLETON_KEY, STORE_NAMES } from './db-keys.const';
+import {
+  FULL_STATE_OPS_META_KEY,
+  OPS_INDEXES,
+  SINGLETON_KEY,
+  STORE_NAMES,
+} from './db-keys.const';
 import { ArchiveModel } from '../../features/time-tracking/time-tracking.model';
 
 describe('OperationLogStoreService', () => {
@@ -1555,6 +1561,32 @@ describe('OperationLogStoreService', () => {
   });
 
   describe('markFailed', () => {
+    const seedLegacyTerminalRemoteFailure = async (op: Operation): Promise<void> => {
+      await service.append(op, 'remote', { pendingApply: true });
+      for (let retry = 0; retry < 4; retry++) {
+        await service.markFailed([op.id]);
+      }
+      await service.markRejected([op.id]);
+
+      const adapter = (
+        service as unknown as {
+          _adapter: OpLogDbAdapter;
+        }
+      )._adapter;
+      await adapter.transaction([STORE_NAMES.OPS], 'readwrite', async (tx) => {
+        const entry = await tx.getFromIndex<OperationLogEntry>(
+          STORE_NAMES.OPS,
+          OPS_INDEXES.BY_ID,
+          op.id,
+        );
+        if (!entry) {
+          throw new Error('Expected seeded legacy operation');
+        }
+        entry.applicationStatus = undefined;
+        await tx.put(STORE_NAMES.OPS, entry);
+      });
+    };
+
     it('should increment retry count', async () => {
       const op = createTestOperation();
       await service.append(op, 'remote', { pendingApply: true });
@@ -1594,11 +1626,7 @@ describe('OperationLogStoreService', () => {
 
     it('should re-quarantine legacy terminal remote failures', async () => {
       const op = createTestOperation();
-      await service.append(op, 'remote', { pendingApply: true });
-      for (let retry = 0; retry < 4; retry++) {
-        await service.markFailed([op.id]);
-      }
-      await service.markRejected([op.id]);
+      await seedLegacyTerminalRemoteFailure(op);
 
       expect(await service.recoverLegacyTerminalRemoteFailures()).toBe(1);
 
@@ -1610,23 +1638,30 @@ describe('OperationLogStoreService', () => {
 
     it('should run the legacy terminal remote failure repair only once', async () => {
       const firstLegacyOp = createTestOperation({ entityId: 'first-legacy' });
-      await service.append(firstLegacyOp, 'remote', { pendingApply: true });
-      for (let retry = 0; retry < 4; retry++) {
-        await service.markFailed([firstLegacyOp.id]);
-      }
-      await service.markRejected([firstLegacyOp.id]);
+      await seedLegacyTerminalRemoteFailure(firstLegacyOp);
 
       expect(await service.recoverLegacyTerminalRemoteFailures()).toBe(1);
 
       const laterLegacyOp = createTestOperation({ entityId: 'later-legacy' });
-      await service.append(laterLegacyOp, 'remote', { pendingApply: true });
-      for (let retry = 0; retry < 4; retry++) {
-        await service.markFailed([laterLegacyOp.id]);
-      }
-      await service.markRejected([laterLegacyOp.id]);
+      await seedLegacyTerminalRemoteFailure(laterLegacyOp);
 
       expect(await service.recoverLegacyTerminalRemoteFailures()).toBe(0);
       expect((await service.getOpById(laterLegacyOp.id))?.rejectedAt).toBeDefined();
+    });
+
+    it('should leave legitimately rejected failed remote work untouched', async () => {
+      const op = createTestOperation({ entityId: 'legitimately-rejected' });
+      await service.append(op, 'remote', { pendingApply: true });
+      for (let retry = 0; retry < 4; retry++) {
+        await service.markFailed([op.id]);
+      }
+      await service.markRejected([op.id]);
+
+      expect(await service.recoverLegacyTerminalRemoteFailures()).toBe(0);
+
+      const stored = await service.getOpById(op.id);
+      expect(stored?.rejectedAt).toBeDefined();
+      expect(stored?.applicationStatus).toBe('failed');
     });
 
     it('should handle empty array', async () => {
@@ -2137,6 +2172,30 @@ describe('OperationLogStoreService', () => {
       },
       timeTracking: { project: {}, tag: {} },
       lastTimeTrackingFlush: 0,
+    });
+
+    it('should atomically clear an interrupted raw-rebuild marker', async () => {
+      await service.runRemoteStateReplacement({
+        baselineState: { task: { ids: [], entities: {} } },
+        vectorClock: { remote: 1 },
+        schemaVersion: 4,
+        snapshotEntityKeys: [],
+        archiveYoung: createArchive('remote-young'),
+        archiveOld: createArchive('remote-old'),
+      });
+      expect(await service.isRawRebuildIncomplete()).toBe(true);
+
+      await service.runDestructiveStateReplacement({
+        syncImportOp: createTestOperation({
+          opType: OpType.BackupImport,
+          entityType: 'ALL' as EntityType,
+          entityId: 'restored-backup',
+          payload: { task: { ids: [], entities: {} } },
+        }),
+        snapshotEntityKeys: [],
+      });
+
+      expect(await service.isRawRebuildIncomplete()).toBe(false);
     });
 
     it('should write archives in the same destructive replacement', async () => {

@@ -176,11 +176,13 @@ export class WsTriggeredDownloadService implements OnDestroy {
             err,
           );
           this._providerManager.setSyncStatus('ERROR');
-          this._snackService.open({
-            msg: T.F.SYNC.S.INCOMPLETE_REMOTE_OPERATIONS,
-            type: 'ERROR',
-            config: { duration: 0 },
-          });
+          if (!this._snackService.hasPendingPersistentAction()) {
+            this._snackService.open({
+              msg: T.F.SYNC.S.INCOMPLETE_REMOTE_OPERATIONS,
+              type: 'ERROR',
+              config: { duration: 0 },
+            });
+          }
           return;
         }
         if (err instanceof AuthFailSPError || err instanceof MissingCredentialsSPError) {

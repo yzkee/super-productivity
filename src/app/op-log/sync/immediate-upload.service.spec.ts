@@ -101,7 +101,11 @@ describe('ImmediateUploadService', () => {
     mockSyncWrapperService = {
       isEncryptionOperationInProgress: false,
     };
-    mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
+    mockSnackService = jasmine.createSpyObj('SnackService', [
+      'open',
+      'hasPendingPersistentAction',
+    ]);
+    mockSnackService.hasPendingPersistentAction.and.returnValue(false);
 
     TestBed.configureTestingModule({
       providers: [
@@ -179,6 +183,21 @@ describe('ImmediateUploadService', () => {
         type: 'ERROR',
         config: { duration: 0 },
       });
+    }));
+
+    it('should preserve an existing persistent recovery action for incomplete remote work', fakeAsync(() => {
+      mockSnackService.hasPendingPersistentAction.and.returnValue(true);
+      mockSyncService.uploadPendingOps.and.rejectWith(
+        new IncompleteRemoteOperationsError(new Error('archive failed')),
+      );
+
+      service.initialize();
+      service.trigger();
+      tick(2000);
+      flush();
+
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+      expect(mockSnackService.open).not.toHaveBeenCalled();
     }));
 
     it('should report UNKNOWN_OR_CHANGED when a local-win follow-up lacks a mandatory encryption key', fakeAsync(() => {

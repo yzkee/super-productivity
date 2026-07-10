@@ -1152,6 +1152,7 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
           if (
             entry.source === 'remote' &&
             entry.rejectedAt !== undefined &&
+            entry.applicationStatus === undefined &&
             (entry.retryCount ?? 0) >= 4
           ) {
             entry.rejectedAt = undefined;
@@ -2060,6 +2061,11 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
           buildFullStateOpsMeta([{ opId: syncImportOp.id, seq }]),
           FULL_STATE_OPS_META_KEY,
         );
+
+        // This replacement supersedes any interrupted USE_REMOTE rebuild. Clear
+        // the marker in the same transaction as the restored/clean-slate
+        // baseline so a successful Undo cannot immediately re-enter recovery.
+        await tx.delete(STORE_NAMES.META, RAW_REBUILD_INCOMPLETE_META_KEY);
 
         await tx.put(
           STORE_NAMES.VECTOR_CLOCK,

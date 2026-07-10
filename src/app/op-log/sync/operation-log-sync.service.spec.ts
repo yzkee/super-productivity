@@ -1064,6 +1064,50 @@ describe('OperationLogSyncService', () => {
         );
       });
 
+      it('should allow uploads after stranded-rebuild Undo clears the marker', async () => {
+        let isRawRebuildIncomplete = true;
+        opLogStoreSpy.isRawRebuildIncomplete.and.callFake(
+          async () => isRawRebuildIncomplete,
+        );
+        spyOn(service, 'forceDownloadRemoteState').and.rejectWith(
+          new Error('USE_REMOTE aborted: remote returned no data to rebuild from.'),
+        );
+        opLogStoreSpy.loadImportBackup.and.resolveTo({ savedAt: 4242 } as any);
+        backupServiceSpy.restoreImportBackup.and.callFake(async () => {
+          isRawRebuildIncomplete = false;
+          return true;
+        });
+        uploadServiceSpy.uploadPendingOps.and.resolveTo({
+          uploadedCount: 0,
+          piggybackedOps: [],
+          rejectedCount: 0,
+          rejectedOps: [],
+        });
+        const mockProvider = { isReady: () => Promise.resolve(true) } as any;
+
+        await expectAsync(service.downloadRemoteOps(mockProvider)).toBeRejected();
+
+        const undoSnack = snackServiceSpy.open.calls
+          .allArgs()
+          .map(([params]) => params)
+          .find(
+            (params) =>
+              typeof params === 'object' &&
+              params !== null &&
+              params.msg === T.F.SYNC.S.LOCAL_DATA_REPLACE_UNDO,
+          );
+        expect(undoSnack).toBeDefined();
+        if (typeof undoSnack !== 'object' || undoSnack === null || !undoSnack.actionFn) {
+          throw new Error('Expected the stranded-rebuild Undo action');
+        }
+        await undoSnack.actionFn();
+
+        await service.uploadPendingOps(mockProvider);
+
+        expect(backupServiceSpy.restoreImportBackup).toHaveBeenCalledWith(4242);
+        expect(uploadServiceSpy.uploadPendingOps).toHaveBeenCalled();
+      });
+
       it('should not respawn the recovery snack while one is already showing', async () => {
         opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(true);
         spyOn(service, 'forceDownloadRemoteState').and.rejectWith(

@@ -1066,6 +1066,19 @@ describe('SyncWrapperService', () => {
       });
     });
 
+    it('should preserve an existing persistent recovery action for incomplete remote work', async () => {
+      mockSnackService.hasPendingPersistentAction.and.returnValue(true);
+      mockSyncService.downloadRemoteOps.and.rejectWith(
+        new IncompleteRemoteOperationsError(new Error('archive failed')),
+      );
+
+      const result = await service.sync();
+
+      expect(result).toBe('HANDLED_ERROR');
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+      expect(mockSnackService.open).not.toHaveBeenCalled();
+    });
+
     it('should handle PotentialCorsError with snack message', async () => {
       mockSyncService.downloadRemoteOps.and.returnValue(
         Promise.reject(new PotentialCorsError('https://example.com')),

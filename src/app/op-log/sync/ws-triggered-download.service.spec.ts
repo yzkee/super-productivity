@@ -61,7 +61,11 @@ describe('WsTriggeredDownloadService', () => {
     // off it lazily (via Injector, to avoid a DI cycle). Provide a minimal mock so
     // the real (heavily-dependent) service is never constructed in the unit test.
     mockSyncWrapper = { isEncryptionOperationInProgress: false };
-    mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
+    mockSnackService = jasmine.createSpyObj('SnackService', [
+      'open',
+      'hasPendingPersistentAction',
+    ]);
+    mockSnackService.hasPendingPersistentAction.and.returnValue(false);
 
     TestBed.configureTestingModule({
       providers: [
@@ -249,6 +253,21 @@ describe('WsTriggeredDownloadService', () => {
       type: 'ERROR',
       config: { duration: 0 },
     });
+  }));
+
+  it('should preserve an existing persistent recovery action for incomplete remote work', fakeAsync(() => {
+    mockSnackService.hasPendingPersistentAction.and.returnValue(true);
+    mockSyncService.downloadRemoteOps.and.rejectWith(
+      new IncompleteRemoteOperationsError(new Error('archive failed')),
+    );
+
+    service.start();
+    notification$.next({ latestSeq: 1 });
+    tick(500);
+    flushMicrotasks();
+
+    expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+    expect(mockSnackService.open).not.toHaveBeenCalled();
   }));
 
   it('should be idempotent when start is called twice', fakeAsync(() => {
