@@ -28,11 +28,15 @@ export const getOperationSchemaVersion = (op: { schemaVersion?: unknown }): numb
   if (
     typeof op.schemaVersion !== 'number' ||
     !Number.isInteger(op.schemaVersion) ||
-    // Floor of 1 matches the server contract (SuperSyncOperationSchema min(1))
-    // so the layers cannot drift apart.
-    op.schemaVersion < 1
+    // Deliberately accepts 0 (unlike the server contract's min(1)): a parsed 0
+    // then fails the MIN_SUPPORTED_SCHEMA_VERSION comparison and surfaces as
+    // VERSION_UNSUPPORTED — a truthful message — instead of a generic
+    // migration-failure. Safety is identical either way.
+    op.schemaVersion < 0
   ) {
-    throw new Error('Operation schemaVersion must be a positive integer when present.');
+    throw new Error(
+      'Operation schemaVersion must be a non-negative integer when present.',
+    );
   }
   return op.schemaVersion;
 };
