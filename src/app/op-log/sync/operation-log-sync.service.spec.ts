@@ -21,7 +21,7 @@ import { RemoteOpsProcessingService } from './remote-ops-processing.service';
 import { RejectedOpsHandlerService } from './rejected-ops-handler.service';
 import { OperationWriteFlushService } from './operation-write-flush.service';
 import { SuperSyncStatusService } from './super-sync-status.service';
-import { provideMockStore } from '@ngrx/store/testing';
+import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import {
   ActionType,
   Operation,
@@ -38,6 +38,9 @@ import { T } from '../../t.const';
 import { INBOX_PROJECT } from '../../features/project/project.const';
 import { TODAY_TAG, SYSTEM_TAG_IDS } from '../../features/tag/tag.const';
 import { OperationSyncCapable } from '../sync-providers/provider.interface';
+import { selectSyncConfig } from '../../features/config/store/global-config.reducer';
+import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
+import { SyncProviderId } from '../sync-providers/provider.const';
 
 describe('OperationLogSyncService', () => {
   let service: OperationLogSyncService;
@@ -2506,6 +2509,47 @@ describe('OperationLogSyncService', () => {
       await service.forceDownloadRemoteState(mockProvider);
 
       expect(callOrder).toEqual(['downloadRemoteOps', 'runRemoteStateReplacement']);
+    });
+
+    it('should preserve device-local sync settings in the atomic rebuild baseline', async () => {
+      const mockStore = TestBed.inject(MockStore);
+      mockStore.overrideSelector(selectSyncConfig, {
+        ...DEFAULT_GLOBAL_CONFIG.sync,
+        syncProvider: SyncProviderId.SuperSync,
+        isEnabled: true,
+        isEncryptionEnabled: true,
+        syncInterval: 17,
+        isManualSyncOnly: true,
+      });
+      mockStore.refreshState();
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [makeRemoteOp()],
+        needsFullStateUpload: false,
+        success: true,
+        providerMode: 'superSyncOps',
+        failedFileCount: 0,
+        latestServerSeq: 1,
+      });
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as unknown as OperationSyncCapable;
+
+      await service.forceDownloadRemoteState(mockProvider);
+
+      const baselineState = opLogStoreSpy.runRemoteStateReplacement.calls.mostRecent()
+        .args[0].baselineState as {
+        globalConfig: { sync: Record<string, unknown> };
+      };
+      expect(baselineState.globalConfig.sync).toEqual(
+        jasmine.objectContaining({
+          syncProvider: SyncProviderId.SuperSync,
+          isEnabled: true,
+          isEncryptionEnabled: true,
+          syncInterval: 17,
+          isManualSyncOnly: true,
+        }),
+      );
     });
 
     it('should capture a safety backup after download but before replacement (#8107)', async () => {

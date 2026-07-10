@@ -53,6 +53,13 @@ import { isExampleTaskCreateOp } from '../validation/is-example-task-op.util';
 import { Operation } from '../core/operation.types';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { extractEntityKeysFromState } from '../persistence/extract-entity-keys';
+import { firstValueFrom } from 'rxjs';
+import { selectSyncConfig } from '../../features/config/store/global-config.reducer';
+import {
+  applyLocalOnlySyncSettingsToAppData,
+  LocalOnlySyncSettings,
+} from '../../features/config/local-only-sync-settings.util';
+import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 
 /**
  * Orchestrates synchronization of the Operation Log with remote storage.
@@ -1264,7 +1271,40 @@ export class OperationLogSyncService {
       rebuiltClock = mergeVectorClocks(rebuiltClock, opClock);
     }
     const defaultData = getDefaultMainModelData();
-    const baselineState = snapshotState ?? defaultData;
+    const baselineSource = snapshotState ?? defaultData;
+    const baselineGlobalConfig =
+      baselineSource['globalConfig'] && typeof baselineSource['globalConfig'] === 'object'
+        ? (baselineSource['globalConfig'] as Record<string, unknown>)
+        : {};
+    const baselineSyncConfig =
+      baselineGlobalConfig['sync'] && typeof baselineGlobalConfig['sync'] === 'object'
+        ? (baselineGlobalConfig['sync'] as Record<string, unknown>)
+        : {};
+    const currentSyncConfig = await firstValueFrom(this.store.select(selectSyncConfig));
+    const localOnlySyncSettings: LocalOnlySyncSettings = {
+      isEnabled: currentSyncConfig.isEnabled,
+      isEncryptionEnabled: currentSyncConfig.isEncryptionEnabled,
+      syncProvider: currentSyncConfig.syncProvider,
+      syncInterval: currentSyncConfig.syncInterval,
+      isManualSyncOnly: currentSyncConfig.isManualSyncOnly,
+    };
+    // getDefaultMainModelData intentionally excludes globalConfig. Add a
+    // default config shell before applying the canonical device-local fields
+    // so an interrupted rebuild can hydrate enough configuration to sync again.
+    const baselineState = applyLocalOnlySyncSettingsToAppData(
+      {
+        ...baselineSource,
+        globalConfig: {
+          ...DEFAULT_GLOBAL_CONFIG,
+          ...baselineGlobalConfig,
+          sync: {
+            ...DEFAULT_GLOBAL_CONFIG.sync,
+            ...baselineSyncConfig,
+          },
+        },
+      },
+      localOnlySyncSettings,
+    );
     const archiveYoung =
       (snapshotState?.[
         'archiveYoung'
