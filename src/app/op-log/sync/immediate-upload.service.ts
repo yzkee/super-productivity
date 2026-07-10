@@ -249,11 +249,31 @@ export class ImmediateUploadService implements OnDestroy {
 
         // If LWW local-wins created new update ops from piggybacked ops,
         // do a follow-up upload to push them to the server immediately
+        let finalResult = result;
+        let totalUploadedCount = result.uploadedCount;
+        let hasPermanentRejection = result.permanentRejectionCount > 0;
         if (result.localWinOpsCreated > 0) {
           OpLog.verbose(
             `ImmediateUploadService: LWW created ${result.localWinOpsCreated} local-win op(s), re-uploading`,
           );
-          await this._syncService.uploadPendingOps(syncCapableProvider);
+          const followUpResult =
+            await this._syncService.uploadPendingOps(syncCapableProvider);
+          if (followUpResult.kind === 'blocked_incompatible') {
+            OpLog.warn(
+              'ImmediateUploadService: Local-win follow-up blocked by an incompatible operation',
+            );
+            this._providerManager.setSyncStatus('ERROR');
+            return;
+          }
+          if (
+            followUpResult.kind === 'cancelled' ||
+            followUpResult.kind === 'blocked_fresh_client'
+          ) {
+            return;
+          }
+          finalResult = followUpResult;
+          totalUploadedCount += followUpResult.uploadedCount;
+          hasPermanentRejection ||= followUpResult.permanentRejectionCount > 0;
         }
 
         // Read the validation latch BEFORE any IN_SYNC / deferred-checkmark
@@ -270,20 +290,29 @@ export class ImmediateUploadService implements OnDestroy {
 
         // Don't show checkmark when piggybacked ops exist - there may be more
         // remote ops pending. Let normal sync cycle confirm full sync state.
-        if (result.piggybackedOpsCount > 0) {
+        if (hasPermanentRejection) {
+          this._providerManager.setSyncStatus('ERROR');
+          return;
+        }
+
+        if (
+          finalResult.piggybackedOpsCount > 0 ||
+          finalResult.hasMorePiggyback ||
+          finalResult.localWinOpsCreated > 0
+        ) {
           OpLog.verbose(
-            `ImmediateUploadService: Uploaded ${result.uploadedCount} ops, ` +
-              `processed ${result.piggybackedOpsCount} piggybacked (checkmark deferred)`,
+            `ImmediateUploadService: Uploaded ${totalUploadedCount} ops, ` +
+              `processed ${finalResult.piggybackedOpsCount} piggybacked (checkmark deferred)`,
           );
           return;
         }
 
         // Show checkmark ONLY when server confirms no pending remote ops
         // (empty piggybackedOps means we're confirmed in sync)
-        if (result.uploadedCount > 0 || result.localWinOpsCreated > 0) {
+        if (totalUploadedCount > 0) {
           this._providerManager.setSyncStatus('IN_SYNC');
           OpLog.verbose(
-            `ImmediateUploadService: Uploaded ${result.uploadedCount} ops, confirmed in sync`,
+            `ImmediateUploadService: Uploaded ${totalUploadedCount} ops, confirmed in sync`,
           );
         }
       } catch (e) {

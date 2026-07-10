@@ -205,6 +205,49 @@ describe('ImmediateUploadService', () => {
       // Piggybacked ops are processed internally, no checkmark shown
       expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalled();
     }));
+
+    it('should report ERROR when the local-win follow-up is blocked', fakeAsync(() => {
+      mockSyncService.uploadPendingOps.and.returnValues(
+        Promise.resolve(completedResult({ uploadedCount: 1, localWinOpsCreated: 1 })),
+        Promise.resolve({ kind: 'blocked_incompatible' }),
+      );
+
+      service.initialize();
+      service.trigger();
+      tick(2000);
+      flush();
+
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+      expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalledWith('IN_SYNC');
+    }));
+
+    it('should not show a checkmark when the local-win follow-up is cancelled', fakeAsync(() => {
+      mockSyncService.uploadPendingOps.and.returnValues(
+        Promise.resolve(completedResult({ uploadedCount: 1, localWinOpsCreated: 1 })),
+        Promise.resolve({ kind: 'cancelled' }),
+      );
+
+      service.initialize();
+      service.trigger();
+      tick(2000);
+      flush();
+
+      expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalled();
+    }));
+
+    it('should defer the checkmark when the local-win follow-up receives piggybacked ops', fakeAsync(() => {
+      mockSyncService.uploadPendingOps.and.returnValues(
+        Promise.resolve(completedResult({ uploadedCount: 1, localWinOpsCreated: 1 })),
+        Promise.resolve(completedResult({ uploadedCount: 1, piggybackedOpsCount: 1 })),
+      );
+
+      service.initialize();
+      service.trigger();
+      tick(2000);
+      flush();
+
+      expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalled();
+    }));
   });
 
   // #8309: the immediate-upload side channel must not interleave with another
