@@ -70,6 +70,9 @@ describe('OperationLogSyncService', () => {
       'appendBatchSkipDuplicates',
       'hasSyncedOps',
       'runRemoteStateReplacement',
+      'isRawRebuildIncomplete',
+      'clearRawRebuildIncomplete',
+      'loadImportBackup',
     ]);
     opLogStoreSpy.hasSyncedOps.and.resolveTo(true);
     opLogStoreSpy.markSynced.and.resolveTo();
@@ -82,6 +85,9 @@ describe('OperationLogSyncService', () => {
       skippedCount: 0,
     });
     opLogStoreSpy.runRemoteStateReplacement.and.resolveTo();
+    opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(false);
+    opLogStoreSpy.clearRawRebuildIncomplete.and.resolveTo();
+    opLogStoreSpy.loadImportBackup.and.resolveTo(null);
 
     schemaMigrationServiceSpy = jasmine.createSpyObj('SchemaMigrationService', [
       'getCurrentVersion',
@@ -147,8 +153,16 @@ describe('OperationLogSyncService', () => {
 
     writeFlushServiceSpy = jasmine.createSpyObj('OperationWriteFlushService', [
       'flushPendingWrites',
+      'flushThenRunExclusive',
     ]);
     writeFlushServiceSpy.flushPendingWrites.and.resolveTo();
+    // Mirror the real barrier semantics: flush BEFORE the exclusive section runs.
+    writeFlushServiceSpy.flushThenRunExclusive.and.callFake(
+      async <T>(fn: () => Promise<T>) => {
+        await writeFlushServiceSpy.flushPendingWrites();
+        return fn();
+      },
+    );
 
     superSyncStatusServiceSpy = jasmine.createSpyObj('SuperSyncStatusService', [
       'updatePendingOpsStatus',
@@ -879,6 +893,27 @@ describe('OperationLogSyncService', () => {
     });
 
     describe('downloadRemoteOps', () => {
+      it('should redo the raw rebuild when a prior USE_REMOTE replay was interrupted', async () => {
+        // The normal download path excludes this client's own ops server-side,
+        // so resuming an interrupted rebuild through it would silently lose them.
+        opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(true);
+        const forceDownloadSpy = spyOn(
+          service,
+          'forceDownloadRemoteState',
+        ).and.resolveTo();
+        const mockProvider = {
+          isReady: () => Promise.resolve(true),
+        } as any;
+
+        const result = await service.downloadRemoteOps(mockProvider);
+
+        expect(forceDownloadSpy).toHaveBeenCalledWith(mockProvider, {
+          isCrashResume: true,
+        });
+        expect(result.kind).toBe('snapshot_hydrated');
+        expect(downloadServiceSpy.downloadRemoteOps).not.toHaveBeenCalled();
+      });
+
       it('should return localWinOpsCreated: 0 and newOpsCount: 0 when no new ops', async () => {
         downloadServiceSpy.downloadRemoteOps.and.returnValue(
           Promise.resolve({
@@ -2531,6 +2566,93 @@ describe('OperationLogSyncService', () => {
       expect(opLogStoreSpy.runRemoteStateReplacement).not.toHaveBeenCalled();
       expect(downloadServiceSpy.downloadRemoteOps).toHaveBeenCalled();
       expect(backupServiceSpy.captureImportBackup).toHaveBeenCalled();
+    });
+
+    it('should clear the raw-rebuild-incomplete marker only after the replay committed', async () => {
+      const callOrder: string[] = [];
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [makeRemoteOp()],
+        needsFullStateUpload: false,
+        success: true,
+        providerMode: 'superSyncOps',
+        failedFileCount: 0,
+        latestServerSeq: 1,
+      });
+      remoteOpsProcessingServiceSpy.processRemoteOps.and.callFake(async () => {
+        callOrder.push('processRemoteOps');
+        return {
+          localWinOpsCreated: 0,
+          allOpsFilteredBySyncImport: false,
+          filteredOpCount: 0,
+          isLocalUnsyncedImport: false,
+          blockedByIncompatibleOp: false,
+        };
+      });
+      opLogStoreSpy.clearRawRebuildIncomplete.and.callFake(async () => {
+        callOrder.push('clearRawRebuildIncomplete');
+      });
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await service.forceDownloadRemoteState(mockProvider);
+
+      expect(callOrder).toEqual(['processRemoteOps', 'clearRawRebuildIncomplete']);
+    });
+
+    it('should NOT clear the raw-rebuild-incomplete marker when the replay is blocked', async () => {
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [makeRemoteOp()],
+        needsFullStateUpload: false,
+        success: true,
+        providerMode: 'superSyncOps',
+        failedFileCount: 0,
+        latestServerSeq: 1,
+      });
+      remoteOpsProcessingServiceSpy.processRemoteOps.and.resolveTo({
+        localWinOpsCreated: 0,
+        allOpsFilteredBySyncImport: false,
+        filteredOpCount: 0,
+        isLocalUnsyncedImport: false,
+        blockedByIncompatibleOp: true,
+      });
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await expectAsync(service.forceDownloadRemoteState(mockProvider)).toBeRejected();
+
+      expect(opLogStoreSpy.clearRawRebuildIncomplete).not.toHaveBeenCalled();
+    });
+
+    it('should keep the first attempt backup on crash resume instead of re-capturing', async () => {
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [makeRemoteOp()],
+        needsFullStateUpload: false,
+        success: true,
+        providerMode: 'superSyncOps',
+        failedFileCount: 0,
+        latestServerSeq: 1,
+      });
+      opLogStoreSpy.loadImportBackup.and.resolveTo({ state: {}, savedAt: 12345 });
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await service.forceDownloadRemoteState(mockProvider, { isCrashResume: true });
+
+      // Re-capturing would overwrite the single backup slot with the partial
+      // baseline; the original pre-replace snapshot must survive the resume.
+      expect(backupServiceSpy.captureImportBackup).not.toHaveBeenCalled();
+      expect(snackServiceSpy.open).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          msg: T.F.SYNC.S.LOCAL_DATA_REPLACE_UNDO,
+          actionStr: T.G.UNDO,
+        }),
+      );
     });
 
     it('should offer to restore the previous data after replacing (#8107)', async () => {

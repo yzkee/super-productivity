@@ -18,6 +18,7 @@ import {
   SINGLETON_KEY,
   BACKUP_KEY,
   FULL_STATE_OPS_META_KEY,
+  RAW_REBUILD_INCOMPLETE_META_KEY,
   OPS_INDEXES,
   ArchiveStoreEntry,
   ProfileDataStoreEntry,
@@ -1577,6 +1578,15 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
             buildFullStateOpsMeta([]),
             FULL_STATE_OPS_META_KEY,
           );
+          // Set atomically with the replacement; the caller clears it after
+          // the post-replacement replay commits. A crash in between leaves the
+          // marker set so the next sync redoes the raw rebuild instead of a
+          // normal download (which excludes this client's own ops).
+          await tx.put(
+            STORE_NAMES.META,
+            { incomplete: true, startedAt: now },
+            RAW_REBUILD_INCOMPLETE_META_KEY,
+          );
           await tx.put(STORE_NAMES.STATE_CACHE, {
             id: SINGLETON_KEY,
             state: opts.baselineState,
@@ -1612,6 +1622,26 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
       }
       throw e;
     }
+  }
+
+  /**
+   * Whether a USE_REMOTE raw rebuild committed its baseline replacement but
+   * has not (yet) committed the follow-up server-history replay. See
+   * RAW_REBUILD_INCOMPLETE_META_KEY.
+   */
+  async isRawRebuildIncomplete(): Promise<boolean> {
+    await this._ensureInit();
+    const entry = await this._adapter.get<{ incomplete?: boolean }>(
+      STORE_NAMES.META,
+      RAW_REBUILD_INCOMPLETE_META_KEY,
+    );
+    return entry?.incomplete === true;
+  }
+
+  /** Marks the USE_REMOTE raw rebuild as fully completed. */
+  async clearRawRebuildIncomplete(): Promise<void> {
+    await this._ensureInit();
+    await this._adapter.delete(STORE_NAMES.META, RAW_REBUILD_INCOMPLETE_META_KEY);
   }
 
   // ============================================================

@@ -45,6 +45,15 @@ export const BACKUP_KEY = 'backup' as const;
 /** Meta key for derived full-state operation refs */
 export const FULL_STATE_OPS_META_KEY = 'full_state_ops' as const;
 
+/**
+ * Meta key marking an interrupted USE_REMOTE raw rebuild: set atomically with
+ * the baseline replacement, cleared after the server-history replay commits.
+ * While set, the next sync must redo the raw (own-ops-included) rebuild —
+ * the normal download path excludes this client's own ops server-side, so an
+ * interrupted replay would otherwise silently lose them.
+ */
+export const RAW_REBUILD_INCOMPLETE_META_KEY = 'raw_rebuild_incomplete' as const;
+
 /** Index names for ops object store */
 export const OPS_INDEXES = {
   BY_ID: 'byId' as const,

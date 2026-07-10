@@ -8,7 +8,6 @@ import {
   getDeferredActions,
   clearDeferredActions,
   DEFERRED_ACTIONS_RELOAD_WARNING_THRESHOLD,
-  DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP,
 } from './operation-capture.meta-reducer';
 import { OperationCaptureService } from './operation-capture.service';
 import { Action } from '@ngrx/store';
@@ -329,25 +328,43 @@ describe('operationCaptureMetaReducer', () => {
         expect(getDeferredActions()).toEqual(actions);
       });
 
-      it('should retain every accepted action past the pathological warning cap', () => {
+      it('should fire the reload warning only once per stuck window (no per-action spam)', () => {
         const confirmSpy = spyNativeDialogs();
-        const actions = createManyActions(DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP);
-        const dropErrorCalls = (): unknown[][] =>
+        const actions = createManyActions(
+          DEFERRED_ACTIONS_RELOAD_WARNING_THRESHOLD + 200,
+        );
+        const reloadWarningCalls = (): unknown[][] =>
           confirmSpy.calls
             .allArgs()
-            .filter((args) => /pathological cap/.test(String(args[0])));
+            .filter((args) => /consider reloading/.test(String(args[0])));
 
         actions.forEach((a) => bufferDeferredAction(a));
-        expect(dropErrorCalls().length).toBe(0);
 
-        const extraAction = createMockAction({ type: '[Test] Extra Action' });
-        bufferDeferredAction(extraAction);
-        expect(dropErrorCalls().length).toBe(1);
+        // In dev builds devError opens a blocking dialog; firing it on every
+        // buffered action past the threshold would freeze the session exactly
+        // when sync is stuck.
+        expect(reloadWarningCalls().length).toBe(1);
+        expect(getDeferredActions()).toEqual(actions);
+      });
 
-        const buffered = getDeferredActions();
-        expect(buffered.length).toBe(DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP + 1);
-        expect(buffered[0]).toBe(actions[0]);
-        expect(buffered[buffered.length - 1]).toBe(extraAction);
+      it('should warn again after the buffer drained and a new stuck window crosses the threshold', () => {
+        const confirmSpy = spyNativeDialogs();
+        const reloadWarningCalls = (): unknown[][] =>
+          confirmSpy.calls
+            .allArgs()
+            .filter((args) => /consider reloading/.test(String(args[0])));
+
+        createManyActions(DEFERRED_ACTIONS_RELOAD_WARNING_THRESHOLD).forEach((a) =>
+          bufferDeferredAction(a),
+        );
+        expect(reloadWarningCalls().length).toBe(1);
+
+        clearDeferredActions();
+
+        createManyActions(DEFERRED_ACTIONS_RELOAD_WARNING_THRESHOLD).forEach((a) =>
+          bufferDeferredAction(a),
+        );
+        expect(reloadWarningCalls().length).toBe(2);
       });
     });
   });

@@ -112,6 +112,16 @@ export class UnknownSyncStateError extends Error {
   override name = 'UnknownSyncStateError';
 }
 
+/**
+ * A deferred action can never be persisted (invalid entity identifiers or an
+ * invalid operation payload) — a deterministic condition, not a transient
+ * I/O failure. processDeferredActions abandons such actions instead of
+ * retrying them on every sync window forever.
+ */
+export class PermanentDeferredWriteError extends Error {
+  override name = 'PermanentDeferredWriteError';
+}
+
 // -----ENCRYPTION & COMPRESSION----
 export class DecryptNoPasswordError extends AdditionalLogErrorBase {
   override name = 'DecryptNoPasswordError';

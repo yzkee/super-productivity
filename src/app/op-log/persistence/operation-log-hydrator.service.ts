@@ -5,6 +5,7 @@ import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { OperationLogMigrationService } from './operation-log-migration.service';
 import {
   CURRENT_SCHEMA_VERSION,
+  getOperationSchemaVersion,
   SchemaMigrationService,
 } from './schema-migration.service';
 import { OperationLogSnapshotService } from './operation-log-snapshot.service';
@@ -484,20 +485,39 @@ export class OperationLogHydratorService {
    * @returns Array of migrated operations
    */
   private _migrateTailOps(ops: Operation[]): Operation[] {
+    // Lenient boundary: a malformed stored schemaVersion (legacy or corrupt
+    // entry) must not abort the WHOLE hydration into attemptRecovery() — that
+    // trades one questionable op for possible tail-data loss on every boot.
+    // Strict parsing stays on the receive/upload paths; locally we replay the
+    // op verbatim as a best effort (stamping the current version so
+    // migrateOperations passes it through unchanged, preserving order).
+    const sanitizedOps = ops.map((op) => {
+      try {
+        getOperationSchemaVersion(op);
+        return op;
+      } catch {
+        OpLog.warn(
+          'OperationLogHydratorService: Stored op has a malformed schemaVersion; replaying verbatim without migration.',
+          { id: op.id },
+        );
+        return { ...op, schemaVersion: CURRENT_SCHEMA_VERSION };
+      }
+    });
+
     // Check if any ops need migration
-    const needsMigration = ops.some((op) =>
+    const needsMigration = sanitizedOps.some((op) =>
       this.schemaMigrationService.operationNeedsMigration(op),
     );
 
     if (!needsMigration) {
-      return ops;
+      return sanitizedOps;
     }
 
     OpLog.normal(
-      `OperationLogHydratorService: Migrating ${ops.length} tail ops to current schema version...`,
+      `OperationLogHydratorService: Migrating ${sanitizedOps.length} tail ops to current schema version...`,
     );
 
-    return this.schemaMigrationService.migrateOperations(ops);
+    return this.schemaMigrationService.migrateOperations(sanitizedOps);
   }
 
   /**
@@ -619,9 +639,12 @@ export class OperationLogHydratorService {
       .filter((seq): seq is number => seq !== undefined);
     if (appliedSeqs.length > 0) {
       await this.opLogStore.markApplied(appliedSeqs);
-      // Parity with the primary remote-apply path: applyRemoteOperations only
-      // merges clocks for ops it marked applied, so a failed op's clock is
-      // merged here, when its application completes.
+      // The primary remote-apply path (applyRemoteOperations) merges clocks at
+      // reducer commit for the WHOLE batch, including ops whose archive
+      // handling later fails — so these clocks were usually merged already.
+      // Re-merging here is a harmless component-wise max and also covers ops
+      // that reached `failed`/`archive_pending` via crash recovery, where the
+      // reducer-commit callback (and its clock merge) may never have run.
       await this.opLogStore.mergeRemoteOpClocks(result.appliedOps);
       OpLog.normal(
         `OperationLogHydratorService: Successfully retried ${appliedSeqs.length} failed ops`,

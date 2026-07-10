@@ -3,7 +3,6 @@ import { Operation, VectorClock } from '../core/operation.types';
 import { OpLog } from '../../core/log';
 import {
   CURRENT_SCHEMA_VERSION as SHARED_CURRENT_SCHEMA_VERSION,
-  MAX_VERSION_SKIP as SHARED_MAX_VERSION_SKIP,
   MIN_SUPPORTED_SCHEMA_VERSION as SHARED_MIN_SUPPORTED_SCHEMA_VERSION,
   MIGRATIONS,
   migrateState,
@@ -17,7 +16,6 @@ import {
 
 // Re-export shared constants for backwards compatibility
 export const CURRENT_SCHEMA_VERSION = SHARED_CURRENT_SCHEMA_VERSION;
-export const MAX_VERSION_SKIP = SHARED_MAX_VERSION_SKIP;
 export const MIN_SUPPORTED_SCHEMA_VERSION = SHARED_MIN_SUPPORTED_SCHEMA_VERSION;
 
 // Re-export types
@@ -30,11 +28,11 @@ export const getOperationSchemaVersion = (op: { schemaVersion?: unknown }): numb
   if (
     typeof op.schemaVersion !== 'number' ||
     !Number.isInteger(op.schemaVersion) ||
-    op.schemaVersion < 0
+    // Floor of 1 matches the server contract (SuperSyncOperationSchema min(1))
+    // so the layers cannot drift apart.
+    op.schemaVersion < 1
   ) {
-    throw new Error(
-      'Operation schemaVersion must be a non-negative integer when present.',
-    );
+    throw new Error('Operation schemaVersion must be a positive integer when present.');
   }
   return op.schemaVersion;
 };

@@ -2384,6 +2384,26 @@ describe('OperationLogStoreService', () => {
       );
     });
 
+    it('sets the raw-rebuild-incomplete marker atomically with the replacement and clears it on demand', async () => {
+      expect(await service.isRawRebuildIncomplete()).toBe(false);
+
+      await service.runRemoteStateReplacement({
+        baselineState: { task: { ids: [], entities: {} } },
+        vectorClock: { remote: 1 },
+        schemaVersion: 4,
+        snapshotEntityKeys: [],
+        archiveYoung: createArchive('young'),
+        archiveOld: createArchive('old'),
+      });
+
+      // A crash after the replacement but before the replay commits must leave
+      // the marker set so the next sync redoes the raw rebuild.
+      expect(await service.isRawRebuildIncomplete()).toBe(true);
+
+      await service.clearRawRebuildIncomplete();
+      expect(await service.isRawRebuildIncomplete()).toBe(false);
+    });
+
     it('rolls back every store if one archive write fails', async () => {
       const priorOp = createTestOperation({ entityId: 'prior-task' });
       const priorState = { sentinel: 'prior-state' };

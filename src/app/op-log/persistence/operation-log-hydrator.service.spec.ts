@@ -410,6 +410,37 @@ describe('OperationLogHydratorService', () => {
         expect(mockHydrationStateService.endApplyingRemoteOps).toHaveBeenCalled();
       });
 
+      it('should replay a tail op with a malformed stored schemaVersion verbatim instead of failing into recovery', async () => {
+        // Strict schemaVersion parsing guards the receive/upload paths; on the
+        // local hydration path one legacy/corrupt entry must not turn every
+        // boot into attemptRecovery() (which can lose tail data).
+        const snapshot = createMockSnapshot({ lastAppliedOpSeq: 5 });
+        const malformedOp = createMockOperation('op-6', OpType.Update, {
+          schemaVersion: '2' as unknown as number,
+        });
+        const tailOps = [
+          createMockEntry(6, malformedOp),
+          createMockEntry(7, createMockOperation('op-7')),
+        ];
+        mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(snapshot));
+        mockOpLogStore.getOpsAfterSeq.and.returnValue(Promise.resolve(tailOps));
+
+        await service.hydrateStore();
+
+        expect(mockRecoveryService.attemptRecovery).not.toHaveBeenCalled();
+        // Both ops replay in order; the malformed one is passed through with a
+        // sanitized version stamp (payload untouched).
+        expect(mockStore.dispatch).toHaveBeenCalledWith(
+          bulkApplyHydrationOperations({
+            operations: [
+              { ...malformedOp, schemaVersion: CURRENT_SCHEMA_VERSION },
+              tailOps[1].op,
+            ],
+            localClientId: 'test-client',
+          }),
+        );
+      });
+
       it('should apply a failed tail op exactly once across hydration replay + retry (one boot)', async () => {
         // Regression: a remote op marked 'failed' (archive side effect threw
         // after its reducer committed) with seq > lastAppliedOpSeq used to get
@@ -993,10 +1024,12 @@ describe('OperationLogHydratorService', () => {
           lastAppliedOpSeq: 5,
         });
 
+        // schemaVersion 1 = a legitimately old version (the floor); 0 would be
+        // malformed and is sanitized by the lenient hydration boundary instead.
         const tailOps = [
           createMockEntry(
             6,
-            createMockOperation('op-6', OpType.Update, { schemaVersion: 0 }), // Old
+            createMockOperation('op-6', OpType.Update, { schemaVersion: 1 }), // Old
           ),
           createMockEntry(
             7,
@@ -1006,7 +1039,7 @@ describe('OperationLogHydratorService', () => {
           ),
           createMockEntry(
             8,
-            createMockOperation('op-8', OpType.Update, { schemaVersion: 0 }), // Old
+            createMockOperation('op-8', OpType.Update, { schemaVersion: 1 }), // Old
           ),
         ];
 
@@ -1015,7 +1048,7 @@ describe('OperationLogHydratorService', () => {
         mockSchemaMigrationService.needsMigration.and.returnValue(false);
         // At least one operation needs migration
         mockSchemaMigrationService.operationNeedsMigration.and.callFake(
-          (op: Operation) => op.schemaVersion === 0,
+          (op: Operation) => op.schemaVersion === 1,
         );
 
         await service.hydrateStore();

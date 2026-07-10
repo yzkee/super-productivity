@@ -99,8 +99,16 @@ describe('ServerMigrationService', () => {
     );
     writeFlushServiceSpy = jasmine.createSpyObj('OperationWriteFlushService', [
       'flushPendingWrites',
+      'flushThenRunExclusive',
     ]);
     writeFlushServiceSpy.flushPendingWrites.and.resolveTo();
+    // Mirror the real barrier semantics: flush, acquire the op-log lock, run fn.
+    writeFlushServiceSpy.flushThenRunExclusive.and.callFake(
+      async <T>(fn: () => Promise<T>) => {
+        await writeFlushServiceSpy.flushPendingWrites();
+        return lockServiceSpy.request(LOCK_NAMES.OPERATION_LOG, fn);
+      },
+    );
     operationCaptureServiceSpy = jasmine.createSpyObj('OperationCaptureService', [
       'getPendingCount',
     ]);
@@ -528,16 +536,9 @@ describe('ServerMigrationService', () => {
     ]);
   });
 
-  it('should release, flush, and retry when an action lands before snapshot capture', async () => {
-    operationCaptureServiceSpy.getPendingCount.and.returnValues(1, 0);
-
-    await service.handleServerMigration(defaultProvider);
-
-    expect(writeFlushServiceSpy.flushPendingWrites).toHaveBeenCalledTimes(2);
-    expect(lockServiceSpy.request).toHaveBeenCalledTimes(2);
-    expect(stateSnapshotServiceSpy.getStateSnapshotAsync).toHaveBeenCalledTimes(1);
-    expect(opLogStoreSpy.append).toHaveBeenCalledTimes(1);
-  });
+  // The release-flush-retry behavior when an action lands between flush and lock
+  // acquisition now lives in OperationWriteFlushService.flushThenRunExclusive —
+  // covered by operation-write-flush.service.spec.ts.
 
   describe('system-tag empty-state detection (tested via handleServerMigration)', () => {
     it('should identify system tags correctly', async () => {

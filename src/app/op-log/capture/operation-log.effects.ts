@@ -4,7 +4,10 @@ import type { DeferredLocalActionsPort } from '@sp/sync-core';
 import { ALL_ACTIONS } from '../../util/local-actions.token';
 import { concatMap, filter } from 'rxjs/operators';
 import { LockService } from '../sync/lock.service';
-import { LockAcquisitionTimeoutError } from '../core/errors/sync-errors';
+import {
+  LockAcquisitionTimeoutError,
+  PermanentDeferredWriteError,
+} from '../core/errors/sync-errors';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import {
   isPersistentAction,
@@ -63,6 +66,12 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
    * Initialized lazily from persisted value on first operation.
    */
   private inMemoryCompactionCounter: number | null = null;
+
+  /**
+   * Serialization chain for processDeferredActions — overlapping drains would
+   * double-persist the same buffered action (see processDeferredActions).
+   */
+  private _deferredProcessingChain: Promise<void> = Promise.resolve();
   /**
    * Dedupe timestamp for the storage-quota snackbar. #7700: when quota fires
    * inside the deferred-action retry loop, the retry loop calls handleQuotaExceeded
@@ -182,12 +191,17 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
     if (!isBulkAllOperation && !hasValidEntityId && !hasValidEntityIds) {
       // No queue bookkeeping needed here: the effect wrapper's `finally`
       // decrements the pending counter for this action even on early return.
+      if (isDeferredWrite) {
+        // Typed throw BEFORE devError: in dev builds devError itself can throw
+        // a generic Error, which the deferred drain would misclassify as a
+        // transient (retryable) failure. The drain logs the abandonment loudly.
+        throw new PermanentDeferredWriteError(
+          `Deferred action ${action.type} has invalid entity identifiers.`,
+        );
+      }
       devError(
         `[OperationLogEffects] Action ${action.type} has invalid entityId/entityIds (${action.meta.entityId}) - skipping persistence`,
       );
-      if (isDeferredWrite) {
-        throw new Error(`Deferred action ${action.type} has invalid entity identifiers.`);
-      }
       return;
     }
 
@@ -300,7 +314,9 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
             },
           });
           if (isDeferredWrite) {
-            throw new Error(`Deferred action ${action.type} has an invalid payload.`);
+            throw new PermanentDeferredWriteError(
+              `Deferred action ${action.type} has an invalid payload.`,
+            );
           }
           return; // Skip persisting invalid operation
         }
@@ -320,31 +336,43 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
         // The op.vectorClock already contains the incremented clock (from newClock above).
         await this.opLogStore.appendWithVectorClockUpdate(op, 'local');
 
-        // Mark that we have pending ops (not yet uploaded) for UI indicator
-        this.superSyncStatusService.updatePendingOpsStatus(true);
+        // The op is durably committed past this point. Bookkeeping failures
+        // below must NOT propagate: a throw would send the deferred retry loop
+        // back through writeOperation, appending the same user action again
+        // under a fresh op id — additive payloads (time tracking, counters)
+        // would then double-apply on every client.
+        try {
+          // Mark that we have pending ops (not yet uploaded) for UI indicator
+          this.superSyncStatusService.updatePendingOpsStatus(true);
 
-        // Track write count for high-volume debugging
-        this.writeCount++;
-        if (this.writeCount % 50 === 0) {
-          OpLog.normal(
-            `OperationLogEffects: Wrote ${this.writeCount} operations to IndexedDB`,
+          // Track write count for high-volume debugging
+          this.writeCount++;
+          if (this.writeCount % 50 === 0) {
+            OpLog.normal(
+              `OperationLogEffects: Wrote ${this.writeCount} operations to IndexedDB`,
+            );
+          }
+
+          // 1b. Trigger immediate upload to SuperSync (async, non-blocking)
+          this.immediateUploadService.trigger();
+
+          // 2. Check if compaction is needed
+          // PERF: Use in-memory counter instead of IndexedDB transaction on every operation.
+          // Initialize from persisted value on first use (for crash recovery).
+          if (this.inMemoryCompactionCounter === null) {
+            this.inMemoryCompactionCounter = await this.opLogStore.getCompactionCounter();
+          }
+          this.inMemoryCompactionCounter++;
+          if (this.inMemoryCompactionCounter >= COMPACTION_THRESHOLD) {
+            // Trigger compaction asynchronously (don't block write operation)
+            // Counter is reset in compaction service on success
+            this.triggerCompaction();
+          }
+        } catch (bookkeepingError) {
+          OpLog.err(
+            'OperationLogEffects: Post-append bookkeeping failed (operation is already durable; not retrying the append)',
+            { name: (bookkeepingError as Error | undefined)?.name },
           );
-        }
-
-        // 1b. Trigger immediate upload to SuperSync (async, non-blocking)
-        this.immediateUploadService.trigger();
-
-        // 2. Check if compaction is needed
-        // PERF: Use in-memory counter instead of IndexedDB transaction on every operation.
-        // Initialize from persisted value on first use (for crash recovery).
-        if (this.inMemoryCompactionCounter === null) {
-          this.inMemoryCompactionCounter = await this.opLogStore.getCompactionCounter();
-        }
-        this.inMemoryCompactionCounter++;
-        if (this.inMemoryCompactionCounter >= COMPACTION_THRESHOLD) {
-          // Trigger compaction asynchronously (don't block write operation)
-          // Counter is reset in compaction service on success
-          this.triggerCompaction();
         }
       };
 
@@ -365,6 +393,11 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
     } catch (e) {
       // 4.1.1 Error Handling for Optimistic Updates
       OpLog.err('OperationLogEffects: Failed to persist operation', e);
+      if (e instanceof PermanentDeferredWriteError) {
+        // Deterministic invalidity, already surfaced via its own snack —
+        // rethrow untouched so the deferred drain abandons instead of retrying.
+        throw e;
+      }
       if (e instanceof LockAcquisitionTimeoutError) {
         // #7700: do NOT silently swallow lock timeouts. Pre-fix, a reentrant
         // sp_op_log timeout was caught here, the user got a snackbar, and the
@@ -620,6 +653,28 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
    * Called after sync operations are applied and remote op bookkeeping is complete.
    */
   async processDeferredActions(options: WriteOperationOptions = {}): Promise<void> {
+    // Serialize overlapping invocations: getDeferredActions() is a
+    // non-destructive snapshot, so two concurrent drains (e.g. a WS-triggered
+    // download finishing while a piggyback apply flushes — they run under
+    // different locks) would both see the same unacknowledged action and each
+    // mint an op with a fresh id for it. One user intent = one op; additive
+    // payloads would otherwise double-apply on every client. Chaining makes
+    // the second caller wait and re-snapshot after the first finishes.
+    const run = this._deferredProcessingChain.then(() =>
+      this._processDeferredActionsImpl(options),
+    );
+    // Keep the chain alive even if this run rejects; errors still surface to
+    // this invocation's caller via `run`.
+    this._deferredProcessingChain = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  private async _processDeferredActionsImpl(
+    options: WriteOperationOptions,
+  ): Promise<void> {
     const deferredActions = getDeferredActions();
     if (deferredActions.length === 0) {
       return;
@@ -647,6 +702,10 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
           break;
         } catch (e) {
           lastError = e;
+          if (e instanceof PermanentDeferredWriteError) {
+            // Deterministic invalidity — retrying cannot succeed.
+            break;
+          }
           if (attempt < MAX_RETRIES - 1) {
             // Exponential backoff: 100ms, 200ms, 400ms
             const delay = BASE_DELAY_MS * Math.pow(2, attempt);
@@ -659,19 +718,38 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
         }
       }
 
-      if (!success) {
-        failedCount++;
-        // Log error after all retries exhausted, continue processing remaining actions
-        OpLog.err(
-          `OperationLogEffects: Failed to process deferred action after ${MAX_RETRIES} retries`,
-          {
-            actionType: action.type,
-            errorName: (lastError as Error | undefined)?.name,
-          },
-        );
-      } else {
+      if (success) {
         acknowledgeDeferredAction(action);
+        continue;
       }
+
+      failedCount++;
+
+      if (lastError instanceof PermanentDeferredWriteError) {
+        // Terminal: the action can never be persisted (invalid identifiers or
+        // payload). Abandon it — keeping it queued would retry it with backoff
+        // and re-raise the failure snack on every future sync window while the
+        // in-memory buffer's "durability" ends at the advised reload anyway.
+        acknowledgeDeferredAction(action);
+        OpLog.err('OperationLogEffects: Abandoning permanently invalid deferred action', {
+          actionType: action.type,
+        });
+        continue;
+      }
+
+      // Transient failure: STOP the drain here instead of persisting later
+      // actions first. Writing a successor now and this action on a future
+      // drain would record them in reversed order with inverted vector clocks,
+      // so the OLDER same-entity edit would win LWW on every client. The whole
+      // suffix stays buffered and is retried in order on the next window.
+      OpLog.err(
+        `OperationLogEffects: Deferred action failed after ${MAX_RETRIES} retries; keeping it and all later actions queued in order`,
+        {
+          actionType: action.type,
+          errorName: (lastError as Error | undefined)?.name,
+        },
+      );
+      break;
     }
 
     // Show notification if any actions failed

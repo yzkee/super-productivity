@@ -148,41 +148,38 @@ const DEFERRED_ACTIONS_SOFT_WARNING_THRESHOLD = 10;
 export const DEFERRED_ACTIONS_RELOAD_WARNING_THRESHOLD = 100;
 
 /**
- * Pathological high-water mark for the deferred actions buffer. ~100 buffered actions are
- * plausibly reachable by a real user during a stuck/very long remote-apply
- * window, so we must never drop there (see reload-warning threshold above,
- * which tells the user to reload long before this mark can be hit through
- * real interaction). Crossing it logs loudly but still cannot discard an
- * action whose reducer change has already been accepted.
- * Exported for tests.
+ * Highest threshold already warned about in the current stuck window; each
+ * warning fires once per crossing instead of on every buffered action (in dev
+ * builds devError opens a blocking dialog, so per-action firing would freeze
+ * the session exactly when sync is stuck). Reset when the buffer drains.
  */
-export const DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP = 5000;
+let highestWarnedThreshold = 0;
 
 /**
  * Buffers an action for processing after sync completes.
  * Called by the meta-reducer when a persistent action arrives during sync.
+ *
+ * Never drops an accepted persistent action: its reducer mutation already
+ * exists in NgRx, so removal here would create permanent unsyncable state.
  */
 export const bufferDeferredAction = (action: PersistentAction): void => {
-  // Never drop an accepted persistent action: its reducer mutation already
-  // exists in NgRx, so removal here would create permanent unsyncable state.
-  // The cap remains a loud runaway-loop diagnostic, not a lossy flow-control
-  // mechanism.
-  if (deferredActions.length >= DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP) {
-    devError(
-      `[operationCaptureMetaReducer] Deferred actions buffer exceeded pathological cap of ${DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP} items. ` +
-        'Retaining all actions to preserve sync correctness. Likely a runaway dispatch loop; reload the app.',
-    );
-  }
-
   deferredActions.push(action);
   deferredActionSet.add(action);
 
-  if (deferredActions.length >= DEFERRED_ACTIONS_RELOAD_WARNING_THRESHOLD) {
+  if (
+    deferredActions.length >= DEFERRED_ACTIONS_RELOAD_WARNING_THRESHOLD &&
+    highestWarnedThreshold < DEFERRED_ACTIONS_RELOAD_WARNING_THRESHOLD
+  ) {
+    highestWarnedThreshold = DEFERRED_ACTIONS_RELOAD_WARNING_THRESHOLD;
     devError(
       `[operationCaptureMetaReducer] Deferred actions buffer has ${deferredActions.length} items. ` +
         `Sync may be stuck - consider reloading the app. Nothing is dropped; actions remain buffered.`,
     );
-  } else if (deferredActions.length > DEFERRED_ACTIONS_SOFT_WARNING_THRESHOLD) {
+  } else if (
+    deferredActions.length > DEFERRED_ACTIONS_SOFT_WARNING_THRESHOLD &&
+    highestWarnedThreshold < DEFERRED_ACTIONS_SOFT_WARNING_THRESHOLD
+  ) {
+    highestWarnedThreshold = DEFERRED_ACTIONS_SOFT_WARNING_THRESHOLD;
     devError(
       `[operationCaptureMetaReducer] Deferred actions buffer has ${deferredActions.length} items - sync may be stuck or taking too long`,
     );
@@ -204,6 +201,9 @@ export const acknowledgeDeferredAction = (action: PersistentAction): void => {
   }
   deferredActions.splice(index, 1);
   deferredActionSet.delete(action);
+  if (deferredActions.length === 0) {
+    highestWarnedThreshold = 0;
+  }
 };
 
 /**
@@ -217,6 +217,7 @@ export const clearDeferredActions = (): void => {
     deferredActionSet.delete(action);
   }
   deferredActions = [];
+  highestWarnedThreshold = 0;
 };
 
 /**

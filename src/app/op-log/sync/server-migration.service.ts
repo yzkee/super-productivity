@@ -25,10 +25,7 @@ import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
 import { DialogServerMigrationConfirmComponent } from './dialog-server-migration-confirm/dialog-server-migration-confirm.component';
 import { hasMeaningfulStateData } from '../validation/has-meaningful-state-data.util';
 import { AppDataComplete, MODEL_CONFIGS } from '../model/model-config';
-import { LockService } from './lock.service';
 import { OperationWriteFlushService } from './operation-write-flush.service';
-import { LOCK_NAMES } from '../core/operation-log.const';
-import { OperationCaptureService } from '../capture/operation-capture.service';
 
 const MEANINGFUL_ENTITY_STATE_KEYS = new Set(['task', 'project', 'tag', 'note']);
 
@@ -90,9 +87,7 @@ export class ServerMigrationService {
   private clientIdProvider = inject(CLIENT_ID_PROVIDER);
   private _matDialog = inject(MatDialog);
   private _userInputWaitState = inject(UserInputWaitStateService);
-  private lockService = inject(LockService);
   private writeFlushService = inject(OperationWriteFlushService);
-  private operationCaptureService = inject(OperationCaptureService);
 
   /**
    * Checks if we're connecting to a new/empty server and handles migration if needed.
@@ -209,125 +204,113 @@ export class ServerMigrationService {
     // construction, and append behind the same mutation barrier. This makes the
     // full-state operation's local seq an exact cutoff: every earlier op is in the
     // snapshot, and any action captured while this runs is appended afterwards.
-    let retryForPendingCapture: boolean;
-    do {
-      retryForPendingCapture = false;
-      await this.writeFlushService.flushPendingWrites();
-      await this.lockService.request(LOCK_NAMES.OPERATION_LOG, async () => {
-        // A reducer action can land in the tiny gap between flush() releasing
-        // this lock and our acquisition. Its pending counter increments
-        // synchronously, before the persistence effect waits for the lock. Do
-        // not take a snapshot that includes that reducer state but precedes its
-        // operation; release, drain it, and retry the cutoff instead.
-        if (this.operationCaptureService.getPendingCount() > 0) {
-          retryForPendingCapture = true;
-          return;
-        }
+    // flushThenRunExclusive owns the flush→lock→recheck retry loop (bounded, so
+    // continuous dispatch cannot livelock the migration; it re-triggers on the
+    // next sync).
+    await this.writeFlushService.flushThenRunExclusive(async () => {
+      // Get current full state from NgRx store (async to include archives from IndexedDB)
+      // Cast to Record for validation compatibility
+      let currentState: Record<string, unknown> =
+        (await this.stateSnapshotService.getStateSnapshotAsync()) as unknown as Record<
+          string,
+          unknown
+        >;
 
-        // Get current full state from NgRx store (async to include archives from IndexedDB)
-        // Cast to Record for validation compatibility
-        let currentState: Record<string, unknown> =
-          (await this.stateSnapshotService.getStateSnapshotAsync()) as unknown as Record<
-            string,
-            unknown
-          >;
-
-        // Skip if local state is effectively empty
-        if (!hasServerMigrationStateData(currentState)) {
-          OpLog.warn(
-            'ServerMigrationService: Skipping SYNC_IMPORT - local state is empty.',
-          );
-          return;
-        }
-
-        // Validate and repair state before creating SYNC_IMPORT
-        // This prevents corrupted state (e.g., orphaned menuTree references) from
-        // propagating to other clients via the full state import.
-        const validationResult =
-          await this.validateStateService.validateAndRepair(currentState);
-
-        // If state is invalid and couldn't be repaired, abort - don't propagate corruption
-        if (!validationResult.isValid) {
-          OpLog.err(
-            'ServerMigrationService: Cannot create SYNC_IMPORT - state validation failed.',
-            validationResult.error || validationResult.crossModelError,
-          );
-          this.snackService.open({
-            type: 'ERROR',
-            msg: T.F.SYNC.S.SERVER_MIGRATION_VALIDATION_FAILED,
-          });
-          return;
-        }
-
-        // If state was repaired, use the repaired version
-        if (validationResult.repairedState) {
-          OpLog.warn(
-            'ServerMigrationService: State repaired before creating SYNC_IMPORT',
-            validationResult.repairSummary,
-          );
-          currentState = validationResult.repairedState;
-
-          // Also update NgRx store with repaired state so local client is consistent
-          this.store.dispatch(
-            loadAllData({
-              appDataComplete: validationResult.repairedState as AppDataComplete,
-            }),
-          );
-        }
-
-        // Get client ID
-        const clientId = await this.clientIdProvider.loadClientId();
-        if (!clientId) {
-          OpLog.err(
-            'ServerMigrationService: Cannot create SYNC_IMPORT - no client ID available.',
-          );
-          return;
-        }
-
-        // Build vector clock by merging ALL local operation clocks.
-        // This ensures the SYNC_IMPORT's clock dominates all pre-import ops,
-        // so when SyncImportFilterService compares them, all prior ops are
-        // LESS_THAN (not CONCURRENT) and can be properly filtered.
-        const allLocalOps = await this.opLogStore.getOpsAfterSeq(0);
-        let mergedClock = await this.vectorClockService.getCurrentVectorClock();
-        for (const entry of allLocalOps) {
-          mergedClock = mergeVectorClocks(mergedClock, entry.op.vectorClock);
-        }
-        const newClock = limitVectorClockSize(
-          incrementVectorClock(mergedClock, clientId),
-          clientId,
+      // Skip if local state is effectively empty
+      if (!hasServerMigrationStateData(currentState)) {
+        OpLog.warn(
+          'ServerMigrationService: Skipping SYNC_IMPORT - local state is empty.',
         );
+        return;
+      }
 
-        OpLog.normal(
-          `ServerMigrationService: Merged ${allLocalOps.length} local op clocks into SYNC_IMPORT vector clock.`,
+      // Validate and repair state before creating SYNC_IMPORT
+      // This prevents corrupted state (e.g., orphaned menuTree references) from
+      // propagating to other clients via the full state import.
+      const validationResult =
+        await this.validateStateService.validateAndRepair(currentState);
+
+      // If state is invalid and couldn't be repaired, abort - don't propagate corruption
+      if (!validationResult.isValid) {
+        OpLog.err(
+          'ServerMigrationService: Cannot create SYNC_IMPORT - state validation failed.',
+          validationResult.error || validationResult.crossModelError,
         );
+        this.snackService.open({
+          type: 'ERROR',
+          msg: T.F.SYNC.S.SERVER_MIGRATION_VALIDATION_FAILED,
+        });
+        return;
+      }
 
-        // Create SYNC_IMPORT operation with full state
-        // NOTE: Use raw state directly (not wrapped in appDataComplete).
-        // The snapshot endpoint expects raw state, and the hydrator handles
-        // both formats on extraction.
-        const op: Operation = {
-          id: uuidv7(),
-          actionType: ActionType.LOAD_ALL_DATA,
-          opType: OpType.SyncImport,
-          entityType: 'ALL',
-          payload: currentState,
-          clientId,
-          vectorClock: newClock,
-          timestamp: Date.now(),
-          schemaVersion: CURRENT_SCHEMA_VERSION,
-          syncImportReason: options?.syncImportReason ?? 'SERVER_MIGRATION',
-        };
-
-        // Append to operation log - will be uploaded via snapshot endpoint
-        await this.opLogStore.append(op, 'local');
-
-        OpLog.normal(
-          'ServerMigrationService: Created SYNC_IMPORT operation for server migration. ' +
-            'Will be uploaded immediately via follow-up upload.',
+      // If state was repaired, use the repaired version
+      if (validationResult.repairedState) {
+        OpLog.warn(
+          'ServerMigrationService: State repaired before creating SYNC_IMPORT',
+          validationResult.repairSummary,
         );
-      });
-    } while (retryForPendingCapture);
+        currentState = validationResult.repairedState;
+
+        // Also update NgRx store with repaired state so local client is consistent
+        this.store.dispatch(
+          loadAllData({
+            appDataComplete: validationResult.repairedState as AppDataComplete,
+          }),
+        );
+      }
+
+      // Get client ID
+      const clientId = await this.clientIdProvider.loadClientId();
+      if (!clientId) {
+        OpLog.err(
+          'ServerMigrationService: Cannot create SYNC_IMPORT - no client ID available.',
+        );
+        return;
+      }
+
+      // Build vector clock by merging ALL local operation clocks.
+      // This ensures the SYNC_IMPORT's clock dominates all pre-import ops,
+      // so when SyncImportFilterService compares them, all prior ops are
+      // LESS_THAN (not CONCURRENT) and can be properly filtered.
+      const allLocalOps = await this.opLogStore.getOpsAfterSeq(0);
+      let mergedClock = await this.vectorClockService.getCurrentVectorClock();
+      for (const entry of allLocalOps) {
+        mergedClock = mergeVectorClocks(mergedClock, entry.op.vectorClock);
+      }
+      const newClock = limitVectorClockSize(
+        incrementVectorClock(mergedClock, clientId),
+        clientId,
+      );
+
+      OpLog.normal(
+        `ServerMigrationService: Merged ${allLocalOps.length} local op clocks into SYNC_IMPORT vector clock.`,
+      );
+
+      // Create SYNC_IMPORT operation with full state
+      // NOTE: Use raw state directly (not wrapped in appDataComplete).
+      // The snapshot endpoint expects raw state, and the hydrator handles
+      // both formats on extraction.
+      const op: Operation = {
+        id: uuidv7(),
+        actionType: ActionType.LOAD_ALL_DATA,
+        opType: OpType.SyncImport,
+        entityType: 'ALL',
+        payload: currentState,
+        clientId,
+        vectorClock: newClock,
+        timestamp: Date.now(),
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        syncImportReason: options?.syncImportReason ?? 'SERVER_MIGRATION',
+      };
+
+      // Append to operation log - will be uploaded via snapshot endpoint
+      await this.opLogStore.append(op, 'local');
+
+      OpLog.normal(
+        'ServerMigrationService: Created SYNC_IMPORT operation for server migration. ' +
+          'Will be uploaded immediately via follow-up upload.',
+      );
+    });
   }
 
   /**
