@@ -86,10 +86,13 @@ flowchart TD
     end
 
     subgraph RemoteOp["REMOTE Operation (Sync)"]
-        R1[Download operation<br/>from sync] --> R2[OperationApplierService<br/>dispatches action]
-        R2 --> R3[Meta-reducers update NgRx state]
-        R3 --> R4["ArchiveOperationHandler<br/>.handleOperation"]
-        R4 --> R5["Write to IndexedDB<br/>(archiveYoung/archiveOld)"]
+        R1[Download operation<br/>from sync] --> R2["Append remote row<br/>status: pending"]
+        R2 --> R3["Bulk reducer dispatch<br/>meta.isRemote=true"]
+        R3 --> R4["Reducer-commit checkpoint:<br/>status archive_pending<br/>merge vector clocks"]
+        R4 --> R5["ArchiveOperationHandler<br/>.handleOperation"]
+        R5 --> R6{"Archive side effect<br/>succeeded?"}
+        R6 -->|Yes| R7["Mark applied"]
+        R6 -->|No| R8["Mark attempted row failed;<br/>successors stay archive_pending"]
 
         NoEffect["❌ Regular effects DON'T run<br/>(action has meta.isRemote=true)"]
     end
@@ -118,9 +121,10 @@ The `OperationApplierService` applies operations in the order they arrive from t
 ```mermaid
 flowchart TD
     subgraph OperationApplierService["OperationApplierService (Bulk Dispatch)"]
-        OA1[Receive operations] --> OA3[convertOpToAction]
-        OA3 --> OA4["store.dispatch(action)<br/>with meta.isRemote=true"]
-        OA4 --> OA5["archiveOperationHandler<br/>.handleOperation(action)"]
+        OA1["Receive rows already stored<br/>as pending"] --> OA3[convertOpToAction]
+        OA3 --> OA4["Single bulk dispatch<br/>with meta.isRemote=true"]
+        OA4 --> OA4b["Reducer-commit callback:<br/>mark archive_pending<br/>merge vector clocks"]
+        OA4b --> OA5["archiveOperationHandler<br/>.handleOperation(action)"]
     end
 
     subgraph Handler["ArchiveOperationHandler"]

@@ -115,11 +115,25 @@ export class UnknownSyncStateError extends Error {
 /**
  * A deferred action can never be persisted (invalid entity identifiers or an
  * invalid operation payload) — a deterministic condition, not a transient
- * I/O failure. processDeferredActions abandons such actions instead of
- * retrying them on every sync window forever.
+ * I/O failure. The reducer already committed, so the action stays buffered and
+ * sync remains blocked until reload restores the last durable state.
  */
 export class PermanentDeferredWriteError extends Error {
   override name = 'PermanentDeferredWriteError';
+}
+
+/** Previously downloaded operations have not completed reducer/archive recovery. */
+export class IncompleteRemoteOperationsError extends Error {
+  override name = 'IncompleteRemoteOperationsError';
+
+  constructor(cause?: unknown) {
+    super(
+      cause instanceof Error
+        ? cause.message
+        : 'Downloaded operations are not fully applied.',
+      cause === undefined ? undefined : { cause },
+    );
+  }
 }
 
 // -----ENCRYPTION & COMPRESSION----

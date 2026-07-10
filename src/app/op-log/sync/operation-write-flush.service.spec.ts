@@ -29,6 +29,13 @@ describe('OperationWriteFlushService', () => {
   });
 
   describe('flushPendingWrites', () => {
+    it('should expose whether reducer captures are pending', () => {
+      captureServiceSpy.getPendingCount.and.returnValues(1, 0);
+
+      expect(service.hasPendingWrites()).toBeTrue();
+      expect(service.hasPendingWrites()).toBeFalse();
+    });
+
     it('should acquire the sp_op_log lock', async () => {
       await service.flushPendingWrites();
 

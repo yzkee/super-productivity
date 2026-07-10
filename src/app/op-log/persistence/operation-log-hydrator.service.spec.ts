@@ -27,10 +27,7 @@ import {
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { bulkApplyHydrationOperations } from '../apply/bulk-hydration.action';
 import { CLIENT_ID_PROVIDER, ClientIdProvider } from '../util/client-id.provider';
-import {
-  MAX_CONFLICT_RETRY_ATTEMPTS,
-  MAX_VECTOR_CLOCK_SIZE,
-} from '../core/operation-log.const';
+import { MAX_VECTOR_CLOCK_SIZE } from '../core/operation-log.const';
 import { IndexedDBOpenError } from '../core/errors/indexed-db-open.error';
 import { IDB_OPEN_ERROR_RELOAD_KEY } from './operation-log-hydrator.service';
 import { SyncProviderId } from '../sync-providers/provider.const';
@@ -1503,10 +1500,19 @@ describe('OperationLogHydratorService', () => {
 
       expect(mockOpLogStore.markApplied).toHaveBeenCalledWith([40]);
       // op-c remains archive-pending and has not consumed a retry attempt.
-      expect(mockOpLogStore.markFailed).toHaveBeenCalledWith(
-        ['op-b'],
-        MAX_CONFLICT_RETRY_ATTEMPTS,
-      );
+      expect(mockOpLogStore.markFailed).toHaveBeenCalledOnceWith(['op-b']);
+    });
+
+    it('should merge clocks before marking archive retries applied', async () => {
+      mockOpLogStore.getFailedRemoteOps.and.resolveTo([failedEntry(40, 'op-a')]);
+      mockOperationApplierService.applyOperations.and.resolveTo({
+        appliedOps: [failedEntry(40, 'op-a').op],
+      });
+      mockOpLogStore.mergeRemoteOpClocks.and.rejectWith(new Error('clock write failed'));
+
+      await expectAsync(service.retryFailedRemoteOps()).toBeRejected();
+
+      expect(mockOpLogStore.markApplied).not.toHaveBeenCalled();
     });
 
     it('should do nothing when there are no failed ops', async () => {

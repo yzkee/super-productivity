@@ -21,6 +21,7 @@ import {
   EmptyRemoteBodySPError,
   JsonParseError,
   LegacySyncFormatDetectedError,
+  IncompleteRemoteOperationsError,
   SyncDataCorruptedError,
   UploadRevToMatchMismatchAPIError,
 } from '../../op-log/core/errors/sync-errors';
@@ -705,6 +706,14 @@ export class SyncWrapperService {
           type: 'ERROR',
           // a bit longer since it is a long message
           config: { duration: 12000 },
+        });
+        return 'HANDLED_ERROR';
+      } else if (error instanceof IncompleteRemoteOperationsError) {
+        this._providerManager.setSyncStatus('ERROR');
+        this._snackService.open({
+          msg: T.F.SYNC.S.INCOMPLETE_REMOTE_OPERATIONS,
+          type: 'ERROR',
+          config: { duration: 0 },
         });
         return 'HANDLED_ERROR';
       } else if (

@@ -24,7 +24,6 @@ import { OperationApplierService } from '../apply/operation-applier.service';
 import { HydrationStateService } from '../apply/hydration-state.service';
 import { bulkApplyOperations } from '../apply/bulk-hydration.action';
 import { VectorClockService } from '../sync/vector-clock.service';
-import { MAX_CONFLICT_RETRY_ATTEMPTS } from '../core/operation-log.const';
 import { AppDataComplete } from '../model/model-config';
 import { CLIENT_ID_PROVIDER, ClientIdProvider } from '../util/client-id.provider';
 import { limitVectorClockSize } from '../../core/util/vector-clock';
@@ -638,7 +637,6 @@ export class OperationLogHydratorService {
       .map((op) => opIdToSeq.get(op.id))
       .filter((seq): seq is number => seq !== undefined);
     if (appliedSeqs.length > 0) {
-      await this.opLogStore.markApplied(appliedSeqs);
       // The primary remote-apply path (applyRemoteOperations) merges clocks at
       // reducer commit for the WHOLE batch, including ops whose archive
       // handling later fails — so these clocks were usually merged already.
@@ -646,6 +644,7 @@ export class OperationLogHydratorService {
       // that reached `failed`/`archive_pending` via crash recovery, where the
       // reducer-commit callback (and its clock merge) may never have run.
       await this.opLogStore.mergeRemoteOpClocks(result.appliedOps);
+      await this.opLogStore.markApplied(appliedSeqs);
       OpLog.normal(
         `OperationLogHydratorService: Successfully retried ${appliedSeqs.length} failed ops`,
       );
@@ -653,8 +652,8 @@ export class OperationLogHydratorService {
 
     // On a partial failure the batch applier stops at the first archive error.
     // Charge only that attempted operation: successors remain archive-pending
-    // without consuming retry budget and will run after the blocker succeeds or
-    // becomes terminally rejected.
+    // without consuming retry budget and will run after the blocker succeeds.
+    // A persistent blocker stays failed so ordinary sync remains safely paused.
     if (result.failedOp) {
       const failedOpIds = [result.failedOp.op.id];
 
@@ -662,7 +661,9 @@ export class OperationLogHydratorService {
         `OperationLogHydratorService: Failed to retry op ${result.failedOp.op.id}`,
         result.failedOp.error,
       );
-      await this.opLogStore.markFailed(failedOpIds, MAX_CONFLICT_RETRY_ATTEMPTS);
+      // Keep archive failure visible to the sync safety gate. A retry cap that
+      // rejects it would hide incomplete downloaded work and allow false IN_SYNC.
+      await this.opLogStore.markFailed(failedOpIds);
       OpLog.warn(
         'OperationLogHydratorService: Archive operation still failing after retry',
       );

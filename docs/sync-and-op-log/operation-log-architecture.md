@@ -217,6 +217,8 @@ Downloaded operations use a durable status transition so reducer state, archive 
 
 Startup hydration replays the persisted state history, converts surviving `pending` rows to the archive checkpoint, and retries `archive_pending`/`failed` rows with reducer dispatch disabled. Ordinary sync refuses to download, upload, or advance its cursor while any of these incomplete rows remain.
 
+Local actions buffered during a remote-apply window stay ordered until each operation is durable. Transient persistence failures keep the failed suffix queued and block the current sync so a later sync can retry. A deterministically invalid buffered action also remains queued, but requires reload: its reducer already changed live state, so discarding it would let live state diverge from the durable operation log.
+
 ## A.2 Write Path
 
 ```
@@ -440,7 +442,7 @@ async compact(): Promise<void> {
 | Max download ops in memory      | 50,000  | Bounds memory during API download              |
 | Remote file retention           | 14 days | Server-side operation file retention           |
 | Max remote files to keep        | 100     | Minimum recent files on server                 |
-| Max conflict retry attempts     | 5       | Retries before rejecting failed ops            |
+| Remote archive retries          | ∞       | Stay quarantined until side effects complete   |
 | Max rejected ops before warning | 10      | Threshold for user notification                |
 | Lock timeout                    | 30 sec  | localStorage fallback lock timeout             |
 | Lock acquire timeout            | 60 sec  | Max wait to acquire a lock                     |
@@ -2322,7 +2324,7 @@ When adding new entities or relationships:
 > - **Archive validation**: archiveOld tasks now validated for project/tag references, null-safety added
 > - **Lock service robustness**: Handle NaN timestamps and invalid lock formats in fallback lock
 > - **Array payload rejection**: Explicit check to reject arrays (which bypass `typeof === 'object'`)
-> - **Pending operation expiry**: Operations pending >24h are rejected instead of replayed (PENDING_OPERATION_EXPIRY_MS)
+> - **Pending operation expiry**: Operations pending >24h are quarantined as failed; reducer replay is skipped but archive recovery and the sync gate remain active (`PENDING_OPERATION_EXPIRY_MS`).
 
 ---
 

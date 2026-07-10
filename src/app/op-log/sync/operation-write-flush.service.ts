@@ -52,6 +52,11 @@ export class OperationWriteFlushService {
    */
   private readonly POLL_INTERVAL = 10;
 
+  /** Whether a reducer action is still waiting to become durable. */
+  hasPendingWrites(): boolean {
+    return this.captureService.getPendingCount() > 0;
+  }
+
   /**
    * Waits for all pending operation writes to complete.
    *

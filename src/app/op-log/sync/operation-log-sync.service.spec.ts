@@ -171,8 +171,10 @@ describe('OperationLogSyncService', () => {
     writeFlushServiceSpy = jasmine.createSpyObj('OperationWriteFlushService', [
       'flushPendingWrites',
       'flushThenRunExclusive',
+      'hasPendingWrites',
     ]);
     writeFlushServiceSpy.flushPendingWrites.and.resolveTo();
+    writeFlushServiceSpy.hasPendingWrites.and.returnValue(false);
     // Mirror the real barrier semantics: flush BEFORE the exclusive section runs.
     writeFlushServiceSpy.flushThenRunExclusive.and.callFake(
       async <T>(fn: () => Promise<T>) => {
@@ -985,6 +987,25 @@ describe('OperationLogSyncService', () => {
         });
         expect(result.kind).toBe('snapshot_hydrated');
         expect(downloadServiceSpy.downloadRemoteOps).not.toHaveBeenCalled();
+      });
+
+      it('should flush deferred local work before entering crash-resume rebuild', async () => {
+        opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(true);
+        opLogStoreSpy.loadImportBackup.and.resolveTo({ savedAt: 4242 } as any);
+        operationLogEffectsSpy.processDeferredActions.and.rejectWith(
+          new Error('deferred write failed'),
+        );
+        const forceDownloadSpy = spyOn(service, 'forceDownloadRemoteState');
+
+        await expectAsync(
+          service.downloadRemoteOps({} as OperationSyncCapable),
+        ).toBeRejectedWithError(/deferred write failed/);
+
+        expect(forceDownloadSpy).not.toHaveBeenCalled();
+        expect(opLogStoreSpy.isRawRebuildIncomplete).toHaveBeenCalled();
+        expect(snackServiceSpy.open).toHaveBeenCalledWith(
+          jasmine.objectContaining({ msg: T.F.SYNC.S.LOCAL_DATA_REPLACE_UNDO }),
+        );
       });
 
       it('should offer the stranded pre-replace backup when an interrupted rebuild resume cannot finish', async () => {
@@ -2806,6 +2827,7 @@ describe('OperationLogSyncService', () => {
     });
 
     it('should preserve and replay local edits made after an interrupted rebuild', async () => {
+      const restoreOrder: string[] = [];
       const previouslyPreserved = makeRemoteOp('local-before-second-crash');
       previouslyPreserved.clientId = 'local';
       previouslyPreserved.vectorClock = { local: 2, remote: 1 };
@@ -2838,10 +2860,14 @@ describe('OperationLogSyncService', () => {
         writtenOps: source === 'local' ? ops : [],
         skippedCount: 0,
       }));
-      operationApplierSpy.applyOperations.and.callFake(async (ops) => ({
-        appliedOps: ops,
-      }));
+      operationApplierSpy.applyOperations.and.callFake(async (ops) => {
+        restoreOrder.push('apply');
+        return { appliedOps: ops };
+      });
       opLogStoreSpy.getVectorClock.and.resolveTo({ remote: 4 });
+      opLogStoreSpy.setVectorClock.and.callFake(async () => {
+        restoreOrder.push('merge-clock');
+      });
       const mockProvider = {
         supportsOperationSync: true,
         setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
@@ -2860,13 +2886,43 @@ describe('OperationLogSyncService', () => {
       );
       expect(operationApplierSpy.applyOperations).toHaveBeenCalledWith(
         preservedLocalOps,
-        jasmine.objectContaining({ isLocalHydration: false }),
+        jasmine.objectContaining({
+          isLocalHydration: false,
+          skipDeferredLocalActions: true,
+        }),
       );
       expect(opLogStoreSpy.setVectorClock).toHaveBeenCalledWith({
         remote: 4,
         local: 3,
       });
+      expect(restoreOrder).toEqual(['merge-clock', 'apply']);
       expect(opLogStoreSpy.clearRawRebuildIncomplete).toHaveBeenCalled();
+      expect(operationLogEffectsSpy.processDeferredActions).toHaveBeenCalledWith({
+        callerHoldsOperationLogLock: true,
+      });
+    });
+
+    it('should keep crash recovery armed when a local capture arrives during rebuild', async () => {
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [makeRemoteOp()],
+        needsFullStateUpload: false,
+        success: true,
+        providerMode: 'superSyncOps',
+        failedFileCount: 0,
+        latestServerSeq: 50,
+      });
+      writeFlushServiceSpy.hasPendingWrites.and.returnValue(true);
+      const setLastServerSeq = jasmine.createSpy('setLastServerSeq').and.resolveTo();
+
+      await expectAsync(
+        service.forceDownloadRemoteState({
+          supportsOperationSync: true,
+          setLastServerSeq,
+        } as unknown as OperationSyncCapable),
+      ).toBeRejectedWithError(/local change arrived/);
+
+      expect(setLastServerSeq).not.toHaveBeenCalledWith(50);
+      expect(opLogStoreSpy.clearRawRebuildIncomplete).not.toHaveBeenCalled();
     });
 
     it('should offer to restore the previous data after replacing (#8107)', async () => {

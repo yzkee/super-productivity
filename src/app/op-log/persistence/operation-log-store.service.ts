@@ -1089,14 +1089,12 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
   }
 
   /**
-   * Marks operations as failed (can be retried later).
-   * Increments the retry count for each operation.
-   * If maxRetries is provided and reached, marks as rejected instead.
+   * Marks operations as failed (can be retried later) and increments retry count.
+   * Remote reducer/archive work must never become rejected merely because it
+   * retried often: rejection would hide incomplete downloaded state from sync.
    */
-  async markFailed(opIds: string[], maxRetries?: number): Promise<void> {
+  async markFailed(opIds: string[]): Promise<void> {
     await this._ensureInit();
-    const now = Date.now();
-    let terminallyRejected = false;
     await this._adapter.transaction([STORE_NAMES.OPS], 'readwrite', async (tx) => {
       for (const opId of opIds) {
         const entry = await tx.getFromIndex<StoredOperationLogEntry>(
@@ -1107,22 +1105,39 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
         if (entry) {
           const newRetryCount = (entry.retryCount ?? 0) + 1;
 
-          // If max retries reached, mark as rejected permanently
-          if (maxRetries !== undefined && newRetryCount >= maxRetries) {
-            entry.rejectedAt = now;
-            entry.applicationStatus = undefined;
-            terminallyRejected = true;
-          } else {
-            entry.applicationStatus = 'failed';
-            entry.retryCount = newRetryCount;
-          }
+          entry.applicationStatus = 'failed';
+          entry.retryCount = newRetryCount;
           await tx.put(STORE_NAMES.OPS, entry);
         }
       }
     });
-    if (terminallyRejected) {
-      this._invalidateUnsyncedCache();
-    }
+  }
+
+  /**
+   * Upgrade repair for versions that terminally rejected remote archive work
+   * after five attempts. Those rows retained retryCount=4 while rejectedAt was
+   * set and applicationStatus cleared. Re-quarantine them so startup archive
+   * retry and the incomplete-remote sync gate can see them again.
+   */
+  async recoverLegacyTerminalRemoteFailures(): Promise<number> {
+    await this._ensureInit();
+    let recoveredCount = 0;
+    await this._adapter.transaction([STORE_NAMES.OPS], 'readwrite', async (tx) => {
+      const entries = await tx.getAll<StoredOperationLogEntry>(STORE_NAMES.OPS);
+      for (const entry of entries) {
+        if (
+          entry.source === 'remote' &&
+          entry.rejectedAt !== undefined &&
+          (entry.retryCount ?? 0) >= 4
+        ) {
+          entry.rejectedAt = undefined;
+          entry.applicationStatus = 'failed';
+          await tx.put(STORE_NAMES.OPS, entry);
+          recoveredCount++;
+        }
+      }
+    });
+    return recoveredCount;
   }
 
   /**

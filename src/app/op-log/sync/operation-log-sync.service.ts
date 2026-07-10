@@ -21,7 +21,10 @@ import { DownloadOutcome, UploadOutcome } from '../core/types/sync-results.types
 import { OperationLogDownloadService } from './operation-log-download.service';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
-import { LocalDataConflictError } from '../core/errors/sync-errors';
+import {
+  IncompleteRemoteOperationsError,
+  LocalDataConflictError,
+} from '../core/errors/sync-errors';
 import { SuperSyncStatusService } from './super-sync-status.service';
 import { ServerMigrationService } from './server-migration.service';
 import { OperationWriteFlushService } from './operation-write-flush.service';
@@ -457,6 +460,10 @@ export class OperationLogSyncService {
         'OperationLogSyncService: Interrupted USE_REMOTE rebuild detected — redoing the raw rebuild.',
       );
       try {
+        // Flush belongs inside the recovery boundary: if persistence is still
+        // unhealthy, the pre-replace backup is the only safe rollback and its
+        // Undo affordance must remain visible.
+        await this._flushLocalWritesIncludingDeferredActions();
         await this.forceDownloadRemoteState(syncProvider, { isCrashResume: true });
       } catch (e) {
         // The prior attempt already committed the destructive baseline (that is
@@ -592,11 +599,9 @@ export class OperationLogSyncService {
         const exampleTaskOpIds = exampleTaskEntries.map((entry) => entry.op.id);
         // Nothing from this sync is persisted yet, so this live read reflects
         // whether the client completed a prior sync cycle.
-        const hasCompletedInitialSync = await this.opLogStore.hasSyncedOps();
         const hasMeaningfulUserData =
-          this.syncImportConflictGateService.hasMeaningfulPendingOps(unsyncedOps, {
-            hasCompletedInitialSync,
-          }) || this.syncLocalStateService.hasMeaningfulStoreData(exampleTaskIds);
+          this.syncImportConflictGateService.hasMeaningfulPendingOps(unsyncedOps) ||
+          this.syncLocalStateService.hasMeaningfulStoreData(exampleTaskIds);
 
         if (hasMeaningfulUserData) {
           // SPAP-9: before surfacing the binary USE_LOCAL/USE_REMOTE dialog, use
@@ -1437,14 +1442,14 @@ export class OperationLogSyncService {
 
           await this._restorePreservedLocalOps(preservedLocalOps);
 
+          await this._assertNoCaptureRacedWithRebuild();
+
           // Update lastServerSeq after hydration
           if (result.latestServerSeq !== undefined) {
             await syncProvider.setLastServerSeq(result.latestServerSeq);
           }
 
-          // Replay committed — the rebuild is complete and crash-resume is
-          // no longer needed.
-          await this.opLogStore.clearRawRebuildIncomplete();
+          await this._completeRawRebuild();
 
           OpLog.normal(
             'OperationLogSyncService: Force download snapshot hydration complete.',
@@ -1489,14 +1494,14 @@ export class OperationLogSyncService {
 
         await this._restorePreservedLocalOps(preservedLocalOps);
 
+        await this._assertNoCaptureRacedWithRebuild();
+
         // Update lastServerSeq
         if (result.latestServerSeq !== undefined) {
           await syncProvider.setLastServerSeq(result.latestServerSeq);
         }
 
-        // Replay committed — the rebuild is complete and crash-resume is
-        // no longer needed.
-        await this.opLogStore.clearRawRebuildIncomplete();
+        await this._completeRawRebuild();
 
         OpLog.normal(
           `OperationLogSyncService: Force download complete. Rebuilt from ${migratedRemoteOps.length} ops.`,
@@ -1544,10 +1549,21 @@ export class OperationLogSyncService {
       this.opLogStore.getFailedRemoteOps(),
     ]);
     if (pendingRemoteOps.length > 0 || failedRemoteOps.length > 0) {
+      throw new IncompleteRemoteOperationsError();
+    }
+  }
+
+  private _assertNoCaptureRacedWithRebuild(): void {
+    if (this.writeFlushService.hasPendingWrites()) {
       throw new Error(
-        'Sync blocked because previously downloaded operations are not fully applied. Restart the app to retry recovery.',
+        'USE_REMOTE incomplete: a local change arrived during the rebuild and will be restored on retry.',
       );
     }
+  }
+
+  private async _completeRawRebuild(): Promise<void> {
+    this._assertNoCaptureRacedWithRebuild();
+    await this.opLogStore.clearRawRebuildIncomplete();
   }
 
   /**
@@ -1568,11 +1584,18 @@ export class OperationLogSyncService {
       return;
     }
 
+    let restoredClock = (await this.opLogStore.getVectorClock()) ?? {};
+    for (const op of writtenOps) {
+      restoredClock = mergeVectorClocks(restoredClock, op.vectorClock);
+    }
+    await this.opLogStore.setVectorClock(restoredClock);
+
     const applyResult = await this.operationApplier.applyOperations(writtenOps, {
       // The authoritative replacement also overwrote archive IndexedDB stores,
       // so archive-affecting post-crash edits must replay their side effects.
       // The entries themselves remain source=local and unsynced in the op-log.
       isLocalHydration: false,
+      skipDeferredLocalActions: true,
     });
     if (applyResult.failedOp || applyResult.appliedOps.length !== writtenOps.length) {
       throw new Error(
@@ -1580,11 +1603,7 @@ export class OperationLogSyncService {
       );
     }
 
-    let restoredClock = (await this.opLogStore.getVectorClock()) ?? {};
-    for (const op of writtenOps) {
-      restoredClock = mergeVectorClocks(restoredClock, op.vectorClock);
-    }
-    await this.opLogStore.setVectorClock(restoredClock);
+    await processDeferredActions(this.injector, true);
   }
 
   private _preflightRemoteOperations(remoteOps: Operation[]): Operation[] {

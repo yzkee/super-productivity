@@ -2,7 +2,6 @@ import { inject, Injectable } from '@angular/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import {
   FULL_STATE_OP_TYPES,
-  extractActionPayload,
   Operation,
   OperationLogEntry,
   OpType,
@@ -35,32 +34,19 @@ export class SyncImportConflictGateService {
   private writeFlushService = inject(OperationWriteFlushService);
 
   /**
-   * Every pending op is user work unless it is an onboarding example-task create,
-   * or the sync-config write required to enable first sync on a fresh client.
+   * Every pending op is user work unless it is an onboarding example-task create.
    * Full-state ops are always meaningful because applying a newer full-state op
    * can invalidate their local import/repair semantics.
    *
    * The lifecycle default is deliberately conservative: a caller that does not
    * know whether initial sync completed must protect startup-entity changes.
    */
-  hasMeaningfulPendingOps(
-    ops: OperationLogEntry[],
-    options: { hasCompletedInitialSync: boolean } = {
-      hasCompletedInitialSync: true,
-    },
-  ): boolean {
+  hasMeaningfulPendingOps(ops: OperationLogEntry[]): boolean {
     return ops.some((entry) => {
       if (FULL_STATE_OP_TYPES.has(entry.op.opType as OpType)) {
         return true;
       }
       if (isExampleTaskCreateOp(entry)) {
-        return false;
-      }
-      if (
-        !options.hasCompletedInitialSync &&
-        entry.op.entityType === 'GLOBAL_CONFIG' &&
-        extractActionPayload(entry.op.payload).sectionKey === 'sync'
-      ) {
         return false;
       }
       return true;
@@ -123,14 +109,9 @@ export class SyncImportConflictGateService {
       };
     }
 
-    // Capture lifecycle state before deciding whether startup writes are setup
-    // noise or post-sync divergence. Piggyback callers pass their pre-sync snapshot
-    // because a live read there already includes this sync cycle's writes.
     const isNeverSynced =
       options.isNeverSynced ?? !(await this.opLogStore.hasSyncedOps());
-    const hasMeaningfulPending = this.hasMeaningfulPendingOps(pendingOps, {
-      hasCompletedInitialSync: !isNeverSynced,
-    });
+    const hasMeaningfulPending = this.hasMeaningfulPendingOps(pendingOps);
 
     const result = {
       fullStateOp,

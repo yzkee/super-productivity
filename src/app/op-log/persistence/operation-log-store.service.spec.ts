@@ -1578,17 +1578,34 @@ describe('OperationLogStoreService', () => {
       expect(ops[0].retryCount).toBe(3);
     });
 
-    it('should mark as rejected when max retries reached', async () => {
+    it('should keep failed operations quarantined after repeated failures', async () => {
       const op = createTestOperation();
       await service.append(op, 'remote', { pendingApply: true });
 
-      await service.markFailed([op.id], 3); // maxRetries = 3
-      await service.markFailed([op.id], 3);
-      await service.markFailed([op.id], 3); // 3rd failure = rejected
+      await service.markFailed([op.id]);
+      await service.markFailed([op.id]);
+      await service.markFailed([op.id]);
 
       const ops = await service.getOpsAfterSeq(0);
-      expect(ops[0].rejectedAt).toBeDefined();
-      expect(ops[0].applicationStatus).toBeUndefined();
+      expect(ops[0].rejectedAt).toBeUndefined();
+      expect(ops[0].applicationStatus).toBe('failed');
+      expect(ops[0].retryCount).toBe(3);
+    });
+
+    it('should re-quarantine legacy terminal remote failures', async () => {
+      const op = createTestOperation();
+      await service.append(op, 'remote', { pendingApply: true });
+      for (let retry = 0; retry < 4; retry++) {
+        await service.markFailed([op.id]);
+      }
+      await service.markRejected([op.id]);
+
+      expect(await service.recoverLegacyTerminalRemoteFailures()).toBe(1);
+
+      const [recovered] = await service.getFailedRemoteOps();
+      expect(recovered.op.id).toBe(op.id);
+      expect(recovered.rejectedAt).toBeUndefined();
+      expect(recovered.applicationStatus).toBe('failed');
     });
 
     it('should handle empty array', async () => {
@@ -1801,7 +1818,7 @@ describe('OperationLogStoreService', () => {
       expect(unsynced2[0].op.id).toBe(op2.id);
     });
 
-    it('should invalidate cache when markFailed terminally rejects an op', async () => {
+    it('should keep local failed ops unsynced after repeated failures', async () => {
       const op1 = createTestOperation({ entityId: 'task1' });
       const op2 = createTestOperation({ entityId: 'task2' });
       await service.append(op1);
@@ -1810,11 +1827,10 @@ describe('OperationLogStoreService', () => {
       const unsynced1 = await service.getUnsynced();
       expect(unsynced1.length).toBe(2);
 
-      await service.markFailed([op1.id], 1);
+      await service.markFailed([op1.id]);
 
       const unsynced2 = await service.getUnsynced();
-      expect(unsynced2.length).toBe(1);
-      expect(unsynced2[0].op.id).toBe(op2.id);
+      expect(unsynced2.map((entry) => entry.op.id)).toEqual([op1.id, op2.id]);
     });
 
     it('should not include already synced ops when incrementally updating', async () => {

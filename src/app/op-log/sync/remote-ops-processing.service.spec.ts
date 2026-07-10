@@ -51,6 +51,14 @@ describe('RemoteOpsProcessingService', () => {
   let syncImportFilterServiceSpy: jasmine.SpyObj<SyncImportFilterService>;
   let operationLogEffectsSpy: jasmine.SpyObj<OperationLogEffects>;
 
+  const applyAllWithReducerCommit = async (
+    ops: Operation[],
+    options?: Parameters<OperationApplierService['applyOperations']>[1],
+  ): ReturnType<OperationApplierService['applyOperations']> => {
+    await options?.onReducersCommitted?.(ops);
+    return { appliedOps: ops };
+  };
+
   beforeEach(() => {
     storeSpy = jasmine.createSpyObj('Store', ['select']);
     storeSpy.select.and.returnValue(
@@ -286,9 +294,7 @@ describe('RemoteOpsProcessingService', () => {
     // Default: no local ops to replay after SYNC_IMPORT
     opLogStoreSpy.getOpsAfterSeq.and.returnValue(Promise.resolve([]));
     // Default: successful operation application
-    operationApplierServiceSpy.applyOperations.and.returnValue(
-      Promise.resolve({ appliedOps: [] }),
-    );
+    operationApplierServiceSpy.applyOperations.and.callFake(applyAllWithReducerCommit);
     operationLogEffectsSpy.processDeferredActions.and.resolveTo();
   });
 
@@ -331,9 +337,7 @@ describe('RemoteOpsProcessingService', () => {
       opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
       opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
       opLogStoreSpy.markApplied.and.returnValue(Promise.resolve());
-      operationApplierServiceSpy.applyOperations.and.returnValue(
-        Promise.resolve({ appliedOps: [remoteOps[0]] }),
-      );
+      operationApplierServiceSpy.applyOperations.and.callFake(applyAllWithReducerCommit);
 
       // Track call order
       const callOrder: string[] = [];
@@ -707,9 +711,7 @@ describe('RemoteOpsProcessingService', () => {
 
       opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
       opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
-      operationApplierServiceSpy.applyOperations.and.returnValue(
-        Promise.resolve({ appliedOps: [syncImportOp] }),
-      );
+      operationApplierServiceSpy.applyOperations.and.callFake(applyAllWithReducerCommit);
 
       // Spy on detectConflicts - it should NOT be called
       spyOn(service, 'detectConflicts').and.callThrough();
@@ -742,9 +744,7 @@ describe('RemoteOpsProcessingService', () => {
       opLogStoreSpy.getUnsynced.and.resolveTo([
         { seq: 99, op: { opType: OpType.Update } as any, appliedAt: 0, source: 'local' },
       ]);
-      operationApplierServiceSpy.applyOperations.and.returnValue(
-        Promise.resolve({ appliedOps: [syncImportOp] }),
-      );
+      operationApplierServiceSpy.applyOperations.and.callFake(applyAllWithReducerCommit);
       const opLogSpy = spyOn(OpLog, 'log').and.callThrough();
 
       await service.processRemoteOps([syncImportOp]);
@@ -804,8 +804,9 @@ describe('RemoteOpsProcessingService', () => {
       let appliedOps: Operation[] = [];
 
       opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
-      operationApplierServiceSpy.applyOperations.and.callFake(async (ops) => {
+      operationApplierServiceSpy.applyOperations.and.callFake(async (ops, options) => {
         appliedOps = ops;
+        await options?.onReducersCommitted?.(ops);
         return { appliedOps: ops };
       });
 
@@ -864,9 +865,7 @@ describe('RemoteOpsProcessingService', () => {
       };
 
       opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
-      operationApplierServiceSpy.applyOperations.and.callFake(async (ops) => ({
-        appliedOps: ops,
-      }));
+      operationApplierServiceSpy.applyOperations.and.callFake(applyAllWithReducerCommit);
 
       await service.processRemoteOps([syncImportOp]);
 
@@ -901,9 +900,7 @@ describe('RemoteOpsProcessingService', () => {
 
       opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
       opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
-      operationApplierServiceSpy.applyOperations.and.returnValue(
-        Promise.resolve({ appliedOps: [backupImportOp] }),
-      );
+      operationApplierServiceSpy.applyOperations.and.callFake(applyAllWithReducerCommit);
 
       // Spy on detectConflicts - it should NOT be called
       spyOn(service, 'detectConflicts').and.callThrough();
@@ -938,9 +935,7 @@ describe('RemoteOpsProcessingService', () => {
       opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
       opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
       opLogStoreSpy.clearFullStateOpsExcept.and.returnValue(Promise.resolve(2)); // Had 2 old ops
-      operationApplierServiceSpy.applyOperations.and.returnValue(
-        Promise.resolve({ appliedOps: [syncImportOp] }),
-      );
+      operationApplierServiceSpy.applyOperations.and.callFake(applyAllWithReducerCommit);
 
       await service.processRemoteOps([syncImportOp]);
 
@@ -971,9 +966,7 @@ describe('RemoteOpsProcessingService', () => {
       vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
       opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
       opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
-      operationApplierServiceSpy.applyOperations.and.returnValue(
-        Promise.resolve({ appliedOps: [regularOp] }),
-      );
+      operationApplierServiceSpy.applyOperations.and.callFake(applyAllWithReducerCommit);
 
       await service.processRemoteOps([regularOp]);
 
@@ -1162,8 +1155,8 @@ describe('RemoteOpsProcessingService', () => {
         vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
         opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
         opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
-        operationApplierServiceSpy.applyOperations.and.returnValue(
-          Promise.resolve({ appliedOps: [validOp] }),
+        operationApplierServiceSpy.applyOperations.and.callFake(
+          applyAllWithReducerCommit,
         );
 
         const remoteOps = [
@@ -1198,8 +1191,8 @@ describe('RemoteOpsProcessingService', () => {
         vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
         opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
         opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
-        operationApplierServiceSpy.applyOperations.and.returnValue(
-          Promise.resolve({ appliedOps: [] }),
+        operationApplierServiceSpy.applyOperations.and.callFake(
+          applyAllWithReducerCommit,
         );
 
         const result = await service.processRemoteOps([createFullOp({ id: 'op-1' })]);
@@ -1511,9 +1504,12 @@ describe('RemoteOpsProcessingService', () => {
       ];
 
       opLogStoreSpy.markFailed.and.resolveTo();
-      operationApplierServiceSpy.applyOperations.and.resolveTo({
-        appliedOps: [remoteOps[0]],
-        failedOp: { op: remoteOps[1], error: new Error('Test error') },
+      operationApplierServiceSpy.applyOperations.and.callFake(async (ops, options) => {
+        await options?.onReducersCommitted?.(ops);
+        return {
+          appliedOps: [remoteOps[0]],
+          failedOp: { op: remoteOps[1], error: new Error('Test error') },
+        };
       });
       validateStateServiceSpy.validateAndRepairCurrentState.and.resolveTo(false);
 
@@ -1554,8 +1550,8 @@ describe('RemoteOpsProcessingService', () => {
             skippedCount: 1,
           }),
         );
-        operationApplierServiceSpy.applyOperations.and.returnValue(
-          Promise.resolve({ appliedOps: [remoteOps[1]] }),
+        operationApplierServiceSpy.applyOperations.and.callFake(
+          applyAllWithReducerCommit,
         );
 
         await service.applyNonConflictingOps(remoteOps);
@@ -1676,9 +1672,7 @@ describe('RemoteOpsProcessingService', () => {
       opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
       opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
       opLogStoreSpy.markApplied.and.returnValue(Promise.resolve());
-      operationApplierServiceSpy.applyOperations.and.returnValue(
-        Promise.resolve({ appliedOps: [remoteOps[0]] }),
-      );
+      operationApplierServiceSpy.applyOperations.and.callFake(applyAllWithReducerCommit);
       spyOn(service, 'detectConflicts').and.resolveTo({
         nonConflicting: remoteOps,
         conflicts: [],
@@ -1707,9 +1701,7 @@ describe('RemoteOpsProcessingService', () => {
       opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
       opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
       opLogStoreSpy.markApplied.and.returnValue(Promise.resolve());
-      operationApplierServiceSpy.applyOperations.and.returnValue(
-        Promise.resolve({ appliedOps: [remoteOps[0]] }),
-      );
+      operationApplierServiceSpy.applyOperations.and.callFake(applyAllWithReducerCommit);
       spyOn(service, 'detectConflicts').and.resolveTo({
         nonConflicting: remoteOps,
         conflicts: [],

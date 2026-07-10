@@ -48,7 +48,6 @@ import { TranslateService } from '@ngx-translate/core';
 import { T } from '../../t.const';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { SyncSessionValidationService } from './sync-session-validation.service';
-import { MAX_CONFLICT_RETRY_ATTEMPTS } from '../core/operation-log.const';
 import {
   compareVectorClocks,
   incrementVectorClock,
@@ -62,6 +61,7 @@ import { uuidv7 } from '../../util/uuid-v7';
 import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 import { SYNC_LOGGER } from '../core/sync-logger.adapter';
 import { processDeferredActionsAfterRemoteApply } from './process-deferred-actions-flush.util';
+import { IncompleteRemoteOperationsError } from '../core/errors/sync-errors';
 
 /**
  * Represents the result of LWW (Last-Write-Wins) conflict resolution.
@@ -463,7 +463,7 @@ export class ConflictResolutionService {
               'Marking the attempted archive operation as failed.',
             applyResult.failedOp.error,
           );
-          await this.opLogStore.markFailed(failedOpIds, MAX_CONFLICT_RETRY_ATTEMPTS);
+          await this.opLogStore.markFailed(failedOpIds);
 
           this.snackService.open({
             type: 'ERROR',
@@ -479,7 +479,7 @@ export class ConflictResolutionService {
           // thrown, causing sync to report IN_SYNC despite lost operations.
           // Deferred-actions flush runs in the finally below before the throw
           // propagates.
-          throw applyResult.failedOp.error;
+          throw new IncompleteRemoteOperationsError(applyResult.failedOp.error);
         }
       }
 

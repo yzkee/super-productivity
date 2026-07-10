@@ -692,8 +692,7 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
 
     const MAX_RETRIES = 3;
     const BASE_DELAY_MS = 100;
-    let failedCount = 0;
-    let transientFailure: unknown;
+    let failure: unknown;
 
     for (const action of deferredActions) {
       let lastError: unknown;
@@ -730,17 +729,16 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
         continue;
       }
 
-      failedCount++;
-
       if (lastError instanceof PermanentDeferredWriteError) {
-        // Terminal: the action can never be persisted (invalid identifiers or
-        // payload). Abandon it — keeping it queued would retry it with backoff
-        // and re-raise the failure snack on every future sync window.
-        acknowledgeDeferredAction(action);
-        OpLog.err('OperationLogEffects: Abandoning permanently invalid deferred action', {
+        // The reducer already committed this action. Dropping it would leave
+        // live state ahead of durable state and let sync claim convergence.
+        // Keep the full suffix buffered and require reload to roll live state
+        // back to the last durable snapshot.
+        OpLog.err('OperationLogEffects: Permanently invalid deferred action', {
           actionType: action.type,
         });
-        continue;
+        failure = lastError;
+        break;
       }
 
       // Transient failure: STOP the drain here instead of persisting later
@@ -755,26 +753,32 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
           errorName: (lastError as Error | undefined)?.name,
         },
       );
-      transientFailure = lastError;
+      failure = lastError;
       break;
     }
 
-    // Show notification if any actions failed
-    if (failedCount > 0) {
+    if (failure) {
+      const isPermanent = failure instanceof PermanentDeferredWriteError;
       this.snackService.open({
         type: 'ERROR',
-        msg: T.F.SYNC.S.DEFERRED_ACTION_FAILED,
-        actionStr: T.G.DISMISS,
+        msg: isPermanent
+          ? T.F.SYNC.S.DEFERRED_ACTION_PERMANENT_FAILED
+          : T.F.SYNC.S.DEFERRED_ACTION_FAILED,
+        actionStr: isPermanent ? T.PS.RELOAD : T.G.DISMISS,
+        ...(isPermanent
+          ? {
+              actionFn: (): void => {
+                window.location.reload();
+              },
+            }
+          : {}),
         config: {
           duration: 0, // Sticky - don't auto-dismiss critical errors
         },
       });
-    }
-
-    if (transientFailure !== undefined) {
       throw new Error(
         'Deferred local actions remain unpersisted after retry exhaustion.',
-        { cause: transientFailure },
+        { cause: failure },
       );
     }
   }

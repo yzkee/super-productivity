@@ -118,14 +118,14 @@ describe('SyncImportConflictGateService', () => {
     expect(result.dialogData).toBeDefined();
   });
 
-  it('should NOT flag a pending config change on a never-synced client', async () => {
+  it('should protect a pending sync config change on a never-synced client', async () => {
     opLogStoreSpy.hasSyncedOps.and.resolveTo(false);
     opLogStoreSpy.getUnsynced.and.resolveTo([createPendingConfigEntry()]);
 
     const result = await service.checkIncomingFullStateConflict([createOperation()]);
 
-    expect(result.hasMeaningfulPending).toBeFalse();
-    expect(result.dialogData).toBeUndefined();
+    expect(result.hasMeaningfulPending).toBeTrue();
+    expect(result.dialogData).toBeDefined();
   });
 
   it('should flag a user config change on a never-synced client', async () => {
@@ -442,13 +442,8 @@ describe('SyncImportConflictGateService', () => {
         { seq: 2 },
       );
 
-      const synced = { hasCompletedInitialSync: true };
-      expect(service.hasMeaningfulPendingOps([pendingMigration], synced)).toBeTrue();
-      expect(service.hasMeaningfulPendingOps([pendingRecovery], synced)).toBeTrue();
-
-      const neverSynced = { hasCompletedInitialSync: false };
-      expect(service.hasMeaningfulPendingOps([pendingMigration], neverSynced)).toBeTrue();
-      expect(service.hasMeaningfulPendingOps([pendingRecovery], neverSynced)).toBeTrue();
+      expect(service.hasMeaningfulPendingOps([pendingMigration])).toBeTrue();
+      expect(service.hasMeaningfulPendingOps([pendingRecovery])).toBeTrue();
     });
   });
 

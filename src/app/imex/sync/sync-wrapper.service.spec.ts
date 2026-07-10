@@ -37,6 +37,7 @@ import {
   UploadRevToMatchMismatchAPIError,
   WebDavNativeRequestError,
   EncryptNoPasswordError,
+  IncompleteRemoteOperationsError,
 } from '../../op-log/core/errors/sync-errors';
 import { DialogEnterEncryptionPasswordComponent } from './dialog-enter-encryption-password/dialog-enter-encryption-password.component';
 import { MAX_LWW_REUPLOAD_RETRIES } from '../../op-log/core/operation-log.const';
@@ -1049,6 +1050,22 @@ describe('SyncWrapperService', () => {
   });
 
   describe('Error handling', () => {
+    it('should surface incomplete remote application as a sticky translated error', async () => {
+      mockSyncService.downloadRemoteOps.and.rejectWith(
+        new IncompleteRemoteOperationsError(),
+      );
+
+      const result = await service.sync();
+
+      expect(result).toBe('HANDLED_ERROR');
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+      expect(mockSnackService.open).toHaveBeenCalledWith({
+        msg: T.F.SYNC.S.INCOMPLETE_REMOTE_OPERATIONS,
+        type: 'ERROR',
+        config: { duration: 0 },
+      });
+    });
+
     it('should handle PotentialCorsError with snack message', async () => {
       mockSyncService.downloadRemoteOps.and.returnValue(
         Promise.reject(new PotentialCorsError('https://example.com')),

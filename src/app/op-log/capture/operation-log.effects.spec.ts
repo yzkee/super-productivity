@@ -918,7 +918,7 @@ describe('OperationLogEffects', () => {
       expect(getDeferredActions()).toEqual([]);
     });
 
-    it('should abandon a permanently invalid deferred action and continue with its successors', async () => {
+    it('should block and keep a permanently invalid deferred action with its successors', async () => {
       // Invalid entity identifiers are deterministic: retrying every sync
       // window forever (with a sticky error snack each time) can never succeed.
       const invalidAction = createPersistentAction(ActionType.TASK_SHARED_ADD);
@@ -927,19 +927,17 @@ describe('OperationLogEffects', () => {
       bufferDeferredAction(invalidAction);
       bufferDeferredAction(validAction);
 
-      await effects.processDeferredActions();
+      await expectAsync(effects.processDeferredActions()).toBeRejected();
 
-      // Invalid action: single attempt, no retries, abandoned. Valid successor
-      // persisted (its relative order w.r.t. an unpersistable action is moot).
-      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledTimes(1);
-      expect(
-        mockOpLogStore.appendWithVectorClockUpdate.calls.mostRecent().args[0].actionType,
-      ).toBe(ActionType.TASK_SHARED_UPDATE);
-      expect(getDeferredActions()).toEqual([]);
+      // The invalid reducer action already changed live state. Neither it nor
+      // its successor may be discarded or persisted out of order.
+      expect(mockOpLogStore.appendWithVectorClockUpdate).not.toHaveBeenCalled();
+      expect(getDeferredActions()).toEqual([invalidAction, validAction]);
       expect(mockSnackService.open).toHaveBeenCalledWith(
         jasmine.objectContaining({
-          msg: T.F.SYNC.S.DEFERRED_ACTION_FAILED,
-          actionStr: T.G.DISMISS,
+          msg: T.F.SYNC.S.DEFERRED_ACTION_PERMANENT_FAILED,
+          actionStr: T.PS.RELOAD,
+          actionFn: jasmine.any(Function),
         }),
       );
     });

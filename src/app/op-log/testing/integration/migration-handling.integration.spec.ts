@@ -34,9 +34,10 @@ describe('Migration Handling Integration', () => {
     operationApplierSpy = jasmine.createSpyObj('OperationApplierService', [
       'applyOperations',
     ]);
-    operationApplierSpy.applyOperations.and.returnValue(
-      Promise.resolve({ appliedOps: [] }),
-    );
+    operationApplierSpy.applyOperations.and.callFake(async (ops, options) => {
+      await options?.onReducersCommitted?.(ops);
+      return { appliedOps: ops };
+    });
 
     TestBed.configureTestingModule({
       providers: [
@@ -197,12 +198,15 @@ describe('Migration Handling Integration', () => {
       const op = createOp('op-fail');
 
       // Make applier return failure result (new behavior with partial success support)
-      operationApplierSpy.applyOperations.and.resolveTo({
-        appliedOps: [],
-        failedOp: {
-          op,
-          error: new Error('Simulated Apply Error'),
-        },
+      operationApplierSpy.applyOperations.and.callFake(async (ops, options) => {
+        await options?.onReducersCommitted?.(ops);
+        return {
+          appliedOps: [],
+          failedOp: {
+            op,
+            error: new Error('Simulated Apply Error'),
+          },
+        };
       });
 
       // Spy on store to verify markFailed is called

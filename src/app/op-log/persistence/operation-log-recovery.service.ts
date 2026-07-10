@@ -141,11 +141,18 @@ export class OperationLogRecoveryService {
    * archive-pending checkpoint so hydration retries archive work without double-applying
    * reducers.
    *
-   * Operations pending for longer than PENDING_OPERATION_EXPIRY_MS are considered
-   * superseded (likely due to data corruption or repeated failures) and are rejected
-   * instead of replayed.
+   * Operations pending for longer than PENDING_OPERATION_EXPIRY_MS are quarantined
+   * as failed so sync stays blocked until archive recovery succeeds.
    */
   async recoverPendingRemoteOps(): Promise<void> {
+    const recoveredLegacyFailures =
+      await this.opLogStore.recoverLegacyTerminalRemoteFailures();
+    if (recoveredLegacyFailures > 0) {
+      OpLog.warn(
+        `OperationLogRecoveryService: Re-quarantined ${recoveredLegacyFailures} legacy terminal remote failure(s).`,
+      );
+    }
+
     const pendingOps = await this.opLogStore.getPendingRemoteOps();
 
     if (pendingOps.length === 0) {
@@ -160,12 +167,12 @@ export class OperationLogRecoveryService {
       (e) => now - e.appliedAt >= PENDING_OPERATION_EXPIRY_MS,
     );
 
-    // Reject expired ops - they've been pending too long
+    // Keep expired ops visible to retryFailedRemoteOps and the sync safety gate.
     if (expiredOps.length > 0) {
       const expiredIds = expiredOps.map((e) => e.op.id);
-      await this.opLogStore.markRejected(expiredIds);
+      await this.opLogStore.markFailed(expiredIds);
       OpLog.warn(
-        `OperationLogRecoveryService: Rejected ${expiredOps.length} expired pending remote ops ` +
+        `OperationLogRecoveryService: Quarantined ${expiredOps.length} expired pending remote ops ` +
           `(pending > ${PENDING_OPERATION_EXPIRY_MS / (60 * 60 * 1000)}h). ` +
           `Oldest was ${Math.round((now - Math.min(...expiredOps.map((e) => e.appliedAt))) / (60 * 60 * 1000))}h old.`,
       );
@@ -183,7 +190,7 @@ export class OperationLogRecoveryService {
 
     OpLog.normal(
       `OperationLogRecoveryService: Recovered ${validOps.length} pending remote ops, ` +
-        `rejected ${expiredOps.length} expired ops.`,
+        `quarantined ${expiredOps.length} expired ops.`,
     );
   }
 

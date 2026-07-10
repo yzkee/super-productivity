@@ -31,6 +31,7 @@ import { OperationLogCompactionService } from '../persistence/operation-log-comp
 import { SyncImportFilterService } from './sync-import-filter.service';
 import { OperationWriteFlushService } from './operation-write-flush.service';
 import { processDeferredActionsAfterRemoteApply } from './process-deferred-actions-flush.util';
+import { IncompleteRemoteOperationsError } from '../core/errors/sync-errors';
 import { selectSyncConfig } from '../../features/config/store/global-config.reducer';
 import {
   applyLocalOnlySyncSettingsToAppData,
@@ -502,7 +503,7 @@ export class RemoteOpsProcessingService {
 
         // The deferred-actions flush in the finally below runs before the
         // throw propagates.
-        throw result.failedOp.error;
+        throw new IncompleteRemoteOperationsError(result.failedOp.error);
       }
     } finally {
       if (didApplyRemoteOps) {

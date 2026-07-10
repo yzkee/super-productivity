@@ -27,6 +27,7 @@ describe('ImmediateUploadService', () => {
       permanentRejectionCount: number;
       hasMorePiggyback: boolean;
       rejectedOps: RejectedOpInfo[];
+      encryptionRequiredKeyMissing: boolean;
     }> = {},
   ): {
     kind: 'completed';
@@ -36,6 +37,7 @@ describe('ImmediateUploadService', () => {
     permanentRejectionCount: number;
     hasMorePiggyback: boolean;
     rejectedOps: RejectedOpInfo[];
+    encryptionRequiredKeyMissing?: boolean;
   } => ({
     kind: 'completed',
     uploadedCount: 0,
@@ -134,6 +136,47 @@ describe('ImmediateUploadService', () => {
       flush(); // Drain the await chain inside withSession()
 
       expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('IN_SYNC');
+    }));
+
+    it('should report UNKNOWN_OR_CHANGED when the initial upload lacks a mandatory encryption key', fakeAsync(() => {
+      mockSyncService.uploadPendingOps.and.resolveTo(
+        completedResult({
+          uploadedCount: 1,
+          encryptionRequiredKeyMissing: true,
+        }),
+      );
+
+      service.initialize();
+      service.trigger();
+      tick(2000);
+      flush();
+
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith(
+        'UNKNOWN_OR_CHANGED',
+      );
+      expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalledWith('IN_SYNC');
+    }));
+
+    it('should report UNKNOWN_OR_CHANGED when a local-win follow-up lacks a mandatory encryption key', fakeAsync(() => {
+      mockSyncService.uploadPendingOps.and.returnValues(
+        Promise.resolve(completedResult({ uploadedCount: 1, localWinOpsCreated: 1 })),
+        Promise.resolve(
+          completedResult({
+            uploadedCount: 0,
+            encryptionRequiredKeyMissing: true,
+          }),
+        ),
+      );
+
+      service.initialize();
+      service.trigger();
+      tick(2000);
+      flush();
+
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith(
+        'UNKNOWN_OR_CHANGED',
+      );
+      expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalledWith('IN_SYNC');
     }));
 
     it('should NOT show checkmark when piggybacked ops exist', fakeAsync(() => {

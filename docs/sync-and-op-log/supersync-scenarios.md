@@ -198,7 +198,7 @@ Comprehensive spec of all scenarios that can occur during SuperSync synchronizat
 **Expected:**
 
 1. Download batch contains SYNC_IMPORT
-2. Check pending local ops. Any pending work triggers the dialog except onboarding example-task creates and the fresh-client bootstrap write for the GLOBAL_CONFIG `sync` section.
+2. Check pending local ops. Any pending work triggers the dialog except onboarding example-task creates. GLOBAL_CONFIG changes are protected even before the first completed sync because the sync-section payload can carry user preferences.
 3. **Show conflict dialog BEFORE processing** with `scenario: 'INCOMING_IMPORT'` and `syncImportReason`
 4. USE_LOCAL → `forceUploadLocalState()` (overrides remote with local data)
 5. USE_REMOTE → `forceDownloadRemoteState()` (clears local ops, downloads from seq 0)
@@ -254,7 +254,7 @@ Comprehensive spec of all scenarios that can occur during SuperSync synchronizat
 
 1. Upload completes → server returns piggybacked ops containing SYNC_IMPORT
 2. Check for SYNC_IMPORT in piggybacked ops BEFORE `processRemoteOps()`
-3. If found AND `_hasMeaningfulPendingOps()` = true (all pending work except onboarding example-task creates and the fresh-client GLOBAL_CONFIG `sync` bootstrap write):
+3. If found AND `_hasMeaningfulPendingOps()` = true (all pending work except onboarding example-task creates):
    - **Show conflict dialog** with `scenario: 'INCOMING_IMPORT'` and `syncImportReason` from the piggybacked op
    - USE_LOCAL → `forceUploadLocalState()` (overrides remote)
    - USE_REMOTE → `forceDownloadRemoteState()` (clears local, downloads from seq 0)
