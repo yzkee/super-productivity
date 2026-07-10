@@ -75,10 +75,16 @@ const getNamedClickCounter = async (
     .last();
   await counter.waitFor({ state: 'visible', timeout: 15000 });
 
-  // Counter buttons render only their initial, so verify the exact counter via
-  // its accessible Material tooltip before interacting with it.
-  await counter.hover();
-  await expect(client.page.getByRole('tooltip').filter({ hasText: title })).toBeVisible();
+  // The button renders only the title's initial; the full title lives in a
+  // matTooltip that does NOT open on Playwright's synthetic hover in headless
+  // CI, so we can't identify by tooltip. This test only ever has one counter
+  // per client at each interaction point (A imports after its only counter
+  // interaction; B keeps local via USE_LOCAL and never adopts the backup's
+  // counters), so the last button is unambiguous — sanity-check its rendered
+  // initial matches the expected title instead of hovering for a tooltip.
+  await expect(counter.locator('.habit-initial')).toHaveText(
+    title.charAt(0).toUpperCase(),
+  );
   return counter;
 };
 
