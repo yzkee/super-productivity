@@ -113,7 +113,7 @@ flowchart TD
 
 ## ArchiveOperationHandler Integration
 
-The `OperationApplierService` applies operations in the order they arrive from the sync server, which preserves causal ordering (each client uploads its ops in causal order, and the server assigns sequence numbers in upload order). It converts each op to an action, applies the batch via a single bulk dispatch, then runs archive side effects. If an operation fails to apply, the applier returns it as a `failedOp`; the caller surfaces a partial-apply failure and re-validates state, and the op is retried on the next hydration.
+The `OperationApplierService` applies operations in the order they arrive from the sync server, which preserves causal ordering (each client uploads its ops in causal order, and the server assigns sequence numbers in upload order). Incoming rows are first stored as `pending`. Immediately after the single bulk reducer dispatch, the reducer-commit callback checkpoints the entire batch as `archive_pending` and merges its vector clocks; only then do archive side effects run. Successful rows become `applied`. The attempted row becomes `failed` if an archive side effect throws, while unattempted successors remain `archive_pending`. On startup, hydration restores reducer state and retries `archive_pending`/`failed` rows with reducer dispatch disabled, so additive reducers are never applied twice.
 
 ```mermaid
 flowchart TD

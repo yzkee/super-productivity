@@ -170,6 +170,7 @@ interface OperationLogEntry {
   source: 'local' | 'remote';
   syncedAt?: number; // For server sync (Part C)
   rejectedAt?: number; // When rejected during conflict resolution
+  applicationStatus?: 'pending' | 'archive_pending' | 'applied' | 'failed';
 }
 
 // state_cache table - periodic snapshots
@@ -204,6 +205,17 @@ interface StateCache {
 ```
 
 **Key insight:** All application data is persisted in the `SUP_OPS` database via the operation log system.
+
+### Remote Apply Checkpoints
+
+Downloaded operations use a durable status transition so reducer state, archive IndexedDB side effects, vector clocks, and the server cursor cannot disagree after a crash:
+
+1. `pending` — the remote op is stored, but no reducer-commit checkpoint exists yet.
+2. `archive_pending` — the complete batch was bulk-dispatched to reducers and its vector clocks were merged; archive side effects are still outstanding.
+3. `applied` — reducer and archive work both completed.
+4. `failed` — an attempted archive side effect failed. Later operations in the same batch remain `archive_pending` without consuming retry budget.
+
+Startup hydration replays the persisted state history, converts surviving `pending` rows to the archive checkpoint, and retries `archive_pending`/`failed` rows with reducer dispatch disabled. Ordinary sync refuses to download, upload, or advance its cursor while any of these incomplete rows remain.
 
 ## A.2 Write Path
 
