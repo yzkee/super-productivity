@@ -217,7 +217,14 @@ test.describe('@supersync incoming SYNC_IMPORT preserves non-task local work', (
 
       await clientB.sync.syncAndWait();
       await expectClickCounterValue(clientB, counterTitle, 2);
-      console.log('[Gate] ✓ Pending counter value survived resolution and re-sync');
+
+      // Prove convergence, not just Client B's local durability: Client A must
+      // download the state B force-uploaded when it chose "Use My Data".
+      await clientA.sync.syncAndWait();
+      await clientA.page.goto('/#/tag/TODAY/tasks');
+      await clientA.page.waitForURL(/(active\/tasks|tag\/TODAY\/tasks)/);
+      await expectClickCounterValue(clientA, counterTitle, 2);
+      console.log('[Gate] ✓ Pending counter value converged on both clients');
     } finally {
       if (clientA) await closeClient(clientA);
       if (clientB) await closeClient(clientB);
