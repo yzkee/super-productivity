@@ -141,10 +141,16 @@ test.describe('@supersync incoming SYNC_IMPORT preserves non-task local work', (
       console.log('[Gate] Client B incremented the counter locally (pending, unsynced)');
 
       // ===== PHASE 4: A imports a backup (SYNC_IMPORT) and syncs it =====
+      // A already synced a populated state (PHASE 1), so the import diverges from
+      // the server: A's own sync raises the sync-import conflict gate against its
+      // pending import op. Resolve it as USE_LOCAL ({ useLocal: true }) so A force
+      // uploads the import as a NEW SYNC_IMPORT the server keeps. The default
+      // (USE_REMOTE) would discard A's import here, leaving the server unchanged
+      // and B with nothing to conflict against — so the PHASE 5 dialog never shows.
       const importPageA = new ImportPage(clientA.page);
       await importPageA.navigateToImportPage();
       await importPageA.importBackupFile(ImportPage.getFixturePath('test-backup.json'));
-      await clientA.sync.syncAndWait();
+      await clientA.sync.syncAndWait({ useLocal: true });
       console.log('[Gate] Client A imported a backup and synced the SYNC_IMPORT');
 
       // ===== PHASE 5: B syncs — the conflict dialog MUST appear =====
