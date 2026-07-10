@@ -410,6 +410,50 @@ describe('OperationLogHydratorService', () => {
         expect(mockHydrationStateService.endApplyingRemoteOps).toHaveBeenCalled();
       });
 
+      it('should apply a failed tail op exactly once across hydration replay + retry (one boot)', async () => {
+        // Regression: a remote op marked 'failed' (archive side effect threw
+        // after its reducer committed) with seq > lastAppliedOpSeq used to get
+        // its reducer applied TWICE per boot — once by the status-blind tail
+        // replay and once more by retryFailedRemoteOps re-dispatching. The
+        // retry must complete it with archive side effects only.
+        const snapshot = createMockSnapshot({ lastAppliedOpSeq: 5 });
+        const failedOp = createMockOperation('op-failed');
+        const failedTailEntry: OperationLogEntry = {
+          seq: 6,
+          op: failedOp,
+          appliedAt: Date.now(),
+          source: 'remote',
+          applicationStatus: 'failed',
+          retryCount: 1,
+        };
+        mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(snapshot));
+        mockOpLogStore.getOpsAfterSeq.and.returnValue(Promise.resolve([failedTailEntry]));
+        mockOpLogStore.getFailedRemoteOps.and.returnValue(
+          Promise.resolve([failedTailEntry]),
+        );
+        mockOperationApplierService.applyOperations.and.callFake((ops: Operation[]) =>
+          Promise.resolve({ appliedOps: ops }),
+        );
+
+        await service.hydrateStore();
+
+        // Reducer application happens exactly once: the tail replay bulk dispatch.
+        const bulkDispatches = mockStore.dispatch.calls
+          .allArgs()
+          .map((args) => args[0] as unknown as { type: string; operations?: Operation[] })
+          .filter((action) => action.type === bulkApplyHydrationOperations.type);
+        expect(bulkDispatches.length).toBe(1);
+        expect(bulkDispatches[0].operations!.map((o) => o.id)).toEqual(['op-failed']);
+
+        // The retry completes the op WITHOUT re-dispatching its reducer.
+        expect(mockOperationApplierService.applyOperations).toHaveBeenCalledTimes(1);
+        const [retriedOps, retryOptions] =
+          mockOperationApplierService.applyOperations.calls.argsFor(0);
+        expect(retriedOps.map((o: Operation) => o.id)).toEqual(['op-failed']);
+        expect(retryOptions).toEqual({ skipReducerDispatch: true });
+        expect(mockOpLogStore.markApplied).toHaveBeenCalledWith([6]);
+      });
+
       it('should request ops after snapshot sequence', async () => {
         const snapshot = createMockSnapshot({ lastAppliedOpSeq: 42 });
         mockOpLogStore.loadStateCache.and.returnValue(Promise.resolve(snapshot));
@@ -1364,6 +1408,26 @@ describe('OperationLogHydratorService', () => {
       expect(passedOps.map((o: Operation) => o.id)).toEqual(['op-a', 'op-b', 'op-c']);
       expect(mockOpLogStore.markApplied).toHaveBeenCalledWith([40, 41, 42]);
       expect(mockOpLogStore.markFailed).not.toHaveBeenCalled();
+      // Applied-op clocks are merged on completion (parity with the primary
+      // remote-apply path, which only merges the clocks of ops it marked applied).
+      expect(mockOpLogStore.mergeRemoteOpClocks).toHaveBeenCalledWith(passedOps);
+    });
+
+    it('should retry archive side effects only — never re-dispatch reducers', async () => {
+      // Failed ops had their reducers committed by the bulk dispatch of the
+      // batch that marked them failed; re-dispatching on retry double-applies
+      // additive reducers (syncTimeSpent, increaseSimpleCounterCounterToday).
+      mockOpLogStore.getFailedRemoteOps.and.returnValue(
+        Promise.resolve([failedEntry(40, 'op-a')]),
+      );
+      mockOperationApplierService.applyOperations.and.callFake((ops: Operation[]) =>
+        Promise.resolve({ appliedOps: ops }),
+      );
+
+      await service.retryFailedRemoteOps();
+
+      const options = mockOperationApplierService.applyOperations.calls.argsFor(0)[1];
+      expect(options).toEqual({ skipReducerDispatch: true });
     });
 
     it('should apply failed ops in ascending seq order regardless of store order', async () => {

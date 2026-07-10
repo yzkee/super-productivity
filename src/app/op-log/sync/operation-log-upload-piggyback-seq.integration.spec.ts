@@ -191,6 +191,7 @@ describe('OperationLogSyncService + OperationLogUploadService — piggyback seq 
       allOpsFilteredBySyncImport: false,
       filteredOpCount: 0,
       isLocalUnsyncedImport: false,
+      blockedByIncompatibleOp: false,
     });
 
     dialogServiceSpy = jasmine.createSpyObj('SyncImportConflictDialogService', [
@@ -393,6 +394,7 @@ describe('OperationLogSyncService + OperationLogUploadService — piggyback seq 
         allOpsFilteredBySyncImport: false,
         filteredOpCount: 0,
         isLocalUnsyncedImport: false,
+        blockedByIncompatibleOp: false,
       };
     });
     setLastServerSeqSpy.and.callFake(async (n: number) => {

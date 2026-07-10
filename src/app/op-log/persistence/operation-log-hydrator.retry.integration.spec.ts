@@ -132,6 +132,12 @@ describe('OperationLogHydratorService retryFailedRemoteOps (integration, real st
     expect(applier.applyOperations).toHaveBeenCalledTimes(1);
     const passed = applier.applyOperations.calls.argsFor(0)[0] as Operation[];
     expect(passed.length).toBe(3);
+    // Archive side effects only: the failed ops' reducers committed in the
+    // batch that marked them failed, so a reducer re-dispatch would
+    // double-apply additive reducers.
+    expect(applier.applyOperations.calls.argsFor(0)[1]).toEqual({
+      skipReducerDispatch: true,
+    });
   });
 
   it('on partial failure marks the failed op and every op after it as still-failing', async () => {

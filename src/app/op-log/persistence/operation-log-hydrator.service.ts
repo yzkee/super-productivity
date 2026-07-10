@@ -208,6 +208,21 @@ export class OperationLogHydratorService {
         );
 
         // 4. Replay tail operations (A.7.13: with operation migration)
+        //
+        // Replay is deliberately status-blind (getOpsAfterSeq has no status
+        // filter) — every entry's reducer effect belongs in state exactly once:
+        // - applied ops: their effect is state history by definition.
+        // - failed ops (remote, archive side effect threw): their reducers DID
+        //   commit before the failure (bulk dispatch precedes archive handling),
+        //   so replay restores that effect; retryFailedRemoteOps() below then
+        //   re-runs ONLY the outstanding archive side effects.
+        // - rejected ops: every rejection path appends its compensation AFTER
+        //   them in seq order, so replay converges to post-resolution runtime
+        //   state — server-rejected local ops are followed by merged ops
+        //   (SupersededOperationResolver) or keep their effect (permanent
+        //   rejections never revert state), and LWW-losing remote ops are
+        //   followed by the local-win op that overwrites them
+        //   (ConflictResolutionService).
         const tailOps = await this.opLogStore.getOpsAfterSeq(snapshot.lastAppliedOpSeq);
 
         if (tailOps.length > 0) {
@@ -293,6 +308,8 @@ export class OperationLogHydratorService {
         );
         // No snapshot means we might be in a fresh install state or post-migration-check with no legacy data.
         // We must replay ALL operations from the beginning of the log.
+        // Status-blind on purpose — see the replay-policy note in the snapshot
+        // branch above.
         const allOps = await this.opLogStore.getOpsAfterSeq(0);
 
         if (allOps.length === 0) {
@@ -557,8 +574,10 @@ export class OperationLogHydratorService {
    * Called after hydration to give failed ops another chance to apply now that
    * more state might be available (e.g., dependencies resolved by sync).
    *
-   * Failed ops are ops that previously failed during conflict resolution
-   * but may succeed now that more state has been loaded.
+   * Failed ops are ops whose archive side effect threw after their reducers
+   * committed, so the retry runs archive side effects ONLY
+   * (`skipReducerDispatch`) — hydration replay / the snapshot already carry
+   * their reducer effects.
    */
   async retryFailedRemoteOps(): Promise<void> {
     const failedOps = await this.opLogStore.getFailedRemoteOps();
@@ -583,7 +602,17 @@ export class OperationLogHydratorService {
     const opsToApply = orderedFailedOps.map((e) => e.op);
     const opIdToSeq = new Map(orderedFailedOps.map((e) => [e.op.id, e.seq]));
 
-    const result = await this.operationApplierService.applyOperations(opsToApply);
+    // `failed` can only be set AFTER a bulk dispatch committed (archive side
+    // effects run after the dispatch and are the only per-op failure point),
+    // so every failed op's reducer effect is already in state — via the
+    // snapshot when its seq <= lastAppliedOpSeq, via the status-blind tail
+    // replay above otherwise. Skip the reducer dispatch and re-run only the
+    // outstanding archive side effects: re-dispatching would double-apply
+    // additive reducers (syncTimeSpent, increaseSimpleCounterCounterToday)
+    // on every retry attempt.
+    const result = await this.operationApplierService.applyOperations(opsToApply, {
+      skipReducerDispatch: true,
+    });
 
     // Mark successfully applied ops.
     const appliedSeqs = result.appliedOps
@@ -591,6 +620,10 @@ export class OperationLogHydratorService {
       .filter((seq): seq is number => seq !== undefined);
     if (appliedSeqs.length > 0) {
       await this.opLogStore.markApplied(appliedSeqs);
+      // Parity with the primary remote-apply path: applyRemoteOperations only
+      // merges clocks for ops it marked applied, so a failed op's clock is
+      // merged here, when its application completes.
+      await this.opLogStore.mergeRemoteOpClocks(result.appliedOps);
       OpLog.normal(
         `OperationLogHydratorService: Successfully retried ${appliedSeqs.length} failed ops`,
       );

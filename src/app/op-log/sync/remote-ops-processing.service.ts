@@ -19,7 +19,6 @@ import { ValidateStateService } from '../validation/validate-state.service';
 import { SyncSessionValidationService } from './sync-session-validation.service';
 import { VectorClockService } from './vector-clock.service';
 import {
-  MAX_VERSION_SKIP,
   MIN_SUPPORTED_SCHEMA_VERSION,
   SchemaMigrationService,
 } from '../persistence/schema-migration.service';
@@ -69,8 +68,8 @@ export class RemoteOpsProcessingService {
   private writeFlushService = inject(OperationWriteFlushService);
   private injector = inject(Injector);
 
-  /** Flag to show newer version warning only once per session */
-  private _hasWarnedNewerVersionThisSession = false;
+  /** Flag to show version-incompatibility warnings only once per session */
+  private _hasWarnedVersionBlockThisSession = false;
 
   /** Flag to show migration failure warning only once per session */
   private _hasWarnedMigrationFailureThisSession = false;
@@ -100,6 +99,7 @@ export class RemoteOpsProcessingService {
     filteredOpCount: number;
     filteringImport?: Operation;
     isLocalUnsyncedImport: boolean;
+    blockedByIncompatibleOp: boolean;
   }> {
     // Validation failure surfaces via the SyncSessionValidationService latch
     // (#7330). `validateAfterSync` and the conflict-resolution validation path
@@ -109,52 +109,41 @@ export class RemoteOpsProcessingService {
     // ─────────────────────────────────────────────────────────────────────────
     // STEP 1: Schema Migration (Receiver-Side)
     // Migrate ops from older schema versions to current version.
-    // - Ops below MIN_SUPPORTED_SCHEMA_VERSION: error, stop sync
-    // - Ops beyond MAX_VERSION_SKIP: error, stop sync
-    // - Ops from newer version (within skip): warning once per session, continue
+    //
+    // Blocking semantics: an op that cannot be terminally processed here —
+    // below MIN_SUPPORTED_SCHEMA_VERSION, from a NEWER schema version (real
+    // migrations rename/split fields, so a future op applied verbatim corrupts
+    // state), or throwing during migration — STOPS the batch at that op. Ops
+    // before the block are processed normally; the blocked op and everything
+    // after are neither stored nor applied. Callers must NOT advance the
+    // server cursor when `blockedByIncompatibleOp` is true, so the blocked op
+    // is re-downloaded and retried after an app update / migration fix instead
+    // of being skipped forever (already-processed prefix ops are deduplicated
+    // by the appliedOpIds download filter). Ops migrated to `null` are an
+    // intentional terminal drop and do NOT block.
     // ─────────────────────────────────────────────────────────────────────────
     const currentVersion = this.schemaMigrationService.getCurrentVersion();
     const migratedOps: Operation[] = [];
     const droppedEntityIds = new Set<string>();
-    const failedMigrationOpIds: string[] = [];
-    let updateRequired = false;
+    let blockReason: 'VERSION_UNSUPPORTED' | 'VERSION_TOO_NEW' | 'MIGRATION_FAILED' =
+      'MIGRATION_FAILED';
+    let blockedOp: Operation | null = null;
 
     for (const op of remoteOps) {
       const opVersion = op.schemaVersion ?? 1;
 
-      // Check if remote op is too old (below minimum supported)
+      // Op below minimum supported version: no migration path exists.
       if (opVersion < MIN_SUPPORTED_SCHEMA_VERSION) {
-        this.snackService.open({
-          type: 'ERROR',
-          msg: T.F.SYNC.S.VERSION_UNSUPPORTED,
-          actionStr: T.PS.UPDATE_APP,
-          actionFn: () =>
-            window.open('https://super-productivity.com/download', '_blank'),
-        });
-        return {
-          localWinOpsCreated: 0,
-          allOpsFilteredBySyncImport: false,
-          filteredOpCount: 0,
-          isLocalUnsyncedImport: false,
-        };
-      }
-
-      // Check if remote op is too new (exceeds supported skip)
-      if (opVersion > currentVersion + MAX_VERSION_SKIP) {
-        updateRequired = true;
+        blockedOp = op;
+        blockReason = 'VERSION_UNSUPPORTED';
         break;
       }
 
-      // Warn once per session if receiving ops from a newer version
-      if (opVersion > currentVersion && !this._hasWarnedNewerVersionThisSession) {
-        this._hasWarnedNewerVersionThisSession = true;
-        this.snackService.open({
-          type: 'WARNING',
-          msg: T.F.SYNC.S.NEWER_VERSION_AVAILABLE,
-          actionStr: T.PS.UPDATE_APP,
-          actionFn: () =>
-            window.open('https://super-productivity.com/download', '_blank'),
-        });
+      // Op from a newer schema version: this client cannot interpret it safely.
+      if (opVersion > currentVersion) {
+        blockedOp = op;
+        blockReason = 'VERSION_TOO_NEW';
+        break;
       }
 
       try {
@@ -178,44 +167,23 @@ export class RemoteOpsProcessingService {
         }
       } catch (e) {
         OpLog.err(`RemoteOpsProcessingService: Migration failed for op ${op.id}`, e);
-        // Track failed migrations to notify user. If ops are from a compatible version,
-        // this indicates a bug or data corruption.
-        failedMigrationOpIds.push(op.id);
+        blockedOp = op;
+        blockReason = 'MIGRATION_FAILED';
+        break;
       }
     }
 
-    // Notify user if any migrations failed (once per session to avoid spam)
-    if (failedMigrationOpIds.length > 0) {
-      OpLog.warn(
-        `RemoteOpsProcessingService: ${failedMigrationOpIds.length} op(s) failed migration`,
-        { failedOpIds: failedMigrationOpIds },
+    if (blockedOp) {
+      OpLog.err(
+        `RemoteOpsProcessingService: Blocked at op ${blockedOp.id} (${blockReason}, ` +
+          `schemaVersion=${blockedOp.schemaVersion ?? 1}, current=${currentVersion}). ` +
+          'Processing the batch prefix only; cursor must not advance past this op.',
       );
-      if (!this._hasWarnedMigrationFailureThisSession) {
-        this._hasWarnedMigrationFailureThisSession = true;
-        this.snackService.open({
-          type: 'ERROR',
-          msg: T.F.SYNC.S.MIGRATION_FAILED,
-        });
-      }
-    }
-
-    if (updateRequired) {
-      this.snackService.open({
-        type: 'ERROR',
-        msg: T.F.SYNC.S.VERSION_TOO_OLD,
-        actionStr: T.PS.UPDATE_APP,
-        actionFn: () => window.open('https://super-productivity.com/download', '_blank'),
-      });
-      return {
-        localWinOpsCreated: 0,
-        allOpsFilteredBySyncImport: false,
-        filteredOpCount: 0,
-        isLocalUnsyncedImport: false,
-      };
+      this._notifyBlockedOp(blockReason);
     }
 
     if (migratedOps.length === 0) {
-      if (remoteOps.length > 0) {
+      if (remoteOps.length > 0 && !blockedOp) {
         OpLog.normal(
           'RemoteOpsProcessingService: All remote ops were dropped during migration.',
         );
@@ -225,8 +193,10 @@ export class RemoteOpsProcessingService {
         allOpsFilteredBySyncImport: false,
         filteredOpCount: 0,
         isLocalUnsyncedImport: false,
+        blockedByIncompatibleOp: blockedOp !== null,
       };
     }
+    const blockedByIncompatibleOp = blockedOp !== null;
 
     // ─────────────────────────────────────────────────────────────────────────
     // STEP 2: Filter ops invalidated by SYNC_IMPORT
@@ -258,6 +228,7 @@ export class RemoteOpsProcessingService {
         filteredOpCount: invalidatedOps.length,
         filteringImport,
         isLocalUnsyncedImport,
+        blockedByIncompatibleOp,
       };
     }
 
@@ -285,6 +256,7 @@ export class RemoteOpsProcessingService {
         allOpsFilteredBySyncImport: false,
         filteredOpCount: 0,
         isLocalUnsyncedImport: false,
+        blockedByIncompatibleOp,
       };
     }
 
@@ -316,6 +288,7 @@ export class RemoteOpsProcessingService {
         allOpsFilteredBySyncImport: false,
         filteredOpCount: 0,
         isLocalUnsyncedImport: false,
+        blockedByIncompatibleOp,
       };
     }
 
@@ -376,7 +349,40 @@ export class RemoteOpsProcessingService {
       allOpsFilteredBySyncImport: false,
       filteredOpCount: 0,
       isLocalUnsyncedImport: false,
+      blockedByIncompatibleOp,
     };
+  }
+
+  /**
+   * User notification for a version/migration block, once per session per
+   * category to avoid snack spam from periodic sync retries (the block persists
+   * until an app update or migration fix, and every retry re-hits it).
+   */
+  private _notifyBlockedOp(
+    reason: 'VERSION_UNSUPPORTED' | 'VERSION_TOO_NEW' | 'MIGRATION_FAILED',
+  ): void {
+    if (reason === 'MIGRATION_FAILED') {
+      if (!this._hasWarnedMigrationFailureThisSession) {
+        this._hasWarnedMigrationFailureThisSession = true;
+        this.snackService.open({
+          type: 'ERROR',
+          msg: T.F.SYNC.S.MIGRATION_FAILED,
+        });
+      }
+      return;
+    }
+    if (!this._hasWarnedVersionBlockThisSession) {
+      this._hasWarnedVersionBlockThisSession = true;
+      this.snackService.open({
+        type: 'ERROR',
+        msg:
+          reason === 'VERSION_UNSUPPORTED'
+            ? T.F.SYNC.S.VERSION_UNSUPPORTED
+            : T.F.SYNC.S.VERSION_TOO_OLD,
+        actionStr: T.PS.UPDATE_APP,
+        actionFn: () => window.open('https://super-productivity.com/download', '_blank'),
+      });
+    }
   }
 
   /**

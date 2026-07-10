@@ -182,7 +182,10 @@ export class OperationLogUploadService {
 
       // Upload full-state operations via snapshot endpoint
       let fullStateOpUploaded = false;
-      let lastUploadedFullStateOpId: string | undefined;
+      // Local append order (seq), not op id: UUIDv7 ids follow the wall clock and
+      // can order a post-snapshot op BEFORE the full-state op after a clock
+      // rollback, which would mark it synced without ever uploading it.
+      let lastUploadedFullStateOpSeq: number | undefined;
       for (const entry of fullStateOps) {
         // BackupImport/Repair: always wipe server (recovery operations replace all state)
         // SyncImport: only wipe when explicitly requested (preserves SYNC_IMPORT_EXISTS check)
@@ -202,9 +205,10 @@ export class OperationLogUploadService {
             lastKnownServerSeq = result.serverSeq;
             highestReceivedSeq = Math.max(highestReceivedSeq, result.serverSeq);
           }
-          // Track that a full-state op was uploaded - regular ops before it are already included
+          // Track that a full-state op was uploaded - regular ops appended before it
+          // are already included in its frozen snapshot payload
           fullStateOpUploaded = true;
-          lastUploadedFullStateOpId = entry.op.id;
+          lastUploadedFullStateOpSeq = entry.seq;
         } else {
           // Special handling for SYNC_IMPORT_EXISTS: another client already uploaded
           // a SYNC_IMPORT. We should delete our local SYNC_IMPORT and let the normal
@@ -245,11 +249,11 @@ export class OperationLogUploadService {
         return;
       }
 
-      if (fullStateOpUploaded && lastUploadedFullStateOpId) {
+      if (fullStateOpUploaded && lastUploadedFullStateOpSeq !== undefined) {
         const { opsIncludedInSnapshot, opsAfterSnapshot } =
           planRegularOpsAfterFullStateUpload({
             regularOps,
-            lastUploadedFullStateOpId,
+            lastUploadedFullStateOpSeq,
           });
 
         if (opsIncludedInSnapshot.length > 0) {

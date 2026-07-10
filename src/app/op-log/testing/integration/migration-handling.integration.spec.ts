@@ -1,10 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { RemoteOpsProcessingService } from '../../sync/remote-ops-processing.service';
 import { OperationLogStoreService } from '../../persistence/operation-log-store.service';
-import {
-  SchemaMigrationService,
-  MAX_VERSION_SKIP,
-} from '../../persistence/schema-migration.service';
+import { SchemaMigrationService } from '../../persistence/schema-migration.service';
 import { SnackService } from '../../../core/snack/snack.service';
 import { VectorClockService } from '../../sync/vector-clock.service';
 import { OperationApplierService } from '../../apply/operation-applier.service';
@@ -146,28 +143,14 @@ describe('Migration Handling Integration', () => {
       );
     });
 
-    it('should accept operation with compatible future version (within skip limit)', async () => {
-      // Logic: if opVersion <= current + MAX_VERSION_SKIP, it's accepted
-      // MAX_VERSION_SKIP is 3. So current + 3 should still be accepted.
-      // Note: A WARNING snackbar may be shown for newer versions, but no ERROR.
-      const compatibleVersion = CURRENT_SCHEMA_VERSION + MAX_VERSION_SKIP;
-      const op = createOp(compatibleVersion);
+    it('should block operation from any future version (no forward-compat band)', async () => {
+      // Forward-compatible migrations are not implemented: real migrations
+      // rename/split fields, so a future op applied verbatim corrupts state.
+      // Even one version ahead must block until the app is updated.
+      const futureVersion = CURRENT_SCHEMA_VERSION + 1;
+      const op = createOp(futureVersion);
 
-      await service.processRemoteOps([op]);
-
-      // Should NOT show error (operation is accepted)
-      expect(snackServiceSpy.open).not.toHaveBeenCalledWith(
-        jasmine.objectContaining({ type: 'ERROR' }),
-      );
-      expect(operationApplierSpy.applyOperations).toHaveBeenCalled();
-    });
-
-    it('should reject operation with incompatible future version', async () => {
-      // Logic: if opVersion > current + MAX_VERSION_SKIP, update required
-      const incompatibleVersion = CURRENT_SCHEMA_VERSION + MAX_VERSION_SKIP + 1;
-      const op = createOp(incompatibleVersion);
-
-      await service.processRemoteOps([op]);
+      const result = await service.processRemoteOps([op]);
 
       // Should trigger error snackbar
       expect(snackServiceSpy.open).toHaveBeenCalledWith(
@@ -177,8 +160,9 @@ describe('Migration Handling Integration', () => {
         }),
       );
 
-      // Should NOT apply operation
+      // Should NOT apply operation, and callers must hold the cursor
       expect(operationApplierSpy.applyOperations).not.toHaveBeenCalled();
+      expect(result.blockedByIncompatibleOp).toBe(true);
     });
 
     it('should handle operations missing schemaVersion (default to 1)', async () => {

@@ -72,9 +72,18 @@ export class OperationLogDownloadService implements OnDestroy {
     this.clockDriftRetryServerTimestamp = null;
   }
 
+  /**
+   * @param options.includeOwnAndAppliedOps - Raw-rebuild mode for USE_REMOTE:
+   *        skips the appliedOpIds filter AND downloads ops authored by this
+   *        client (no excludeClient param). Required to reconstruct the full
+   *        server history — the normal filters would drop everything the local
+   *        store already knows, leaving a destructive replace with nothing to
+   *        replay. Callers are expected to clear the local op store before
+   *        appending the result.
+   */
   async downloadRemoteOps(
     syncProvider: OperationSyncCapable,
-    options?: { forceFromSeq0?: boolean },
+    options?: { forceFromSeq0?: boolean; includeOwnAndAppliedOps?: boolean },
   ): Promise<DownloadResult> {
     if (!syncProvider) {
       OpLog.warn(
@@ -88,7 +97,7 @@ export class OperationLogDownloadService implements OnDestroy {
 
   private async _downloadRemoteOpsViaApi(
     syncProvider: OperationSyncCapable,
-    options?: { forceFromSeq0?: boolean },
+    options?: { forceFromSeq0?: boolean; includeOwnAndAppliedOps?: boolean },
   ): Promise<DownloadResult> {
     const forceFromSeq0 = options?.forceFromSeq0 ?? false;
     OpLog.normal(
@@ -117,8 +126,14 @@ export class OperationLogDownloadService implements OnDestroy {
 
     await this.lockService.request(LOCK_NAMES.DOWNLOAD, async () => {
       const lastServerSeq = forceFromSeq0 ? 0 : await syncProvider.getLastServerSeq();
-      const appliedOpIds = await this.opLogStore.getAppliedOpIds();
-      const clientId = await this.clientIdProvider.loadClientId();
+      // Raw-rebuild mode: an empty applied set disables the duplicate filter
+      // below; a missing clientId makes the server include this client's own ops.
+      const appliedOpIds = options?.includeOwnAndAppliedOps
+        ? new Set<string>()
+        : await this.opLogStore.getAppliedOpIds();
+      const clientId = options?.includeOwnAndAppliedOps
+        ? null
+        : await this.clientIdProvider.loadClientId();
       OpLog.verbose(
         `OperationLogDownloadService: [DEBUG] Starting download. ` +
           `lastServerSeq=${lastServerSeq}, appliedOpIds.size=${appliedOpIds.size}, clientId=${clientId}`,

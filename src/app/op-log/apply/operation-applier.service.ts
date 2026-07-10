@@ -106,7 +106,10 @@ export class OperationApplierService implements OperationApplyPort<Operation> {
 
     const result = await replayOperationBatch({
       ops,
-      applyOptions: { isLocalHydration },
+      applyOptions: {
+        isLocalHydration,
+        skipReducerDispatch: options.skipReducerDispatch,
+      },
       dispatcher: this.store,
       createBulkApplyAction: (operations) =>
         bulkApplyOperations({ operations, localClientId }),

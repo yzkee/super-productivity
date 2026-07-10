@@ -4,7 +4,6 @@ import { of } from 'rxjs';
 import { RemoteOpsProcessingService } from './remote-ops-processing.service';
 import {
   SchemaMigrationService,
-  MAX_VERSION_SKIP,
   MIN_SUPPORTED_SCHEMA_VERSION,
 } from '../persistence/schema-migration.service';
 import { SnackService } from '../../core/snack/snack.service';
@@ -400,7 +399,7 @@ describe('RemoteOpsProcessingService', () => {
       );
     });
 
-    it('should skip ops that throw during migration but continue processing others', async () => {
+    it('should stop the batch at the first op that throws during migration and only process the prefix', async () => {
       const remoteOps: Operation[] = [
         { id: 'op1', schemaVersion: 1 } as Operation,
         { id: 'throws', schemaVersion: 1 } as Operation,
@@ -419,17 +418,26 @@ describe('RemoteOpsProcessingService', () => {
       vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
       opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
 
-      await service.processRemoteOps(remoteOps);
+      const result = await service.processRemoteOps(remoteOps);
 
-      // op1 and op3 should be processed (appendBatchSkipDuplicates called with array of both)
+      // Only the prefix before the blocked op is processed. op3 must NOT be
+      // applied: it may depend on the blocked op, and the un-advanced cursor
+      // will re-deliver it after the migration issue is fixed.
       expect(opLogStoreSpy.appendBatchSkipDuplicates).toHaveBeenCalledWith(
-        [remoteOps[0], remoteOps[2]],
+        [remoteOps[0]],
         'remote',
         { pendingApply: true },
       );
+      expect(result.blockedByIncompatibleOp).toBe(true);
+      expect(snackServiceSpy.open).toHaveBeenCalledWith(
+        jasmine.objectContaining({
+          type: 'ERROR',
+          msg: T.F.SYNC.S.MIGRATION_FAILED,
+        }),
+      );
     });
 
-    it('should return early when all ops fail migration', async () => {
+    it('should block without processing anything when the first op fails migration', async () => {
       const remoteOps: Operation[] = [
         { id: 'op1', schemaVersion: 1 } as Operation,
         { id: 'op2', schemaVersion: 1 } as Operation,
@@ -446,6 +454,7 @@ describe('RemoteOpsProcessingService', () => {
         allOpsFilteredBySyncImport: false,
         filteredOpCount: 0,
         isLocalUnsyncedImport: false,
+        blockedByIncompatibleOp: true,
       });
     });
 
@@ -487,12 +496,13 @@ describe('RemoteOpsProcessingService', () => {
       );
     });
 
-    it('should show error snackbar and abort if version is too new', async () => {
-      const remoteOps: Operation[] = [
-        { id: 'op1', schemaVersion: 1 + MAX_VERSION_SKIP + 1 } as Operation,
-      ];
+    it('should block any op from a newer schema version (no forward-compat band)', async () => {
+      // Current version is 1 (set in beforeEach). Even version 2 — one ahead —
+      // must block: real migrations rename/split fields, so a future op applied
+      // verbatim corrupts state.
+      const remoteOps: Operation[] = [{ id: 'op1', schemaVersion: 2 } as Operation];
 
-      await service.processRemoteOps(remoteOps);
+      const result = await service.processRemoteOps(remoteOps);
 
       expect(snackServiceSpy.open).toHaveBeenCalledWith(
         jasmine.objectContaining({
@@ -503,6 +513,30 @@ describe('RemoteOpsProcessingService', () => {
 
       // Should not proceed to apply ops
       expect(opLogStoreSpy.getUnsynced).not.toHaveBeenCalled();
+      expect(result.blockedByIncompatibleOp).toBe(true);
+    });
+
+    it('should process the prefix before a too-new op but flag the block', async () => {
+      const remoteOps: Operation[] = [
+        { id: 'op1', schemaVersion: 1 } as Operation,
+        { id: 'future', schemaVersion: 2 } as Operation,
+        { id: 'op3', schemaVersion: 1 } as Operation,
+      ];
+
+      opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
+      opLogStoreSpy.getUnsyncedByEntity.and.returnValue(Promise.resolve(new Map()));
+      vectorClockServiceSpy.getEntityFrontier.and.returnValue(Promise.resolve(new Map()));
+      vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
+      opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
+
+      const result = await service.processRemoteOps(remoteOps);
+
+      expect(opLogStoreSpy.appendBatchSkipDuplicates).toHaveBeenCalledWith(
+        [remoteOps[0]],
+        'remote',
+        { pendingApply: true },
+      );
+      expect(result.blockedByIncompatibleOp).toBe(true);
     });
 
     it('should show error snackbar and abort if version is below minimum supported', async () => {
@@ -526,69 +560,26 @@ describe('RemoteOpsProcessingService', () => {
         allOpsFilteredBySyncImport: false,
         filteredOpCount: 0,
         isLocalUnsyncedImport: false,
+        blockedByIncompatibleOp: true,
       });
     });
 
-    it('should show warning once per session when receiving ops from newer version', async () => {
-      // Current version is 1 (set in beforeEach)
-      const remoteOps: Operation[] = [
-        { id: 'op1', schemaVersion: 2 } as Operation,
-        { id: 'op2', schemaVersion: 2 } as Operation,
-      ];
-
-      // Setup for processing
-      opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
-      opLogStoreSpy.getUnsyncedByEntity.and.returnValue(Promise.resolve(new Map()));
-      vectorClockServiceSpy.getEntityFrontier.and.returnValue(Promise.resolve(new Map()));
-      vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
-      opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
-      opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
-
-      await service.processRemoteOps(remoteOps);
-
-      // Should show warning exactly once (not twice for two ops)
-      expect(snackServiceSpy.open).toHaveBeenCalledTimes(1);
-      expect(snackServiceSpy.open).toHaveBeenCalledWith(
-        jasmine.objectContaining({
-          type: 'WARNING',
-          msg: T.F.SYNC.S.NEWER_VERSION_AVAILABLE,
-        }),
-      );
-
-      // Should still process the ops (appendBatchSkipDuplicates called with both ops)
-      expect(opLogStoreSpy.appendBatchSkipDuplicates).toHaveBeenCalledWith(
-        remoteOps,
-        'remote',
-        {
-          pendingApply: true,
-        },
-      );
-    });
-
-    it('should not show newer version warning again in same session', async () => {
+    it('should show the version-block error only once per session', async () => {
       // Current version is 1 (set in beforeEach)
       const remoteOps1: Operation[] = [{ id: 'op1', schemaVersion: 2 } as Operation];
       const remoteOps2: Operation[] = [{ id: 'op2', schemaVersion: 2 } as Operation];
 
-      // Setup for processing
-      opLogStoreSpy.getUnsynced.and.returnValue(Promise.resolve([]));
-      opLogStoreSpy.getUnsyncedByEntity.and.returnValue(Promise.resolve(new Map()));
-      vectorClockServiceSpy.getEntityFrontier.and.returnValue(Promise.resolve(new Map()));
-      vectorClockServiceSpy.getSnapshotVectorClock.and.returnValue(Promise.resolve({}));
-      opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
-      opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
-
       // First call
       await service.processRemoteOps(remoteOps1);
-      // Second call (same session)
+      // Second call (same session — periodic sync retries re-hit the block)
       await service.processRemoteOps(remoteOps2);
 
-      // Warning should only be shown once across both calls
+      // Error snack should only be shown once across both calls
       expect(snackServiceSpy.open).toHaveBeenCalledTimes(1);
       expect(snackServiceSpy.open).toHaveBeenCalledWith(
         jasmine.objectContaining({
-          type: 'WARNING',
-          msg: T.F.SYNC.S.NEWER_VERSION_AVAILABLE,
+          type: 'ERROR',
+          msg: T.F.SYNC.S.VERSION_TOO_OLD,
         }),
       );
     });

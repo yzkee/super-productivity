@@ -333,4 +333,131 @@ describe('SyncImportConflictGateService', () => {
     expect(writeFlushServiceSpy.flushPendingWrites).not.toHaveBeenCalled();
     expect(opLogStoreSpy.getUnsynced).toHaveBeenCalled();
   });
+
+  describe('meaningful-work coverage beyond TASK/PROJECT/TAG/NOTE CUD', () => {
+    it('should treat a pending MOV op as meaningful', async () => {
+      const pendingMove = createEntry(
+        createOperation({
+          id: 'local-move',
+          actionType: '[Task] Move task' as ActionType,
+          opType: OpType.Move,
+          entityType: 'TASK',
+          entityId: 'task-1',
+          clientId: 'client-A',
+          vectorClock: { clientA: 1 },
+        }),
+      );
+      opLogStoreSpy.getUnsynced.and.resolveTo([pendingMove]);
+
+      const result = await service.checkIncomingFullStateConflict([createOperation()]);
+
+      expect(result.hasMeaningfulPending).toBeTrue();
+      expect(result.dialogData).toBeDefined();
+    });
+
+    it('should treat pending non-task entity work (TIME_TRACKING, SIMPLE_COUNTER) as meaningful', async () => {
+      const pendingTimeTracking = createEntry(
+        createOperation({
+          id: 'local-tt',
+          actionType: '[TimeTracking] Update whole day' as ActionType,
+          opType: OpType.Update,
+          entityType: 'TIME_TRACKING',
+          entityId: 'tt-1',
+          clientId: 'client-A',
+          vectorClock: { clientA: 1 },
+        }),
+      );
+      const pendingCounter = createEntry(
+        createOperation({
+          id: 'local-counter',
+          actionType: '[SimpleCounter] Increase Counter Today' as ActionType,
+          opType: OpType.Update,
+          entityType: 'SIMPLE_COUNTER',
+          entityId: 'counter-1',
+          clientId: 'client-A',
+          vectorClock: { clientA: 2 },
+        }),
+      );
+
+      expect(service.hasMeaningfulPendingOps([pendingTimeTracking])).toBeTrue();
+      expect(service.hasMeaningfulPendingOps([pendingCounter])).toBeTrue();
+    });
+
+    it('should still treat MIGRATION/RECOVERY bookkeeping ops as not meaningful', async () => {
+      const pendingMigration = createEntry(
+        createOperation({
+          id: 'local-genesis',
+          actionType: '[Migration] Genesis' as ActionType,
+          opType: OpType.Create,
+          entityType: 'MIGRATION',
+          entityId: 'genesis',
+          clientId: 'client-A',
+          vectorClock: { clientA: 1 },
+        }),
+      );
+
+      expect(service.hasMeaningfulPendingOps([pendingMigration])).toBeFalse();
+    });
+  });
+
+  describe('preCapturedPendingOps (piggyback-upload race)', () => {
+    it('should judge meaningfulness against the pre-upload snapshot, not the live pending set', async () => {
+      // Live pending set is empty — the op was accepted and marked synced during
+      // the same upload round that piggybacked the import.
+      opLogStoreSpy.getUnsynced.and.resolveTo([]);
+
+      const acceptedThisRound = createEntry(
+        createOperation({
+          id: 'accepted-op',
+          actionType: '[Task] Update task' as ActionType,
+          opType: OpType.Update,
+          entityType: 'TASK',
+          entityId: 'task-1',
+          clientId: 'client-A',
+          vectorClock: { clientA: 1 },
+        }),
+      );
+
+      const result = await service.checkIncomingFullStateConflict([createOperation()], {
+        preCapturedPendingOps: [acceptedThisRound],
+      });
+
+      expect(result.hasMeaningfulPending).toBeTrue();
+      expect(result.dialogData).toBeDefined();
+    });
+
+    it('should derive discardable example-task ids from the LIVE pending set', async () => {
+      const exampleCreate = (id: string): OperationLogEntry =>
+        createEntry(
+          createOperation({
+            id,
+            actionType: ActionType.TASK_SHARED_ADD,
+            opType: OpType.Create,
+            entityType: 'TASK',
+            entityId: `task-${id}`,
+            payload: {
+              actionPayload: {
+                task: { id: `task-${id}` },
+                isExampleTask: true,
+              },
+              entityChanges: [],
+            },
+            clientId: 'client-A',
+            vectorClock: { clientA: 1 },
+          }),
+        );
+
+      // Pre-captured snapshot has two example ops; one was accepted (synced)
+      // during the round, so only the still-pending one may be discarded.
+      const stillPending = exampleCreate('example-still-pending');
+      const acceptedAlready = exampleCreate('example-accepted');
+      opLogStoreSpy.getUnsynced.and.resolveTo([stillPending]);
+
+      const result = await service.checkIncomingFullStateConflict([createOperation()], {
+        preCapturedPendingOps: [stillPending, acceptedAlready],
+      });
+
+      expect(result.discardablePendingOpIds).toEqual(['example-still-pending']);
+    });
+  });
 });

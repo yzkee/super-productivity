@@ -10,7 +10,16 @@ import { OperationWriteFlushService } from './operation-write-flush.service';
 import { SyncImportConflictData } from './dialog-sync-import-conflict/dialog-sync-import-conflict.component';
 import { isExampleTaskCreateOp } from '../validation/is-example-task-op.util';
 
-const USER_ENTITY_TYPES = new Set(['TASK', 'PROJECT', 'TAG', 'NOTE']);
+/**
+ * Pending ops on these entity types are startup/system noise, not user work:
+ * config writes happen automatically (defaults, migrations) and sync settings
+ * are intentionally local; MIGRATION/RECOVERY are bookkeeping genesis ops.
+ * Everything else — including MOV/BATCH ops and entities like TIME_TRACKING,
+ * SIMPLE_COUNTER, TASK_REPEAT_CFG, PLANNER, BOARD — is user work an incoming
+ * full-state import would silently discard (imports drop concurrent ops by
+ * design), so it must count as meaningful and trigger the conflict dialog.
+ */
+const DISCARDABLE_ENTITY_TYPES = new Set(['GLOBAL_CONFIG', 'MIGRATION', 'RECOVERY']);
 
 export interface IncomingFullStateConflictGateResult {
   fullStateOp?: Operation;
@@ -36,9 +45,10 @@ export class SyncImportConflictGateService {
   private writeFlushService = inject(OperationWriteFlushService);
 
   /**
-   * Config-only pending ops are not considered user work for this conflict gate.
-   * Full-state ops are always meaningful because applying a newer full-state op can
-   * invalidate their local import/repair semantics.
+   * Every pending op is user work unless it is on a DISCARDABLE_ENTITY_TYPES
+   * entity or is an onboarding example-task create. Full-state ops are always
+   * meaningful because applying a newer full-state op can invalidate their
+   * local import/repair semantics.
    */
   hasMeaningfulPendingOps(ops: OperationLogEntry[]): boolean {
     return ops.some((entry) => {
@@ -48,18 +58,24 @@ export class SyncImportConflictGateService {
       if (isExampleTaskCreateOp(entry)) {
         return false;
       }
-      return (
-        USER_ENTITY_TYPES.has(entry.op.entityType) &&
-        (entry.op.opType === OpType.Create ||
-          entry.op.opType === OpType.Update ||
-          entry.op.opType === OpType.Delete)
-      );
+      return !DISCARDABLE_ENTITY_TYPES.has(entry.op.entityType);
     });
   }
 
+  /**
+   * @param options.preCapturedPendingOps - Pending ops captured BEFORE the upload
+   *        round started. The piggyback-upload path MUST pass this: by the time
+   *        its gate runs, ops accepted in the same round were already marked
+   *        synced, so a live getUnsynced() read would no longer see local work
+   *        that the piggybacked import is about to discard.
+   */
   async checkIncomingFullStateConflict(
     incomingOps: Operation[],
-    options: { flushPendingWrites?: boolean; isNeverSynced?: boolean } = {},
+    options: {
+      flushPendingWrites?: boolean;
+      isNeverSynced?: boolean;
+      preCapturedPendingOps?: OperationLogEntry[];
+    } = {},
   ): Promise<IncomingFullStateConflictGateResult> {
     const fullStateOp = incomingOps.find((op) => FULL_STATE_OP_TYPES.has(op.opType));
 
@@ -78,13 +94,21 @@ export class SyncImportConflictGateService {
       await this.writeFlushService.flushPendingWrites();
     }
 
-    const pendingOps = await this.opLogStore.getUnsynced();
+    const pendingOps =
+      options.preCapturedPendingOps ?? (await this.opLogStore.getUnsynced());
     const hasMeaningfulPending = this.hasMeaningfulPendingOps(pendingOps);
     // Example-task ops that the caller may reject when it accepts the import silently.
     // When `hasMeaningfulPending` is true (real work pending alongside example tasks),
     // the conflict dialog is shown instead and these are intentionally left untouched:
     // if the user keeps local state, their example tasks ride along with the rest.
-    const discardablePendingOpIds = pendingOps
+    //
+    // These must come from a LIVE read: with a pre-captured snapshot, example ops
+    // accepted earlier in the same upload round are already marked synced and must
+    // not be re-marked rejected by the caller.
+    const livePendingOps = options.preCapturedPendingOps
+      ? await this.opLogStore.getUnsynced()
+      : pendingOps;
+    const discardablePendingOpIds = livePendingOps
       .filter(isExampleTaskCreateOp)
       .map((entry) => entry.op.id);
 

@@ -7,6 +7,8 @@ import {
   bufferDeferredAction,
   getDeferredActions,
   clearDeferredActions,
+  DEFERRED_ACTIONS_RELOAD_WARNING_THRESHOLD,
+  DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP,
 } from './operation-capture.meta-reducer';
 import { OperationCaptureService } from './operation-capture.service';
 import { Action } from '@ngrx/store';
@@ -267,6 +269,86 @@ describe('operationCaptureMetaReducer', () => {
         clearDeferredActions();
 
         expect(getDeferredActions()).toEqual([]);
+      });
+    });
+
+    describe('buffer limits', () => {
+      // devError shows a native alert + confirm (and throws if confirm returns
+      // true), so force confirm to return false. src/test.ts installs a
+      // PERMANENT global confirm spy (jasmine.createSpy, never auto-restored),
+      // so reset its accumulated calls per test and restore the global
+      // returnValue(true) default afterwards.
+      const spyNativeDialogs = (): jasmine.Spy => {
+        if (!jasmine.isSpy(window.alert)) {
+          spyOn(window, 'alert');
+        }
+        const confirmSpy = jasmine.isSpy(window.confirm)
+          ? (window.confirm as jasmine.Spy)
+          : spyOn(window, 'confirm');
+        confirmSpy.calls.reset();
+        confirmSpy.and.returnValue(false);
+        return confirmSpy;
+      };
+
+      afterEach(() => {
+        if (jasmine.isSpy(window.confirm)) {
+          (window.confirm as jasmine.Spy).and.returnValue(true);
+        }
+      });
+
+      const createManyActions = (count: number): PersistentAction[] =>
+        Array.from({ length: count }, (_, i) =>
+          createMockAction({ type: `[Test] Action ${i}` }),
+        );
+
+      it('should preserve ALL actions in order past the reload-warning threshold', () => {
+        spyNativeDialogs();
+        const actions = createManyActions(DEFERRED_ACTIONS_RELOAD_WARNING_THRESHOLD + 50);
+
+        actions.forEach((a) => bufferDeferredAction(a));
+
+        // Nothing may be dropped: each buffered action's state change was
+        // already accepted into NgRx — dropping = permanent unsyncable divergence.
+        expect(getDeferredActions()).toEqual(actions);
+      });
+
+      it('should fire devError at the reload-warning threshold without dropping', () => {
+        const confirmSpy = spyNativeDialogs();
+        const actions = createManyActions(DEFERRED_ACTIONS_RELOAD_WARNING_THRESHOLD);
+        const reloadWarningCalls = (): unknown[][] =>
+          confirmSpy.calls
+            .allArgs()
+            .filter((args) => /consider reloading/.test(String(args[0])));
+
+        actions.slice(0, -1).forEach((a) => bufferDeferredAction(a));
+        expect(reloadWarningCalls().length).toBe(0);
+
+        bufferDeferredAction(actions[actions.length - 1]);
+        expect(reloadWarningCalls().length).toBe(1);
+
+        expect(getDeferredActions()).toEqual(actions);
+      });
+
+      it('should drop the oldest action only past the pathological hard cap', () => {
+        const confirmSpy = spyNativeDialogs();
+        const actions = createManyActions(DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP);
+        const dropErrorCalls = (): unknown[][] =>
+          confirmSpy.calls
+            .allArgs()
+            .filter((args) => /pathological cap/.test(String(args[0])));
+
+        actions.forEach((a) => bufferDeferredAction(a));
+        expect(dropErrorCalls().length).toBe(0);
+
+        const extraAction = createMockAction({ type: '[Test] Extra Action' });
+        bufferDeferredAction(extraAction);
+        expect(dropErrorCalls().length).toBe(1);
+
+        const buffered = getDeferredActions();
+        expect(buffered.length).toBe(DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP);
+        // Oldest action was dropped, remaining order intact
+        expect(buffered[0]).toBe(actions[1]);
+        expect(buffered[buffered.length - 1]).toBe(extraAction);
       });
     });
   });
