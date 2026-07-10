@@ -60,6 +60,7 @@ import {
   LocalOnlySyncSettings,
 } from '../../features/config/local-only-sync-settings.util';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
+import { OperationApplierService } from '../apply/operation-applier.service';
 
 /**
  * Orchestrates synchronization of the Operation Log with remote storage.
@@ -149,6 +150,7 @@ export class OperationLogSyncService {
   private syncLocalStateService = inject(SyncLocalStateService);
   private syncImportConflictCoordinator = inject(SyncImportConflictCoordinatorService);
   private providerManager = inject(SyncProviderManager);
+  private operationApplier = inject(OperationApplierService);
 
   /**
    * Checks if this client is "wholly fresh" - meaning it has never synced before
@@ -1333,6 +1335,7 @@ export class OperationLogSyncService {
     let capturedBackupSavedAt: number | undefined;
     let replacementCommitted = false;
     let backupSavedAt: number | undefined;
+    let preservedLocalOps: Operation[] = [];
     try {
       // flushThenRunExclusive drains the capture pipeline BEFORE acquiring the
       // op-log lock (flushPendingWrites re-acquires the same non-reentrant lock,
@@ -1345,6 +1348,14 @@ export class OperationLogSyncService {
           // Keep the first attempt's pre-replace backup (see option JSDoc).
           savedAt = (await this.opLogStore.loadImportBackup())?.savedAt;
           capturedBackupSavedAt = savedAt;
+          const marker = await this.opLogStore.loadRawRebuildIncomplete();
+          const liveLocalOps = (await this.opLogStore.getUnsynced()).map(
+            (entry) => entry.op,
+          );
+          preservedLocalOps = this._mergeOperationsById(
+            marker?.preservedLocalOps ?? [],
+            liveLocalOps,
+          );
         } else {
           try {
             savedAt = await this.backupService.captureImportBackup();
@@ -1375,6 +1386,7 @@ export class OperationLogSyncService {
           ),
           archiveYoung,
           archiveOld,
+          preservedLocalOps,
         });
         replacementCommitted = true;
 
@@ -1416,6 +1428,8 @@ export class OperationLogSyncService {
                   : ''),
             );
           }
+
+          await this._restorePreservedLocalOps(preservedLocalOps);
 
           // Update lastServerSeq after hydration
           if (result.latestServerSeq !== undefined) {
@@ -1467,6 +1481,8 @@ export class OperationLogSyncService {
           );
         }
 
+        await this._restorePreservedLocalOps(preservedLocalOps);
+
         // Update lastServerSeq
         if (result.latestServerSeq !== undefined) {
           await syncProvider.setLastServerSeq(result.latestServerSeq);
@@ -1492,6 +1508,57 @@ export class OperationLogSyncService {
     if (backupSavedAt !== undefined) {
       this._showRestorePreviousDataSnack(backupSavedAt);
     }
+  }
+
+  private _mergeOperationsById(...operationGroups: Operation[][]): Operation[] {
+    const merged: Operation[] = [];
+    const seenIds = new Set<string>();
+    for (const operations of operationGroups) {
+      for (const op of operations) {
+        if (!seenIds.has(op.id)) {
+          seenIds.add(op.id);
+          merged.push(op);
+        }
+      }
+    }
+    return merged;
+  }
+
+  /**
+   * Replays edits captured after an interrupted rebuild on top of the complete
+   * authoritative history. They stay local/unsynced so the next upload carries
+   * the user's post-crash intent to the server.
+   */
+  private async _restorePreservedLocalOps(operations: Operation[]): Promise<void> {
+    if (operations.length === 0) {
+      return;
+    }
+
+    const { writtenOps } = await this.opLogStore.appendBatchSkipDuplicates(
+      operations,
+      'local',
+    );
+    if (writtenOps.length === 0) {
+      return;
+    }
+
+    const applyResult = await this.operationApplier.applyOperations(writtenOps, {
+      // The authoritative replacement also overwrote archive IndexedDB stores,
+      // so archive-affecting post-crash edits must replay their side effects.
+      // The entries themselves remain source=local and unsynced in the op-log.
+      isLocalHydration: false,
+    });
+    if (applyResult.failedOp || applyResult.appliedOps.length !== writtenOps.length) {
+      throw new Error(
+        'USE_REMOTE incomplete: post-crash local operations could not be restored.',
+      );
+    }
+
+    let restoredClock = (await this.opLogStore.getVectorClock()) ?? {};
+    for (const op of writtenOps) {
+      restoredClock = mergeVectorClocks(restoredClock, op.vectorClock);
+    }
+    await this.opLogStore.setVectorClock(restoredClock);
   }
 
   private _preflightRemoteOperations(remoteOps: Operation[]): Operation[] {

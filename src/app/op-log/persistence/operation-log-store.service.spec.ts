@@ -2404,6 +2404,33 @@ describe('OperationLogStoreService', () => {
       expect(await service.isRawRebuildIncomplete()).toBe(false);
     });
 
+    it('durably carries post-crash local ops in the rebuild marker', async () => {
+      const preservedLocalOp = createTestOperation({
+        id: '01900000-0000-7000-8000-000000000091',
+        entityId: 'edited-after-crash',
+        clientId: 'localClient',
+        vectorClock: { localClient: 2, remote: 1 },
+      });
+
+      await service.runRemoteStateReplacement({
+        baselineState: { task: { ids: [], entities: {} } },
+        vectorClock: { remote: 1 },
+        schemaVersion: 4,
+        snapshotEntityKeys: [],
+        archiveYoung: createArchive('young'),
+        archiveOld: createArchive('old'),
+        preservedLocalOps: [preservedLocalOp],
+      });
+
+      expect(await service.getOpsAfterSeq(0)).toEqual([]);
+      expect(await service.loadRawRebuildIncomplete()).toEqual(
+        jasmine.objectContaining({
+          incomplete: true,
+          preservedLocalOps: [preservedLocalOp],
+        }),
+      );
+    });
+
     it('rolls back every store if one archive write fails', async () => {
       const priorOp = createTestOperation({ entityId: 'prior-task' });
       const priorState = { sentinel: 'prior-state' };

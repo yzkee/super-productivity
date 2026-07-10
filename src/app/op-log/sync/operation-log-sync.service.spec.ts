@@ -57,6 +57,7 @@ describe('OperationLogSyncService', () => {
   let schemaMigrationServiceSpy: jasmine.SpyObj<SchemaMigrationService>;
   let validateStateServiceSpy: jasmine.SpyObj<ValidateStateService>;
   let lockServiceSpy: jasmine.SpyObj<LockService>;
+  let operationApplierSpy: jasmine.SpyObj<OperationApplierService>;
 
   beforeEach(() => {
     snackServiceSpy = jasmine.createSpyObj('SnackService', [
@@ -78,10 +79,12 @@ describe('OperationLogSyncService', () => {
       'hasSyncedOps',
       'runRemoteStateReplacement',
       'isRawRebuildIncomplete',
+      'loadRawRebuildIncomplete',
       'clearRawRebuildIncomplete',
       'loadImportBackup',
     ]);
     opLogStoreSpy.hasSyncedOps.and.resolveTo(true);
+    opLogStoreSpy.getUnsynced.and.resolveTo([]);
     opLogStoreSpy.markSynced.and.resolveTo();
     opLogStoreSpy.setVectorClock.and.resolveTo();
     opLogStoreSpy.clearFullStateOps.and.resolveTo();
@@ -93,6 +96,7 @@ describe('OperationLogSyncService', () => {
     });
     opLogStoreSpy.runRemoteStateReplacement.and.resolveTo();
     opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(false);
+    opLogStoreSpy.loadRawRebuildIncomplete.and.resolveTo(null);
     opLogStoreSpy.clearRawRebuildIncomplete.and.resolveTo();
     opLogStoreSpy.loadImportBackup.and.resolveTo(null);
 
@@ -180,6 +184,10 @@ describe('OperationLogSyncService', () => {
       ['showConflictDialog'],
     );
     syncImportConflictDialogServiceSpy.showConflictDialog.and.resolveTo('CANCEL');
+    operationApplierSpy = jasmine.createSpyObj('OperationApplierService', [
+      'applyOperations',
+    ]);
+    operationApplierSpy.applyOperations.and.resolveTo({ appliedOps: [] });
 
     TestBed.configureTestingModule({
       providers: [
@@ -199,7 +207,7 @@ describe('OperationLogSyncService', () => {
         },
         {
           provide: OperationApplierService,
-          useValue: jasmine.createSpyObj('OperationApplierService', ['applyOperations']),
+          useValue: operationApplierSpy,
         },
         {
           provide: ConflictResolutionService,
@@ -2737,6 +2745,70 @@ describe('OperationLogSyncService', () => {
           actionStr: T.G.UNDO,
         }),
       );
+    });
+
+    it('should preserve and replay local edits made after an interrupted rebuild', async () => {
+      const previouslyPreserved = makeRemoteOp('local-before-second-crash');
+      previouslyPreserved.clientId = 'local';
+      previouslyPreserved.vectorClock = { local: 2, remote: 1 };
+      const liveLocalEdit = makeRemoteOp('local-after-restart');
+      liveLocalEdit.clientId = 'local';
+      liveLocalEdit.vectorClock = { local: 3, remote: 1 };
+      const liveEntry = {
+        seq: 2,
+        op: liveLocalEdit,
+        source: 'local' as const,
+        appliedAt: Date.now(),
+      };
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [makeRemoteOp('remote-op')],
+        needsFullStateUpload: false,
+        success: true,
+        providerMode: 'superSyncOps',
+        failedFileCount: 0,
+        latestServerSeq: 4,
+      });
+      opLogStoreSpy.loadImportBackup.and.resolveTo({ state: {}, savedAt: 12345 });
+      opLogStoreSpy.loadRawRebuildIncomplete.and.resolveTo({
+        incomplete: true,
+        startedAt: 1,
+        preservedLocalOps: [previouslyPreserved],
+      });
+      opLogStoreSpy.getUnsynced.and.resolveTo([liveEntry]);
+      opLogStoreSpy.appendBatchSkipDuplicates.and.callFake(async (ops, source) => ({
+        seqs: ops.map((_, index) => index + 10),
+        writtenOps: source === 'local' ? ops : [],
+        skippedCount: 0,
+      }));
+      operationApplierSpy.applyOperations.and.callFake(async (ops) => ({
+        appliedOps: ops,
+      }));
+      opLogStoreSpy.getVectorClock.and.resolveTo({ remote: 4 });
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as unknown as OperationSyncCapable;
+
+      await service.forceDownloadRemoteState(mockProvider, { isCrashResume: true });
+
+      const preservedLocalOps = [previouslyPreserved, liveLocalEdit];
+      expect(
+        opLogStoreSpy.runRemoteStateReplacement.calls.mostRecent().args[0]
+          .preservedLocalOps,
+      ).toEqual(preservedLocalOps);
+      expect(opLogStoreSpy.appendBatchSkipDuplicates).toHaveBeenCalledWith(
+        preservedLocalOps,
+        'local',
+      );
+      expect(operationApplierSpy.applyOperations).toHaveBeenCalledWith(
+        preservedLocalOps,
+        jasmine.objectContaining({ isLocalHydration: false }),
+      );
+      expect(opLogStoreSpy.setVectorClock).toHaveBeenCalledWith({
+        remote: 4,
+        local: 3,
+      });
+      expect(opLogStoreSpy.clearRawRebuildIncomplete).toHaveBeenCalled();
     });
 
     it('should offer to restore the previous data after replacing (#8107)', async () => {

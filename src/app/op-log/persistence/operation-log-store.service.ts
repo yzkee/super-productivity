@@ -80,6 +80,12 @@ interface StateCacheEntry {
   snapshotEntityKeys?: string[];
 }
 
+export interface RawRebuildIncompleteEntry {
+  incomplete: true;
+  startedAt: number;
+  preservedLocalOps: Operation[];
+}
+
 /**
  * Stored operation log entry that can hold either compact or full operation format.
  * Used internally for backwards compatibility with existing data.
@@ -1556,6 +1562,7 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
     snapshotEntityKeys: string[];
     archiveYoung: ArchiveStoreEntry['data'];
     archiveOld: ArchiveStoreEntry['data'];
+    preservedLocalOps?: Operation[];
   }): Promise<void> {
     await this._ensureInit();
 
@@ -1584,7 +1591,11 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
           // normal download (which excludes this client's own ops).
           await tx.put(
             STORE_NAMES.META,
-            { incomplete: true, startedAt: now },
+            {
+              incomplete: true,
+              startedAt: now,
+              preservedLocalOps: opts.preservedLocalOps ?? [],
+            } satisfies RawRebuildIncompleteEntry,
             RAW_REBUILD_INCOMPLETE_META_KEY,
           );
           await tx.put(STORE_NAMES.STATE_CACHE, {
@@ -1630,12 +1641,30 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
    * RAW_REBUILD_INCOMPLETE_META_KEY.
    */
   async isRawRebuildIncomplete(): Promise<boolean> {
+    return (await this.loadRawRebuildIncomplete()) !== null;
+  }
+
+  /**
+   * Loads the durable resume marker, including local operations created after
+   * an interrupted replacement. Older markers did not contain the operation
+   * array, so they normalize to an empty list.
+   */
+  async loadRawRebuildIncomplete(): Promise<RawRebuildIncompleteEntry | null> {
     await this._ensureInit();
-    const entry = await this._adapter.get<{ incomplete?: boolean }>(
+    const entry = await this._adapter.get<Partial<RawRebuildIncompleteEntry>>(
       STORE_NAMES.META,
       RAW_REBUILD_INCOMPLETE_META_KEY,
     );
-    return entry?.incomplete === true;
+    if (entry?.incomplete !== true) {
+      return null;
+    }
+    return {
+      incomplete: true,
+      startedAt: typeof entry.startedAt === 'number' ? entry.startedAt : 0,
+      preservedLocalOps: Array.isArray(entry.preservedLocalOps)
+        ? entry.preservedLocalOps
+        : [],
+    };
   }
 
   /** Marks the USE_REMOTE raw rebuild as fully completed. */
