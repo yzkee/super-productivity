@@ -73,10 +73,9 @@ describe('Example-task SYNC_IMPORT gate (integration)', () => {
     resetTestUuidCounter();
   });
 
-  it('treats pending example-task creates + config as non-meaningful and reports them as discardable', async () => {
+  it('treats pending example-task creates as non-meaningful and reports them as discardable', async () => {
     const example1 = exampleTaskOp('example-task-1');
     const example2 = exampleTaskOp('example-task-2');
-    await storeService.append(configOp(), 'local');
     await storeService.append(example1, 'local');
     await storeService.append(example2, 'local');
 
@@ -88,6 +87,23 @@ describe('Example-task SYNC_IMPORT gate (integration)', () => {
     expect(result.discardablePendingOpIds.sort()).toEqual(
       [example1.id, example2.id].sort(),
     );
+  });
+
+  it('treats a pending config change as meaningful user work (widened gate) and shows the dialog', async () => {
+    // The gate deliberately has NO entity-wide exemptions beyond example-task
+    // creates: GLOBAL_CONFIG carries synced preferences, so silently discarding
+    // a pending config op on an incoming SYNC_IMPORT would lose user work.
+    const example = exampleTaskOp('example-task-1');
+    await storeService.append(configOp(), 'local');
+    await storeService.append(example, 'local');
+
+    const result = await gate.checkIncomingFullStateConflict([incomingSyncImport()]);
+
+    expect(result.hasMeaningfulPending).toBeTrue();
+    expect(result.dialogData).toBeDefined();
+    // Example ops stay listed so the caller can discard them if the user
+    // accepts the import.
+    expect(result.discardablePendingOpIds).toEqual([example.id]);
   });
 
   it('actually excludes example-task ops from getUnsynced after markRejected (so they are not uploaded)', async () => {
