@@ -35,7 +35,6 @@ import {
 } from '../core/operation.types';
 import { toLwwUpdateActionType } from '../core/lww-update-action-types';
 import { OperationApplierService } from '../apply/operation-applier.service';
-import { getFailedOpIdsFromBatch } from '../apply/failed-op-ids.util';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { OpLog } from '../../core/log';
 import { toEntityKey } from '../util/entity-key.util';
@@ -430,6 +429,18 @@ export class ConflictResolutionService {
         const opIdToSeq = new Map(allStoredOps.map((o) => [o.id, o.seq]));
         const applyResult = await this.operationApplier.applyOperations(allOpsToApply, {
           skipDeferredLocalActions: true,
+          onReducersCommitted: async (reducerCommittedOps) => {
+            const reducerCommittedSeqs = reducerCommittedOps
+              .map((op) => opIdToSeq.get(op.id))
+              .filter((seq): seq is number => seq !== undefined);
+            if (reducerCommittedSeqs.length !== reducerCommittedOps.length) {
+              throw new Error(
+                'ConflictResolutionService: reducer commit contained an unknown operation.',
+              );
+            }
+            await this.opLogStore.markArchivePending(reducerCommittedSeqs);
+            await this.opLogStore.mergeRemoteOpClocks(reducerCommittedOps);
+          },
         });
 
         const appliedSeqs = applyResult.appliedOps
@@ -439,28 +450,17 @@ export class ConflictResolutionService {
         if (appliedSeqs.length > 0) {
           await this.opLogStore.markApplied(appliedSeqs);
 
-          // CRITICAL: Merge remote ops' vector clocks into local clock.
-          // This ensures subsequent local operations have clocks that "dominate"
-          // the applied remote ops (GREATER_THAN instead of CONCURRENT).
-          // Without this, ops created after conflict resolution would have clocks
-          // that are CONCURRENT with the applied ops, causing them to be incorrectly
-          // filtered by SyncImportFilterService or rejected as conflicts on next sync.
-          await this.opLogStore.mergeRemoteOpClocks(applyResult.appliedOps);
-
           OpLog.normal(
             `ConflictResolutionService: Successfully applied ${appliedSeqs.length} ops`,
           );
         }
 
         if (applyResult.failedOp) {
-          const failedOpIds = getFailedOpIdsFromBatch(
-            allOpsToApply,
-            applyResult.failedOp.op,
-          );
+          const failedOpIds = [applyResult.failedOp.op.id];
 
           OpLog.err(
             `ConflictResolutionService: ${applyResult.appliedOps.length} ops applied before failure. ` +
-              `Marking ${failedOpIds.length} ops as failed.`,
+              'Marking the attempted archive operation as failed.',
             applyResult.failedOp.error,
           );
           await this.opLogStore.markFailed(failedOpIds, MAX_CONFLICT_RETRY_ATTEMPTS);

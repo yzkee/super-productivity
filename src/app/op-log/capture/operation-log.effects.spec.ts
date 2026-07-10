@@ -16,6 +16,7 @@ import { COMPACTION_THRESHOLD } from '../core/operation-log.const';
 import {
   bufferDeferredAction,
   clearDeferredActions,
+  getDeferredActions,
 } from './operation-capture.meta-reducer';
 import { ClientIdService } from '../../core/util/client-id.service';
 import { OperationCaptureService } from './operation-capture.service';
@@ -876,8 +877,31 @@ describe('OperationLogEffects', () => {
       // Should not throw - errors are logged but don't stop processing
       await expectAsync(effects.processDeferredActions()).toBeResolved();
 
-      // Both actions should have been attempted
-      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledTimes(2);
+      // The failed write is retried once, then processing continues to action 2.
+      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledTimes(3);
+    });
+
+    it('should keep an exhausted deferred write queued while acknowledging later successes', async () => {
+      const failedAction = createPersistentAction(ActionType.TASK_SHARED_ADD);
+      const successfulAction = createPersistentAction(ActionType.TASK_SHARED_UPDATE);
+      bufferDeferredAction(failedAction);
+      bufferDeferredAction(successfulAction);
+      let attempts = 0;
+      mockOpLogStore.appendWithVectorClockUpdate.and.callFake(() => {
+        attempts++;
+        return attempts <= 3
+          ? Promise.reject(new Error('persistent failure'))
+          : Promise.resolve(1);
+      });
+
+      await effects.processDeferredActions();
+
+      expect(getDeferredActions()).toEqual([failedAction]);
+
+      mockOpLogStore.appendWithVectorClockUpdate.and.resolveTo(2);
+      await effects.processDeferredActions();
+
+      expect(getDeferredActions()).toEqual([]);
     });
 
     it('should use fresh vector clock for deferred actions', async () => {

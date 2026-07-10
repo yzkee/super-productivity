@@ -39,7 +39,7 @@ describe('WsTriggeredDownloadService', () => {
 
     mockProviderManager = jasmine.createSpyObj(
       'SyncProviderManager',
-      ['getActiveProvider'],
+      ['getActiveProvider', 'setSyncStatus'],
       {
         isSyncInProgress: false,
       },
@@ -244,9 +244,6 @@ describe('WsTriggeredDownloadService', () => {
   // reset clears them) or leak into the next session. The service must
   // be its own session boundary.
   it('sets sync status ERROR when the download flips the validation latch', fakeAsync(() => {
-    if (mockProviderManager.setSyncStatus === undefined) {
-      mockProviderManager.setSyncStatus = jasmine.createSpy('setSyncStatus');
-    }
     const latch = TestBed.inject(SyncSessionValidationService);
     mockSyncService.downloadRemoteOps.and.callFake(async () => {
       latch.setFailed();
@@ -262,9 +259,6 @@ describe('WsTriggeredDownloadService', () => {
   }));
 
   it('does not flag ERROR when the download leaves the latch reset', fakeAsync(() => {
-    if (mockProviderManager.setSyncStatus === undefined) {
-      mockProviderManager.setSyncStatus = jasmine.createSpy('setSyncStatus');
-    }
     const latch = TestBed.inject(SyncSessionValidationService);
     latch._resetForTest();
 
@@ -274,6 +268,19 @@ describe('WsTriggeredDownloadService', () => {
     flushMicrotasks();
 
     expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalledWith('ERROR');
+  }));
+
+  it('sets sync status ERROR when processing is blocked by an incompatible op', fakeAsync(() => {
+    mockSyncService.downloadRemoteOps.and.resolveTo({
+      kind: 'blocked_incompatible',
+    });
+
+    service.start();
+    notification$.next({ latestSeq: 1 });
+    tick(500);
+    flushMicrotasks();
+
+    expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
   }));
 
   // Defense against stale latch from a prior path: the WS service opens its

@@ -237,6 +237,14 @@ export class ImmediateUploadService implements OnDestroy {
           return;
         }
 
+        if (result.kind === 'blocked_incompatible') {
+          OpLog.warn(
+            'ImmediateUploadService: Piggyback processing blocked by an incompatible operation',
+          );
+          this._providerManager.setSyncStatus('ERROR');
+          return;
+        }
+
         // result.kind === 'completed' from here
 
         // If LWW local-wins created new update ops from piggybacked ops,

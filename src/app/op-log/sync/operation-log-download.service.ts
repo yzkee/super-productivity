@@ -229,6 +229,12 @@ export class OperationLogDownloadService implements OnDestroy {
         }
 
         if (response.ops.length === 0) {
+          if (response.hasMore) {
+            OpLog.error(
+              'OperationLogDownloadService: Server returned an empty page with hasMore=true. Aborting to avoid accepting a partial download.',
+            );
+            downloadFailed = true;
+          }
           // No ops to download - caller will persist latestServerSeq after this method returns
           break;
         }
@@ -316,8 +322,18 @@ export class OperationLogDownloadService implements OnDestroy {
           break;
         }
 
-        // Update cursors
-        sinceSeq = response.ops[response.ops.length - 1].serverSeq;
+        // Update cursors. A page that claims more data must advance the cursor;
+        // otherwise accepting the accumulated prefix would silently skip the
+        // unseen suffix (or spin until the iteration cap).
+        const nextSinceSeq = response.ops[response.ops.length - 1].serverSeq;
+        if (response.hasMore && nextSinceSeq <= sinceSeq) {
+          OpLog.error(
+            `OperationLogDownloadService: Non-progressing page cursor (${nextSinceSeq} <= ${sinceSeq}) with hasMore=true. Aborting partial download.`,
+          );
+          downloadFailed = true;
+          break;
+        }
+        sinceSeq = nextSinceSeq;
         hasMore = response.hasMore;
 
         // Monotonicity check: warn if server seq decreased (indicates potential server bug)

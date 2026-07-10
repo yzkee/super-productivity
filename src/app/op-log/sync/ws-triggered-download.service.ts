@@ -151,6 +151,14 @@ export class WsTriggeredDownloadService implements OnDestroy {
 
         SyncLog.log(`WsTriggeredDownloadService: Download complete. kind=${result.kind}`);
 
+        if (result.kind === 'blocked_incompatible') {
+          SyncLog.warn(
+            'WsTriggeredDownloadService: Download blocked by an incompatible operation',
+          );
+          this._providerManager.setSyncStatus('ERROR');
+          return;
+        }
+
         if (this._sessionValidation.hasFailed()) {
           SyncLog.err(
             'WsTriggeredDownloadService: Post-sync validation failed during WS download — reporting ERROR',

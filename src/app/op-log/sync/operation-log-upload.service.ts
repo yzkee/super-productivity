@@ -86,6 +86,24 @@ export class OperationLogUploadService {
     let uploadedCount = 0;
     let rejectedCount = 0;
     let hasMorePiggyback = false;
+    let selectedPendingOps: OperationLogEntry[] = [];
+    const pendingAcknowledgementSeqs: number[] = [];
+    const pendingAcknowledgementSeqSet = new Set<number>();
+    const acknowledge = async (seqs: number[]): Promise<void> => {
+      if (seqs.length === 0) {
+        return;
+      }
+      if (!options?.deferAcknowledgement) {
+        await this.opLogStore.markSynced(seqs);
+        return;
+      }
+      for (const seq of seqs) {
+        if (!pendingAcknowledgementSeqSet.has(seq)) {
+          pendingAcknowledgementSeqSet.add(seq);
+          pendingAcknowledgementSeqs.push(seq);
+        }
+      }
+    };
     // Track encryption state of piggybacked operations for detecting encryption config mismatch.
     // When another client disables encryption, all piggybacked ops will be unencrypted.
     // We track this BEFORE decryption to detect the server's actual encryption state.
@@ -107,6 +125,7 @@ export class OperationLogUploadService {
       }
 
       const pendingOps = await this.opLogStore.getUnsynced();
+      selectedPendingOps = pendingOps;
 
       if (pendingOps.length === 0) {
         OpLog.normal('OperationLogUploadService: No pending operations to upload.');
@@ -198,7 +217,7 @@ export class OperationLogUploadService {
           isCleanSlateForOp,
         );
         if (result.accepted) {
-          await this.opLogStore.markSynced([entry.seq]);
+          await acknowledge([entry.seq]);
           uploadedCount++;
           if (result.serverSeq !== undefined) {
             await syncProvider.setLastServerSeq(result.serverSeq);
@@ -258,7 +277,7 @@ export class OperationLogUploadService {
 
         if (opsIncludedInSnapshot.length > 0) {
           const seqs = opsIncludedInSnapshot.map((entry) => entry.seq);
-          await this.opLogStore.markSynced(seqs);
+          await acknowledge(seqs);
           uploadedCount += seqs.length;
           OpLog.normal(
             `OperationLogUploadService: Marked ${seqs.length} regular ops as synced ` +
@@ -293,7 +312,7 @@ export class OperationLogUploadService {
         }
       }
       if (localOnlySeqs.length > 0) {
-        await this.opLogStore.markSynced(localOnlySeqs);
+        await acknowledge(localOnlySeqs);
         uploadedCount += localOnlySeqs.length;
         OpLog.normal(
           `OperationLogUploadService: Marked ${localOnlySeqs.length} local-only op(s) as synced without upload`,
@@ -339,7 +358,7 @@ export class OperationLogUploadService {
           .filter((seq): seq is number => seq !== undefined);
 
         if (acceptedSeqs.length > 0) {
-          await this.opLogStore.markSynced(acceptedSeqs);
+          await acknowledge(acceptedSeqs);
           uploadedCount += acceptedSeqs.length;
         }
 
@@ -468,6 +487,9 @@ export class OperationLogUploadService {
       ...(piggybackHasOnlyUnencryptedData ? { piggybackHasOnlyUnencryptedData } : {}),
       ...(lastServerSeqToPersist !== undefined ? { lastServerSeqToPersist } : {}),
       ...(encryptionRequiredKeyMissing ? { encryptionRequiredKeyMissing: true } : {}),
+      ...(options?.deferAcknowledgement
+        ? { selectedPendingOps, pendingAcknowledgementSeqs }
+        : {}),
     };
   }
 

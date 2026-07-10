@@ -38,13 +38,23 @@ import {
   SyncImportConflictResolution,
 } from './dialog-sync-import-conflict/dialog-sync-import-conflict.component';
 import { SyncImportConflictGateService } from './sync-import-conflict-gate.service';
-import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
+import {
+  CURRENT_SCHEMA_VERSION,
+  MIN_SUPPORTED_SCHEMA_VERSION,
+  SchemaMigrationService,
+  getOperationSchemaVersion,
+} from '../persistence/schema-migration.service';
 import { SyncProviderManager } from '../sync-providers/provider-manager.service';
-import { getDefaultMainModelData } from '../model/model-config';
+import { getDefaultMainModelData, MODEL_CONFIGS } from '../model/model-config';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { SyncLocalStateService } from './sync-local-state.service';
 import { SyncImportConflictCoordinatorService } from './sync-import-conflict-coordinator.service';
 import { isExampleTaskCreateOp } from '../validation/is-example-task-op.util';
+import { Operation } from '../core/operation.types';
+import { LockService } from './lock.service';
+import { LOCK_NAMES } from '../core/operation-log.const';
+import { ValidateStateService } from '../validation/validate-state.service';
+import { extractEntityKeysFromState } from '../persistence/extract-entity-keys';
 
 /**
  * Orchestrates synchronization of the Operation Log with remote storage.
@@ -122,6 +132,9 @@ export class OperationLogSyncService {
   private superSyncStatusService = inject(SuperSyncStatusService);
   private serverMigrationService = inject(ServerMigrationService);
   private writeFlushService = inject(OperationWriteFlushService);
+  private lockService = inject(LockService);
+  private schemaMigrationService = inject(SchemaMigrationService);
+  private validateStateService = inject(ValidateStateService);
 
   // Extracted services
   private remoteOpsProcessingService = inject(RemoteOpsProcessingService);
@@ -189,11 +202,9 @@ export class OperationLogSyncService {
     // we would upload an incomplete set. This flush waits for all queued writes.
     await this.writeFlushService.flushPendingWrites();
 
-    // Capture never-synced status BEFORE the upload runs: uploadService.uploadPendingOps
-    // marks accepted ops synced, which flips hasSyncedOps() and would defeat the piggyback
-    // conflict gate's never-synced guard if it read live state afterwards. The orchestrator
-    // passes a value captured even earlier (pre-download, since download also persists
-    // synced ops); fall back to a local read for standalone upload callers.
+    // Capture never-synced status before the upload runs. The orchestrator passes a
+    // value captured even earlier (pre-download, since download persists synced ops);
+    // fall back to a local read for standalone upload callers.
     const isNeverSyncedAtSyncStart =
       options?.isNeverSynced ?? !(await this.opLogStore.hasSyncedOps());
 
@@ -209,14 +220,6 @@ export class OperationLogSyncService {
       return { kind: 'blocked_fresh_client' };
     }
 
-    // Capture pending ops BEFORE the upload round (the flush at the top of this
-    // method already drained in-flight writes). The piggyback conflict gate below
-    // must judge "would this import discard local work?" against this snapshot:
-    // ops accepted by the server during the upload are marked synced per chunk,
-    // so a post-upload getUnsynced() read no longer sees local work that a
-    // piggybacked import is about to replace.
-    const pendingOpsAtUploadStart = await this.opLogStore.getUnsynced();
-
     // SERVER MIGRATION CHECK: Passed as callback to execute INSIDE the upload lock.
     // This prevents race conditions where multiple tabs could both detect migration
     // and create duplicate SYNC_IMPORT operations.
@@ -227,6 +230,9 @@ export class OperationLogSyncService {
         ? undefined
         : () => this.serverMigrationService.checkAndHandleMigration(syncProvider),
       skipPiggybackProcessing: options?.skipPiggybackProcessing,
+      // Keep accepted operations pending until piggyback processing commits. This
+      // preserves the conflict gate across cancellation and crash/retry boundaries.
+      deferAcknowledgement: true,
     });
 
     // STEP 1: Process piggybacked ops FIRST
@@ -258,7 +264,8 @@ export class OperationLogSyncService {
           result.piggybackedOps,
           {
             isNeverSynced: isNeverSyncedAtSyncStart,
-            preCapturedPendingOps: pendingOpsAtUploadStart,
+            flushPendingWrites: true,
+            preCapturedPendingOps: result.selectedPendingOps ?? [],
           },
         );
       if (piggybackedConflict.fullStateOp) {
@@ -319,6 +326,10 @@ export class OperationLogSyncService {
       localWinOpsCreated = processResult.localWinOpsCreated;
       // Validation failure (if any) is on the session-validation latch.
 
+      if (processResult.blockedByIncompatibleOp) {
+        return { kind: 'blocked_incompatible' };
+      }
+
       // #8304: Persist lastServerSeq ONLY now that the piggybacked ops have been applied
       // above. The upload service deferred this (see UploadResult.lastServerSeqToPersist)
       // so that a crash — or a cancelled/USE_REMOTE/USE_LOCAL SYNC_IMPORT dialog, all of
@@ -326,12 +337,14 @@ export class OperationLogSyncService {
       // that were never stored. Mirrors the download path's invariant.
       // A version/migration block keeps the cursor behind the blocked op so it is
       // re-downloaded and retried after an app update instead of skipped forever.
-      if (
-        result.lastServerSeqToPersist !== undefined &&
-        !processResult.blockedByIncompatibleOp
-      ) {
+      if (result.lastServerSeqToPersist !== undefined) {
         await syncProvider.setLastServerSeq(result.lastServerSeqToPersist);
       }
+    }
+
+    const pendingAcknowledgementSeqs = result.pendingAcknowledgementSeqs ?? [];
+    if (pendingAcknowledgementSeqs.length > 0) {
+      await this.opLogStore.markSynced(pendingAcknowledgementSeqs);
     }
 
     // STEP 2: Handle server-rejected operations
@@ -367,6 +380,8 @@ export class OperationLogSyncService {
         case 'server_migration_handled':
         case 'cancelled':
           return { newOpsCount: 0 };
+        case 'blocked_incompatible':
+          throw new Error('Nested download blocked by an incompatible remote operation.');
       }
     };
     try {
@@ -878,6 +893,10 @@ export class OperationLogSyncService {
       result.newOps,
     );
 
+    if (processResult.blockedByIncompatibleOp) {
+      return { kind: 'blocked_incompatible' };
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Handle SYNC_IMPORT conflict: all remote ops filtered by STORED local import.
     // This happens when user imports/restores data locally, and other devices
@@ -933,7 +952,7 @@ export class OperationLogSyncService {
     // This is the correct behavior - better to re-download than to skip ops.
     // A version/migration block keeps the cursor behind the blocked op so it is
     // re-downloaded and retried after an app update instead of skipped forever.
-    if (result.latestServerSeq !== undefined && !processResult.blockedByIncompatibleOp) {
+    if (result.latestServerSeq !== undefined) {
       await syncProvider.setLastServerSeq(result.latestServerSeq);
     }
 
@@ -1076,10 +1095,14 @@ export class OperationLogSyncService {
       result.newOps,
     );
 
+    if (processResult.blockedByIncompatibleOp) {
+      return { kind: 'blocked_incompatible' };
+    }
+
     // Persist the cursor only AFTER the ops are applied, matching the normal
     // incremental path's crash-safety ordering. A version/migration block keeps
     // the cursor behind the blocked op (retried after an app update).
-    if (result.latestServerSeq !== undefined && !processResult.blockedByIncompatibleOp) {
+    if (result.latestServerSeq !== undefined) {
       await syncProvider.setLastServerSeq(result.latestServerSeq);
     }
 
@@ -1156,24 +1179,6 @@ export class OperationLogSyncService {
       'OperationLogSyncService: Force downloading remote state for a full rebuild.',
     );
 
-    // Safety net (#8107): snapshot current local state before we destroy it, so an
-    // unintended "Use Server Data" — which can roll the user back to a stale server
-    // snapshot — is reversible via the Undo affordance shown on success below.
-    // Fail-safe: if the backup can't be written, abort rather than wipe without a
-    // recovery point (mirrors BackupService._persistImportToOperationLog).
-    let backupSavedAt: number;
-    try {
-      backupSavedAt = await this.backupService.captureImportBackup();
-    } catch (e) {
-      OpLog.warn(
-        'OperationLogSyncService: Pre-replace safety backup failed; aborting force download.',
-        { name: (e as Error | undefined)?.name },
-      );
-      throw new Error(
-        'Pre-replace safety backup failed; aborting to preserve local state.',
-      );
-    }
-
     // ─────────────────────────────────────────────────────────────────────────
     // PHASE 1 — download and validate. Nothing local is mutated until the
     // complete server history is in memory: a network failure here must leave
@@ -1207,23 +1212,19 @@ export class OperationLogSyncService {
       throw new Error('USE_REMOTE aborted: remote returned no data to rebuild from.');
     }
 
-    // Refuse BEFORE destroying anything if the remote history contains ops this
-    // client cannot interpret (newer schema) — replay would block midway and
-    // leave a partial rebuild. Migration exceptions can still surface during
-    // replay; those are handled after processRemoteOps below.
-    const tooNewOp = result.newOps.find(
-      (op) => (op.schemaVersion ?? 1) > CURRENT_SCHEMA_VERSION,
-    );
-    if (tooNewOp) {
-      this.snackService.open({
-        type: 'ERROR',
-        msg: T.F.SYNC.S.VERSION_TOO_OLD,
-        actionStr: T.PS.UPDATE_APP,
-        actionFn: () => window.open('https://super-productivity.com/download', '_blank'),
-      });
-      throw new Error(
-        'USE_REMOTE aborted: remote history contains ops from a newer schema version — update the app first.',
-      );
+    const migratedRemoteOps = this._preflightRemoteOperations(result.newOps);
+
+    let snapshotState = result.snapshotState as Record<string, unknown> | undefined;
+    if (hasSnapshotState && snapshotState) {
+      const validation = await this.validateStateService.validateAndRepair(snapshotState);
+      if (!validation.isValid) {
+        throw new Error(
+          'USE_REMOTE aborted: remote snapshot is invalid and could not be repaired.',
+        );
+      }
+      if (validation.wasRepaired && validation.repairedState) {
+        snapshotState = validation.repairedState;
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1234,9 +1235,6 @@ export class OperationLogSyncService {
     // variant made the duplicate filter skip them, so a "rebuild" replayed only
     // an unseen suffix onto a defaults reset.
     // ─────────────────────────────────────────────────────────────────────────
-    await this.opLogStore.clearAllOperations();
-    await syncProvider.setLastServerSeq(0);
-
     // Reset the vector clock to the remote's causal knowledge (snapshot clock
     // merged with every downloaded op clock). This also drops entries from
     // rejected local ops that would otherwise pollute conflict detection.
@@ -1244,111 +1242,200 @@ export class OperationLogSyncService {
     for (const opClock of result.allOpClocks ?? []) {
       rebuiltClock = mergeVectorClocks(rebuiltClock, opClock);
     }
-    await this.opLogStore.setVectorClock(rebuiltClock);
-    OpLog.normal('OperationLogSyncService: Reset vector clock to rebuilt remote clock.');
-
-    // FILE-BASED SYNC: Handle snapshot state from force download.
-    // When downloading from seq 0 on file-based providers, we may receive a
-    // snapshotState instead of incremental ops. This happens when the remote
-    // has a SYNC_IMPORT (full state snapshot) with empty recentOps.
-    // hydrateFromRemoteSync persists its own state cache + vector clock.
-    if (result.providerMode === 'fileSnapshotOps' && result.snapshotState) {
-      OpLog.normal(
-        'OperationLogSyncService: Force download received snapshotState. Hydrating...',
-      );
-
-      // Hydrate from snapshot - DON'T create SYNC_IMPORT since we're
-      // accepting remote state, not uploading local state.
-      await this.syncHydrationService.hydrateFromRemoteSync(
-        result.snapshotState as Record<string, unknown>,
-        result.snapshotVectorClock,
-        false, // Don't create SYNC_IMPORT
-      );
-
-      // CRITICAL FIX: Write recentOps to IndexedDB after snapshot hydration.
-      // Same rationale as downloadRemoteOps: file-based providers return ALL
-      // recentOps on every download and rely on getAppliedOpIds() to filter them.
-      if (result.newOps.length > 0) {
-        const appendResult = await this.opLogStore.appendBatchSkipDuplicates(
-          result.newOps,
-          'remote',
-        );
-        OpLog.normal(
-          `OperationLogSyncService: Wrote ${appendResult.writtenOps.length} snapshot ops to IndexedDB ` +
-            'after force-download hydration.' +
-            (appendResult.skippedCount > 0
-              ? ` Skipped ${appendResult.skippedCount} duplicate(s).`
-              : ''),
-        );
-      }
-
-      // Update lastServerSeq after hydration
-      if (result.latestServerSeq !== undefined) {
-        await syncProvider.setLastServerSeq(result.latestServerSeq);
-      }
-
-      OpLog.normal(
-        'OperationLogSyncService: Force download snapshot hydration complete.',
-      );
-      this._showRestorePreviousDataSnack(backupSavedAt);
-      return;
-    }
-
-    // Crash safety: persist a defaults baseline so an interrupted replay
-    // hydrates as defaults + appended prefix on next boot (a consistent prefix
-    // of server state, completed by the next sync from cursor 0) instead of
-    // layering the new history onto the stale pre-replace snapshot.
-    await this.opLogStore.saveStateCache({
-      state: getDefaultMainModelData(),
-      lastAppliedOpSeq: 0,
-      vectorClock: rebuiltClock,
-      compactedAt: Date.now(),
-      snapshotEntityKeys: [],
-    });
-
-    // Reset live state to defaults, then replay the COMPLETE server history on
-    // top. A full-state op in the history replaces state again by its own
-    // semantics; a purely incremental history rebuilds from this baseline.
     const defaultData = getDefaultMainModelData();
-    this.store.dispatch(
-      loadAllData({
-        appDataComplete: defaultData as Parameters<
-          typeof loadAllData
-        >[0]['appDataComplete'],
-      }),
-    );
-    // Brief yield to let NgRx process the state reset
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    const baselineState = snapshotState ?? defaultData;
+    const archiveYoung =
+      (snapshotState?.[
+        'archiveYoung'
+      ] as typeof MODEL_CONFIGS.archiveYoung.defaultData) ??
+      MODEL_CONFIGS.archiveYoung.defaultData!;
+    const archiveOld =
+      (snapshotState?.['archiveOld'] as typeof MODEL_CONFIGS.archiveOld.defaultData) ??
+      MODEL_CONFIGS.archiveOld.defaultData!;
 
-    // Process all remote ops (no confirmation needed - user already chose USE_REMOTE).
-    // Skip conflict detection because the NgRx store was just reset to empty state,
-    // which causes all entities to appear missing and CONCURRENT ops to be discarded.
-    // Validation failure is surfaced via the session-validation latch. (#7330)
-    const processResult = await this.remoteOpsProcessingService.processRemoteOps(
-      result.newOps,
-      { skipConflictDetection: true },
-    );
+    let capturedBackupSavedAt: number | undefined;
+    let replacementCommitted = false;
+    let backupSavedAt: number;
+    try {
+      backupSavedAt = await this.lockService.request(
+        LOCK_NAMES.OPERATION_LOG,
+        async () => {
+          // Include actions dispatched while the network request and preflight were
+          // in flight in the reversible safety backup.
+          await this.writeFlushService.flushPendingWrites();
+          let savedAt: number;
+          try {
+            savedAt = await this.backupService.captureImportBackup();
+            capturedBackupSavedAt = savedAt;
+          } catch (e) {
+            OpLog.warn(
+              'OperationLogSyncService: Pre-replace safety backup failed; aborting force download.',
+              { name: (e as Error | undefined)?.name },
+            );
+            throw new Error(
+              'Pre-replace safety backup failed; aborting to preserve local state.',
+            );
+          }
 
-    if (processResult.blockedByIncompatibleOp) {
-      // Version blocks were pre-checked above; only a migration exception lands
-      // here. The rebuild is partial: keep the cursor at 0 so the next sync
-      // retries the remainder, and surface the failure — the Undo snack still
-      // offers the pre-replace backup.
-      this._showRestorePreviousDataSnack(backupSavedAt);
-      throw new Error(
-        'USE_REMOTE incomplete: an op failed schema migration during replay.',
+          // The provider cursor lives outside SUP_OPS, so it cannot join the IDB
+          // transaction. Reset it first: a crash/failure before the transaction
+          // merely causes a safe re-download onto intact local state, while a
+          // commit can never become visible with a stale cursor that skips the
+          // remote history required to rebuild the baseline.
+          await syncProvider.setLastServerSeq(0);
+          await this.opLogStore.runRemoteStateReplacement({
+            baselineState,
+            vectorClock: rebuiltClock,
+            schemaVersion: CURRENT_SCHEMA_VERSION,
+            snapshotEntityKeys: extractEntityKeysFromState(
+              baselineState as Parameters<typeof extractEntityKeysFromState>[0],
+            ),
+            archiveYoung,
+            archiveOld,
+          });
+          replacementCommitted = true;
+
+          OpLog.normal(
+            'OperationLogSyncService: Replaced local persistence with remote baseline.',
+          );
+
+          // FILE-BASED SYNC: Handle snapshot state from force download.
+          // When downloading from seq 0 on file-based providers, we may receive a
+          // snapshotState instead of incremental ops. This happens when the remote
+          // has a SYNC_IMPORT (full state snapshot) with empty recentOps.
+          // hydrateFromRemoteSync persists its own state cache + vector clock.
+          if (result.providerMode === 'fileSnapshotOps' && snapshotState) {
+            OpLog.normal(
+              'OperationLogSyncService: Force download received snapshotState. Hydrating...',
+            );
+
+            // Hydrate from snapshot - DON'T create SYNC_IMPORT since we're
+            // accepting remote state, not uploading local state.
+            await this.syncHydrationService.hydrateFromRemoteSync(
+              snapshotState,
+              result.snapshotVectorClock,
+              false, // Don't create SYNC_IMPORT
+            );
+
+            // CRITICAL FIX: Write recentOps to IndexedDB after snapshot hydration.
+            // Same rationale as downloadRemoteOps: file-based providers return ALL
+            // recentOps on every download and rely on getAppliedOpIds() to filter them.
+            if (migratedRemoteOps.length > 0) {
+              const appendResult = await this.opLogStore.appendBatchSkipDuplicates(
+                migratedRemoteOps,
+                'remote',
+              );
+              OpLog.normal(
+                `OperationLogSyncService: Wrote ${appendResult.writtenOps.length} snapshot ops to IndexedDB ` +
+                  'after force-download hydration.' +
+                  (appendResult.skippedCount > 0
+                    ? ` Skipped ${appendResult.skippedCount} duplicate(s).`
+                    : ''),
+              );
+            }
+
+            // Update lastServerSeq after hydration
+            if (result.latestServerSeq !== undefined) {
+              await syncProvider.setLastServerSeq(result.latestServerSeq);
+            }
+
+            OpLog.normal(
+              'OperationLogSyncService: Force download snapshot hydration complete.',
+            );
+            return savedAt;
+          }
+
+          // Reset live state to defaults, then replay the COMPLETE server history on
+          // top. A full-state op in the history replaces state again by its own
+          // semantics; a purely incremental history rebuilds from this baseline.
+          this.store.dispatch(
+            loadAllData({
+              appDataComplete: defaultData as Parameters<
+                typeof loadAllData
+              >[0]['appDataComplete'],
+            }),
+          );
+          // Brief yield to let NgRx process the state reset
+          await new Promise((resolve) => setTimeout(resolve, 0));
+
+          // Process all remote ops (no confirmation needed - user already chose USE_REMOTE).
+          // Skip conflict detection because the NgRx store was just reset to empty state,
+          // which causes all entities to appear missing and CONCURRENT ops to be discarded.
+          // Validation failure is surfaced via the session-validation latch. (#7330)
+          const processResult = await this.remoteOpsProcessingService.processRemoteOps(
+            migratedRemoteOps,
+            {
+              skipConflictDetection: true,
+              callerHoldsOperationLogLock: true,
+            },
+          );
+
+          if (processResult.blockedByIncompatibleOp) {
+            // Version blocks were pre-checked above; only a migration exception lands
+            // here. The rebuild is partial: keep the cursor at 0 so the next sync
+            // retries the remainder, and surface the failure — the Undo snack still
+            // offers the pre-replace backup.
+            throw new Error(
+              'USE_REMOTE incomplete: an op failed schema migration during replay.',
+            );
+          }
+
+          // Update lastServerSeq
+          if (result.latestServerSeq !== undefined) {
+            await syncProvider.setLastServerSeq(result.latestServerSeq);
+          }
+
+          OpLog.normal(
+            `OperationLogSyncService: Force download complete. Rebuilt from ${migratedRemoteOps.length} ops.`,
+          );
+          return savedAt;
+        },
       );
+    } catch (e) {
+      if (replacementCommitted && capturedBackupSavedAt !== undefined) {
+        this._showRestorePreviousDataSnack(capturedBackupSavedAt);
+      }
+      throw e;
     }
 
-    // Update lastServerSeq
-    if (result.latestServerSeq !== undefined) {
-      await syncProvider.setLastServerSeq(result.latestServerSeq);
-    }
-
-    OpLog.normal(
-      `OperationLogSyncService: Force download complete. Rebuilt from ${result.newOps.length} ops.`,
-    );
     this._showRestorePreviousDataSnack(backupSavedAt);
+  }
+
+  private _preflightRemoteOperations(remoteOps: Operation[]): Operation[] {
+    for (const op of remoteOps) {
+      let version: number;
+      try {
+        version = getOperationSchemaVersion(op as { schemaVersion?: unknown });
+      } catch {
+        throw new Error(
+          'USE_REMOTE aborted: remote history has an invalid schema version.',
+        );
+      }
+
+      if (version < MIN_SUPPORTED_SCHEMA_VERSION) {
+        throw new Error(
+          'USE_REMOTE aborted: remote history contains an unsupported schema version.',
+        );
+      }
+      if (version > CURRENT_SCHEMA_VERSION) {
+        this.snackService.open({
+          type: 'ERROR',
+          msg: T.F.SYNC.S.VERSION_TOO_OLD,
+          actionStr: T.PS.UPDATE_APP,
+          actionFn: () =>
+            window.open('https://super-productivity.com/download', '_blank'),
+        });
+        throw new Error(
+          'USE_REMOTE aborted: remote history contains ops from a newer schema version — update the app first.',
+        );
+      }
+    }
+
+    try {
+      return this.schemaMigrationService.migrateOperations(remoteOps);
+    } catch {
+      throw new Error('USE_REMOTE aborted: remote operation migration failed.');
+    }
   }
 
   /**

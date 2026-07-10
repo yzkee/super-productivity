@@ -28,7 +28,11 @@ import {
 import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 import { OperationCaptureService } from './operation-capture.service';
 import { ImmediateUploadService } from '../sync/immediate-upload.service';
-import { getDeferredActions, isDeferredAction } from './operation-capture.meta-reducer';
+import {
+  acknowledgeDeferredAction,
+  getDeferredActions,
+  isDeferredAction,
+} from './operation-capture.meta-reducer';
 import { ClientIdService } from '../../core/util/client-id.service';
 import { SuperSyncStatusService } from '../sync/super-sync-status.service';
 
@@ -181,6 +185,9 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
       devError(
         `[OperationLogEffects] Action ${action.type} has invalid entityId/entityIds (${action.meta.entityId}) - skipping persistence`,
       );
+      if (isDeferredWrite) {
+        throw new Error(`Deferred action ${action.type} has invalid entity identifiers.`);
+      }
       return;
     }
 
@@ -292,6 +299,9 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
               window.location.reload();
             },
           });
+          if (isDeferredWrite) {
+            throw new Error(`Deferred action ${action.type} has an invalid payload.`);
+          }
           return; // Skip persisting invalid operation
         }
 
@@ -378,10 +388,12 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
           this.notifyUserAndTriggerRollback();
         } else {
           await this.handleQuotaExceeded(action, isDeferredWrite, options);
+          return;
         }
       } else {
         this.notifyUserAndTriggerRollback();
       }
+      throw e;
     }
   }
 
@@ -512,6 +524,7 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
 
     // Use lock for cross-tab coordination - only one tab handles quota at a time
     let bailReason: Error | null = null;
+    let recovered = false;
     await this.lockService.request('sp_quota_exceeded', async () => {
       if (options.callerHoldsOperationLogLock) {
         OpLog.err(
@@ -541,6 +554,7 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
           // extractEntityChanges() inside writeOperation, so the retry simply
           // re-extracts the same changes. Pass isDeferredWrite through unchanged.
           await this.writeOperation(action, isDeferredWrite, options);
+          recovered = true;
           this.snackService.open({
             type: 'SUCCESS',
             msg: T.F.SYNC.S.STORAGE_RECOVERED_AFTER_COMPACTION,
@@ -562,6 +576,10 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
     if (bailReason !== null) {
       throw bailReason;
     }
+    if (recovered) {
+      return;
+    }
+    throw new Error('Storage quota recovery failed; operation was not persisted.');
   }
 
   private showStorageQuotaExceededError(): void {
@@ -646,8 +664,13 @@ export class OperationLogEffects implements DeferredLocalActionsPort {
         // Log error after all retries exhausted, continue processing remaining actions
         OpLog.err(
           `OperationLogEffects: Failed to process deferred action after ${MAX_RETRIES} retries`,
-          { actionType: action.type, error: lastError },
+          {
+            actionType: action.type,
+            errorName: (lastError as Error | undefined)?.name,
+          },
         );
+      } else {
+        acknowledgeDeferredAction(action);
       }
     }
 

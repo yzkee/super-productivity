@@ -40,7 +40,6 @@ const createClickCounter = async (
 ): Promise<void> => {
   await client.page.goto('/#/habits');
   await client.page.waitForURL(/habits/);
-  await client.page.waitForTimeout(500);
 
   const addBtn = client.page.locator('.add-habit-btn');
   await addBtn.waitFor({ state: 'visible', timeout: 10000 });
@@ -55,28 +54,51 @@ const createClickCounter = async (
 
   const typeSelect = dialog.locator('mat-select').first();
   await typeSelect.waitFor({ state: 'visible', timeout: 5000 });
-  await client.page.waitForTimeout(500);
   await typeSelect.click();
-  await client.page.waitForTimeout(300);
-  await client.page.locator('mat-option:has-text("Click Counter")').click();
-  await client.page.waitForTimeout(300);
+  const clickCounterOption = client.page.locator('mat-option:has-text("Click Counter")');
+  await clickCounterOption.waitFor({ state: 'visible', timeout: 5000 });
+  await clickCounterOption.click();
 
   await dialog.locator('button[type="submit"]').click();
   await dialog.waitFor({ state: 'hidden', timeout: 10000 });
-  await client.page.waitForTimeout(500);
 
   await client.page.goto('/#/tag/TODAY/tasks');
   await client.page.waitForURL(/(active\/tasks|tag\/TODAY\/tasks)/);
-  await client.page.waitForTimeout(500);
 };
 
-const incrementClickCounter = async (client: SimulatedE2EClient): Promise<void> => {
+const getNamedClickCounter = async (
+  client: SimulatedE2EClient,
+  title: string,
+): Promise<ReturnType<typeof client.page.locator>> => {
   const counter = client.page
     .locator('.counters-action-group simple-counter-button')
     .last();
   await counter.waitFor({ state: 'visible', timeout: 15000 });
+
+  // Counter buttons render only their initial, so verify the exact counter via
+  // its accessible Material tooltip before interacting with it.
+  await counter.hover();
+  await expect(client.page.getByRole('tooltip').filter({ hasText: title })).toBeVisible();
+  return counter;
+};
+
+const expectClickCounterValue = async (
+  client: SimulatedE2EClient,
+  title: string,
+  expectedValue: number,
+): Promise<void> => {
+  const counter = await getNamedClickCounter(client, title);
+  await expect(counter.locator('.label')).toHaveText(String(expectedValue));
+};
+
+const incrementClickCounter = async (
+  client: SimulatedE2EClient,
+  title: string,
+  expectedValue: number,
+): Promise<void> => {
+  const counter = await getNamedClickCounter(client, title);
   await counter.locator('.main-btn').click();
-  await client.page.waitForTimeout(200);
+  await expect(counter.locator('.label')).toHaveText(String(expectedValue));
 };
 
 test.describe.configure({ mode: 'serial' });
@@ -101,7 +123,7 @@ test.describe('@supersync incoming SYNC_IMPORT preserves non-task local work', (
       clientA = await createSimulatedClient(browser, baseURL!, 'A', testRunId);
       await clientA.sync.setupSuperSync(syncConfig);
       await createClickCounter(clientA, counterTitle);
-      await incrementClickCounter(clientA);
+      await incrementClickCounter(clientA, counterTitle, 1);
       await clientA.sync.syncAndWait();
       console.log('[Gate] Client A created + synced a simple counter');
 
@@ -111,10 +133,11 @@ test.describe('@supersync incoming SYNC_IMPORT preserves non-task local work', (
       await clientB.sync.syncAndWait();
       await clientB.page.goto('/#/tag/TODAY/tasks');
       await clientB.page.waitForLoadState('networkidle');
+      await expectClickCounterValue(clientB, counterTitle, 1);
       console.log('[Gate] Client B synced and received the counter');
 
       // ===== PHASE 3: B makes a pending NON-task change (does NOT sync) =====
-      await incrementClickCounter(clientB);
+      await incrementClickCounter(clientB, counterTitle, 2);
       console.log('[Gate] Client B incremented the counter locally (pending, unsynced)');
 
       // ===== PHASE 4: A imports a backup (SYNC_IMPORT) and syncs it =====
@@ -138,6 +161,17 @@ test.describe('@supersync incoming SYNC_IMPORT preserves non-task local work', (
         state: 'hidden',
         timeout: 10000,
       });
+      await clientB.sync.waitForSyncToComplete({ timeout: 30000 });
+
+      // The dialog itself is not the guarantee: prove the exact pending counter
+      // value won, then run another sync and prove it remains durable.
+      await clientB.page.goto('/#/tag/TODAY/tasks');
+      await clientB.page.waitForURL(/(active\/tasks|tag\/TODAY\/tasks)/);
+      await expectClickCounterValue(clientB, counterTitle, 2);
+
+      await clientB.sync.syncAndWait();
+      await expectClickCounterValue(clientB, counterTitle, 2);
+      console.log('[Gate] ✓ Pending counter value survived resolution and re-sync');
     } finally {
       if (clientA) await closeClient(clientA);
       if (clientB) await closeClient(clientB);

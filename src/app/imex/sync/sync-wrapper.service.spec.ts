@@ -583,6 +583,19 @@ describe('SyncWrapperService', () => {
 
       expect(mockProviderManager.setLastSyncedProviderId).not.toHaveBeenCalled();
     });
+
+    it('should stop with ERROR when download is blocked by an incompatible op', async () => {
+      mockSyncService.downloadRemoteOps.and.resolveTo({
+        kind: 'blocked_incompatible',
+      });
+
+      const result = await service.sync();
+
+      expect(result).toBe('HANDLED_ERROR');
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+      expect(mockProviderManager.setLastSyncedProviderId).not.toHaveBeenCalled();
+      expect(mockSyncService.uploadPendingOps).not.toHaveBeenCalled();
+    });
   });
 
   describe('_sync() - Sync flow', () => {
@@ -998,6 +1011,17 @@ describe('SyncWrapperService', () => {
 
       expect(result).toBe(SyncStatus.InSync);
       expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('IN_SYNC');
+    });
+
+    it('should stop with ERROR when upload piggyback is blocked by an incompatible op', async () => {
+      mockSyncService.uploadPendingOps.and.resolveTo({
+        kind: 'blocked_incompatible',
+      });
+
+      const result = await service.sync();
+
+      expect(result).toBe('HANDLED_ERROR');
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
     });
 
     it('should set IN_SYNC when permanentRejectionCount is 0 even with empty rejectedOps array', async () => {

@@ -23,6 +23,22 @@ export const MIN_SUPPORTED_SCHEMA_VERSION = SHARED_MIN_SUPPORTED_SCHEMA_VERSION;
 // Re-export types
 export type { SchemaMigration };
 
+export const getOperationSchemaVersion = (op: { schemaVersion?: unknown }): number => {
+  if (op.schemaVersion === undefined) {
+    return 1;
+  }
+  if (
+    typeof op.schemaVersion !== 'number' ||
+    !Number.isInteger(op.schemaVersion) ||
+    op.schemaVersion < 0
+  ) {
+    throw new Error(
+      'Operation schemaVersion must be a non-negative integer when present.',
+    );
+  }
+  return op.schemaVersion;
+};
+
 /**
  * Interface for state cache that may need migration.
  */
@@ -133,7 +149,7 @@ export class SchemaMigrationService {
    * @returns The migrated operation(s), or null if it should be dropped
    */
   migrateOperation(op: Operation): Operation | Operation[] | null {
-    const opVersion = op.schemaVersion ?? 1;
+    const opVersion = getOperationSchemaVersion(op);
 
     if (opVersion >= CURRENT_SCHEMA_VERSION) {
       return op;
@@ -164,6 +180,7 @@ export class SchemaMigrationService {
     if (Array.isArray(result.data)) {
       return result.data.map((migratedOpLike) => ({
         ...op,
+        id: migratedOpLike.id,
         opType: migratedOpLike.opType as Operation['opType'],
         entityType: migratedOpLike.entityType as Operation['entityType'],
         entityId: migratedOpLike.entityId,
@@ -176,9 +193,11 @@ export class SchemaMigrationService {
     // Merge migrated fields back into the original operation
     return {
       ...op,
+      id: result.data.id,
       opType: result.data.opType as Operation['opType'],
       entityType: result.data.entityType as Operation['entityType'],
       entityId: result.data.entityId,
+      entityIds: result.data.entityIds,
       payload: result.data.payload,
       schemaVersion: result.data.schemaVersion,
     };
@@ -225,13 +244,14 @@ export class SchemaMigrationService {
    * Returns true if the operation needs migration.
    */
   operationNeedsMigration(op: Operation): boolean {
+    const schemaVersion = getOperationSchemaVersion(op);
     return sharedOperationNeedsMigration(
       {
         id: op.id,
         opType: op.opType,
         entityType: op.entityType,
         payload: op.payload,
-        schemaVersion: op.schemaVersion ?? 1,
+        schemaVersion,
       },
       CURRENT_SCHEMA_VERSION,
     );

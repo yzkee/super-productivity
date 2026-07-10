@@ -249,7 +249,7 @@ describe('operationCaptureMetaReducer', () => {
         expect(buffered).toEqual([]);
       });
 
-      it('should clear buffer after returning actions', () => {
+      it('should return a non-destructive snapshot until actions are acknowledged', () => {
         const action = createMockAction();
         bufferDeferredAction(action);
 
@@ -257,7 +257,7 @@ describe('operationCaptureMetaReducer', () => {
         const secondCall = getDeferredActions();
 
         expect(firstCall).toEqual([action]);
-        expect(secondCall).toEqual([]);
+        expect(secondCall).toEqual([action]);
       });
     });
 
@@ -329,7 +329,7 @@ describe('operationCaptureMetaReducer', () => {
         expect(getDeferredActions()).toEqual(actions);
       });
 
-      it('should drop the oldest action only past the pathological hard cap', () => {
+      it('should retain every accepted action past the pathological warning cap', () => {
         const confirmSpy = spyNativeDialogs();
         const actions = createManyActions(DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP);
         const dropErrorCalls = (): unknown[][] =>
@@ -345,9 +345,8 @@ describe('operationCaptureMetaReducer', () => {
         expect(dropErrorCalls().length).toBe(1);
 
         const buffered = getDeferredActions();
-        expect(buffered.length).toBe(DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP);
-        // Oldest action was dropped, remaining order intact
-        expect(buffered[0]).toBe(actions[1]);
+        expect(buffered.length).toBe(DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP + 1);
+        expect(buffered[0]).toBe(actions[0]);
         expect(buffered[buffered.length - 1]).toBe(extraAction);
       });
     });

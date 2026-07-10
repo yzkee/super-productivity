@@ -30,6 +30,7 @@ import {
 } from '../core/operation-log.const';
 import { IndexedDBOpenError } from '../core/errors/indexed-db-open.error';
 import { FULL_STATE_OPS_META_KEY, SINGLETON_KEY, STORE_NAMES } from './db-keys.const';
+import { ArchiveModel } from '../../features/time-tracking/time-tracking.model';
 
 describe('OperationLogStoreService', () => {
   let service: OperationLogStoreService;
@@ -1423,6 +1424,20 @@ describe('OperationLogStoreService', () => {
   });
 
   describe('markApplied', () => {
+    it('should checkpoint reducer-committed operations as archive-pending', async () => {
+      const op = createTestOperation();
+      const seq = await service.append(op, 'remote', { pendingApply: true });
+
+      await service.markArchivePending([seq]);
+
+      const [stored] = await service.getOpsAfterSeq(0);
+      expect(stored.applicationStatus).toBe('archive_pending');
+      expect((await service.getPendingRemoteOps()).length).toBe(0);
+      expect((await service.getFailedRemoteOps()).map((entry) => entry.op.id)).toEqual([
+        op.id,
+      ]);
+    });
+
     it('should update applicationStatus from pending to applied', async () => {
       const op = createTestOperation();
       const seq = await service.append(op, 'remote', { pendingApply: true });
@@ -1476,6 +1491,17 @@ describe('OperationLogStoreService', () => {
       // The status should transition from 'failed' to 'applied'
       const afterMarkApplied = await service.getOpsAfterSeq(0);
       expect(afterMarkApplied[0].applicationStatus).toBe('applied');
+    });
+
+    it('should update applicationStatus from archive-pending to applied', async () => {
+      const op = createTestOperation();
+      const seq = await service.append(op, 'remote', { pendingApply: true });
+      await service.markArchivePending([seq]);
+
+      await service.markApplied([seq]);
+
+      const [stored] = await service.getOpsAfterSeq(0);
+      expect(stored.applicationStatus).toBe('applied');
     });
 
     it('should remove failed ops from getFailedRemoteOps after markApplied is called', async () => {
@@ -2298,6 +2324,139 @@ describe('OperationLogStoreService', () => {
 
       expect((await service.getLatestFullStateOpEntry())?.op.id).toBe(priorImport.id);
       expect(adapter.iterate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('runRemoteStateReplacement', () => {
+    const createArchive = (taskId: string): ArchiveModel =>
+      ({
+        task: {
+          ids: [taskId],
+          entities: { [taskId]: { id: taskId, title: taskId } },
+        },
+        timeTracking: { project: {}, tag: {} },
+        lastTimeTrackingFlush: 0,
+      }) as unknown as ArchiveModel;
+
+    it('atomically replaces ops, cache, clock, metadata, and both archives', async () => {
+      await service.append(
+        createTestOperation({
+          opType: OpType.SyncImport,
+          entityType: 'ALL' as EntityType,
+        }),
+      );
+      const baselineState = { task: { ids: [], entities: {} } };
+      const archiveYoung = createArchive('remote-young');
+      const archiveOld = createArchive('remote-old');
+
+      await service.runRemoteStateReplacement({
+        baselineState,
+        vectorClock: { remote: 4 },
+        schemaVersion: 4,
+        snapshotEntityKeys: ['TASK:remote-task'],
+        archiveYoung,
+        archiveOld,
+      });
+
+      expect(await service.getOpsAfterSeq(0)).toEqual([]);
+      expect(await service.getLatestFullStateOpEntry()).toBeUndefined();
+      expect(await service.loadStateCache()).toEqual(
+        jasmine.objectContaining({
+          state: baselineState,
+          lastAppliedOpSeq: 0,
+          vectorClock: { remote: 4 },
+          schemaVersion: 4,
+          snapshotEntityKeys: ['TASK:remote-task'],
+        }),
+      );
+      expect(await service.getVectorClock()).toEqual({ remote: 4 });
+
+      const db = (
+        service as unknown as {
+          db: IDBPDatabase<unknown>;
+        }
+      ).db;
+      expect((await db.get(STORE_NAMES.ARCHIVE_YOUNG, SINGLETON_KEY)).data).toEqual(
+        archiveYoung,
+      );
+      expect((await db.get(STORE_NAMES.ARCHIVE_OLD, SINGLETON_KEY)).data).toEqual(
+        archiveOld,
+      );
+    });
+
+    it('rolls back every store if one archive write fails', async () => {
+      const priorOp = createTestOperation({ entityId: 'prior-task' });
+      const priorState = { sentinel: 'prior-state' };
+      const priorYoung = createArchive('prior-young');
+      const priorOld = createArchive('prior-old');
+      await service.append(priorOp);
+      await service.saveStateCache({
+        state: priorState,
+        lastAppliedOpSeq: 1,
+        vectorClock: { testClient: 1 },
+        compactedAt: Date.now(),
+      });
+      await service.setVectorClock({ testClient: 1 });
+
+      const db = (
+        service as unknown as {
+          db: IDBPDatabase<unknown>;
+        }
+      ).db;
+      await db.put(STORE_NAMES.ARCHIVE_YOUNG, {
+        id: SINGLETON_KEY,
+        data: priorYoung,
+        lastModified: 1,
+      });
+      await db.put(STORE_NAMES.ARCHIVE_OLD, {
+        id: SINGLETON_KEY,
+        data: priorOld,
+        lastModified: 1,
+      });
+
+      const realTransaction = db.transaction.bind(db);
+      spyOn(db, 'transaction').and.callFake(((
+        stores: Parameters<typeof db.transaction>[0],
+        mode: Parameters<typeof db.transaction>[1],
+      ) => {
+        const tx = realTransaction(stores, mode);
+        if (Array.isArray(stores) && stores.includes(STORE_NAMES.ARCHIVE_OLD)) {
+          const realObjectStore = tx.objectStore.bind(tx);
+          tx.objectStore = ((storeName: string) => {
+            const store = realObjectStore(storeName);
+            if (storeName === STORE_NAMES.ARCHIVE_OLD) {
+              store.put = async () => {
+                throw new Error('Simulated archive write failure');
+              };
+            }
+            return store;
+          }) as typeof tx.objectStore;
+        }
+        return tx;
+      }) as typeof db.transaction);
+
+      await expectAsync(
+        service.runRemoteStateReplacement({
+          baselineState: { sentinel: 'new-state' },
+          vectorClock: { remote: 2 },
+          schemaVersion: 4,
+          snapshotEntityKeys: [],
+          archiveYoung: createArchive('new-young'),
+          archiveOld: createArchive('new-old'),
+        }),
+      ).toBeRejected();
+
+      expect((await service.getOpsAfterSeq(0)).map((entry) => entry.op.id)).toEqual([
+        priorOp.id,
+      ]);
+      expect((await service.loadStateCache())!.state).toEqual(priorState);
+      expect(await service.getVectorClock()).toEqual({ testClient: 1 });
+      expect((await db.get(STORE_NAMES.ARCHIVE_YOUNG, SINGLETON_KEY)).data).toEqual(
+        priorYoung,
+      );
+      expect((await db.get(STORE_NAMES.ARCHIVE_OLD, SINGLETON_KEY)).data).toEqual(
+        priorOld,
+      );
     });
   });
 

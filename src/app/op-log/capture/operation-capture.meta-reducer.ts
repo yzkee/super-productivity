@@ -148,13 +148,12 @@ const DEFERRED_ACTIONS_SOFT_WARNING_THRESHOLD = 10;
 export const DEFERRED_ACTIONS_RELOAD_WARNING_THRESHOLD = 100;
 
 /**
- * Pathological hard cap for the deferred actions buffer — purely a memory
- * backstop against a runaway dispatch loop. ~100 buffered actions are
+ * Pathological high-water mark for the deferred actions buffer. ~100 buffered actions are
  * plausibly reachable by a real user during a stuck/very long remote-apply
  * window, so we must never drop there (see reload-warning threshold above,
- * which tells the user to reload long before this cap can be hit through
- * real interaction). Only past this cap is drop-oldest the lesser evil vs
- * unbounded memory growth.
+ * which tells the user to reload long before this mark can be hit through
+ * real interaction). Crossing it logs loudly but still cannot discard an
+ * action whose reducer change has already been accepted.
  * Exported for tests.
  */
 export const DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP = 5000;
@@ -164,19 +163,15 @@ export const DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP = 5000;
  * Called by the meta-reducer when a persistent action arrives during sync.
  */
 export const bufferDeferredAction = (action: PersistentAction): void => {
-  // Pathological cap only: dropping an accepted persistent action means its
-  // state mutation survives in NgRx while no operation will ever represent
-  // it → permanent, unsyncable divergence. So this drop exists solely as a
-  // memory backstop against a runaway dispatch loop, never as flow control.
-  // NOTE: The shifted action remains in deferredActionSet (WeakSet has no
-  // delete-by-value). The effect filters it via isDeferredAction(), and
-  // getDeferredActions() won't return it, so it is silently lost.
+  // Never drop an accepted persistent action: its reducer mutation already
+  // exists in NgRx, so removal here would create permanent unsyncable state.
+  // The cap remains a loud runaway-loop diagnostic, not a lossy flow-control
+  // mechanism.
   if (deferredActions.length >= DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP) {
     devError(
       `[operationCaptureMetaReducer] Deferred actions buffer exceeded pathological cap of ${DEFERRED_ACTIONS_PATHOLOGICAL_HARD_CAP} items. ` +
-        `Dropping oldest action - this local change will NOT sync. Likely a runaway dispatch loop; reload the app.`,
+        'Retaining all actions to preserve sync correctness. Likely a runaway dispatch loop; reload the app.',
     );
-    deferredActions.shift();
   }
 
   deferredActions.push(action);
@@ -195,25 +190,32 @@ export const bufferDeferredAction = (action: PersistentAction): void => {
 };
 
 /**
- * Gets and clears the deferred actions buffer.
- * Called after sync completes to process buffered actions.
+ * Returns a stable snapshot of the deferred actions buffer. Entries remain queued
+ * until their operation is durably written and explicitly acknowledged.
  */
 export const getDeferredActions = (): PersistentAction[] => {
-  const actions = deferredActions;
-  deferredActions = [];
-  return actions;
+  return [...deferredActions];
+};
+
+export const acknowledgeDeferredAction = (action: PersistentAction): void => {
+  const index = deferredActions.indexOf(action);
+  if (index === -1) {
+    return;
+  }
+  deferredActions.splice(index, 1);
+  deferredActionSet.delete(action);
 };
 
 /**
  * Clears the deferred actions buffer without processing.
  * Used for cleanup during testing or error recovery.
  *
- * Note: deferredActionSet (WeakSet) is not cleared here because WeakSet has
- * no .clear() method. Entries are garbage-collected when action references are
- * released. In practice, cleared actions are not reused by reference, so stale
- * entries in the WeakSet are harmless.
+ * WeakSet has no clear(), so delete the known buffered references individually.
  */
 export const clearDeferredActions = (): void => {
+  for (const action of deferredActions) {
+    deferredActionSet.delete(action);
+  }
   deferredActions = [];
 };
 

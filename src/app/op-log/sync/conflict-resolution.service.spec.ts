@@ -55,6 +55,7 @@ describe('ConflictResolutionService', () => {
       'append',
       'appendBatchSkipDuplicates',
       'appendWithVectorClockUpdate',
+      'markArchivePending',
       'markApplied',
       'markRejected',
       'markFailed',
@@ -1787,8 +1788,9 @@ describe('ConflictResolutionService', () => {
 
         mockOpLogStore.hasOp.and.resolveTo(false);
         mockOpLogStore.append.and.resolveTo(1);
-        mockOperationApplier.applyOperations.and.resolveTo({
-          appliedOps: [remoteOp],
+        mockOperationApplier.applyOperations.and.callFake(async (ops, options) => {
+          await options?.onReducersCommitted?.(ops);
+          return { appliedOps: [remoteOp] };
         });
         mockOpLogStore.markApplied.and.resolveTo(undefined);
         mockOpLogStore.markRejected.and.resolveTo(undefined);
@@ -1812,9 +1814,13 @@ describe('ConflictResolutionService', () => {
         const callOrder: string[] = [];
 
         mockOpLogStore.hasOp.and.resolveTo(false);
-        mockOperationApplier.applyOperations.and.callFake(async () => {
+        mockOperationApplier.applyOperations.and.callFake(async (ops, options) => {
           callOrder.push('applyOperations');
+          await options?.onReducersCommitted?.(ops);
           return { appliedOps: [remoteOp] };
+        });
+        mockOpLogStore.markArchivePending.and.callFake(async () => {
+          callOrder.push('markArchivePending');
         });
         mockOpLogStore.markApplied.and.callFake(async () => {
           callOrder.push('markApplied');
@@ -1831,16 +1837,21 @@ describe('ConflictResolutionService', () => {
           callerHoldsOperationLogLock: true,
         });
 
-        expect(mockOperationApplier.applyOperations).toHaveBeenCalledWith([remoteOp], {
-          skipDeferredLocalActions: true,
-        });
+        expect(mockOperationApplier.applyOperations).toHaveBeenCalledWith(
+          [remoteOp],
+          jasmine.objectContaining({
+            skipDeferredLocalActions: true,
+            onReducersCommitted: jasmine.any(Function),
+          }),
+        );
         expect(mockOperationLogEffects.processDeferredActions).toHaveBeenCalledWith({
           callerHoldsOperationLogLock: true,
         });
         expect(callOrder).toEqual([
           'applyOperations',
-          'markApplied',
+          'markArchivePending',
           'mergeRemoteOpClocks',
+          'markApplied',
           'processDeferredActions',
         ]);
       });
@@ -1865,8 +1876,9 @@ describe('ConflictResolutionService', () => {
 
         mockOpLogStore.hasOp.and.resolveTo(false);
         mockOpLogStore.append.and.resolveTo(1);
-        mockOperationApplier.applyOperations.and.resolveTo({
-          appliedOps: [conflictRemoteOp, nonConflictingOp],
+        mockOperationApplier.applyOperations.and.callFake(async (ops, options) => {
+          await options?.onReducersCommitted?.(ops);
+          return { appliedOps: [conflictRemoteOp, nonConflictingOp] };
         });
         mockOpLogStore.markApplied.and.resolveTo(undefined);
         mockOpLogStore.markRejected.and.resolveTo(undefined);

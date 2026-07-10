@@ -21,6 +21,7 @@ import { VectorClockService } from './vector-clock.service';
 import {
   MIN_SUPPORTED_SCHEMA_VERSION,
   SchemaMigrationService,
+  getOperationSchemaVersion,
 } from '../persistence/schema-migration.service';
 import { SnackService } from '../../core/snack/snack.service';
 import { T } from '../../t.const';
@@ -92,7 +93,10 @@ export class RemoteOpsProcessingService {
    */
   async processRemoteOps(
     remoteOps: Operation[],
-    options?: { skipConflictDetection?: boolean },
+    options?: {
+      skipConflictDetection?: boolean;
+      callerHoldsOperationLogLock?: boolean;
+    },
   ): Promise<{
     localWinOpsCreated: number;
     allOpsFilteredBySyncImport: boolean;
@@ -125,12 +129,22 @@ export class RemoteOpsProcessingService {
     const currentVersion = this.schemaMigrationService.getCurrentVersion();
     const migratedOps: Operation[] = [];
     const droppedEntityIds = new Set<string>();
-    let blockReason: 'VERSION_UNSUPPORTED' | 'VERSION_TOO_NEW' | 'MIGRATION_FAILED' =
-      'MIGRATION_FAILED';
+    let blockReason:
+      | 'VERSION_UNSUPPORTED'
+      | 'VERSION_TOO_NEW'
+      | 'INVALID_SCHEMA_VERSION'
+      | 'MIGRATION_FAILED' = 'MIGRATION_FAILED';
     let blockedOp: Operation | null = null;
 
     for (const op of remoteOps) {
-      const opVersion = op.schemaVersion ?? 1;
+      let opVersion: number;
+      try {
+        opVersion = getOperationSchemaVersion(op as { schemaVersion?: unknown });
+      } catch {
+        blockedOp = op;
+        blockReason = 'INVALID_SCHEMA_VERSION';
+        break;
+      }
 
       // Op below minimum supported version: no migration path exists.
       if (opVersion < MIN_SUPPORTED_SCHEMA_VERSION) {
@@ -281,8 +295,11 @@ export class RemoteOpsProcessingService {
         'RemoteOpsProcessingService: Skipping conflict detection (skipConflictDetection=true). ' +
           `Applying ${validOps.length} ops directly.`,
       );
-      await this.applyNonConflictingOps(validOps);
-      await this.validateAfterSync();
+      await this.applyNonConflictingOps(
+        validOps,
+        options.callerHoldsOperationLogLock ?? false,
+      );
+      await this.validateAfterSync(options.callerHoldsOperationLogLock ?? false);
       return {
         localWinOpsCreated: 0,
         allOpsFilteredBySyncImport: false,
@@ -322,7 +339,15 @@ export class RemoteOpsProcessingService {
       if (conflicts.length > 0) {
         OpLog.warn(
           `RemoteOpsProcessingService: Detected ${conflicts.length} conflicts. Auto-resolving with LWW.`,
-          conflicts,
+          {
+            conflicts: conflicts.map((conflict) => ({
+              entityType: conflict.entityType,
+              entityId: conflict.entityId,
+              localOpIds: conflict.localOps.map((op) => op.id),
+              remoteOpIds: conflict.remoteOps.map((op) => op.id),
+              suggestedResolution: conflict.suggestedResolution,
+            })),
+          },
         );
         // Auto-resolve conflicts using Last-Write-Wins strategy.
         // Piggyback non-conflicting ops so they're applied with resolved conflicts.
@@ -359,9 +384,13 @@ export class RemoteOpsProcessingService {
    * until an app update or migration fix, and every retry re-hits it).
    */
   private _notifyBlockedOp(
-    reason: 'VERSION_UNSUPPORTED' | 'VERSION_TOO_NEW' | 'MIGRATION_FAILED',
+    reason:
+      | 'VERSION_UNSUPPORTED'
+      | 'VERSION_TOO_NEW'
+      | 'INVALID_SCHEMA_VERSION'
+      | 'MIGRATION_FAILED',
   ): void {
-    if (reason === 'MIGRATION_FAILED') {
+    if (reason === 'MIGRATION_FAILED' || reason === 'INVALID_SCHEMA_VERSION') {
       if (!this._hasWarnedMigrationFailureThisSession) {
         this._hasWarnedMigrationFailureThisSession = true;
         this.snackService.open({
@@ -423,9 +452,10 @@ export class RemoteOpsProcessingService {
         ops: locallyReplayableOps,
         store: this.opLogStore,
         applier: {
-          applyOperations: (opsToApply) =>
+          applyOperations: (opsToApply, applyOptions) =>
             this.operationApplier.applyOperations(opsToApply, {
               skipDeferredLocalActions: true,
+              onReducersCommitted: applyOptions?.onReducersCommitted,
             }),
         },
         isFullStateOperation: this._isFullStateOperation,

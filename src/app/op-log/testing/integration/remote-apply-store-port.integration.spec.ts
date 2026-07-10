@@ -56,7 +56,10 @@ const defineStorePortContract = (
     } => {
       const applyOperationsSpy = jasmine
         .createSpy('applyOperations')
-        .and.resolveTo(result);
+        .and.callFake(async (ops: Operation[], options) => {
+          await options?.onReducersCommitted?.(ops);
+          return result;
+        });
 
       return {
         applier: { applyOperations: applyOperationsSpy },
@@ -97,7 +100,10 @@ const defineStorePortContract = (
         applier,
       });
 
-      expect(applyOperationsSpy).toHaveBeenCalledOnceWith([newOp]);
+      expect(applyOperationsSpy).toHaveBeenCalledOnceWith(
+        [newOp],
+        jasmine.objectContaining({ onReducersCommitted: jasmine.any(Function) }),
+      );
       expect(result.appendedOps).toEqual([newOp]);
       expect(result.skippedCount).toBe(1);
       expect(result.appliedOps).toEqual([newOp]);
@@ -141,7 +147,7 @@ const defineStorePortContract = (
       });
 
       expect(result.failedOp).toEqual({ op: failedOp, error });
-      expect(result.failedOpIds).toEqual([failedOp.id, remainingOp.id]);
+      expect(result.failedOpIds).toEqual([failedOp.id]);
 
       const appliedEntry = await store.getOpById(appliedOp.id);
       const failedEntry = await store.getOpById(failedOp.id);
@@ -149,12 +155,16 @@ const defineStorePortContract = (
       expect(appliedEntry?.applicationStatus).toBe('applied');
       expect(failedEntry?.applicationStatus).toBe('failed');
       expect(failedEntry?.retryCount).toBe(1);
-      expect(remainingEntry?.applicationStatus).toBe('failed');
-      expect(remainingEntry?.retryCount).toBe(1);
+      expect(remainingEntry?.applicationStatus).toBe('archive_pending');
+      expect(remainingEntry?.retryCount).toBeUndefined();
       expect(
         (await store.getFailedRemoteOps()).map((entry) => entry.op.id).sort(),
       ).toEqual([failedOp.id, remainingOp.id].sort());
-      expect(await store.getVectorClock()).toEqual({ clientA: 2 });
+      expect(await store.getVectorClock()).toEqual({
+        clientA: 2,
+        clientB: 4,
+        clientC: 6,
+      });
     });
 
     it('should clear older full-state ops and reset the vector clock after an applied remote import', async () => {

@@ -41,4 +41,11 @@ export interface ApplyOperationsOptions {
    * increaseSimpleCounterCounterToday.
    */
   skipReducerDispatch?: boolean;
+
+  /**
+   * Called after the bulk reducer dispatch commits and before archive side effects.
+   * Remote apply uses this to persist its reducer/archive checkpoint and merge the
+   * causal frontier before deferred local actions can be written.
+   */
+  onReducersCommitted?: (ops: Operation[]) => Promise<void>;
 }

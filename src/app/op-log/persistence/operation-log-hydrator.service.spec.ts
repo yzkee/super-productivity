@@ -1450,7 +1450,7 @@ describe('OperationLogHydratorService', () => {
       expect(mockOpLogStore.markApplied).toHaveBeenCalledWith([40, 41, 42]);
     });
 
-    it('should mark the failed op and every op after it (in seq order) as still-failing', async () => {
+    it('should charge retry budget only to the attempted archive failure', async () => {
       const entries = [
         failedEntry(40, 'op-a'),
         failedEntry(41, 'op-b'),
@@ -1469,10 +1469,9 @@ describe('OperationLogHydratorService', () => {
       await service.retryFailedRemoteOps();
 
       expect(mockOpLogStore.markApplied).toHaveBeenCalledWith([40]);
-      // op-b (failed) and op-c (after it) are both marked failed, with the
-      // retry-cap so a permanently-failing op is eventually rejected.
+      // op-c remains archive-pending and has not consumed a retry attempt.
       expect(mockOpLogStore.markFailed).toHaveBeenCalledWith(
-        ['op-b', 'op-c'],
+        ['op-b'],
         MAX_CONFLICT_RETRY_ATTEMPTS,
       );
     });

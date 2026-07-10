@@ -90,7 +90,7 @@ interface StoredOperationLogEntry {
   source: 'local' | 'remote';
   syncedAt?: number;
   rejectedAt?: number;
-  applicationStatus?: 'pending' | 'applied' | 'failed';
+  applicationStatus?: 'pending' | 'archive_pending' | 'applied' | 'failed';
   retryCount?: number;
 }
 
@@ -680,6 +680,24 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
   }
 
   /**
+   * Records that reducers committed for remote operations and only their archive
+   * side effects remain. This checkpoint is persisted before archive I/O starts,
+   * allowing startup recovery to retry archive work without double-dispatching.
+   */
+  async markArchivePending(seqs: number[]): Promise<void> {
+    await this._ensureInit();
+    await this._adapter.transaction([STORE_NAMES.OPS], 'readwrite', async (tx) => {
+      for (const seq of seqs) {
+        const entry = await tx.get<StoredOperationLogEntry>(STORE_NAMES.OPS, seq);
+        if (entry?.applicationStatus === 'pending') {
+          entry.applicationStatus = 'archive_pending';
+          await tx.put(STORE_NAMES.OPS, entry);
+        }
+      }
+    });
+  }
+
+  /**
    * Marks operations as successfully applied.
    * Called after remote operations have been dispatched to NgRx.
    * Also handles transitioning 'failed' ops to 'applied' when retrying succeeds.
@@ -689,11 +707,12 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
     await this._adapter.transaction([STORE_NAMES.OPS], 'readwrite', async (tx) => {
       for (const seq of seqs) {
         const entry = await tx.get<StoredOperationLogEntry>(STORE_NAMES.OPS, seq);
-        // Allow transitioning from 'pending' or 'failed' to 'applied'
-        // 'failed' ops can be retried and need to be cleared when successful
+        // Failed/archive-pending ops can be retried and cleared when successful.
         if (
           entry &&
-          (entry.applicationStatus === 'pending' || entry.applicationStatus === 'failed')
+          (entry.applicationStatus === 'pending' ||
+            entry.applicationStatus === 'archive_pending' ||
+            entry.applicationStatus === 'failed')
         ) {
           entry.applicationStatus = 'applied';
           await tx.put(STORE_NAMES.OPS, entry);
@@ -1100,20 +1119,31 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
   }
 
   /**
-   * Gets remote operations that failed and can be retried.
-   * These are ops that were attempted but failed (e.g., missing dependency).
+   * Gets remote operations whose archive work is incomplete and can be retried.
+   * Includes both attempted failures and reducer-committed successors that have
+   * not attempted their archive handler yet.
    * PERF: Uses compound index to reduce scan scope, then filters by rejectedAt.
    */
   async getFailedRemoteOps(): Promise<OperationLogEntry[]> {
     await this._ensureInit();
     let storedEntries: StoredOperationLogEntry[];
     try {
-      // Exact compound-key match expressed as a degenerate [k, k] range.
-      storedEntries = await this._adapter.getAllFromIndex<StoredOperationLogEntry>(
-        STORE_NAMES.OPS,
-        OPS_INDEXES.BY_SOURCE_AND_STATUS,
-        { lower: ['remote', 'failed'], upper: ['remote', 'failed'] },
-      );
+      const [archivePendingEntries, failedEntries] = await Promise.all([
+        this._adapter.getAllFromIndex<StoredOperationLogEntry>(
+          STORE_NAMES.OPS,
+          OPS_INDEXES.BY_SOURCE_AND_STATUS,
+          {
+            lower: ['remote', 'archive_pending'],
+            upper: ['remote', 'archive_pending'],
+          },
+        ),
+        this._adapter.getAllFromIndex<StoredOperationLogEntry>(
+          STORE_NAMES.OPS,
+          OPS_INDEXES.BY_SOURCE_AND_STATUS,
+          { lower: ['remote', 'failed'], upper: ['remote', 'failed'] },
+        ),
+      ]);
+      storedEntries = [...archivePendingEntries, ...failedEntries];
     } catch (e) {
       // Fallback for databases created before version 3 index migration
       Log.warn(
@@ -1121,7 +1151,10 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
       );
       const allOps = await this._adapter.getAll<StoredOperationLogEntry>(STORE_NAMES.OPS);
       storedEntries = allOps.filter(
-        (entry) => entry.source === 'remote' && entry.applicationStatus === 'failed',
+        (entry) =>
+          entry.source === 'remote' &&
+          (entry.applicationStatus === 'archive_pending' ||
+            entry.applicationStatus === 'failed'),
       );
     }
     // Decode and filter out rejected ops
@@ -1502,6 +1535,83 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
       },
     );
     this._invalidateAppliedAndUnsyncedCaches();
+  }
+
+  /**
+   * Atomically prepares the local persistence baseline for an authoritative
+   * remote rebuild. The remote operations are replayed after this transaction,
+   * but every committed intermediate state is self-consistent: an empty op-log,
+   * the supplied baseline snapshot, its vector clock, and authoritative archive
+   * contents all become visible together.
+   *
+   * If replay is interrupted, startup hydrates this baseline and the next sync
+   * resumes from server cursor 0. It can never combine a cleared op-log with the
+   * stale pre-replacement state cache or archives.
+   */
+  async runRemoteStateReplacement(opts: {
+    baselineState: unknown;
+    vectorClock: VectorClock;
+    schemaVersion: number;
+    snapshotEntityKeys: string[];
+    archiveYoung: ArchiveStoreEntry['data'];
+    archiveOld: ArchiveStoreEntry['data'];
+  }): Promise<void> {
+    await this._ensureInit();
+
+    const now = Date.now();
+    try {
+      await this._adapter.transaction(
+        [
+          STORE_NAMES.OPS,
+          STORE_NAMES.META,
+          STORE_NAMES.STATE_CACHE,
+          STORE_NAMES.VECTOR_CLOCK,
+          STORE_NAMES.ARCHIVE_YOUNG,
+          STORE_NAMES.ARCHIVE_OLD,
+        ],
+        'readwrite',
+        async (tx) => {
+          await tx.clear(STORE_NAMES.OPS);
+          await tx.put(
+            STORE_NAMES.META,
+            buildFullStateOpsMeta([]),
+            FULL_STATE_OPS_META_KEY,
+          );
+          await tx.put(STORE_NAMES.STATE_CACHE, {
+            id: SINGLETON_KEY,
+            state: opts.baselineState,
+            lastAppliedOpSeq: 0,
+            vectorClock: opts.vectorClock,
+            compactedAt: now,
+            schemaVersion: opts.schemaVersion,
+            snapshotEntityKeys: opts.snapshotEntityKeys,
+          });
+          await tx.put(
+            STORE_NAMES.VECTOR_CLOCK,
+            { clock: opts.vectorClock, lastUpdate: now },
+            SINGLETON_KEY,
+          );
+          await tx.put(STORE_NAMES.ARCHIVE_YOUNG, {
+            id: SINGLETON_KEY,
+            data: opts.archiveYoung,
+            lastModified: now,
+          });
+          await tx.put(STORE_NAMES.ARCHIVE_OLD, {
+            id: SINGLETON_KEY,
+            data: opts.archiveOld,
+            lastModified: now,
+          });
+        },
+      );
+
+      this._invalidateAppliedAndUnsyncedCaches();
+      this._vectorClockCache = { ...opts.vectorClock };
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+        throw new StorageQuotaExceededError();
+      }
+      throw e;
+    }
   }
 
   // ============================================================

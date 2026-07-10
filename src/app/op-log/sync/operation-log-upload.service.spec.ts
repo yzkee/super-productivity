@@ -320,6 +320,30 @@ describe('OperationLogUploadService', () => {
         expect(mockOpLogStore.markSynced).toHaveBeenCalledWith([1, 2]);
       });
 
+      it('should defer acknowledgements and return the exact selected batch for piggyback resolution', async () => {
+        const pendingOps = [
+          createMockEntry(1, 'op-1', 'client-1'),
+          createMockEntry(2, 'op-2', 'client-1'),
+        ];
+        mockOpLogStore.getUnsynced.and.resolveTo(pendingOps);
+        mockApiProvider.uploadOps.and.resolveTo({
+          results: [
+            { opId: 'op-1', accepted: true },
+            { opId: 'op-2', accepted: true },
+          ],
+          latestSeq: 10,
+          newOps: [],
+        });
+
+        const result = await service.uploadPendingOps(mockApiProvider, {
+          deferAcknowledgement: true,
+        });
+
+        expect(mockOpLogStore.markSynced).not.toHaveBeenCalled();
+        expect(result.selectedPendingOps).toEqual(pendingOps);
+        expect(result.pendingAcknowledgementSeqs).toEqual([1, 2]);
+      });
+
       it('should mark accepted seqs correctly when server results are out of order', async () => {
         const pendingOps = [
           createMockEntry(1, 'op-1', 'client-1'),

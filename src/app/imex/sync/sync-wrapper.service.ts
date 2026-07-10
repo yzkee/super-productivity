@@ -506,6 +506,13 @@ export class SyncWrapperService {
         this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
         return 'HANDLED_ERROR';
       }
+      if (downloadResult.kind === 'blocked_incompatible') {
+        SyncLog.warn(
+          'SyncWrapperService: Download blocked by an incompatible operation.',
+        );
+        this._providerManager.setSyncStatus('ERROR');
+        return 'HANDLED_ERROR';
+      }
 
       // Track the successfully synced provider for switch detection on next sync
       this._providerManager.setLastSyncedProviderId(providerId);
@@ -515,6 +522,13 @@ export class SyncWrapperService {
         syncCapableProvider,
         { isNeverSynced: isNeverSyncedAtSyncStart },
       );
+      if (uploadResult.kind === 'blocked_incompatible') {
+        SyncLog.warn(
+          'SyncWrapperService: Upload piggyback blocked by an incompatible operation.',
+        );
+        this._providerManager.setSyncStatus('ERROR');
+        return 'HANDLED_ERROR';
+      }
       const completedUploadResults: CompletedUploadOutcome[] =
         uploadResult.kind === 'completed' ? [uploadResult] : [];
       if (uploadResult.kind === 'completed') {
@@ -580,6 +594,13 @@ export class SyncWrapperService {
             'SyncWrapperService: LWW re-upload cancelled by user. Skipping remaining sync work.',
           );
           this._providerManager.setSyncStatus('UNKNOWN_OR_CHANGED');
+          return 'HANDLED_ERROR';
+        }
+        if (reuploadResult.kind === 'blocked_incompatible') {
+          SyncLog.warn(
+            'SyncWrapperService: LWW re-upload blocked by an incompatible operation.',
+          );
+          this._providerManager.setSyncStatus('ERROR');
           return 'HANDLED_ERROR';
         }
         if (reuploadResult.kind === 'completed') {

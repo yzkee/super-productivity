@@ -179,6 +179,19 @@ describe('ImmediateUploadService', () => {
       expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalled();
     });
 
+    it('should report ERROR when piggyback processing is blocked by an incompatible op', fakeAsync(() => {
+      mockSyncService.uploadPendingOps.and.resolveTo({
+        kind: 'blocked_incompatible',
+      });
+
+      service.initialize();
+      service.trigger();
+      tick(2000);
+      flush();
+
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+    }));
+
     it('should NOT show checkmark when piggybacked ops exist (multiple)', fakeAsync(() => {
       mockSyncService.uploadPendingOps.and.returnValue(
         Promise.resolve(completedResult({ uploadedCount: 5, piggybackedOpsCount: 3 })),

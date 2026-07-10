@@ -22,7 +22,6 @@ import { ValidateStateService } from '../validation/validate-state.service';
 import { OperationApplierService } from '../apply/operation-applier.service';
 import { HydrationStateService } from '../apply/hydration-state.service';
 import { bulkApplyOperations } from '../apply/bulk-hydration.action';
-import { getFailedOpIdsFromBatch } from '../apply/failed-op-ids.util';
 import { VectorClockService } from '../sync/vector-clock.service';
 import { MAX_CONFLICT_RETRY_ATTEMPTS } from '../core/operation-log.const';
 import { AppDataComplete } from '../model/model-config';
@@ -629,22 +628,20 @@ export class OperationLogHydratorService {
       );
     }
 
-    // On a partial failure the batch applier stops at the first op whose archive
-    // side effect throws and returns it; that op and every op after it in seq
-    // order stay unapplied (slice-from-failure, shared with the primary path).
-    // markFailed bumps the retry count (rejecting ops past
-    // MAX_CONFLICT_RETRY_ATTEMPTS), so a permanently-failing op can't be retried
-    // forever.
+    // On a partial failure the batch applier stops at the first archive error.
+    // Charge only that attempted operation: successors remain archive-pending
+    // without consuming retry budget and will run after the blocker succeeds or
+    // becomes terminally rejected.
     if (result.failedOp) {
-      const stillFailedOpIds = getFailedOpIdsFromBatch(opsToApply, result.failedOp.op);
+      const failedOpIds = [result.failedOp.op.id];
 
       OpLog.warn(
         `OperationLogHydratorService: Failed to retry op ${result.failedOp.op.id}`,
         result.failedOp.error,
       );
-      await this.opLogStore.markFailed(stillFailedOpIds, MAX_CONFLICT_RETRY_ATTEMPTS);
+      await this.opLogStore.markFailed(failedOpIds, MAX_CONFLICT_RETRY_ATTEMPTS);
       OpLog.warn(
-        `OperationLogHydratorService: ${stillFailedOpIds.length} ops still failing after retry`,
+        'OperationLogHydratorService: Archive operation still failing after retry',
       );
     }
   }

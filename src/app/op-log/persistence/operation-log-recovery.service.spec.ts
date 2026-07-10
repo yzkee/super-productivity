@@ -26,6 +26,7 @@ describe('OperationLogRecoveryService', () => {
       'getPendingRemoteOps',
       'markRejected',
       'markApplied',
+      'markArchivePending',
       'getUnsynced',
     ]);
     mockOpLogStore.setVectorClock.and.resolveTo(undefined);
@@ -183,22 +184,23 @@ describe('OperationLogRecoveryService', () => {
 
       await service.recoverPendingRemoteOps();
 
-      expect(mockOpLogStore.markApplied).not.toHaveBeenCalled();
+      expect(mockOpLogStore.markArchivePending).not.toHaveBeenCalled();
       expect(mockOpLogStore.markRejected).not.toHaveBeenCalled();
     });
 
-    it('should mark valid pending ops as applied', async () => {
+    it('should mark valid crash-interrupted ops as archive-pending', async () => {
       const now = Date.now();
       const pendingOps = [
         { seq: 1, op: { id: 'op1' }, appliedAt: now - 1000, source: 'remote' },
         { seq: 2, op: { id: 'op2' }, appliedAt: now - 2000, source: 'remote' },
       ] as any;
       mockOpLogStore.getPendingRemoteOps.and.resolveTo(pendingOps);
-      mockOpLogStore.markApplied.and.resolveTo(undefined);
+      mockOpLogStore.markArchivePending.and.resolveTo(undefined);
 
       await service.recoverPendingRemoteOps();
 
-      expect(mockOpLogStore.markApplied).toHaveBeenCalledWith([1, 2]);
+      expect(mockOpLogStore.markArchivePending).toHaveBeenCalledWith([1, 2]);
+      expect(mockOpLogStore.markApplied).not.toHaveBeenCalled();
     });
 
     it('should reject ops that exceed PENDING_OPERATION_EXPIRY_MS', async () => {
@@ -213,12 +215,12 @@ describe('OperationLogRecoveryService', () => {
         }, // Expired
       ] as any;
       mockOpLogStore.getPendingRemoteOps.and.resolveTo(pendingOps);
-      mockOpLogStore.markApplied.and.resolveTo(undefined);
+      mockOpLogStore.markArchivePending.and.resolveTo(undefined);
       mockOpLogStore.markRejected.and.resolveTo(undefined);
 
       await service.recoverPendingRemoteOps();
 
-      expect(mockOpLogStore.markApplied).toHaveBeenCalledWith([1]);
+      expect(mockOpLogStore.markArchivePending).toHaveBeenCalledWith([1]);
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['expired']);
     });
 
@@ -235,7 +237,7 @@ describe('OperationLogRecoveryService', () => {
       await service.recoverPendingRemoteOps();
 
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['old1', 'old2']);
-      expect(mockOpLogStore.markApplied).not.toHaveBeenCalled();
+      expect(mockOpLogStore.markArchivePending).not.toHaveBeenCalled();
     });
 
     it('should handle mixed valid and expired ops correctly', async () => {
@@ -257,12 +259,12 @@ describe('OperationLogRecoveryService', () => {
         },
       ] as any;
       mockOpLogStore.getPendingRemoteOps.and.resolveTo(pendingOps);
-      mockOpLogStore.markApplied.and.resolveTo(undefined);
+      mockOpLogStore.markArchivePending.and.resolveTo(undefined);
       mockOpLogStore.markRejected.and.resolveTo(undefined);
 
       await service.recoverPendingRemoteOps();
 
-      expect(mockOpLogStore.markApplied).toHaveBeenCalledWith([1, 3]);
+      expect(mockOpLogStore.markArchivePending).toHaveBeenCalledWith([1, 3]);
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['expired1', 'expired2']);
     });
   });

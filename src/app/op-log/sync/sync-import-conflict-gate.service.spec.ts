@@ -94,7 +94,7 @@ describe('SyncImportConflictGateService', () => {
     });
   });
 
-  it('should not produce dialog data when pending ops are config-only', async () => {
+  it('should produce dialog data when pending ops contain user config changes', async () => {
     const incomingSyncImport = createOperation();
     const pendingConfigEntry = createEntry(
       createOperation({
@@ -113,8 +113,8 @@ describe('SyncImportConflictGateService', () => {
     const result = await service.checkIncomingFullStateConflict([incomingSyncImport]);
 
     expect(result.fullStateOp).toBe(incomingSyncImport);
-    expect(result.hasMeaningfulPending).toBeFalse();
-    expect(result.dialogData).toBeUndefined();
+    expect(result.hasMeaningfulPending).toBeTrue();
+    expect(result.dialogData).toBeDefined();
   });
 
   it('should not produce dialog data when pending task creates are startup example tasks', async () => {
@@ -272,19 +272,27 @@ describe('SyncImportConflictGateService', () => {
     expect(opLogStoreSpy.hasSyncedOps).not.toHaveBeenCalled();
   });
 
-  it('should not consult sync history when there are no meaningful pending ops', async () => {
+  it('should not consult sync history when only startup example tasks are pending', async () => {
     const incomingSyncImport = createOperation();
-    const pendingConfigEntry = createEntry(
+    const pendingExampleTaskEntry = createEntry(
       createOperation({
-        id: 'local-config-update',
-        opType: OpType.Update,
-        entityType: 'GLOBAL_CONFIG',
-        entityId: 'sync',
+        id: 'local-example-task-create',
+        actionType: ActionType.TASK_SHARED_ADD,
+        opType: OpType.Create,
+        entityType: 'TASK',
+        entityId: 'example-task-1',
+        payload: {
+          actionPayload: {
+            task: { id: 'example-task-1' },
+            isExampleTask: true,
+          },
+          entityChanges: [],
+        },
         clientId: 'client-A',
         vectorClock: { clientA: 1 },
       }),
     );
-    opLogStoreSpy.getUnsynced.and.resolveTo([pendingConfigEntry]);
+    opLogStoreSpy.getUnsynced.and.resolveTo([pendingExampleTaskEntry]);
 
     await service.checkIncomingFullStateConflict([incomingSyncImport]);
 
@@ -383,25 +391,41 @@ describe('SyncImportConflictGateService', () => {
       expect(service.hasMeaningfulPendingOps([pendingCounter])).toBeTrue();
     });
 
-    it('should still treat MIGRATION/RECOVERY bookkeeping ops as not meaningful', async () => {
+    it('should treat MIGRATION/RECOVERY genesis batches as meaningful recovered user data', async () => {
       const pendingMigration = createEntry(
         createOperation({
           id: 'local-genesis',
           actionType: '[Migration] Genesis' as ActionType,
-          opType: OpType.Create,
+          opType: OpType.Batch,
           entityType: 'MIGRATION',
           entityId: 'genesis',
+          payload: { task: { ids: ['recovered-task'] } },
           clientId: 'client-A',
           vectorClock: { clientA: 1 },
         }),
       );
 
-      expect(service.hasMeaningfulPendingOps([pendingMigration])).toBeFalse();
+      const pendingRecovery = createEntry(
+        createOperation({
+          id: 'local-recovery',
+          actionType: '[Recovery] Data Import' as ActionType,
+          opType: OpType.Batch,
+          entityType: 'RECOVERY',
+          entityId: 'genesis',
+          payload: { project: { ids: ['recovered-project'] } },
+          clientId: 'client-A',
+          vectorClock: { clientA: 2 },
+        }),
+        { seq: 2 },
+      );
+
+      expect(service.hasMeaningfulPendingOps([pendingMigration])).toBeTrue();
+      expect(service.hasMeaningfulPendingOps([pendingRecovery])).toBeTrue();
     });
   });
 
   describe('preCapturedPendingOps (piggyback-upload race)', () => {
-    it('should judge meaningfulness against the pre-upload snapshot, not the live pending set', async () => {
+    it('should judge meaningfulness against the union of the upload snapshot and live pending set', async () => {
       // Live pending set is empty — the op was accepted and marked synced during
       // the same upload round that piggybacked the import.
       opLogStoreSpy.getUnsynced.and.resolveTo([]);
@@ -424,6 +448,54 @@ describe('SyncImportConflictGateService', () => {
 
       expect(result.hasMeaningfulPending).toBeTrue();
       expect(result.dialogData).toBeDefined();
+    });
+
+    it('should include meaningful work created after the upload snapshot', async () => {
+      const createdDuringUpload = createEntry(
+        createOperation({
+          id: 'created-during-upload',
+          actionType: '[SimpleCounter] Increase Counter Today' as ActionType,
+          opType: OpType.Update,
+          entityType: 'SIMPLE_COUNTER',
+          entityId: 'counter-1',
+          clientId: 'client-A',
+          vectorClock: { clientA: 2 },
+        }),
+        { seq: 2 },
+      );
+      opLogStoreSpy.getUnsynced.and.resolveTo([createdDuringUpload]);
+
+      const result = await service.checkIncomingFullStateConflict([createOperation()], {
+        flushPendingWrites: true,
+        preCapturedPendingOps: [],
+      });
+
+      expect(writeFlushServiceSpy.flushPendingWrites).toHaveBeenCalled();
+      expect(result.pendingOps).toEqual([createdDuringUpload]);
+      expect(result.hasMeaningfulPending).toBeTrue();
+      expect(result.dialogData).toBeDefined();
+    });
+
+    it('should de-duplicate operations present in both upload and live snapshots', async () => {
+      const selectedForUpload = createEntry(
+        createOperation({
+          id: 'same-op',
+          actionType: '[Task] Update task' as ActionType,
+          opType: OpType.Update,
+          entityType: 'TASK',
+          entityId: 'task-1',
+          clientId: 'client-A',
+          vectorClock: { clientA: 1 },
+        }),
+      );
+      opLogStoreSpy.getUnsynced.and.resolveTo([selectedForUpload]);
+
+      const result = await service.checkIncomingFullStateConflict([createOperation()], {
+        preCapturedPendingOps: [selectedForUpload],
+      });
+
+      expect(result.pendingOps).toEqual([selectedForUpload]);
+      expect(result.dialogData?.filteredOpCount).toBe(1);
     });
 
     it('should derive discardable example-task ids from the LIVE pending set', async () => {

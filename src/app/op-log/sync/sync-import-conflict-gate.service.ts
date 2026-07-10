@@ -10,17 +10,6 @@ import { OperationWriteFlushService } from './operation-write-flush.service';
 import { SyncImportConflictData } from './dialog-sync-import-conflict/dialog-sync-import-conflict.component';
 import { isExampleTaskCreateOp } from '../validation/is-example-task-op.util';
 
-/**
- * Pending ops on these entity types are startup/system noise, not user work:
- * config writes happen automatically (defaults, migrations) and sync settings
- * are intentionally local; MIGRATION/RECOVERY are bookkeeping genesis ops.
- * Everything else — including MOV/BATCH ops and entities like TIME_TRACKING,
- * SIMPLE_COUNTER, TASK_REPEAT_CFG, PLANNER, BOARD — is user work an incoming
- * full-state import would silently discard (imports drop concurrent ops by
- * design), so it must count as meaningful and trigger the conflict dialog.
- */
-const DISCARDABLE_ENTITY_TYPES = new Set(['GLOBAL_CONFIG', 'MIGRATION', 'RECOVERY']);
-
 export interface IncomingFullStateConflictGateResult {
   fullStateOp?: Operation;
   pendingOps: OperationLogEntry[];
@@ -45,10 +34,11 @@ export class SyncImportConflictGateService {
   private writeFlushService = inject(OperationWriteFlushService);
 
   /**
-   * Every pending op is user work unless it is on a DISCARDABLE_ENTITY_TYPES
-   * entity or is an onboarding example-task create. Full-state ops are always
-   * meaningful because applying a newer full-state op can invalidate their
-   * local import/repair semantics.
+   * Every pending op is user work unless it is an onboarding example-task create.
+   * Entity-wide exemptions are unsafe: GLOBAL_CONFIG contains synced preferences,
+   * while MIGRATION and RECOVERY genesis operations contain the user's full recovered
+   * database. Full-state ops are always meaningful because applying a newer full-state
+   * op can invalidate their local import/repair semantics.
    */
   hasMeaningfulPendingOps(ops: OperationLogEntry[]): boolean {
     return ops.some((entry) => {
@@ -58,16 +48,15 @@ export class SyncImportConflictGateService {
       if (isExampleTaskCreateOp(entry)) {
         return false;
       }
-      return !DISCARDABLE_ENTITY_TYPES.has(entry.op.entityType);
+      return true;
     });
   }
 
   /**
-   * @param options.preCapturedPendingOps - Pending ops captured BEFORE the upload
-   *        round started. The piggyback-upload path MUST pass this: by the time
-   *        its gate runs, ops accepted in the same round were already marked
-   *        synced, so a live getUnsynced() read would no longer see local work
-   *        that the piggybacked import is about to discard.
+   * @param options.preCapturedPendingOps - Exact pending ops selected by the upload
+   *        round. The piggyback path unions this snapshot with a live read so it
+   *        protects both accepted work from that upload and work created while the
+   *        network request was in flight.
    */
   async checkIncomingFullStateConflict(
     incomingOps: Operation[],
@@ -94,8 +83,10 @@ export class SyncImportConflictGateService {
       await this.writeFlushService.flushPendingWrites();
     }
 
-    const pendingOps =
-      options.preCapturedPendingOps ?? (await this.opLogStore.getUnsynced());
+    const livePendingOps = await this.opLogStore.getUnsynced();
+    const pendingOps = options.preCapturedPendingOps
+      ? this._mergePendingOps(options.preCapturedPendingOps, livePendingOps)
+      : livePendingOps;
     const hasMeaningfulPending = this.hasMeaningfulPendingOps(pendingOps);
     // Example-task ops that the caller may reject when it accepts the import silently.
     // When `hasMeaningfulPending` is true (real work pending alongside example tasks),
@@ -105,9 +96,6 @@ export class SyncImportConflictGateService {
     // These must come from a LIVE read: with a pre-captured snapshot, example ops
     // accepted earlier in the same upload round are already marked synced and must
     // not be re-marked rejected by the caller.
-    const livePendingOps = options.preCapturedPendingOps
-      ? await this.opLogStore.getUnsynced()
-      : pendingOps;
     const discardablePendingOpIds = livePendingOps
       .filter(isExampleTaskCreateOp)
       .map((entry) => entry.op.id);
@@ -147,5 +135,22 @@ export class SyncImportConflictGateService {
         isNeverSynced,
       },
     };
+  }
+
+  private _mergePendingOps(
+    uploadSnapshot: OperationLogEntry[],
+    livePendingOps: OperationLogEntry[],
+  ): OperationLogEntry[] {
+    const merged = [...uploadSnapshot];
+    const seenOpIds = new Set(uploadSnapshot.map((entry) => entry.op.id));
+
+    for (const entry of livePendingOps) {
+      if (!seenOpIds.has(entry.op.id)) {
+        merged.push(entry);
+        seenOpIds.add(entry.op.id);
+      }
+    }
+
+    return merged;
   }
 }

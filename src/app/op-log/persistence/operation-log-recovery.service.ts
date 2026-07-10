@@ -136,8 +136,10 @@ export class OperationLogRecoveryService {
 
   /**
    * Recovers from pending remote ops that were stored but not applied (crash recovery).
-   * These ops are in the log and will be replayed during normal hydration, so we just
-   * need to mark them as applied to prevent them appearing as orphaned.
+   * These ops are replayed through reducers during normal hydration, but a crash may
+   * have happened before their archive side effects completed. Move them to the
+   * archive-pending checkpoint so hydration retries archive work without double-applying
+   * reducers.
    *
    * Operations pending for longer than PENDING_OPERATION_EXPIRY_MS are considered
    * superseded (likely due to data corruption or repeated failures) and are rejected
@@ -169,13 +171,13 @@ export class OperationLogRecoveryService {
       );
     }
 
-    // Mark valid ops as applied - they'll be replayed during normal hydration
+    // Reducers are replayed status-blind during hydration; archive work is retried after.
     if (validOps.length > 0) {
       const seqs = validOps.map((e) => e.seq);
-      await this.opLogStore.markApplied(seqs);
+      await this.opLogStore.markArchivePending(seqs);
       OpLog.warn(
         `OperationLogRecoveryService: Found ${validOps.length} pending remote ops from previous crash. ` +
-          `Marking as applied (they will be replayed during hydration).`,
+          'Marking archive work pending (reducers will replay during hydration).',
       );
     }
 

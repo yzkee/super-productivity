@@ -73,6 +73,7 @@ describe('RemoteOpsProcessingService', () => {
       'append',
       'appendBatchSkipDuplicates',
       'appendWithVectorClockUpdate',
+      'markArchivePending',
       'markApplied',
       'markFailed',
       'mergeRemoteOpClocks',
@@ -369,6 +370,57 @@ describe('RemoteOpsProcessingService', () => {
       ]);
     });
 
+    it('should log conflict identities without logging operation payloads', async () => {
+      const localOp = {
+        id: 'local-op',
+        entityType: 'TASK',
+        entityId: 'task-1',
+        payload: { title: 'private local title' },
+      } as Operation;
+      const remoteOp = {
+        id: 'remote-op',
+        entityType: 'TASK',
+        entityId: 'task-1',
+        payload: { title: 'private remote title' },
+        schemaVersion: 1,
+      } as Operation;
+      spyOn(service, 'detectConflicts').and.resolveTo({
+        nonConflicting: [],
+        conflicts: [
+          {
+            entityType: 'TASK',
+            entityId: 'task-1',
+            localOps: [localOp],
+            remoteOps: [remoteOp],
+            suggestedResolution: 'manual',
+          },
+        ],
+      });
+      conflictResolutionServiceSpy.autoResolveConflictsLWW.and.resolveTo({
+        localWinOpsCreated: 0,
+      });
+      vectorClockServiceSpy.getEntityFrontier.and.resolveTo(new Map());
+      const warnSpy = spyOn(OpLog, 'warn');
+
+      await service.processRemoteOps([remoteOp]);
+
+      const summary = warnSpy.calls
+        .allArgs()
+        .find(([message]) => String(message).includes('Detected 1 conflicts'))?.[1];
+      expect(summary).toEqual({
+        conflicts: [
+          {
+            entityType: 'TASK',
+            entityId: 'task-1',
+            localOpIds: ['local-op'],
+            remoteOpIds: ['remote-op'],
+            suggestedResolution: 'manual',
+          },
+        ],
+      });
+      expect(JSON.stringify(summary)).not.toContain('private');
+    });
+
     it('should drop operations if migrateOperation returns null', async () => {
       const remoteOps: Operation[] = [
         { id: 'op1', schemaVersion: 1 } as Operation,
@@ -515,6 +567,21 @@ describe('RemoteOpsProcessingService', () => {
       expect(opLogStoreSpy.getUnsynced).not.toHaveBeenCalled();
       expect(result.blockedByIncompatibleOp).toBe(true);
     });
+
+    for (const invalidVersion of [null, '2', 1.5, {}, Number.NaN]) {
+      it(`should block malformed schemaVersion ${String(invalidVersion)}`, async () => {
+        const remoteOp = {
+          id: 'malformed-version',
+          schemaVersion: invalidVersion,
+        } as unknown as Operation;
+
+        const result = await service.processRemoteOps([remoteOp]);
+
+        expect(result.blockedByIncompatibleOp).toBeTrue();
+        expect(schemaMigrationServiceSpy.migrateOperation).not.toHaveBeenCalled();
+        expect(opLogStoreSpy.appendBatchSkipDuplicates).not.toHaveBeenCalled();
+      });
+    }
 
     it('should process the prefix before a too-new op but flag the block', async () => {
       const remoteOps: Operation[] = [
@@ -1337,9 +1404,10 @@ describe('RemoteOpsProcessingService', () => {
 
       opLogStoreSpy.hasOp.and.returnValue(Promise.resolve(false));
       opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
-      operationApplierServiceSpy.applyOperations.and.returnValue(
-        Promise.resolve({ appliedOps: remoteOps }),
-      );
+      operationApplierServiceSpy.applyOperations.and.callFake(async (ops, options) => {
+        await options?.onReducersCommitted?.(ops);
+        return { appliedOps: remoteOps };
+      });
 
       await service.applyNonConflictingOps(remoteOps);
 
@@ -1352,9 +1420,13 @@ describe('RemoteOpsProcessingService', () => {
       ];
       const callOrder: string[] = [];
 
-      operationApplierServiceSpy.applyOperations.and.callFake(async () => {
+      operationApplierServiceSpy.applyOperations.and.callFake(async (ops, options) => {
         callOrder.push('applyOperations');
+        await options?.onReducersCommitted?.(ops);
         return { appliedOps: remoteOps };
+      });
+      opLogStoreSpy.markArchivePending.and.callFake(async () => {
+        callOrder.push('markArchivePending');
       });
       opLogStoreSpy.markApplied.and.callFake(async () => {
         callOrder.push('markApplied');
@@ -1368,16 +1440,21 @@ describe('RemoteOpsProcessingService', () => {
 
       await service.applyNonConflictingOps(remoteOps, true);
 
-      expect(operationApplierServiceSpy.applyOperations).toHaveBeenCalledWith(remoteOps, {
-        skipDeferredLocalActions: true,
-      });
+      expect(operationApplierServiceSpy.applyOperations).toHaveBeenCalledWith(
+        remoteOps,
+        jasmine.objectContaining({
+          skipDeferredLocalActions: true,
+          onReducersCommitted: jasmine.any(Function),
+        }),
+      );
       expect(operationLogEffectsSpy.processDeferredActions).toHaveBeenCalledWith({
         callerHoldsOperationLogLock: true,
       });
       expect(callOrder).toEqual([
         'applyOperations',
-        'markApplied',
+        'markArchivePending',
         'mergeRemoteOpClocks',
+        'markApplied',
         'processDeferredActions',
       ]);
     });
@@ -1397,7 +1474,7 @@ describe('RemoteOpsProcessingService', () => {
       expect(opLogStoreSpy.mergeRemoteOpClocks).not.toHaveBeenCalled();
     });
 
-    it('should mark failed ops and run validation on partial failure', async () => {
+    it('should charge only the attempted archive failure and run validation', async () => {
       const remoteOps: Operation[] = [
         createFullOp({ id: 'op-1' }),
         createFullOp({ id: 'op-2' }),
@@ -1407,17 +1484,19 @@ describe('RemoteOpsProcessingService', () => {
       opLogStoreSpy.append.and.returnValue(Promise.resolve(1));
       opLogStoreSpy.markApplied.and.returnValue(Promise.resolve());
       opLogStoreSpy.markFailed.and.returnValue(Promise.resolve());
-      operationApplierServiceSpy.applyOperations.and.returnValue(
-        Promise.resolve({
+      operationApplierServiceSpy.applyOperations.and.callFake(async (ops, options) => {
+        await options?.onReducersCommitted?.(ops);
+        return {
           appliedOps: [remoteOps[0]],
           failedOp: { op: remoteOps[1], error: new Error('Test error') },
-        }),
-      );
+        };
+      });
 
       await expectAsync(service.applyNonConflictingOps(remoteOps)).toBeRejected();
 
-      // Should mark op-2 and op-3 as failed
-      expect(opLogStoreSpy.markFailed).toHaveBeenCalledWith(['op-2', 'op-3']);
+      expect(opLogStoreSpy.markArchivePending).toHaveBeenCalledWith([1, 2, 3]);
+      expect(opLogStoreSpy.mergeRemoteOpClocks).toHaveBeenCalledWith(remoteOps);
+      expect(opLogStoreSpy.markFailed).toHaveBeenCalledWith(['op-2']);
       // Should run validation after partial failure
       expect(validateStateServiceSpy.validateAndRepairCurrentState).toHaveBeenCalledWith(
         'partial-apply-failure',
@@ -1486,7 +1565,10 @@ describe('RemoteOpsProcessingService', () => {
         // Should apply only the non-duplicate op
         expect(operationApplierServiceSpy.applyOperations).toHaveBeenCalledWith(
           [remoteOps[1]],
-          { skipDeferredLocalActions: true },
+          jasmine.objectContaining({
+            skipDeferredLocalActions: true,
+            onReducersCommitted: jasmine.any(Function),
+          }),
         );
       });
 
