@@ -54,6 +54,13 @@ export const FULL_STATE_OPS_META_KEY = 'full_state_ops' as const;
  */
 export const RAW_REBUILD_INCOMPLETE_META_KEY = 'raw_rebuild_incomplete' as const;
 
+/** Versioned marker for the one-time legacy terminal remote failure repair. */
+export const LEGACY_TERMINAL_REMOTE_FAILURES_MIGRATION_META_KEY =
+  'legacy_terminal_remote_failures_migration' as const;
+
+/** Increment when the legacy terminal remote failure repair needs to run again. */
+export const LEGACY_TERMINAL_REMOTE_FAILURES_MIGRATION_VERSION = 1;
+
 /** Index names for ops object store */
 export const OPS_INDEXES = {
   BY_ID: 'byId' as const,

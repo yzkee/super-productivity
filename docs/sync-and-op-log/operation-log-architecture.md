@@ -2324,7 +2324,7 @@ When adding new entities or relationships:
 > - **Archive validation**: archiveOld tasks now validated for project/tag references, null-safety added
 > - **Lock service robustness**: Handle NaN timestamps and invalid lock formats in fallback lock
 > - **Array payload rejection**: Explicit check to reject arrays (which bypass `typeof === 'object'`)
-> - **Pending operation expiry**: Operations pending >24h are quarantined as failed; reducer replay is skipped but archive recovery and the sync gate remain active (`PENDING_OPERATION_EXPIRY_MS`).
+> - **Pending operation expiry**: Operations pending >24h are quarantined as failed; hydration still restores their reducer history, while archive recovery and the sync gate remain active (`PENDING_OPERATION_EXPIRY_MS`).
 
 ---
 

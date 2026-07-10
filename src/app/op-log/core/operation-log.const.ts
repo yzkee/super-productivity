@@ -154,7 +154,8 @@ export const MAX_BATCH_OPERATIONS_SIZE = 50;
 /**
  * Maximum age for pending operations before they are quarantined as failed (milliseconds).
  * If an operation has been pending for longer than this (e.g., due to data corruption
- * or repeated crashes), reducer replay is skipped and archive recovery remains required.
+ * or repeated crashes), hydration still restores its reducer history and archive recovery
+ * remains required.
  * Default: 24 hours - enough time for legitimate recovery scenarios
  */
 export const PENDING_OPERATION_EXPIRY_MS = 24 * 60 * 60 * 1000;

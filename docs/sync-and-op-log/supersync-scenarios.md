@@ -165,7 +165,7 @@ Comprehensive spec of all scenarios that can occur during SuperSync synchronizat
 **Expected:**
 
 1. Download detects remote snapshot (file-based sync path)
-2. Treat every pending op as meaningful except onboarding example-task creates and, before the first completed sync only, the GLOBAL_CONFIG write that enables the `sync` section. This protects non-task entities, recovered MIGRATION/RECOVERY genesis batches, and user configuration.
+2. Treat every pending op as meaningful except onboarding example-task creates. GLOBAL_CONFIG writes remain protected even before the first completed sync because the sync-section payload can also contain user preferences. This also protects non-task entities and recovered MIGRATION/RECOVERY genesis batches.
 3. If meaningful → throw `LocalDataConflictError` → full conflict dialog
 4. If only the explicitly discardable startup ops remain → proceed without dialog
 

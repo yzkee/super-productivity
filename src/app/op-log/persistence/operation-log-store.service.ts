@@ -18,6 +18,8 @@ import {
   SINGLETON_KEY,
   BACKUP_KEY,
   FULL_STATE_OPS_META_KEY,
+  LEGACY_TERMINAL_REMOTE_FAILURES_MIGRATION_META_KEY,
+  LEGACY_TERMINAL_REMOTE_FAILURES_MIGRATION_VERSION,
   RAW_REBUILD_INCOMPLETE_META_KEY,
   OPS_INDEXES,
   ArchiveStoreEntry,
@@ -85,6 +87,15 @@ export interface RawRebuildIncompleteEntry {
   startedAt: number;
   preservedLocalOps: Operation[];
 }
+
+interface LegacyTerminalRemoteFailuresMigrationEntry {
+  version: number;
+}
+
+type OpLogMetaEntry =
+  | FullStateOpsMetaEntry
+  | RawRebuildIncompleteEntry
+  | LegacyTerminalRemoteFailuresMigrationEntry;
 
 /**
  * Stored operation log entry that can hold either compact or full operation format.
@@ -211,7 +222,7 @@ interface OpLogDB extends DBSchema {
    */
   [STORE_NAMES.META]: {
     key: string;
-    value: FullStateOpsMetaEntry;
+    value: OpLogMetaEntry;
   };
 }
 
@@ -1122,21 +1133,43 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
   async recoverLegacyTerminalRemoteFailures(): Promise<number> {
     await this._ensureInit();
     let recoveredCount = 0;
-    await this._adapter.transaction([STORE_NAMES.OPS], 'readwrite', async (tx) => {
-      const entries = await tx.getAll<StoredOperationLogEntry>(STORE_NAMES.OPS);
-      for (const entry of entries) {
+    await this._adapter.transaction(
+      [STORE_NAMES.OPS, STORE_NAMES.META],
+      'readwrite',
+      async (tx) => {
+        const migration = await tx.get<LegacyTerminalRemoteFailuresMigrationEntry>(
+          STORE_NAMES.META,
+          LEGACY_TERMINAL_REMOTE_FAILURES_MIGRATION_META_KEY,
+        );
         if (
-          entry.source === 'remote' &&
-          entry.rejectedAt !== undefined &&
-          (entry.retryCount ?? 0) >= 4
+          (migration?.version ?? 0) >= LEGACY_TERMINAL_REMOTE_FAILURES_MIGRATION_VERSION
         ) {
-          entry.rejectedAt = undefined;
-          entry.applicationStatus = 'failed';
-          await tx.put(STORE_NAMES.OPS, entry);
-          recoveredCount++;
+          return;
         }
-      }
-    });
+
+        const entries = await tx.getAll<StoredOperationLogEntry>(STORE_NAMES.OPS);
+        for (const entry of entries) {
+          if (
+            entry.source === 'remote' &&
+            entry.rejectedAt !== undefined &&
+            (entry.retryCount ?? 0) >= 4
+          ) {
+            entry.rejectedAt = undefined;
+            entry.applicationStatus = 'failed';
+            await tx.put(STORE_NAMES.OPS, entry);
+            recoveredCount++;
+          }
+        }
+
+        await tx.put(
+          STORE_NAMES.META,
+          {
+            version: LEGACY_TERMINAL_REMOTE_FAILURES_MIGRATION_VERSION,
+          } satisfies LegacyTerminalRemoteFailuresMigrationEntry,
+          LEGACY_TERMINAL_REMOTE_FAILURES_MIGRATION_META_KEY,
+        );
+      },
+    );
     return recoveredCount;
   }
 

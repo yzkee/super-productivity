@@ -1608,6 +1608,27 @@ describe('OperationLogStoreService', () => {
       expect(recovered.applicationStatus).toBe('failed');
     });
 
+    it('should run the legacy terminal remote failure repair only once', async () => {
+      const firstLegacyOp = createTestOperation({ entityId: 'first-legacy' });
+      await service.append(firstLegacyOp, 'remote', { pendingApply: true });
+      for (let retry = 0; retry < 4; retry++) {
+        await service.markFailed([firstLegacyOp.id]);
+      }
+      await service.markRejected([firstLegacyOp.id]);
+
+      expect(await service.recoverLegacyTerminalRemoteFailures()).toBe(1);
+
+      const laterLegacyOp = createTestOperation({ entityId: 'later-legacy' });
+      await service.append(laterLegacyOp, 'remote', { pendingApply: true });
+      for (let retry = 0; retry < 4; retry++) {
+        await service.markFailed([laterLegacyOp.id]);
+      }
+      await service.markRejected([laterLegacyOp.id]);
+
+      expect(await service.recoverLegacyTerminalRemoteFailures()).toBe(0);
+      expect((await service.getOpById(laterLegacyOp.id))?.rejectedAt).toBeDefined();
+    });
+
     it('should handle empty array', async () => {
       await service.markFailed([]);
       // Should not throw
