@@ -27,9 +27,11 @@ import { ImportPage } from '../../pages/import.page';
  * 2. Client B syncs and receives the counter (B now has synced history).
  * 3. Client B increments the counter locally — a pending SIMPLE_COUNTER op it
  *    does NOT sync.
- * 4. Client A imports a backup (creates a SYNC_IMPORT) and syncs it.
- * 5. Client B triggers a sync. The SYNC_IMPORT conflict dialog MUST appear so
- *    the user can choose, instead of the counter change being discarded.
+ * 4. Client B starts syncing, but its completed download response is held.
+ * 5. Client A imports a backup and uploads its SYNC_IMPORT while B is between
+ *    download and upload.
+ * 6. B's download is released. The upload response piggybacks A's import, and
+ *    the conflict dialog MUST appear instead of discarding B's counter change.
  *
  * Run with: npm run e2e:supersync:file e2e/tests/sync/supersync-conflict-gate-non-task-work.spec.ts
  */
@@ -110,7 +112,7 @@ const incrementClickCounter = async (
 test.describe.configure({ mode: 'serial' });
 
 test.describe('@supersync incoming SYNC_IMPORT preserves non-task local work', () => {
-  test('a pending simple-counter change prompts the conflict dialog instead of being discarded', async ({
+  test('a pending simple-counter change survives an upload-piggybacked import conflict', async ({
     browser,
     baseURL,
     testRunId,
@@ -146,28 +148,57 @@ test.describe('@supersync incoming SYNC_IMPORT preserves non-task local work', (
       await incrementClickCounter(clientB, counterTitle, 2);
       console.log('[Gate] Client B incremented the counter locally (pending, unsynced)');
 
-      // ===== PHASE 4: A imports a backup (SYNC_IMPORT) and syncs it =====
+      // ===== PHASE 4: B downloads before A's import, then pauses =====
+      // The captured response is already fixed at the pre-import server state.
+      // Holding it here creates the exact download→upload race deterministically:
+      // A's later import can only reach B through the upload response piggyback.
+      let markDownloadCaptured!: () => void;
+      const downloadCaptured = new Promise<void>((resolve) => {
+        markDownloadCaptured = resolve;
+      });
+      let releaseDownload!: () => void;
+      const downloadRelease = new Promise<void>((resolve) => {
+        releaseDownload = resolve;
+      });
+      let hasCapturedDownload = false;
+
+      await clientB.page.route('**/api/sync/ops**', async (route) => {
+        if (!hasCapturedDownload && route.request().method() === 'GET') {
+          const response = await route.fetch();
+          hasCapturedDownload = true;
+          markDownloadCaptured();
+          await downloadRelease;
+          await route.fulfill({ response });
+          return;
+        }
+        await route.continue();
+      });
+
+      await clientB.sync.syncBtn.click();
+      await downloadCaptured;
+      console.log('[Gate] Client B completed its pre-import download; response paused');
+
+      // ===== PHASE 5: A imports + uploads while B is between download/upload =====
       // A already synced a populated state (PHASE 1), so the import diverges from
       // the server: A's own sync raises the sync-import conflict gate against its
       // pending import op. Resolve it as USE_LOCAL ({ useLocal: true }) so A force
       // uploads the import as a NEW SYNC_IMPORT the server keeps. The default
       // (USE_REMOTE) would discard A's import here, leaving the server unchanged
-      // and B with nothing to conflict against — so the PHASE 5 dialog never shows.
+      // and B with nothing to conflict against — so the PHASE 6 dialog never shows.
       const importPageA = new ImportPage(clientA.page);
-      await importPageA.navigateToImportPage();
-      await importPageA.importBackupFile(ImportPage.getFixturePath('test-backup.json'));
-      await clientA.sync.syncAndWait({ useLocal: true });
+      try {
+        await importPageA.navigateToImportPage();
+        await importPageA.importBackupFile(ImportPage.getFixturePath('test-backup.json'));
+        await clientA.sync.syncAndWait({ useLocal: true });
+      } finally {
+        // Never strand B's routed request if A's setup/assertion fails.
+        releaseDownload();
+      }
       console.log('[Gate] Client A imported a backup and synced the SYNC_IMPORT');
 
-      // ===== PHASE 5: B syncs — the conflict dialog MUST appear =====
-      // triggerSync() does NOT auto-resolve dialogs, so we can assert on it.
-      const clientBSync = clientB.sync.triggerSync();
-      // Prevent a teardown-triggered page close from becoming an unhandled
-      // rejection if an assertion below fails before we can await the sync.
-      clientBSync.catch(() => {});
-
+      // ===== PHASE 6: B uploads and receives A's import via piggyback =====
       await expect(clientB.sync.syncImportConflictDialog).toBeVisible({ timeout: 30000 });
-      console.log('[Gate] ✓ Conflict dialog shown for pending non-task work');
+      console.log('[Gate] ✓ Piggyback conflict shown for pending non-task work');
 
       // Resolving with "Use My Data" keeps B's local work; the point of the test
       // is that B was given the choice at all.
@@ -176,7 +207,7 @@ test.describe('@supersync incoming SYNC_IMPORT preserves non-task local work', (
         state: 'hidden',
         timeout: 10000,
       });
-      await clientBSync;
+      await clientB.sync.syncSpinner.waitFor({ state: 'hidden', timeout: 30000 });
 
       // The dialog itself is not the guarantee: prove the exact pending counter
       // value won, then run another sync and prove it remains durable.
