@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Store } from '@ngrx/store';
 import { SnackParams } from './snack.model';
 import { Observable, Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { take, takeUntil } from 'rxjs/operators';
 import { DEFAULT_SNACK_CFG } from './snack.const';
 import { SnackCustomComponent } from './snack-custom/snack-custom.component';
 import { TranslateService } from '@ngx-translate/core';
@@ -23,6 +23,7 @@ export class SnackService {
   private _matSnackBar = inject(MatSnackBar);
 
   private _ref?: MatSnackBarRef<SnackCustomComponent | SimpleSnackBar>;
+  private _hasPendingPersistentAction = false;
 
   constructor() {
     const _onWorkContextChange$: Observable<unknown> = this._actions$.pipe(
@@ -37,10 +38,20 @@ export class SnackService {
     if (typeof params === 'string') {
       params = { msg: params };
     }
+    if (params.actionStr && params.config?.duration === 0) {
+      // Set this before the debounced render so immediate follow-up feedback
+      // cannot unknowingly replace a persistent recovery action.
+      this._hasPendingPersistentAction = true;
+    }
     this._openSnack(params);
   }
 
+  hasPendingPersistentAction(): boolean {
+    return this._hasPendingPersistentAction;
+  }
+
   close(): void {
+    this._hasPendingPersistentAction = false;
     if (this._ref) {
       this._ref.dismiss();
     }
@@ -106,6 +117,17 @@ export class SnackService {
         break;
       }
     }
+
+    const openedRef = this._ref;
+    this._hasPendingPersistentAction = !!actionStr && cfg.duration === 0;
+    openedRef
+      ?.afterDismissed()
+      .pipe(take(1))
+      .subscribe(() => {
+        if (this._ref === openedRef) {
+          this._hasPendingPersistentAction = false;
+        }
+      });
 
     if (actionStr && actionId && this._ref) {
       this._ref

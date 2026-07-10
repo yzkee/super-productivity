@@ -294,6 +294,11 @@ export class MainHeaderComponent implements OnDestroy {
 
   sync(): void {
     this.syncWrapperService.sync(true).then((r) => {
+      // Keep persistent recovery actions (for example USE_REMOTE Undo) visible;
+      // routine sync-success feedback must not replace them.
+      if (this._snackService.hasPendingPersistentAction()) {
+        return;
+      }
       if (
         r === SyncStatus.UpdateLocal ||
         r === SyncStatus.UpdateRemoteAll ||
