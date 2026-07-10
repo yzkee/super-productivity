@@ -10,6 +10,13 @@ import { OperationWriteFlushService } from './operation-write-flush.service';
 import { SyncImportConflictData } from './dialog-sync-import-conflict/dialog-sync-import-conflict.component';
 import { isExampleTaskCreateOp } from '../validation/is-example-task-op.util';
 
+/**
+ * Startup/system entities are written automatically during first-time setup.
+ * Before the client has completed a sync they are setup state, not divergence;
+ * after that, later writes are genuine local changes.
+ */
+const STARTUP_ENTITY_TYPES = new Set(['GLOBAL_CONFIG', 'MIGRATION', 'RECOVERY']);
+
 export interface IncomingFullStateConflictGateResult {
   fullStateOp?: Operation;
   pendingOps: OperationLogEntry[];
@@ -34,19 +41,29 @@ export class SyncImportConflictGateService {
   private writeFlushService = inject(OperationWriteFlushService);
 
   /**
-   * Every pending op is user work unless it is an onboarding example-task create.
-   * Entity-wide exemptions are unsafe: GLOBAL_CONFIG contains synced preferences,
-   * while MIGRATION and RECOVERY genesis operations contain the user's full recovered
-   * database. Full-state ops are always meaningful because applying a newer full-state
-   * op can invalidate their local import/repair semantics.
+   * Every pending op is user work unless it is an onboarding example-task create,
+   * or a startup/system write on a client that has not yet completed a sync.
+   * Full-state ops are always meaningful because applying a newer full-state op
+   * can invalidate their local import/repair semantics.
+   *
+   * The lifecycle default is deliberately conservative: a caller that does not
+   * know whether initial sync completed must protect startup-entity changes.
    */
-  hasMeaningfulPendingOps(ops: OperationLogEntry[]): boolean {
+  hasMeaningfulPendingOps(
+    ops: OperationLogEntry[],
+    options: { hasCompletedInitialSync: boolean } = {
+      hasCompletedInitialSync: true,
+    },
+  ): boolean {
     return ops.some((entry) => {
       if (FULL_STATE_OP_TYPES.has(entry.op.opType as OpType)) {
         return true;
       }
       if (isExampleTaskCreateOp(entry)) {
         return false;
+      }
+      if (STARTUP_ENTITY_TYPES.has(entry.op.entityType)) {
+        return options.hasCompletedInitialSync;
       }
       return true;
     });
@@ -87,18 +104,35 @@ export class SyncImportConflictGateService {
     const pendingOps = options.preCapturedPendingOps
       ? this._mergePendingOps(options.preCapturedPendingOps, livePendingOps)
       : livePendingOps;
-    const hasMeaningfulPending = this.hasMeaningfulPendingOps(pendingOps);
+
     // Example-task ops that the caller may reject when it accepts the import silently.
-    // When `hasMeaningfulPending` is true (real work pending alongside example tasks),
-    // the conflict dialog is shown instead and these are intentionally left untouched:
-    // if the user keeps local state, their example tasks ride along with the rest.
-    //
     // These must come from a LIVE read: with a pre-captured snapshot, example ops
     // accepted earlier in the same upload round are already marked synced and must
     // not be re-marked rejected by the caller.
     const discardablePendingOpIds = livePendingOps
       .filter(isExampleTaskCreateOp)
       .map((entry) => entry.op.id);
+
+    // Preserve the cheap example-task-only path. If nothing could be meaningful
+    // even for a synced client, there is no reason to read sync history.
+    const canContainMeaningfulPending = this.hasMeaningfulPendingOps(pendingOps);
+    if (!canContainMeaningfulPending) {
+      return {
+        fullStateOp,
+        pendingOps,
+        hasMeaningfulPending: false,
+        discardablePendingOpIds,
+      };
+    }
+
+    // Capture lifecycle state before deciding whether startup writes are setup
+    // noise or post-sync divergence. Piggyback callers pass their pre-sync snapshot
+    // because a live read there already includes this sync cycle's writes.
+    const isNeverSynced =
+      options.isNeverSynced ?? !(await this.opLogStore.hasSyncedOps());
+    const hasMeaningfulPending = this.hasMeaningfulPendingOps(pendingOps, {
+      hasCompletedInitialSync: !isNeverSynced,
+    });
 
     const result = {
       fullStateOp,
@@ -110,20 +144,6 @@ export class SyncImportConflictGateService {
     if (!hasMeaningfulPending) {
       return result;
     }
-
-    // A client that has never completed a sync cannot have diverged from remote — its
-    // "meaningful" pending ops are pre-first-sync startup state (e.g. example tasks).
-    // Flag this so the dialog guards the destructive USE_LOCAL choice with an extra
-    // confirmation (it would overwrite the populated remote with throwaway data).
-    //
-    // Callers SHOULD pass `isNeverSynced` captured at sync-cycle start (pre-download).
-    // A live `hasSyncedOps()` here is unreliable on the piggyback-upload path: by the
-    // time that gate runs, this same sync has already persisted downloaded ops
-    // (syncedAt set) and marked accepted uploads synced, so reading it now would see
-    // post-sync state and wrongly clear the guard. Fall back to a live read only for
-    // standalone callers (e.g. the download path, where nothing is persisted yet).
-    const isNeverSynced =
-      options.isNeverSynced ?? !(await this.opLogStore.hasSyncedOps());
 
     return {
       ...result,

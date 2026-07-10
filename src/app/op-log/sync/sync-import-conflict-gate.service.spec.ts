@@ -94,9 +94,8 @@ describe('SyncImportConflictGateService', () => {
     });
   });
 
-  it('should produce dialog data when pending ops contain user config changes', async () => {
-    const incomingSyncImport = createOperation();
-    const pendingConfigEntry = createEntry(
+  const createPendingConfigEntry = (): OperationLogEntry =>
+    createEntry(
       createOperation({
         id: 'local-config-update',
         actionType: '[Global Config] Update Global Config Section' as ActionType,
@@ -108,13 +107,25 @@ describe('SyncImportConflictGateService', () => {
         vectorClock: { clientA: 1 },
       }),
     );
-    opLogStoreSpy.getUnsynced.and.resolveTo([pendingConfigEntry]);
 
-    const result = await service.checkIncomingFullStateConflict([incomingSyncImport]);
+  it('should produce dialog data for a synced client with a pending config change', async () => {
+    opLogStoreSpy.hasSyncedOps.and.resolveTo(true);
+    opLogStoreSpy.getUnsynced.and.resolveTo([createPendingConfigEntry()]);
 
-    expect(result.fullStateOp).toBe(incomingSyncImport);
+    const result = await service.checkIncomingFullStateConflict([createOperation()]);
+
     expect(result.hasMeaningfulPending).toBeTrue();
     expect(result.dialogData).toBeDefined();
+  });
+
+  it('should NOT flag a pending config change on a never-synced client', async () => {
+    opLogStoreSpy.hasSyncedOps.and.resolveTo(false);
+    opLogStoreSpy.getUnsynced.and.resolveTo([createPendingConfigEntry()]);
+
+    const result = await service.checkIncomingFullStateConflict([createOperation()]);
+
+    expect(result.hasMeaningfulPending).toBeFalse();
+    expect(result.dialogData).toBeUndefined();
   });
 
   it('should not produce dialog data when pending task creates are startup example tasks', async () => {
@@ -391,7 +402,7 @@ describe('SyncImportConflictGateService', () => {
       expect(service.hasMeaningfulPendingOps([pendingCounter])).toBeTrue();
     });
 
-    it('should treat MIGRATION/RECOVERY genesis batches as meaningful recovered user data', async () => {
+    it('should treat MIGRATION/RECOVERY genesis batches as meaningful only once the client has synced', async () => {
       const pendingMigration = createEntry(
         createOperation({
           id: 'local-genesis',
@@ -419,8 +430,15 @@ describe('SyncImportConflictGateService', () => {
         { seq: 2 },
       );
 
-      expect(service.hasMeaningfulPendingOps([pendingMigration])).toBeTrue();
-      expect(service.hasMeaningfulPendingOps([pendingRecovery])).toBeTrue();
+      const synced = { hasCompletedInitialSync: true };
+      expect(service.hasMeaningfulPendingOps([pendingMigration], synced)).toBeTrue();
+      expect(service.hasMeaningfulPendingOps([pendingRecovery], synced)).toBeTrue();
+
+      const neverSynced = { hasCompletedInitialSync: false };
+      expect(
+        service.hasMeaningfulPendingOps([pendingMigration], neverSynced),
+      ).toBeFalse();
+      expect(service.hasMeaningfulPendingOps([pendingRecovery], neverSynced)).toBeFalse();
     });
   });
 

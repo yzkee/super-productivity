@@ -582,9 +582,13 @@ export class OperationLogSyncService {
             .filter((id): id is string => id !== undefined),
         );
         const exampleTaskOpIds = exampleTaskEntries.map((entry) => entry.op.id);
+        // Nothing from this sync is persisted yet, so this live read reflects
+        // whether the client completed a prior sync cycle.
+        const hasCompletedInitialSync = await this.opLogStore.hasSyncedOps();
         const hasMeaningfulUserData =
-          this.syncImportConflictGateService.hasMeaningfulPendingOps(unsyncedOps) ||
-          this.syncLocalStateService.hasMeaningfulStoreData(exampleTaskIds);
+          this.syncImportConflictGateService.hasMeaningfulPendingOps(unsyncedOps, {
+            hasCompletedInitialSync,
+          }) || this.syncLocalStateService.hasMeaningfulStoreData(exampleTaskIds);
 
         if (hasMeaningfulUserData) {
           // SPAP-9: before surfacing the binary USE_LOCAL/USE_REMOTE dialog, use
