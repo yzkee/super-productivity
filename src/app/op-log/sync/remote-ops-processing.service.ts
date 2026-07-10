@@ -446,6 +446,7 @@ export class RemoteOpsProcessingService {
     // wrapped operationApplier.applyOperations) would leave buffered actions
     // to leak into the next sync window with stale clocks. (#7700)
     let didApplyRemoteOps = false;
+    let primaryIncompleteError: IncompleteRemoteOperationsError | undefined;
     try {
       // Core owns the generic crash-safety ordering. Angular diagnostics,
       // validation, and user notifications stay in this service.
@@ -505,9 +506,24 @@ export class RemoteOpsProcessingService {
         // throw propagates.
         throw new IncompleteRemoteOperationsError(result.failedOp.error);
       }
+    } catch (error) {
+      if (error instanceof IncompleteRemoteOperationsError) {
+        primaryIncompleteError = error;
+      }
+      throw error;
     } finally {
       if (didApplyRemoteOps) {
-        await processDeferredActionsAfterRemoteApply(this.injector, callerHoldsLock);
+        try {
+          await processDeferredActionsAfterRemoteApply(this.injector, callerHoldsLock);
+        } catch (deferredError) {
+          if (!primaryIncompleteError) {
+            throw deferredError;
+          }
+          OpLog.err(
+            'RemoteOpsProcessingService: Deferred-action drain also failed after incomplete remote application',
+            { name: (deferredError as Error | undefined)?.name },
+          );
+        }
       }
     }
   }

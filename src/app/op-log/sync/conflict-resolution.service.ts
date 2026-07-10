@@ -419,6 +419,7 @@ export class ConflictResolutionService {
     // and guarantees buffered local actions don't leak to the next sync. (#7700)
     // ─────────────────────────────────────────────────────────────────────────
     let didApplyRemoteOps = false;
+    let primaryIncompleteError: IncompleteRemoteOperationsError | undefined;
     try {
       if (allOpsToApply.length > 0) {
         OpLog.normal(
@@ -493,12 +494,27 @@ export class ConflictResolutionService {
           `ConflictResolutionService: Appended local-win update op ${op.id} for ${op.entityType}:${op.entityId}`,
         );
       }
+    } catch (error) {
+      if (error instanceof IncompleteRemoteOperationsError) {
+        primaryIncompleteError = error;
+      }
+      throw error;
     } finally {
       if (didApplyRemoteOps) {
-        await processDeferredActionsAfterRemoteApply(
-          this.injector,
-          options.callerHoldsOperationLogLock ?? false,
-        );
+        try {
+          await processDeferredActionsAfterRemoteApply(
+            this.injector,
+            options.callerHoldsOperationLogLock ?? false,
+          );
+        } catch (deferredError) {
+          if (!primaryIncompleteError) {
+            throw deferredError;
+          }
+          OpLog.err(
+            'ConflictResolutionService: Deferred-action drain also failed after incomplete remote application',
+            { name: (deferredError as Error | undefined)?.name },
+          );
+        }
       }
     }
 

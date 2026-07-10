@@ -35,6 +35,7 @@ import { T } from '../../t.const';
 import { OpLog } from '../../core/log';
 import { SyncProviderId } from '../sync-providers/provider.const';
 import { LOCAL_ONLY_SYNC_KEYS } from '../../features/config/local-only-sync-settings.util';
+import { IncompleteRemoteOperationsError } from '../core/errors/sync-errors';
 
 describe('RemoteOpsProcessingService', () => {
   let service: RemoteOpsProcessingService;
@@ -1495,6 +1496,33 @@ describe('RemoteOpsProcessingService', () => {
         'partial-apply-failure',
         { callerHoldsLock: false },
       );
+    });
+
+    it('should preserve the incomplete-remote error when the deferred drain also fails', async () => {
+      const remoteOps: Operation[] = [
+        createFullOp({ id: 'op-1' }),
+        createFullOp({ id: 'op-2' }),
+      ];
+      operationApplierServiceSpy.applyOperations.and.callFake(async (ops, options) => {
+        await options?.onReducersCommitted?.(ops);
+        return {
+          appliedOps: [remoteOps[0]],
+          failedOp: { op: remoteOps[1], error: new Error('archive failed') },
+        };
+      });
+      operationLogEffectsSpy.processDeferredActions.and.rejectWith(
+        new Error('deferred drain failed'),
+      );
+
+      let thrown: unknown;
+      try {
+        await service.applyNonConflictingOps(remoteOps);
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(IncompleteRemoteOperationsError);
+      expect((thrown as Error).message).toBe('archive failed');
     });
 
     it('should flip the session-validation latch when partial-failure validation fails', async () => {

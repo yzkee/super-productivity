@@ -456,31 +456,20 @@ export class OperationLogSyncService {
     // path excludes this client's own ops server-side, so resuming through it
     // would silently lose them — redo the raw rebuild instead.
     if (await this.opLogStore.isRawRebuildIncomplete()) {
-      OpLog.warn(
-        'OperationLogSyncService: Interrupted USE_REMOTE rebuild detected — redoing the raw rebuild.',
-      );
-      try {
-        // Flush belongs inside the recovery boundary: if persistence is still
-        // unhealthy, the pre-replace backup is the only safe rollback and its
-        // Undo affordance must remain visible.
-        await this._flushLocalWritesIncludingDeferredActions();
-        await this.forceDownloadRemoteState(syncProvider, { isCrashResume: true });
-      } catch (e) {
-        // The prior attempt already committed the destructive baseline (that is
-        // why we are resuming), so the user's original data now lives only in
-        // the pre-replace backup. If this resume cannot finish — empty/newer-
-        // schema remote, or a persistent download failure — forceDownloadRemoteState
-        // throws in its download/validate phase, before it can offer Undo, and
-        // the backup would otherwise stay stranded with no restore affordance
-        // (reads as total data loss). Surface the recovery Undo before rethrowing.
-        await this._offerStrandedRebuildBackup();
-        throw e;
-      }
+      await this._resumeInterruptedRawRebuild(syncProvider, true);
       // State was replaced wholesale, exactly like a snapshot hydration.
       return { kind: 'snapshot_hydrated' };
     }
 
     await this._flushLocalWritesIncludingDeferredActions();
+    // Another tab can commit the destructive replacement while this caller is
+    // waiting for the operation-log flush barrier. Re-read the marker after the
+    // barrier and resume the raw rebuild instead of entering the normal download
+    // path with a partial baseline.
+    if (await this.opLogStore.isRawRebuildIncomplete()) {
+      await this._resumeInterruptedRawRebuild(syncProvider, false);
+      return { kind: 'snapshot_hydrated' };
+    }
     await this._assertNoIncompleteRemoteOperations();
 
     const result = await this.downloadService.downloadRemoteOps(syncProvider, options);
@@ -1544,12 +1533,46 @@ export class OperationLogSyncService {
   }
 
   private async _assertNoIncompleteRemoteOperations(): Promise<void> {
-    const [pendingRemoteOps, failedRemoteOps] = await Promise.all([
-      this.opLogStore.getPendingRemoteOps(),
-      this.opLogStore.getFailedRemoteOps(),
-    ]);
-    if (pendingRemoteOps.length > 0 || failedRemoteOps.length > 0) {
+    const [isRawRebuildIncomplete, pendingRemoteOps, failedRemoteOps] = await Promise.all(
+      [
+        this.opLogStore.isRawRebuildIncomplete(),
+        this.opLogStore.getPendingRemoteOps(),
+        this.opLogStore.getFailedRemoteOps(),
+      ],
+    );
+    if (
+      isRawRebuildIncomplete ||
+      pendingRemoteOps.length > 0 ||
+      failedRemoteOps.length > 0
+    ) {
       throw new IncompleteRemoteOperationsError();
+    }
+  }
+
+  private async _resumeInterruptedRawRebuild(
+    syncProvider: OperationSyncCapable,
+    flushLocalWrites: boolean,
+  ): Promise<void> {
+    OpLog.warn(
+      'OperationLogSyncService: Interrupted USE_REMOTE rebuild detected — redoing the raw rebuild.',
+    );
+    try {
+      if (flushLocalWrites) {
+        // Flush belongs inside the recovery boundary: if persistence is still
+        // unhealthy, the pre-replace backup is the only safe rollback and its
+        // Undo affordance must remain visible.
+        await this._flushLocalWritesIncludingDeferredActions();
+      }
+      await this.forceDownloadRemoteState(syncProvider, { isCrashResume: true });
+    } catch (error) {
+      // The prior attempt already committed the destructive baseline (that is
+      // why we are resuming), so the user's original data now lives only in
+      // the pre-replace backup. If this resume cannot finish — empty/newer-
+      // schema remote, or a persistent download failure — forceDownloadRemoteState
+      // throws in its download/validate phase, before it can offer Undo, and
+      // the backup would otherwise stay stranded with no restore affordance.
+      await this._offerStrandedRebuildBackup();
+      throw error;
     }
   }
 

@@ -14,6 +14,7 @@ import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
 import { MAX_VECTOR_CLOCK_SIZE } from '../core/operation-log.const';
 import { buildEntityRegistry, ENTITY_REGISTRY } from '../core/entity-registry';
 import { OperationLogEffects } from '../capture/operation-log.effects';
+import { IncompleteRemoteOperationsError } from '../core/errors/sync-errors';
 
 describe('ConflictResolutionService', () => {
   let service: ConflictResolutionService;
@@ -3980,6 +3981,37 @@ describe('ConflictResolutionService', () => {
       expect(callOrder.indexOf('processDeferredActions')).toBeGreaterThan(
         callOrder.indexOf('applyOperations'),
       );
+    });
+
+    it('should preserve the incomplete-remote error when the deferred drain also fails', async () => {
+      const localOp = createOpForBug('local-1', 'client-a', now - 1000);
+      const remoteOp = createOpForBug('remote-1', 'client-b', now);
+      const conflicts: EntityConflict[] = [
+        {
+          entityType: 'TASK',
+          entityId: 'task-1',
+          localOps: [localOp],
+          remoteOps: [remoteOp],
+          suggestedResolution: 'manual',
+        },
+      ];
+      mockOperationApplier.applyOperations.and.resolveTo({
+        appliedOps: [],
+        failedOp: { op: remoteOp, error: new Error('archive failed') },
+      });
+      mockOperationLogEffects.processDeferredActions.and.rejectWith(
+        new Error('deferred drain failed'),
+      );
+
+      let thrown: unknown;
+      try {
+        await service.autoResolveConflictsLWW(conflicts);
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(IncompleteRemoteOperationsError);
+      expect((thrown as Error).message).toBe('archive failed');
     });
   });
 

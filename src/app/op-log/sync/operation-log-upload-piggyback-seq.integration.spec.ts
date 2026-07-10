@@ -161,10 +161,12 @@ describe('OperationLogSyncService + OperationLogUploadService — piggyback seq 
       'appendBatchSkipDuplicates',
       'hasSyncedOps',
       'deleteOpsWhere',
+      'isRawRebuildIncomplete',
     ]);
     opLogStoreSpy.getUnsynced.and.resolveTo([localPendingEntry]);
     opLogStoreSpy.getPendingRemoteOps.and.resolveTo([]);
     opLogStoreSpy.getFailedRemoteOps.and.resolveTo([]);
+    opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(false);
     opLogStoreSpy.markSynced.and.resolveTo(undefined);
     opLogStoreSpy.markRejected.and.resolveTo(undefined);
     opLogStoreSpy.setVectorClock.and.resolveTo();

@@ -30,7 +30,10 @@ import {
   OpType,
 } from '../core/operation.types';
 import { TranslateService } from '@ngx-translate/core';
-import { LocalDataConflictError } from '../core/errors/sync-errors';
+import {
+  IncompleteRemoteOperationsError,
+  LocalDataConflictError,
+} from '../core/errors/sync-errors';
 import { SyncHydrationService } from '../persistence/sync-hydration.service';
 import { SyncImportConflictDialogService } from './sync-import-conflict-dialog.service';
 import { StateSnapshotService } from '../backup/state-snapshot.service';
@@ -359,6 +362,16 @@ describe('OperationLogSyncService', () => {
         await expectAsync(
           service.uploadPendingOps({} as OperationSyncCapable),
         ).toBeRejected();
+
+        expect(uploadServiceSpy.uploadPendingOps).not.toHaveBeenCalled();
+      });
+
+      it('should block upload while a raw rebuild remains incomplete', async () => {
+        opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(true);
+
+        await expectAsync(
+          service.uploadPendingOps({} as OperationSyncCapable),
+        ).toBeRejectedWithError(IncompleteRemoteOperationsError);
 
         expect(uploadServiceSpy.uploadPendingOps).not.toHaveBeenCalled();
       });
@@ -982,6 +995,29 @@ describe('OperationLogSyncService', () => {
 
         const result = await service.downloadRemoteOps(mockProvider);
 
+        expect(forceDownloadSpy).toHaveBeenCalledWith(mockProvider, {
+          isCrashResume: true,
+        });
+        expect(result.kind).toBe('snapshot_hydrated');
+        expect(downloadServiceSpy.downloadRemoteOps).not.toHaveBeenCalled();
+      });
+
+      it('should resume a raw rebuild whose marker appears while local writes flush', async () => {
+        opLogStoreSpy.isRawRebuildIncomplete.and.returnValues(
+          Promise.resolve(false),
+          Promise.resolve(true),
+        );
+        const forceDownloadSpy = spyOn(
+          service,
+          'forceDownloadRemoteState',
+        ).and.resolveTo();
+        const mockProvider = {
+          isReady: () => Promise.resolve(true),
+        } as any;
+
+        const result = await service.downloadRemoteOps(mockProvider);
+
+        expect(opLogStoreSpy.isRawRebuildIncomplete).toHaveBeenCalledTimes(2);
         expect(forceDownloadSpy).toHaveBeenCalledWith(mockProvider, {
           isCrashResume: true,
         });

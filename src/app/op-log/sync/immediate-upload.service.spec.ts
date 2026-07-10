@@ -9,6 +9,9 @@ import { SyncSessionValidationService } from './sync-session-validation.service'
 import { SyncCycleGuardService } from './sync-cycle-guard.service';
 import { BehaviorSubject } from 'rxjs';
 import { RejectedOpInfo } from '../core/types/sync-results.types';
+import { SnackService } from '../../core/snack/snack.service';
+import { IncompleteRemoteOperationsError } from '../core/errors/sync-errors';
+import { T } from '../../t.const';
 
 describe('ImmediateUploadService', () => {
   let service: ImmediateUploadService;
@@ -16,6 +19,7 @@ describe('ImmediateUploadService', () => {
   let mockSyncService: jasmine.SpyObj<OperationLogSyncService>;
   let mockDataInitStateService: { isAllDataLoadedInitially$: BehaviorSubject<boolean> };
   let mockSyncWrapperService: { isEncryptionOperationInProgress: boolean };
+  let mockSnackService: jasmine.SpyObj<SnackService>;
   let mockProvider: any;
   let originalOnLineDescriptor: PropertyDescriptor | undefined;
 
@@ -97,6 +101,7 @@ describe('ImmediateUploadService', () => {
     mockSyncWrapperService = {
       isEncryptionOperationInProgress: false,
     };
+    mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
 
     TestBed.configureTestingModule({
       providers: [
@@ -105,6 +110,7 @@ describe('ImmediateUploadService', () => {
         { provide: OperationLogSyncService, useValue: mockSyncService },
         { provide: DataInitStateService, useValue: mockDataInitStateService },
         { provide: SyncWrapperService, useValue: mockSyncWrapperService },
+        { provide: SnackService, useValue: mockSnackService },
       ],
     });
 
@@ -155,6 +161,24 @@ describe('ImmediateUploadService', () => {
         'UNKNOWN_OR_CHANGED',
       );
       expect(mockProviderManager.setSyncStatus).not.toHaveBeenCalledWith('IN_SYNC');
+    }));
+
+    it('should report incomplete remote application as a sticky translated error', fakeAsync(() => {
+      mockSyncService.uploadPendingOps.and.rejectWith(
+        new IncompleteRemoteOperationsError(new Error('archive failed')),
+      );
+
+      service.initialize();
+      service.trigger();
+      tick(2000);
+      flush();
+
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+      expect(mockSnackService.open).toHaveBeenCalledWith({
+        msg: T.F.SYNC.S.INCOMPLETE_REMOTE_OPERATIONS,
+        type: 'ERROR',
+        config: { duration: 0 },
+      });
     }));
 
     it('should report UNKNOWN_OR_CHANGED when a local-win follow-up lacks a mandatory encryption key', fakeAsync(() => {

@@ -11,6 +11,9 @@ import { handleStorageQuotaError } from './sync-error-utils';
 import { SyncWrapperService } from '../../imex/sync/sync-wrapper.service';
 import { SyncSessionValidationService } from './sync-session-validation.service';
 import { SyncCycleGuardService } from './sync-cycle-guard.service';
+import { IncompleteRemoteOperationsError } from '../core/errors/sync-errors';
+import { SnackService } from '../../core/snack/snack.service';
+import { T } from '../../t.const';
 
 const IMMEDIATE_UPLOAD_DEBOUNCE_MS = 2000;
 
@@ -55,6 +58,7 @@ export class ImmediateUploadService implements OnDestroy {
   private _syncWrapper = inject(SyncWrapperService);
   private _sessionValidation = inject(SyncSessionValidationService);
   private _syncCycleGuard = inject(SyncCycleGuardService);
+  private _snackService = inject(SnackService);
 
   private _uploadTrigger$ = new Subject<void>();
   private _subscription: Subscription | null = null;
@@ -324,6 +328,16 @@ export class ImmediateUploadService implements OnDestroy {
           );
         }
       } catch (e) {
+        if (e instanceof IncompleteRemoteOperationsError) {
+          this._providerManager.setSyncStatus('ERROR');
+          this._snackService.open({
+            msg: T.F.SYNC.S.INCOMPLETE_REMOTE_OPERATIONS,
+            type: 'ERROR',
+            config: { duration: 0 },
+          });
+          return;
+        }
+
         // Check for storage quota exceeded - this requires user action
         const message = e instanceof Error ? e.message : 'Unknown error';
         handleStorageQuotaError(message);
