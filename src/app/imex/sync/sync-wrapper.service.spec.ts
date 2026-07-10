@@ -157,7 +157,11 @@ describe('SyncWrapperService', () => {
       cfg$: configSubject.asObservable(),
     });
 
-    mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
+    mockSnackService = jasmine.createSpyObj('SnackService', [
+      'open',
+      'hasPendingPersistentAction',
+    ]);
+    mockSnackService.hasPendingPersistentAction.and.returnValue(false);
     mockMatDialog = jasmine.createSpyObj('MatDialog', ['open'], {
       openDialogs: [],
     });
@@ -1841,6 +1845,19 @@ describe('SyncWrapperService', () => {
           type: 'ERROR',
         }),
       );
+    });
+
+    it('should preserve a persistent recovery action when sync rethrows', async () => {
+      mockSnackService.hasPendingPersistentAction.and.returnValue(true);
+      mockSyncService.downloadRemoteOps.and.rejectWith(
+        new Error('Interrupted rebuild could not resume'),
+      );
+
+      const result = await service.sync();
+
+      expect(result).toBe('HANDLED_ERROR');
+      expect(mockProviderManager.setSyncStatus).toHaveBeenCalledWith('ERROR');
+      expect(mockSnackService.open).not.toHaveBeenCalled();
     });
 
     it('should treat UploadRevToMatchMismatchAPIError as transient: set UNKNOWN_OR_CHANGED, no error snackbar', async () => {

@@ -94,15 +94,15 @@ describe('SyncImportConflictGateService', () => {
     });
   });
 
-  const createPendingConfigEntry = (): OperationLogEntry =>
+  const createPendingConfigEntry = (sectionKey = 'sync'): OperationLogEntry =>
     createEntry(
       createOperation({
         id: 'local-config-update',
         actionType: '[Global Config] Update Global Config Section' as ActionType,
         opType: OpType.Update,
         entityType: 'GLOBAL_CONFIG',
-        entityId: 'sync',
-        payload: { sectionKey: 'sync' },
+        entityId: sectionKey,
+        payload: { sectionKey },
         clientId: 'client-A',
         vectorClock: { clientA: 1 },
       }),
@@ -126,6 +126,18 @@ describe('SyncImportConflictGateService', () => {
 
     expect(result.hasMeaningfulPending).toBeFalse();
     expect(result.dialogData).toBeUndefined();
+  });
+
+  it('should flag a user config change on a never-synced client', async () => {
+    opLogStoreSpy.hasSyncedOps.and.resolveTo(false);
+    opLogStoreSpy.getUnsynced.and.resolveTo([
+      createPendingConfigEntry('productivityHacks'),
+    ]);
+
+    const result = await service.checkIncomingFullStateConflict([createOperation()]);
+
+    expect(result.hasMeaningfulPending).toBeTrue();
+    expect(result.dialogData).toBeDefined();
   });
 
   it('should not produce dialog data when pending task creates are startup example tasks', async () => {
@@ -402,7 +414,7 @@ describe('SyncImportConflictGateService', () => {
       expect(service.hasMeaningfulPendingOps([pendingCounter])).toBeTrue();
     });
 
-    it('should treat MIGRATION/RECOVERY genesis batches as meaningful only once the client has synced', async () => {
+    it('should always treat MIGRATION/RECOVERY genesis batches as meaningful', async () => {
       const pendingMigration = createEntry(
         createOperation({
           id: 'local-genesis',
@@ -435,10 +447,8 @@ describe('SyncImportConflictGateService', () => {
       expect(service.hasMeaningfulPendingOps([pendingRecovery], synced)).toBeTrue();
 
       const neverSynced = { hasCompletedInitialSync: false };
-      expect(
-        service.hasMeaningfulPendingOps([pendingMigration], neverSynced),
-      ).toBeFalse();
-      expect(service.hasMeaningfulPendingOps([pendingRecovery], neverSynced)).toBeFalse();
+      expect(service.hasMeaningfulPendingOps([pendingMigration], neverSynced)).toBeTrue();
+      expect(service.hasMeaningfulPendingOps([pendingRecovery], neverSynced)).toBeTrue();
     });
   });
 

@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import {
   FULL_STATE_OP_TYPES,
+  extractActionPayload,
   Operation,
   OperationLogEntry,
   OpType,
@@ -9,13 +10,6 @@ import {
 import { OperationWriteFlushService } from './operation-write-flush.service';
 import { SyncImportConflictData } from './dialog-sync-import-conflict/dialog-sync-import-conflict.component';
 import { isExampleTaskCreateOp } from '../validation/is-example-task-op.util';
-
-/**
- * Startup/system entities are written automatically during first-time setup.
- * Before the client has completed a sync they are setup state, not divergence;
- * after that, later writes are genuine local changes.
- */
-const STARTUP_ENTITY_TYPES = new Set(['GLOBAL_CONFIG', 'MIGRATION', 'RECOVERY']);
 
 export interface IncomingFullStateConflictGateResult {
   fullStateOp?: Operation;
@@ -42,7 +36,7 @@ export class SyncImportConflictGateService {
 
   /**
    * Every pending op is user work unless it is an onboarding example-task create,
-   * or a startup/system write on a client that has not yet completed a sync.
+   * or the sync-config write required to enable first sync on a fresh client.
    * Full-state ops are always meaningful because applying a newer full-state op
    * can invalidate their local import/repair semantics.
    *
@@ -62,8 +56,12 @@ export class SyncImportConflictGateService {
       if (isExampleTaskCreateOp(entry)) {
         return false;
       }
-      if (STARTUP_ENTITY_TYPES.has(entry.op.entityType)) {
-        return options.hasCompletedInitialSync;
+      if (
+        !options.hasCompletedInitialSync &&
+        entry.op.entityType === 'GLOBAL_CONFIG' &&
+        extractActionPayload(entry.op.payload).sectionKey === 'sync'
+      ) {
+        return false;
       }
       return true;
     });

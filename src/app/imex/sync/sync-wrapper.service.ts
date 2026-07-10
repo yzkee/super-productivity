@@ -935,14 +935,20 @@ export class SyncWrapperService {
       } else {
         this._providerManager.setSyncStatus('ERROR');
         const errStr = getSyncErrorStr(error);
-        this._snackService.open({
-          // msg: T.F.SYNC.S.UNKNOWN_ERROR,
-          msg: errStr,
-          type: 'ERROR',
-          translateParams: {
-            err: errStr,
-          },
-        });
+        // A lower-level recovery path may already have shown a sticky action
+        // (for example Undo after an interrupted remote-state rebuild). Snack
+        // rendering is debounced, so opening the generic error here would win
+        // the race and silently remove the only recovery action.
+        if (!this._snackService.hasPendingPersistentAction()) {
+          this._snackService.open({
+            // msg: T.F.SYNC.S.UNKNOWN_ERROR,
+            msg: errStr,
+            type: 'ERROR',
+            translateParams: {
+              err: errStr,
+            },
+          });
+        }
         return 'HANDLED_ERROR';
       }
     }
