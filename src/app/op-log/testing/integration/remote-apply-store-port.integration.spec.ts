@@ -205,6 +205,71 @@ const defineStorePortContract = (
         testClient: 7,
       });
     });
+
+    it('should retain a third-client clock from an operation after a full-state import', async () => {
+      const importOp = createOperation('ordered-import', {
+        opType: OpType.SyncImport,
+        clientId: 'importClient',
+        vectorClock: { importClient: 9, obsoleteClient: 4 },
+      });
+      const postImportOp = createOperation('ordered-post-import', {
+        clientId: 'thirdClient',
+        vectorClock: { importClient: 9, thirdClient: 6 },
+      });
+      await store.setVectorClock({ staleClient: 5, testClient: 7 });
+      const { applier } = createApplier({ appliedOps: [importOp, postImportOp] });
+
+      await applyRemoteOperations({
+        ops: [importOp, postImportOp],
+        store,
+        applier,
+        isFullStateOperation: (op) => op.opType === OpType.SyncImport,
+      });
+
+      expect(await store.getVectorClock()).toEqual({
+        importClient: 9,
+        testClient: 7,
+        thirdClient: 6,
+      });
+    });
+
+    it('should reset at each full-state operation and merge only the final suffix', async () => {
+      const firstImport = createOperation('first-import', {
+        opType: OpType.SyncImport,
+        clientId: 'firstImportClient',
+        vectorClock: { firstImportClient: 1 },
+      });
+      const betweenImports = createOperation('between-imports', {
+        clientId: 'betweenClient',
+        vectorClock: { firstImportClient: 1, betweenClient: 3 },
+      });
+      const secondImport = createOperation('second-import', {
+        opType: OpType.BackupImport,
+        clientId: 'secondImportClient',
+        vectorClock: { secondImportClient: 4, obsoleteImportEntry: 8 },
+      });
+      const finalSuffix = createOperation('final-suffix', {
+        clientId: 'suffixClient',
+        vectorClock: { secondImportClient: 4, suffixClient: 6 },
+      });
+      await store.setVectorClock({ staleClient: 5, testClient: 7 });
+      const ops = [firstImport, betweenImports, secondImport, finalSuffix];
+      const { applier } = createApplier({ appliedOps: ops });
+
+      await applyRemoteOperations({
+        ops,
+        store,
+        applier,
+        isFullStateOperation: (op) =>
+          op.opType === OpType.SyncImport || op.opType === OpType.BackupImport,
+      });
+
+      expect(await store.getVectorClock()).toEqual({
+        secondImportClient: 4,
+        testClient: 7,
+        suffixClient: 6,
+      });
+    });
   });
 };
 

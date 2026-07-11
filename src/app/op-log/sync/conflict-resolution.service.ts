@@ -318,6 +318,7 @@ export class ConflictResolutionService {
     } = lwwPartitions;
     const localOpsToReject = [...lwwPartitions.localOpsToReject];
     const localOpsToRejectSet = new Set(localOpsToReject);
+    let writtenLocalWinOps: Operation[] = [];
 
     for (const resolution of resolutions) {
       // Note: localWinOp is undefined for archive-wins sibling conflicts
@@ -354,11 +355,29 @@ export class ConflictResolutionService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Batch process local-wins remote ops: filter duplicates and append in batch
-    // Uses retry to handle race condition (issue #6213)
+    // Atomically persist remote losers followed by their local-win
+    // compensations. Hydration is status-blind, so exposing a durable loser
+    // without its later compensation would let the loser overwrite local state
+    // after a crash.
     // ─────────────────────────────────────────────────────────────────────────
-    if (localWinsRemoteOps.length > 0) {
-      await this._filterAndAppendOpsWithRetry(localWinsRemoteOps, 'remote');
+    if (localWinsRemoteOps.length > 0 || newLocalWinOps.length > 0) {
+      const result = await this.opLogStore.appendMixedSourceBatchSkipDuplicates([
+        { ops: localWinsRemoteOps, source: 'remote' },
+        { ops: newLocalWinOps, source: 'local' },
+      ]);
+      writtenLocalWinOps = result.written
+        .filter((entry) => entry.source === 'local')
+        .map((entry) => entry.op);
+      if (result.skippedCount > 0) {
+        OpLog.verbose(
+          `ConflictResolutionService: Skipped ${result.skippedCount} duplicate mixed-resolution op(s)`,
+        );
+      }
+      for (const op of writtenLocalWinOps) {
+        OpLog.normal(
+          `ConflictResolutionService: Appended local-win update op ${op.id} for ${op.entityType}:${op.entityId}`,
+        );
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -413,19 +432,21 @@ export class ConflictResolutionService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 5+6: Apply remote ops (single batch) and append local-win update ops.
-    // The deferred-actions flush in `finally` runs whether the apply succeeded
-    // or threw — matches the pre-fix replayOperationBatch.finally semantics
-    // and guarantees buffered local actions don't leak to the next sync. (#7700)
+    // STEP 5: Apply remote ops in a single batch.
+    // Merge their clocks before entering the reducer/deferred-action window.
+    // Pending rows make this durable frontier crash-safe, and any subsequent
+    // dispatch/checkpoint/bookkeeping failure can drain buffered local actions.
+    // (#7700)
     // ─────────────────────────────────────────────────────────────────────────
-    let didApplyRemoteOps = false;
-    let primaryIncompleteError: IncompleteRemoteOperationsError | undefined;
+    let canDrainDeferredActions = false;
+    let hasPrimaryError = false;
     try {
       if (allOpsToApply.length > 0) {
         OpLog.normal(
           `ConflictResolutionService: Applying ${allOpsToApply.length} ops in single batch`,
         );
-        didApplyRemoteOps = true;
+        await this.opLogStore.mergeRemoteOpClocks(allOpsToApply);
+        canDrainDeferredActions = true;
 
         const opIdToSeq = new Map(allStoredOps.map((o) => [o.id, o.seq]));
         const applyResult = await this.operationApplier.applyOperations(allOpsToApply, {
@@ -439,8 +460,10 @@ export class ConflictResolutionService {
                 'ConflictResolutionService: reducer commit contained an unknown operation.',
               );
             }
-            await this.opLogStore.markArchivePending(reducerCommittedSeqs);
-            await this.opLogStore.mergeRemoteOpClocks(reducerCommittedOps);
+            await this.opLogStore.markReducersCommittedAndMergeClocks(
+              reducerCommittedSeqs,
+              reducerCommittedOps,
+            );
           },
         });
 
@@ -489,35 +512,22 @@ export class ConflictResolutionService {
           throw new IncompleteRemoteOperationsError(applyResult.failedOp.error);
         }
       }
-
-      // ───────────────────────────────────────────────────────────────────────
-      // Append new update ops for local wins (will sync on next cycle)
-      // Uses appendWithVectorClockUpdate to ensure vector clock store stays in sync
-      // ───────────────────────────────────────────────────────────────────────
-      for (const op of newLocalWinOps) {
-        await this.opLogStore.appendWithVectorClockUpdate(op, 'local');
-        OpLog.normal(
-          `ConflictResolutionService: Appended local-win update op ${op.id} for ${op.entityType}:${op.entityId}`,
-        );
-      }
     } catch (error) {
-      if (error instanceof IncompleteRemoteOperationsError) {
-        primaryIncompleteError = error;
-      }
+      hasPrimaryError = true;
       throw error;
     } finally {
-      if (didApplyRemoteOps) {
+      if (canDrainDeferredActions) {
         try {
           await processDeferredActionsAfterRemoteApply(
             this.injector,
             options.callerHoldsOperationLogLock ?? false,
           );
         } catch (deferredError) {
-          if (!primaryIncompleteError) {
+          if (!hasPrimaryError) {
             throw deferredError;
           }
           OpLog.err(
-            'ConflictResolutionService: Deferred-action drain also failed after incomplete remote application',
+            'ConflictResolutionService: Deferred-action drain also failed after the primary remote-apply error',
             { name: (deferredError as Error | undefined)?.name },
           );
         }
@@ -525,7 +535,7 @@ export class ConflictResolutionService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 7: Show non-blocking notification
+    // STEP 6: Show non-blocking notification
     //
     // Distinguish "routine" self-healing (reschedule/repeat/archive/done churn
     // that resolves correctly on its own) from resolutions that discarded a real
@@ -538,14 +548,14 @@ export class ConflictResolutionService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 8: Validate and repair state after resolution
+    // STEP 7: Validate and repair state after resolution
     // Validation failure flips the SyncSessionValidationService latch — the
     // wrapper reads it before deciding IN_SYNC vs ERROR. (#7330)
     // ─────────────────────────────────────────────────────────────────────────
     const isValid = await this._validateAndRepairAfterResolution();
     if (!isValid) this.sessionValidation.setFailed();
 
-    return { localWinOpsCreated: newLocalWinOps.length };
+    return { localWinOpsCreated: writtenLocalWinOps.length };
   }
 
   /**

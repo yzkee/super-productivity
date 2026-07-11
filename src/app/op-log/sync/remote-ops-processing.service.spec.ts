@@ -51,6 +51,7 @@ describe('RemoteOpsProcessingService', () => {
   let compactionServiceSpy: jasmine.SpyObj<OperationLogCompactionService>;
   let syncImportFilterServiceSpy: jasmine.SpyObj<SyncImportFilterService>;
   let operationLogEffectsSpy: jasmine.SpyObj<OperationLogEffects>;
+  let writeFlushServiceSpy: jasmine.SpyObj<OperationWriteFlushService>;
 
   const applyAllWithReducerCommit = async (
     ops: Operation[],
@@ -85,11 +86,10 @@ describe('RemoteOpsProcessingService', () => {
       'hasOp',
       'append',
       'appendBatchSkipDuplicates',
-      'appendWithVectorClockUpdate',
-      'markArchivePending',
+      'mergeRemoteOpClocks',
+      'markReducersCommittedAndMergeClocks',
       'markApplied',
       'markFailed',
-      'mergeRemoteOpClocks',
       'getUnsyncedByEntity',
       'getOpsAfterSeq',
       'getLatestFullStateOp',
@@ -116,8 +116,9 @@ describe('RemoteOpsProcessingService', () => {
     );
     // By default, no full-state ops in store
     opLogStoreSpy.getLatestFullStateOp.and.returnValue(Promise.resolve(undefined));
-    // By default, mergeRemoteOpClocks succeeds
+    // By default, both durable clock transitions succeed
     opLogStoreSpy.mergeRemoteOpClocks.and.resolveTo();
+    opLogStoreSpy.markReducersCommittedAndMergeClocks.and.resolveTo();
     // By default, clearFullStateOps returns 0 (no ops cleared)
     opLogStoreSpy.clearFullStateOps.and.resolveTo(0);
     // By default, clearFullStateOpsExcept returns 0 (no ops cleared)
@@ -248,6 +249,17 @@ describe('RemoteOpsProcessingService', () => {
           isLocalUnsyncedImport: false,
         }),
     );
+    writeFlushServiceSpy = jasmine.createSpyObj('OperationWriteFlushService', [
+      'flushPendingWrites',
+      'flushThenRunExclusive',
+    ]);
+    writeFlushServiceSpy.flushPendingWrites.and.resolveTo();
+    writeFlushServiceSpy.flushThenRunExclusive.and.callFake(
+      async <T>(fn: () => Promise<T>) => {
+        await writeFlushServiceSpy.flushPendingWrites();
+        return fn();
+      },
+    );
 
     TestBed.configureTestingModule({
       providers: [
@@ -264,21 +276,9 @@ describe('RemoteOpsProcessingService', () => {
         { provide: LockService, useValue: lockServiceSpy },
         { provide: OperationLogCompactionService, useValue: compactionServiceSpy },
         { provide: SyncImportFilterService, useValue: syncImportFilterServiceSpy },
-        {
-          provide: OperationWriteFlushService,
-          useValue: jasmine.createSpyObj('OperationWriteFlushService', [
-            'flushPendingWrites',
-          ]),
-        },
+        { provide: OperationWriteFlushService, useValue: writeFlushServiceSpy },
       ],
     });
-
-    // Default: flush resolves immediately
-    (
-      TestBed.inject(
-        OperationWriteFlushService,
-      ) as unknown as jasmine.SpyObj<OperationWriteFlushService>
-    ).flushPendingWrites.and.resolveTo();
 
     service = TestBed.inject(RemoteOpsProcessingService);
     schemaMigrationServiceSpy.getCurrentVersion.and.returnValue(1);
@@ -346,10 +346,7 @@ describe('RemoteOpsProcessingService', () => {
 
       // Track call order
       const callOrder: string[] = [];
-      const writeFlushService = TestBed.inject(
-        OperationWriteFlushService,
-      ) as unknown as jasmine.SpyObj<OperationWriteFlushService>;
-      writeFlushService.flushPendingWrites.and.callFake(async () => {
+      writeFlushServiceSpy.flushPendingWrites.and.callFake(async () => {
         callOrder.push('flushPendingWrites');
       });
       lockServiceSpy.request.and.callFake(
@@ -772,6 +769,96 @@ describe('RemoteOpsProcessingService', () => {
       await service.processRemoteOps([syncImportOp]);
 
       expect(service.detectConflicts).not.toHaveBeenCalled();
+    });
+
+    it('should flush and hold the operation-log lock through full-state apply and validation', async () => {
+      const syncImportOp: Operation = {
+        id: 'sync-import-exclusive',
+        opType: OpType.SyncImport,
+        actionType: '[All] Load All Data' as ActionType,
+        entityType: 'ALL',
+        payload: {},
+        clientId: 'client-1',
+        vectorClock: { client1: 1 },
+        timestamp: Date.now(),
+        schemaVersion: 1,
+      };
+      const callOrder: string[] = [];
+      writeFlushServiceSpy.flushPendingWrites.and.callFake(async () => {
+        callOrder.push('flush');
+      });
+      writeFlushServiceSpy.flushThenRunExclusive.and.callFake(
+        async <T>(fn: () => Promise<T>) => {
+          await writeFlushServiceSpy.flushPendingWrites();
+          callOrder.push('exclusive:start');
+          const value = await fn();
+          callOrder.push('exclusive:end');
+          return value;
+        },
+      );
+      opLogStoreSpy.mergeRemoteOpClocks.and.callFake(async () => {
+        callOrder.push('premerge');
+      });
+      operationApplierServiceSpy.applyOperations.and.callFake(async (ops, options) => {
+        callOrder.push('reducers');
+        await options?.onReducersCommitted?.(ops);
+        return { appliedOps: ops };
+      });
+      operationLogEffectsSpy.processDeferredActions.and.callFake(async () => {
+        callOrder.push('deferred');
+      });
+      const validationSpy = spyOn(service, 'validateAfterSync').and.callFake(
+        async (callerHoldsOperationLogLock) => {
+          expect(callerHoldsOperationLogLock).toBeTrue();
+          callOrder.push('validation');
+          return true;
+        },
+      );
+
+      await service.processRemoteOps([syncImportOp]);
+
+      expect(writeFlushServiceSpy.flushThenRunExclusive).toHaveBeenCalledTimes(1);
+      expect(operationLogEffectsSpy.processDeferredActions).toHaveBeenCalledWith({
+        callerHoldsOperationLogLock: true,
+      });
+      expect(validationSpy).toHaveBeenCalledWith(true);
+      expect(callOrder).toEqual([
+        'flush',
+        'exclusive:start',
+        'premerge',
+        'reducers',
+        'deferred',
+        'validation',
+        'exclusive:end',
+      ]);
+    });
+
+    it('should propagate an already-held operation-log lock through full-state apply and validation', async () => {
+      const syncImportOp: Operation = {
+        id: 'sync-import-under-lock',
+        opType: OpType.SyncImport,
+        actionType: '[All] Load All Data' as ActionType,
+        entityType: 'ALL',
+        payload: {},
+        clientId: 'client-1',
+        vectorClock: { client1: 1 },
+        timestamp: Date.now(),
+        schemaVersion: 1,
+      };
+      const applySpy = spyOn(service, 'applyNonConflictingOps').and.callThrough();
+      const validationSpy = spyOn(service, 'validateAfterSync').and.resolveTo(true);
+
+      await service.processRemoteOps([syncImportOp], {
+        callerHoldsOperationLogLock: true,
+      });
+
+      expect(applySpy).toHaveBeenCalledWith([syncImportOp], true);
+      expect(validationSpy).toHaveBeenCalledWith(true);
+      expect(operationLogEffectsSpy.processDeferredActions).toHaveBeenCalledWith({
+        callerHoldsOperationLogLock: true,
+      });
+      expect(writeFlushServiceSpy.flushThenRunExclusive).not.toHaveBeenCalled();
+      expect(writeFlushServiceSpy.flushPendingWrites).not.toHaveBeenCalled();
     });
 
     it('should log incoming full-state op shape and prior receiver state for diagnostics', async () => {
@@ -1443,7 +1530,7 @@ describe('RemoteOpsProcessingService', () => {
       ...partial,
     });
 
-    it('should merge remote ops clocks after applying', async () => {
+    it('should durably merge clocks before apply and checkpoint them with reducer status', async () => {
       const remoteOps: Operation[] = [
         createFullOp({ id: 'remote-1', vectorClock: { remoteClient: 1 } }),
       ];
@@ -1458,6 +1545,10 @@ describe('RemoteOpsProcessingService', () => {
       await service.applyNonConflictingOps(remoteOps);
 
       expect(opLogStoreSpy.mergeRemoteOpClocks).toHaveBeenCalledWith(remoteOps);
+      expect(opLogStoreSpy.markReducersCommittedAndMergeClocks).toHaveBeenCalledWith(
+        [1],
+        remoteOps,
+      );
     });
 
     it('should flush deferred actions after remote clocks are merged while reusing caller lock', async () => {
@@ -1471,14 +1562,14 @@ describe('RemoteOpsProcessingService', () => {
         await options?.onReducersCommitted?.(ops);
         return { appliedOps: remoteOps };
       });
-      opLogStoreSpy.markArchivePending.and.callFake(async () => {
-        callOrder.push('markArchivePending');
+      opLogStoreSpy.mergeRemoteOpClocks.and.callFake(async () => {
+        callOrder.push('mergeRemoteOpClocks');
+      });
+      opLogStoreSpy.markReducersCommittedAndMergeClocks.and.callFake(async () => {
+        callOrder.push('checkpointReducersAndClocks');
       });
       opLogStoreSpy.markApplied.and.callFake(async () => {
         callOrder.push('markApplied');
-      });
-      opLogStoreSpy.mergeRemoteOpClocks.and.callFake(async () => {
-        callOrder.push('mergeRemoteOpClocks');
       });
       operationLogEffectsSpy.processDeferredActions.and.callFake(async () => {
         callOrder.push('processDeferredActions');
@@ -1497,15 +1588,15 @@ describe('RemoteOpsProcessingService', () => {
         callerHoldsOperationLogLock: true,
       });
       expect(callOrder).toEqual([
-        'applyOperations',
-        'markArchivePending',
         'mergeRemoteOpClocks',
+        'applyOperations',
+        'checkpointReducersAndClocks',
         'markApplied',
         'processDeferredActions',
       ]);
     });
 
-    it('should NOT call mergeRemoteOpClocks when no ops are applied', async () => {
+    it('should NOT checkpoint reducers or clocks when no ops are applied', async () => {
       const remoteOps: Operation[] = [
         createFullOp({ id: 'remote-1', vectorClock: { remoteClient: 1 } }),
       ];
@@ -1518,6 +1609,7 @@ describe('RemoteOpsProcessingService', () => {
       await service.applyNonConflictingOps(remoteOps);
 
       expect(opLogStoreSpy.mergeRemoteOpClocks).not.toHaveBeenCalled();
+      expect(opLogStoreSpy.markReducersCommittedAndMergeClocks).not.toHaveBeenCalled();
     });
 
     it('should charge only the attempted archive failure and run validation', async () => {
@@ -1540,8 +1632,10 @@ describe('RemoteOpsProcessingService', () => {
 
       await expectAsync(service.applyNonConflictingOps(remoteOps)).toBeRejected();
 
-      expect(opLogStoreSpy.markArchivePending).toHaveBeenCalledWith([1, 2, 3]);
-      expect(opLogStoreSpy.mergeRemoteOpClocks).toHaveBeenCalledWith(remoteOps);
+      expect(opLogStoreSpy.markReducersCommittedAndMergeClocks).toHaveBeenCalledWith(
+        [1, 2, 3],
+        remoteOps,
+      );
       expect(opLogStoreSpy.markFailed).toHaveBeenCalledWith(['op-2']);
       // Should run validation after partial failure
       expect(validateStateServiceSpy.validateAndRepairCurrentState).toHaveBeenCalledWith(
@@ -1575,6 +1669,87 @@ describe('RemoteOpsProcessingService', () => {
 
       expect(thrown).toBeInstanceOf(IncompleteRemoteOperationsError);
       expect((thrown as Error).message).toBe('archive failed');
+    });
+
+    it('should not start apply or drain deferred actions when the pre-apply clock merge fails', async () => {
+      const remoteOps: Operation[] = [createFullOp({ id: 'remote-1' })];
+      const clockError = new Error('clock merge failed');
+      opLogStoreSpy.mergeRemoteOpClocks.and.rejectWith(clockError);
+
+      await expectAsync(service.applyNonConflictingOps(remoteOps, true)).toBeRejectedWith(
+        clockError,
+      );
+
+      expect(operationApplierServiceSpy.applyOperations).not.toHaveBeenCalled();
+      expect(opLogStoreSpy.markReducersCommittedAndMergeClocks).not.toHaveBeenCalled();
+      expect(operationLogEffectsSpy.processDeferredActions).not.toHaveBeenCalled();
+    });
+
+    it('should drain deferred actions when the reducer+clock checkpoint fails after the clock merge', async () => {
+      const remoteOps: Operation[] = [createFullOp({ id: 'remote-1' })];
+      const checkpointError = new Error('checkpoint failed');
+      operationApplierServiceSpy.applyOperations.and.callFake(async (ops, options) => {
+        await options?.onReducersCommitted?.(ops);
+        return { appliedOps: ops };
+      });
+      opLogStoreSpy.markReducersCommittedAndMergeClocks.and.rejectWith(checkpointError);
+
+      await expectAsync(service.applyNonConflictingOps(remoteOps, true)).toBeRejectedWith(
+        checkpointError,
+      );
+
+      expect(operationLogEffectsSpy.processDeferredActions).toHaveBeenCalledWith({
+        callerHoldsOperationLogLock: true,
+      });
+    });
+
+    it('should drain deferred actions when reducer dispatch fails after the clock merge', async () => {
+      const remoteOps: Operation[] = [createFullOp({ id: 'remote-1' })];
+      const dispatchError = new Error('dispatcher failed');
+      operationApplierServiceSpy.applyOperations.and.rejectWith(dispatchError);
+
+      await expectAsync(service.applyNonConflictingOps(remoteOps, true)).toBeRejectedWith(
+        dispatchError,
+      );
+
+      expect(operationLogEffectsSpy.processDeferredActions).toHaveBeenCalledWith({
+        callerHoldsOperationLogLock: true,
+      });
+    });
+
+    it('should drain deferred actions when bookkeeping fails after the reducer+clock checkpoint', async () => {
+      const remoteOps: Operation[] = [createFullOp({ id: 'remote-1' })];
+      const markAppliedError = new Error('mark applied failed');
+      operationApplierServiceSpy.applyOperations.and.callFake(async (ops, options) => {
+        await options?.onReducersCommitted?.(ops);
+        return { appliedOps: ops };
+      });
+      opLogStoreSpy.markApplied.and.rejectWith(markAppliedError);
+
+      await expectAsync(service.applyNonConflictingOps(remoteOps, true)).toBeRejectedWith(
+        markAppliedError,
+      );
+
+      expect(operationLogEffectsSpy.processDeferredActions).toHaveBeenCalledWith({
+        callerHoldsOperationLogLock: true,
+      });
+    });
+
+    it('should preserve a bookkeeping error when the deferred drain also fails', async () => {
+      const remoteOps: Operation[] = [createFullOp({ id: 'remote-1' })];
+      const markAppliedError = new Error('mark applied failed');
+      operationApplierServiceSpy.applyOperations.and.callFake(async (ops, options) => {
+        await options?.onReducersCommitted?.(ops);
+        return { appliedOps: ops };
+      });
+      opLogStoreSpy.markApplied.and.rejectWith(markAppliedError);
+      operationLogEffectsSpy.processDeferredActions.and.rejectWith(
+        new Error('deferred drain failed'),
+      );
+
+      await expectAsync(service.applyNonConflictingOps(remoteOps)).toBeRejectedWith(
+        markAppliedError,
+      );
     });
 
     it('should flip the session-validation latch when partial-failure validation fails', async () => {

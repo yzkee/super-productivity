@@ -5,7 +5,6 @@ import { OperationLogStoreService } from './operation-log-store.service';
 import { LegacyPfDbService } from '../../core/persistence/legacy-pf-db.service';
 import { ClientIdService } from '../../core/util/client-id.service';
 import { ActionType, OpType } from '../core/operation.types';
-import { PENDING_OPERATION_EXPIRY_MS } from '../core/operation-log.const';
 import { ValidateStateService } from '../validation/validate-state.service';
 
 describe('OperationLogRecoveryService', () => {
@@ -28,7 +27,7 @@ describe('OperationLogRecoveryService', () => {
       'markRejected',
       'markFailed',
       'markApplied',
-      'markArchivePending',
+      'markReducersCommittedAndMergeClocks',
       'getUnsynced',
     ]);
     mockOpLogStore.setVectorClock.and.resolveTo(undefined);
@@ -187,89 +186,54 @@ describe('OperationLogRecoveryService', () => {
 
       await service.recoverPendingRemoteOps();
 
-      expect(mockOpLogStore.markArchivePending).not.toHaveBeenCalled();
+      expect(mockOpLogStore.markReducersCommittedAndMergeClocks).not.toHaveBeenCalled();
       expect(mockOpLogStore.markRejected).not.toHaveBeenCalled();
       expect(mockOpLogStore.markFailed).not.toHaveBeenCalled();
     });
 
-    it('should mark valid crash-interrupted ops as archive-pending', async () => {
+    it('should quarantine crash-interrupted ops for archive recovery', async () => {
       const now = Date.now();
       const pendingOps = [
         { seq: 1, op: { id: 'op1' }, appliedAt: now - 1000, source: 'remote' },
         { seq: 2, op: { id: 'op2' }, appliedAt: now - 2000, source: 'remote' },
       ] as any;
       mockOpLogStore.getPendingRemoteOps.and.resolveTo(pendingOps);
-      mockOpLogStore.markArchivePending.and.resolveTo(undefined);
+      mockOpLogStore.markReducersCommittedAndMergeClocks.and.resolveTo(undefined);
 
       await service.recoverPendingRemoteOps();
 
-      expect(mockOpLogStore.markArchivePending).toHaveBeenCalledWith([1, 2]);
+      expect(mockOpLogStore.markReducersCommittedAndMergeClocks).toHaveBeenCalledWith(
+        [1, 2],
+        pendingOps.map((entry) => entry.op),
+      );
       expect(mockOpLogStore.markApplied).not.toHaveBeenCalled();
     });
 
-    it('should quarantine ops that exceed PENDING_OPERATION_EXPIRY_MS', async () => {
+    it('should quarantine regardless of age without charging retry budget', async () => {
+      // The former PENDING_OPERATION_EXPIRY_MS split changed nothing: every
+      // crash-interrupted op lands in the same quarantine, and retryCount is
+      // only ever bumped for an actually attempted archive failure.
       const now = Date.now();
+      const weekMs = 7 * 24 * 60 * 60 * 1000;
       const pendingOps = [
-        { seq: 1, op: { id: 'valid' }, appliedAt: now - 1000, source: 'remote' }, // Valid
+        { seq: 1, op: { id: 'fresh' }, appliedAt: now - 1000, source: 'remote' },
         {
           seq: 2,
-          op: { id: 'expired' },
-          appliedAt: now - PENDING_OPERATION_EXPIRY_MS - 1,
-          source: 'remote',
-        }, // Expired
-      ] as any;
-      mockOpLogStore.getPendingRemoteOps.and.resolveTo(pendingOps);
-      mockOpLogStore.markArchivePending.and.resolveTo(undefined);
-      mockOpLogStore.markFailed.and.resolveTo(undefined);
-
-      await service.recoverPendingRemoteOps();
-
-      expect(mockOpLogStore.markArchivePending).toHaveBeenCalledWith([1]);
-      expect(mockOpLogStore.markFailed).toHaveBeenCalledWith(['expired']);
-    });
-
-    it('should quarantine all expired ops', async () => {
-      const now = Date.now();
-      const expiredTime = now - PENDING_OPERATION_EXPIRY_MS - 100000;
-      const pendingOps = [
-        { seq: 1, op: { id: 'old1' }, appliedAt: expiredTime, source: 'remote' },
-        { seq: 2, op: { id: 'old2' }, appliedAt: expiredTime - 1000, source: 'remote' },
-      ] as any;
-      mockOpLogStore.getPendingRemoteOps.and.resolveTo(pendingOps);
-      mockOpLogStore.markFailed.and.resolveTo(undefined);
-
-      await service.recoverPendingRemoteOps();
-
-      expect(mockOpLogStore.markFailed).toHaveBeenCalledWith(['old1', 'old2']);
-      expect(mockOpLogStore.markArchivePending).not.toHaveBeenCalled();
-    });
-
-    it('should handle mixed valid and expired ops correctly', async () => {
-      const now = Date.now();
-      const pendingOps = [
-        { seq: 1, op: { id: 'valid1' }, appliedAt: now - 1000, source: 'remote' },
-        {
-          seq: 2,
-          op: { id: 'expired1' },
-          appliedAt: now - PENDING_OPERATION_EXPIRY_MS - 1,
-          source: 'remote',
-        },
-        { seq: 3, op: { id: 'valid2' }, appliedAt: now - 5000, source: 'remote' },
-        {
-          seq: 4,
-          op: { id: 'expired2' },
-          appliedAt: now - PENDING_OPERATION_EXPIRY_MS - 2,
+          op: { id: 'week-old' },
+          appliedAt: now - weekMs,
           source: 'remote',
         },
       ] as any;
       mockOpLogStore.getPendingRemoteOps.and.resolveTo(pendingOps);
-      mockOpLogStore.markArchivePending.and.resolveTo(undefined);
-      mockOpLogStore.markFailed.and.resolveTo(undefined);
+      mockOpLogStore.markReducersCommittedAndMergeClocks.and.resolveTo(undefined);
 
       await service.recoverPendingRemoteOps();
 
-      expect(mockOpLogStore.markArchivePending).toHaveBeenCalledWith([1, 3]);
-      expect(mockOpLogStore.markFailed).toHaveBeenCalledWith(['expired1', 'expired2']);
+      expect(mockOpLogStore.markReducersCommittedAndMergeClocks).toHaveBeenCalledWith(
+        [1, 2],
+        pendingOps.map((entry) => entry.op),
+      );
+      expect(mockOpLogStore.markFailed).not.toHaveBeenCalled();
     });
   });
 

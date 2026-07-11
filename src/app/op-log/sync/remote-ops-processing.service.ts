@@ -263,13 +263,27 @@ export class RemoteOpsProcessingService {
       OpLog.normal(
         'RemoteOpsProcessingService: Full-state operation detected, skipping conflict detection.',
       );
-      const committedFullStateOpIds = await this.applyNonConflictingOps(validOps);
+      const callerHoldsOperationLogLock = options?.callerHoldsOperationLogLock ?? false;
+      const applyAndValidateWithOperationLogLockHeld = async (): Promise<string[]> => {
+        const committedFullStateOpIds = await this.applyNonConflictingOps(validOps, true);
 
-      // Clean Slate Semantics: SYNC_IMPORT/BACKUP_IMPORT replaces entire state.
-      // Local synced ops are NOT replayed - the import is an explicit user action
-      // to restore all clients to a specific point in time.
+        // Clean Slate Semantics: SYNC_IMPORT/BACKUP_IMPORT replaces entire state.
+        // Local synced ops are NOT replayed - the import is an explicit user action
+        // to restore all clients to a specific point in time.
+        await this.validateAfterSync(true);
+        return committedFullStateOpIds;
+      };
 
-      await this.validateAfterSync();
+      // Keep the pending-write cutoff, remote-clock premerge, full-state reducer,
+      // deferred capture drain, and validation in one operation-log critical
+      // section. Callers already inside that section must not re-enter its
+      // non-reentrant lock or flush while holding it.
+      const committedFullStateOpIds = callerHoldsOperationLogLock
+        ? await applyAndValidateWithOperationLogLockHeld()
+        : await this.writeFlushService.flushThenRunExclusive(
+            applyAndValidateWithOperationLogLockHeld,
+          );
+
       return {
         localWinOpsCreated: 0,
         allOpsFilteredBySyncImport: false,
@@ -458,13 +472,12 @@ export class RemoteOpsProcessingService {
 
     await this._logFullStateApplyDiagnostics(locallyReplayableOps);
 
-    // Mirror autoResolveConflictsLWW: wrap apply in try/finally so deferred
-    // local actions are flushed whether the apply succeeded or threw.
-    // Without this, an apply-time throw (e.g. dispatcher error inside the
-    // wrapped operationApplier.applyOperations) would leave buffered actions
-    // to leak into the next sync window with stale clocks. (#7700)
-    let didApplyRemoteOps = false;
-    let primaryIncompleteError: IncompleteRemoteOperationsError | undefined;
+    // Mirror autoResolveConflictsLWW: once the incoming remote clocks are
+    // durable, flush deferred local actions even if reducer dispatch or later
+    // apply bookkeeping throws. A failed pre-apply clock merge never starts
+    // the reducer/deferred-action window. (#7700)
+    let canDrainDeferredActions = false;
+    let hasPrimaryError = false;
     let committedFullStateOpIds: string[] = [];
     try {
       // Core owns the generic crash-safety ordering. Angular diagnostics,
@@ -480,9 +493,14 @@ export class RemoteOpsProcessingService {
             }),
         },
         isFullStateOperation: this._isFullStateOperation,
+        // The core invokes this before reducer application starts, after the
+        // incoming clock frontier is durable. Any subsequent failure can safely
+        // drain actions buffered by the reducer window.
+        onRemoteClocksDurable: () => {
+          canDrainDeferredActions = true;
+        },
       });
 
-      didApplyRemoteOps = result.appendedOps.length > 0;
       committedFullStateOpIds = result.appendedOps
         .filter((op) => FULL_STATE_OP_TYPES.has(op.opType))
         .map((op) => op.id);
@@ -529,20 +547,18 @@ export class RemoteOpsProcessingService {
         throw new IncompleteRemoteOperationsError(result.failedOp.error);
       }
     } catch (error) {
-      if (error instanceof IncompleteRemoteOperationsError) {
-        primaryIncompleteError = error;
-      }
+      hasPrimaryError = true;
       throw error;
     } finally {
-      if (didApplyRemoteOps) {
+      if (canDrainDeferredActions) {
         try {
           await processDeferredActionsAfterRemoteApply(this.injector, callerHoldsLock);
         } catch (deferredError) {
-          if (!primaryIncompleteError) {
+          if (!hasPrimaryError) {
             throw deferredError;
           }
           OpLog.err(
-            'RemoteOpsProcessingService: Deferred-action drain also failed after incomplete remote application',
+            'RemoteOpsProcessingService: Deferred-action drain also failed after the primary remote-apply error',
             { name: (deferredError as Error | undefined)?.name },
           );
         }

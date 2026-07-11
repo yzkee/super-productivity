@@ -11,8 +11,15 @@ import { CompleteBackup } from '../sync-exports';
 /** Database name */
 export const DB_NAME = 'SUP_OPS';
 
-/** Current database schema version */
-export const DB_VERSION = 7;
+/**
+ * Current database schema version.
+ *
+ * Version 8 is a deliberate downgrade barrier for the distinct
+ * `archive_pending` reducer checkpoint. Released v7 readers only understand
+ * `failed`; IndexedDB must reject their attempt to open a newer database rather
+ * than let outstanding archive work become invisible.
+ */
+export const DB_VERSION = 8;
 
 /** Object store names */
 export const STORE_NAMES = {
@@ -53,6 +60,13 @@ export const FULL_STATE_OPS_META_KEY = 'full_state_ops' as const;
  * interrupted replay would otherwise silently lose them.
  */
 export const RAW_REBUILD_INCOMPLETE_META_KEY = 'raw_rebuild_incomplete' as const;
+
+/**
+ * Meta key retaining the Undo provenance after a USE_REMOTE rebuild completed.
+ * This is separate from the incomplete/resume marker: completion atomically
+ * replaces the latter with this entry so a reload cannot strand the backup.
+ */
+export const RAW_REBUILD_RECOVERY_META_KEY = 'raw_rebuild_recovery' as const;
 
 /** Versioned marker for the one-time legacy terminal remote failure repair. */
 export const LEGACY_TERMINAL_REMOTE_FAILURES_MIGRATION_META_KEY =

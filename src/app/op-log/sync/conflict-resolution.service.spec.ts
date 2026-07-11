@@ -9,7 +9,11 @@ import { BannerId } from '../../core/banner/banner.model';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { of } from 'rxjs';
 import { ActionType, EntityConflict, OpType, Operation } from '../core/operation.types';
-import { VectorClock, VectorClockComparison } from '../../core/util/vector-clock';
+import {
+  compareVectorClocks,
+  VectorClock,
+  VectorClockComparison,
+} from '../../core/util/vector-clock';
 import { CLIENT_ID_PROVIDER } from '../util/client-id.provider';
 import { MAX_VECTOR_CLOCK_SIZE } from '../core/operation-log.const';
 import { buildEntityRegistry, ENTITY_REGISTRY } from '../core/entity-registry';
@@ -43,6 +47,30 @@ describe('ConflictResolutionService', () => {
     schemaVersion: 1,
   });
 
+  const getMixedLocalOps = (): readonly Operation[] =>
+    mockOpLogStore.appendMixedSourceBatchSkipDuplicates.calls
+      .allArgs()
+      .flatMap(([batches]) =>
+        batches.filter((batch) => batch.source === 'local').flatMap((batch) => batch.ops),
+      );
+
+  const getMixedRemoteOps = (): readonly Operation[] =>
+    mockOpLogStore.appendMixedSourceBatchSkipDuplicates.calls
+      .allArgs()
+      .flatMap(([batches]) =>
+        batches
+          .filter((batch) => batch.source === 'remote')
+          .flatMap((batch) => batch.ops),
+      );
+
+  const getFirstMixedLocalOp = (): Operation => {
+    const op = getMixedLocalOps()[0];
+    if (!op) {
+      throw new Error('Expected a local operation in the mixed-resolution batch');
+    }
+    return op;
+  };
+
   beforeEach(() => {
     mockStore = jasmine.createSpyObj('Store', ['select']);
     // Default: select returns of(undefined) - can be overridden in specific tests
@@ -55,15 +83,16 @@ describe('ConflictResolutionService', () => {
       'hasOp',
       'append',
       'appendBatchSkipDuplicates',
-      'appendWithVectorClockUpdate',
-      'markArchivePending',
+      'appendMixedSourceBatchSkipDuplicates',
+      'mergeRemoteOpClocks',
+      'markReducersCommittedAndMergeClocks',
       'markApplied',
       'markRejected',
       'markFailed',
       'getUnsyncedByEntity',
-      'mergeRemoteOpClocks',
     ]);
     mockOpLogStore.mergeRemoteOpClocks.and.resolveTo(undefined);
+    mockOpLogStore.markReducersCommittedAndMergeClocks.and.resolveTo(undefined);
     mockSnackService = jasmine.createSpyObj('SnackService', [
       'open',
       'hasPendingPersistentAction',
@@ -110,6 +139,16 @@ describe('ConflictResolutionService', () => {
         skippedCount: 0,
       }),
     );
+    mockOpLogStore.appendMixedSourceBatchSkipDuplicates.and.callFake(async (batches) => ({
+      written: batches.flatMap((batch) =>
+        batch.ops.map((op, index) => ({
+          seq: index + 1,
+          op,
+          source: batch.source,
+        })),
+      ),
+      skippedCount: 0,
+    }));
   });
 
   describe('getCurrentEntityState', () => {
@@ -407,9 +446,6 @@ describe('ConflictResolutionService', () => {
       // Default mock behaviors for LWW tests
       mockOpLogStore.hasOp.and.resolveTo(false);
       mockOpLogStore.append.and.callFake((op: Operation) => Promise.resolve(1));
-      mockOpLogStore.appendWithVectorClockUpdate.and.callFake((op: Operation) =>
-        Promise.resolve(1),
-      );
       mockOpLogStore.markApplied.and.resolveTo(undefined);
       mockOpLogStore.markRejected.and.resolveTo(undefined);
       mockOperationApplier.applyOperations.and.resolveTo({ appliedOps: [] });
@@ -457,11 +493,9 @@ describe('ConflictResolutionService', () => {
 
       // Both local and remote ops should be rejected
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['local-1']);
-      // Remote ops need to be appended first (via batch), then rejected
-      expect(mockOpLogStore.appendBatchSkipDuplicates).toHaveBeenCalledWith(
-        [jasmine.objectContaining({ id: 'remote-1' })],
-        'remote',
-        undefined,
+      // Remote loser and its compensation are persisted atomically, then rejected.
+      expect(getMixedRemoteOps()).toEqual(
+        jasmine.arrayContaining([jasmine.objectContaining({ id: 'remote-1' })]),
       );
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['remote-1']);
       // Snack should show local wins
@@ -786,11 +820,9 @@ describe('ConflictResolutionService', () => {
       );
 
       // Second conflict: local wins (newer timestamp)
-      // Remote op should be appended (via batch) then rejected
-      expect(mockOpLogStore.appendBatchSkipDuplicates).toHaveBeenCalledWith(
+      // Remote loser and its compensation are persisted atomically, then rejected.
+      expect(getMixedRemoteOps()).toEqual(
         jasmine.arrayContaining([jasmine.objectContaining({ id: 'remote-2' })]),
-        'remote',
-        undefined,
       );
 
       // Snack notification should reflect both outcomes
@@ -1713,6 +1745,100 @@ describe('ConflictResolutionService', () => {
         expect(result).toEqual({ localWinOpsCreated: 1 });
       });
 
+      it('should persist local-win compensation before applying mixed remote winners', async () => {
+        const now = Date.now();
+        const remoteWinner = createOpWithTimestamp('remote-winner', 'client-b', now);
+        const remoteLoser = createOpWithTimestamp(
+          'remote-loser',
+          'client-b',
+          now - 1000,
+          OpType.Update,
+          'task-2',
+        );
+        const localWinOp = createMockLocalWinOp('task-2');
+        const conflicts: EntityConflict[] = [
+          createConflict(
+            'task-1',
+            [createOpWithTimestamp('local-loser', 'client-a', now - 1000)],
+            [remoteWinner],
+          ),
+          createConflict(
+            'task-2',
+            [
+              createOpWithTimestamp(
+                'local-winner',
+                'client-a',
+                now,
+                OpType.Update,
+                'task-2',
+              ),
+            ],
+            [remoteLoser],
+          ),
+        ];
+        const callOrder: string[] = [];
+        spyOn<any>(service, '_createLocalWinUpdateOp').and.resolveTo(localWinOp);
+        mockOpLogStore.appendMixedSourceBatchSkipDuplicates.and.callFake(
+          async (batches) => {
+            callOrder.push('persist-mixed-resolution');
+            return {
+              written: batches.flatMap((batch) =>
+                batch.ops.map((op, index) => ({
+                  seq: index + 1,
+                  op,
+                  source: batch.source,
+                })),
+              ),
+              skippedCount: 0,
+            };
+          },
+        );
+        mockOpLogStore.markRejected.and.callFake(async () => {
+          callOrder.push('mark-rejected');
+        });
+        mockOperationApplier.applyOperations.and.callFake(async () => {
+          callOrder.push('apply-remote');
+          throw new Error('remote archive apply failed');
+        });
+
+        await expectAsync(
+          service.autoResolveConflictsLWW(conflicts),
+        ).toBeRejectedWithError('remote archive apply failed');
+
+        expect(callOrder).toEqual([
+          'persist-mixed-resolution',
+          'mark-rejected',
+          'mark-rejected',
+          'apply-remote',
+        ]);
+      });
+
+      it('should not reject or apply remote rows when local-win compensation cannot persist', async () => {
+        const now = Date.now();
+        const conflicts: EntityConflict[] = [
+          createConflict(
+            'task-1',
+            [createOpWithTimestamp('local-winner', 'client-a', now)],
+            [createOpWithTimestamp('remote-loser', 'client-b', now - 1000)],
+          ),
+        ];
+        const persistenceError = new Error('compensation persistence failed');
+        spyOn<any>(service, '_createLocalWinUpdateOp').and.resolveTo(
+          createMockLocalWinOp('task-1'),
+        );
+        mockOpLogStore.appendMixedSourceBatchSkipDuplicates.and.rejectWith(
+          persistenceError,
+        );
+
+        await expectAsync(service.autoResolveConflictsLWW(conflicts)).toBeRejectedWith(
+          persistenceError,
+        );
+
+        expect(mockOpLogStore.markRejected).not.toHaveBeenCalled();
+        expect(mockOperationApplier.applyOperations).not.toHaveBeenCalled();
+        expect(mockOpLogStore.appendBatchSkipDuplicates).not.toHaveBeenCalled();
+      });
+
       it('should return 0 when local wins but entity not found', async () => {
         const now = Date.now();
         const conflicts: EntityConflict[] = [
@@ -1736,7 +1862,7 @@ describe('ConflictResolutionService', () => {
     });
 
     describe('vector clock update', () => {
-      it('should use appendWithVectorClockUpdate for local-win ops to ensure vector clock is updated atomically', async () => {
+      it('should atomically append remote losers before local-win compensation', async () => {
         const now = Date.now();
         const conflicts: EntityConflict[] = [
           createConflict(
@@ -1765,18 +1891,94 @@ describe('ConflictResolutionService', () => {
 
         await service.autoResolveConflictsLWW(conflicts);
 
-        // Verify appendWithVectorClockUpdate is called (not plain append)
-        // This ensures the vector clock store is updated atomically with the operation
-        expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledWith(
+        const batches =
+          mockOpLogStore.appendMixedSourceBatchSkipDuplicates.calls.mostRecent().args[0];
+        expect(batches.map((batch) => batch.source)).toEqual(['remote', 'local']);
+        expect(batches[1].ops).toEqual([
           jasmine.objectContaining({
             id: 'lww-update-task-1',
             actionType: '[TASK] LWW Update' as ActionType,
           }),
-          'local',
-        );
+        ]);
       });
 
-      it('should call mergeRemoteOpClocks after applying remote ops (remote wins case)', async () => {
+      it('should create a dominating GLOBAL_CONFIG:tasks compensation for a migrated local row', async () => {
+        const migratedLocalOp: Operation = {
+          id: 'legacy-local-config_tasks',
+          actionType: ActionType.GLOBAL_CONFIG_UPDATE_SECTION,
+          opType: OpType.Update,
+          entityType: 'GLOBAL_CONFIG',
+          entityId: 'tasks',
+          entityIds: ['tasks'],
+          payload: {
+            actionPayload: {
+              sectionKey: 'tasks',
+              sectionCfg: { isConfirmBeforeDelete: true },
+            },
+            entityChanges: [],
+          },
+          clientId: 'localClient',
+          vectorClock: { localClient: 4 },
+          timestamp: 2_000,
+          schemaVersion: 2,
+        };
+        const currentRemoteOp: Operation = {
+          id: 'remote-current-tasks',
+          actionType: ActionType.GLOBAL_CONFIG_UPDATE_SECTION,
+          opType: OpType.Update,
+          entityType: 'GLOBAL_CONFIG',
+          entityId: 'tasks',
+          entityIds: ['tasks'],
+          payload: {
+            actionPayload: {
+              sectionKey: 'tasks',
+              sectionCfg: { isConfirmBeforeDelete: false },
+            },
+            entityChanges: [],
+          },
+          clientId: 'remoteClient',
+          vectorClock: { remoteClient: 3 },
+          timestamp: 1_000,
+          schemaVersion: 2,
+        };
+        mockClientIdProvider.loadClientId.and.resolveTo('localClient');
+        mockStore.select.and.returnValue(
+          of({
+            misc: { unrelatedMiscSetting: 'keep-me' },
+            tasks: { isConfirmBeforeDelete: true },
+          }),
+        );
+
+        const result = await service.autoResolveConflictsLWW([
+          {
+            entityType: 'GLOBAL_CONFIG',
+            entityId: 'tasks',
+            localOps: [migratedLocalOp],
+            remoteOps: [currentRemoteOp],
+            suggestedResolution: 'manual',
+          },
+        ]);
+
+        const compensation = getFirstMixedLocalOp();
+        expect(result.localWinOpsCreated).toBe(1);
+        expect(getMixedRemoteOps()).toEqual([currentRemoteOp]);
+        expect(compensation).toEqual(
+          jasmine.objectContaining({
+            actionType: '[GLOBAL_CONFIG] LWW Update' as ActionType,
+            entityType: 'GLOBAL_CONFIG',
+            entityId: 'tasks',
+            vectorClock: { localClient: 5, remoteClient: 3 },
+          }),
+        );
+        expect(
+          compareVectorClocks(compensation.vectorClock, migratedLocalOp.vectorClock),
+        ).toBe(VectorClockComparison.GREATER_THAN);
+        expect(
+          compareVectorClocks(compensation.vectorClock, currentRemoteOp.vectorClock),
+        ).toBe(VectorClockComparison.GREATER_THAN);
+      });
+
+      it('should merge remote-winner clocks before apply and checkpoint them with reducer status', async () => {
         // REGRESSION TEST: Bug where remote ops applied via conflict resolution
         // didn't have their clocks merged into the local clock store.
         // Without clock merge, subsequent local ops would have clocks that are
@@ -1802,8 +2004,11 @@ describe('ConflictResolutionService', () => {
 
         await service.autoResolveConflictsLWW(conflicts);
 
-        // CRITICAL: mergeRemoteOpClocks must be called with applied remote ops
         expect(mockOpLogStore.mergeRemoteOpClocks).toHaveBeenCalledWith([remoteOp]);
+        expect(mockOpLogStore.markReducersCommittedAndMergeClocks).toHaveBeenCalledWith(
+          [1],
+          [remoteOp],
+        );
       });
 
       it('should process deferred actions after merging remote clocks when caller holds lock', async () => {
@@ -1819,19 +2024,19 @@ describe('ConflictResolutionService', () => {
         const callOrder: string[] = [];
 
         mockOpLogStore.hasOp.and.resolveTo(false);
+        mockOpLogStore.mergeRemoteOpClocks.and.callFake(async () => {
+          callOrder.push('mergeRemoteOpClocks');
+        });
         mockOperationApplier.applyOperations.and.callFake(async (ops, options) => {
           callOrder.push('applyOperations');
           await options?.onReducersCommitted?.(ops);
           return { appliedOps: [remoteOp] };
         });
-        mockOpLogStore.markArchivePending.and.callFake(async () => {
-          callOrder.push('markArchivePending');
+        mockOpLogStore.markReducersCommittedAndMergeClocks.and.callFake(async () => {
+          callOrder.push('checkpointReducersAndClocks');
         });
         mockOpLogStore.markApplied.and.callFake(async () => {
           callOrder.push('markApplied');
-        });
-        mockOpLogStore.mergeRemoteOpClocks.and.callFake(async () => {
-          callOrder.push('mergeRemoteOpClocks');
         });
         mockOpLogStore.markRejected.and.resolveTo(undefined);
         mockOperationLogEffects.processDeferredActions.and.callFake(async () => {
@@ -1853,15 +2058,15 @@ describe('ConflictResolutionService', () => {
           callerHoldsOperationLogLock: true,
         });
         expect(callOrder).toEqual([
-          'applyOperations',
-          'markArchivePending',
           'mergeRemoteOpClocks',
+          'applyOperations',
+          'checkpointReducersAndClocks',
           'markApplied',
           'processDeferredActions',
         ]);
       });
 
-      it('should call mergeRemoteOpClocks for non-conflicting ops piggybacked through conflict resolution', async () => {
+      it('should checkpoint clocks for non-conflicting ops piggybacked through conflict resolution', async () => {
         const now = Date.now();
         const conflictRemoteOp = createOpWithTimestamp('remote-1', 'client-b', now);
         const nonConflictingOp = createOpWithTimestamp(
@@ -1895,6 +2100,10 @@ describe('ConflictResolutionService', () => {
           conflictRemoteOp,
           nonConflictingOp,
         ]);
+        expect(mockOpLogStore.markReducersCommittedAndMergeClocks).toHaveBeenCalledWith(
+          [1, 1],
+          [conflictRemoteOp, nonConflictingOp],
+        );
       });
     });
 
@@ -2400,9 +2609,6 @@ describe('ConflictResolutionService', () => {
     beforeEach(() => {
       mockOpLogStore.hasOp.and.resolveTo(false);
       mockOpLogStore.append.and.callFake((op: Operation) => Promise.resolve(1));
-      mockOpLogStore.appendWithVectorClockUpdate.and.callFake((op: Operation) =>
-        Promise.resolve(1),
-      );
       mockOpLogStore.markApplied.and.resolveTo(undefined);
       mockOpLogStore.markRejected.and.resolveTo(undefined);
     });
@@ -2452,11 +2658,10 @@ describe('ConflictResolutionService', () => {
       // Local archive op should be rejected (will be replaced by new archive op)
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['local-archive']);
       // New archive op should be appended
-      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledWith(
+      expect(getMixedLocalOps()).toContain(
         jasmine.objectContaining({
           actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
         }),
-        'local',
       );
     });
 
@@ -2472,8 +2677,7 @@ describe('ConflictResolutionService', () => {
 
       await service.autoResolveConflictsLWW(conflicts);
 
-      const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
-        .args[0] as Operation;
+      const appendedOp = getFirstMixedLocalOp();
       // Merged clock should include entries from both sides and be incremented
       expect(appendedOp.vectorClock['client-a']).toBeGreaterThanOrEqual(1);
       expect(appendedOp.vectorClock['client-b']).toBeGreaterThanOrEqual(1);
@@ -2497,8 +2701,7 @@ describe('ConflictResolutionService', () => {
 
       await service.autoResolveConflictsLWW(conflicts);
 
-      const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
-        .args[0] as Operation;
+      const appendedOp = getFirstMixedLocalOp();
       expect(appendedOp.payload).toEqual(archiveOp.payload);
       expect(appendedOp.entityIds).toEqual(['task-1', 'task-2', 'task-3']);
       expect(appendedOp.entityId).toBe('task-1');
@@ -2538,7 +2741,7 @@ describe('ConflictResolutionService', () => {
       const result = await service.autoResolveConflictsLWW(conflicts);
 
       // No local-win op should be created (clientId unavailable)
-      expect(mockOpLogStore.appendWithVectorClockUpdate).not.toHaveBeenCalled();
+      expect(getMixedLocalOps()).toEqual([]);
       expect(result.localWinOpsCreated).toBe(0);
     });
 
@@ -2564,11 +2767,10 @@ describe('ConflictResolutionService', () => {
         'local-archive',
       ]);
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['remote-upd']);
-      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledWith(
+      expect(getMixedLocalOps()).toContain(
         jasmine.objectContaining({
           actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
         }),
-        'local',
       );
     });
 
@@ -2594,11 +2796,10 @@ describe('ConflictResolutionService', () => {
       // Archive should still win — it has moveToArchive, so archive-wins logic kicks in
       // regardless of remote op type
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['remote-del']);
-      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledWith(
+      expect(getMixedLocalOps()).toContain(
         jasmine.objectContaining({
           actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
         }),
-        'local',
       );
     });
 
@@ -2650,11 +2851,10 @@ describe('ConflictResolutionService', () => {
 
       // Archive-win op should be created (from Conflict 1)
       expect(result.localWinOpsCreated).toBe(1);
-      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalledWith(
+      expect(getMixedLocalOps()).toContain(
         jasmine.objectContaining({
           actionType: ActionType.TASK_SHARED_MOVE_TO_ARCHIVE,
         }),
-        'local',
       );
 
       // No remote ops should be applied to the store — both conflicts resolve
@@ -2704,9 +2904,6 @@ describe('ConflictResolutionService', () => {
     beforeEach(() => {
       mockOpLogStore.hasOp.and.resolveTo(false);
       mockOpLogStore.append.and.callFake((op: Operation) => Promise.resolve(1));
-      mockOpLogStore.appendWithVectorClockUpdate.and.callFake((op: Operation) =>
-        Promise.resolve(1),
-      );
       mockOpLogStore.markApplied.and.resolveTo(undefined);
       mockOpLogStore.markRejected.and.resolveTo(undefined);
     });
@@ -2732,9 +2929,8 @@ describe('ConflictResolutionService', () => {
 
       await service.autoResolveConflictsLWW(conflicts);
 
-      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalled();
-      const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
-        .args[0] as Operation;
+      expect(getMixedLocalOps().length).toBeGreaterThan(0);
+      const appendedOp = getFirstMixedLocalOp();
       // All keys preserved — no client-side pruning (server handles it)
       expect(Object.keys(appendedOp.vectorClock).length).toBeGreaterThan(
         MAX_VECTOR_CLOCK_SIZE,
@@ -2778,9 +2974,8 @@ describe('ConflictResolutionService', () => {
 
       await service.autoResolveConflictsLWW(conflicts);
 
-      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalled();
-      const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
-        .args[0] as Operation;
+      expect(getMixedLocalOps().length).toBeGreaterThan(0);
+      const appendedOp = getFirstMixedLocalOp();
       // All keys preserved — no client-side pruning (server handles it)
       expect(Object.keys(appendedOp.vectorClock).length).toBeGreaterThan(
         MAX_VECTOR_CLOCK_SIZE,
@@ -2814,8 +3009,7 @@ describe('ConflictResolutionService', () => {
 
       await service.autoResolveConflictsLWW(conflicts);
 
-      const appendedOp = mockOpLogStore.appendWithVectorClockUpdate.calls.first()
-        .args[0] as Operation;
+      const appendedOp = getFirstMixedLocalOp();
       // No client-side pruning — all keys preserved including protected client
       expect(appendedOp.vectorClock[protectedId]).toBeDefined();
       expect(appendedOp.vectorClock[TEST_CLIENT_ID]).toBeDefined();
@@ -2866,7 +3060,7 @@ describe('ConflictResolutionService', () => {
 
       // Local archive wins — a new op should be created
       expect(result.localWinOpsCreated).toBe(1);
-      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalled();
+      expect(getMixedLocalOps().length).toBeGreaterThan(0);
     });
 
     it('should resolve remote moveToArchive winning over local UPDATE with later timestamp', async () => {
@@ -2963,7 +3157,7 @@ describe('ConflictResolutionService', () => {
 
       // Local archive wins over remote DELETE
       expect(result.localWinOpsCreated).toBe(1);
-      expect(mockOpLogStore.appendWithVectorClockUpdate).toHaveBeenCalled();
+      expect(getMixedLocalOps().length).toBeGreaterThan(0);
     });
   });
 
@@ -3899,7 +4093,6 @@ describe('ConflictResolutionService', () => {
     beforeEach(() => {
       mockOpLogStore.hasOp.and.resolveTo(false);
       mockOpLogStore.append.and.callFake(() => Promise.resolve(1));
-      mockOpLogStore.appendWithVectorClockUpdate.and.callFake(() => Promise.resolve(1));
       mockOpLogStore.markApplied.and.resolveTo(undefined);
       mockOpLogStore.markRejected.and.resolveTo(undefined);
       mockOpLogStore.markFailed.and.resolveTo(undefined);
@@ -3919,9 +4112,12 @@ describe('ConflictResolutionService', () => {
         },
       ];
 
-      mockOperationApplier.applyOperations.and.resolveTo({
-        appliedOps: [],
-        failedOp: { op: remoteOp, error: new Error('Apply failed for task-1') },
+      mockOperationApplier.applyOperations.and.callFake(async (ops, options) => {
+        await options?.onReducersCommitted?.(ops);
+        return {
+          appliedOps: [],
+          failedOp: { op: remoteOp, error: new Error('Apply failed for task-1') },
+        };
       });
 
       // FIXED: Should throw on apply failure (parity with applyNonConflictingOps)
@@ -3955,8 +4151,9 @@ describe('ConflictResolutionService', () => {
       ];
 
       const callOrder: string[] = [];
-      mockOperationApplier.applyOperations.and.callFake(async () => {
+      mockOperationApplier.applyOperations.and.callFake(async (ops, options) => {
         callOrder.push('applyOperations');
+        await options?.onReducersCommitted?.(ops);
         return {
           appliedOps: [],
           failedOp: { op: remoteOp, error: new Error('Apply failed for task-1') },
@@ -3999,9 +4196,12 @@ describe('ConflictResolutionService', () => {
           suggestedResolution: 'manual',
         },
       ];
-      mockOperationApplier.applyOperations.and.resolveTo({
-        appliedOps: [],
-        failedOp: { op: remoteOp, error: new Error('archive failed') },
+      mockOperationApplier.applyOperations.and.callFake(async (ops, options) => {
+        await options?.onReducersCommitted?.(ops);
+        return {
+          appliedOps: [],
+          failedOp: { op: remoteOp, error: new Error('archive failed') },
+        };
       });
       mockOperationLogEffects.processDeferredActions.and.rejectWith(
         new Error('deferred drain failed'),
@@ -4016,6 +4216,126 @@ describe('ConflictResolutionService', () => {
 
       expect(thrown).toBeInstanceOf(IncompleteRemoteOperationsError);
       expect((thrown as Error).message).toBe('archive failed');
+    });
+
+    it('should not start apply or drain deferred actions when the pre-apply clock merge fails', async () => {
+      const localOp = createOpForBug('local-1', 'client-a', now - 1000);
+      const remoteOp = createOpForBug('remote-1', 'client-b', now);
+      const clockError = new Error('clock merge failed');
+      mockOpLogStore.mergeRemoteOpClocks.and.rejectWith(clockError);
+
+      await expectAsync(
+        service.autoResolveConflictsLWW([
+          {
+            entityType: 'TASK',
+            entityId: 'task-1',
+            localOps: [localOp],
+            remoteOps: [remoteOp],
+            suggestedResolution: 'manual',
+          },
+        ]),
+      ).toBeRejectedWith(clockError);
+
+      expect(mockOperationApplier.applyOperations).not.toHaveBeenCalled();
+      expect(mockOpLogStore.markReducersCommittedAndMergeClocks).not.toHaveBeenCalled();
+      expect(mockOperationLogEffects.processDeferredActions).not.toHaveBeenCalled();
+    });
+
+    it('should drain deferred actions when the atomic reducer+clock checkpoint fails after pre-merge', async () => {
+      const localOp = createOpForBug('local-1', 'client-a', now - 1000);
+      const remoteOp = createOpForBug('remote-1', 'client-b', now);
+      const checkpointError = new Error('checkpoint failed');
+      mockOperationApplier.applyOperations.and.callFake(async (ops, options) => {
+        await options?.onReducersCommitted?.(ops);
+        return { appliedOps: ops };
+      });
+      mockOpLogStore.markReducersCommittedAndMergeClocks.and.rejectWith(checkpointError);
+
+      await expectAsync(
+        service.autoResolveConflictsLWW([
+          {
+            entityType: 'TASK',
+            entityId: 'task-1',
+            localOps: [localOp],
+            remoteOps: [remoteOp],
+            suggestedResolution: 'manual',
+          },
+        ]),
+      ).toBeRejectedWith(checkpointError);
+
+      expect(mockOperationLogEffects.processDeferredActions).toHaveBeenCalled();
+    });
+
+    it('should drain deferred actions when reducer dispatch fails after pre-merge', async () => {
+      const localOp = createOpForBug('local-1', 'client-a', now - 1000);
+      const remoteOp = createOpForBug('remote-1', 'client-b', now);
+      const dispatchError = new Error('dispatcher failed');
+      mockOperationApplier.applyOperations.and.rejectWith(dispatchError);
+
+      await expectAsync(
+        service.autoResolveConflictsLWW([
+          {
+            entityType: 'TASK',
+            entityId: 'task-1',
+            localOps: [localOp],
+            remoteOps: [remoteOp],
+            suggestedResolution: 'manual',
+          },
+        ]),
+      ).toBeRejectedWith(dispatchError);
+
+      expect(mockOperationLogEffects.processDeferredActions).toHaveBeenCalled();
+    });
+
+    it('should drain deferred actions when bookkeeping fails after the atomic checkpoint', async () => {
+      const localOp = createOpForBug('local-1', 'client-a', now - 1000);
+      const remoteOp = createOpForBug('remote-1', 'client-b', now);
+      const markAppliedError = new Error('mark applied failed');
+      mockOperationApplier.applyOperations.and.callFake(async (ops, options) => {
+        await options?.onReducersCommitted?.(ops);
+        return { appliedOps: ops };
+      });
+      mockOpLogStore.markApplied.and.rejectWith(markAppliedError);
+
+      await expectAsync(
+        service.autoResolveConflictsLWW([
+          {
+            entityType: 'TASK',
+            entityId: 'task-1',
+            localOps: [localOp],
+            remoteOps: [remoteOp],
+            suggestedResolution: 'manual',
+          },
+        ]),
+      ).toBeRejectedWith(markAppliedError);
+
+      expect(mockOperationLogEffects.processDeferredActions).toHaveBeenCalled();
+    });
+
+    it('should preserve a bookkeeping error when the deferred drain also fails', async () => {
+      const localOp = createOpForBug('local-1', 'client-a', now - 1000);
+      const remoteOp = createOpForBug('remote-1', 'client-b', now);
+      const markAppliedError = new Error('mark applied failed');
+      mockOperationApplier.applyOperations.and.callFake(async (ops, options) => {
+        await options?.onReducersCommitted?.(ops);
+        return { appliedOps: ops };
+      });
+      mockOpLogStore.markApplied.and.rejectWith(markAppliedError);
+      mockOperationLogEffects.processDeferredActions.and.rejectWith(
+        new Error('deferred drain failed'),
+      );
+
+      await expectAsync(
+        service.autoResolveConflictsLWW([
+          {
+            entityType: 'TASK',
+            entityId: 'task-1',
+            localOps: [localOp],
+            remoteOps: [remoteOp],
+            suggestedResolution: 'manual',
+          },
+        ]),
+      ).toBeRejectedWith(markAppliedError);
     });
   });
 

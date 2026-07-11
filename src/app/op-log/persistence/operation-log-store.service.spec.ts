@@ -1411,6 +1411,143 @@ describe('OperationLogStoreService', () => {
     });
   });
 
+  describe('appendMixedSourceBatchSkipDuplicates', () => {
+    it('should atomically order remote losers before monotonically clocked local compensations', async () => {
+      await service.setVectorClock({ testClient: 5, existingClient: 2 });
+      const remoteLoser = createTestOperation({
+        id: 'remote-loser',
+        clientId: 'remoteClient',
+        vectorClock: { remoteClient: 7 },
+      });
+      const firstCompensation = createTestOperation({
+        id: 'first-compensation',
+        vectorClock: { testClient: 3, remoteClient: 7 },
+      });
+      const secondCompensation = createTestOperation({
+        id: 'second-compensation',
+        vectorClock: { testClient: 6, otherRemote: 4 },
+      });
+
+      const result = await service.appendMixedSourceBatchSkipDuplicates([
+        { ops: [remoteLoser], source: 'remote' },
+        { ops: [firstCompensation, secondCompensation], source: 'local' },
+      ]);
+
+      expect(result.written.map(({ op }) => op.id)).toEqual([
+        'remote-loser',
+        'first-compensation',
+        'second-compensation',
+      ]);
+      expect(result.written.map(({ source }) => source)).toEqual([
+        'remote',
+        'local',
+        'local',
+      ]);
+      expect(result.written[1].op.vectorClock).toEqual({
+        testClient: 6,
+        existingClient: 2,
+        remoteClient: 7,
+      });
+      expect(result.written[2].op.vectorClock).toEqual({
+        testClient: 7,
+        existingClient: 2,
+        remoteClient: 7,
+        otherRemote: 4,
+      });
+
+      const stored = await service.getOpsAfterSeq(0);
+      expect(stored.map(({ op }) => op.id)).toEqual([
+        'remote-loser',
+        'first-compensation',
+        'second-compensation',
+      ]);
+      expect(stored[1].op.vectorClock).toEqual(result.written[1].op.vectorClock);
+      expect(stored[2].op.vectorClock).toEqual(result.written[2].op.vectorClock);
+      expect(await service.getVectorClock()).toEqual(result.written[2].op.vectorClock);
+    });
+
+    it('should skip existing and intra-batch duplicate IDs without allocating clocks for them', async () => {
+      await service.setVectorClock({ testClient: 2 });
+      const existingRemote = createTestOperation({
+        id: 'existing-remote',
+        clientId: 'remoteClient',
+      });
+      const newRemote = createTestOperation({
+        id: 'new-remote',
+        clientId: 'remoteClient',
+      });
+      const compensation = createTestOperation({
+        id: 'compensation',
+        vectorClock: { testClient: 1 },
+      });
+      await service.append(existingRemote, 'remote');
+
+      const result = await service.appendMixedSourceBatchSkipDuplicates([
+        { ops: [existingRemote, newRemote], source: 'remote' },
+        { ops: [compensation, compensation], source: 'local' },
+      ]);
+
+      expect(result.skippedCount).toBe(2);
+      expect(result.written.map(({ op }) => op.id)).toEqual([
+        'new-remote',
+        'compensation',
+      ]);
+      expect(result.written[1].op.vectorClock.testClient).toBe(3);
+      expect((await service.getVectorClock())?.testClient).toBe(3);
+    });
+
+    it('should roll back both source groups and the clock when the clock write fails', async () => {
+      await service.setVectorClock({ testClient: 4 });
+      const adapter = (
+        service as unknown as {
+          _adapter: OpLogDbAdapter;
+        }
+      )._adapter;
+      const originalTransaction = adapter.transaction.bind(adapter);
+      spyOn(adapter, 'transaction').and.callFake(async (stores, mode, callback) =>
+        originalTransaction(stores, mode, async (tx) => {
+          const failingTx = new Proxy(tx, {
+            get: (target, property): unknown => {
+              if (property === 'put') {
+                return async (store: string, value: unknown, key?: string | number) => {
+                  if (store === STORE_NAMES.VECTOR_CLOCK) {
+                    throw new Error('injected mixed-batch clock failure');
+                  }
+                  return target.put(store, value, key);
+                };
+              }
+              const value = Reflect.get(target, property);
+              return typeof value === 'function' ? value.bind(target) : value;
+            },
+          });
+          return callback(failingTx);
+        }),
+      );
+
+      await expectAsync(
+        service.appendMixedSourceBatchSkipDuplicates([
+          {
+            ops: [
+              createTestOperation({
+                id: 'remote-loser',
+                clientId: 'remoteClient',
+              }),
+            ],
+            source: 'remote',
+          },
+          {
+            ops: [createTestOperation({ id: 'compensation' })],
+            source: 'local',
+          },
+        ]),
+      ).toBeRejectedWithError('injected mixed-batch clock failure');
+
+      expect(await service.getOpsAfterSeq(0)).toEqual([]);
+      service.clearVectorClockCache();
+      expect(await service.getVectorClock()).toEqual({ testClient: 4 });
+    });
+  });
+
   describe('getOpById', () => {
     it('should return operation entry by ID', async () => {
       const op = createTestOperation();
@@ -1430,18 +1567,100 @@ describe('OperationLogStoreService', () => {
   });
 
   describe('markApplied', () => {
-    it('should checkpoint reducer-committed operations as archive-pending', async () => {
+    it('should checkpoint reducer-committed operations as archive_pending', async () => {
       const op = createTestOperation();
       const seq = await service.append(op, 'remote', { pendingApply: true });
 
-      await service.markArchivePending([seq]);
+      await service.markReducersCommittedAndMergeClocks([seq], [op]);
 
       const [stored] = await service.getOpsAfterSeq(0);
       expect(stored.applicationStatus).toBe('archive_pending');
+      // No attempt was made, so no retry budget is charged.
+      expect(stored.retryCount).toBeUndefined();
       expect((await service.getPendingRemoteOps()).length).toBe(0);
       expect((await service.getFailedRemoteOps()).map((entry) => entry.op.id)).toEqual([
         op.id,
       ]);
+    });
+
+    it('should atomically checkpoint reducer commit and merge its vector clock', async () => {
+      const op = createTestOperation();
+      const seq = await service.append(op, 'remote', { pendingApply: true });
+      await service.setVectorClock({ testClient: 2 });
+
+      await service.markReducersCommittedAndMergeClocks(
+        [seq],
+        [{ ...op, vectorClock: { remoteClient: 4 } }],
+      );
+
+      const [stored] = await service.getOpsAfterSeq(0);
+      expect(stored.applicationStatus).toBe('archive_pending');
+      expect(await service.getVectorClock()).toEqual({
+        testClient: 2,
+        remoteClient: 4,
+      });
+    });
+
+    it('should roll back reducer checkpoint and clock when the atomic clock write fails', async () => {
+      const op = createTestOperation();
+      const seq = await service.append(op, 'remote', { pendingApply: true });
+      await service.setVectorClock({ testClient: 2 });
+
+      const adapter = (
+        service as unknown as {
+          _adapter: OpLogDbAdapter;
+        }
+      )._adapter;
+      const originalTransaction = adapter.transaction.bind(adapter);
+      spyOn(adapter, 'transaction').and.callFake(async (stores, mode, callback) =>
+        originalTransaction(stores, mode, async (tx) => {
+          const failingTx = new Proxy(tx, {
+            get: (target, property): unknown => {
+              if (property === 'put') {
+                return async (store: string, value: unknown, key?: string | number) => {
+                  if (store === STORE_NAMES.VECTOR_CLOCK) {
+                    throw new Error('injected vector-clock write failure');
+                  }
+                  return target.put(store, value, key);
+                };
+              }
+              const value = Reflect.get(target, property);
+              return typeof value === 'function' ? value.bind(target) : value;
+            },
+          });
+          return callback(failingTx);
+        }),
+      );
+
+      await expectAsync(
+        service.markReducersCommittedAndMergeClocks(
+          [seq],
+          [{ ...op, vectorClock: { remoteClient: 4 } }],
+        ),
+      ).toBeRejectedWithError('injected vector-clock write failure');
+
+      const [stored] = await service.getOpsAfterSeq(0);
+      expect(stored.applicationStatus).toBe('pending');
+      service.clearVectorClockCache();
+      expect(await service.getVectorClock()).toEqual({ testClient: 2 });
+    });
+
+    it('should abort the atomic checkpoint when a row is missing or no longer pending', async () => {
+      const op = createTestOperation();
+      const seq = await service.append(op, 'remote');
+      await service.setVectorClock({ testClient: 2 });
+
+      await expectAsync(
+        service.markReducersCommittedAndMergeClocks(
+          [seq],
+          [{ ...op, vectorClock: { remoteClient: 4 } }],
+        ),
+      ).toBeRejectedWithError(/requires pending remote operation/);
+
+      const [stored] = await service.getOpsAfterSeq(0);
+      expect(stored.applicationStatus).toBe('applied');
+      service.clearVectorClockCache();
+      expect(await service.getVectorClock()).toEqual({ testClient: 2 });
     });
 
     it('should update applicationStatus from pending to applied', async () => {
@@ -1499,10 +1718,10 @@ describe('OperationLogStoreService', () => {
       expect(afterMarkApplied[0].applicationStatus).toBe('applied');
     });
 
-    it('should update applicationStatus from archive-pending to applied', async () => {
+    it('should update applicationStatus from reducer-commit checkpoint to applied', async () => {
       const op = createTestOperation();
       const seq = await service.append(op, 'remote', { pendingApply: true });
-      await service.markArchivePending([seq]);
+      await service.markReducersCommittedAndMergeClocks([seq], [op]);
 
       await service.markApplied([seq]);
 
@@ -1998,16 +2217,29 @@ describe('OperationLogStoreService', () => {
     it('should save and load import backup', async () => {
       const state = { tasks: ['task1', 'task2'], projects: [] };
 
-      const savedAt = await service.saveImportBackup(state);
+      const backupRef = await service.saveImportBackup(state);
 
       const backup = await service.loadImportBackup();
       expect(backup).not.toBeNull();
       expect(backup!.state).toEqual(state);
       expect(backup!.savedAt).toBeDefined();
       expect(typeof backup!.savedAt).toBe('number');
-      // The returned token is the provenance value persisted in the slot, so
-      // callers can later confirm the backup hasn't been replaced. (#8107)
-      expect(savedAt).toBe(backup!.savedAt);
+      expect(backup!.backupId).toBeDefined();
+      expect(backupRef).toEqual({
+        backupId: backup!.backupId,
+        savedAt: backup!.savedAt,
+      });
+    });
+
+    it('should assign distinct opaque IDs to same-millisecond replacements', async () => {
+      spyOn(Date, 'now').and.returnValue(1234);
+
+      const first = await service.saveImportBackup({ version: 1 });
+      const second = await service.saveImportBackup({ version: 2 });
+
+      expect(first.savedAt).toBe(second.savedAt);
+      expect(first.backupId).not.toBe(second.backupId);
+      expect((await service.loadImportBackup())?.backupId).toBe(second.backupId);
     });
 
     it('should return null when no backup exists', async () => {
@@ -2034,6 +2266,17 @@ describe('OperationLogStoreService', () => {
 
       const backup = await service.loadImportBackup();
       expect(backup).toBeNull();
+    });
+
+    it('should not let a stale identity clear a replacement backup', async () => {
+      const first = await service.saveImportBackup({ version: 1 });
+      const second = await service.saveImportBackup({ version: 2 });
+
+      await service.clearImportBackup(first.backupId);
+
+      expect((await service.loadImportBackup())?.backupId).toBe(second.backupId);
+      await service.clearImportBackup(second.backupId);
+      expect(await service.loadImportBackup()).toBeNull();
     });
 
     it('should check if backup exists with hasImportBackup', async () => {
@@ -2513,6 +2756,140 @@ describe('OperationLogStoreService', () => {
       expect(await service.isRawRebuildIncomplete()).toBe(false);
     });
 
+    it('should abort replacement if the captured backup slot was superseded', async () => {
+      const priorOp = createTestOperation({ id: 'prior-local-op' });
+      await service.append(priorOp, 'local');
+      const capturedBackup = await service.saveImportBackup({ version: 1 });
+      const replacementBackup = await service.saveImportBackup({ version: 2 });
+
+      await expectAsync(
+        service.runRemoteStateReplacement({
+          baselineState: { task: { ids: [], entities: {} } },
+          vectorClock: { remote: 1 },
+          schemaVersion: 4,
+          snapshotEntityKeys: [],
+          archiveYoung: createArchive('young'),
+          archiveOld: createArchive('old'),
+          backupRef: capturedBackup,
+        }),
+      ).toBeRejectedWithError(/backup was superseded/);
+
+      expect((await service.getOpsAfterSeq(0)).map(({ op }) => op.id)).toEqual([
+        priorOp.id,
+      ]);
+      expect((await service.loadImportBackup())?.backupId).toBe(
+        replacementBackup.backupId,
+      );
+      expect(await service.isRawRebuildIncomplete()).toBeFalse();
+    });
+
+    it('atomically transitions a completed rebuild to a durable recovery token', async () => {
+      await service.runRemoteStateReplacement({
+        baselineState: { task: { ids: [], entities: {} } },
+        vectorClock: { remote: 1 },
+        schemaVersion: 4,
+        snapshotEntityKeys: [],
+        archiveYoung: createArchive('young'),
+        archiveOld: createArchive('old'),
+      });
+
+      const backupRef = {
+        backupId: 'backup-4242',
+        savedAt: 4242,
+      };
+      await service.saveImportBackup({ original: true });
+      const adapter = (
+        service as unknown as {
+          _adapter: OpLogDbAdapter;
+        }
+      )._adapter;
+      await adapter.put(STORE_NAMES.IMPORT_BACKUP, {
+        id: SINGLETON_KEY,
+        state: { original: true },
+        ...backupRef,
+      });
+
+      expect(await service.completeRawRebuild(backupRef)).toBeTrue();
+
+      expect(await service.isRawRebuildIncomplete()).toBe(false);
+      expect(await service.loadRawRebuildRecovery()).toEqual(
+        jasmine.objectContaining({
+          backupId: 'backup-4242',
+          backupSavedAt: 4242,
+        }),
+      );
+
+      await service.clearRawRebuildRecovery('stale-backup');
+      expect(await service.loadRawRebuildRecovery()).not.toBeNull();
+      await service.clearRawRebuildRecovery('backup-4242');
+      expect(await service.loadRawRebuildRecovery()).toBeNull();
+    });
+
+    it('should identity-guard dismissal retirement of marker and backup', async () => {
+      const backupRef = await service.saveImportBackup({ original: true });
+      await service.runRemoteStateReplacement({
+        baselineState: { task: { ids: [], entities: {} } },
+        vectorClock: { remote: 1 },
+        schemaVersion: 4,
+        snapshotEntityKeys: [],
+        archiveYoung: createArchive('young'),
+        archiveOld: createArchive('old'),
+        backupRef,
+      });
+      expect(await service.completeRawRebuild(backupRef)).toBeTrue();
+
+      expect(await service.retireCompletedRawRebuildRecovery('stale-backup')).toBeFalse();
+      expect(await service.loadRawRebuildRecovery()).not.toBeNull();
+      expect(await service.loadImportBackup()).not.toBeNull();
+
+      expect(
+        await service.retireCompletedRawRebuildRecovery(backupRef.backupId),
+      ).toBeTrue();
+      expect(await service.loadRawRebuildRecovery()).toBeNull();
+      expect(await service.loadImportBackup()).toBeNull();
+    });
+
+    it('rolls back the incomplete-to-recovery transition when the token write fails', async () => {
+      await service.runRemoteStateReplacement({
+        baselineState: { task: { ids: [], entities: {} } },
+        vectorClock: { remote: 1 },
+        schemaVersion: 4,
+        snapshotEntityKeys: [],
+        archiveYoung: createArchive('young'),
+        archiveOld: createArchive('old'),
+      });
+      const backupRef = await service.saveImportBackup({ original: true });
+      const adapter = (
+        service as unknown as {
+          _adapter: OpLogDbAdapter;
+        }
+      )._adapter;
+      const originalTransaction = adapter.transaction.bind(adapter);
+      spyOn(adapter, 'transaction').and.callFake(async (stores, mode, callback) =>
+        originalTransaction(stores, mode, async (tx) => {
+          const failingTx = new Proxy(tx, {
+            get: (target, property): unknown => {
+              if (property === 'put') {
+                return async (): Promise<void> => {
+                  throw new Error('injected recovery-token write failure');
+                };
+              }
+              const value = Reflect.get(target, property);
+              return typeof value === 'function' ? value.bind(target) : value;
+            },
+          });
+          return callback(failingTx);
+        }),
+      );
+
+      await expectAsync(service.completeRawRebuild(backupRef)).toBeRejectedWithError(
+        'injected recovery-token write failure',
+      );
+
+      expect(await service.isRawRebuildIncomplete()).toBe(true);
+      expect(await service.loadRawRebuildRecovery()).toBeNull();
+    });
+
     it('durably carries post-crash local ops in the rebuild marker', async () => {
       const preservedLocalOp = createTestOperation({
         id: '01900000-0000-7000-8000-000000000091',
@@ -2521,6 +2898,7 @@ describe('OperationLogStoreService', () => {
         vectorClock: { localClient: 2, remote: 1 },
       });
 
+      const backupRef = await service.saveImportBackup({ original: true });
       await service.runRemoteStateReplacement({
         baselineState: { task: { ids: [], entities: {} } },
         vectorClock: { remote: 1 },
@@ -2529,6 +2907,7 @@ describe('OperationLogStoreService', () => {
         archiveYoung: createArchive('young'),
         archiveOld: createArchive('old'),
         preservedLocalOps: [preservedLocalOp],
+        backupRef,
       });
 
       expect(await service.getOpsAfterSeq(0)).toEqual([]);
@@ -2536,6 +2915,7 @@ describe('OperationLogStoreService', () => {
         jasmine.objectContaining({
           incomplete: true,
           preservedLocalOps: [preservedLocalOp],
+          backupRef,
         }),
       );
     });
