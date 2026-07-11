@@ -652,17 +652,17 @@ describe('TaskArchiveService', () => {
       );
       archiveDbAdapterMock.loadArchiveOld.and.returnValue(Promise.resolve(oldArchive));
 
-      // Mock the updateTasks method to track calls
-      spyOn(service, 'updateTasks').and.returnValue(Promise.resolve());
+      // Track the internal (already-locked) update path
+      spyOn(service as any, '_updateTasks').and.returnValue(Promise.resolve());
 
       await service.removeRepeatCfgFromArchiveTasks('repeat1');
 
-      expect(service.updateTasks).toHaveBeenCalledWith(
+      expect((service as any)._updateTasks).toHaveBeenCalledWith(
         [
           { id: 'task1', changes: { repeatCfgId: undefined } },
           { id: 'task2', changes: { repeatCfgId: undefined } },
         ],
-        { isSkipDispatch: true, isIgnoreDBLock: undefined },
+        { isSkipDispatch: true },
       );
     });
 
@@ -677,11 +677,11 @@ describe('TaskArchiveService', () => {
         Promise.resolve(createMockArchiveModel([])),
       );
 
-      spyOn(service, 'updateTasks').and.returnValue(Promise.resolve());
+      spyOn(service as any, '_updateTasks').and.returnValue(Promise.resolve());
 
       await service.removeRepeatCfgFromArchiveTasks('repeat1');
 
-      expect(service.updateTasks).not.toHaveBeenCalled();
+      expect((service as any)._updateTasks).not.toHaveBeenCalled();
     });
   });
 
@@ -711,11 +711,11 @@ describe('TaskArchiveService', () => {
       );
       archiveDbAdapterMock.loadArchiveOld.and.returnValue(Promise.resolve(oldArchive));
 
-      spyOn(service, 'updateTasks').and.returnValue(Promise.resolve());
+      spyOn(service as any, '_updateTasks').and.returnValue(Promise.resolve());
 
       await service.unlinkIssueProviderFromArchiveTasks('provider1');
 
-      expect(service.updateTasks).toHaveBeenCalledWith(
+      expect((service as any)._updateTasks).toHaveBeenCalledWith(
         [
           {
             id: 'task1',
@@ -744,7 +744,7 @@ describe('TaskArchiveService', () => {
             },
           },
         ],
-        { isSkipDispatch: true, isIgnoreDBLock: undefined },
+        { isSkipDispatch: true },
       );
     });
 
@@ -759,11 +759,11 @@ describe('TaskArchiveService', () => {
         Promise.resolve(createMockArchiveModel([])),
       );
 
-      spyOn(service, 'updateTasks').and.returnValue(Promise.resolve());
+      spyOn(service as any, '_updateTasks').and.returnValue(Promise.resolve());
 
       await service.unlinkIssueProviderFromArchiveTasks('provider1');
 
-      expect(service.updateTasks).not.toHaveBeenCalled();
+      expect((service as any)._updateTasks).not.toHaveBeenCalled();
     });
   });
 
@@ -785,11 +785,11 @@ describe('TaskArchiveService', () => {
       };
 
       spyOn(service, 'load').and.returnValue(Promise.resolve(mockArchive));
-      spyOn(service, 'deleteTasks').and.returnValue(Promise.resolve());
+      spyOn(service as any, '_deleteTasks').and.returnValue(Promise.resolve());
 
       await service.removeAllArchiveTasksForProject('project1');
 
-      expect(service.deleteTasks).toHaveBeenCalledWith(['task1', 'task2'], undefined);
+      expect((service as any)._deleteTasks).toHaveBeenCalledWith(['task1', 'task2']);
     });
   });
 
@@ -899,8 +899,8 @@ describe('TaskArchiveService', () => {
       );
       archiveDbAdapterMock.loadArchiveOld.and.returnValue(Promise.resolve(oldArchive));
 
-      // Spy on deleteTasks to verify it's called with the right parameters
-      spyOn(service, 'deleteTasks').and.returnValue(Promise.resolve());
+      // Spy on the internal (already-locked) delete path
+      spyOn(service as any, '_deleteTasks').and.returnValue(Promise.resolve());
 
       await service.removeTagsFromAllTasks(['tag1']);
 
@@ -909,10 +909,11 @@ describe('TaskArchiveService', () => {
       // parent1 has no tags and no project after removal, so it and its subtasks are orphaned
       // task1 still has other tags, so it's not orphaned
       // task3 has a project, so it's not orphaned
-      expect(service.deleteTasks).toHaveBeenCalledWith(
-        ['task2', 'parent1', 'sub1'],
-        undefined,
-      );
+      expect((service as any)._deleteTasks).toHaveBeenCalledWith([
+        'task2',
+        'parent1',
+        'sub1',
+      ]);
     });
   });
 
