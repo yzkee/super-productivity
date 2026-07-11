@@ -2752,7 +2752,7 @@ describe('OperationLogStoreService', () => {
       // the marker set so the next sync redoes the raw rebuild.
       expect(await service.isRawRebuildIncomplete()).toBe(true);
 
-      await service.clearRawRebuildIncomplete();
+      await service.completeRawRebuild();
       expect(await service.isRawRebuildIncomplete()).toBe(false);
     });
 

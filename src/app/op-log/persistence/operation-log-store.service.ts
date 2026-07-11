@@ -2006,12 +2006,6 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
     };
   }
 
-  /** Marks the USE_REMOTE raw rebuild as fully completed. */
-  async clearRawRebuildIncomplete(): Promise<void> {
-    await this._ensureInit();
-    await this._adapter.delete(STORE_NAMES.META, RAW_REBUILD_INCOMPLETE_META_KEY);
-  }
-
   /**
    * Atomically transitions a raw rebuild from resumable/incomplete to complete.
    * When a pre-replace backup exists, its provenance token remains durable so

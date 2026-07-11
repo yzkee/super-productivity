@@ -359,8 +359,6 @@ export class ConflictResolutionService {
     );
 
     const {
-      localWinsCount,
-      remoteWinsCount,
       remoteWinsOps,
       localWinsRemoteOps,
       remoteOpsToReject,
@@ -671,8 +669,8 @@ export class ConflictResolutionService {
     // existing transient count; genuine content loss gets a dismissible banner
     // naming the affected task(s) so the user can double-check. (#8694)
     // ─────────────────────────────────────────────────────────────────────────
-    if (localWinsCount > 0 || remoteWinsCount > 0) {
-      await this._notifyResolutionOutcome(resolutions, localWinsCount, remoteWinsCount);
+    if (resolutions.length > 0) {
+      await this._notifyResolutionOutcome(resolutions);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -688,7 +686,7 @@ export class ConflictResolutionService {
     // caller uses this count to trigger the immediate re-upload
     // (immediate-upload.service.ts) — omitting merges lets a merge-only sync
     // report IN_SYNC while its merged op sits unsynced until a later cycle.
-    // Mirrors the rejection-handler path (operation-log-sync.service.ts:361).
+    // Mirrors the rejection-handler accumulation in operation-log-sync.service.
     // writtenLocalWinOps (not newLocalWinOps) is the post-dedupe set the atomic
     // mixed-source batch actually persisted.
     return {
@@ -707,11 +705,7 @@ export class ConflictResolutionService {
    * Purely a read of the already-decided resolutions — it never influences which
    * ops were applied or rejected.
    */
-  private async _notifyResolutionOutcome(
-    resolutions: LWWResolution[],
-    localWinsCount: number,
-    remoteWinsCount: number,
-  ): Promise<void> {
+  private async _notifyResolutionOutcome(resolutions: LWWResolution[]): Promise<void> {
     const contentConflicts = findLwwContentConflicts(resolutions, (entityType) =>
       this._resolvePayloadKey(entityType as EntityType),
     );

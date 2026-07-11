@@ -23,6 +23,7 @@ import { SyncImportFilterService } from './sync-import-filter.service';
 import { ServerMigrationService } from './server-migration.service';
 import { SupersededOperationResolverService } from './superseded-operation-resolver.service';
 import { RemoteOpsProcessingService } from './remote-ops-processing.service';
+import { ConflictJournalService } from './conflict-journal.service';
 import { RejectedOpsHandlerService } from './rejected-ops-handler.service';
 import { OperationWriteFlushService } from './operation-write-flush.service';
 import { SuperSyncStatusService } from './super-sync-status.service';
@@ -57,6 +58,7 @@ describe('OperationLogSyncService', () => {
   let opLogStoreSpy: jasmine.SpyObj<OperationLogStoreService>;
   let serverMigrationServiceSpy: jasmine.SpyObj<ServerMigrationService>;
   let remoteOpsProcessingServiceSpy: jasmine.SpyObj<RemoteOpsProcessingService>;
+  let conflictJournalServiceSpy: jasmine.SpyObj<ConflictJournalService>;
   let rejectedOpsHandlerServiceSpy: jasmine.SpyObj<RejectedOpsHandlerService>;
   let writeFlushServiceSpy: jasmine.SpyObj<OperationWriteFlushService>;
   let superSyncStatusServiceSpy: jasmine.SpyObj<SuperSyncStatusService>;
@@ -115,7 +117,6 @@ describe('OperationLogSyncService', () => {
       'runRemoteStateReplacement',
       'isRawRebuildIncomplete',
       'loadRawRebuildIncomplete',
-      'clearRawRebuildIncomplete',
       'completeRawRebuild',
       'loadRawRebuildRecovery',
       'clearRawRebuildRecovery',
@@ -138,7 +139,6 @@ describe('OperationLogSyncService', () => {
     opLogStoreSpy.runRemoteStateReplacement.and.resolveTo();
     opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(false);
     opLogStoreSpy.loadRawRebuildIncomplete.and.resolveTo(null);
-    opLogStoreSpy.clearRawRebuildIncomplete.and.resolveTo();
     opLogStoreSpy.completeRawRebuild.and.resolveTo(true);
     opLogStoreSpy.loadRawRebuildRecovery.and.resolveTo(null);
     opLogStoreSpy.clearRawRebuildRecovery.and.resolveTo();
@@ -191,6 +191,10 @@ describe('OperationLogSyncService', () => {
     remoteOpsProcessingServiceSpy = jasmine.createSpyObj('RemoteOpsProcessingService', [
       'processRemoteOps',
     ]);
+    conflictJournalServiceSpy = jasmine.createSpyObj('ConflictJournalService', [
+      'clearAll',
+    ]);
+    conflictJournalServiceSpy.clearAll.and.resolveTo();
     remoteOpsProcessingServiceSpy.processRemoteOps.and.resolveTo({
       localWinOpsCreated: 0,
       allOpsFilteredBySyncImport: false,
@@ -315,6 +319,10 @@ describe('OperationLogSyncService', () => {
           ]),
         },
         { provide: RemoteOpsProcessingService, useValue: remoteOpsProcessingServiceSpy },
+        {
+          provide: ConflictJournalService,
+          useValue: conflictJournalServiceSpy,
+        },
         { provide: RejectedOpsHandlerService, useValue: rejectedOpsHandlerServiceSpy },
         { provide: OperationWriteFlushService, useValue: writeFlushServiceSpy },
         { provide: SuperSyncStatusService, useValue: superSyncStatusServiceSpy },

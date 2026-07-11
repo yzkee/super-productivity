@@ -33,6 +33,7 @@ import { SuperSyncStatusService } from './super-sync-status.service';
 import { ServerMigrationService } from './server-migration.service';
 import { OperationWriteFlushService } from './operation-write-flush.service';
 import { RemoteOpsProcessingService } from './remote-ops-processing.service';
+import { ConflictJournalService } from './conflict-journal.service';
 import { VectorClockService } from './vector-clock.service';
 import {
   DownloadResultForRejection,
@@ -157,6 +158,7 @@ export class OperationLogSyncService {
 
   // Extracted services
   private remoteOpsProcessingService = inject(RemoteOpsProcessingService);
+  private conflictJournalService = inject(ConflictJournalService);
   private vectorClockService = inject(VectorClockService);
   private rejectedOpsHandlerService = inject(RejectedOpsHandlerService);
   private syncHydrationService = inject(SyncHydrationService);
@@ -1763,7 +1765,14 @@ export class OperationLogSyncService {
 
   private async _completeRawRebuild(backupRef?: ImportBackupRef): Promise<boolean> {
     this._assertNoCaptureRacedWithRebuild();
-    return this.opLogStore.completeRawRebuild(backupRef);
+    const hasDurableRecovery = await this.opLogStore.completeRawRebuild(backupRef);
+    // The conflict journal describes conflicts in the op history that was JUST
+    // replaced (documented contract: cleared whenever the full dataset is
+    // replaced — see BackupService.importCompleteBackup). Stale entries would
+    // keep the badge count and offer review actions against replaced state.
+    // clearAll swallows its own errors and must not fail the rebuild.
+    await this.conflictJournalService.clearAll();
+    return hasDurableRecovery;
   }
 
   /**
