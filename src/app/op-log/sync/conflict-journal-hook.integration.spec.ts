@@ -81,14 +81,27 @@ describe('ConflictResolution → ConflictJournal hook (integration)', () => {
 
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', [
       'appendBatchSkipDuplicates',
+      'appendMixedSourceBatchSkipDuplicates',
       'appendWithVectorClockUpdate',
       'markApplied',
       'markRejected',
       'markFailed',
       'getUnsyncedByEntity',
       'mergeRemoteOpClocks',
+      'markReducersCommittedAndMergeClocks',
     ]);
     mockOpLogStore.mergeRemoteOpClocks.and.resolveTo(undefined);
+    mockOpLogStore.markReducersCommittedAndMergeClocks.and.resolveTo(undefined);
+    mockOpLogStore.appendMixedSourceBatchSkipDuplicates.and.callFake(async (batches) => ({
+      written: batches.flatMap((batch) =>
+        batch.ops.map((batchOp, index) => ({
+          seq: index + 1,
+          op: batchOp,
+          source: batch.source,
+        })),
+      ),
+      skippedCount: 0,
+    }));
     mockOpLogStore.getUnsyncedByEntity.and.resolveTo(new Map());
     mockOpLogStore.appendWithVectorClockUpdate.and.resolveTo(undefined);
     mockOpLogStore.markRejected.and.resolveTo(undefined);
