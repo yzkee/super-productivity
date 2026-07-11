@@ -36,7 +36,6 @@ import {
 } from '../core/operation.types';
 import { toLwwUpdateActionType } from '../core/lww-update-action-types';
 import { OperationApplierService } from '../apply/operation-applier.service';
-import { getFailedOpIdsFromBatch } from '../apply/failed-op-ids.util';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { OpLog } from '../../core/log';
 import { toEntityKey } from '../util/entity-key.util';
@@ -50,7 +49,6 @@ import { TranslateService } from '@ngx-translate/core';
 import { T } from '../../t.const';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { SyncSessionValidationService } from './sync-session-validation.service';
-import { MAX_CONFLICT_RETRY_ATTEMPTS } from '../core/operation-log.const';
 import {
   compareVectorClocks,
   incrementVectorClock,
@@ -64,6 +62,7 @@ import { uuidv7 } from '../../util/uuid-v7';
 import { CURRENT_SCHEMA_VERSION } from '../persistence/schema-migration.service';
 import { SYNC_LOGGER } from '../core/sync-logger.adapter';
 import { processDeferredActionsAfterRemoteApply } from './process-deferred-actions-flush.util';
+import { IncompleteRemoteOperationsError } from '../core/errors/sync-errors';
 import { ConflictJournalService } from './conflict-journal.service';
 import { SyncConflictBannerService } from './sync-conflict-banner.service';
 import { buildConflictJournalEntry } from './conflict-journal-emission.util';
@@ -344,6 +343,9 @@ export class ConflictResolutionService {
 
     const allOpsToApply: Operation[] = [];
     const allStoredOps: Array<{ id: string; seq: number }> = [];
+    // Synthetic local ops (disjoint merges) ride in the apply batch but are NOT
+    // pending remote rows — the reducer-commit checkpoint must never see them.
+    const checkpointExemptOpIds = new Set<string>();
 
     const lwwPartitions = partitionLwwResolutions<Operation, EntityConflict>(
       resolutions,
@@ -357,8 +359,6 @@ export class ConflictResolutionService {
     );
 
     const {
-      localWinsCount,
-      remoteWinsCount,
       remoteWinsOps,
       localWinsRemoteOps,
       remoteOpsToReject,
@@ -367,6 +367,7 @@ export class ConflictResolutionService {
     } = lwwPartitions;
     const localOpsToReject = [...lwwPartitions.localOpsToReject];
     const localOpsToRejectSet = new Set(localOpsToReject);
+    let writtenLocalWinOps: Operation[] = [];
 
     for (const resolution of resolutions) {
       // Note: localWinOp is undefined for archive-wins sibling conflicts
@@ -403,11 +404,29 @@ export class ConflictResolutionService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Batch process local-wins remote ops: filter duplicates and append in batch
-    // Uses retry to handle race condition (issue #6213)
+    // Atomically persist remote losers followed by their local-win
+    // compensations. Hydration is status-blind, so exposing a durable loser
+    // without its later compensation would let the loser overwrite local state
+    // after a crash.
     // ─────────────────────────────────────────────────────────────────────────
-    if (localWinsRemoteOps.length > 0) {
-      await this._filterAndAppendOpsWithRetry(localWinsRemoteOps, 'remote');
+    if (localWinsRemoteOps.length > 0 || newLocalWinOps.length > 0) {
+      const result = await this.opLogStore.appendMixedSourceBatchSkipDuplicates([
+        { ops: localWinsRemoteOps, source: 'remote' },
+        { ops: newLocalWinOps, source: 'local' },
+      ]);
+      writtenLocalWinOps = result.written
+        .filter((entry) => entry.source === 'local')
+        .map((entry) => entry.op);
+      if (result.skippedCount > 0) {
+        OpLog.verbose(
+          `ConflictResolutionService: Skipped ${result.skippedCount} duplicate mixed-resolution op(s)`,
+        );
+      }
+      for (const op of writtenLocalWinOps) {
+        OpLog.normal(
+          `ConflictResolutionService: Appended local-win update op ${op.id} for ${op.entityType}:${op.entityId}`,
+        );
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -456,32 +475,66 @@ export class ConflictResolutionService {
     // client's state picks up the remote side's fields — local's are already
     // optimistically applied). The op stays unsynced+not-rejected → it uploads.
     // ─────────────────────────────────────────────────────────────────────────
-    for (const merged of mergedResolutions) {
-      for (const op of merged.conflict.localOps) {
-        if (!localOpsToRejectSet.has(op.id)) {
-          localOpsToReject.push(op.id);
-          localOpsToRejectSet.add(op.id);
+    if (mergedResolutions.length > 0) {
+      for (const merged of mergedResolutions) {
+        for (const op of merged.conflict.localOps) {
+          if (!localOpsToRejectSet.has(op.id)) {
+            localOpsToReject.push(op.id);
+            localOpsToRejectSet.add(op.id);
+          }
         }
-      }
-      if (merged.conflict.remoteOps.length > 0) {
-        await this._filterAndAppendOpsWithRetry(merged.conflict.remoteOps, 'remote');
         remoteOpsToReject.push(...merged.conflict.remoteOps.map((op) => op.id));
       }
 
-      const seq = await this.opLogStore.appendWithVectorClockUpdate(
-        merged.mergedOp,
-        'local',
-      );
-      allStoredOps.push({ id: merged.mergedOp.id, seq });
-      allOpsToApply.push(merged.mergedOp);
+      // ONE atomic mixed-source batch for all merge writes: an original remote
+      // loser must never be durable without its superseding merged op (crash
+      // safety), and the batch rebases each merged op on the durable clock so a
+      // synthetic op cannot reuse or regress this client's counter. The rebased
+      // clock still dominates both original sides.
+      const mergeBatch = await this.opLogStore.appendMixedSourceBatchSkipDuplicates([
+        {
+          ops: mergedResolutions.flatMap((merged) => merged.conflict.remoteOps),
+          source: 'remote',
+        },
+        {
+          ops: mergedResolutions.map((merged) => merged.mergedOp),
+          source: 'local',
+        },
+      ]);
+      if (mergeBatch.skippedCount > 0) {
+        OpLog.verbose(
+          `ConflictResolutionService: Skipped ${mergeBatch.skippedCount} duplicate merge-resolution op(s)`,
+        );
+      }
+
+      const writtenMergedOpIds = new Set<string>();
+      for (const entry of mergeBatch.written) {
+        if (entry.source !== 'local') {
+          continue;
+        }
+        // Apply/upload the WRITTEN op — it carries the rebased vector clock.
+        allStoredOps.push({ id: entry.op.id, seq: entry.seq });
+        allOpsToApply.push(entry.op);
+        checkpointExemptOpIds.add(entry.op.id);
+        writtenMergedOpIds.add(entry.op.id);
+        OpLog.normal(
+          `ConflictResolutionService: Appended disjoint-merge op ${entry.op.id} for ` +
+            `${entry.op.entityType}:${entry.op.entityId}`,
+        );
+      }
+
       // Journal ONLY after the append: once persisted as a pending local op the
       // merge is durable (it applies/uploads even across a crash), so a `merged`
-      // ("kept both") entry can never describe a merge that didn't happen.
-      await this._journalMergedResolution(merged.plan);
-      OpLog.normal(
-        `ConflictResolutionService: Appended disjoint-merge op ${merged.mergedOp.id} for ` +
-          `${merged.mergedOp.entityType}:${merged.mergedOp.entityId}`,
-      );
+      // ("kept both") entry can never describe a merge that didn't happen. The
+      // inverse window is accepted: batch committed but crash before this loop
+      // means a durable merge without a journal entry (observe-only log; the
+      // remote originals are recorded-as-seen, so it never re-enters
+      // resolution and the entry stays absent).
+      for (const merged of mergedResolutions) {
+        if (writtenMergedOpIds.has(merged.mergedOp.id)) {
+          await this._journalMergedResolution(merged.plan);
+        }
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -501,22 +554,46 @@ export class ConflictResolutionService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 5+6: Apply remote ops (single batch) and append local-win update ops.
-    // The deferred-actions flush in `finally` runs whether the apply succeeded
-    // or threw — matches the pre-fix replayOperationBatch.finally semantics
-    // and guarantees buffered local actions don't leak to the next sync. (#7700)
+    // STEP 5: Apply remote ops in a single batch.
+    // Merge their clocks before entering the reducer/deferred-action window.
+    // Pending rows make this durable frontier crash-safe, and any subsequent
+    // dispatch/checkpoint/bookkeeping failure can drain buffered local actions.
+    // (#7700)
     // ─────────────────────────────────────────────────────────────────────────
-    let didApplyRemoteOps = false;
+    let canDrainDeferredActions = false;
+    let hasPrimaryError = false;
     try {
       if (allOpsToApply.length > 0) {
         OpLog.normal(
           `ConflictResolutionService: Applying ${allOpsToApply.length} ops in single batch`,
         );
-        didApplyRemoteOps = true;
+        await this.opLogStore.mergeRemoteOpClocks(allOpsToApply);
+        canDrainDeferredActions = true;
 
         const opIdToSeq = new Map(allStoredOps.map((o) => [o.id, o.seq]));
         const applyResult = await this.operationApplier.applyOperations(allOpsToApply, {
           skipDeferredLocalActions: true,
+          onReducersCommitted: async (reducerCommittedOps) => {
+            // Disjoint-merge ops are synthetic LOCAL rows in the apply batch;
+            // their durability contract is the mixed-source append + upload
+            // path. The checkpoint's pending-only assertion must only see rows
+            // appended with pendingApply.
+            const checkpointOps = reducerCommittedOps.filter(
+              (op) => !checkpointExemptOpIds.has(op.id),
+            );
+            const reducerCommittedSeqs = checkpointOps
+              .map((op) => opIdToSeq.get(op.id))
+              .filter((seq): seq is number => seq !== undefined);
+            if (reducerCommittedSeqs.length !== checkpointOps.length) {
+              throw new Error(
+                'ConflictResolutionService: reducer commit contained an unknown operation.',
+              );
+            }
+            await this.opLogStore.markReducersCommittedAndMergeClocks(
+              reducerCommittedSeqs,
+              checkpointOps,
+            );
+          },
         });
 
         const appliedSeqs = applyResult.appliedOps
@@ -526,71 +603,68 @@ export class ConflictResolutionService {
         if (appliedSeqs.length > 0) {
           await this.opLogStore.markApplied(appliedSeqs);
 
-          // CRITICAL: Merge remote ops' vector clocks into local clock.
-          // This ensures subsequent local operations have clocks that "dominate"
-          // the applied remote ops (GREATER_THAN instead of CONCURRENT).
-          // Without this, ops created after conflict resolution would have clocks
-          // that are CONCURRENT with the applied ops, causing them to be incorrectly
-          // filtered by SyncImportFilterService or rejected as conflicts on next sync.
-          await this.opLogStore.mergeRemoteOpClocks(applyResult.appliedOps);
-
           OpLog.normal(
             `ConflictResolutionService: Successfully applied ${appliedSeqs.length} ops`,
           );
         }
 
         if (applyResult.failedOp) {
-          const failedOpIds = getFailedOpIdsFromBatch(
-            allOpsToApply,
-            applyResult.failedOp.op,
-          );
+          const failedOpIds = [applyResult.failedOp.op.id];
 
           OpLog.err(
             `ConflictResolutionService: ${applyResult.appliedOps.length} ops applied before failure. ` +
-              `Marking ${failedOpIds.length} ops as failed.`,
+              'Marking the attempted archive operation as failed.',
             applyResult.failedOp.error,
           );
-          await this.opLogStore.markFailed(failedOpIds, MAX_CONFLICT_RETRY_ATTEMPTS);
+          await this.opLogStore.markFailed(failedOpIds);
 
-          this.snackService.open({
-            type: 'ERROR',
-            msg: T.F.SYNC.S.CONFLICT_RESOLUTION_FAILED,
-            actionStr: T.PS.RELOAD,
-            actionFn: (): void => {
-              window.location.reload();
-            },
-          });
+          // Never replace a visible persistent recovery action (e.g. the
+          // USE_REMOTE Undo — the only entry point to the pre-replace backup).
+          // The IncompleteRemoteOperationsError thrown below still flips the
+          // sync status to ERROR via the wrapper's (equally guarded) handler.
+          if (!this.snackService.hasPendingPersistentAction()) {
+            this.snackService.open({
+              type: 'ERROR',
+              msg: T.F.SYNC.S.CONFLICT_RESOLUTION_FAILED,
+              actionStr: T.PS.RELOAD,
+              actionFn: (): void => {
+                window.location.reload();
+              },
+            });
+          }
 
           // FIX #6571: Throw on apply failure (parity with applyNonConflictingOps).
           // Previously, apply failures during LWW resolution were logged but not
           // thrown, causing sync to report IN_SYNC despite lost operations.
           // Deferred-actions flush runs in the finally below before the throw
           // propagates.
-          throw applyResult.failedOp.error;
+          throw new IncompleteRemoteOperationsError(applyResult.failedOp.error);
         }
       }
-
-      // ───────────────────────────────────────────────────────────────────────
-      // Append new update ops for local wins (will sync on next cycle)
-      // Uses appendWithVectorClockUpdate to ensure vector clock store stays in sync
-      // ───────────────────────────────────────────────────────────────────────
-      for (const op of newLocalWinOps) {
-        await this.opLogStore.appendWithVectorClockUpdate(op, 'local');
-        OpLog.normal(
-          `ConflictResolutionService: Appended local-win update op ${op.id} for ${op.entityType}:${op.entityId}`,
-        );
-      }
+    } catch (error) {
+      hasPrimaryError = true;
+      throw error;
     } finally {
-      if (didApplyRemoteOps) {
-        await processDeferredActionsAfterRemoteApply(
-          this.injector,
-          options.callerHoldsOperationLogLock ?? false,
-        );
+      if (canDrainDeferredActions) {
+        try {
+          await processDeferredActionsAfterRemoteApply(
+            this.injector,
+            options.callerHoldsOperationLogLock ?? false,
+          );
+        } catch (deferredError) {
+          if (!hasPrimaryError) {
+            throw deferredError;
+          }
+          OpLog.err(
+            'ConflictResolutionService: Deferred-action drain also failed after the primary remote-apply error',
+            { name: (deferredError as Error | undefined)?.name },
+          );
+        }
       }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 7: Show non-blocking notification
+    // STEP 6: Show non-blocking notification
     //
     // Distinguish "routine" self-healing (reschedule/repeat/archive/done churn
     // that resolves correctly on its own) from resolutions that discarded a real
@@ -598,12 +672,12 @@ export class ConflictResolutionService {
     // existing transient count; genuine content loss gets a dismissible banner
     // naming the affected task(s) so the user can double-check. (#8694)
     // ─────────────────────────────────────────────────────────────────────────
-    if (localWinsCount > 0 || remoteWinsCount > 0) {
-      await this._notifyResolutionOutcome(resolutions, localWinsCount, remoteWinsCount);
+    if (resolutions.length > 0) {
+      await this._notifyResolutionOutcome(resolutions);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 8: Validate and repair state after resolution
+    // STEP 7: Validate and repair state after resolution
     // Validation failure flips the SyncSessionValidationService latch — the
     // wrapper reads it before deciding IN_SYNC vs ERROR. (#7330)
     // ─────────────────────────────────────────────────────────────────────────
@@ -615,9 +689,11 @@ export class ConflictResolutionService {
     // caller uses this count to trigger the immediate re-upload
     // (immediate-upload.service.ts) — omitting merges lets a merge-only sync
     // report IN_SYNC while its merged op sits unsynced until a later cycle.
-    // Mirrors the rejection-handler path (operation-log-sync.service.ts:361).
+    // Mirrors the rejection-handler accumulation in operation-log-sync.service.
+    // writtenLocalWinOps (not newLocalWinOps) is the post-dedupe set the atomic
+    // mixed-source batch actually persisted.
     return {
-      localWinOpsCreated: newLocalWinOps.length + mergedResolutions.length,
+      localWinOpsCreated: writtenLocalWinOps.length + mergedResolutions.length,
     };
   }
 
@@ -632,11 +708,7 @@ export class ConflictResolutionService {
    * Purely a read of the already-decided resolutions — it never influences which
    * ops were applied or rejected.
    */
-  private async _notifyResolutionOutcome(
-    resolutions: LWWResolution[],
-    localWinsCount: number,
-    remoteWinsCount: number,
-  ): Promise<void> {
+  private async _notifyResolutionOutcome(resolutions: LWWResolution[]): Promise<void> {
     const contentConflicts = findLwwContentConflicts(resolutions, (entityType) =>
       this._resolvePayloadKey(entityType as EntityType),
     );

@@ -66,9 +66,11 @@ describe('ConflictResolutionService — SPAP-14 disjoint-field merge', () => {
   });
 
   const mergedOpArgs = (): Operation | undefined =>
-    mockOpLogStore.appendWithVectorClockUpdate.calls
+    mockOpLogStore.appendMixedSourceBatchSkipDuplicates.calls
       .allArgs()
-      .map(([o]) => o as Operation)
+      .flatMap(([batches]) => batches)
+      .filter((batch) => batch.source === 'local')
+      .flatMap((batch) => [...batch.ops])
       .find((o) => o.entityId === 'task-1' && o.opType === OpType.Update);
 
   beforeEach(() => {
@@ -82,14 +84,27 @@ describe('ConflictResolutionService — SPAP-14 disjoint-field merge', () => {
 
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', [
       'appendBatchSkipDuplicates',
+      'appendMixedSourceBatchSkipDuplicates',
       'appendWithVectorClockUpdate',
       'markApplied',
       'markRejected',
       'markFailed',
       'getUnsyncedByEntity',
       'mergeRemoteOpClocks',
+      'markReducersCommittedAndMergeClocks',
     ]);
     mockOpLogStore.mergeRemoteOpClocks.and.resolveTo(undefined);
+    mockOpLogStore.markReducersCommittedAndMergeClocks.and.resolveTo(undefined);
+    mockOpLogStore.appendMixedSourceBatchSkipDuplicates.and.callFake(async (batches) => ({
+      written: batches.flatMap((batch) =>
+        batch.ops.map((batchOp, index) => ({
+          seq: index + 1,
+          op: batchOp,
+          source: batch.source,
+        })),
+      ),
+      skippedCount: 0,
+    }));
     mockOpLogStore.getUnsyncedByEntity.and.resolveTo(new Map());
     mockOpLogStore.markRejected.and.resolveTo(undefined);
     mockOpLogStore.markApplied.and.resolveTo(undefined);
@@ -134,6 +149,110 @@ describe('ConflictResolutionService — SPAP-14 disjoint-field merge', () => {
 
     service = TestBed.inject(ConflictResolutionService);
     journal = TestBed.inject(ConflictJournalService);
+  });
+
+  // ── regression: checkpoint contract vs synthetic merged ops (#8900 seam) ───
+  it('resolves without checkpointing the synthetic merged op when the applier reports reducer commit', async () => {
+    mockStore.select.and.returnValue(
+      of({ id: 'task-1', title: 'Local title', notes: 'base notes' }),
+    );
+    // Honor the coordinator contract: the reducer-commit callback receives the
+    // ENTIRE apply batch (including the synthetic merged local op).
+    mockOperationApplier.applyOperations.and.callFake(async (ops, options) => {
+      await options?.onReducersCommitted?.(ops);
+      return { appliedOps: ops };
+    });
+    // Enforce the real store's pending-only checkpoint assertion: only rows
+    // appended with pendingApply may be checkpointed.
+    const pendingAppendedIds = new Set<string>();
+    mockOpLogStore.appendBatchSkipDuplicates.and.callFake(
+      (ops: Operation[], _source, options) => {
+        if (options?.pendingApply) {
+          ops.forEach((o) => pendingAppendedIds.add(o.id));
+        }
+        return Promise.resolve({
+          seqs: ops.map((_, i) => i + 1),
+          writtenOps: ops,
+          skippedCount: 0,
+        });
+      },
+    );
+    mockOpLogStore.markReducersCommittedAndMergeClocks.and.callFake(
+      async (_seqs, ops) => {
+        for (const o of ops) {
+          if (!pendingAppendedIds.has(o.id)) {
+            throw new Error(
+              `Reducer checkpoint requires pending remote operation (${o.id}).`,
+            );
+          }
+        }
+      },
+    );
+
+    const localOp = op({
+      id: 'local-cp',
+      clientId: 'A',
+      vectorClock: { A: 1 },
+      timestamp: 2000,
+      payload: { task: { id: 'task-1', changes: { title: 'Local title' } } },
+    });
+    const remoteOp = op({
+      id: 'remote-cp',
+      clientId: 'B',
+      vectorClock: { B: 1 },
+      timestamp: 1000,
+      payload: { task: { id: 'task-1', changes: { notes: 'Remote notes' } } },
+    });
+
+    await expectAsync(
+      service.autoResolveConflictsLWW([conflictOf([localOp], [remoteOp])]),
+    ).toBeResolved();
+
+    // The merged op reached the reducers…
+    const appliedOps = mockOperationApplier.applyOperations.calls.mostRecent()
+      .args[0] as Operation[];
+    expect(
+      appliedOps.some((o) => o.opType === OpType.Update && o.entityId === 'task-1'),
+    ).toBeTrue();
+    // …but only pending-appended rows were ever checkpointed.
+    const checkpointedOps = mockOpLogStore.markReducersCommittedAndMergeClocks.calls
+      .allArgs()
+      .flatMap(([, ops]) => ops);
+    expect(checkpointedOps.every((o) => pendingAppendedIds.has(o.id))).toBeTrue();
+  });
+
+  it('persists merge writes through the atomic mixed-source batch, never the clock-overwriting append', async () => {
+    mockStore.select.and.returnValue(
+      of({ id: 'task-1', title: 'Local title', notes: 'base notes' }),
+    );
+
+    const localOp = op({
+      id: 'local-mb',
+      clientId: 'A',
+      vectorClock: { A: 1 },
+      timestamp: 2000,
+      payload: { task: { id: 'task-1', changes: { title: 'Local title' } } },
+    });
+    const remoteOp = op({
+      id: 'remote-mb',
+      clientId: 'B',
+      vectorClock: { B: 1 },
+      timestamp: 1000,
+      payload: { task: { id: 'task-1', changes: { notes: 'Remote notes' } } },
+    });
+
+    await service.autoResolveConflictsLWW([conflictOf([localOp], [remoteOp])]);
+
+    // appendWithVectorClockUpdate REPLACES the durable clock with the caller's
+    // clock (built only from the conflict's ops) — the batch rebases instead.
+    expect(mockOpLogStore.appendWithVectorClockUpdate).not.toHaveBeenCalled();
+    const batches =
+      mockOpLogStore.appendMixedSourceBatchSkipDuplicates.calls.mostRecent().args[0];
+    const remoteBatch = batches.find((b) => b.source === 'remote');
+    const localBatch = batches.find((b) => b.source === 'local');
+    expect(remoteBatch!.ops.map((o) => o.id)).toEqual(['remote-mb']);
+    expect(localBatch!.ops.length).toBe(1);
+    expect(localBatch!.ops[0].opType).toBe(OpType.Update);
   });
 
   // ── (a) title vs notes → merge both ────────────────────────────────────────
@@ -354,7 +473,9 @@ describe('ConflictResolutionService — SPAP-14 disjoint-field merge', () => {
     mockStore.select.and.returnValue(
       of({ id: 'task-1', title: 'Local title', notes: 'base' }),
     );
-    mockOpLogStore.appendWithVectorClockUpdate.and.rejectWith(new Error('append failed'));
+    mockOpLogStore.appendMixedSourceBatchSkipDuplicates.and.rejectWith(
+      new Error('append failed'),
+    );
 
     const localOp = op({
       id: 'local-1',
@@ -634,14 +755,27 @@ describe('ConflictResolutionService — SPAP-14 disjoint-field merge', () => {
 
       const opLogStore = jasmine.createSpyObj('OperationLogStoreService', [
         'appendBatchSkipDuplicates',
+        'appendMixedSourceBatchSkipDuplicates',
         'appendWithVectorClockUpdate',
         'markApplied',
         'markRejected',
         'markFailed',
         'getUnsyncedByEntity',
         'mergeRemoteOpClocks',
+        'markReducersCommittedAndMergeClocks',
       ]);
       opLogStore.mergeRemoteOpClocks.and.resolveTo(undefined);
+      opLogStore.markReducersCommittedAndMergeClocks.and.resolveTo(undefined);
+      opLogStore.appendMixedSourceBatchSkipDuplicates.and.callFake(async (batches) => ({
+        written: batches.flatMap((batch) =>
+          batch.ops.map((batchOp, index) => ({
+            seq: index + 1,
+            op: batchOp,
+            source: batch.source,
+          })),
+        ),
+        skippedCount: 0,
+      }));
       opLogStore.getUnsyncedByEntity.and.resolveTo(new Map());
       opLogStore.markRejected.and.resolveTo(undefined);
       opLogStore.markApplied.and.resolveTo(undefined);
@@ -688,9 +822,11 @@ describe('ConflictResolutionService — SPAP-14 disjoint-field merge', () => {
       const svc = TestBed.inject(ConflictResolutionService);
       await svc.autoResolveConflictsLWW([conflict]);
 
-      const synthesized = opLogStore.appendWithVectorClockUpdate.calls
+      const synthesized = opLogStore.appendMixedSourceBatchSkipDuplicates.calls
         .allArgs()
-        .map(([o]) => o as Operation)
+        .flatMap(([batches]) => batches)
+        .filter((batch) => batch.source === 'local')
+        .flatMap((batch) => [...batch.ops])
         .find((o) => o.entityId === 'task-1' && o.opType === OpType.Update);
       return { synthesized };
     };
