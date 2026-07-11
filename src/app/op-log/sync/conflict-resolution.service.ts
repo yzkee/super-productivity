@@ -343,6 +343,9 @@ export class ConflictResolutionService {
 
     const allOpsToApply: Operation[] = [];
     const allStoredOps: Array<{ id: string; seq: number }> = [];
+    // Synthetic local ops (disjoint merges) ride in the apply batch but are NOT
+    // pending remote rows — the reducer-commit checkpoint must never see them.
+    const checkpointExemptOpIds = new Set<string>();
 
     const lwwPartitions = partitionLwwResolutions<Operation, EntityConflict>(
       resolutions,
@@ -474,32 +477,63 @@ export class ConflictResolutionService {
     // client's state picks up the remote side's fields — local's are already
     // optimistically applied). The op stays unsynced+not-rejected → it uploads.
     // ─────────────────────────────────────────────────────────────────────────
-    for (const merged of mergedResolutions) {
-      for (const op of merged.conflict.localOps) {
-        if (!localOpsToRejectSet.has(op.id)) {
-          localOpsToReject.push(op.id);
-          localOpsToRejectSet.add(op.id);
+    if (mergedResolutions.length > 0) {
+      for (const merged of mergedResolutions) {
+        for (const op of merged.conflict.localOps) {
+          if (!localOpsToRejectSet.has(op.id)) {
+            localOpsToReject.push(op.id);
+            localOpsToRejectSet.add(op.id);
+          }
         }
-      }
-      if (merged.conflict.remoteOps.length > 0) {
-        await this._filterAndAppendOpsWithRetry(merged.conflict.remoteOps, 'remote');
         remoteOpsToReject.push(...merged.conflict.remoteOps.map((op) => op.id));
       }
 
-      const seq = await this.opLogStore.appendWithVectorClockUpdate(
-        merged.mergedOp,
-        'local',
-      );
-      allStoredOps.push({ id: merged.mergedOp.id, seq });
-      allOpsToApply.push(merged.mergedOp);
+      // ONE atomic mixed-source batch for all merge writes: an original remote
+      // loser must never be durable without its superseding merged op (crash
+      // safety), and the batch rebases each merged op on the durable clock so a
+      // synthetic op cannot reuse or regress this client's counter. The rebased
+      // clock still dominates both original sides.
+      const mergeBatch = await this.opLogStore.appendMixedSourceBatchSkipDuplicates([
+        {
+          ops: mergedResolutions.flatMap((merged) => merged.conflict.remoteOps),
+          source: 'remote',
+        },
+        {
+          ops: mergedResolutions.map((merged) => merged.mergedOp),
+          source: 'local',
+        },
+      ]);
+      if (mergeBatch.skippedCount > 0) {
+        OpLog.verbose(
+          `ConflictResolutionService: Skipped ${mergeBatch.skippedCount} duplicate merge-resolution op(s)`,
+        );
+      }
+
+      const writtenMergedOpIds = new Set<string>();
+      for (const entry of mergeBatch.written) {
+        if (entry.source !== 'local') {
+          continue;
+        }
+        // Apply/upload the WRITTEN op — it carries the rebased vector clock.
+        allStoredOps.push({ id: entry.op.id, seq: entry.seq });
+        allOpsToApply.push(entry.op);
+        checkpointExemptOpIds.add(entry.op.id);
+        writtenMergedOpIds.add(entry.op.id);
+        OpLog.normal(
+          `ConflictResolutionService: Appended disjoint-merge op ${entry.op.id} for ` +
+            `${entry.op.entityType}:${entry.op.entityId}`,
+        );
+      }
+
       // Journal ONLY after the append: once persisted as a pending local op the
       // merge is durable (it applies/uploads even across a crash), so a `merged`
-      // ("kept both") entry can never describe a merge that didn't happen.
-      await this._journalMergedResolution(merged.plan);
-      OpLog.normal(
-        `ConflictResolutionService: Appended disjoint-merge op ${merged.mergedOp.id} for ` +
-          `${merged.mergedOp.entityType}:${merged.mergedOp.entityId}`,
-      );
+      // ("kept both") entry can never describe a merge that didn't happen. A
+      // skipped (already-persisted) merged op was journaled when first written.
+      for (const merged of mergedResolutions) {
+        if (writtenMergedOpIds.has(merged.mergedOp.id)) {
+          await this._journalMergedResolution(merged.plan);
+        }
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -539,17 +573,24 @@ export class ConflictResolutionService {
         const applyResult = await this.operationApplier.applyOperations(allOpsToApply, {
           skipDeferredLocalActions: true,
           onReducersCommitted: async (reducerCommittedOps) => {
-            const reducerCommittedSeqs = reducerCommittedOps
+            // Disjoint-merge ops are synthetic LOCAL rows in the apply batch;
+            // their durability contract is the mixed-source append + upload
+            // path. The checkpoint's pending-only assertion must only see rows
+            // appended with pendingApply.
+            const checkpointOps = reducerCommittedOps.filter(
+              (op) => !checkpointExemptOpIds.has(op.id),
+            );
+            const reducerCommittedSeqs = checkpointOps
               .map((op) => opIdToSeq.get(op.id))
               .filter((seq): seq is number => seq !== undefined);
-            if (reducerCommittedSeqs.length !== reducerCommittedOps.length) {
+            if (reducerCommittedSeqs.length !== checkpointOps.length) {
               throw new Error(
                 'ConflictResolutionService: reducer commit contained an unknown operation.',
               );
             }
             await this.opLogStore.markReducersCommittedAndMergeClocks(
               reducerCommittedSeqs,
-              reducerCommittedOps,
+              checkpointOps,
             );
           },
         });
