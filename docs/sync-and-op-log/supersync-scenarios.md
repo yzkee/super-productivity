@@ -154,7 +154,8 @@ Comprehensive spec of all scenarios that can occur during SuperSync synchronizat
 3. Throw `LocalDataConflictError`
 4. Show full conflict dialog: USE_LOCAL / USE_REMOTE / CANCEL
 5. USE_LOCAL → `forceUploadLocalState()` (creates SYNC_IMPORT)
-6. USE_REMOTE → `forceDownloadRemoteState()` (clears local ops)
+6. USE_REMOTE → capture a single-slot pre-replace backup, then `forceDownloadRemoteState()` (clears local ops)
+7. The replacement transaction sets a raw-rebuild resume marker. Completion atomically replaces it with a durable Undo provenance token; startup re-offers Undo after reload while the same backup remains.
 
 **User sees:** Full conflict resolution dialog.
 
@@ -201,10 +202,10 @@ Comprehensive spec of all scenarios that can occur during SuperSync synchronizat
 2. Check pending local ops. Any pending work triggers the dialog except onboarding example-task creates and the never-synced `GLOBAL_CONFIG:sync` provider-setup write. Other GLOBAL_CONFIG sections remain protected.
 3. **Show conflict dialog BEFORE processing** with `scenario: 'INCOMING_IMPORT'` and `syncImportReason`
 4. USE_LOCAL → `forceUploadLocalState()` (overrides remote with local data)
-5. USE_REMOTE → `forceDownloadRemoteState()` (clears local ops, downloads from seq 0)
+5. USE_REMOTE → capture a pre-replace backup, then `forceDownloadRemoteState()` (clears local ops, downloads from seq 0)
 6. CANCEL → return with `cancelled: true`, skip upload phase
 
-**User sees:** Conflict dialog explaining remote import detected with local changes at risk. "Use Server Data" recommended.
+**User sees:** Conflict dialog explaining remote import detected with local changes at risk. "Use Server Data" recommended. After replacement, a persistent Undo action remains recoverable across reloads while its matching backup exists.
 
 ### D.3: Remote Ops Filtered by Stored Local SYNC_IMPORT ✓
 

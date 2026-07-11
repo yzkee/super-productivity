@@ -170,7 +170,7 @@ interface OperationLogEntry {
   source: 'local' | 'remote';
   syncedAt?: number; // For server sync (Part C)
   rejectedAt?: number; // When rejected during conflict resolution
-  applicationStatus?: 'pending' | 'archive_pending' | 'applied' | 'failed';
+  applicationStatus?: 'pending' | 'archive_pending' | 'failed' | 'applied';
 }
 
 // state_cache table - periodic snapshots
@@ -211,11 +211,11 @@ interface StateCache {
 Downloaded operations use a durable status transition so reducer state, archive IndexedDB side effects, vector clocks, and the server cursor cannot disagree after a crash:
 
 1. `pending` — the remote op is stored, but no reducer-commit checkpoint exists yet.
-2. `archive_pending` — the complete batch was bulk-dispatched to reducers and its vector clocks were merged; archive side effects are still outstanding.
-3. `applied` — reducer and archive work both completed.
-4. `failed` — an attempted archive side effect failed. Later operations in the same batch remain `archive_pending` without consuming retry budget.
+2. `archive_pending` — reducers committed and the op's vector clock was merged atomically; archive side effects have not yet completed.
+3. `failed` — an archive side-effect attempt failed. `retryCount` is charged only to the attempted row, so later rows in the same batch do not consume retry budget.
+4. `applied` — reducer and archive work both completed.
 
-Startup hydration replays the persisted state history, converts surviving `pending` rows to the archive checkpoint, and retries `archive_pending`/`failed` rows with reducer dispatch disabled. Ordinary sync refuses to download, upload, or advance its cursor while any of these incomplete rows remain.
+Startup hydration replays persisted state history, quarantines surviving `pending` rows, and retries `archive_pending`/`failed` rows with reducer dispatch disabled. Ordinary sync refuses to download, upload, or advance its cursor while any incomplete rows remain. Database version 8 is a downgrade barrier: released readers that do not understand the distinct reducer checkpoint cannot open the newer store and silently overlook outstanding archive work.
 
 Local actions buffered during a remote-apply window stay ordered until each operation is durable. Transient persistence failures keep the failed suffix queued and block the current sync so a later sync can retry. A deterministically invalid buffered action also remains queued, but requires reload: its reducer already changed live state, so discarding it would let live state diverge from the durable operation log.
 
@@ -2324,7 +2324,7 @@ When adding new entities or relationships:
 > - **Archive validation**: archiveOld tasks now validated for project/tag references, null-safety added
 > - **Lock service robustness**: Handle NaN timestamps and invalid lock formats in fallback lock
 > - **Array payload rejection**: Explicit check to reject arrays (which bypass `typeof === 'object'`)
-> - **Pending operation expiry**: Operations pending >24h are quarantined as failed; hydration still restores their reducer history, while archive recovery and the sync gate remain active (`PENDING_OPERATION_EXPIRY_MS`).
+> - **Remote apply checkpoints**: reducer commit and vector-clock merge are atomic; `archive_pending` distinguishes unattempted archive work from attempted `failed` rows, while hydration and the sync gate keep incomplete work visible.
 
 ---
 
