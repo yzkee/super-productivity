@@ -110,13 +110,18 @@ export class TaskArchiveService {
   constructor() {}
 
   /**
-   * Every archive mutation is serialized behind the cross-tab TASK_ARCHIVE
-   * lock — including remote sync side effects: TASK_ARCHIVE is deliberately a
-   * separate lock from OPERATION_LOG, so acquiring it while sync holds the
-   * op-log lock is safe (and the remote moveToArchive path already does).
-   * The legacy `isIgnoreDBLock` option no longer bypasses this mutex; a
-   * bypassed remote mutation could interleave with a locked local one and
-   * silently drop one side's archive write.
+   * Every mutation in THIS service is serialized behind the cross-tab
+   * TASK_ARCHIVE lock — including remote sync side effects: TASK_ARCHIVE is
+   * deliberately a separate lock from OPERATION_LOG, so acquiring it while
+   * sync holds the op-log lock is safe (and the remote moveToArchive path
+   * already does). The legacy `isIgnoreDBLock` option no longer bypasses this
+   * mutex; a bypassed remote mutation could interleave with a locked local one
+   * and silently drop one side's archive write.
+   *
+   * Known paths still OUTSIDE the lock (tracked in #8941):
+   * ArchiveCompressionService.compressArchive, the remote loadAllData archive
+   * import (holds no lock across its user-confirmation guard by design), and
+   * TimeTrackingService's project/tag archive cleanups.
    */
   private _runTaskArchiveMutation(mutation: () => Promise<void>): Promise<void> {
     return this._lockService.request(LOCK_NAMES.TASK_ARCHIVE, mutation);

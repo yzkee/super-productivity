@@ -525,8 +525,11 @@ export class ConflictResolutionService {
 
       // Journal ONLY after the append: once persisted as a pending local op the
       // merge is durable (it applies/uploads even across a crash), so a `merged`
-      // ("kept both") entry can never describe a merge that didn't happen. A
-      // skipped (already-persisted) merged op was journaled when first written.
+      // ("kept both") entry can never describe a merge that didn't happen. The
+      // inverse window is accepted: batch committed but crash before this loop
+      // means a durable merge without a journal entry (observe-only log; the
+      // remote originals are recorded-as-seen, so it never re-enters
+      // resolution and the entry stays absent).
       for (const merged of mergedResolutions) {
         if (writtenMergedOpIds.has(merged.mergedOp.id)) {
           await this._journalMergedResolution(merged.plan);
