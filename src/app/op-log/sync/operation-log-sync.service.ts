@@ -8,7 +8,10 @@ import {
   mergeVectorClocks,
 } from '../../core/util/vector-clock';
 import { FILE_BASED_SYNC_CONSTANTS } from '../sync-providers/file-based/file-based-sync.types';
-import { OperationLogStoreService } from '../persistence/operation-log-store.service';
+import {
+  ImportBackupRef,
+  OperationLogStoreService,
+} from '../persistence/operation-log-store.service';
 import { BackupService } from '../backup/backup.service';
 import { OpLog } from '../../core/log';
 import {
@@ -1432,9 +1435,9 @@ export class OperationLogSyncService {
       (snapshotState?.['archiveOld'] as typeof MODEL_CONFIGS.archiveOld.defaultData) ??
       MODEL_CONFIGS.archiveOld.defaultData!;
 
-    let capturedBackupSavedAt: number | undefined;
+    let capturedBackupRef: ImportBackupRef | undefined;
     let replacementCommitted = false;
-    let backupSavedAt: number | undefined;
+    let backupRef: ImportBackupRef | undefined;
     let preservedLocalOps: Operation[] = [];
     // A capture racing the rebuild aborts the attempt (CaptureRacedRebuildError
     // from the asserts below). Retry in-call from the already-downloaded
@@ -1454,13 +1457,24 @@ export class OperationLogSyncService {
         // so flushing while holding it deadlocks) and re-checks inside the lock —
         // actions dispatched while the network request and preflight were in
         // flight are durably written and included in the reversible safety backup.
-        backupSavedAt = await this.writeFlushService.flushThenRunExclusive(async () => {
-          let savedAt: number | undefined;
+        backupRef = await this.writeFlushService.flushThenRunExclusive(async () => {
+          let currentBackupRef: ImportBackupRef | undefined;
           if (isCrashResume) {
             // Keep the first attempt's pre-replace backup (see option JSDoc).
-            savedAt = (await this.opLogStore.loadImportBackup())?.savedAt;
-            capturedBackupSavedAt = savedAt;
             const marker = await this.opLogStore.loadRawRebuildIncomplete();
+            const storedBackup = await this.opLogStore.loadImportBackup();
+            const expectedBackupRef = marker?.backupRef ?? capturedBackupRef;
+            currentBackupRef = expectedBackupRef
+              ? storedBackup?.backupId === expectedBackupRef.backupId
+                ? expectedBackupRef
+                : undefined
+              : storedBackup
+                ? {
+                    backupId: storedBackup.backupId,
+                    savedAt: storedBackup.savedAt,
+                  }
+                : undefined;
+            capturedBackupRef ??= currentBackupRef;
             const liveLocalOps = (await this.opLogStore.getUnsynced()).map(
               (entry) => entry.op,
             );
@@ -1470,8 +1484,8 @@ export class OperationLogSyncService {
             );
           } else {
             try {
-              savedAt = await this.backupService.captureImportBackup();
-              capturedBackupSavedAt = savedAt;
+              currentBackupRef = await this.backupService.captureImportBackup();
+              capturedBackupRef = currentBackupRef;
             } catch (e) {
               OpLog.warn(
                 'OperationLogSyncService: Pre-replace safety backup failed; aborting force download.',
@@ -1499,6 +1513,7 @@ export class OperationLogSyncService {
             archiveYoung,
             archiveOld,
             preservedLocalOps,
+            backupRef: currentBackupRef,
           });
           replacementCommitted = true;
 
@@ -1550,12 +1565,12 @@ export class OperationLogSyncService {
               await syncProvider.setLastServerSeq(result.latestServerSeq);
             }
 
-            await this._completeRawRebuild();
+            const hasDurableRecovery = await this._completeRawRebuild(currentBackupRef);
 
             OpLog.normal(
               'OperationLogSyncService: Force download snapshot hydration complete.',
             );
-            return savedAt;
+            return hasDurableRecovery ? currentBackupRef : undefined;
           }
 
           // Reset live state to defaults, then replay the COMPLETE server history on
@@ -1602,12 +1617,12 @@ export class OperationLogSyncService {
             await syncProvider.setLastServerSeq(result.latestServerSeq);
           }
 
-          await this._completeRawRebuild();
+          const hasDurableRecovery = await this._completeRawRebuild(currentBackupRef);
 
           OpLog.normal(
             `OperationLogSyncService: Force download complete. Rebuilt from ${migratedRemoteOps.length} ops.`,
           );
-          return savedAt;
+          return hasDurableRecovery ? currentBackupRef : undefined;
         });
         break;
       } catch (e) {
@@ -1627,16 +1642,16 @@ export class OperationLogSyncService {
         }
         // Final failure only — showing this per aborted attempt would churn the
         // single snack slot.
-        if (replacementCommitted && capturedBackupSavedAt !== undefined) {
-          this._showRestorePreviousDataSnack(capturedBackupSavedAt);
+        if (replacementCommitted && capturedBackupRef) {
+          await this._offerStrandedRebuildBackup();
         }
         throw e;
       }
     }
 
     // On a crash resume without a surviving backup there is nothing to offer.
-    if (backupSavedAt !== undefined) {
-      this._showRestorePreviousDataSnack(backupSavedAt);
+    if (backupRef) {
+      this._showRestorePreviousDataSnack(backupRef, true);
     }
   }
 
@@ -1746,9 +1761,9 @@ export class OperationLogSyncService {
     }
   }
 
-  private async _completeRawRebuild(): Promise<void> {
+  private async _completeRawRebuild(backupRef?: ImportBackupRef): Promise<boolean> {
     this._assertNoCaptureRacedWithRebuild();
-    await this.opLogStore.clearRawRebuildIncomplete();
+    return this.opLogStore.completeRawRebuild(backupRef);
   }
 
   /**
@@ -1855,14 +1870,20 @@ export class OperationLogSyncService {
    * control) and no auto-dismiss timer (duration: 0) so the undo isn't lost to a
    * timeout. (#8107)
    */
-  private _showRestorePreviousDataSnack(backupSavedAt: number): void {
+  private _showRestorePreviousDataSnack(
+    backupRef: ImportBackupRef,
+    isCompletedRecovery: boolean,
+  ): void {
     this.snackService.open({
       type: 'WARNING',
       msg: T.F.SYNC.S.LOCAL_DATA_REPLACE_UNDO,
       actionStr: T.G.UNDO,
       actionFn: async (): Promise<void> => {
         try {
-          const didRestore = await this.backupService.restoreImportBackup(backupSavedAt);
+          const didRestore = await this.backupService.restoreImportBackup(backupRef);
+          if (didRestore) {
+            await this.opLogStore.clearRawRebuildRecovery(backupRef.backupId);
+          }
           this.snackService.open({
             type: didRestore ? 'SUCCESS' : 'ERROR',
             msg: didRestore ? T.F.SYNC.S.RESTORE_SUCCESS : T.F.SYNC.S.RESTORE_ERROR,
@@ -1874,17 +1895,30 @@ export class OperationLogSyncService {
           this.snackService.open({ type: 'ERROR', msg: T.F.SYNC.S.RESTORE_ERROR });
         }
       },
+      ...(isCompletedRecovery
+        ? {
+            dismissFn: async (): Promise<void> => {
+              try {
+                await this.opLogStore.retireCompletedRawRebuildRecovery(
+                  backupRef.backupId,
+                );
+              } catch (error) {
+                OpLog.err(
+                  'OperationLogSyncService: Failed to retire dismissed rebuild recovery',
+                  { name: (error as Error | undefined)?.name },
+                );
+              }
+            },
+          }
+        : {}),
       config: { duration: 0 },
     });
   }
 
   /**
-   * Boot-time entry point for the interrupted-rebuild affordance (see
-   * StartupService): the user woke up on the rebuild baseline, not their data.
-   * A running sync resumes the rebuild by itself, but when none will run
-   * (offline, or sync disabled facing the "emptied" app) the pre-replace
-   * backup would have no visible entry point. Non-destructive — only surfaces
-   * the persistent restore snack, deduped against a visible recovery action.
+   * Boot-time entry point for raw-rebuild recovery (see StartupService).
+   * Handles both an interrupted rebuild and a completed rebuild whose durable
+   * Undo token survived a reload.
    */
   async offerInterruptedRebuildRecovery(): Promise<void> {
     await this._offerStrandedRebuildBackup();
@@ -1902,9 +1936,46 @@ export class OperationLogSyncService {
     if (this.snackService.hasPendingPersistentAction()) {
       return;
     }
-    const backup = await this.opLogStore.loadImportBackup();
-    if (backup?.savedAt !== undefined) {
-      this._showRestorePreviousDataSnack(backup.savedAt);
+    const [incomplete, recovery, backup] = await Promise.all([
+      this.opLogStore.loadRawRebuildIncomplete(),
+      this.opLogStore.loadRawRebuildRecovery(),
+      this.opLogStore.loadImportBackup(),
+    ]);
+    if (!incomplete && !recovery) {
+      return;
+    }
+    if (!backup) {
+      if (recovery && !incomplete) {
+        await this.opLogStore.clearRawRebuildRecovery(recovery.backupId);
+      }
+      return;
+    }
+
+    // While incomplete, the surviving backup slot is still the authoritative
+    // pre-rebuild snapshot. Completed recovery is stricter: its durable token
+    // must match so an unrelated later import can never be offered as Undo.
+    if (incomplete) {
+      const expectedBackup = incomplete.backupRef;
+      if (expectedBackup && expectedBackup.backupId !== backup.backupId) {
+        return;
+      }
+      this._showRestorePreviousDataSnack(
+        expectedBackup ?? {
+          backupId: backup.backupId,
+          savedAt: backup.savedAt,
+        },
+        false,
+      );
+    } else if (recovery && recovery.backupId === backup.backupId) {
+      this._showRestorePreviousDataSnack(
+        {
+          backupId: recovery.backupId,
+          savedAt: recovery.backupSavedAt,
+        },
+        true,
+      );
+    } else if (recovery) {
+      await this.opLogStore.clearRawRebuildRecovery(recovery.backupId);
     }
   }
 

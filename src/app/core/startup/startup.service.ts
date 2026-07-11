@@ -271,7 +271,11 @@ export class StartupService {
    */
   private async _offerInterruptedRebuildRecoveryIfNeeded(): Promise<void> {
     try {
-      if (await this._opLogStore.isRawRebuildIncomplete()) {
+      const [isIncomplete, completedRecovery] = await Promise.all([
+        this._opLogStore.isRawRebuildIncomplete(),
+        this._opLogStore.loadRawRebuildRecovery(),
+      ]);
+      if (isIncomplete || completedRecovery) {
         await this._injector
           .get(OperationLogSyncService)
           .offerInterruptedRebuildRecovery();

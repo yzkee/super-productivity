@@ -19,6 +19,7 @@ describe('BackupService', () => {
   let mockOpLogStore: jasmine.SpyObj<OperationLogStoreService>;
   let mockOperationWriteFlushService: jasmine.SpyObj<OperationWriteFlushService>;
   let mockLockService: jasmine.SpyObj<LockService>;
+  const backupRef = { backupId: 'backup-123', savedAt: 123 };
 
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   const createMinimalValidBackup = () => ({
@@ -116,7 +117,7 @@ describe('BackupService', () => {
     mockStateSnapshotService.getStateSnapshotAsync.and.resolveTo(
       createMinimalValidBackup() as any,
     );
-    mockOpLogStore.saveImportBackup.and.resolveTo(123);
+    mockOpLogStore.saveImportBackup.and.resolveTo(backupRef);
     mockOpLogStore.loadImportBackup.and.resolveTo(null);
     mockOpLogStore.clearImportBackup.and.resolveTo();
     mockOpLogStore.runDestructiveStateReplacement.and.resolveTo();
@@ -152,12 +153,13 @@ describe('BackupService', () => {
       expect(mockOpLogStore.saveImportBackup).toHaveBeenCalledWith(snapshot);
     });
 
-    it('should return the savedAt provenance token from the store', async () => {
-      mockOpLogStore.saveImportBackup.and.resolveTo(456);
+    it('should return the opaque backup reference from the store', async () => {
+      const expectedRef = { backupId: 'backup-456', savedAt: 456 };
+      mockOpLogStore.saveImportBackup.and.resolveTo(expectedRef);
 
       const token = await service.captureImportBackup();
 
-      expect(token).toBe(456);
+      expect(token).toEqual(expectedRef);
     });
 
     it('should propagate errors so the caller can abort the destructive op', async () => {
@@ -170,13 +172,20 @@ describe('BackupService', () => {
   describe('restoreImportBackup (#8107)', () => {
     it('should import the saved snapshot and return true when one exists', async () => {
       const saved = createMinimalValidBackup();
-      mockOpLogStore.loadImportBackup.and.resolveTo({ state: saved, savedAt: 123 });
+      mockOpLogStore.loadImportBackup.and.resolveTo({ state: saved, ...backupRef });
       const importSpy = spyOn(service, 'importCompleteBackup').and.resolveTo();
 
       const result = await service.restoreImportBackup();
 
       expect(result).toBe(true);
-      expect(importSpy).toHaveBeenCalledWith(saved as any, true, true, true);
+      expect(importSpy).toHaveBeenCalledWith(
+        saved as any,
+        true,
+        true,
+        true,
+        true,
+        backupRef.backupId,
+      );
     });
 
     it('should return false and not import when no backup exists', async () => {
@@ -191,42 +200,83 @@ describe('BackupService', () => {
 
     it('should clear the single-slot backup after a successful restore', async () => {
       const saved = createMinimalValidBackup();
-      mockOpLogStore.loadImportBackup.and.resolveTo({ state: saved, savedAt: 123 });
+      mockOpLogStore.loadImportBackup.and.resolveTo({ state: saved, ...backupRef });
       spyOn(service, 'importCompleteBackup').and.resolveTo();
 
       await service.restoreImportBackup();
 
-      expect(mockOpLogStore.clearImportBackup).toHaveBeenCalled();
+      expect(mockOpLogStore.clearImportBackup).toHaveBeenCalledWith(backupRef.backupId);
     });
 
     it('should restore when the provenance token matches the stored backup', async () => {
       const saved = createMinimalValidBackup();
-      mockOpLogStore.loadImportBackup.and.resolveTo({ state: saved, savedAt: 777 });
+      const expectedRef = { backupId: 'backup-777', savedAt: 777 };
+      mockOpLogStore.loadImportBackup.and.resolveTo({ state: saved, ...expectedRef });
       const importSpy = spyOn(service, 'importCompleteBackup').and.resolveTo();
 
-      const result = await service.restoreImportBackup(777);
+      const result = await service.restoreImportBackup(expectedRef);
 
       expect(result).toBe(true);
-      expect(importSpy).toHaveBeenCalledWith(saved as any, true, true, true);
+      expect(importSpy).toHaveBeenCalledWith(
+        saved as any,
+        true,
+        true,
+        true,
+        true,
+        expectedRef.backupId,
+      );
     });
 
     it('should refuse to restore (and not clear) when the backup was superseded since capture', async () => {
       // The single slot is shared with the backup-import flow; an intervening
-      // write changes savedAt. Restoring it would silently roll back to the
+      // write changes backupId. Restoring it would silently roll back to the
       // wrong snapshot, so we must refuse. (#8107)
       const saved = createMinimalValidBackup();
-      mockOpLogStore.loadImportBackup.and.resolveTo({ state: saved, savedAt: 999 });
+      mockOpLogStore.loadImportBackup.and.resolveTo({
+        state: saved,
+        backupId: 'replacement-backup',
+        savedAt: 777,
+      });
       const importSpy = spyOn(service, 'importCompleteBackup').and.resolveTo();
 
-      const result = await service.restoreImportBackup(777);
+      const result = await service.restoreImportBackup({
+        backupId: 'expected-backup',
+        savedAt: 777,
+      });
 
       expect(result).toBe(false);
       expect(importSpy).not.toHaveBeenCalled();
       expect(mockOpLogStore.clearImportBackup).not.toHaveBeenCalled();
     });
+
+    it('should keep the same backup usable when a restore attempt fails', async () => {
+      const saved = createMinimalValidBackup();
+      mockOpLogStore.loadImportBackup.and.resolveTo({ state: saved, ...backupRef });
+      const importSpy = spyOn(service, 'importCompleteBackup').and.rejectWith(
+        new Error('restore failed'),
+      );
+
+      await expectAsync(service.restoreImportBackup(backupRef)).toBeRejected();
+
+      expect(mockOpLogStore.clearImportBackup).not.toHaveBeenCalled();
+      importSpy.and.resolveTo();
+      await expectAsync(service.restoreImportBackup(backupRef)).toBeResolvedTo(true);
+    });
   });
 
   describe('importCompleteBackup', () => {
+    it('should reject inconsistent skip-backup provenance arguments', async () => {
+      const backup = createMinimalValidBackup() as any;
+
+      await expectAsync(
+        service.importCompleteBackup(backup, true, true, true, true),
+      ).toBeRejectedWithError(/requires exactly one verified recovery backup ID/);
+      await expectAsync(
+        service.importCompleteBackup(backup, true, true, true, false, backupRef.backupId),
+      ).toBeRejectedWithError(/requires exactly one verified recovery backup ID/);
+      expect(mockOpLogStore.runDestructiveStateReplacement).not.toHaveBeenCalled();
+    });
+
     it('should dispatch loadAllData with the imported data', async () => {
       const backupData = createMinimalValidBackup();
 
@@ -468,6 +518,25 @@ describe('BackupService', () => {
 
       expect(mockStateSnapshotService.getStateSnapshotAsync).toHaveBeenCalled();
       expect(mockOpLogStore.saveImportBackup).toHaveBeenCalledWith(currentState);
+    });
+
+    it('should keep the recovery slot unchanged while restoring that backup', async () => {
+      await service.importCompleteBackup(
+        createMinimalValidBackup() as any,
+        true,
+        true,
+        true,
+        true,
+        backupRef.backupId,
+      );
+
+      expect(mockStateSnapshotService.getStateSnapshotAsync).not.toHaveBeenCalled();
+      expect(mockOpLogStore.saveImportBackup).not.toHaveBeenCalled();
+      expect(mockOpLogStore.runDestructiveStateReplacement).toHaveBeenCalled();
+      expect(
+        mockOpLogStore.runDestructiveStateReplacement.calls.mostRecent().args[0]
+          .requiredImportBackupId,
+      ).toBe(backupRef.backupId);
     });
 
     it('should pass snapshotEntityKeys derived from the imported data', async () => {

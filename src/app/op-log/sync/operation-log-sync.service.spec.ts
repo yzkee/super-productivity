@@ -69,6 +69,9 @@ describe('OperationLogSyncService', () => {
   let operationApplierSpy: jasmine.SpyObj<OperationApplierService>;
   let operationLogEffectsSpy: jasmine.SpyObj<OperationLogEffects>;
   let hydratorServiceSpy: jasmine.SpyObj<OperationLogHydratorService>;
+  const defaultBackupRef = { backupId: 'backup-1', savedAt: 1 };
+  const backupRef4242 = { backupId: 'backup-4242', savedAt: 4242 };
+  const backupRef12345 = { backupId: 'backup-12345', savedAt: 12345 };
 
   const createProviderSetupEntry = (): OperationLogEntry => ({
     seq: 1,
@@ -91,6 +94,7 @@ describe('OperationLogSyncService', () => {
   beforeEach(() => {
     snackServiceSpy = jasmine.createSpyObj('SnackService', [
       'open',
+      'close',
       'hasPendingPersistentAction',
     ]);
     snackServiceSpy.hasPendingPersistentAction.and.returnValue(false);
@@ -112,6 +116,10 @@ describe('OperationLogSyncService', () => {
       'isRawRebuildIncomplete',
       'loadRawRebuildIncomplete',
       'clearRawRebuildIncomplete',
+      'completeRawRebuild',
+      'loadRawRebuildRecovery',
+      'clearRawRebuildRecovery',
+      'retireCompletedRawRebuildRecovery',
       'loadImportBackup',
     ]);
     opLogStoreSpy.hasSyncedOps.and.resolveTo(true);
@@ -131,6 +139,10 @@ describe('OperationLogSyncService', () => {
     opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(false);
     opLogStoreSpy.loadRawRebuildIncomplete.and.resolveTo(null);
     opLogStoreSpy.clearRawRebuildIncomplete.and.resolveTo();
+    opLogStoreSpy.completeRawRebuild.and.resolveTo(true);
+    opLogStoreSpy.loadRawRebuildRecovery.and.resolveTo(null);
+    opLogStoreSpy.clearRawRebuildRecovery.and.resolveTo();
+    opLogStoreSpy.retireCompletedRawRebuildRecovery.and.resolveTo(true);
     opLogStoreSpy.loadImportBackup.and.resolveTo(null);
 
     schemaMigrationServiceSpy = jasmine.createSpyObj('SchemaMigrationService', [
@@ -173,7 +185,7 @@ describe('OperationLogSyncService', () => {
       'captureImportBackup',
       'restoreImportBackup',
     ]);
-    backupServiceSpy.captureImportBackup.and.resolveTo(1);
+    backupServiceSpy.captureImportBackup.and.resolveTo(defaultBackupRef);
     backupServiceSpy.restoreImportBackup.and.resolveTo(true);
 
     remoteOpsProcessingServiceSpy = jasmine.createSpyObj('RemoteOpsProcessingService', [
@@ -397,6 +409,12 @@ describe('OperationLogSyncService', () => {
 
       it('should block upload while a raw rebuild remains incomplete', async () => {
         opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(true);
+        opLogStoreSpy.loadRawRebuildIncomplete.and.resolveTo({
+          incomplete: true,
+          startedAt: 1,
+          preservedLocalOps: [],
+          backupRef: backupRef4242,
+        });
 
         await expectAsync(
           service.uploadPendingOps({} as OperationSyncCapable),
@@ -407,6 +425,12 @@ describe('OperationLogSyncService', () => {
 
       it('should not attempt the in-session archive retry while a raw rebuild is incomplete', async () => {
         opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(true);
+        opLogStoreSpy.loadRawRebuildIncomplete.and.resolveTo({
+          incomplete: true,
+          startedAt: 1,
+          preservedLocalOps: [],
+          backupRef: backupRef4242,
+        });
 
         await expectAsync(
           service.uploadPendingOps({} as OperationSyncCapable),
@@ -1010,7 +1034,7 @@ describe('OperationLogSyncService', () => {
     describe('downloadRemoteOps', () => {
       it('should block download while a prior remote operation is incompletely applied', async () => {
         opLogStoreSpy.getFailedRemoteOps.and.resolveTo([
-          { applicationStatus: 'archive_pending' } as OperationLogEntry,
+          { applicationStatus: 'failed' } as OperationLogEntry,
         ]);
 
         await expectAsync(
@@ -1088,7 +1112,16 @@ describe('OperationLogSyncService', () => {
 
       it('should flush deferred local work before entering crash-resume rebuild', async () => {
         opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(true);
-        opLogStoreSpy.loadImportBackup.and.resolveTo({ savedAt: 4242 } as any);
+        opLogStoreSpy.loadRawRebuildIncomplete.and.resolveTo({
+          incomplete: true,
+          startedAt: 1,
+          preservedLocalOps: [],
+          backupRef: backupRef4242,
+        });
+        opLogStoreSpy.loadImportBackup.and.resolveTo({
+          state: {},
+          ...backupRef4242,
+        });
         operationLogEffectsSpy.processDeferredActions.and.rejectWith(
           new Error('deferred write failed'),
         );
@@ -1111,10 +1144,19 @@ describe('OperationLogSyncService', () => {
         // empty/newer-schema remote). Without an escape hatch the user is stuck
         // on the baseline with the pre-replace backup hidden — surface Undo.
         opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(true);
+        opLogStoreSpy.loadRawRebuildIncomplete.and.resolveTo({
+          incomplete: true,
+          startedAt: 1,
+          preservedLocalOps: [],
+          backupRef: backupRef4242,
+        });
         spyOn(service, 'forceDownloadRemoteState').and.rejectWith(
           new Error('USE_REMOTE aborted: remote returned no data to rebuild from.'),
         );
-        opLogStoreSpy.loadImportBackup.and.resolveTo({ savedAt: 4242 } as any);
+        opLogStoreSpy.loadImportBackup.and.resolveTo({
+          state: {},
+          ...backupRef4242,
+        });
         snackServiceSpy.hasPendingPersistentAction.and.returnValue(false);
         const mockProvider = { isReady: () => Promise.resolve(true) } as any;
 
@@ -1127,13 +1169,22 @@ describe('OperationLogSyncService', () => {
 
       it('should allow uploads after stranded-rebuild Undo clears the marker', async () => {
         let isRawRebuildIncomplete = true;
+        opLogStoreSpy.loadRawRebuildIncomplete.and.resolveTo({
+          incomplete: true,
+          startedAt: 1,
+          preservedLocalOps: [],
+          backupRef: backupRef4242,
+        });
         opLogStoreSpy.isRawRebuildIncomplete.and.callFake(
           async () => isRawRebuildIncomplete,
         );
         spyOn(service, 'forceDownloadRemoteState').and.rejectWith(
           new Error('USE_REMOTE aborted: remote returned no data to rebuild from.'),
         );
-        opLogStoreSpy.loadImportBackup.and.resolveTo({ savedAt: 4242 } as any);
+        opLogStoreSpy.loadImportBackup.and.resolveTo({
+          state: {},
+          ...backupRef4242,
+        });
         backupServiceSpy.restoreImportBackup.and.callFake(async () => {
           isRawRebuildIncomplete = false;
           return true;
@@ -1165,8 +1216,88 @@ describe('OperationLogSyncService', () => {
 
         await service.uploadPendingOps(mockProvider);
 
-        expect(backupServiceSpy.restoreImportBackup).toHaveBeenCalledWith(4242);
+        expect(backupServiceSpy.restoreImportBackup).toHaveBeenCalledWith(backupRef4242);
+        expect(opLogStoreSpy.clearRawRebuildRecovery).toHaveBeenCalledWith(
+          backupRef4242.backupId,
+        );
         expect(uploadServiceSpy.uploadPendingOps).toHaveBeenCalled();
+      });
+
+      it('should re-offer a completed rebuild Undo from its durable token', async () => {
+        opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(false);
+        opLogStoreSpy.loadRawRebuildRecovery.and.resolveTo({
+          backupId: backupRef4242.backupId,
+          backupSavedAt: 4242,
+          completedAt: 5000,
+        });
+        opLogStoreSpy.loadImportBackup.and.resolveTo({
+          state: {},
+          ...backupRef4242,
+        });
+
+        await service.offerInterruptedRebuildRecovery();
+
+        expect(snackServiceSpy.open).toHaveBeenCalledWith(
+          jasmine.objectContaining({
+            msg: T.F.SYNC.S.LOCAL_DATA_REPLACE_UNDO,
+            actionStr: T.G.UNDO,
+            config: { duration: 0 },
+          }),
+        );
+
+        const recoverySnack = snackServiceSpy.open.calls.mostRecent().args[0];
+        if (typeof recoverySnack === 'string' || recoverySnack.dismissFn === undefined) {
+          throw new Error('Expected durable recovery dismissal callback');
+        }
+        await recoverySnack.dismissFn();
+        expect(opLogStoreSpy.retireCompletedRawRebuildRecovery).toHaveBeenCalledWith(
+          backupRef4242.backupId,
+        );
+
+        // A later startup sees no marker and does not resurrect dismissed Undo.
+        snackServiceSpy.open.calls.reset();
+        opLogStoreSpy.loadRawRebuildRecovery.and.resolveTo(null);
+        await service.offerInterruptedRebuildRecovery();
+        expect(snackServiceSpy.open).not.toHaveBeenCalled();
+      });
+
+      it('should not offer an incomplete rebuild backup whose identity no longer matches', async () => {
+        opLogStoreSpy.loadRawRebuildIncomplete.and.resolveTo({
+          incomplete: true,
+          startedAt: 1,
+          preservedLocalOps: [],
+          backupRef: backupRef4242,
+        });
+        opLogStoreSpy.loadImportBackup.and.resolveTo({
+          state: {},
+          backupId: 'replacement-backup',
+          savedAt: 4242,
+        });
+
+        await service.offerInterruptedRebuildRecovery();
+
+        expect(snackServiceSpy.open).not.toHaveBeenCalled();
+      });
+
+      it('should discard a completed recovery token when the backup slot was superseded', async () => {
+        opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(false);
+        opLogStoreSpy.loadRawRebuildRecovery.and.resolveTo({
+          backupId: backupRef4242.backupId,
+          backupSavedAt: 4242,
+          completedAt: 5000,
+        });
+        opLogStoreSpy.loadImportBackup.and.resolveTo({
+          state: {},
+          backupId: 'replacement-backup',
+          savedAt: 9999,
+        });
+
+        await service.offerInterruptedRebuildRecovery();
+
+        expect(opLogStoreSpy.clearRawRebuildRecovery).toHaveBeenCalledWith(
+          backupRef4242.backupId,
+        );
+        expect(snackServiceSpy.open).not.toHaveBeenCalled();
       });
 
       it('should not respawn the recovery snack while one is already showing', async () => {
@@ -1174,7 +1305,10 @@ describe('OperationLogSyncService', () => {
         spyOn(service, 'forceDownloadRemoteState').and.rejectWith(
           new Error('USE_REMOTE aborted: remote returned no data to rebuild from.'),
         );
-        opLogStoreSpy.loadImportBackup.and.resolveTo({ savedAt: 4242 } as any);
+        opLogStoreSpy.loadImportBackup.and.resolveTo({
+          state: {},
+          ...backupRef4242,
+        });
         // A persistent recovery snack from a previous resume attempt is still up.
         snackServiceSpy.hasPendingPersistentAction.and.returnValue(true);
         const mockProvider = { isReady: () => Promise.resolve(true) } as any;
@@ -2859,7 +2993,7 @@ describe('OperationLogSyncService', () => {
       });
       backupServiceSpy.captureImportBackup.and.callFake(async () => {
         callOrder.push('captureImportBackup');
-        return 1;
+        return defaultBackupRef;
       });
       writeFlushServiceSpy.flushPendingWrites.and.callFake(async () => {
         callOrder.push('flushPendingWrites');
@@ -2924,8 +3058,9 @@ describe('OperationLogSyncService', () => {
           blockedByIncompatibleOp: false,
         };
       });
-      opLogStoreSpy.clearRawRebuildIncomplete.and.callFake(async () => {
-        callOrder.push('clearRawRebuildIncomplete');
+      opLogStoreSpy.completeRawRebuild.and.callFake(async () => {
+        callOrder.push('completeRawRebuild');
+        return true;
       });
       const mockProvider = {
         supportsOperationSync: true,
@@ -2934,7 +3069,8 @@ describe('OperationLogSyncService', () => {
 
       await service.forceDownloadRemoteState(mockProvider);
 
-      expect(callOrder).toEqual(['processRemoteOps', 'clearRawRebuildIncomplete']);
+      expect(callOrder).toEqual(['processRemoteOps', 'completeRawRebuild']);
+      expect(opLogStoreSpy.completeRawRebuild).toHaveBeenCalledWith(defaultBackupRef);
     });
 
     it('should NOT clear the raw-rebuild-incomplete marker when the replay is blocked', async () => {
@@ -2960,7 +3096,7 @@ describe('OperationLogSyncService', () => {
 
       await expectAsync(service.forceDownloadRemoteState(mockProvider)).toBeRejected();
 
-      expect(opLogStoreSpy.clearRawRebuildIncomplete).not.toHaveBeenCalled();
+      expect(opLogStoreSpy.completeRawRebuild).not.toHaveBeenCalled();
     });
 
     it('should keep the first attempt backup on crash resume instead of re-capturing', async () => {
@@ -2972,7 +3108,10 @@ describe('OperationLogSyncService', () => {
         failedFileCount: 0,
         latestServerSeq: 1,
       });
-      opLogStoreSpy.loadImportBackup.and.resolveTo({ state: {}, savedAt: 12345 });
+      opLogStoreSpy.loadImportBackup.and.resolveTo({
+        state: {},
+        ...backupRef12345,
+      });
       const mockProvider = {
         supportsOperationSync: true,
         setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
@@ -3013,7 +3152,10 @@ describe('OperationLogSyncService', () => {
         failedFileCount: 0,
         latestServerSeq: 4,
       });
-      opLogStoreSpy.loadImportBackup.and.resolveTo({ state: {}, savedAt: 12345 });
+      opLogStoreSpy.loadImportBackup.and.resolveTo({
+        state: {},
+        ...backupRef12345,
+      });
       opLogStoreSpy.loadRawRebuildIncomplete.and.resolveTo({
         incomplete: true,
         startedAt: 1,
@@ -3061,7 +3203,7 @@ describe('OperationLogSyncService', () => {
         local: 3,
       });
       expect(restoreOrder).toEqual(['merge-clock', 'apply']);
-      expect(opLogStoreSpy.clearRawRebuildIncomplete).toHaveBeenCalled();
+      expect(opLogStoreSpy.completeRawRebuild).toHaveBeenCalledWith(backupRef12345);
       expect(operationLogEffectsSpy.processDeferredActions).toHaveBeenCalledWith({
         callerHoldsOperationLogLock: true,
       });
@@ -3087,7 +3229,7 @@ describe('OperationLogSyncService', () => {
       ).toBeRejectedWithError(/local change arrived/);
 
       expect(setLastServerSeq).not.toHaveBeenCalledWith(50);
-      expect(opLogStoreSpy.clearRawRebuildIncomplete).not.toHaveBeenCalled();
+      expect(opLogStoreSpy.completeRawRebuild).not.toHaveBeenCalled();
     });
 
     it('should retry the rebuild in-call on a capture race and converge without re-downloading', async () => {
@@ -3102,6 +3244,10 @@ describe('OperationLogSyncService', () => {
       // Attempt 1 trips the completion assert (e.g. a tracking tick landed in
       // an unprotected gap); the in-call retry runs clean.
       writeFlushServiceSpy.hasPendingWrites.and.returnValues(true, false, false);
+      opLogStoreSpy.loadImportBackup.and.resolveTo({
+        state: {},
+        ...defaultBackupRef,
+      });
       const mockProvider = {
         supportsOperationSync: true,
         setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
@@ -3116,7 +3262,7 @@ describe('OperationLogSyncService', () => {
       // attempt's pre-replace backup is kept, never re-captured over.
       expect(backupServiceSpy.captureImportBackup).toHaveBeenCalledTimes(1);
       expect(opLogStoreSpy.loadImportBackup).toHaveBeenCalled();
-      expect(opLogStoreSpy.clearRawRebuildIncomplete).toHaveBeenCalled();
+      expect(opLogStoreSpy.completeRawRebuild).toHaveBeenCalledWith(defaultBackupRef);
     });
 
     it('should warn only once per session when the remote history requires a newer app', async () => {

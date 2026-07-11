@@ -38,15 +38,20 @@ export class SnackService {
     if (typeof params === 'string') {
       params = { msg: params };
     }
+    const isPersistentAction = !!(params.actionStr && params.config?.duration === 0);
+    // A sticky recovery/update action must survive unrelated success, info and
+    // error feedback in the app's single snack slot. Another sticky actionable
+    // snack may still replace it intentionally.
+    if (this._hasPendingPersistentAction && !isPersistentAction) {
+      return;
+    }
     // Track a persistent recovery action (a sticky, actionable snack)
     // synchronously, before the debounced render, so an immediate follow-up
     // check (e.g. the header's post-sync success feedback) cannot unknowingly
     // replace it. `_openSnack` is debounced trailing-edge, so this last-writer
     // value matches the snack it will actually render — including the case
     // where a non-persistent snack supersedes a persistent one.
-    this._hasPendingPersistentAction = !!(
-      params.actionStr && params.config?.duration === 0
-    );
+    this._hasPendingPersistentAction = isPersistentAction;
     this._openSnack(params);
   }
 
@@ -134,6 +139,17 @@ export class SnackService {
           this._hasPendingPersistentAction = false;
         }
       });
+
+    if (actionStr && openedRef) {
+      openedRef
+        .onAction()
+        .pipe(take(1))
+        .subscribe(() => {
+          if (this._ref === openedRef) {
+            this._hasPendingPersistentAction = false;
+          }
+        });
+    }
 
     if (actionStr && actionId && this._ref) {
       this._ref
