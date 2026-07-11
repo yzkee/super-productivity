@@ -50,6 +50,13 @@ import { InjectionToken } from '@angular/core';
  */
 export const LOCK_NAMES = {
   /**
+   * Serializes archive task read-modify-write cycles across tabs. This stays
+   * separate from OPERATION_LOG because remote archive handlers already run
+   * while holding that non-reentrant lock.
+   */
+  TASK_ARCHIVE: 'sp_task_archive',
+
+  /**
    * Main operation log lock. Used for:
    * - Writing operations to IndexedDB
    * - Compaction (snapshot + cleanup)
@@ -150,15 +157,6 @@ export const MAX_REJECTED_OPS_BEFORE_WARNING = 10;
  * Default: 50 operations per batch
  */
 export const MAX_BATCH_OPERATIONS_SIZE = 50;
-
-/**
- * Maximum age for pending operations before they are quarantined as failed (milliseconds).
- * If an operation has been pending for longer than this (e.g., due to data corruption
- * or repeated crashes), hydration still restores its reducer history and archive recovery
- * remains required.
- * Default: 24 hours - enough time for legitimate recovery scenarios
- */
-export const PENDING_OPERATION_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Threshold for warning about clock drift between client and server (milliseconds).

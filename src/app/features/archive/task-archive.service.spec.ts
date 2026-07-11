@@ -6,11 +6,39 @@ import { Task, TaskArchive, TaskState } from '../tasks/task.model';
 import { ArchiveModel } from './archive.model';
 import { Update } from '@ngrx/entity';
 import { RoundTimeOption } from '../project/project.model';
+import { ArchiveService } from './archive.service';
+import { of } from 'rxjs';
+import { LockService } from '../../op-log/sync/lock.service';
+
+class TestLockService {
+  private readonly _tails = new Map<string, Promise<void>>();
+
+  async request<T>(lockName: string, callback: () => Promise<T>): Promise<T> {
+    const previous = this._tails.get(lockName) ?? Promise.resolve();
+    let release: (() => void) | undefined;
+    const current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const tail = previous.then(() => current);
+    this._tails.set(lockName, tail);
+
+    await previous;
+    try {
+      return await callback();
+    } finally {
+      release?.();
+      if (this._tails.get(lockName) === tail) {
+        this._tails.delete(lockName);
+      }
+    }
+  }
+}
 
 import { TaskSharedActions } from '../../root-store/meta/task-shared.actions';
 
 describe('TaskArchiveService', () => {
   let service: TaskArchiveService;
+  let archiveService: ArchiveService;
   let storeMock: jasmine.SpyObj<Store>;
   let archiveDbAdapterMock: jasmine.SpyObj<ArchiveDbAdapter>;
 
@@ -53,7 +81,8 @@ describe('TaskArchiveService', () => {
   });
 
   beforeEach(() => {
-    storeMock = jasmine.createSpyObj<Store>('Store', ['dispatch']);
+    storeMock = jasmine.createSpyObj<Store>('Store', ['dispatch', 'select']);
+    storeMock.select.and.returnValue(of({ project: {}, tag: {} }));
 
     archiveDbAdapterMock = jasmine.createSpyObj<ArchiveDbAdapter>('ArchiveDbAdapter', [
       'loadArchiveYoung',
@@ -75,10 +104,58 @@ describe('TaskArchiveService', () => {
         TaskArchiveService,
         { provide: ArchiveDbAdapter, useValue: archiveDbAdapterMock },
         { provide: Store, useValue: storeMock },
+        { provide: LockService, useClass: TestLockService },
       ],
     });
 
     service = TestBed.inject(TaskArchiveService);
+    archiveService = TestBed.inject(ArchiveService);
+  });
+
+  describe('archive mutation locking', () => {
+    it('should serialize a task update with an ArchiveService mutation', async () => {
+      const existingTask = createMockTask('existing', { title: 'Original' });
+      const archivedTask = {
+        ...createMockTask('new-task', {
+          isDone: true,
+          doneOn: Date.now(),
+        }),
+        subTasks: [],
+      };
+      let archiveYoung = createMockArchiveModel([existingTask]);
+      let releaseFirstSave: (() => void) | undefined;
+      let firstSaveStarted: (() => void) | undefined;
+      const firstSaveStartedPromise = new Promise<void>((resolve) => {
+        firstSaveStarted = resolve;
+      });
+      const firstSaveGate = new Promise<void>((resolve) => {
+        releaseFirstSave = resolve;
+      });
+
+      archiveDbAdapterMock.loadArchiveYoung.and.callFake(async () => archiveYoung);
+      archiveDbAdapterMock.saveArchiveYoung.and.callFake(async (nextArchive) => {
+        if (archiveDbAdapterMock.saveArchiveYoung.calls.count() === 1) {
+          firstSaveStarted?.();
+          await firstSaveGate;
+        }
+        archiveYoung = nextArchive;
+      });
+
+      const updatePromise = service.updateTask('existing', { title: 'Updated' });
+      await firstSaveStartedPromise;
+      const archivePromise = archiveService.moveTasksToArchiveAndFlushArchiveIfDue([
+        archivedTask,
+      ]);
+
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      expect(archiveDbAdapterMock.loadArchiveYoung).toHaveBeenCalledTimes(1);
+
+      releaseFirstSave?.();
+      await Promise.all([updatePromise, archivePromise]);
+
+      expect(archiveYoung.task.entities['existing']!.title).toBe('Updated');
+      expect(archiveYoung.task.entities['new-task']).toBeDefined();
+    });
   });
 
   describe('loadYoung', () => {
