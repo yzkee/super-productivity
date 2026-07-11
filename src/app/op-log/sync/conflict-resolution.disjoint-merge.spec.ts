@@ -82,14 +82,27 @@ describe('ConflictResolutionService — SPAP-14 disjoint-field merge', () => {
 
     mockOpLogStore = jasmine.createSpyObj('OperationLogStoreService', [
       'appendBatchSkipDuplicates',
+      'appendMixedSourceBatchSkipDuplicates',
       'appendWithVectorClockUpdate',
       'markApplied',
       'markRejected',
       'markFailed',
       'getUnsyncedByEntity',
       'mergeRemoteOpClocks',
+      'markReducersCommittedAndMergeClocks',
     ]);
     mockOpLogStore.mergeRemoteOpClocks.and.resolveTo(undefined);
+    mockOpLogStore.markReducersCommittedAndMergeClocks.and.resolveTo(undefined);
+    mockOpLogStore.appendMixedSourceBatchSkipDuplicates.and.callFake(async (batches) => ({
+      written: batches.flatMap((batch) =>
+        batch.ops.map((batchOp, index) => ({
+          seq: index + 1,
+          op: batchOp,
+          source: batch.source,
+        })),
+      ),
+      skippedCount: 0,
+    }));
     mockOpLogStore.getUnsyncedByEntity.and.resolveTo(new Map());
     mockOpLogStore.markRejected.and.resolveTo(undefined);
     mockOpLogStore.markApplied.and.resolveTo(undefined);
@@ -634,14 +647,27 @@ describe('ConflictResolutionService — SPAP-14 disjoint-field merge', () => {
 
       const opLogStore = jasmine.createSpyObj('OperationLogStoreService', [
         'appendBatchSkipDuplicates',
+        'appendMixedSourceBatchSkipDuplicates',
         'appendWithVectorClockUpdate',
         'markApplied',
         'markRejected',
         'markFailed',
         'getUnsyncedByEntity',
         'mergeRemoteOpClocks',
+        'markReducersCommittedAndMergeClocks',
       ]);
       opLogStore.mergeRemoteOpClocks.and.resolveTo(undefined);
+      opLogStore.markReducersCommittedAndMergeClocks.and.resolveTo(undefined);
+      opLogStore.appendMixedSourceBatchSkipDuplicates.and.callFake(async (batches) => ({
+        written: batches.flatMap((batch) =>
+          batch.ops.map((batchOp, index) => ({
+            seq: index + 1,
+            op: batchOp,
+            source: batch.source,
+          })),
+        ),
+        skippedCount: 0,
+      }));
       opLogStore.getUnsyncedByEntity.and.resolveTo(new Map());
       opLogStore.markRejected.and.resolveTo(undefined);
       opLogStore.markApplied.and.resolveTo(undefined);
