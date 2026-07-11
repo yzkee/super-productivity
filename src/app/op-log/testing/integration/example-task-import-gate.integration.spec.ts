@@ -36,13 +36,13 @@ describe('Example-task SYNC_IMPORT gate (integration)', () => {
       },
     });
 
-  const configOp = (): Operation =>
+  const configOp = (sectionKey = 'sync'): Operation =>
     local.createOperation({
       actionType: ActionType.GLOBAL_CONFIG_UPDATE_SECTION,
       opType: OpType.Update,
       entityType: 'GLOBAL_CONFIG',
-      entityId: 'sync',
-      payload: { sectionKey: 'sync' },
+      entityId: sectionKey,
+      payload: { sectionKey },
     });
 
   const incomingSyncImport = (): Operation =>
@@ -89,24 +89,20 @@ describe('Example-task SYNC_IMPORT gate (integration)', () => {
     );
   });
 
-  it('treats a pending config change as meaningful user work (widened gate) and shows the dialog', async () => {
-    // The gate deliberately has NO entity-wide exemptions beyond example-task
-    // creates: GLOBAL_CONFIG carries synced preferences, so silently discarding
-    // a pending config op on an incoming SYNC_IMPORT would lose user work.
+  it('treats the never-synced provider setup write as discardable startup work', async () => {
     const example = exampleTaskOp('example-task-1');
-    await storeService.append(configOp(), 'local');
+    const config = configOp();
+    await storeService.append(config, 'local');
     await storeService.append(example, 'local');
 
     const result = await gate.checkIncomingFullStateConflict([incomingSyncImport()]);
 
-    expect(result.hasMeaningfulPending).toBeTrue();
-    expect(result.dialogData).toBeDefined();
-    // Example ops stay listed so the caller can discard them if the user
-    // accepts the import.
-    expect(result.discardablePendingOpIds).toEqual([example.id]);
+    expect(result.hasMeaningfulPending).toBeFalse();
+    expect(result.dialogData).toBeUndefined();
+    expect(result.discardablePendingOpIds.sort()).toEqual([config.id, example.id].sort());
   });
 
-  it('actually excludes example-task ops from getUnsynced after markRejected (so they are not uploaded)', async () => {
+  it('actually excludes discardable startup ops from getUnsynced after markRejected', async () => {
     const config = configOp();
     const example = exampleTaskOp('example-task-1');
     await storeService.append(config, 'local');
@@ -116,8 +112,19 @@ describe('Example-task SYNC_IMPORT gate (integration)', () => {
     await storeService.markRejected(result.discardablePendingOpIds);
 
     const remaining = (await storeService.getUnsynced()).map((e) => e.op.id);
-    expect(remaining).toContain(config.id);
+    expect(remaining).not.toContain(config.id);
     expect(remaining).not.toContain(example.id);
+  });
+
+  it('keeps another config section meaningful on a never-synced client', async () => {
+    const config = configOp('productivityHacks');
+    await storeService.append(config, 'local');
+
+    const result = await gate.checkIncomingFullStateConflict([incomingSyncImport()]);
+
+    expect(result.hasMeaningfulPending).toBeTrue();
+    expect(result.dialogData).toBeDefined();
+    expect(result.discardablePendingOpIds).toEqual([]);
   });
 
   it('shows the dialog (and still lists the example id) when real user work is also pending', async () => {

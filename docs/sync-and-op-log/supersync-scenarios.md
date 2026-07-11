@@ -165,9 +165,9 @@ Comprehensive spec of all scenarios that can occur during SuperSync synchronizat
 **Expected:**
 
 1. Download detects remote snapshot (file-based sync path)
-2. Treat every pending op as meaningful except onboarding example-task creates. GLOBAL_CONFIG writes remain protected even before the first completed sync because the sync-section payload can also contain user preferences. This also protects non-task entities and recovered MIGRATION/RECOVERY genesis batches.
+2. Treat every pending op as meaningful except onboarding example-task creates and, before the first completed sync only, the `GLOBAL_CONFIG:sync` setup write needed to configure the provider. Other config sections, non-task entities, and MIGRATION/RECOVERY full-state batches remain protected.
 3. If meaningful → throw `LocalDataConflictError` → full conflict dialog
-4. If only the explicitly discardable startup ops remain → proceed without dialog
+4. If only the explicitly discardable startup ops remain → proceed without dialog and reject those ops locally so they cannot replay after the imported state
 
 **Note:** This op-content check only applies to the file-based snapshot path. For SuperSync (incremental ops path), the fresh client check uses `_hasMeaningfulStoreData()` (store-based check) instead.
 
@@ -198,7 +198,7 @@ Comprehensive spec of all scenarios that can occur during SuperSync synchronizat
 **Expected:**
 
 1. Download batch contains SYNC_IMPORT
-2. Check pending local ops. Any pending work triggers the dialog except onboarding example-task creates. GLOBAL_CONFIG changes are protected even before the first completed sync because the sync-section payload can carry user preferences.
+2. Check pending local ops. Any pending work triggers the dialog except onboarding example-task creates and the never-synced `GLOBAL_CONFIG:sync` provider-setup write. Other GLOBAL_CONFIG sections remain protected.
 3. **Show conflict dialog BEFORE processing** with `scenario: 'INCOMING_IMPORT'` and `syncImportReason`
 4. USE_LOCAL → `forceUploadLocalState()` (overrides remote with local data)
 5. USE_REMOTE → `forceDownloadRemoteState()` (clears local ops, downloads from seq 0)
@@ -254,12 +254,12 @@ Comprehensive spec of all scenarios that can occur during SuperSync synchronizat
 
 1. Upload completes → server returns piggybacked ops containing SYNC_IMPORT
 2. Check for SYNC_IMPORT in piggybacked ops BEFORE `processRemoteOps()`
-3. If found AND `_hasMeaningfulPendingOps()` = true (all pending work except onboarding example-task creates):
+3. If found AND `_hasMeaningfulPendingOps()` = true (all pending work except onboarding example-task creates and the never-synced `GLOBAL_CONFIG:sync` provider-setup write):
    - **Show conflict dialog** with `scenario: 'INCOMING_IMPORT'` and `syncImportReason` from the piggybacked op
    - USE_LOCAL → `forceUploadLocalState()` (overrides remote)
    - USE_REMOTE → `forceDownloadRemoteState()` (clears local, downloads from seq 0)
    - CANCEL → return with `cancelled: true`, callers skip post-upload logic
-4. If no meaningful pending ops → `processRemoteOps()` applies silently (no dialog) regardless of whether the NgRx store already has user data — that data was already synced and the SYNC_IMPORT is the new authoritative state.
+4. If no meaningful pending ops → `processRemoteOps()` applies silently (no dialog), then reject live discardable startup ops only after processing succeeds. Existing NgRx store data does not trigger a dialog because it was already synced and the SYNC_IMPORT is the new authoritative state.
 
 **Mirrors the download path (D.1 / D.2):** the gate is unsynced pending changes, not store contents. Prompting on already-synced store data would let an old client roll back the remote import via USE_LOCAL.
 

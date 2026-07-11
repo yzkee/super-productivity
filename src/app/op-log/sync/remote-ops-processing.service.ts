@@ -7,9 +7,9 @@ import {
   ConflictResult,
   EntityConflict,
   extractFullStateFromPayload,
+  FULL_STATE_OP_TYPES,
   isWrappedFullStatePayload,
   Operation,
-  OpType,
   VectorClock,
 } from '../core/operation.types';
 import { OpLog } from '../../core/log';
@@ -105,6 +105,12 @@ export class RemoteOpsProcessingService {
     filteringImport?: Operation;
     isLocalUnsyncedImport: boolean;
     blockedByIncompatibleOp: boolean;
+    /**
+     * Full-state operations whose application completed (or was already
+     * deduplicated as applied) before this result was returned. Populated even
+     * when a later incompatible op blocks the remaining batch suffix.
+     */
+    committedFullStateOpIds?: string[];
   }> {
     // Validation failure surfaces via the SyncSessionValidationService latch
     // (#7330). `validateAfterSync` and the conflict-resolution validation path
@@ -248,18 +254,16 @@ export class RemoteOpsProcessingService {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // STEP 3: Check for full-state operations (SYNC_IMPORT / BACKUP_IMPORT)
+    // STEP 3: Check for full-state operations
     // These replace the entire state, so conflict detection doesn't apply.
     // ─────────────────────────────────────────────────────────────────────────
-    const hasFullStateOp = validOps.some(
-      (op) => op.opType === OpType.SyncImport || op.opType === OpType.BackupImport,
-    );
+    const hasFullStateOp = validOps.some((op) => FULL_STATE_OP_TYPES.has(op.opType));
 
     if (hasFullStateOp) {
       OpLog.normal(
         'RemoteOpsProcessingService: Full-state operation detected, skipping conflict detection.',
       );
-      await this.applyNonConflictingOps(validOps);
+      const committedFullStateOpIds = await this.applyNonConflictingOps(validOps);
 
       // Clean Slate Semantics: SYNC_IMPORT/BACKUP_IMPORT replaces entire state.
       // Local synced ops are NOT replayed - the import is an explicit user action
@@ -272,6 +276,7 @@ export class RemoteOpsProcessingService {
         filteredOpCount: 0,
         isLocalUnsyncedImport: false,
         blockedByIncompatibleOp,
+        committedFullStateOpIds,
       };
     }
 
@@ -434,7 +439,7 @@ export class RemoteOpsProcessingService {
   async applyNonConflictingOps(
     ops: Operation[],
     callerHoldsLock: boolean = false,
-  ): Promise<void> {
+  ): Promise<string[]> {
     const locallyReplayableOps =
       await this._withLocalOnlySyncSettingsForFullStateOps(ops);
 
@@ -447,6 +452,7 @@ export class RemoteOpsProcessingService {
     // to leak into the next sync window with stale clocks. (#7700)
     let didApplyRemoteOps = false;
     let primaryIncompleteError: IncompleteRemoteOperationsError | undefined;
+    let committedFullStateOpIds: string[] = [];
     try {
       // Core owns the generic crash-safety ordering. Angular diagnostics,
       // validation, and user notifications stay in this service.
@@ -464,6 +470,9 @@ export class RemoteOpsProcessingService {
       });
 
       didApplyRemoteOps = result.appendedOps.length > 0;
+      committedFullStateOpIds = result.appendedOps
+        .filter((op) => FULL_STATE_OP_TYPES.has(op.opType))
+        .map((op) => op.id);
 
       if (result.skippedCount > 0) {
         OpLog.verbose(
@@ -526,6 +535,7 @@ export class RemoteOpsProcessingService {
         }
       }
     }
+    return committedFullStateOpIds;
   }
 
   private async _withLocalOnlySyncSettingsForFullStateOps(
@@ -569,11 +579,7 @@ export class RemoteOpsProcessingService {
   }
 
   private _isFullStateOperation(op: Operation): boolean {
-    return (
-      op.opType === OpType.SyncImport ||
-      op.opType === OpType.BackupImport ||
-      op.opType === OpType.Repair
-    );
+    return FULL_STATE_OP_TYPES.has(op.opType);
   }
 
   /**

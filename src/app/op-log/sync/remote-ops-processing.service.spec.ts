@@ -611,6 +611,40 @@ describe('RemoteOpsProcessingService', () => {
       expect(result.blockedByIncompatibleOp).toBe(true);
     });
 
+    it('should report a committed full-state prefix before a blocked suffix', async () => {
+      const repair: Operation = {
+        id: 'repair-prefix',
+        opType: OpType.Repair,
+        actionType: ActionType.REPAIR_AUTO,
+        entityType: 'ALL',
+        payload: {},
+        clientId: 'client-1',
+        vectorClock: { client1: 1 },
+        timestamp: Date.now(),
+        schemaVersion: 1,
+      };
+      const futureOp: Operation = {
+        id: 'future-suffix',
+        opType: OpType.Update,
+        actionType: ActionType.TASK_SHARED_UPDATE,
+        entityType: 'TASK',
+        entityId: 'task-1',
+        payload: {},
+        clientId: 'client-2',
+        vectorClock: { client2: 1 },
+        timestamp: Date.now(),
+        schemaVersion: 2,
+      };
+      opLogStoreSpy.hasOp.and.resolveTo(false);
+      opLogStoreSpy.append.and.resolveTo(1);
+
+      const result = await service.processRemoteOps([repair, futureOp]);
+
+      expect(result.blockedByIncompatibleOp).toBeTrue();
+      expect(result.committedFullStateOpIds).toEqual([repair.id]);
+      expect(operationApplierServiceSpy.applyOperations).toHaveBeenCalled();
+    });
+
     it('should show error snackbar and abort if version is below minimum supported', async () => {
       const remoteOps: Operation[] = [
         { id: 'op1', schemaVersion: MIN_SUPPORTED_SCHEMA_VERSION - 1 } as Operation,

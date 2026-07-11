@@ -118,13 +118,38 @@ describe('SyncImportConflictGateService', () => {
     expect(result.dialogData).toBeDefined();
   });
 
-  it('should protect a pending sync config change on a never-synced client', async () => {
+  it('should ignore the sync setup write on a never-synced client', async () => {
     opLogStoreSpy.hasSyncedOps.and.resolveTo(false);
     opLogStoreSpy.getUnsynced.and.resolveTo([createPendingConfigEntry()]);
 
     const result = await service.checkIncomingFullStateConflict([createOperation()]);
 
+    expect(result.hasMeaningfulPending).toBeFalse();
+    expect(result.discardablePendingOpIds).toEqual(['local-config-update']);
+    expect(result.dialogData).toBeUndefined();
+  });
+
+  it('should protect non-update operations targeting the sync config coordinates', async () => {
+    opLogStoreSpy.hasSyncedOps.and.resolveTo(false);
+    opLogStoreSpy.getUnsynced.and.resolveTo([
+      createEntry(
+        createOperation({
+          id: 'local-config-delete',
+          actionType: ActionType.GLOBAL_CONFIG_UPDATE_SECTION,
+          opType: OpType.Delete,
+          entityType: 'GLOBAL_CONFIG',
+          entityId: 'sync',
+          payload: { sectionKey: 'sync' },
+          clientId: 'client-A',
+          vectorClock: { clientA: 1 },
+        }),
+      ),
+    ]);
+
+    const result = await service.checkIncomingFullStateConflict([createOperation()]);
+
     expect(result.hasMeaningfulPending).toBeTrue();
+    expect(result.discardablePendingOpIds).toEqual([]);
     expect(result.dialogData).toBeDefined();
   });
 

@@ -61,10 +61,15 @@ import { selectSyncConfig } from '../../features/config/store/global-config.redu
 import {
   applyLocalOnlySyncSettingsToAppData,
   LocalOnlySyncSettings,
+  stripLocalOnlySyncSettingsFromAppData,
 } from '../../features/config/local-only-sync-settings.util';
 import { DEFAULT_GLOBAL_CONFIG } from '../../features/config/default-global-config.const';
 import { OperationApplierService } from '../apply/operation-applier.service';
 import { processDeferredActions } from './process-deferred-actions-flush.util';
+
+type RemoteOpsProcessingResult = Awaited<
+  ReturnType<RemoteOpsProcessingService['processRemoteOps']>
+>;
 
 /**
  * Orchestrates synchronization of the Operation Log with remote storage.
@@ -268,6 +273,8 @@ export class OperationLogSyncService {
     };
 
     if (result.piggybackedOps.length > 0) {
+      let startupOpIdsToDiscard: string[] = [];
+      let startupCleanupFullStateOpId: string | undefined;
       // Check for piggybacked SYNC_IMPORT — mirrors the download path check (lines 552-604).
       // Without this, a SYNC_IMPORT from another client arriving as a piggybacked op
       // would silently replace local state via processRemoteOps().
@@ -323,7 +330,8 @@ export class OperationLogSyncService {
           // against the import (SyncImportFilterService). Only reachable in the narrow window
           // where example tasks are created on a still-empty server and uploaded just as a
           // remote import arrives; afterInitialSyncDoneStrict$ shrinks it further.
-          await this._discardExampleTaskOps(piggybackedConflict.discardablePendingOpIds);
+          startupOpIdsToDiscard = piggybackedConflict.discardablePendingOpIds;
+          startupCleanupFullStateOpId = fullStateOp.id;
           OpLog.normal(
             `OperationLogSyncService: Accepting piggybacked ${fullStateOp.opType} from client ` +
               `${fullStateOp.clientId} without conflict dialog; ` +
@@ -332,8 +340,10 @@ export class OperationLogSyncService {
         }
       }
 
-      const processResult = await this.remoteOpsProcessingService.processRemoteOps(
+      const processResult = await this._processRemoteOpsWithStartupCleanup(
         result.piggybackedOps,
+        startupCleanupFullStateOpId,
+        startupOpIdsToDiscard,
       );
       localWinOpsCreated = processResult.localWinOpsCreated;
       // Validation failure (if any) is on the session-validation latch.
@@ -559,9 +569,9 @@ export class OperationLogSyncService {
       const hasLocalChanges = unsyncedOps.length > 0;
 
       // Collected here, applied AFTER hydrateFromRemoteSync succeeds so a
-      // hydration failure doesn't permanently drop the pending example-create
-      // ops while leaving the user without the remote snapshot.
-      let exampleTaskOpIdsToDiscard: string[] = [];
+      // hydration failure doesn't permanently drop discardable startup ops
+      // while leaving the user without the remote snapshot.
+      let startupOpIdsToDiscard: string[] = [];
 
       if (hasLocalChanges) {
         // Throw LocalDataConflictError if unsynced ops contain meaningful user data
@@ -585,12 +595,23 @@ export class OperationLogSyncService {
             .map((entry) => entry.op.entityId)
             .filter((id): id is string => id !== undefined),
         );
-        const exampleTaskOpIds = exampleTaskEntries.map((entry) => entry.op.id);
         // Nothing from this sync is persisted yet, so this live read reflects
         // whether the client completed a prior sync cycle.
+        const isNeverSyncedAtSyncStart =
+          options?.isNeverSynced ?? !(await this.opLogStore.hasSyncedOps());
+        const pendingOpClassification = {
+          hasCompletedInitialSync: !isNeverSyncedAtSyncStart,
+        };
+        const discardableStartupOpIds =
+          this.syncImportConflictGateService.getDiscardablePendingOpIds(
+            unsyncedOps,
+            pendingOpClassification,
+          );
         const hasMeaningfulUserData =
-          this.syncImportConflictGateService.hasMeaningfulPendingOps(unsyncedOps) ||
-          this.syncLocalStateService.hasMeaningfulStoreData(exampleTaskIds);
+          this.syncImportConflictGateService.hasMeaningfulPendingOps(
+            unsyncedOps,
+            pendingOpClassification,
+          ) || this.syncLocalStateService.hasMeaningfulStoreData(exampleTaskIds);
 
         if (hasMeaningfulUserData) {
           // SPAP-9: before surfacing the binary USE_LOCAL/USE_REMOTE dialog, use
@@ -674,15 +695,15 @@ export class OperationLogSyncService {
           // gate === 'apply-snapshot': the remote snapshot strictly dominates the
           // local clock, so local holds nothing the snapshot lacks. Adopt the
           // snapshot without a dialog by falling through to hydration below.
-          exampleTaskOpIdsToDiscard = exampleTaskOpIds;
+          startupOpIdsToDiscard = discardableStartupOpIds;
           OpLog.normal(
             'OperationLogSyncService: Remote snapshot strictly ahead of local clock — ' +
               'applying snapshot without conflict dialog.',
           );
         } else {
           // Defer the markRejected call until hydration has succeeded — see
-          // the declaration of exampleTaskOpIdsToDiscard above for rationale.
-          exampleTaskOpIdsToDiscard = exampleTaskOpIds;
+          // the declaration of startupOpIdsToDiscard above for rationale.
+          startupOpIdsToDiscard = discardableStartupOpIds;
           // Only system/config ops AND no meaningful store data - proceed with download
           OpLog.normal(
             `OperationLogSyncService: Client has ${unsyncedOps.length} unsynced ops but no meaningful user data. ` +
@@ -747,10 +768,10 @@ export class OperationLogSyncService {
       );
 
       // Now that the remote snapshot is applied, it's safe to drop the
-      // example-create ops we previously decided were obsolete. Doing this
+      // startup ops we previously decided were obsolete. Doing this
       // after hydration ensures a hydration failure leaves the queue intact
       // so the next attempt can retry.
-      await this._discardExampleTaskOps(exampleTaskOpIdsToDiscard);
+      await this._discardStartupOps(startupOpIdsToDiscard);
 
       // CRITICAL FIX: Write recentOps to IndexedDB after snapshot hydration.
       // File-based providers return ALL recentOps on every download, relying on
@@ -889,6 +910,8 @@ export class OperationLogSyncService {
           isNeverSynced: options?.isNeverSynced,
         },
       );
+    let startupOpIdsToDiscard: string[] = [];
+    let startupCleanupFullStateOpId: string | undefined;
     if (incomingConflict.fullStateOp) {
       const { fullStateOp, pendingOps, dialogData } = incomingConflict;
       // Existing synced store data is not a conflict here. Prompt only when
@@ -915,7 +938,8 @@ export class OperationLogSyncService {
         // the session-validation latch — wrapper reads it. (#7330)
         return { kind: 'no_new_ops' };
       } else {
-        await this._discardExampleTaskOps(incomingConflict.discardablePendingOpIds);
+        startupOpIdsToDiscard = incomingConflict.discardablePendingOpIds;
+        startupCleanupFullStateOpId = fullStateOp.id;
         OpLog.normal(
           `OperationLogSyncService: Accepting incoming ${fullStateOp.opType} from client ` +
             `${fullStateOp.clientId} without conflict dialog; ` +
@@ -924,8 +948,10 @@ export class OperationLogSyncService {
       }
     }
 
-    const processResult = await this.remoteOpsProcessingService.processRemoteOps(
+    const processResult = await this._processRemoteOpsWithStartupCleanup(
       result.newOps,
+      startupCleanupFullStateOpId,
+      startupOpIdsToDiscard,
     );
 
     if (processResult.blockedByIncompatibleOp) {
@@ -1010,17 +1036,74 @@ export class OperationLogSyncService {
     };
   }
 
+  private async _processRemoteOpsWithStartupCleanup(
+    remoteOps: Operation[],
+    fullStateOpId: string | undefined,
+    startupOpIds: string[],
+  ): Promise<RemoteOpsProcessingResult> {
+    try {
+      const result = await this.remoteOpsProcessingService.processRemoteOps(remoteOps);
+      await this._discardStartupOpsIfFullStateCommitted(
+        fullStateOpId,
+        startupOpIds,
+        result.committedFullStateOpIds,
+      );
+      return result;
+    } catch (error) {
+      try {
+        // The reducer/apply transaction can commit the full-state op before a
+        // later validation or deferred-action drain throws. Query persistence
+        // so obsolete startup ops cannot replay after an already-applied import.
+        await this._discardStartupOpsIfFullStateCommitted(
+          fullStateOpId,
+          startupOpIds,
+          [],
+          true,
+        );
+      } catch (cleanupError) {
+        // Preserve the primary processing error. A later retry can re-check and
+        // clean up once persistence is available again.
+        OpLog.err(
+          'OperationLogSyncService: Failed to verify startup-op cleanup after remote processing error.',
+          { name: (cleanupError as Error | undefined)?.name },
+        );
+      }
+      throw error;
+    }
+  }
+
+  private async _discardStartupOpsIfFullStateCommitted(
+    fullStateOpId: string | undefined,
+    startupOpIds: string[],
+    committedFullStateOpIds: string[] = [],
+    acceptReducerCommittedFailureStatus: boolean = false,
+  ): Promise<void> {
+    if (!fullStateOpId || startupOpIds.length === 0) {
+      return;
+    }
+
+    const applicationStatus = (await this.opLogStore.getOpById(fullStateOpId))
+      ?.applicationStatus;
+    const isCommitted =
+      committedFullStateOpIds.includes(fullStateOpId) ||
+      applicationStatus === 'applied' ||
+      (acceptReducerCommittedFailureStatus &&
+        (applicationStatus === 'archive_pending' || applicationStatus === 'failed'));
+    if (isCommitted) {
+      await this._discardStartupOps(startupOpIds);
+    }
+  }
+
   /**
-   * Rejects the auto-generated startup example-task ops so they are NOT uploaded
-   * after a SYNC_IMPORT is accepted silently. They were already excluded from the
-   * conflict gate's "meaningful work" check (see SyncImportConflictGateService); the
-   * import replaces local state, so rejecting them keeps the op-log consistent with
-   * the just-applied remote data instead of re-uploading throwaway onboarding tasks.
+   * Rejects startup-only ops so they are NOT uploaded after an authoritative remote
+   * state is accepted silently. They were already excluded from the conflict gate's
+   * "meaningful work" check (see SyncImportConflictGateService); rejecting them keeps
+   * the op-log consistent with the just-applied remote data.
    *
    * These ids always come from getUnsynced() (local pending ops, never remote ops),
-   * so a remote `isExampleTask` flag can never reach this path.
+   * so a remote startup marker can never reach this path.
    */
-  private async _discardExampleTaskOps(opIds: string[]): Promise<void> {
+  private async _discardStartupOps(opIds: string[]): Promise<void> {
     if (opIds.length > 0) {
       await this.opLogStore.markRejected(opIds);
     }
@@ -1260,8 +1343,24 @@ export class OperationLogSyncService {
 
     const migratedRemoteOps = this._preflightRemoteOperations(result.newOps);
 
+    const currentSyncConfig = await firstValueFrom(this.store.select(selectSyncConfig));
+    const localOnlySyncSettings: LocalOnlySyncSettings = {
+      isEnabled: currentSyncConfig.isEnabled,
+      isEncryptionEnabled: currentSyncConfig.isEncryptionEnabled,
+      syncProvider: currentSyncConfig.syncProvider,
+      syncInterval: currentSyncConfig.syncInterval,
+      isManualSyncOnly: currentSyncConfig.isManualSyncOnly,
+    };
+
     let snapshotState = result.snapshotState as Record<string, unknown> | undefined;
     if (hasSnapshotState && snapshotState) {
+      // File providers intentionally omit device-local schedule fields and null
+      // the provider on the wire. Restore this device's values before schema
+      // validation so a valid transport snapshot is locally replayable.
+      snapshotState = applyLocalOnlySyncSettingsToAppData(
+        stripLocalOnlySyncSettingsFromAppData(snapshotState),
+        localOnlySyncSettings,
+      ) as Record<string, unknown>;
       const validation = await this.validateStateService.validateAndRepair(snapshotState);
       if (!validation.isValid) {
         throw new Error(
@@ -1298,14 +1397,6 @@ export class OperationLogSyncService {
       baselineGlobalConfig['sync'] && typeof baselineGlobalConfig['sync'] === 'object'
         ? (baselineGlobalConfig['sync'] as Record<string, unknown>)
         : {};
-    const currentSyncConfig = await firstValueFrom(this.store.select(selectSyncConfig));
-    const localOnlySyncSettings: LocalOnlySyncSettings = {
-      isEnabled: currentSyncConfig.isEnabled,
-      isEncryptionEnabled: currentSyncConfig.isEncryptionEnabled,
-      syncProvider: currentSyncConfig.syncProvider,
-      syncInterval: currentSyncConfig.syncInterval,
-      isManualSyncOnly: currentSyncConfig.isManualSyncOnly,
-    };
     // getDefaultMainModelData intentionally excludes globalConfig. Add a
     // default config shell before applying the canonical device-local fields
     // so an interrupted rebuild can hydrate enough configuration to sync again.
