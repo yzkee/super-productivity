@@ -93,9 +93,13 @@ export class SyncImportConflictGateService {
 
   /**
    * @param options.preCapturedPendingOps - Exact pending ops selected by the upload
-   *        round. The piggyback path unions this snapshot with a live read so it
-   *        protects both accepted work from that upload and work created while the
-   *        network request was in flight.
+   *        round, unioned with a live read. NOTE: accepted ops of the current round
+   *        are still in the live set when this gate runs (acknowledgement is
+   *        deferred until piggyback processing commits), so the union is NOT what
+   *        protects them. Its own coverage is the narrower set of ops removed from
+   *        the live set mid-upload: a local SYNC_IMPORT deleted on
+   *        SYNC_IMPORT_EXISTS, full-state ops perma-rejected by the server, and a
+   *        concurrent tab marking ops synced between lock release and this read.
    */
   async checkIncomingFullStateConflict(
     incomingOps: Operation[],

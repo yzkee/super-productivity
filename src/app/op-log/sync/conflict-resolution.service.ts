@@ -466,14 +466,20 @@ export class ConflictResolutionService {
           );
           await this.opLogStore.markFailed(failedOpIds);
 
-          this.snackService.open({
-            type: 'ERROR',
-            msg: T.F.SYNC.S.CONFLICT_RESOLUTION_FAILED,
-            actionStr: T.PS.RELOAD,
-            actionFn: (): void => {
-              window.location.reload();
-            },
-          });
+          // Never replace a visible persistent recovery action (e.g. the
+          // USE_REMOTE Undo — the only entry point to the pre-replace backup).
+          // The IncompleteRemoteOperationsError thrown below still flips the
+          // sync status to ERROR via the wrapper's (equally guarded) handler.
+          if (!this.snackService.hasPendingPersistentAction()) {
+            this.snackService.open({
+              type: 'ERROR',
+              msg: T.F.SYNC.S.CONFLICT_RESOLUTION_FAILED,
+              actionStr: T.PS.RELOAD,
+              actionFn: (): void => {
+                window.location.reload();
+              },
+            });
+          }
 
           // FIX #6571: Throw on apply failure (parity with applyNonConflictingOps).
           // Previously, apply failures during LWW resolution were logged but not

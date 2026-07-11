@@ -122,6 +122,23 @@ export class PermanentDeferredWriteError extends Error {
   override name = 'PermanentDeferredWriteError';
 }
 
+/**
+ * A local action was captured while a USE_REMOTE rebuild held the op-log lock,
+ * after the destructive replacement committed. The attempt must abort — the
+ * raced action's reducer ran against live state the replay rewrites, so
+ * completing could let a later snapshot cover an op whose live effect is
+ * missing. The raced ops are preserved and re-applied by the retry/resume.
+ */
+export class CaptureRacedRebuildError extends Error {
+  override name = 'CaptureRacedRebuildError';
+
+  constructor() {
+    super(
+      'USE_REMOTE incomplete: a local change arrived during the rebuild and will be restored on retry.',
+    );
+  }
+}
+
 /** Previously downloaded operations have not completed reducer/archive recovery. */
 export class IncompleteRemoteOperationsError extends Error {
   override name = 'IncompleteRemoteOperationsError';

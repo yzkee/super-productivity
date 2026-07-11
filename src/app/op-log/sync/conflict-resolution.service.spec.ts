@@ -64,7 +64,11 @@ describe('ConflictResolutionService', () => {
       'mergeRemoteOpClocks',
     ]);
     mockOpLogStore.mergeRemoteOpClocks.and.resolveTo(undefined);
-    mockSnackService = jasmine.createSpyObj('SnackService', ['open']);
+    mockSnackService = jasmine.createSpyObj('SnackService', [
+      'open',
+      'hasPendingPersistentAction',
+    ]);
+    mockSnackService.hasPendingPersistentAction.and.returnValue(false);
     mockValidateStateService = jasmine.createSpyObj('ValidateStateService', [
       'validateAndRepairCurrentState',
     ]);

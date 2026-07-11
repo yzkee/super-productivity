@@ -30,7 +30,11 @@ describe('Migration Handling Integration', () => {
   let operationApplierSpy: jasmine.SpyObj<OperationApplierService>;
 
   beforeEach(async () => {
-    snackServiceSpy = jasmine.createSpyObj('SnackService', ['open']);
+    snackServiceSpy = jasmine.createSpyObj('SnackService', [
+      'open',
+      'hasPendingPersistentAction',
+    ]);
+    snackServiceSpy.hasPendingPersistentAction.and.returnValue(false);
     operationApplierSpy = jasmine.createSpyObj('OperationApplierService', [
       'applyOperations',
     ]);

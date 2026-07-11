@@ -31,6 +31,7 @@ import { MAX_VECTOR_CLOCK_SIZE } from '../core/operation-log.const';
 import { IndexedDBOpenError } from '../core/errors/indexed-db-open.error';
 import { IDB_OPEN_ERROR_RELOAD_KEY } from './operation-log-hydrator.service';
 import { SyncProviderId } from '../sync-providers/provider.const';
+import { OperationLogEffects } from '../capture/operation-log.effects';
 
 describe('OperationLogHydratorService', () => {
   let service: OperationLogHydratorService;
@@ -44,6 +45,7 @@ describe('OperationLogHydratorService', () => {
   let mockRepairOperationService: jasmine.SpyObj<RepairOperationService>;
   let mockVectorClockService: jasmine.SpyObj<VectorClockService>;
   let mockOperationApplierService: jasmine.SpyObj<OperationApplierService>;
+  let mockOperationLogEffects: jasmine.SpyObj<OperationLogEffects>;
   let mockHydrationStateService: jasmine.SpyObj<HydrationStateService>;
   let mockSnapshotService: jasmine.SpyObj<OperationLogSnapshotService>;
   let mockRecoveryService: jasmine.SpyObj<OperationLogRecoveryService>;
@@ -139,6 +141,10 @@ describe('OperationLogHydratorService', () => {
     mockOperationApplierService = jasmine.createSpyObj('OperationApplierService', [
       'applyOperations',
     ]);
+    mockOperationLogEffects = jasmine.createSpyObj('OperationLogEffects', [
+      'processDeferredActions',
+    ]);
+    mockOperationLogEffects.processDeferredActions.and.resolveTo();
     mockHydrationStateService = jasmine.createSpyObj('HydrationStateService', [
       'startApplyingRemoteOps',
       'endApplyingRemoteOps',
@@ -216,6 +222,7 @@ describe('OperationLogHydratorService', () => {
         { provide: RepairOperationService, useValue: mockRepairOperationService },
         { provide: VectorClockService, useValue: mockVectorClockService },
         { provide: OperationApplierService, useValue: mockOperationApplierService },
+        { provide: OperationLogEffects, useValue: mockOperationLogEffects },
         { provide: HydrationStateService, useValue: mockHydrationStateService },
         { provide: OperationLogSnapshotService, useValue: mockSnapshotService },
         { provide: OperationLogRecoveryService, useValue: mockRecoveryService },
@@ -478,7 +485,10 @@ describe('OperationLogHydratorService', () => {
         const [retriedOps, retryOptions] =
           mockOperationApplierService.applyOperations.calls.argsFor(0);
         expect(retriedOps.map((o: Operation) => o.id)).toEqual(['op-failed']);
-        expect(retryOptions).toEqual({ skipReducerDispatch: true });
+        expect(retryOptions).toEqual({
+          skipReducerDispatch: true,
+          skipDeferredLocalActions: true,
+        });
         expect(mockOpLogStore.markApplied).toHaveBeenCalledWith([6]);
       });
 
@@ -1457,7 +1467,10 @@ describe('OperationLogHydratorService', () => {
       await service.retryFailedRemoteOps();
 
       const options = mockOperationApplierService.applyOperations.calls.argsFor(0)[1];
-      expect(options).toEqual({ skipReducerDispatch: true });
+      expect(options).toEqual({
+        skipReducerDispatch: true,
+        skipDeferredLocalActions: true,
+      });
     });
 
     it('should apply failed ops in ascending seq order regardless of store order', async () => {
@@ -1513,6 +1526,25 @@ describe('OperationLogHydratorService', () => {
       await expectAsync(service.retryFailedRemoteOps()).toBeRejected();
 
       expect(mockOpLogStore.markApplied).not.toHaveBeenCalled();
+    });
+
+    it('should not escalate a deferred-drain failure into hydration recovery', async () => {
+      // A drain throw here used to propagate out of hydrateStore() into
+      // attemptRecovery(), which can import stale legacy data over a correctly
+      // hydrated store. The failure is logged; buffered actions stay queued
+      // for the next drain point (e.g. the pre-sync flush).
+      mockOperationLogEffects.processDeferredActions.and.rejectWith(
+        new Error('drain failed'),
+      );
+      mockOpLogStore.getFailedRemoteOps.and.resolveTo([failedEntry(40, 'op-a')]);
+      mockOperationApplierService.applyOperations.and.callFake((ops: Operation[]) =>
+        Promise.resolve({ appliedOps: ops }),
+      );
+
+      await expectAsync(service.retryFailedRemoteOps()).toBeResolved();
+
+      // Bookkeeping completed despite the failed drain.
+      expect(mockOpLogStore.markApplied).toHaveBeenCalledWith([40]);
     });
 
     it('should do nothing when there are no failed ops', async () => {

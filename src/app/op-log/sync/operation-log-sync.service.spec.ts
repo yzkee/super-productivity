@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { OperationLogSyncService } from './operation-log-sync.service';
 import { FILE_BASED_SYNC_CONSTANTS } from '../sync-providers/file-based/file-based-sync.types';
 import { SchemaMigrationService } from '../persistence/schema-migration.service';
+import { OperationLogHydratorService } from '../persistence/operation-log-hydrator.service';
 import { SnackService } from '../../core/snack/snack.service';
 import { OperationLogStoreService } from '../persistence/operation-log-store.service';
 import { VectorClockService } from './vector-clock.service';
@@ -67,6 +68,7 @@ describe('OperationLogSyncService', () => {
   let lockServiceSpy: jasmine.SpyObj<LockService>;
   let operationApplierSpy: jasmine.SpyObj<OperationApplierService>;
   let operationLogEffectsSpy: jasmine.SpyObj<OperationLogEffects>;
+  let hydratorServiceSpy: jasmine.SpyObj<OperationLogHydratorService>;
 
   const createProviderSetupEntry = (): OperationLogEntry => ({
     seq: 1,
@@ -225,6 +227,10 @@ describe('OperationLogSyncService', () => {
       'processDeferredActions',
     ]);
     operationLogEffectsSpy.processDeferredActions.and.resolveTo();
+    hydratorServiceSpy = jasmine.createSpyObj('OperationLogHydratorService', [
+      'retryFailedRemoteOps',
+    ]);
+    hydratorServiceSpy.retryFailedRemoteOps.and.resolveTo();
 
     TestBed.configureTestingModule({
       providers: [
@@ -247,6 +253,7 @@ describe('OperationLogSyncService', () => {
           useValue: operationApplierSpy,
         },
         { provide: OperationLogEffects, useValue: operationLogEffectsSpy },
+        { provide: OperationLogHydratorService, useValue: hydratorServiceSpy },
         {
           provide: ConflictResolutionService,
           useValue: jasmine.createSpyObj('ConflictResolutionService', [
@@ -396,6 +403,16 @@ describe('OperationLogSyncService', () => {
         ).toBeRejectedWithError(IncompleteRemoteOperationsError);
 
         expect(uploadServiceSpy.uploadPendingOps).not.toHaveBeenCalled();
+      });
+
+      it('should not attempt the in-session archive retry while a raw rebuild is incomplete', async () => {
+        opLogStoreSpy.isRawRebuildIncomplete.and.resolveTo(true);
+
+        await expectAsync(
+          service.uploadPendingOps({} as OperationSyncCapable),
+        ).toBeRejectedWithError(IncompleteRemoteOperationsError);
+
+        expect(hydratorServiceSpy.retryFailedRemoteOps).not.toHaveBeenCalled();
       });
 
       it('should return localWinOpsCreated: 0 when no piggybacked ops', async () => {
@@ -1000,7 +1017,29 @@ describe('OperationLogSyncService', () => {
           service.downloadRemoteOps({} as OperationSyncCapable),
         ).toBeRejected();
 
+        // The one in-session repair attempt ran but couldn't clear the gate.
+        expect(hydratorServiceSpy.retryFailedRemoteOps).toHaveBeenCalledTimes(1);
         expect(downloadServiceSpy.downloadRemoteOps).not.toHaveBeenCalled();
+      });
+
+      it('should proceed when the in-session archive retry clears the incomplete-remote gate', async () => {
+        // Transient archive failure: quarantined at gate read, gone on re-check.
+        opLogStoreSpy.getFailedRemoteOps.and.returnValues(
+          Promise.resolve([{ applicationStatus: 'failed' } as OperationLogEntry]),
+          Promise.resolve([]),
+        );
+        downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+          newOps: [],
+          needsFullStateUpload: false,
+          success: true,
+          providerMode: 'superSyncOps',
+          failedFileCount: 0,
+        });
+
+        await service.downloadRemoteOps({} as OperationSyncCapable);
+
+        expect(hydratorServiceSpy.retryFailedRemoteOps).toHaveBeenCalledTimes(1);
+        expect(downloadServiceSpy.downloadRemoteOps).toHaveBeenCalled();
       });
 
       it('should redo the raw rebuild when a prior USE_REMOTE replay was interrupted', async () => {
@@ -3049,6 +3088,64 @@ describe('OperationLogSyncService', () => {
 
       expect(setLastServerSeq).not.toHaveBeenCalledWith(50);
       expect(opLogStoreSpy.clearRawRebuildIncomplete).not.toHaveBeenCalled();
+    });
+
+    it('should retry the rebuild in-call on a capture race and converge without re-downloading', async () => {
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [makeRemoteOp()],
+        needsFullStateUpload: false,
+        success: true,
+        providerMode: 'superSyncOps',
+        failedFileCount: 0,
+        latestServerSeq: 50,
+      });
+      // Attempt 1 trips the completion assert (e.g. a tracking tick landed in
+      // an unprotected gap); the in-call retry runs clean.
+      writeFlushServiceSpy.hasPendingWrites.and.returnValues(true, false, false);
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await service.forceDownloadRemoteState(mockProvider);
+
+      // One network download, two local rebuild attempts.
+      expect(downloadServiceSpy.downloadRemoteOps).toHaveBeenCalledTimes(1);
+      expect(opLogStoreSpy.runRemoteStateReplacement).toHaveBeenCalledTimes(2);
+      // The retry re-enters through the crash-resume branch: the FIRST
+      // attempt's pre-replace backup is kept, never re-captured over.
+      expect(backupServiceSpy.captureImportBackup).toHaveBeenCalledTimes(1);
+      expect(opLogStoreSpy.loadImportBackup).toHaveBeenCalled();
+      expect(opLogStoreSpy.clearRawRebuildIncomplete).toHaveBeenCalled();
+    });
+
+    it('should warn only once per session when the remote history requires a newer app', async () => {
+      downloadServiceSpy.downloadRemoteOps.and.resolveTo({
+        newOps: [{ ...makeRemoteOp(), schemaVersion: 9999 }],
+        needsFullStateUpload: false,
+        success: true,
+        providerMode: 'superSyncOps',
+        failedFileCount: 0,
+        latestServerSeq: 1,
+      });
+      const mockProvider = {
+        supportsOperationSync: true,
+        setLastServerSeq: jasmine.createSpy('setLastServerSeq').and.resolveTo(),
+      } as any;
+
+      await expectAsync(
+        service.forceDownloadRemoteState(mockProvider),
+      ).toBeRejectedWithError(/newer schema version/);
+      await expectAsync(
+        service.forceDownloadRemoteState(mockProvider),
+      ).toBeRejectedWithError(/newer schema version/);
+
+      const versionSnackCount = snackServiceSpy.open.calls
+        .allArgs()
+        .filter(
+          ([cfg]) => typeof cfg !== 'string' && cfg.msg === T.F.SYNC.S.VERSION_TOO_OLD,
+        ).length;
+      expect(versionSnackCount).toBe(1);
     });
 
     it('should offer to restore the previous data after replacing (#8107)', async () => {

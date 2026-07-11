@@ -1,6 +1,7 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { OperationLogStoreService } from './operation-log-store.service';
+import { processDeferredActions } from '../sync/process-deferred-actions-flush.util';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { OperationLogMigrationService } from './operation-log-migration.service';
 import {
@@ -54,6 +55,7 @@ export class OperationLogHydratorService {
   private vectorClockService = inject(VectorClockService);
   private operationApplierService = inject(OperationApplierService);
   private hydrationStateService = inject(HydrationStateService);
+  private injector = inject(Injector);
   private clientIdProvider: ClientIdProvider = inject(CLIENT_ID_PROVIDER);
 
   // Extracted services
@@ -628,45 +630,67 @@ export class OperationLogHydratorService {
     // outstanding archive side effects: re-dispatching would double-apply
     // additive reducers (syncTimeSpent, increaseSimpleCounterCounterToday)
     // on every retry attempt.
-    const result = await this.operationApplierService.applyOperations(opsToApply, {
-      skipReducerDispatch: true,
-    });
+    try {
+      const result = await this.operationApplierService.applyOperations(opsToApply, {
+        skipReducerDispatch: true,
+        // The drain runs in the finally below with its own error boundary. Left
+        // to the applier's finally, a drain throw would mask the archive result
+        // (markFailed below never runs) and escalate out of hydrateStore() into
+        // attemptRecovery(), which can import stale legacy data over a
+        // correctly hydrated store.
+        skipDeferredLocalActions: true,
+      });
 
-    // Mark successfully applied ops.
-    const appliedSeqs = result.appliedOps
-      .map((op) => opIdToSeq.get(op.id))
-      .filter((seq): seq is number => seq !== undefined);
-    if (appliedSeqs.length > 0) {
-      // The primary remote-apply path (applyRemoteOperations) merges clocks at
-      // reducer commit for the WHOLE batch, including ops whose archive
-      // handling later fails — so these clocks were usually merged already.
-      // Re-merging here is a harmless component-wise max and also covers ops
-      // that reached `failed`/`archive_pending` via crash recovery, where the
-      // reducer-commit callback (and its clock merge) may never have run.
-      await this.opLogStore.mergeRemoteOpClocks(result.appliedOps);
-      await this.opLogStore.markApplied(appliedSeqs);
-      OpLog.normal(
-        `OperationLogHydratorService: Successfully retried ${appliedSeqs.length} failed ops`,
-      );
-    }
+      // Mark successfully applied ops.
+      const appliedSeqs = result.appliedOps
+        .map((op) => opIdToSeq.get(op.id))
+        .filter((seq): seq is number => seq !== undefined);
+      if (appliedSeqs.length > 0) {
+        // The primary remote-apply path (applyRemoteOperations) merges clocks at
+        // reducer commit for the WHOLE batch, including ops whose archive
+        // handling later fails — so these clocks were usually merged already.
+        // Re-merging here is a harmless component-wise max and also covers ops
+        // that reached `failed`/`archive_pending` via crash recovery, where the
+        // reducer-commit callback (and its clock merge) may never have run.
+        await this.opLogStore.mergeRemoteOpClocks(result.appliedOps);
+        await this.opLogStore.markApplied(appliedSeqs);
+        OpLog.normal(
+          `OperationLogHydratorService: Successfully retried ${appliedSeqs.length} failed ops`,
+        );
+      }
 
-    // On a partial failure the batch applier stops at the first archive error.
-    // Charge only that attempted operation: successors remain archive-pending
-    // without consuming retry budget and will run after the blocker succeeds.
-    // A persistent blocker stays failed so ordinary sync remains safely paused.
-    if (result.failedOp) {
-      const failedOpIds = [result.failedOp.op.id];
+      // On a partial failure the batch applier stops at the first archive error.
+      // Charge only that attempted operation: successors remain archive-pending
+      // without consuming retry budget and will run after the blocker succeeds.
+      // A persistent blocker stays failed so ordinary sync remains safely paused.
+      if (result.failedOp) {
+        const failedOpIds = [result.failedOp.op.id];
 
-      OpLog.warn(
-        `OperationLogHydratorService: Failed to retry op ${result.failedOp.op.id}`,
-        result.failedOp.error,
-      );
-      // Keep archive failure visible to the sync safety gate. A retry cap that
-      // rejects it would hide incomplete downloaded work and allow false IN_SYNC.
-      await this.opLogStore.markFailed(failedOpIds);
-      OpLog.warn(
-        'OperationLogHydratorService: Archive operation still failing after retry',
-      );
+        OpLog.warn(
+          `OperationLogHydratorService: Failed to retry op ${result.failedOp.op.id}`,
+          result.failedOp.error,
+        );
+        // Keep archive failure visible to the sync safety gate. A retry cap that
+        // rejects it would hide incomplete downloaded work and allow false IN_SYNC.
+        await this.opLogStore.markFailed(failedOpIds);
+        OpLog.warn(
+          'OperationLogHydratorService: Archive operation still failing after retry',
+        );
+      }
+    } finally {
+      // Local actions captured while the retry held the remote-apply window
+      // open. Runs after mergeRemoteOpClocks so their clocks dominate the
+      // retried remote ops (#7700). A failed drain keeps the actions buffered
+      // for the next drain point (e.g. the pre-sync flush) — never escalate
+      // it into hydration recovery.
+      try {
+        await processDeferredActions(this.injector, false);
+      } catch (drainError) {
+        OpLog.err(
+          'OperationLogHydratorService: Deferred-action drain failed after archive retry; actions stay buffered.',
+          { name: (drainError as Error | undefined)?.name },
+        );
+      }
     }
   }
 

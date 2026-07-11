@@ -1586,7 +1586,7 @@
         "LOCK_TIMEOUT_ERROR": "Sync timed out waiting for a previous operation to finish. Please try again.",
         "LWW_CONFLICTS_AUTO_RESOLVED": "Sync conflicts auto-resolved: {{localWins}} local win(s), {{remoteWins}} remote win(s)",
         "LOCAL_FILE_RESELECT_REQUIRED": "Local file sync needs the sync folder to be selected again after a security update. Open Sync settings and choose the folder once more.",
-        "MIGRATION_FAILED": "Some sync data could not be migrated and was skipped. This may indicate data corruption or a bug.",
+        "MIGRATION_FAILED": "Some synced changes could not be migrated. Sync is paused before them to protect your data; updating the app may fix this.",
         "NETWORK_ERROR": "Sync request failed because of a temporary network problem. Your changes remain local and sync will retry.",
         "NEWER_VERSION_AVAILABLE": "Some changes are from a newer app version. Consider updating for full compatibility.",
         "OAUTH_STATE_INVALID": "OAuth state mismatch — the callback URL did not match this device's request. Please try authenticating again.",
@@ -1615,7 +1615,7 @@
         "UPLOAD_OPS_REJECTED": "{{count}} operation(s) were permanently rejected by the server and won't be synced.",
         "VECTOR_CLOCK_LIMIT_REACHED": "Sync tidied up old device entries ({{originalSize}} → {{maxSize}}). This is normal — no action needed.",
         "VERSION_TOO_OLD": "Your app version is too old for the synced data. Please update!",
-        "VERSION_UNSUPPORTED": "Cannot sync: data requires a newer app version. Please update.",
+        "VERSION_UNSUPPORTED": "Cannot sync: some synced data is from an app version that is no longer supported. Sync is paused before it; updating the app on your other devices may help.",
         "WEB_CRYPTO_NOT_AVAILABLE": "Encryption is not available on this device. On Android, encryption requires a secure context (HTTPS) which is not available. Please disable encryption in sync settings or sync from a desktop web browser."
       },
       "SAFETY_BACKUP": {

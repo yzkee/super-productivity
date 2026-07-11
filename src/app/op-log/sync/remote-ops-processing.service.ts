@@ -396,6 +396,12 @@ export class RemoteOpsProcessingService {
       | 'INVALID_SCHEMA_VERSION'
       | 'MIGRATION_FAILED',
   ): void {
+    if (this.snackService.hasPendingPersistentAction()) {
+      // Never replace a visible persistent recovery action (e.g. the USE_REMOTE
+      // Undo — the only entry point to the pre-replace backup). The block
+      // persists, so the latch stays unset and a later retry re-warns.
+      return;
+    }
     if (reason === 'MIGRATION_FAILED' || reason === 'INVALID_SCHEMA_VERSION') {
       if (!this._hasWarnedMigrationFailureThisSession) {
         this._hasWarnedMigrationFailureThisSession = true;
@@ -408,15 +414,22 @@ export class RemoteOpsProcessingService {
     }
     if (!this._hasWarnedVersionBlockThisSession) {
       this._hasWarnedVersionBlockThisSession = true;
-      this.snackService.open({
-        type: 'ERROR',
-        msg:
-          reason === 'VERSION_UNSUPPORTED'
-            ? T.F.SYNC.S.VERSION_UNSUPPORTED
-            : T.F.SYNC.S.VERSION_TOO_OLD,
-        actionStr: T.PS.UPDATE_APP,
-        actionFn: () => window.open('https://super-productivity.com/download', '_blank'),
-      });
+      if (reason === 'VERSION_UNSUPPORTED') {
+        // Below-minimum data: updating THIS device cannot help, so no
+        // download action — the fix lives on the device that produced it.
+        this.snackService.open({
+          type: 'ERROR',
+          msg: T.F.SYNC.S.VERSION_UNSUPPORTED,
+        });
+      } else {
+        this.snackService.open({
+          type: 'ERROR',
+          msg: T.F.SYNC.S.VERSION_TOO_OLD,
+          actionStr: T.PS.UPDATE_APP,
+          actionFn: () =>
+            window.open('https://super-productivity.com/download', '_blank'),
+        });
+      }
     }
   }
 

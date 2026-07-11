@@ -135,6 +135,7 @@ describe('OperationLogHydratorService retryFailedRemoteOps (integration, real st
     // double-apply additive reducers.
     expect(applier.applyOperations.calls.argsFor(0)[1]).toEqual({
       skipReducerDispatch: true,
+      skipDeferredLocalActions: true,
     });
   });
 

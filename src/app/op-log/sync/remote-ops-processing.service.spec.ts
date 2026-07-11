@@ -75,7 +75,11 @@ describe('RemoteOpsProcessingService', () => {
       'getCurrentVersion',
       'migrateOperation',
     ]);
-    snackServiceSpy = jasmine.createSpyObj('SnackService', ['open']);
+    snackServiceSpy = jasmine.createSpyObj('SnackService', [
+      'open',
+      'hasPendingPersistentAction',
+    ]);
+    snackServiceSpy.hasPendingPersistentAction.and.returnValue(false);
     opLogStoreSpy = jasmine.createSpyObj('OperationLogStoreService', [
       'getUnsynced',
       'hasOp',
@@ -668,6 +672,20 @@ describe('RemoteOpsProcessingService', () => {
         isLocalUnsyncedImport: false,
         blockedByIncompatibleOp: true,
       });
+    });
+
+    it('should not replace a visible persistent recovery action with the version-block snack', async () => {
+      snackServiceSpy.hasPendingPersistentAction.and.returnValue(true);
+
+      await service.processRemoteOps([{ id: 'op1', schemaVersion: 2 } as Operation]);
+
+      expect(snackServiceSpy.open).not.toHaveBeenCalled();
+
+      // The latch stayed unset, so a later retry (after the recovery action
+      // resolves) still warns the user.
+      snackServiceSpy.hasPendingPersistentAction.and.returnValue(false);
+      await service.processRemoteOps([{ id: 'op2', schemaVersion: 2 } as Operation]);
+      expect(snackServiceSpy.open).toHaveBeenCalledTimes(1);
     });
 
     it('should show the version-block error only once per session', async () => {

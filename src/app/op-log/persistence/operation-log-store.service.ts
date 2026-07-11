@@ -765,8 +765,10 @@ export class OperationLogStoreService implements RemoteOperationApplyStorePort<O
         (entry) => entry.source === 'remote' && entry.applicationStatus === 'pending',
       );
     }
-    // Decode compact operations for backwards compatibility
-    return storedEntries.map(decodeStoredEntry);
+    // Exclude rejected ops (mirrors getFailedRemoteOps): a rejected-but-still-
+    // pending row must not trip the incomplete-remote sync gate — nothing will
+    // ever apply it, so it would wedge sync for the whole session.
+    return storedEntries.filter((e) => !e.rejectedAt).map(decodeStoredEntry);
   }
 
   async hasOp(id: string): Promise<boolean> {

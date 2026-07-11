@@ -1558,6 +1558,19 @@ describe('OperationLogStoreService', () => {
 
       expect(pending.length).toBe(0);
     });
+
+    it('should exclude rejected ops (parity with getFailedRemoteOps)', async () => {
+      // A rejected-but-still-pending row must not trip the incomplete-remote
+      // sync gate: nothing will ever apply it, so counting it would wedge sync
+      // for the whole session.
+      const op = createTestOperation({ entityId: 'rejected-pending' });
+      await service.append(op, 'remote', { pendingApply: true });
+      await service.markRejected([op.id]);
+
+      const pending = await service.getPendingRemoteOps();
+
+      expect(pending.length).toBe(0);
+    });
   });
 
   describe('markFailed', () => {
