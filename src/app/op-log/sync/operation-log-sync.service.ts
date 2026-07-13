@@ -60,7 +60,10 @@ import { SyncProviderManager } from '../sync-providers/provider-manager.service'
 import { getDefaultMainModelData, MODEL_CONFIGS } from '../model/model-config';
 import { loadAllData } from '../../root-store/meta/load-all-data.action';
 import { SyncLocalStateService } from './sync-local-state.service';
-import { SyncImportConflictCoordinatorService } from './sync-import-conflict-coordinator.service';
+import {
+  ForceUploadResult,
+  SyncImportConflictCoordinatorService,
+} from './sync-import-conflict-coordinator.service';
 import { isExampleTaskCreateOp } from '../validation/is-example-task-op.util';
 import { Operation, OperationLogEntry } from '../core/operation.types';
 import { ValidateStateService } from '../validation/validate-state.service';
@@ -289,6 +292,7 @@ export class OperationLogSyncService {
     // state and get re-uploaded infinitely.
     let localWinOpsCreated = 0;
     let rejectionResult: RejectionHandlingResult = {
+      kind: 'completed',
       mergedOpsCreated: 0,
       permanentRejectionCount: 0,
     };
@@ -439,6 +443,7 @@ export class OperationLogSyncService {
       switch (outcome.kind) {
         case 'ops_processed':
           return {
+            kind: 'completed',
             newOpsCount: outcome.newOpsCount,
             allOpClocks: outcome.allOpClocks,
             snapshotVectorClock: outcome.snapshotVectorClock,
@@ -446,13 +451,15 @@ export class OperationLogSyncService {
         case 'no_new_ops':
         case 'snapshot_hydrated':
           return {
+            kind: 'completed',
             newOpsCount: 0,
             allOpClocks: outcome.allOpClocks,
             snapshotVectorClock: outcome.snapshotVectorClock,
           };
         case 'server_migration_handled':
+          return { kind: 'completed', newOpsCount: 0 };
         case 'cancelled':
-          return { newOpsCount: 0 };
+          return { kind: 'cancelled' };
         case 'blocked_incompatible':
           throw new Error('Nested download blocked by an incompatible remote operation.');
       }
@@ -462,6 +469,9 @@ export class OperationLogSyncService {
         result.rejectedOps,
         downloadCallback,
       );
+      if (rejectionResult.kind === 'cancelled') {
+        return { kind: 'cancelled' };
+      }
       localWinOpsCreated += rejectionResult.mergedOpsCreated;
     } catch (rejectionError) {
       // FIX #6571: Propagate rejection handler errors instead of swallowing them.
@@ -1380,8 +1390,10 @@ export class OperationLogSyncService {
    *
    * @param syncProvider - The sync provider to upload to
    */
-  async forceUploadLocalState(syncProvider: OperationSyncCapable): Promise<void> {
-    await this.syncImportConflictCoordinator.forceUploadLocalState(syncProvider);
+  async forceUploadLocalState(
+    syncProvider: OperationSyncCapable,
+  ): Promise<ForceUploadResult> {
+    return this.syncImportConflictCoordinator.forceUploadLocalState(syncProvider);
   }
 
   /**
