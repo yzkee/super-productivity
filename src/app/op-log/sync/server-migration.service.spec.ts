@@ -85,7 +85,11 @@ describe('ServerMigrationService', () => {
     stateSnapshotServiceSpy = jasmine.createSpyObj('StateSnapshotService', [
       'getStateSnapshot',
       'getStateSnapshotAsync',
+      'getStateSnapshotForOperationLogAsync',
     ]);
+    stateSnapshotServiceSpy.getStateSnapshotForOperationLogAsync.and.callFake(() =>
+      stateSnapshotServiceSpy.getStateSnapshotAsync(),
+    );
     snackServiceSpy = jasmine.createSpyObj('SnackService', ['open']);
     clientIdProviderSpy = jasmine.createSpyObj('ClientIdProvider', ['loadClientId']);
     matDialogSpy = jasmine.createSpyObj('MatDialog', ['open']);
@@ -261,6 +265,15 @@ describe('ServerMigrationService', () => {
   });
 
   describe('handleServerMigration', () => {
+    it('should create the snapshot and import under the operation-log lock', async () => {
+      await service.handleServerMigration(defaultProvider);
+
+      expect(lockServiceSpy.request).toHaveBeenCalledWith(
+        'sp_op_log',
+        jasmine.any(Function),
+      );
+    });
+
     it('should skip if state is empty (no tasks/projects/tags)', async () => {
       stateSnapshotServiceSpy.getStateSnapshotAsync.and.returnValue(
         Promise.resolve({
