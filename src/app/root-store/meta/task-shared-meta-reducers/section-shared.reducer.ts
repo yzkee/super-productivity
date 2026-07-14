@@ -21,6 +21,7 @@ import { moveItemAfterAnchor } from '../../../features/work-context/store/work-c
 import { canApplyConvertToSubTask } from '../../../features/tasks/util/can-convert-task-to-sub-task';
 import {
   collectTaskAndSubTaskIds,
+  enrichDeleteProjectAction,
   getProjectOrUndefined,
   isValidTaskProjectIdUpdate,
 } from './task-shared-helpers';
@@ -541,17 +542,21 @@ export const sectionSharedMetaReducer: MetaReducer<RootState> = (
     // Boot/hydration guard: skip section-side cleanup until every slice
     // it touches is hydrated.
     const ext = state as ExtendedState;
+    const effectiveAction =
+      ext[TASK_FEATURE_NAME] && ext[PROJECT_FEATURE_NAME]
+        ? enrichDeleteProjectAction(ext, action)
+        : action;
     if (
       !ext[TASK_FEATURE_NAME] ||
       !ext[TAG_FEATURE_NAME] ||
       !ext[PROJECT_FEATURE_NAME] ||
       !ext[SECTION_FEATURE_NAME]
     ) {
-      return reducer(state, action);
+      return reducer(state, effectiveAction);
     }
-    const handler = ACTION_HANDLERS[action.type];
-    const preState = handler ? handler(ext, action) : state;
-    const next = reducer(preState, action);
+    const handler = ACTION_HANDLERS[effectiveAction.type];
+    const preState = handler ? handler(ext, effectiveAction) : state;
+    const next = reducer(preState, effectiveAction);
     // Post-reducer TODAY_TAG.taskIds diff catches every flow that
     // removes ids from TODAY without going through a known action.
     const removedFromToday = diffRemovedTodayTaskIds(state, next);
