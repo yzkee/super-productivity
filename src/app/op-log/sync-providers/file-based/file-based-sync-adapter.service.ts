@@ -1430,13 +1430,18 @@ export class FileBasedSyncAdapterService {
     }
   }
 
-  /** Downloads + decodes `sync-state.json` and validates its version. */
+  /**
+   * Downloads + decodes a snapshot file and validates its version. Defaults to
+   * the fixed `sync-state.json`; pass a generation-specific name (#9040) to read
+   * the immutable snapshot referenced by an ops file's `snapshotRef.file`.
+   */
   private async _downloadStateFile(
     provider: FileSyncProvider<SyncProviderId>,
     cfg: EncryptAndCompressCfg,
     encryptKey: string | undefined,
+    path: string = FILE_BASED_SYNC_CONSTANTS.STATE_FILE,
   ): Promise<{ data: FileBasedStateFile; rev: string }> {
-    const response = await provider.downloadFile(FILE_BASED_SYNC_CONSTANTS.STATE_FILE);
+    const response = await provider.downloadFile(path);
     const data =
       await this._encryptAndCompressHandler.decompressAndDecryptData<FileBasedStateFile>(
         cfg,
@@ -1446,22 +1451,30 @@ export class FileBasedSyncAdapterService {
     if (data.version !== FILE_BASED_SYNC_CONSTANTS.SPLIT_FILE_VERSION) {
       throw new SyncDataCorruptedError(
         `Unsupported state-file version: ${data.version} (expected ${FILE_BASED_SYNC_CONSTANTS.SPLIT_FILE_VERSION})`,
-        FILE_BASED_SYNC_CONSTANTS.STATE_FILE,
+        path,
       );
     }
     return { data, rev: response.rev };
   }
 
   /**
-   * Writes `sync-state.json`. Force-overwrite: the ops file (commit point) is the
-   * concurrency gate, and readers only trust a snapshot the ops file's snapshotRef
-   * validates against. Returns the written rev for the snapshotRef pointer.
+   * Writes a snapshot file (default `sync-state.json`). Force-overwrite: the ops
+   * file (commit point) is the concurrency gate, and readers only trust a snapshot
+   * the ops file's snapshotRef validates against. Returns the written rev for the
+   * snapshotRef pointer.
+   *
+   * #9040: pass a generation+client-unique `path` to write the immutable snapshot.
+   * Force-overwrite is safe there because the name is unique per (syncVersion,
+   * clientId) — no concurrent compactor targets the same file, so nothing clobbers
+   * it. The fixed `sync-state.json` remains clobberable and is written only for
+   * pre-#9040 clients that don't read `snapshotRef.file`.
    */
   private async _writeStateFile(
     provider: FileSyncProvider<SyncProviderId>,
     cfg: EncryptAndCompressCfg,
     encryptKey: string | undefined,
     data: FileBasedStateFile,
+    path: string = FILE_BASED_SYNC_CONSTANTS.STATE_FILE,
   ): Promise<string> {
     const uploadData = await this._encryptAndCompressHandler.compressAndEncryptData(
       cfg,
@@ -1470,13 +1483,52 @@ export class FileBasedSyncAdapterService {
       FILE_BASED_SYNC_CONSTANTS.SPLIT_FILE_VERSION,
     );
     this._assertUploadDataNotEmpty(uploadData, 'FileBasedSyncAdapter._writeStateFile');
-    const res = await provider.uploadFile(
-      FILE_BASED_SYNC_CONSTANTS.STATE_FILE,
-      uploadData,
-      null,
-      true,
-    );
+    const res = await provider.uploadFile(path, uploadData, null, true);
     return res.rev;
+  }
+
+  /**
+   * Builds the immutable snapshot filename for a compaction (#9040):
+   * `sync-state__<syncVersion>__<random>.json`. The random suffix (not the
+   * clientId) makes two concurrent compactors target different files without
+   * leaking device identity — filenames are NOT encrypted, so an opaque suffix
+   * keeps device count/platform private from the remote for E2EE users. A
+   * collision is astronomically unlikely and self-heals anyway: the reader
+   * validates loaded content against `snapshotRef` (clock EQUAL), so a wrong
+   * file fails validation and falls back to `sync-state.json`/`.bak`. `syncVersion`
+   * stays in the name for legible ordering and a future `listFiles`-prune.
+   */
+  private _genStateFileName(syncVersion: number): string {
+    const bytes = new Uint8Array(8);
+    crypto.getRandomValues(bytes);
+    const random = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+    return `${FILE_BASED_SYNC_CONSTANTS.STATE_GEN_FILE_PREFIX}${syncVersion}__${random}.json`;
+  }
+
+  /**
+   * Best-effort deletion of a generation-specific immutable snapshot file (#9040).
+   * Non-fatal — an undeleted snapshot only wastes remote space. Two call sites:
+   *   - after a successful compaction: reclaim the PREVIOUS generation's snapshot
+   *     (keeps the steady state at ~one immutable file), and
+   *   - when a compaction fails to commit: reclaim the snapshot THIS compaction
+   *     just wrote, which is now an orphan no committed ops file references (the
+   *     concurrent-compaction case that would otherwise leak).
+   *
+   * Residual: a crash between the snapshot write and either commit or this cleanup
+   * still leaks (rare crash window). Upgrade path if it ever matters — an
+   * opportunistic `listFiles` prune of `STATE_GEN_FILE_PREFIX` files with a stale
+   * syncVersion (listFiles is optional on the provider interface, so it must stay
+   * capability-gated).
+   */
+  private async _removeGenStateFile(
+    provider: FileSyncProvider<SyncProviderId>,
+    file: string,
+  ): Promise<void> {
+    try {
+      await provider.removeFile(file);
+    } catch (e) {
+      OpLog.normal('FileBasedSyncAdapter: snapshot cleanup skipped (non-fatal)', e);
+    }
   }
 
   /** Copies the current `sync-state.json` to its `.bak` (non-fatal). */
@@ -1532,8 +1584,15 @@ export class FileBasedSyncAdapterService {
 
   /**
    * Loads the snapshot referenced by `opsFile.snapshotRef`, validating it against
-   * the ref. On mismatch (e.g. a crash between the state and ops writes left a
-   * newer, unreferenced `sync-state.json`), falls back to `sync-state.json.bak`.
+   * the ref. Resolution order:
+   *   1. #9040: `snapshotRef.file` — the immutable, generation+client-unique
+   *      snapshot. A committed ops file's referenced immutable file is never
+   *      clobbered by a concurrent compactor, so this is the authoritative source
+   *      for post-#9040 ops files.
+   *   2. `sync-state.json` — the fixed compat snapshot (older ops files with no
+   *      `snapshotRef.file`, or defensive fallback).
+   *   3. `sync-state.json.bak` — the crash-window backup (e.g. a crash between the
+   *      state and ops writes left a newer, unreferenced `sync-state.json`).
    * Returns null when no snapshot validates the ref (caller signals a gap).
    */
   private async _loadValidatedSnapshot(
@@ -1542,6 +1601,26 @@ export class FileBasedSyncAdapterService {
     encryptKey: string | undefined,
     opsFile: FileBasedOpsFile,
   ): Promise<FileBasedStateFile | null> {
+    const genFile = opsFile.snapshotRef.file;
+    if (genFile) {
+      try {
+        const { data } = await this._downloadStateFile(
+          provider,
+          cfg,
+          encryptKey,
+          genFile,
+        );
+        if (this._validateSnapshotRef(opsFile, data)) return data;
+        OpLog.warn(
+          'FileBasedSyncAdapter: immutable snapshot does not match snapshotRef; trying sync-state.json',
+        );
+      } catch (e) {
+        OpLog.warn(
+          'FileBasedSyncAdapter: immutable snapshot unreadable; trying sync-state.json',
+          e,
+        );
+      }
+    }
     try {
       const { data } = await this._downloadStateFile(provider, cfg, encryptKey);
       if (this._validateSnapshotRef(opsFile, data)) return data;
@@ -2055,14 +2134,29 @@ export class FileBasedSyncAdapterService {
         schemaVersion,
         localStateSnapshot,
       );
-      // Preserve the pre-compaction snapshot for snapshotRef-mismatch recovery.
+      // #9040: write the snapshot to an IMMUTABLE, per-compaction file first. This
+      // is the snapshot the ops pointer references; because its name carries a
+      // random suffix, a concurrent compactor writes a DIFFERENT file and can never
+      // clobber it, so the winning ops pointer can never be stranded.
+      const genStateFile = this._genStateFileName(newSyncVersion);
+      const stateRev = await this._writeStateFile(
+        provider,
+        cfg,
+        encryptKey,
+        stateData,
+        genStateFile,
+      );
+      // Compat: also refresh the fixed sync-state.json (+ its .bak) so pre-#9040
+      // split clients — which don't read snapshotRef.file — can still hydrate.
+      // This copy stays clobberable, but pre-#9040 clients already carried that
+      // exposure, so it is no regression; post-#9040 clients use snapshotRef.file.
       await this._backupStateFile(provider, cfg, encryptKey);
-      // Atomicity: sync-state.json FIRST, then the ops file that references it.
-      const stateRev = await this._writeStateFile(provider, cfg, encryptKey, stateData);
+      await this._writeStateFile(provider, cfg, encryptKey, stateData);
       snapshotRef = {
         syncVersion: newSyncVersion,
         vectorClock: mergedClock,
         rev: stateRev,
+        file: genStateFile,
       };
       finalOps = combinedOps.slice(-FILE_BASED_SYNC_CONSTANTS.SPLIT_COMPACTION_THRESHOLD);
       OpLog.normal(
@@ -2109,13 +2203,45 @@ export class FileBasedSyncAdapterService {
     }
 
     // Commit point.
-    const { finalRev } = await this._uploadOpsFileWithMismatchFallback(
-      provider,
-      cfg,
-      encryptKey,
-      newOpsFile,
-      opsRev,
-    );
+    let finalRev: string;
+    try {
+      ({ finalRev } = await this._uploadOpsFileWithMismatchFallback(
+        provider,
+        cfg,
+        encryptKey,
+        newOpsFile,
+        opsRev,
+      ));
+    } catch (e) {
+      // #9040: reclaim the immutable snapshot we just wrote — but ONLY on a
+      // confirmed rev-mismatch rejection, which proves the server refused our ops
+      // PUT, so a concurrent compactor won and our snapshot is a true orphan. Any
+      // other error (network/5xx) is AMBIGUOUS: the PUT may have landed and
+      // committed, in which case the snapshot is still referenced and MUST survive
+      // (readers would otherwise strand on it). Deleting only applies when we
+      // compacted; otherwise snapshotRef.file is the still-referenced predecessor.
+      if (
+        e instanceof UploadRevToMatchMismatchAPIError &&
+        needsCompaction &&
+        snapshotRef.file
+      ) {
+        await this._removeGenStateFile(provider, snapshotRef.file);
+      }
+      throw e;
+    }
+
+    // #9040: after the commit succeeds, reclaim the immutable snapshot the
+    // superseded ops file referenced (no-op unless this sync compacted). Runs
+    // post-commit so a concurrent reader of the OLD ops file still finds its
+    // snapshot until it too advances.
+    const previousGenStateFile = opsFile?.snapshotRef?.file;
+    if (
+      needsCompaction &&
+      previousGenStateFile &&
+      previousGenStateFile !== snapshotRef.file
+    ) {
+      await this._removeGenStateFile(provider, previousGenStateFile);
+    }
 
     this._clearCachedOpsData(providerKey);
     this._expectedSyncVersions.set(providerKey, newSyncVersion);
