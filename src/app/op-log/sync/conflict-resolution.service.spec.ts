@@ -1080,6 +1080,45 @@ describe('ConflictResolutionService', () => {
         ).toBeTrue();
       });
 
+      it('should recreate a locally-winning UPDATE over a concurrent remote DELETE on a client-ID tie (#9024)', async () => {
+        const now = Date.now();
+        mockStore.select.and.returnValue(
+          of({ id: 'task-1', title: 'Local winning task' }),
+        );
+        // Exact-timestamp tie against a remote DELETE. Local's clientId
+        // (client-z) is the larger, so the deterministic tiebreak makes the
+        // local UPDATE win — reaching the SAME delete-recreation path as the
+        // "UPDATE is newer" case above, just via the tie rather than the
+        // timestamp. Guards that the #9024 tiebreak doesn't bypass entity
+        // recreation when the loser was a delete.
+        const conflicts: EntityConflict[] = [
+          createConflict(
+            'task-1',
+            [
+              {
+                ...createOpWithTimestamp('local-upd', 'client-z', now),
+                opType: OpType.Update,
+              },
+            ],
+            [
+              {
+                ...createOpWithTimestamp('remote-del', 'client-a', now),
+                opType: OpType.Delete,
+              },
+            ],
+          ),
+        ];
+
+        await service.autoResolveConflictsLWW(conflicts);
+
+        expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['local-upd']);
+        expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['remote-del']);
+        expect(
+          (getFirstMixedLocalOp().payload as { recreatesEntityAfterDelete?: boolean })
+            .recreatesEntityAfterDelete,
+        ).toBeTrue();
+      });
+
       it('should resolve DELETE vs UPDATE conflict when DELETE is older (remote UPDATE wins)', async () => {
         const now = Date.now();
         const conflicts: EntityConflict[] = [
@@ -5185,7 +5224,8 @@ describe('ConflictResolutionService', () => {
         {
           entityType: 'TASK',
           entityId: 'task-1',
-          // client-a < client-b alphabetically, but we test that remote wins on tie
+          // Remote's clientId (client-b) is lexicographically larger, so the
+          // deterministic tiebreak makes remote win the exact-timestamp tie.
           localOps: [createOpWithTimestamp('local-1', 'client-a', now)],
           remoteOps: [createOpWithTimestamp('remote-1', 'client-b', now)],
           suggestedResolution: 'remote', // Remote wins on tie
@@ -5209,6 +5249,37 @@ describe('ConflictResolutionService', () => {
         jasmine.any(Object),
       );
       expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['local-1']);
+    });
+
+    it('should let local win the tie when its client ID is larger', async () => {
+      const now = Date.now();
+
+      // Same exact-millisecond tie, but now LOCAL's clientId (client-z) is the
+      // larger, so the deterministic tiebreak flips the winner to local. This is
+      // the direction the pre-existing tie tests never exercised (#9024): both
+      // devices see the sides swapped yet pick the same physical client, so they
+      // converge instead of each keeping the other's value.
+      const conflicts: EntityConflict[] = [
+        {
+          entityType: 'TASK',
+          entityId: 'task-1',
+          localOps: [createOpWithTimestamp('local-1', 'client-z', now)],
+          remoteOps: [createOpWithTimestamp('remote-1', 'client-a', now)],
+          suggestedResolution: 'remote',
+        },
+      ];
+
+      mockOpLogStore.hasOp.and.resolveTo(false);
+      mockOpLogStore.append.and.resolveTo(1);
+      mockOpLogStore.markApplied.and.resolveTo(undefined);
+      mockOpLogStore.markRejected.and.resolveTo(undefined);
+      mockOperationApplier.applyOperations.and.resolveTo({ appliedOps: [] });
+
+      await service.autoResolveConflictsLWW(conflicts);
+
+      // Local wins the tie → the remote op is rejected (mirrors the local-win
+      // timestamp cases in this block).
+      expect(mockOpLogStore.markRejected).toHaveBeenCalledWith(['remote-1']);
     });
   });
 
