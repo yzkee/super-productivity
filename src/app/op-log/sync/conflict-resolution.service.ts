@@ -124,6 +124,22 @@ interface ResolvedConflicts {
 interface AutoResolveConflictsLwwOptions {
   callerHoldsOperationLogLock?: boolean;
   disableDisjointMerge?: boolean;
+  /**
+   * Skip conflict-journal emission entirely (observe-only hook, so this can
+   * never change which op resolution picks).
+   *
+   * Set by the production caller as a PRODUCER FREEZE ahead of the
+   * conflict-review rollback: journal rows capture the discarded side of a
+   * conflict verbatim (titles, arbitrary field values), and that device-local
+   * data obligation must not expand to the stable fleet on the next release
+   * tag while the feature is still slated for removal.
+   *
+   * Ceiling: rows already written on edge/internal builds stay readable and
+   * expire on their own (14 days / 200 rows). Upgrade path: the store, reader,
+   * UI and the `SUP_CONFLICT_JOURNAL_CLEARED_BEFORE` marker are deleted
+   * together in the conflict-review rollback, after which this option goes too.
+   */
+  disableConflictJournal?: boolean;
   remoteApplyLifecycleOwnedByCaller?: boolean;
 }
 
@@ -1720,12 +1736,14 @@ export class ConflictResolutionService {
       );
     }
 
-    for (const plan of lwwPlans) {
-      await this._journalResolution(plan);
-    }
-    for (const merged of successfulMergedResolutions) {
-      if (writtenMergedOpIds.has(merged.mergedOp.id)) {
-        await this._journalMergedResolution(merged.plan);
+    if (!options.disableConflictJournal) {
+      for (const plan of lwwPlans) {
+        await this._journalResolution(plan);
+      }
+      for (const merged of successfulMergedResolutions) {
+        if (writtenMergedOpIds.has(merged.mergedOp.id)) {
+          await this._journalMergedResolution(merged.plan);
+        }
       }
     }
 
@@ -1816,16 +1834,25 @@ export class ConflictResolutionService {
     const named = labels.join(', ');
     const taskList = contentConflicts.length > MAX_NAMED ? `${named} …` : named;
 
+    // This banner fires off the resolutions, not off the journal, so REVIEW must
+    // be gated on the journal actually holding rows: under the producer freeze
+    // (or a swallowed `record()` failure) it would otherwise land the user on the
+    // review page's empty state. Without the action this is exactly the released
+    // v18.14.0 banner — message + built-in dismiss (no action2). Count is fresh:
+    // the journal loop awaits `record()`, which refreshes it, before this step.
+    const hasEntriesToReview = this.conflictJournal.unreviewedCount() > 0;
+
     this.bannerService.open({
       id: BannerId.SyncConflictContentResolved,
       ico: 'sync_problem',
       msg: T.F.SYNC.B.CONTENT_CONFLICT_RESOLVED,
       translateParams: { taskList },
-      // SPAP-15: REVIEW opens the conflicts page; DISMISS auto-renders (no action2).
-      action: {
-        label: T.F.SYNC.CONFLICT_REVIEW.BANNER_REVIEW,
-        fn: () => this.syncConflictBanner.navigateToReview(),
-      },
+      action: hasEntriesToReview
+        ? {
+            label: T.F.SYNC.CONFLICT_REVIEW.BANNER_REVIEW,
+            fn: () => this.syncConflictBanner.navigateToReview(),
+          }
+        : undefined,
     });
   }
 
