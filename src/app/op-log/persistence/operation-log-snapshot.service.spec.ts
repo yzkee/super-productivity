@@ -19,6 +19,8 @@ import {
   clearDeferredActions,
 } from '../capture/operation-capture.meta-reducer';
 import { MAX_VECTOR_CLOCK_SIZE } from '@sp/sync-core';
+import { PersistentAction } from '../core/persistent-action.interface';
+import { OpType } from '../core/operation.types';
 
 // Meaningful state (contains a task) so saveCurrentStateAsSnapshot proceeds past
 // the empty-state guard (#7892). Tests that care only about clock pruning /
@@ -351,6 +353,96 @@ describe('OperationLogSnapshotService', () => {
       const savedCache = mockOpLogStore.saveStateCache.calls.mostRecent().args[0];
       expect(savedCache.compactedAt).toBeGreaterThanOrEqual(beforeTime);
       expect(savedCache.compactedAt).toBeLessThanOrEqual(afterTime);
+    });
+  });
+
+  describe('saveCurrentStateAsSnapshot — phantom-change guards (#8751)', () => {
+    // Live state containing changes with no durable op behind them must never
+    // be written to state_cache — the save is only a boot-speed cache, so
+    // skipping is always safe.
+    const createPersistentAction = (): PersistentAction =>
+      ({
+        type: '[Task] Update Task',
+        meta: {
+          isPersistent: true,
+          isRemote: false,
+          opType: OpType.Update,
+          entityType: 'TASK',
+          entityId: 't1',
+        },
+      }) as PersistentAction;
+
+    beforeEach(() => {
+      mockOpLogStore.getLastSeq.and.resolveTo(1);
+      mockStateSnapshotService.getStateSnapshot.and.returnValue(
+        MEANINGFUL_SNAPSHOT_STATE as any,
+      );
+      // Must be stubbed for the whole describe, not per test: without it the
+      // save path throws (limitVectorClockSize on undefined) into the outer
+      // catch and skips the write anyway — which makes every "should skip"
+      // test below pass even when the guard is deleted.
+      mockVectorClockService.getCurrentVectorClock.and.resolveTo({ c1: 1 });
+      clearDeferredActions();
+    });
+
+    afterEach(() => {
+      clearDeferredActions();
+    });
+
+    it('should skip the save after an unrecovered persist failure', async () => {
+      TestBed.inject(OperationCaptureService).markUnrecoveredPersistFailure();
+
+      await service.saveCurrentStateAsSnapshot();
+
+      expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+      // The guard must bail BEFORE the state read, not merely before the write.
+      expect(
+        mockStateSnapshotService.getStateSnapshotForOperationLog,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('should skip the save while captured writes are still pending', async () => {
+      const writeFlushService = TestBed.inject(OperationWriteFlushService);
+      spyOn(writeFlushService, 'flushThenRunExclusive').and.callFake(
+        async <T>(fn: () => Promise<T>) => {
+          captureService.incrementPending(createPersistentAction());
+          return fn();
+        },
+      );
+
+      await service.saveCurrentStateAsSnapshot();
+
+      expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+    });
+
+    it('should skip the save while deferred actions from a sync window are buffered', async () => {
+      bufferDeferredAction(createPersistentAction());
+
+      await service.saveCurrentStateAsSnapshot();
+
+      expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+    });
+
+    it('should save once the phantom risk has cleared', async () => {
+      const writeFlushService = TestBed.inject(OperationWriteFlushService);
+      const action = createPersistentAction();
+      const flushThenRunExclusive = spyOn(
+        writeFlushService,
+        'flushThenRunExclusive',
+      ).and.callFake(async <T>(fn: () => Promise<T>) => {
+        captureService.incrementPending(action);
+        return fn();
+      });
+
+      await service.saveCurrentStateAsSnapshot();
+      expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+
+      captureService.decrementPending(action);
+      flushThenRunExclusive.and.callThrough();
+      mockVectorClockService.getCurrentVectorClock.and.resolveTo({ c1: 1 });
+
+      await service.saveCurrentStateAsSnapshot();
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalled();
     });
   });
 

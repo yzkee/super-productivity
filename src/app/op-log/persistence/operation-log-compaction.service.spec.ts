@@ -10,7 +10,7 @@ import {
   SLOW_COMPACTION_THRESHOLD_MS,
 } from '../core/operation-log.const';
 import { CURRENT_SCHEMA_VERSION } from './schema-migration.service';
-import { OperationLogEntry } from '../core/operation.types';
+import { OperationLogEntry, OpType } from '../core/operation.types';
 import { OpLog } from '../../core/log';
 import { MODEL_CONFIGS } from '../model/model-config';
 import { CLIENT_ID_PROVIDER, ClientIdProvider } from '../util/client-id.provider';
@@ -20,6 +20,7 @@ import {
   bufferDeferredAction,
   clearDeferredActions,
 } from '../capture/operation-capture.meta-reducer';
+import { PersistentAction } from '../core/persistent-action.interface';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -67,7 +68,6 @@ describe('OperationLogCompactionService', () => {
     ]);
     mockClientIdProvider = jasmine.createSpyObj('ClientIdProvider', ['loadClientId']);
     mockClientIdProvider.loadClientId.and.resolveTo('test-client');
-
     // Mock OpLog methods
     spyOn(OpLog, 'warn');
     spyOn(OpLog, 'normal');
@@ -106,9 +106,12 @@ describe('OperationLogCompactionService', () => {
 
     service = TestBed.inject(OperationLogCompactionService);
     captureService = TestBed.inject(OperationCaptureService);
-    // The compaction bail reads the MODULE-LEVEL deferred buffer (#8469);
-    // start clean so a leak from another spec can't fail these tests
-    // order-dependently under jasmine's random order.
+    captureService.clear();
+    clearDeferredActions();
+  });
+
+  afterEach(() => {
+    captureService.clear();
     clearDeferredActions();
   });
 
@@ -698,23 +701,133 @@ describe('OperationLogCompactionService', () => {
       }
     });
 
-    it('emergencyCompact() should NOT wait for pending writes (quota recovery)', async () => {
-      // Emergency compaction is invoked from the failing write's own call
-      // stack, where that write's pending-counter entry is still elevated.
-      // Draining the capture pipeline there would wait on ourselves until the
-      // flush timeout and break quota recovery — the emergency path skips the
-      // quiesce (pending counter AND deferred buffer) and accepts the
-      // residual re-replay window (#8469).
+    it('emergencyCompact() should skip when writes are pending', async () => {
       captureService.incrementPending(FAKE_PENDING_ACTION); // never drained
       bufferDeferredAction(FAKE_PENDING_ACTION);
       try {
         const result = await service.emergencyCompact();
 
-        expect(result).toBeTrue();
-        expect(mockOpLogStore.saveStateCache).toHaveBeenCalled();
+        expect(result).toBeFalse();
+        expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
       } finally {
         clearDeferredActions();
       }
+    });
+  });
+
+  // =========================================================================
+  // Phantom-change guards (#8751)
+  // =========================================================================
+  // A persist failure (or a still-buffered deferred action) leaves live NgRx
+  // state containing changes that no durable op represents. Snapshotting the
+  // live store then would bake the phantom change into state_cache — durable
+  // locally with no op to sync = permanent, silent cross-device divergence.
+
+  describe('phantom-change guards (#8751)', () => {
+    const createDeferredAction = (): PersistentAction => ({
+      type: '[Task] Update Task',
+      meta: {
+        isPersistent: true,
+        isRemote: false,
+        opType: OpType.Update,
+        entityType: 'TASK',
+        entityId: 'task-1',
+      },
+    });
+
+    it('should skip compaction after an unrecovered persist failure (persist failure → user keeps working → compaction must not snapshot)', async () => {
+      spyOn(captureService, 'hasUnrecoveredPersistFailure').and.returnValue(true);
+
+      const result = await service.compact();
+
+      expect(result).toBeFalse();
+      expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+      expect(mockOpLogStore.deleteOpsWhere).not.toHaveBeenCalled();
+      expect(mockOpLogStore.resetCompactionCounter).not.toHaveBeenCalled();
+    });
+
+    it('should skip emergency compaction too after an unrecovered persist failure', async () => {
+      // Quota recovery must not become a back door that bakes the phantom in.
+      spyOn(captureService, 'hasUnrecoveredPersistFailure').and.returnValue(true);
+
+      const result = await service.emergencyCompact();
+
+      expect(result).toBeFalse();
+      expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+    });
+
+    it('should skip compaction while captured writes are still pending (in-flight write could fail after the snapshot)', async () => {
+      // The sticky flag is a lagging indicator: a write that is pending when
+      // the snapshot is taken and fails afterwards would be baked in before
+      // the flag ever gets set. The pending counter is incremented in the
+      // same reducer pass that applies the state change, so it closes that
+      // window.
+      mockOpLogStore.getPendingRemoteOps.and.callFake(async () => {
+        captureService.incrementPending(FAKE_PENDING_ACTION);
+        return [];
+      });
+
+      const result = await service.compact();
+
+      expect(result).toBeFalse();
+      expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+      expect(mockOpLogStore.deleteOpsWhere).not.toHaveBeenCalled();
+    });
+
+    it('should compact again once pending writes have settled', async () => {
+      mockOpLogStore.getPendingRemoteOps.and.callFake(async () => {
+        captureService.incrementPending(FAKE_PENDING_ACTION);
+        return [];
+      });
+      expect(await service.compact()).toBeFalse();
+
+      captureService.decrementPending();
+      mockOpLogStore.getPendingRemoteOps.and.resolveTo([]);
+
+      expect(await service.compact()).toBeTrue();
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalled();
+    });
+
+    it('should still compact when the triggering write decrements the counter on lock release (guard position)', async () => {
+      // Liveness regression. triggerCompaction() fires from INSIDE the write
+      // path, so the triggering action is still counted pending when compact()
+      // is called; it is decremented on a microtask chain once the write
+      // releases the op-log lock.
+      captureService.incrementPending(FAKE_PENDING_ACTION);
+      void Promise.resolve().then(() => captureService.decrementPending());
+
+      const result = await service.compact();
+
+      expect(result).toBeTrue();
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalled();
+    });
+
+    it('should not even acquire the lock once the sticky failure flag is set (fast-path)', async () => {
+      spyOn(captureService, 'hasUnrecoveredPersistFailure').and.returnValue(true);
+
+      await service.compact();
+
+      expect(mockLockService.request).not.toHaveBeenCalled();
+    });
+
+    it('should skip compaction while deferred actions from a sync window are still buffered', async () => {
+      bufferDeferredAction(createDeferredAction());
+
+      const result = await service.compact();
+
+      expect(result).toBeFalse();
+      expect(mockOpLogStore.saveStateCache).not.toHaveBeenCalled();
+      expect(mockOpLogStore.deleteOpsWhere).not.toHaveBeenCalled();
+    });
+
+    it('should compact again once the deferred buffer has drained', async () => {
+      bufferDeferredAction(createDeferredAction());
+      expect(await service.compact()).toBeFalse();
+
+      clearDeferredActions();
+
+      expect(await service.compact()).toBeTrue();
+      expect(mockOpLogStore.saveStateCache).toHaveBeenCalled();
     });
   });
 

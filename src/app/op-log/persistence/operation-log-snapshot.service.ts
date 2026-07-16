@@ -13,8 +13,9 @@ import { CLIENT_ID_PROVIDER, ClientIdProvider } from '../util/client-id.provider
 import { limitVectorClockSize } from '../../core/util/vector-clock';
 import { ValidateStateService } from '../validation/validate-state.service';
 import { hasMeaningfulStateData } from '../validation/has-meaningful-state-data.util';
+import { OperationCaptureService } from '../capture/operation-capture.service';
+import { getPhantomChangeRisk } from '../capture/phantom-change-guard.util';
 import { OperationWriteFlushService } from '../sync/operation-write-flush.service';
-import { getDeferredActions } from '../capture/operation-capture.meta-reducer';
 
 type StateCache = MigratableStateCache;
 
@@ -37,6 +38,7 @@ export class OperationLogSnapshotService {
   private schemaMigrationService = inject(SchemaMigrationService);
   private validateStateService = inject(ValidateStateService);
   private clientIdProvider: ClientIdProvider = inject(CLIENT_ID_PROVIDER);
+  private operationCapture = inject(OperationCaptureService);
   private writeFlushService = inject(OperationWriteFlushService);
 
   /**
@@ -113,15 +115,16 @@ export class OperationLogSnapshotService {
   async saveCurrentStateAsSnapshot(): Promise<void> {
     try {
       await this.writeFlushService.flushThenRunExclusive(async () => {
-        // Deferred actions' reducer effects are already in NgRx state while
-        // their ops get seqs only on a future drain — capturing now would
-        // bake those effects into a snapshot tagged behind their future seqs
-        // (same double-apply as #8469). New deferrals cannot start while we
-        // hold the lock (the sync window that buffers them requires it), so
-        // this synchronous check at the capture cutoff is race-free.
-        if (getDeferredActions().length > 0) {
+        // GUARD (#8751): never snapshot live state while it may contain
+        // changes with no durable op behind them (failed or still-pending
+        // writes, undrained deferred actions from the hydration sync window) —
+        // the cache write below would bake the phantom change in. Checked
+        // synchronously immediately before the snapshot read; skipping only
+        // costs a slower next boot.
+        const phantomRisk = getPhantomChangeRisk(this.operationCapture);
+        if (phantomRisk) {
           OpLog.warn(
-            'OperationLogSnapshotService: Skipping snapshot save — deferred actions are pending durable write',
+            `OperationLogSnapshotService: Skipping snapshot save — ${phantomRisk} (#8751)`,
           );
           return;
         }
