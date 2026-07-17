@@ -15,10 +15,10 @@ The non-sync codebase audit and full portfolio review are complete. Discovery it
 - Seven domain consolidations normalized those claims into 105 domain candidate slots. The exclusion guardian removed five whole-candidate duplicates and narrowed one overlapping candidate, leaving 100 unique canonical candidates.
 - Every candidate received two independent reviews: a safety/correctness pass and a maintainability/value pass.
 - Conservative reconciliation produced 26 confirmed, 47 narrowed, 12 deferred, and 15 rejected findings.
-- Three independent rankers ordered all 100 reconciled records by risk/reward. The final actionable backlog contains 33 Tier A and 40 Tier B findings.
+- Three independent rankers ordered the original reconciled records by risk/reward. Three focused reviewers later replaced the stale placements for 27 materially revised C06/C07 scopes; the final actionable backlog contains 33 Tier A and 40 Tier B findings.
 - Cross-model corroboration was offered after the multi-agent review and skipped.
 
-The [durable backlog](../non-sync-code-simplification-audit.md) contains the authoritative 100-item order and, under every candidate, the reconciled scope, corrected LOC categories, material corrections, primary gate, and required verification. Discovery-era estimates are retained there only as traceability and are superseded where the full review differs.
+The [durable decision record](../non-sync-code-simplification-audit.md) contains the authoritative 100-item order and, under every candidate, the reconciled scope, corrected LOC categories, material corrections, primary gate, and required verification. Discovery-era estimates are retained there only as traceability and are superseded where the full review differs. Raw manifests and reviewer artifacts remain in the ignored local `.tmp` workspace, so this commit does not independently reproduce the campaign.
 
 ## Coverage proof
 
@@ -40,33 +40,28 @@ The coverage ledger contains 2,665 `reviewed` paths and four `semantic-excluded`
 
 ## Final portfolio summary
 
-The final order uses mean rank across three complete independent rankings, with lower risk, lower effort, higher reconciled priority, and candidate ID as exact tie-breakers. Actionable findings are ordered before deferred and rejected records.
+The final order keeps the original three placements for the 73 scopes that did not materially change and replaces the stale placements for the 27 revised C06/C07 scopes with three fresh independent global placements. Mean applicable placement controls within the actionable, deferred, and rejected bands; exact ties prefer lower risk, then lower effort, then higher reconciled priority, then candidate ID.
 
-| Band   |                                        Ranks | Count | Meaning                                               |
-| ------ | -------------------------------------------: | ----: | ----------------------------------------------------- |
-| Tier A | 1–73, interleaved with Tier B by risk/reward |    33 | Actionable with a closed or nearly closed proof       |
-| Tier B | 1–73, interleaved with Tier A by risk/reward |    40 | Actionable after the recorded candidate-specific gate |
-| Tier C |                                        74–85 |    12 | Deferred pending stronger evidence or value           |
-| Reject |                                       86–100 |    15 | Do not implement as described                         |
+| Band   |                                        Ranks | Count | Meaning                                              |
+| ------ | -------------------------------------------: | ----: | ---------------------------------------------------- |
+| Tier A | 1–73, interleaved with Tier B by risk/reward |    33 | Higher-confidence, lower-risk actionable work        |
+| Tier B | 1–73, interleaved with Tier A by risk/reward |    40 | Actionable with greater risk, effort, or uncertainty |
+| Tier C |                                        74–85 |    12 | Deferred pending stronger evidence or value          |
+| Reject |                                       86–100 |    15 | Do not implement as described                        |
 
 The next five open findings are C01-005, C02-005, C04-001, C01-006, and C04-007. Their scopes are documented as disjoint, but each should remain its own change and verification boundary.
 
 ## First implementation batch — verified and stashed
 
-The three recommended non-overlapping Tier A changes were implemented and verified on 2026-07-17, then stashed at the user's request. They are not present in the current worktree. The patch is commit `11043158b95aee6a44dfcf4e69315abda4b88704`, currently referenced by `stash@{0}` with message `codex: verified simplification implementation batch`:
+The three recommended non-overlapping changes were implemented and verified on 2026-07-17, then stashed at the user's request. They are not present in the current worktree. The patch is stash object `11043158b95aee6a44dfcf4e69315abda4b88704` with message `codex: verified simplification implementation batch`; it was `stash@{0}` at audit time, but stash ordinals are mutable and local:
 
 1. **C04-015 — static procrastination catalog**
 2. **C01-002 — duration wrappers**
 3. **C06-004 — unloaded Karma hooks**
 
-Original conservative forecast:
+The original forecast used file-level categories that did not consistently separate comments and blank lines, so it is not repeated as categorized evidence. The line-level actual below controls.
 
-- 238–241 production LOC
-- 6 comment LOC
-- 126–133 test LOC
-- 107 test-infrastructure LOC
-
-They have no dependency edge or file overlap. The full review later reordered the entire portfolio; these three retain their verified implementation status rather than receiving a special ranking boost.
+They have no dependency edge or file overlap. Their verified status is evidence that lowers residual uncertainty; it is not a separate LOC or reward bonus.
 
 Minimum verification:
 
@@ -76,16 +71,18 @@ Minimum verification:
 
 Actual schema-aligned implementation diff:
 
-| Category                | Added | Deleted | Net reduction |
-| ----------------------- | ----: | ------: | ------------: |
-| Production              |     1 |     245 |           244 |
-| Comments                |     0 |       6 |             6 |
-| Tests                   |     0 |     155 |           155 |
-| Test infrastructure     |     0 |     107 |           107 |
-| Separator whitespace    |     0 |       1 |             1 |
-| **Physical diff total** | **1** | **514** |       **513** |
+Deleted lines are classified individually: blank and comment-only lines take precedence, and each remaining nonblank line is assigned to production code, test code, or test-infrastructure code by file role.
 
-C01-002 exceeded its forecast because the exact implementation removed 155 production lines and 155 obsolete/self-only test lines, with one replacement formatting line. Review confirmed that the extra deletion is entirely within the challenged dead-pipe, provider, mock, and unused-parameter scope.
+| Category                 | Added | Deleted | Net reduction |
+| ------------------------ | ----: | ------: | ------------: |
+| Production code          |     1 |     222 |           221 |
+| Test code                |     0 |     125 |           125 |
+| Test-infrastructure code |     0 |      82 |            82 |
+| Comment-only lines       |     0 |      34 |            34 |
+| Blank lines              |     0 |      51 |            51 |
+| **Physical diff total**  | **1** | **514** |       **513** |
+
+C01-002's line-level actual is 132 production-code deletions, 125 test-code deletions, 20 comment-only deletions, and 33 blank-line deletions, plus one production-code insertion. Review confirmed that every deleted line is within the challenged dead-pipe, provider, mock, and unused-parameter scope.
 
 Verification completed:
 
@@ -97,7 +94,7 @@ Verification completed:
 
 ## Remaining implementation order
 
-Use the final 100-item order in the [durable backlog](../non-sync-code-simplification-audit.md). It replaces the earlier top-12 and provisional follow-up lists that were recorded here before the full review.
+Use the final 100-item order in the [durable decision record](../non-sync-code-simplification-audit.md). It replaces the earlier top-12 and provisional follow-up lists that were recorded here before the full review.
 
 - Apply each candidate's authoritative scope, not its broader discovery-era proposal.
 - Satisfy its primary gate before editing.
@@ -160,7 +157,7 @@ The campaign executed:
 - 100 safety/correctness reviews across seven domains.
 - 100 blind maintainability/value reviews across seven domains.
 - 3 independent 100-item ranking passes.
-- 27 final C06/C07 wording reconciliations across three focused reviewers, without verdict or rank changes.
+- 27 final C06/C07 scope reconciliations followed by three fresh independent global-placement passes for those revised scopes.
 
 Artifacts are stored under the ignored directory:
 
@@ -176,7 +173,10 @@ Key entries:
 - `full-review/maint-C01.json` through `maint-C07.json` — blind maintainability/value verdicts
 - `full-review/consensus-*.json` — conservative reconciliations
 - `full-review/global-rank-R1.json` through `global-rank-R3.json` — complete independent rankings
-- `full-review/manual-reconcile-*.json` — controlling single-scope overrides for 27 mechanically ambiguous C06/C07 records
+- `full-review/manual-reconcile-C06.json` and `manual-reconcile-C07-*.json` — controlling scope and score overrides for 27 mechanically ambiguous C06/C07 records
+- `full-review/manual-reconcile-rejections.json` — neutralized implementation guidance for all 15 rejected records
+- `full-review/manual-reconcile-implemented-loc.json` — exact line-level category corrections for the verified implementation batch
+- `full-review/final-scope-rank-*.json` — three focused replacement placement passes for those 27 records
 
 ## Known limitations
 
