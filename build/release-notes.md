@@ -13,6 +13,8 @@ For all current downloads, package links, and platform-specific notes: [check th
 
 ### Fixes
 
+- **supersync:** prevent migrator advisory-lock leak on deploy timeout (#9126)
+- **sync:** heal missing idle config field on schema-migration upgrade (#9124)
 - **supersync:** make interrupted CONCURRENTLY migrations recoverable
 - **android:** stop the widget labelling a stale list as Today (#9098) (#9118)
 - **sync:** keep import author in client-side clock pruning (#9096) (#9102)
@@ -109,6 +111,7 @@ For all current downloads, package links, and platform-specific notes: [check th
 
 ### Other Changes
 
+- 18.15.0
 - Add critical tests for task and sync helper flows (#9079)
 - chore(deps)(deps): bump the github-actions-minor group with 7 updates
 - Avoid dynamic option placeholder keys
