@@ -932,6 +932,8 @@ Bump the schema version when:
 
 **Decision rule:** If the change affects how `state_cache` snapshots or operation payloads are structured, bump the version.
 
+> ⚠️ **This table is a legacy shape-based heuristic — the Bump Policy below supersedes it.** Several "✅ Yes" rows (especially _add optional field with default_) are degradable via the `LwwUpdatePayload` envelope / inert-marker pattern: when old clients can apply the op unmigrated, prefer a payload marker with **no** bump (Bump Policy item 0). Bump only for a change old clients would genuinely misapply — a transforming migration (rename/remove/type-change) or a semantic you must hard-fence.
+
 #### Bump Policy — a bump does NOT protect the released fleet
 
 A version bump only fences receivers that ship AFTER the bump. As of 2026-07:
@@ -941,7 +943,8 @@ A version bump only fences receivers that ship AFTER the bump. As of 2026-07:
 
 Therefore:
 
-1. New op semantics MUST degrade gracefully on older clients — see the `LwwUpdatePayload` envelope pattern in `packages/sync-core` ('patch' ops apply correctly on pre-v3 clients via `updateOne`; the v4 delete-wins marker is inert for them). If they degrade, bumping is safe at any fleet share: the stamp is a fence for future receivers, not a protection for current ones.
+0. **Default: do NOT bump.** A bump is near-irreversible and it is not free even when "safe": it hard-blocks every not-yet-updated post-v18.14.0 client (frozen cursor) on the new ops, and it cannot be reverted once any op carries the new version — a reverted client hard-blocks on the v(N+1) ops it already wrote and the USE_REMOTE recovery path throws on them. So a bump must earn its cost. If old clients can apply the op unmigrated (the envelope / inert-marker pattern), gate the new semantics on a payload marker and **leave `CURRENT_SCHEMA_VERSION` alone**. Only bump when a change genuinely requires it: a transforming migration (renamed/removed field, dropped op) or a semantic you must hard-fence off older clients. **Cautionary example — v4 (#9009, project delete-wins) was bumped for a marker-only change old clients degrade on fine: the feature is driven entirely by the payload marker (plus the `entityId === projectId` auth check); the `schemaVersion >= 4` gate adds only narrow malformed-op hardening, not feature correctness. It needed no bump, yet it now fences every lagging post-v18.14.0 client and can't be undone. Don't repeat it.**
+1. New op semantics MUST degrade gracefully on older clients — see the `LwwUpdatePayload` envelope pattern in `packages/sync-core` ('patch' ops apply correctly on pre-v3 clients via `updateOne`; the v4 delete-wins marker is inert for them). If they degrade, bumping is _safe_ at any fleet share (the stamp is a fence for future receivers, not a protection for current ones) — but safe ≠ necessary: if it degrades, prefer a marker/envelope with **no** bump (see 0).
 2. A change that older clients would MISAPPLY must not ship behind a bump alone. No fleet percentage makes it safe while released v17–v18.14 clients still sync: one lagging device silently misapplies the ops for its whole account and writes the result back with dominating clocks. Treat such changes as blocked until the v17–v18.14 sync fleet is effectively extinct — or redesign them to degrade (option 1).
 
 #### Operation Transformation Strategy
