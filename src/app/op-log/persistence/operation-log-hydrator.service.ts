@@ -87,6 +87,38 @@ export class OperationLogHydratorService {
   async hydrateStore(): Promise<void> {
     OpLog.normal('OperationLogHydratorService: Starting hydration...');
 
+    // Reset the per-run migration flag: hydrateStore() genuinely re-enters on
+    // this root singleton whenever a plugin calls PluginAPI.reInitData()
+    // (plugin-bridge.service.ts -> DataInitService.reInit()). A stale `true`
+    // would fire the post-migration convergence save — and Checkpoint B's
+    // synchronous full-state validation — on a run where no migration ran.
+    this._migrationRanDuringHydration = false;
+    // Whether the on-disk cache already holds a fresh CURRENT_SCHEMA_VERSION
+    // snapshot, so the post-migration convergence save at the end of the try
+    // block can skip its redundant write. Assigned from the save's RETURN VALUE,
+    // never set unconditionally: saveCurrentStateAsSnapshot() resolves normally
+    // when a guard (#8751 phantom / #7892 empty) or a caught write failure
+    // skipped the write, and treating that as "persisted" would suppress the
+    // convergence save that is this method's whole point.
+    // NB: this does not track migrateSnapshotWithBackup's step-5 persist — on the
+    // healthy backfill path (migrated snapshot validates and is persisted) with
+    // few/no tail ops, convergence still writes once more. That extra write is
+    // harmless and its post-replay state is strictly more advanced, so it is not
+    // worth extra plumbing to suppress; only the every-boot re-migration it
+    // prevents matters.
+    //
+    // Nor is this strictly "once per schema bump per device": sync-hydration
+    // persists its state cache WITHOUT a schemaVersion, which reads back as v1
+    // and migrates on the next boot. That omission is deliberate and
+    // load-bearing — downloaded snapshot data is never schema-migrated anywhere
+    // else on the client (migrateStateIfNeeded has exactly one call site, on the
+    // local state_cache) and the SYNC_IMPORT op carrying it is stamped
+    // CURRENT_SCHEMA_VERSION, so op migration skips it too. Do NOT "fix" that
+    // writer by stamping a version: it would freeze old-schema remote data into
+    // a cache Checkpoint B then trusts unvalidated. Convergence only stamps a
+    // version AFTER the migration chain has actually run, which is safe.
+    let snapshotPersistedDuringHydration = false;
+
     try {
       // PERF: Parallel startup operations - all access different IndexedDB stores
       // and don't depend on each other's results, so they can run concurrently.
@@ -324,7 +356,8 @@ export class OperationLogHydratorService {
               OpLog.normal(
                 `OperationLogHydratorService: Saving new snapshot after replaying ${opsToReplay.length} ops`,
               );
-              await this.snapshotService.saveCurrentStateAsSnapshot();
+              snapshotPersistedDuringHydration =
+                await this.snapshotService.saveCurrentStateAsSnapshot();
             }
           }
         }
@@ -416,7 +449,8 @@ export class OperationLogHydratorService {
             OpLog.normal(
               `OperationLogHydratorService: Saving snapshot after replaying ${opsToReplay.length} ops`,
             );
-            await this.snapshotService.saveCurrentStateAsSnapshot();
+            snapshotPersistedDuringHydration =
+              await this.snapshotService.saveCurrentStateAsSnapshot();
           }
         }
 
@@ -429,6 +463,60 @@ export class OperationLogHydratorService {
       // Retry any failed remote ops from previous conflict resolution attempts
       // Now that state is fully hydrated, dependencies might be resolved
       await this.retryFailedRemoteOps();
+
+      // CONVERGENCE: when a schema migration ran during this hydration but no
+      // fresh snapshot was persisted yet, persist one now from the current,
+      // reducer-healed state so the on-disk cache reaches CURRENT_SCHEMA_VERSION.
+      // Without this the migrated snapshot's safety-net path
+      // (migrateSnapshotWithBackup rolls the on-disk cache back to the old-schema
+      // backup and hydrates unpersisted) never advances the cache, so migration +
+      // validation re-run on EVERY launch for a not-yet-backfilled required
+      // field. This resolves the TODO(followup) in
+      // operation-log-snapshot.service.ts.
+      //
+      // Gated on re-validating the LIVE current state: an unhealed or corrupt
+      // state must never be cached, because this is the write that flips the next
+      // boot into Checkpoint B's trust-without-validating path. The save routes
+      // through saveCurrentStateAsSnapshot(), so the #8469 quiesce, #8751 phantom
+      // guard and #7892 empty-overwrite guard all still apply and may safely SKIP
+      // (never corrupt) the write — in which case we simply re-migrate next boot,
+      // exactly as before this change.
+      //
+      // The whole block is best-effort and must never escalate an otherwise
+      // successful hydration into the catch below: recovery would refuse (a
+      // snapshot exists) and surface the very "Failed to load data" this fix
+      // removes. Only the on-disk cache is at stake; the store is already
+      // hydrated.
+      if (this._migrationRanDuringHydration && !snapshotPersistedDuringHydration) {
+        try {
+          // Drain explicitly rather than relying on retryFailedRemoteOps(): it
+          // early-returns before its finally when there are no failed ops (the
+          // common boot), so actions buffered during the replay's sync window
+          // would still be pending and the phantom-change guard (#8751) would
+          // skip the save. No-ops when the buffer is empty.
+          await processDeferredActions(this.injector, false);
+
+          const isConvergedStateValid = await this._validateCurrentStateForHydration(
+            'post-migration-convergence',
+          );
+          if (isConvergedStateValid) {
+            OpLog.normal(
+              'OperationLogHydratorService: Persisting current-schema snapshot after migration to converge in one boot.',
+            );
+            await this.snapshotService.saveCurrentStateAsSnapshot();
+          } else {
+            OpLog.warn(
+              'OperationLogHydratorService: Skipping post-migration convergence save — ' +
+                'current state did not validate; will re-migrate next boot.',
+            );
+          }
+        } catch (convergenceErr) {
+          OpLog.err(
+            'OperationLogHydratorService: Post-migration convergence failed; will re-migrate next boot.',
+            { name: (convergenceErr as Error | undefined)?.name },
+          );
+        }
+      }
 
       // Clear the auto-reload guard so that a fresh backing-store error in the same
       // tab session gets the auto-reload treatment again rather than going straight
