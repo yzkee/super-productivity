@@ -136,9 +136,11 @@ key-recovery config writes (content-only, must NOT bump).
 ## Why (deeper)
 
 - **Mechanism & rules:** [`operation-rules.md`](./operation-rules.md)
-- **Architecture:** [`operation-log-architecture.md`](./operation-log-architecture.md)
-- **Diagrams:** [`diagrams/05-meta-reducers.md`](./diagrams/05-meta-reducers.md),
-  [`diagrams/08-sync-flow-explained.md`](./diagrams/08-sync-flow-explained.md)
+- **Architecture tour:**
+  [`sync-architecture.html#local-intent`](./sync-architecture.html#local-intent),
+  [`sync-architecture.html#remote-apply`](./sync-architecture.html#remote-apply)
+- **Deep rationale:**
+  [`operation-log-architecture.md`](./operation-log-architecture.md)
 - **Source of truth:** `src/app/util/local-actions.token.ts`,
   `src/app/util/skip-during-sync-window.operator.ts`,
   `src/app/op-log/apply/hydration-state.service.ts`

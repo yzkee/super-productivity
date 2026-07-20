@@ -4,6 +4,13 @@ How LWW conflict auto-resolutions are recorded (conflict journal), when two
 concurrent edits are kept instead of one discarded (disjoint-field auto-merge),
 and how the user reviews what happened (`/sync-conflicts` page, banner, badge).
 
+> **Current production status:** the journal store and review UI exist, but the
+> main remote-conflict processing path currently sets
+> `disableConflictJournal: true`. Treat the journal as a dormant, best-effort
+> review capability—not as complete evidence of current conflict resolutions.
+> The disjoint-field merge and winner selection remain active independently of
+> journal emission.
+
 Code lives in `src/app/op-log/sync/`:
 
 | Concern                        | Files                                                               |
@@ -17,10 +24,10 @@ Code lives in `src/app/op-log/sync/`:
 
 ## Conflict journal
 
-Every LWW conflict auto-resolution is recorded as a `ConflictJournalEntry` in a
-**standalone IndexedDB database `SUP_CONFLICT_JOURNAL`** — deliberately separate
-from `SUP_OPS` so journaling can never touch op-log schema/versioning or risk
-its data.
+When emission is enabled, an LWW conflict auto-resolution is recorded as a
+`ConflictJournalEntry` in a **standalone IndexedDB database
+`SUP_CONFLICT_JOURNAL`** — deliberately separate from `SUP_OPS` so journaling
+can never touch op-log schema/versioning or risk its data.
 
 Contracts:
 

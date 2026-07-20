@@ -1,11 +1,21 @@
 # Operation Log Architecture
 
-**Status:** Parts A, B, C, D Complete (single-version; cross-version sync A.7.11 documented, not implemented)
-**Branch:** `feat/operation-logs`
-**Last Updated:** January 8, 2026
+> **Maintainer routing:** use the
+> [Sync Architecture Field Guide](./sync-architecture.html) for the current
+> whole-system mental model. This long-form document preserves deep rationale,
+> migration policy, and implementation history; volatile mechanics in its
+> historical inventories can lag the focused contracts and executable owners
+> linked from the field guide.
 
-> **Note:** As of January 2026, the legacy PFAPI system has been completely eliminated.
-> All sync providers (SuperSync, WebDAV, Dropbox, LocalFile) now use the unified operation log system.
+**Status:** Deep rationale and migration/implementation history; receiver-side
+cross-version migration is active.
+**Routing reviewed:** July 20, 2026
+
+> **Historical overview warning:** the introductory inventory below predates
+> later file-v3, conflict, recovery, and server-retention work. All providers
+> (SuperSync, WebDAV/Nextcloud, Dropbox, OneDrive, and LocalFile) now enter the
+> unified client operation-log pipeline; use the field guide and its focused
+> source map for current behavior.
 
 ---
 
@@ -1517,7 +1527,7 @@ When a `moveToArchive` operation conflicts with a field-level update (e.g., rena
 
 **Implementation:** `ConflictResolutionService` checks whether either the local or remote side contains a `TASK_SHARED_MOVE_TO_ARCHIVE` action. If so, the archive side wins automatically, and a new archive operation is created with a merged vector clock (via `_createArchiveWinOp()`).
 
-This is the **first level** of archive resurrection prevention. The **second level** is in the `bulkOperationsMetaReducer` (see [Archive Resurrection Prevention](diagrams/06-archive-operations.md#archive-resurrection-prevention-two-level-defense)), which pre-scans operation batches for archive operations and skips any LWW Update operations targeting entities being archived in the same batch. This two-level defense handles the 3+ client scenario where LWW Updates can arrive before or after archive ops in the same batch.
+This is the **first level** of archive resurrection prevention. The **second level** is the [bulk archive filter](../../src/app/op-log/apply/bulk-archive-filter.util.ts), which pre-scans operation batches for archive operations and skips any LWW Update operations targeting entities being archived in the same batch. This two-level defense handles the 3+ client scenario where LWW Updates can arrive before or after archive ops in the same batch.
 
 **Key files:**
 
@@ -1636,7 +1646,8 @@ for (const op of ops) {
 
 **Why Drop CONCURRENT?** An operation from a client that never saw the import may reference entities that no longer exist in the imported state. Dropping ensures the import truly restores all clients to the same point in time.
 
-See [diagrams/03-conflict-resolution.md](./diagrams/03-conflict-resolution.md) for visual diagrams.
+See the field guide's [causality and conflict policy](./sync-architecture.html#causality)
+for the visual overview.
 
 ---
 
