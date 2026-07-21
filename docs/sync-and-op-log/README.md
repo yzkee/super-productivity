@@ -1,10 +1,9 @@
 # Operation Log & Sync Documentation
 
-The Operation Log is the **single client sync pipeline** for all providers
-(SuperSync, WebDAV/Nextcloud, Dropbox, OneDrive, and LocalFile). Persistent
-NgRx actions update the live projection and are captured as durable operations;
-restart uses a structurally screened snapshot plus the retained operation tail.
-Vector clocks detect causal order and concurrent edits.
+The Operation Log is the **single client sync pipeline** for SuperSync and file
+providers. Persistent NgRx actions update the live projection and are captured
+as durable operations; restart uses a structurally screened snapshot plus the
+retained operation tail. Vector clocks detect causal order and concurrent edits.
 
 ```
                     Persistent NgRx action
@@ -22,8 +21,14 @@ Vector clocks detect causal order and concurrent edits.
                        ┌───────────────────┴──────────────────┐
                        ▼                                      ▼
                    SuperSync                       File providers
-               (ordered op API)         (revision-guarded v2 or v3 files)
+               (ordered op API)           (shared v2 or v3 envelopes)
 ```
+
+The v2/v3 envelopes are common adapter formats, not a common physical write
+guarantee. Dropbox and OneDrive can enforce API compare-and-swap (CAS), while
+WebDAV/Nextcloud is atomic only when the server supplies strong ETags; weak or
+missing ETags fall back to a best-effort check. LocalFile likewise has a
+best-effort read/check/write race and is single-writer/backup-only.
 
 ## Start here
 
@@ -41,7 +46,7 @@ Vector clocks detect causal order and concurrent edits.
 | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [sync-architecture.html](./sync-architecture.html)                             | Canonical high-level maintainer map: local intent, transports, crash-safe apply, causality, exceptional boundaries, restart recovery, and executable owners |
 | [operation-log-architecture.md](./operation-log-architecture.md)               | Deep rationale and migration/implementation history; use the focused contracts and executable owners for current detail                                     |
-| [contributor-sync-model.md](./contributor-sync-model.md)                       | The single sync invariant for contributors (one intent = one op; replayed/remote ops must not re-trigger effects)                                           |
+| [contributor-sync-model.md](./contributor-sync-model.md)                       | Contributor invariant: one replay-atomic transition = one op; replayed/remote ops must not re-trigger effects                                               |
 | [operation-rules.md](./operation-rules.md)                                     | Design rules and guidelines for operations                                                                                                                  |
 | [package-boundaries.md](./package-boundaries.md)                               | Dependency/ownership boundaries for `@sp/sync-core`, `@sp/sync-providers`, app wiring                                                                       |
 | [conflict-journal-and-review.md](./conflict-journal-and-review.md)             | Disjoint-field auto-merge plus the device-local journal/review capability; main remote-path journal emission is currently disabled                          |
@@ -50,9 +55,9 @@ Vector clocks detect causal order and concurrent edits.
 
 ## Scenario catalogs (expected behavior)
 
-| Document                                           | Scope                                                   |
-| -------------------------------------------------- | ------------------------------------------------------- |
-| [supersync-scenarios.md](./supersync-scenarios.md) | Concrete SuperSync scenarios A–G with expected behavior |
+| Document                                           | Scope                                                           |
+| -------------------------------------------------- | --------------------------------------------------------------- |
+| [supersync-scenarios.md](./supersync-scenarios.md) | Maintained catalog of SuperSync scenarios and expected behavior |
 
 ## Related
 
@@ -62,5 +67,6 @@ Vector clocks detect causal order and concurrent edits.
 | [packages/super-sync-server/](../../packages/super-sync-server/)                                         | SuperSync server implementation              |
 | [ARCHITECTURE-DECISIONS.md](../../ARCHITECTURE-DECISIONS.md)                                             | Load-bearing product/data decisions          |
 
-> Historical design notes and superseded plans are not kept as docs; they live
-> in git history (reference the relevant commit if you need the rationale).
+> Obsolete duplicated walkthroughs and superseded plans live only in git
+> history. Load-bearing ADRs and the explicitly owned migration/rationale
+> sections listed above remain maintained documentation.

@@ -347,6 +347,16 @@
         text-transform: uppercase;
       }
 
+      .spine-flow {
+        margin-bottom: var(--space-4);
+      }
+
+      .local-link-note {
+        margin: 0 0 var(--space-6);
+        color: var(--ink-soft);
+        font-size: 0.88rem;
+      }
+
       .card-grid,
       .truth-grid,
       .provider-grid,
@@ -483,13 +493,20 @@
       }
 
       .map-arrow {
+        position: relative;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
         color: var(--blue);
         font-family: var(--mono);
         font-size: 1.7rem;
         font-weight: 800;
+      }
+
+      .arrow-glyph {
+        display: inline-block;
+        line-height: 1;
       }
 
       .map-arrow small {
@@ -778,12 +795,18 @@
         }
 
         .map-arrow {
-          min-height: 2rem;
+          min-height: 3.5rem;
+          gap: var(--space-1);
+        }
+
+        .map-arrow .arrow-glyph {
           transform: rotate(90deg);
         }
 
         .map-arrow small {
-          display: none;
+          position: static;
+          display: block;
+          transform: none;
         }
 
         .flow {
@@ -891,15 +914,14 @@
         <h1>Sync architecture field guide</h1>
         <p class="lede">
           Follow one task edit across two devices, through one conflict and one restart.
-          For the five-minute spine, scan the invariant strip, then the summaries and flow
-          headings in 01 → 03 → 04 → 05 → 06 → 08. Facets, deep mechanics, and executable
-          owners stay one disclosure or link away.
+          Read the six-step trace at the start for the five-minute model. The broad tour,
+          deep mechanics, and executable owners continue below it.
         </p>
         <ul
           class="status-strip"
           aria-label="Guide invariants and scope"
         >
-          <li class="status-pill core">One intent → one operation</li>
+          <li class="status-pill core">One replay-atomic transition → one operation</li>
           <li class="status-pill core">Download → apply → upload</li>
           <li class="status-pill guard">Cursor advances after durable apply</li>
           <li class="status-pill guard">Server sequence ≠ causality</li>
@@ -952,7 +974,7 @@
           class="legend"
           aria-label="Reading-depth legend"
         >
-          <li><span class="legend-label core">Core</span> visible five-minute route</li>
+          <li><span class="legend-label core">Core</span> six-step trace below</li>
           <li><span class="legend-label deep">Deep</span> expandable mechanics</li>
           <li>
             <span class="legend-label source">Source</span> executable or canonical owner
@@ -960,11 +982,72 @@
         </ul>
 
         <p class="route-note">
-          <strong>Five-minute spine:</strong>
-          <a href="#map">system map</a> → <a href="#local-intent">local intent</a> →
-          <a href="#transport">transports</a> → <a href="#remote-apply">remote apply</a> →
-          <a href="#causality">causality</a> → <a href="#restart">restart</a>. Sections 02
-          and 07 are facets; section 09 is the source map.
+          <strong id="spine-title">Five-minute spine:</strong> read only this six-step
+          trace for the basic model. Stop after step 06, or follow its links into the
+          broad tour and disclosures.
+        </p>
+
+        <ol
+          class="flow spine-flow"
+          aria-labelledby="spine-title"
+        >
+          <li>
+            <span class="step-no">01 / device A</span>
+            <h3><a href="#local-intent">Edit and capture</a></h3>
+            <p>
+              A title edit reduces into live state immediately. Capture then appends one
+              replayable operation and its vector clock to <code>SUP_OPS</code>.
+            </p>
+          </li>
+          <li>
+            <span class="step-no">02 / device B</span>
+            <h3><a href="#causality">Edit independently</a></h3>
+            <p>
+              Before seeing A's title edit, B completes the same task offline and captures
+              its own operation. Neither device's clock includes the other edit.
+            </p>
+          </li>
+          <li>
+            <span class="step-no">03 / transport</span>
+            <h3><a href="#transport">Download first</a></h3>
+            <p>
+              A's next cycle downloads first, then uploads its title operation. B's later
+              cycle downloads that unseen operation before uploading B's completion.
+              SuperSync pages operations; file providers adapt shared envelopes.
+            </p>
+          </li>
+          <li>
+            <span class="step-no">04 / resolver</span>
+            <h3><a href="#causality">Classify intent</a></h3>
+            <p>
+              Before reducer apply, the incoming title is compared with B's local
+              frontier. Vector clocks prove concurrency; safe disjoint fields merge before
+              semantic precedence or deterministic LWW.
+            </p>
+          </li>
+          <li>
+            <span class="step-no">05 / durable settle</span>
+            <h3><a href="#remote-apply">Apply and converge</a></h3>
+            <p>
+              The resolved work is staged, reduced, and durably checkpointed before the
+              cursor advances. A synthetic winner covers both histories and re-uploads in
+              the bounded current-cycle loop.
+            </p>
+          </li>
+          <li>
+            <span class="step-no">06 / restart</span>
+            <h3><a href="#restart">Recover the projection</a></h3>
+            <p>
+              Startup selects a usable cache, reconstructs its tail, and resumes pending
+              checkpoints. The cache accelerates recovery; retained evidence makes it
+              safe.
+            </p>
+          </li>
+        </ol>
+
+        <p class="local-link-note">
+          <strong>Local deep links:</strong> Markdown opens as source text in a browser.
+          Link labels quote or name the target heading; use Find to jump to it.
         </p>
 
         <div class="card-grid">
@@ -987,15 +1070,21 @@
           </article>
           <article class="card guard">
             <span class="card-label">Constraint 04</span>
-            <h3>No silent loss</h3>
+            <h3>Classify before overwrite</h3>
             <p>
-              Concurrent intent must be classified before a deterministic winner exists.
+              Concurrent intent should be classified before choosing a deterministic
+              winner;
+              <a href="./conflict-journal-and-review.md"
+                >known residuals (“Composition residual”)</a
+              >
+              stay explicit.
             </p>
           </article>
         </div>
 
         <div
           class="system-map"
+          role="group"
           aria-label="High-level sync topology"
         >
           <article class="map-column">
@@ -1023,9 +1112,15 @@
 
           <div
             class="map-arrow"
-            aria-hidden="true"
+            role="img"
+            aria-label="Device A sends operations through the sync port to the transport boundary"
           >
-            →<small>sync port</small>
+            <span
+              class="arrow-glyph"
+              aria-hidden="true"
+              >→</span
+            >
+            <small aria-hidden="true">sync port</small>
           </div>
 
           <article class="map-column">
@@ -1037,12 +1132,13 @@
               <div class="map-node move">
                 <strong>SuperSync</strong>
                 <span
-                  >Server sequence, paged operations, snapshots, opaque ciphertext</span
+                  >Server sequence, paged operations, causal full-state boundaries, opaque
+                  ciphertext</span
                 >
               </div>
               <div class="map-node special">
                 <strong>File providers</strong>
-                <span>Revision-guarded v2 monolith or opt-in v3 split files</span>
+                <span>Shared v2 monolith or opt-in v3 split-envelope formats</span>
               </div>
               <div class="map-node">
                 <strong>@sp/sync-core</strong>
@@ -1056,9 +1152,15 @@
 
           <div
             class="map-arrow"
-            aria-hidden="true"
+            role="img"
+            aria-label="The transport delivers remote operations to Device B"
           >
-            →<small>remote op</small>
+            <span
+              class="arrow-glyph"
+              aria-hidden="true"
+              >→</span
+            >
+            <small aria-hidden="true">remote op</small>
           </div>
 
           <article class="map-column">
@@ -1078,8 +1180,9 @@
               <div class="map-node live">
                 <strong>Same reducers, same synced state</strong>
                 <span
-                  >Replay rebuilds the synced projection without re-running ordinary
-                  effects; device-local sync settings stay local</span
+                  >Reducer replay rebuilds the synced projection; guarded shortcuts and
+                  recovery live in <a href="#restart">restart</a>; ordinary effects stay
+                  local</span
                 >
               </div>
             </div>
@@ -1113,9 +1216,9 @@
               wall clocks cannot prove causality. A trusted server-side merge is also
               unavailable to file providers and incompatible with opaque encrypted
               payloads. The rejected alternatives and their trade-offs live in
-              <a
-                href="./operation-log-architecture.md#why-this-architecture-rejected-alternatives"
-                >Operation Log Architecture</a
+              <a href="./operation-log-architecture.md"
+                >Operation Log Architecture — “Why This Architecture: Rejected
+                Alternatives”</a
               >.
             </p>
           </div>
@@ -1163,32 +1266,39 @@
               clock avoids replaying the entire retained log on every start.
             </p>
           </article>
-          <article class="card special">
-            <span class="card-label">Projection / archives</span>
-            <h3>Archive stores</h3>
-            <p>
-              Young and old archive object stores live inside <code>SUP_OPS</code>. Remote
-              archive effects are deterministic, explicit, and retryable.
-            </p>
-          </article>
-          <article class="card remote">
-            <span class="card-label">Remote / provider</span>
-            <h3>Delivery substrate</h3>
-            <p>
-              SuperSync or a file provider retains enough ordered operations and snapshot
-              state for another client to catch up; neither is the running UI state.
-            </p>
-          </article>
-          <article class="card local">
-            <span class="card-label">Dormant capability / journal</span>
-            <h3>Conflict review store</h3>
-            <p>
-              <code>SUP_CONFLICT_JOURNAL</code> is separate, device-local, best effort,
-              and never allowed to influence conflict outcomes. The main remote-conflict
-              path currently disables emission, so it is not complete evidence.
-            </p>
-          </article>
         </div>
+
+        <details>
+          <summary>Adjacent stores and remote copies</summary>
+          <div class="detail-body truth-grid">
+            <article class="card special">
+              <span class="card-label">Projection / archives</span>
+              <h3>Archive stores</h3>
+              <p>
+                Young and old archive object stores live inside <code>SUP_OPS</code>.
+                Remote archive effects are deterministic, explicit, and retryable.
+              </p>
+            </article>
+            <article class="card remote">
+              <span class="card-label">Remote / provider</span>
+              <h3>Delivery substrate</h3>
+              <p>
+                SuperSync retains ordered operations, including causal full-state
+                boundaries; file providers also carry snapshot baselines. Neither is the
+                running UI state.
+              </p>
+            </article>
+            <article class="card local">
+              <span class="card-label">Dormant capability / journal</span>
+              <h3>Conflict review store</h3>
+              <p>
+                <code>SUP_CONFLICT_JOURNAL</code> is separate, device-local, best effort,
+                and never allowed to influence conflict outcomes. The main remote-conflict
+                path currently disables emission, so it is not complete evidence.
+              </p>
+            </article>
+          </div>
+        </details>
 
         <div class="callout warning">
           <span
@@ -1208,19 +1318,17 @@
         </div>
 
         <details>
-          <summary>Deep / startup replay and compaction safety</summary>
+          <summary>Deep / persistence and compaction safety</summary>
           <div class="detail-body">
             <ol>
               <li>
-                Load and structurally screen the newest usable
-                <code>state_cache</code> snapshot.
+                Treat <code>state_cache</code> as a screened replay baseline, never as a
+                second source of truth.
               </li>
               <li>
-                Migrate and bulk-replay every operation after its sequence except rows
-                quarantined for reducer rejection. Conflict-rejected rows still replay;
-                later compensating winners restore the resolved state.
+                Keep pending or archive-pending remote work durable until its reducer and
+                side-effect checkpoints finish in order.
               </li>
-              <li>Recover pending or archive-pending remote work in durable order.</li>
               <li>
                 Save a new snapshot only when state is valid and no persistence divergence
                 or hydration fallback makes the projection suspect.
@@ -1230,6 +1338,10 @@
                 retain the tail needed for conflict frontiers.
               </li>
             </ol>
+            <p>
+              The guarded direct-load, migration, replay, and fallback cases are
+              centralized in <a href="#restart">restart recovery</a>.
+            </p>
             <p>
               Sources:
               <a href="../../src/app/op-log/persistence/op-log-db-schema.ts"
@@ -1255,12 +1367,15 @@
         <div class="section-head">
           <div>
             <p class="section-kicker">03 / device A</p>
-            <h2 id="local-intent-title">One local intent becomes one operation</h2>
+            <h2 id="local-intent-title">
+              One replay-atomic transition becomes one operation
+            </h2>
           </div>
           <p class="section-summary">
             A persistent action is both the reducer instruction and the replay contract.
-            Multi-entity consequences happen inside the same reducer pass so one intent
-            remains atomic when another client replays it.
+            Consequences that must replay atomically happen inside the same reducer pass.
+            A broader UI workflow may deliberately compose independent actions when their
+            normal side effects and conflict boundaries matter.
           </p>
         </div>
 
@@ -1271,7 +1386,7 @@
           <li>
             <span class="step-no">01 / dispatch</span>
             <h3>Persistent action</h3>
-            <p>The user expresses one intent with entity metadata.</p>
+            <p>The UI expresses one replay-atomic transition with entity metadata.</p>
           </li>
           <li>
             <span class="step-no">02 / reduce</span>
@@ -1315,8 +1430,15 @@
             <span class="card-label">Footgun</span>
             <h3>Effect fan-out → several operations</h3>
             <p>
-              Follow-up dispatches split one intent, introduce partial states, and can
-              re-fire during replay unless the action boundary is correctly filtered.
+              Follow-up dispatches used only to implement one replay-atomic transition
+              introduce partial states and can re-fire during replay unless the action
+              boundary is correctly filtered.
+            </p>
+            <p>
+              Deliberate workflow composition is different: independent actions may keep
+              their normal local effects and entity-specific conflict boundaries. Project
+              completion is the canonical example; see
+              <a href="../../ARCHITECTURE-DECISIONS.md">ADR #5: Project completion</a>.
             </p>
           </article>
         </div>
@@ -1330,10 +1452,11 @@
           <div>
             <h3>Reducers replay; ordinary effects do not</h3>
             <p>
-              Remote and startup operations must pass through reducers to rebuild state.
-              Effects inject <code>LOCAL_ACTIONS</code> so remote replay cannot repeat UI
-              side effects or emit phantom operations. Selector-driven mutating effects
-              additionally need the sync-window guard.
+              Ordinary remote and replayed operations pass through reducers to rebuild
+              state; <a href="#restart">restart recovery</a> owns the guarded shortcut and
+              fallback rules. Effects inject <code>LOCAL_ACTIONS</code> so replay cannot
+              repeat UI side effects or emit phantom operations. Selector-driven mutating
+              effects additionally need the sync-window guard.
             </p>
           </div>
         </div>
@@ -1370,7 +1493,7 @@
                   <td>Selector emissions bypass the local-action boundary.</td>
                 </tr>
                 <tr>
-                  <td>One intent changing several entities</td>
+                  <td>One replay-atomic transition changing several entities</td>
                   <td>Use a meta-reducer, not effect fan-out</td>
                   <td>One reducer pass is captured as one replayable operation.</td>
                 </tr>
@@ -1461,7 +1584,7 @@
           <li>
             <span class="step-no">06 / settle</span>
             <h3>Re-upload winners</h3>
-            <p>Synthetic dominating operations complete convergence.</p>
+            <p>Synthetic dominating operations propagate the chosen resolution.</p>
           </li>
         </ol>
 
@@ -1471,41 +1594,56 @@
             <h3>Ordered operation relay</h3>
             <p>
               PostgreSQL assigns a per-user server sequence for delivery and cursoring.
-              Upload conflict checks compare causal metadata before storage; snapshots and
-              bounded retention let late clients fast-forward.
+              Upload conflict checks compare causal metadata before storage. A causal
+              full-state operation lets late clients fast-forward and authorizes pruning
+              only the prefix before that boundary; without one, old history remains.
             </p>
             <ul>
               <li>WebSocket messages trigger downloads; HTTP moves data.</li>
               <li>Encrypted payloads remain opaque to the server.</li>
+              <li>
+                The optional snapshot cache is not part of normal sync downloads; the
+                server can use it to generate historical restore state returned to a
+                client.
+              </li>
               <li>Server sequence establishes delivery order, not causality.</li>
             </ul>
           </article>
 
           <article class="provider-card local">
             <span class="card-label">Transport B / file v2</span>
-            <h3>Revision-guarded monolith</h3>
+            <h3>Shared monolithic envelope</h3>
             <p>
               <code>sync-data.json</code> combines state, archives, vector clock, and a
-              bounded recent-operation window. Provider revisions protect the
-              read-modify-write commit.
+              bounded recent-operation window. Dropbox, WebDAV/Nextcloud, OneDrive, and
+              LocalFile share this adapter format, but not the same physical write
+              guarantee.
             </p>
             <ul>
               <li>
-                Dropbox, WebDAV/Nextcloud, OneDrive, and LocalFile share the adapter.
+                Dropbox and OneDrive can enforce compare-and-swap through their provider
+                APIs.
               </li>
-              <li>A genuine revision race aborts instead of overwriting.</li>
-              <li>The next cycle downloads the winner before retrying.</li>
+              <li>
+                WebDAV/Nextcloud is atomic only with a strong ETag; weak or missing ETags
+                fall back to a best-effort content check before PUT.
+              </li>
+              <li>
+                LocalFile uses a best-effort read/check/write sequence and is
+                single-writer/backup-only.
+              </li>
             </ul>
           </article>
 
           <article class="provider-card special">
             <span class="card-label">Transport B / file v3 opt-in</span>
-            <h3>Split commit point</h3>
+            <h3>Split logical commit point</h3>
             <p>
-              <code>sync-ops.json</code> is the small commit point. Normal compaction can
-              reference a generation snapshot containing state and archives, so ordinary
-              op-only sync avoids rewriting the heavy snapshot. Explicit snapshot and
-              recovery paths can still use fixed <code>sync-state.json</code>.
+              <code>sync-ops.json</code> is the small logical commit point. Normal
+              compaction can reference a generation snapshot containing state and
+              archives, so ordinary op-only sync avoids rewriting the heavy snapshot.
+              Explicit snapshot and recovery paths can still use fixed
+              <code>sync-state.json</code>.
             </p>
             <ul>
               <li>Compaction writes the snapshot before publishing its pointer.</li>
@@ -1513,6 +1651,7 @@
               <li>
                 Backup files and migration markers make interrupted writes recoverable.
               </li>
+              <li>Pointer publication has the same backend-specific CAS limits as v2.</li>
             </ul>
           </article>
 
@@ -1547,9 +1686,10 @@
                 competing operation; the client then creates any dominating replacement.
               </li>
               <li>
-                On file upload, a provider revision mismatch aborts the envelope write.
-                There is no cloud entity-conflict engine; the next cycle must download
-                before retrying.
+                At file commit, Dropbox/OneDrive and strong-ETag WebDAV/Nextcloud enforce
+                CAS, so a revision mismatch aborts the envelope write and requires a fresh
+                download before retry. Weak/missing-ETag WebDAV and LocalFile only perform
+                best-effort checks that cannot close the read/write race.
               </li>
             </ul>
           </div>
@@ -1562,12 +1702,14 @@
             >!</span
           >
           <div>
-            <h3>File sync does not merge in cloud storage</h3>
+            <h3>The file adapter does not merge at the provider</h3>
             <p>
-              The adapter reads a provider revision, builds the next envelope locally, and
-              writes conditionally. If another client wins between read and write, this
-              cycle stops. Retrying only after a fresh download is the safety mechanism;
-              <code>syncVersion</code> alone is not an ETag.
+              The adapter reads a provider revision and builds the next envelope locally,
+              but physical CAS depends on the backend. Dropbox/OneDrive APIs and
+              strong-ETag WebDAV/Nextcloud can close the race; weak or missing ETags and
+              LocalFile use a separate best-effort read/check/write sequence. LocalFile is
+              therefore single-writer/backup-only. The envelope's
+              <code>syncVersion</code> is not a provider revision or ETag.
             </p>
           </div>
         </div>
@@ -1586,7 +1728,11 @@
               <a href="../../packages/sync-providers/src/file-based-sync-data.ts"
                 ><code>@sp/sync-providers</code></a
               >. The detailed ownership contract is
-              <a href="./package-boundaries.md">Sync Package Boundaries</a>.
+              <a href="./package-boundaries.md">Sync Package Boundaries</a>. SuperSync's
+              transport, retention, and trust boundaries are detailed in the
+              <a href="../../packages/super-sync-server/docs/architecture.md"
+                >SuperSync Server Architecture</a
+              >.
             </p>
             <p>
               SuperSync can read routing and conflict metadata needed to operate the
@@ -1594,6 +1740,16 @@
               see
               <a href="./supersync-encryption-architecture.md"
                 >SuperSync End-to-End Encryption Architecture</a
+              >.
+            </p>
+            <p>
+              File providers can optionally encrypt each whole file envelope. That choice
+              is stored independently in each provider's private configuration and does
+              not inherit SuperSync's encryption setting. See the focused
+              <a href="./supersync-scenarios.md">provider-switch scenario I9</a>
+              and its executable owner,
+              <a href="../../src/app/op-log/sync-providers/wrapped-provider.service.ts"
+                ><code>WrappedProviderService</code></a
               >.
             </p>
           </div>
@@ -1823,9 +1979,12 @@
             <span class="card-label">Delivery / serverSeq</span>
             <h3>Total order at SuperSync</h3>
             <p>
-              A per-user sequence supports pages, cursors, snapshots, and retention. File
-              providers are cursorless: <code>syncVersion</code> versions the whole
-              envelope for revision/gap checks, not each operation.
+              A per-user sequence supports pages, cursors, causal full-state boundaries,
+              and bounded prefix retention. File providers have no server-assigned
+              operation cursor. Their adapter exposes envelope <code>syncVersion</code> as
+              a synthetic transport watermark/<code>latestSeq</code> for catch-up and gap
+              detection. It is not the provider revision/ETag and does not prove
+              per-operation ordering.
             </p>
           </article>
           <article class="card local">
@@ -1929,7 +2088,12 @@
             <p>
               Comparing timestamps first would silently order genuinely independent work.
               Likewise, pruning an incoming clock before server comparison can erase the
-              edge needed to prove that a retry dominates the operation it replaces.
+              edge needed to prove that a retry dominates the operation it replaces. The
+              resolver heals supported no-pending crossings, but cases with compacted-away
+              evidence or atomic operations it cannot decompose remain
+              <a href="./conflict-journal-and-review.md"
+                >documented “Composition residual” cases</a
+              >.
             </p>
           </div>
         </div>
@@ -1967,14 +2131,14 @@
                   <td>A separately stored clock per entity</td>
                 </tr>
                 <tr>
-                  <td>Server sequence</td>
+                  <td>SuperSync server sequence</td>
                   <td>Delivery order and cursor progress</td>
                   <td>Proof that one edit observed another</td>
                 </tr>
                 <tr>
-                  <td>File <code>syncVersion</code></td>
-                  <td>Whole-envelope revision and operation-gap detection</td>
-                  <td>A per-operation order or provider cursor</td>
+                  <td>File adapter <code>syncVersion</code> / <code>latestSeq</code></td>
+                  <td>Synthetic envelope watermark for catch-up and gap detection</td>
+                  <td>A provider revision/ETag or proof of per-operation ordering</td>
                 </tr>
               </tbody>
             </table>
@@ -2061,45 +2225,47 @@
             <h3>Provider epoch</h3>
             <p>
               Provider, account, folder, or encryption changes invalidate old in-flight
-              work. Epoch assertions make stale continuations abort benignly across
-              awaits.
+              work. Normal target changes install the new configuration/provider, then
+              bump the epoch; destructive remote writes use the stronger block-and-drain
+              sequence below. Epoch assertions make stale continuations abort benignly
+              across awaits.
             </p>
           </article>
         </div>
 
         <ol
           class="flow"
-          aria-label="Provider switch fencing sequence"
+          aria-label="Destructive sync exclusion sequence"
         >
           <li>
-            <span class="step-no">01 / cycle</span>
-            <h3>Capture pair</h3>
-            <p>Read active provider and epoch in one synchronous block.</p>
+            <span class="step-no">01 / block</span>
+            <h3>Stop new cycles</h3>
+            <p>Raise the synchronous gate before waiting on any existing work.</p>
           </li>
           <li>
-            <span class="step-no">02 / await</span>
-            <h3>I/O in flight</h3>
-            <p>Every provider call reasserts the captured epoch.</p>
+            <span class="step-no">02 / bump</span>
+            <h3>Invalidate immediately</h3>
+            <p>Bump the epoch so stale continuations fail at their next fence.</p>
           </li>
           <li>
-            <span class="step-no">03 / switch</span>
-            <h3>Block and drain</h3>
-            <p>Destructive config work stops new cycles and drains old ones.</p>
+            <span class="step-no">03 / drain</span>
+            <h3>Drain all old work</h3>
+            <p>Wait for the main cycle and guarded side-channel cycles to settle.</p>
           </li>
           <li>
-            <span class="step-no">04 / bump</span>
-            <h3>Invalidate epoch</h3>
-            <p>The configuration mutation establishes a new target generation.</p>
+            <span class="step-no">04 / mutate</span>
+            <h3>Run destructive work</h3>
+            <p>
+              Change encryption state, force-upload, or perform the other fenced remote
+              mutation.
+            </p>
           </li>
           <li>
-            <span class="step-no">05 / abort</span>
-            <h3>Old work fails closed</h3>
-            <p>Stale remote or local writes throw a benign epoch-changed error.</p>
-          </li>
-          <li>
-            <span class="step-no">06 / retry</span>
+            <span class="step-no">05 / retry</span>
             <h3>Fresh cycle starts</h3>
-            <p>Download from the new target before sending local operations.</p>
+            <p>
+              After unblocking, download from the new target before sending local work.
+            </p>
           </li>
         </ol>
 
@@ -2190,9 +2356,8 @@
                 ><code>CURRENT_SCHEMA_VERSION</code></a
               >
               and in the
-              <a
-                href="./operation-log-architecture.md#bump-policy--a-bump-does-not-protect-the-released-fleet"
-                >cross-version bump policy</a
+              <a href="./operation-log-architecture.md"
+                >“Bump Policy — a bump does not protect the released fleet”</a
               >.
             </p>
           </div>
@@ -2209,10 +2374,10 @@
             <h2 id="restart-title">One restart tests every durability promise</h2>
           </div>
           <p class="section-summary">
-            Startup does not merely deserialize the newest object. It structurally screens
-            a baseline, migrates and replays the durable suffix, and resumes interrupted
-            remote work. Semantic validation runs on migration/replay paths; a
-            current-schema snapshot with no tail is trusted after structural checks.
+            Startup chooses the best trustworthy baseline, reconstructs its remaining
+            tail, applies the path-specific trust or validation rule, and resumes
+            interrupted remote checkpoints before a reconstructed projection may become a
+            new baseline.
           </p>
         </div>
 
@@ -2240,8 +2405,12 @@
           </li>
           <li>
             <span class="step-no">04 / tail</span>
-            <h3>Migrate + replay</h3>
-            <p>Bulk-apply the ordered suffix after the snapshot sequence.</p>
+            <h3>Direct-load or migrate + replay</h3>
+            <p>
+              Load the final operation directly when it carries full state and no pending
+              reducer work remains. Otherwise migrate replayable operations and bulk-apply
+              the result; migration may transform, split, or drop obsolete rows.
+            </p>
           </li>
           <li>
             <span class="step-no">05 / recover</span>
@@ -2254,7 +2423,8 @@
             <span class="step-no">06 / trust</span>
             <h3>Gate the next baseline</h3>
             <p>
-              Validate state after migration or replay; compaction rechecks before saving.
+              Trust a matching-schema cache on its fast path; validate directly loaded,
+              migrated, or replayed results before saving a reconstructed replacement.
             </p>
           </li>
         </ol>
@@ -2281,18 +2451,17 @@
             <span class="card-label">Normal restart</span>
             <h3>Snapshot + tail</h3>
             <p>
-              Load a structurally usable cache, replay operations with greater local
-              sequence, recover outstanding checkpoints, validate transformed state, then
-              continue capture and sync.
+              Load a structurally usable cache, reconstruct the retained tail with the
+              guarded path above, finish checkpoints, then continue capture and sync.
             </p>
           </article>
           <article class="provider-card guard">
             <span class="card-label">Fallback restart</span>
             <h3>Replay without destroying evidence</h3>
             <p>
-              With no usable cache, replay from the retained log when it is sufficient. A
-              degraded fallback stays visibly degraded and cannot compact over better
-              data.
+              With no usable cache, reconstruct from retained history when it is
+              sufficient. A degraded fallback stays visibly degraded and cannot compact
+              over better data.
             </p>
           </article>
         </div>
@@ -2315,13 +2484,25 @@
               </thead>
               <tbody>
                 <tr>
-                  <td>Usable snapshot + terminal tail</td>
-                  <td>Load snapshot, migrate and replay tail</td>
-                  <td>Fast ordinary boot</td>
+                  <td>
+                    Usable cache + tail ending in full state; no pending reducer work
+                  </td>
+                  <td>Load the full state directly</td>
+                  <td>Safe shortcut without replay</td>
+                </tr>
+                <tr>
+                  <td>Usable cache + replayable tail</td>
+                  <td>
+                    Migrate, possibly drop obsolete operations, and bulk-replay the result
+                  </td>
+                  <td>Current reducers see every remaining transition in order</td>
                 </tr>
                 <tr>
                   <td>No snapshot + complete retained history</td>
-                  <td>Replay from sequence zero</td>
+                  <td>
+                    Load full state if it is last and safe, or migrate and replay from
+                    sequence zero
+                  </td>
                   <td>History reconstructs the projection</td>
                 </tr>
                 <tr>
@@ -2467,9 +2648,8 @@
                 >
               </li>
               <li>
-                <a
-                  href="./operation-log-architecture.md#bump-policy--a-bump-does-not-protect-the-released-fleet"
-                  >cross-version bump policy</a
+                <a href="./operation-log-architecture.md"
+                  >“Bump Policy — a bump does not protect the released fleet”</a
                 >
               </li>
             </ul>
@@ -2480,6 +2660,11 @@
             <h3>Packages, server, and encryption</h3>
             <ul>
               <li><a href="./package-boundaries.md">package ownership</a></li>
+              <li>
+                <a href="../../packages/super-sync-server/docs/architecture.md"
+                  >server architecture</a
+                >
+              </li>
               <li>
                 <a href="../../packages/super-sync-server/src/sync/sync.service.ts"
                   >server sync transaction</a
@@ -2496,21 +2681,18 @@
             <h3>Why the design is constrained this way</h3>
             <ul>
               <li>
-                <a
-                  href="./operation-log-architecture.md#why-this-architecture-rejected-alternatives"
-                  >rejected alternatives</a
+                <a href="./operation-log-architecture.md"
+                  >“Why This Architecture: Rejected Alternatives”</a
                 >
               </li>
               <li>
-                <a
-                  href="../../ARCHITECTURE-DECISIONS.md#3-sync-package-boundary-direction"
-                  >package boundary ADR</a
+                <a href="../../ARCHITECTURE-DECISIONS.md"
+                  >ADR #3: sync package boundary direction</a
                 >
               </li>
               <li>
-                <a
-                  href="../../ARCHITECTURE-DECISIONS.md#4-batch-uploads-under-repeatableread"
-                  >server serialization ADR</a
+                <a href="../../ARCHITECTURE-DECISIONS.md"
+                  >ADR #4: batch uploads under RepeatableRead</a
                 >
               </li>
             </ul>
