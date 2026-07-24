@@ -16,6 +16,25 @@
     ></datetime-picker>
   }
 
+  @if (canRepeat) {
+    @let repeatLabel = repeatCfgLabel();
+    <button
+      type="button"
+      mat-stroked-button
+      class="repeat-btn"
+      (click)="openRepeatDialog()"
+    >
+      <mat-icon>repeat</mat-icon>
+      {{ T.F.TASK.D_SCHEDULE_TASK.REPEAT | translate }}:
+      <span
+        class="repeat-value"
+        [class.repeat-value--empty]="!repeatLabel"
+      >
+        {{ repeatLabel || (T.F.TASK.D_SCHEDULE_TASK.DOES_NOT_REPEAT | translate) }}
+      </span>
+    </button>
+  }
+
   <div class="dialog-actions-and-warnings">
     @if (
       selectedTime &&
