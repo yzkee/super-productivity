@@ -299,6 +299,7 @@
     flex-shrink: 0;
     align-self: center;
     --mdc-icon-button-state-layer-size: 36px;
+    --mat-icon-button-icon-size: calc(var(--s2) + var(--s-half));
     width: 36px;
     height: 36px;
     padding: 0;
@@ -306,6 +307,12 @@
     transition:
       color var(--transition-fast),
       background-color var(--transition-fast);
+
+    mat-icon {
+      width: var(--mat-icon-button-icon-size);
+      height: var(--mat-icon-button-icon-size);
+      font-size: var(--mat-icon-button-icon-size);
+    }
 
     &:hover,
     &:focus-visible {
